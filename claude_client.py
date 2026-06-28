@@ -89,6 +89,14 @@ Return JSON only with these exact fields:
   - special_requirements: array of strings — e.g. floor waxing, carpet cleaning, window cleaning, exterior, restrooms only
   - wage_determination_number: string or null — format WD XXXX-XXXX
   - wage_determination_rate: number or null — hourly rate from wage determination if stated
+- solicitation_meta: object with submission and contracting details from the solicitation/bid package PDFs (use null if not found):
+  - contracting_officer_name: string or null — KO or contracting officer name from cover page, block 5, or instructions
+  - contracting_officer_email: string or null — email for questions or proposal submission
+  - submission_method: string or null — how to submit: email address, SAM.gov, PIEE, FedConnect, etc.
+  - base_year_start: string or null — performance period or base year start date
+  - base_year_end: string or null — base year end date
+  - agency_address: string or null — mailing address for the agency or contracting office
+  - solicitation_number: string or null — solicitation/RFP number if stated in the PDF (may differ from SAM notice ID)
 - sub_type_needed: string
 - red_flags: array of strings
 - far_52_219_14: true or false
@@ -412,6 +420,82 @@ def _collect_attachment_urls(raw: dict[str, Any]) -> list[str]:
 def _looks_like_pdf_link(url: str) -> bool:
     cleaned = url.lower().split("?")[0]
     return cleaned.endswith(".pdf")
+
+
+SOLICITATION_META_PROMPT = """You extract contracting and submission details from federal solicitation PDFs.
+
+Read the attached solicitation, PWS, and instruction documents. Return JSON only:
+{
+  "contracting_officer_name": string or null,
+  "contracting_officer_email": string or null,
+  "submission_method": string or null,
+  "base_year_start": string or null,
+  "base_year_end": string or null,
+  "agency_address": string or null,
+  "solicitation_number": string or null
+}
+
+Rules:
+- submission_method should state HOW to submit (email address, SAM.gov, PIEE, FedConnect, etc.)
+- Use exact names and emails from the document — do not invent values
+- Use null for anything not clearly stated
+No markdown fences."""
+
+
+def _contract_pdf_blocks(contract: Any) -> tuple[list[dict[str, Any]], list[str]]:
+    """Load PDF blocks for Claude (same prioritization as screening)."""
+    from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
+
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    ensure_enriched_sam_raw(
+        contract,
+        force=needs_attachment_refresh(raw) or not raw.get("descriptionText"),
+    )
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    urls = _collect_attachment_urls(raw)
+    piee_blocks, piee_labels, _ = _piee_pdf_blocks(raw)
+    sam_blocks, sam_labels, _ = _attachment_blocks(urls)
+
+    pdf_blocks: list[dict[str, Any]] = []
+    fetched_labels: list[str] = []
+    for block, label in zip(piee_blocks + sam_blocks, piee_labels + sam_labels):
+        if len(pdf_blocks) >= MAX_PDFS:
+            break
+        pdf_blocks.append(block)
+        fetched_labels.append(label)
+    return pdf_blocks, fetched_labels
+
+
+def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
+    """Extract CO and submission fields from solicitation PDFs when not already in analysis."""
+    sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    pdf_blocks, labels = _contract_pdf_blocks(contract)
+    lines = [
+        f"Contract: {contract.title}",
+        f"Agency: {contract.agency}",
+        f"SAM notice ID: {contract.notice_id}",
+        f"Due date: {contract.due_date}",
+        "",
+        "Extract contracting officer and submission details from the solicitation documents.",
+        "SAM posting excerpt:",
+        (contract.description or sam.get("descriptionText") or "")[:4000],
+    ]
+    if labels:
+        lines.append(f"\nPDFs attached: {', '.join(labels[:8])}")
+
+    content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=SOLICITATION_META_PROMPT,
+        messages=[{"role": "user", "content": content}],
+    )
+    text = response.content[0].text if response.content else "{}"
+    data = _extract_json(text)
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if v is not None and str(v).strip()}
 
 
 def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:

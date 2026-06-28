@@ -170,6 +170,10 @@ class RegenerateSectionRequest(BaseModel):
     section_key: str
 
 
+class RestoreVersionRequest(BaseModel):
+    version_index: int = Field(..., ge=0)
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "GovTracker", "auth_enabled": auth_enabled()}
@@ -687,6 +691,45 @@ def post_humanize(proposal_id: int, body: HumanizeRequest):
         return {"html": humanize_selection(session, proposal_id, body.text)}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/proposal/latest")
+def get_latest_proposal(notice_id: str):
+    session = SessionLocal()
+    try:
+        from models import Contract, Proposal
+        from proposal_service import proposal_to_dict
+        from sqlalchemy.orm import joinedload
+
+        contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        row = (
+            session.query(Proposal)
+            .options(joinedload(Proposal.contract))
+            .filter_by(contract_id=contract.id)
+            .order_by(Proposal.date_updated.desc())
+            .first()
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="No proposal for this contract")
+        return proposal_to_dict(row)
+    finally:
+        session.close()
+
+
+@app.post("/api/proposals/{proposal_id}/restore-version")
+def post_restore_version(proposal_id: int, body: RestoreVersionRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import proposal_to_dict, restore_proposal_version
+
+        row = restore_proposal_version(session, proposal_id, body.version_index)
+        return proposal_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         session.close()
 

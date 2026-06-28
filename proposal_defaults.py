@@ -9,7 +9,7 @@ DEFAULT_OWNER_SETTINGS: dict[str, str | float | int] = {
     "primary_naics_code": "561720",
     "business_state": "Wyoming",
     "business_phone": "970-380-0862",
-    "business_email": "NorthernREIncestments@outlook.com",
+    "business_email": "NorthernREInvestments@outlook.com",
     "address_line_1": "",
     "address_line_2": "",
     "city": "",
@@ -19,7 +19,7 @@ DEFAULT_OWNER_SETTINGS: dict[str, str | float | int] = {
     "cage_code": "",
     "ein": "",
     "sam_expiration": "",
-    "default_margin_pct": 18,
+    "default_margin_pct": 20,
     "default_option_year_increase_pct": 3,
     "commercial_experience": (
         "Pipeline construction and soil reclamation — managing field crews to strict performance "

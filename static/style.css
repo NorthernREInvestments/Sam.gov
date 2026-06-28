@@ -1373,6 +1373,102 @@ body {
   margin-top: 0.35rem;
 }
 
+.card-workflow-needs_sub_quote {
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 40%);
+  border-color: #fcd34d;
+}
+
+.card-workflow-needs_proposal {
+  background: linear-gradient(180deg, #eff6ff 0%, #fff 40%);
+  border-color: #93c5fd;
+}
+
+.card-workflow-proposal_incomplete {
+  background: linear-gradient(180deg, #fff7ed 0%, #fff 40%);
+  border-color: #fdba74;
+}
+
+.card-workflow-draft_ready,
+.card-workflow-ready {
+  background: linear-gradient(180deg, #ecfdf5 0%, #fff 40%);
+  border-color: #6ee7b7;
+}
+
+.card-workflow-submitted {
+  background: linear-gradient(180deg, #f5f3ff 0%, #fff 40%);
+  border-color: #c4b5fd;
+}
+
+.card-workflow-banner {
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+}
+
+.card-workflow-banner-needs_sub_quote {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.card-workflow-banner-needs_proposal {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
+.card-workflow-banner-proposal_incomplete {
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+}
+
+.card-workflow-banner-draft_ready,
+.card-workflow-banner-ready {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+}
+
+.badge-workflow {
+  background: #334155;
+  color: #fff;
+}
+
+.field-missing {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px #fecaca;
+}
+
+.proposal-versions {
+  margin: 1rem 0;
+}
+
+.proposal-version-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+}
+
+.proposal-version-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.2rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.proposal-version-btn:hover {
+  text-decoration: underline;
+}
+
+#proposal-humanize:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .card-subs-searching {
   color: var(--muted, #64748b);
   font-style: italic;

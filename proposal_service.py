@@ -148,6 +148,52 @@ def _extract_solicitation_meta(contract: Contract) -> dict[str, Any]:
     }
 
 
+def _solicitation_meta_complete(analysis: dict[str, Any]) -> bool:
+    sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+    for key in ("contracting_officer_name", "contracting_officer_email", "submission_method"):
+        if str(sol.get(key) or analysis.get(key) or "").strip():
+            continue
+        return False
+    return True
+
+
+def ensure_solicitation_meta(session: Session, contract: Contract) -> dict[str, Any]:
+    """Fill solicitation_meta from analysis or extract from bid PDFs on demand."""
+    analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
+    sol = dict(analysis.get("solicitation_meta") or {}) if isinstance(analysis.get("solicitation_meta"), dict) else {}
+
+    if _solicitation_meta_complete(analysis):
+        return sol
+
+    from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
+    from claude_client import extract_solicitation_meta
+
+    if not can_screen():
+        return sol
+
+    extracted = extract_solicitation_meta(contract)
+    if extracted:
+        sol.update({k: v for k, v in extracted.items() if v})
+        analysis["solicitation_meta"] = sol
+        for key in (
+            "contracting_officer_name",
+            "contracting_officer_email",
+            "submission_method",
+            "base_year_start",
+            "base_year_end",
+            "agency_address",
+            "solicitation_number",
+        ):
+            if sol.get(key) and not analysis.get(key):
+                analysis[key] = sol[key]
+        contract.analysis = analysis
+        session.commit()
+        session.refresh(contract)
+        if not record_screen_usage():
+            raise ScreenBudgetExceeded()
+    return sol
+
+
 def build_proposal_config(
     session: Session,
     notice_id: str,
@@ -161,6 +207,9 @@ def build_proposal_config(
     contract = session.query(Contract).filter_by(notice_id=notice_id).first()
     if not contract:
         raise ValueError("Contract not found")
+
+    ensure_solicitation_meta(session, contract)
+
     link = (
         session.query(ContractSub)
         .options(joinedload(ContractSub.sub))
@@ -173,7 +222,7 @@ def build_proposal_config(
         raise ValueError("Sub must have status Quote Received or Selected")
 
     owner = get_owner_settings()
-    margin = margin_pct if margin_pct is not None else float(owner.get("default_margin_pct", 18))
+    margin = margin_pct if margin_pct is not None else float(owner.get("default_margin_pct", 20))
     increase = option_increase_pct if option_increase_pct is not None else float(
         owner.get("default_option_year_increase_pct", 3)
     )
@@ -288,7 +337,7 @@ def generate_proposal(
         contract_sub_id=sub.get("contract_sub_id"),
         sub_name=sub.get("business_name"),
         sub_quote=Decimal(str(pricing.get("sub_quote"))) if pricing.get("sub_quote") else None,
-        margin_percentage=Decimal(str(pricing.get("margin_percentage", 18))),
+        margin_percentage=Decimal(str(pricing.get("margin_percentage", 20))),
         base_year_bid=Decimal(str(pricing.get("base_year_bid"))) if pricing.get("base_year_bid") else None,
         option_year_1=Decimal(str(opt.get("option_year_1"))) if opt.get("option_year_1") else None,
         option_year_2=Decimal(str(opt.get("option_year_2"))) if opt.get("option_year_2") else None,
@@ -380,6 +429,54 @@ def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, A
     return proposal
 
 
+def restore_proposal_version(session: Session, proposal_id: int, version_index: int) -> Proposal:
+    proposal = session.get(Proposal, proposal_id)
+    if not proposal:
+        raise ValueError("Proposal not found")
+
+    history = list(proposal.version_history or [])
+    if version_index < 0 or version_index >= len(history):
+        raise ValueError("Version not found")
+
+    if proposal.proposal_html:
+        history.append(
+            {
+                "html": proposal.proposal_html,
+                "sections": proposal.sections_json,
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+                "note": "Before restore",
+            }
+        )
+
+    snap = history[version_index]
+    proposal.proposal_html = snap.get("html") or ""
+    proposal.sections_json = snap.get("sections") or parse_sections_from_html(proposal.proposal_html)
+    proposal.version_history = history[-20:]
+    proposal.date_updated = datetime.now(timezone.utc)
+    session.commit()
+    session.refresh(proposal)
+    return proposal
+
+
+def format_version_history(history: list | None) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for idx, snap in enumerate(history or []):
+        if not isinstance(snap, dict):
+            continue
+        html = snap.get("html") or ""
+        text = re.sub(r"<[^>]+>", " ", html)
+        preview = " ".join(text.split())[:100]
+        rows.append(
+            {
+                "index": idx,
+                "saved_at": snap.get("saved_at"),
+                "preview": preview,
+                "note": snap.get("note"),
+            }
+        )
+    return rows
+
+
 def proposal_to_dict(proposal: Proposal) -> dict[str, Any]:
     sections = proposal.sections_json or {}
     if not sections and proposal.proposal_html:
@@ -406,6 +503,7 @@ def proposal_to_dict(proposal: Proposal) -> dict[str, Any]:
         "total_word_count": sum(word_counts.values()),
         "status": proposal.status,
         "version_history": proposal.version_history or [],
+        "versions": format_version_history(proposal.version_history),
         "missing_fields": proposal.missing_fields or [],
         "config": proposal.config_json,
         "notes": proposal.notes,

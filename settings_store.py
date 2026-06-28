@@ -138,6 +138,10 @@ def get_owner_settings() -> dict[str, Any]:
             data = json.loads(raw)
             if isinstance(data, dict):
                 merged = {**DEFAULT_OWNER_SETTINGS, **data}
+                if merged.get("business_email") == "NorthernREIncestments@outlook.com":
+                    merged["business_email"] = "NorthernREInvestments@outlook.com"
+                if merged.get("default_margin_pct") == 18:
+                    merged["default_margin_pct"] = 20
                 return merged
     finally:
         session.close()

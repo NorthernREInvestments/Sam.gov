@@ -162,10 +162,15 @@ function renderCards() {
     const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
     const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
     const pursueBtn = typeof renderPursueButton === "function" ? renderPursueButton(c) : "";
+    const wf = c.workflow || {};
+    const workflowClass = wf.stage && wf.stage !== "none" ? ` card-workflow-${wf.stage}` : "";
+    const workflowBanner = typeof renderWorkflowBanner === "function" ? renderWorkflowBanner(c) : "";
+    const continueProposal = typeof renderContinueProposal === "function" ? renderContinueProposal(c) : "";
     return `
-    <article class="card card-${tone}" data-id="${c.notice_id}">
+    <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
       <div class="card-top">
         ${screeningBadge(c)}
+        ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""}
         ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance required</span>' : ""}
         <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
           <span class="card-due-label">Due</span>
@@ -173,6 +178,7 @@ function renderCards() {
           ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
         </div>
       </div>
+      ${workflowBanner}
       ${titleBlock}
       ${networkBanner}
       ${subSummaryCard}
@@ -187,6 +193,7 @@ function renderCards() {
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
         <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
         ${findSubsBtn}
+        ${continueProposal}
         ${pursueBtn}
       </div>
     </article>`;

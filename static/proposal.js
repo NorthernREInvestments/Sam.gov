@@ -93,6 +93,11 @@ async function loadProposalConfigStep(noticeId, contractSubId) {
   }
 }
 
+function cfgInputClass(missing, fieldKey, extra = "") {
+  const miss = (missing || []).some((m) => m.field === fieldKey);
+  return `settings-input cfg-field${extra ? ` ${extra}` : ""}${miss ? " field-missing" : ""}`;
+}
+
 function renderProposalConfigStep(config) {
   const a = config.section_a || {};
   const b = config.section_b || {};
@@ -118,9 +123,9 @@ function renderProposalConfigStep(config) {
         <label class="filter-label">Contract title</label><input class="settings-input cfg-a" data-key="contract_title" value="${escapeHtml(a.contract_title || "")}" readonly>
         <label class="filter-label">Solicitation number</label><input class="settings-input cfg-a" data-key="solicitation_number" value="${escapeHtml(a.solicitation_number || "")}">
         <label class="filter-label">Agency</label><input class="settings-input cfg-a" data-key="agency_name" value="${escapeHtml(a.agency_name || "")}" readonly>
-        <label class="filter-label">Contracting Officer</label><input class="settings-input cfg-a" data-key="contracting_officer_name" value="${escapeHtml(a.contracting_officer_name || "")}">
-        <label class="filter-label">CO email</label><input class="settings-input cfg-a" data-key="contracting_officer_email" value="${escapeHtml(a.contracting_officer_email || "")}">
-        <label class="filter-label">Submission method</label><input class="settings-input cfg-a" data-key="submission_method" value="${escapeHtml(a.submission_method || "")}">
+        <label class="filter-label">Contracting Officer</label><input class="${cfgInputClass(missing, "contracting_officer_name")} cfg-a" data-key="contracting_officer_name" value="${escapeHtml(a.contracting_officer_name || "")}">
+        <label class="filter-label">CO email</label><input class="${cfgInputClass(missing, "contracting_officer_email")} cfg-a" data-key="contracting_officer_email" value="${escapeHtml(a.contracting_officer_email || "")}">
+        <label class="filter-label">Submission method</label><input class="${cfgInputClass(missing, "submission_method")} cfg-a" data-key="submission_method" value="${escapeHtml(a.submission_method || "")}">
         <label class="filter-label">Deadline</label><input class="settings-input cfg-a" data-key="submission_deadline" value="${escapeHtml(a.submission_deadline || "")}">
         <label class="filter-label">Place of performance</label><input class="settings-input cfg-a" data-key="place_of_performance" value="${escapeHtml(a.place_of_performance || "")}" readonly>
       </section>
@@ -128,15 +133,15 @@ function renderProposalConfigStep(config) {
         <h3>Section B — Your business</h3>
         <label class="filter-label">Legal name</label><input class="settings-input cfg-b" data-key="legal_business_name" value="${escapeHtml(b.legal_business_name || "")}">
         <label class="filter-label">Owner</label><input class="settings-input cfg-b" data-key="owner_name" value="${escapeHtml(b.owner_name || "")}">
-        <label class="filter-label">Address</label><input class="settings-input cfg-b" data-key="address_line_1" value="${escapeHtml(b.address_line_1 || "")}">
+        <label class="filter-label">Address</label><input class="${cfgInputClass(missing, "address_line_1")} cfg-b" data-key="address_line_1" value="${escapeHtml(b.address_line_1 || "")}">
         <label class="filter-label">City / State / ZIP</label>
-        <input class="settings-input cfg-b" data-key="city" placeholder="City" value="${escapeHtml(b.city || "")}">
+        <input class="${cfgInputClass(missing, "city")} cfg-b" data-key="city" placeholder="City" value="${escapeHtml(b.city || "")}">
         <input class="settings-input cfg-b subs-state-input" data-key="state" placeholder="ST" value="${escapeHtml(b.state || "")}">
-        <input class="settings-input cfg-b" data-key="zip" placeholder="ZIP" value="${escapeHtml(b.zip || "")}">
+        <input class="${cfgInputClass(missing, "zip")} cfg-b" data-key="zip" placeholder="ZIP" value="${escapeHtml(b.zip || "")}">
         <label class="filter-label">UEI / CAGE / EIN</label>
-        <input class="settings-input cfg-b" data-key="uei" placeholder="UEI" value="${escapeHtml(b.uei || "")}">
-        <input class="settings-input cfg-b" data-key="cage_code" placeholder="CAGE" value="${escapeHtml(b.cage_code || "")}">
-        <input class="settings-input cfg-b" data-key="ein" placeholder="EIN" value="${escapeHtml(b.ein || "")}">
+        <input class="${cfgInputClass(missing, "uei")} cfg-b" data-key="uei" placeholder="UEI" value="${escapeHtml(b.uei || "")}">
+        <input class="${cfgInputClass(missing, "cage_code")} cfg-b" data-key="cage_code" placeholder="CAGE" value="${escapeHtml(b.cage_code || "")}">
+        <input class="${cfgInputClass(missing, "ein")} cfg-b" data-key="ein" placeholder="EIN" value="${escapeHtml(b.ein || "")}">
         <label class="filter-label">Phone / Email</label>
         <input class="settings-input cfg-b" data-key="business_phone" value="${escapeHtml(b.business_phone || "")}">
         <input class="settings-input cfg-b" data-key="business_email" value="${escapeHtml(b.business_email || "")}">
@@ -145,7 +150,7 @@ function renderProposalConfigStep(config) {
         <h3>Section C — Pricing</h3>
         <p class="detail-note">Sub quote: <strong>${formatMoney(c.sub_quote)}</strong> (fixed)</p>
         <label class="filter-label">Your margin <span id="prop-margin-label">${c.margin_percentage}%</span></label>
-        <input type="range" id="prop-margin" min="10" max="35" value="${c.margin_percentage || 18}">
+        <input type="range" id="prop-margin" min="10" max="35" step="1" value="${c.margin_percentage || 20}">
         <div class="pricing-stats" id="prop-pricing-stats">
           <div class="pricing-stat pricing-stat-highlight"><span class="pricing-stat-label">Base year bid</span><span class="pricing-stat-value" id="prop-base-bid">${formatMoney(c.base_year_bid)}</span></div>
           <div class="pricing-stat"><span class="pricing-stat-label">Your profit</span><span class="pricing-stat-value" id="prop-profit">${formatMoney(c.base_year_profit)}</span></div>
@@ -186,7 +191,7 @@ function bindProposalConfigStep(noticeId) {
 function updateProposalPricingFromUI() {
   if (!proposalConfig?.section_c) return;
   const sub = proposalConfig.section_c.sub_quote;
-  const margin = Number(document.getElementById("prop-margin")?.value || 18);
+  const margin = Number(document.getElementById("prop-margin")?.value || 20);
   const increase = Number(document.getElementById("prop-oy-pct")?.value || 3);
   document.getElementById("prop-margin-label").textContent = `${margin}%`;
   const base = sub / (1 - margin / 100);
@@ -268,6 +273,20 @@ function renderProposalEditor(data) {
   const titles = data.section_titles || {};
   const keys = Object.keys(titles).length ? Object.keys(titles) : Object.keys(sections);
   const missing = data.missing_fields || [];
+  const versions = data.versions || [];
+  const versionList = versions.length
+    ? `<div class="proposal-versions">
+        <h4>Version history</h4>
+        <ul class="proposal-version-list">${versions.slice().reverse().map((v) => `
+          <li>
+            <button type="button" class="proposal-version-btn" data-version="${v.index}" title="${escapeHtml(v.preview || "")}">
+              ${v.saved_at ? new Date(v.saved_at).toLocaleString() : "Saved version"}
+              ${v.note ? ` · ${escapeHtml(v.note)}` : ""}
+            </button>
+          </li>`).join("")}</ul>
+        <p class="detail-note">Every save creates a version. Click one to roll back.</p>
+      </div>`
+    : `<p class="detail-note">No saved versions yet — Save Draft creates your first rollback point.</p>`;
   el.innerHTML = `
     <div class="proposal-editor-layout">
       <aside class="proposal-sidebar">
@@ -275,7 +294,9 @@ function renderProposalEditor(data) {
         <h3>Sections</h3>
         <nav class="proposal-nav">${keys.map((k) => `<button type="button" class="proposal-nav-btn" data-section="${k}">${escapeHtml(titles[k] || k)} <span class="proposal-wc">${data.word_counts?.[k] || 0}w</span></button>`).join("")}</nav>
         <p class="detail-note">Total: ${data.total_word_count || 0} words</p>
-        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-reduce-ai">Reduce AI Score</button>
+        ${versionList}
+        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-humanize" disabled title="Select text in the proposal first">Make More Human</button>
+        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-reduce-ai" title="Second pass on the full proposal to sound less AI-generated">Reduce AI Score</button>
         <button type="button" class="btn btn-primary btn-small" id="proposal-save-draft">Save Draft</button>
         <label class="filter-label">Internal notes</label>
         <textarea id="proposal-notes" class="settings-input" rows="3">${escapeHtml(data.notes || "")}</textarea>
@@ -295,6 +316,42 @@ function renderProposalEditor(data) {
   bindProposalEditor(data);
 }
 
+let proposalSelectionListener = null;
+
+function getEditorSelectionHtml() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+  const anchor = sel.anchorNode;
+  const editable = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement?.closest(".proposal-editable") : anchor?.closest?.(".proposal-editable");
+  if (!editable) return null;
+  const range = sel.getRangeAt(0);
+  const wrap = document.createElement("div");
+  wrap.appendChild(range.cloneContents());
+  const text = wrap.textContent?.trim();
+  if (!text || text.length < 3) return null;
+  return wrap.innerHTML;
+}
+
+function replaceEditorSelection(html) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+  const frag = document.createDocumentFragment();
+  while (temp.firstChild) frag.appendChild(temp.firstChild);
+  range.insertNode(frag);
+  sel.removeAllRanges();
+  return true;
+}
+
+function updateHumanizeButtonState() {
+  const btn = document.getElementById("proposal-humanize");
+  if (!btn) return;
+  btn.disabled = !getEditorSelectionHtml();
+}
+
 function bindProposalEditor(data) {
   document.getElementById("proposal-editor-back")?.addEventListener("click", () => showView("dashboard"));
   document.querySelectorAll(".proposal-nav-btn").forEach((btn) => {
@@ -304,9 +361,53 @@ function bindProposalEditor(data) {
   });
   document.getElementById("proposal-save-draft")?.addEventListener("click", () => saveProposalDraft());
   document.getElementById("proposal-reduce-ai")?.addEventListener("click", () => reduceProposalAi());
+  document.getElementById("proposal-humanize")?.addEventListener("click", () => humanizeSelectedText());
   document.querySelectorAll(".regen-section").forEach((btn) => {
     btn.addEventListener("click", () => regenerateProposalSection(btn.dataset.section));
   });
+  document.querySelectorAll(".proposal-version-btn").forEach((btn) => {
+    btn.addEventListener("click", () => restoreProposalVersion(Number(btn.dataset.version)));
+  });
+  if (proposalSelectionListener) {
+    document.removeEventListener("selectionchange", proposalSelectionListener);
+  }
+  proposalSelectionListener = () => updateHumanizeButtonState();
+  document.addEventListener("selectionchange", proposalSelectionListener);
+  updateHumanizeButtonState();
+}
+
+async function restoreProposalVersion(versionIndex) {
+  if (!activeProposalId) return;
+  if (!confirm("Restore this version? Your current text will be saved to history first.")) return;
+  showSyncStatus("Restoring version…");
+  const res = await apiFetch(`/api/proposals/${activeProposalId}/restore-version`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version_index: versionIndex }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    showSyncStatus(data.detail || "Restore failed", true);
+    return;
+  }
+  renderProposalEditor(data);
+  showSyncStatus("Version restored.");
+}
+
+async function openProposalEditor(proposalId, noticeId) {
+  activeProposalId = proposalId;
+  if (noticeId) proposalNoticeId = noticeId;
+  showView("proposal-editor");
+  const el = document.getElementById("proposal-editor-content");
+  if (el) el.innerHTML = `<p class="pricing-loading">Loading proposal…</p>`;
+  try {
+    const res = await apiFetch(`/api/proposals/${proposalId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load proposal");
+    renderProposalEditor(data);
+  } catch (err) {
+    if (el) el.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
 }
 
 async function saveProposalDraft() {
@@ -326,8 +427,43 @@ async function saveProposalDraft() {
       status: "draft",
     }),
   });
-  if (res.ok) showSyncStatus("Draft saved.");
-  else showSyncStatus((await res.json()).detail || "Save failed", true);
+  const data = await res.json();
+  if (res.ok) {
+    renderProposalEditor(data);
+    showSyncStatus("Draft saved — version added to history.");
+  } else {
+    showSyncStatus(data.detail || "Save failed", true);
+  }
+}
+
+async function humanizeSelectedText() {
+  if (!activeProposalId) return;
+  const selected = getEditorSelectionHtml();
+  if (!selected) {
+    showSyncStatus("Select some proposal text first.", true);
+    return;
+  }
+  const btn = document.getElementById("proposal-humanize");
+  if (btn) btn.disabled = true;
+  showSyncStatus("Rewriting selection…");
+  try {
+    const res = await apiFetch(`/api/proposals/${activeProposalId}/humanize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: selected }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Humanize failed");
+    if (!replaceEditorSelection(data.html || selected)) {
+      showSyncStatus("Could not replace selection — try again.", true);
+      return;
+    }
+    showSyncStatus("Selection updated. Save draft to keep this version.");
+  } catch (err) {
+    showSyncStatus(err.message, true);
+  } finally {
+    updateHumanizeButtonState();
+  }
 }
 
 async function regenerateProposalSection(sectionKey) {
@@ -359,8 +495,34 @@ function renderPursueButton(c) {
   return `<button type="button" class="btn btn-pursue-active btn-small card-pursue-btn" data-pursue="${escapeHtml(c.notice_id)}">Pursue</button>`;
 }
 
+function renderWorkflowBanner(c) {
+  const wf = c.workflow || {};
+  if (!wf.incomplete || wf.stage === "none") return "";
+  const items = (wf.items || [])
+    .slice(0, 3)
+    .map((i) => i.label)
+    .filter(Boolean)
+    .join(" · ");
+  return `<div class="card-workflow-banner card-workflow-banner-${wf.stage}">
+    <strong>${escapeHtml(wf.label || "In progress")}</strong>${items ? `<span class="card-workflow-items"> — ${escapeHtml(items)}</span>` : ""}
+  </div>`;
+}
+
+function renderContinueProposal(c) {
+  const wf = c.workflow || {};
+  if (!wf.proposal_id) return "";
+  return `<button type="button" class="btn btn-secondary-action btn-small card-continue-proposal" data-continue-proposal="${wf.proposal_id}" data-notice-id="${escapeHtml(c.notice_id)}">Continue proposal</button>`;
+}
+
 function bindProposalPursueClicks() {
   document.body.addEventListener("click", (e) => {
+    const continueBtn = e.target.closest("[data-continue-proposal]");
+    if (continueBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openProposalEditor(Number(continueBtn.dataset.continueProposal), continueBtn.dataset.noticeId);
+      return;
+    }
     const btn = e.target.closest("[data-pursue]");
     if (!btn) return;
     e.preventDefault();
