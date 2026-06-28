@@ -918,6 +918,26 @@ body {
   margin-top: 0.75rem;
 }
 
+.pricing-table-caption {
+  font-size: 0.84rem;
+  color: #334155;
+  margin: 0.75rem 0 0.35rem;
+  line-height: 1.45;
+}
+
+.pricing-distance {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pricing-row-closest .pricing-distance {
+  color: #15803d;
+}
+
+.pricing-row-other-state .pricing-distance {
+  color: #9a3412;
+}
+
 .pricing-table th,
 .pricing-table td {
   text-align: left;

@@ -181,7 +181,14 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
         "IMPORTANT: Each award includes award_date and recency_weight. Recent awards (last 12 months) are much more relevant than 2–3 year old awards.",
         f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
         f"Work area: {pricing_intel.get('location_scope') or pricing_intel.get('state_code', 'unknown')}",
+        f"Your contract location: {pricing_intel.get('origin_location', {}).get('label') or pricing_intel.get('location_scope') or 'unknown'}",
         f"Scope note: {pricing_intel.get('location_scope_note') or 'Comparable contracts filtered to this work area only.'}",
+        f"Closest comparable award: {pricing_intel.get('closest_award_label') or 'unknown'}"
+        + (
+            f" ({pricing_intel.get('closest_award_location')})"
+            if pricing_intel.get("closest_award_location")
+            else ""
+        ),
         f"Comparable awards found: {pricing_intel.get('awards_count', 0)} ({pricing_intel.get('awards_with_dates', 0)} with dates, {pricing_intel.get('awards_last_12_months', 0)} in last 12 months)",
         f"Date range: {pricing_intel.get('oldest_award_date', '?')} to {pricing_intel.get('newest_award_date', '?')}",
         f"Recency-weighted average: {pricing_intel.get('weighted_average_amount')}",
@@ -192,7 +199,7 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
         f"Most frequent winner (recency-weighted): {pricing_intel.get('most_frequent_winner') or 'none identified'}",
         f"Most recent award winner (likely incumbent): {pricing_intel.get('likely_incumbent') or 'unknown'}",
         "",
-        "Comparable awards (newest first — each has award_date, days_ago, recency_weight):",
+        "Comparable awards (closest to your contract first — each has distance_label, distance_miles, award_date, recency_weight):",
         json.dumps(pricing_intel.get("awards") or [], indent=2, default=str),
     ]
     return "\n".join(lines)

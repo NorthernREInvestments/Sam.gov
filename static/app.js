@@ -403,12 +403,37 @@ function formatAwardDate(award) {
   return `${label} (${years} yrs ago)`;
 }
 
-function sortAwardsByDate(awards) {
+function sortAwardsByDistance(awards) {
   return [...(awards || [])].sort((a, b) => {
-    const da = a?.award_date || a?.start_date || "";
-    const db = b?.award_date || b?.start_date || "";
-    return db.localeCompare(da);
+    const da = a?.distance_miles;
+    const db = b?.distance_miles;
+    if (da == null && db == null) {
+      const ad = a?.award_date || a?.start_date || "";
+      const bd = b?.award_date || b?.start_date || "";
+      return bd.localeCompare(ad);
+    }
+    if (da == null) return 1;
+    if (db == null) return -1;
+    if (da !== db) return da - db;
+    const ad = a?.award_date || a?.start_date || "";
+    const bd = b?.award_date || b?.start_date || "";
+    return bd.localeCompare(ad);
   });
+}
+
+function formatAwardDistance(award) {
+  if (award?.distance_label) return award.distance_label;
+  return "—";
+}
+
+function awardsTableCaption(intel) {
+  const origin = intel?.origin_location?.label || formatPricingLocationScope(intel);
+  const closest = intel?.closest_award_label;
+  let text = `Sorted closest to your contract location (${origin}) first — best nearby subcontractor markets.`;
+  if (closest) {
+    text += ` Nearest comparable award: ${closest}.`;
+  }
+  return text;
 }
 
 function formatPricingLocationScope(intel) {
@@ -423,18 +448,25 @@ function formatAwardLocation(award) {
   return parts.length ? parts.join(", ") : "—";
 }
 
-function renderAwardsTable(awards) {
-  const rows = sortAwardsByDate(awards);
+function renderAwardsTable(awards, intel) {
+  const rows = sortAwardsByDistance(awards);
   if (!rows.length) return "";
-  return `<table class="pricing-table">
+  return `
+    <p class="pricing-table-caption">${escapeHtml(awardsTableCaption(intel))}</p>
+    <table class="pricing-table">
     <thead>
-      <tr><th>Award date</th><th>Work location</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
+      <tr><th>Distance</th><th>Work location</th><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
     </thead>
     <tbody>
-      ${rows.map((a) => `
-        <tr class="${a.days_ago != null && a.days_ago <= 365 ? "pricing-row-recent" : ""}">
-          <td>${escapeHtml(formatAwardDate(a))}</td>
+      ${rows.map((a, index) => `
+        <tr class="${[
+          index === 0 && a.distance_miles != null ? "pricing-row-closest" : "",
+          a.days_ago != null && a.days_ago <= 365 ? "pricing-row-recent" : "",
+          a.distance_same_state === false ? "pricing-row-other-state" : "",
+        ].filter(Boolean).join(" ")}">
+          <td class="pricing-distance">${escapeHtml(formatAwardDistance(a))}</td>
           <td>${escapeHtml(formatAwardLocation(a))}</td>
+          <td>${escapeHtml(formatAwardDate(a))}</td>
           <td>${escapeHtml(a.recipient_name || "—")}</td>
           <td>${formatMoney(a.award_amount)}</td>
           <td>${escapeHtml(a.awarding_agency || "—")}</td>
@@ -460,7 +492,7 @@ function renderClaudePricingPanel(pricing, rawIntel) {
     ? `${rawIntel.awards_count} comparable awards where work was performed in ${locationScope}${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""}`
     : "Based on USAspending.gov historical data in the same work area";
 
-  const awardsTable = renderAwardsTable(rawIntel?.awards);
+  const awardsTable = renderAwardsTable(rawIntel?.awards, rawIntel);
 
   return `
     <div class="pricing-panel">
@@ -516,7 +548,7 @@ function renderPricingPanel(intel) {
 
   const locationScope = formatPricingLocationScope(intel);
 
-  const awardsTable = renderAwardsTable(intel.awards)
+  const awardsTable = renderAwardsTable(intel.awards, intel)
     || `<p class="pricing-meta">No comparable awards found for this NAICS in ${escapeHtml(locationScope)} over the last 3 years.</p>`;
 
   return `

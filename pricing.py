@@ -17,9 +17,10 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
     )
     state_code = work_location.get("state_code")
     city = work_location.get("city")
+    zip_code = work_location.get("zip")
 
     cached = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else None
-    if cached and not force_refresh and _cache_fresh(cached) and cached.get("location_scope"):
+    if cached and not force_refresh and _cache_fresh(cached) and _cache_has_distances(cached):
         return cached
 
     if not naics_code:
@@ -33,13 +34,28 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
         )
 
     try:
-        intel = fetch_pricing_intelligence(naics_code, state_code, city=city)
+        intel = fetch_pricing_intelligence(
+            naics_code,
+            state_code,
+            city=city,
+            zip_code=zip_code,
+            origin_location=work_location,
+        )
     except Exception as exc:
         return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
 
     intel["cached_at"] = datetime.now(timezone.utc).isoformat()
     contract.pricing_intel = intel
     return intel
+
+
+def _cache_has_distances(payload: dict[str, Any]) -> bool:
+    if not payload.get("location_scope"):
+        return False
+    awards = payload.get("awards") or []
+    if not awards:
+        return True
+    return "distance_label" in awards[0]
 
 
 def _cache_fresh(payload: dict[str, Any], max_age_days: int = 7) -> bool:

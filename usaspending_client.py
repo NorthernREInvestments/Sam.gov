@@ -10,6 +10,8 @@ from typing import Any
 
 import httpx
 
+from geo import annotate_award_distances
+
 BASE_URL = "https://api.usaspending.gov"
 SEARCH_PATH = "/api/v2/search/spending_by_award/"
 
@@ -517,6 +519,8 @@ def fetch_pricing_intelligence(
     state_code: str | None,
     *,
     city: str | None = None,
+    zip_code: str | None = None,
+    origin_location: dict[str, Any] | None = None,
     limit: int = 20,
 ) -> dict[str, Any]:
     """Query USAspending.gov for comparable contracts in the same work area."""
@@ -525,6 +529,12 @@ def fetch_pricing_intelligence(
     if not state_code:
         raise ValueError("Could not determine the contract state for pricing lookup.")
 
+    origin = origin_location or {
+        "state_code": state_code,
+        "city": city,
+        "zip": zip_code,
+        "label": format_location_scope(state_code, city),
+    }
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     neighbors = BORDERING_STATES.get(state_code, [])
     awards: list[dict[str, Any]]
@@ -585,6 +595,8 @@ def fetch_pricing_intelligence(
             )
             location_scope_type = "region"
 
+    awards = annotate_award_distances(awards, origin, state_names=STATE_CODE_TO_NAME)
+
     summary = summarize_awards(
         awards,
         naics_code=naics_code,
@@ -594,6 +606,12 @@ def fetch_pricing_intelligence(
         location_scope_note=location_scope_note,
         surrounding_states=surrounding_states,
     )
+    summary["origin_location"] = origin
+    if awards:
+        closest = awards[0]
+        summary["closest_award_miles"] = closest.get("distance_miles")
+        summary["closest_award_label"] = closest.get("distance_label")
+        summary["closest_award_location"] = closest.get("performance_location")
     summary["source"] = "USAspending.gov"
     summary["fetched_at"] = date.today().isoformat()
     return summary
