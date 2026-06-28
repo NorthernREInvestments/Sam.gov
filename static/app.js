@@ -15,7 +15,10 @@ async function apiFetch(url, options = {}) {
 function showView(name) {
   document.getElementById("view-dashboard").hidden = name !== "dashboard";
   document.getElementById("view-settings").hidden = name !== "settings";
+  document.getElementById("view-subs").hidden = name !== "subs";
+  document.getElementById("view-contract-subs").hidden = name !== "contract-subs";
   document.getElementById("tab-dashboard").classList.toggle("active", name === "dashboard");
+  document.getElementById("tab-subs").classList.toggle("active", name === "subs");
   document.getElementById("tab-settings").classList.toggle("active", name === "settings");
   if (name === "settings") loadSettingsPage();
 }
@@ -150,6 +153,9 @@ function renderCards() {
          </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
     const attachmentsHtml = renderCardAttachments(c);
+    const networkBanner = typeof renderNetworkBanner === "function" ? renderNetworkBanner(c) : "";
+    const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
+    const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-top">
@@ -162,6 +168,8 @@ function renderCards() {
         </div>
       </div>
       ${titleBlock}
+      ${networkBanner}
+      ${subSummaryCard}
       ${bidPreview}
       ${attachmentsHtml}
       <div class="card-section card-section-location">
@@ -172,12 +180,16 @@ function renderCards() {
       <div class="card-section card-section-footer">
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
         <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
+        ${findSubsBtn}
       </div>
     </article>`;
   }).join("");
 
   container.querySelectorAll(".card").forEach((el) => {
-    el.addEventListener("click", () => openDetail(el.dataset.id));
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("button, a, input, select, textarea")) return;
+      openDetail(el.dataset.id);
+    });
   });
 }
 
@@ -189,27 +201,36 @@ function escapeHtml(text) {
 
 let cardPollTimer = null;
 
-async function loadContracts() {
-  const res = await apiFetch(`/api/contracts?${buildQuery()}`);
-  const data = await res.json();
-  contracts = data.contracts || [];
-  renderCards();
+function cardNeedsPolling(c) {
+  const subsSearching =
+    c.sub_search_status === "searching" || (c.sub_summary || {}).status === "searching";
+  const attachmentsPending = !(c.sam_attachments || []).length;
+  return subsSearching || attachmentsPending;
+}
 
-  const needsAttachments = contracts.some((c) => !(c.sam_attachments || []).length);
-  if (needsAttachments && !cardPollTimer) {
+function manageCardPolling() {
+  const shouldPoll = contracts.some(cardNeedsPolling);
+  if (shouldPoll && !cardPollTimer) {
     cardPollTimer = setInterval(async () => {
-      const pending = contracts.some((c) => !(c.sam_attachments || []).length);
-      if (!pending) {
+      if (!contracts.some(cardNeedsPolling)) {
         clearInterval(cardPollTimer);
         cardPollTimer = null;
         return;
       }
       await loadContractsQuiet();
-    }, 8000);
-  } else if (!needsAttachments && cardPollTimer) {
+    }, 4000);
+  } else if (!shouldPoll && cardPollTimer) {
     clearInterval(cardPollTimer);
     cardPollTimer = null;
   }
+}
+
+async function loadContracts() {
+  const res = await apiFetch(`/api/contracts?${buildQuery()}`);
+  const data = await res.json();
+  contracts = data.contracts || [];
+  renderCards();
+  manageCardPolling();
 }
 
 async function loadContractsQuiet() {
@@ -217,10 +238,7 @@ async function loadContractsQuiet() {
   const data = await res.json();
   contracts = data.contracts || [];
   renderCards();
-  if (!contracts.some((c) => !(c.sam_attachments || []).length) && cardPollTimer) {
-    clearInterval(cardPollTimer);
-    cardPollTimer = null;
-  }
+  manageCardPolling();
 }
 
 function wrapDetailSection(title, innerHtml, extraClass = "") {
@@ -329,86 +347,25 @@ function buildSummaryInner(c, analyzing = false) {
 }
 
 function renderDetailModal(c, { analyzing = false } = {}) {
-  const due = formatDue(c);
-  const summary = getContractSummary(c);
+  const summaryInner = buildSummaryInner(c, analyzing && !getContractSummary(c));
   const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-  const summaryInner = buildSummaryInner(c, analyzing && !summary);
   const pricingInner = pricingIntel
     ? renderClaudePricingPanel(pricingIntel, c.pricing_intel)
     : `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
          <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
        </div>`;
-  const redFlags = c.red_flags?.length
-    ? `<ul class="detail-list">${c.red_flags.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
-    : "<p>None</p>";
-  const attachments = c.analysis?.attachments_reviewed;
-  const attachmentNote = attachments?.length
-    ? `<p class="detail-note">PDFs reviewed: ${attachments.map(escapeHtml).join(", ")}</p>`
-    : "";
-
-  const screeningInner = `
-    <div class="detail-grid">
-      <div class="detail-item">
-        <span class="detail-item-label">Verdict</span>
-        <div class="modal-badges">${screeningBadge(c)}</div>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Due date</span>
-        <p class="detail-item-value">${escapeHtml(due.main)}${due.sub ? ` · ${escapeHtml(due.sub)}` : ""}</p>
-      </div>
-      <div class="detail-item detail-item-wide">
-        <span class="detail-item-label">Quick reason</span>
-        <p class="detail-item-value">${escapeHtml(c.reason || c.analysis?.reason || (analyzing ? "Analysis in progress…" : "-"))}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Sub type needed</span>
-        <p class="detail-item-value">${escapeHtml(c.sub_type_needed || c.analysis?.sub_type_needed || (analyzing ? "Analysis in progress…" : "-"))}</p>
-      </div>
-      <div class="detail-item detail-item-wide">
-        <span class="detail-item-label">Red flags</span>
-        ${redFlags}
-      </div>
-    </div>
-    ${attachmentNote}`;
-
-  const contractInner = `
-    <div class="detail-grid">
-      <div class="detail-item detail-item-wide">
-        <span class="detail-item-label">Official title</span>
-        <p class="detail-item-value">${escapeHtml(c.title)}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Agency</span>
-        <p class="detail-item-value">${escapeHtml(c.agency || "-")}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Location</span>
-        <p class="detail-item-value">${escapeHtml(c.location || "-")}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">NAICS</span>
-        <p class="detail-item-value">${escapeHtml(c.naics_display || c.naics_code || "-")}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Set-aside</span>
-        <p class="detail-item-value">${escapeHtml(c.set_aside || "-")}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Security clearance</span>
-        <p class="detail-item-value">${formatClearanceRequired(c)}</p>
-      </div>
-      <div class="detail-item">
-        <span class="detail-item-label">Status</span>
-        <p class="detail-item-value">${escapeHtml(c.status)}</p>
-      </div>
-    </div>
-    ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}`;
+  const subsLink = typeof renderSubSummaryLink === "function" ? renderSubSummaryLink(c) : "";
+  const pursueSection = typeof renderPursueSection === "function" ? renderPursueSection(c) : "";
 
   document.getElementById("modal-content").innerHTML = `
+    <div class="detail-header">
+      <h2 class="detail-title">${escapeHtml(c.title)}</h2>
+      <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
+    </div>
     ${wrapDetailSection("Plain English summary", summaryInner, "detail-section-summary")}
-    ${wrapDetailSection("Pricing intelligence", pricingInner, "detail-section-pricing")}
-    ${wrapDetailSection("Screening verdict", screeningInner, "detail-section-screening")}
-    ${wrapDetailSection("Contract details", contractInner, "detail-section-contract")}
+    ${wrapDetailSection("Historical bids", pricingInner, "detail-section-pricing")}
+    ${wrapDetailSection("Recommended subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
+    ${wrapDetailSection("Pursue", pursueSection, "detail-section-pursue")}
   `;
 }
 
@@ -919,10 +876,16 @@ async function loadSettingsPage() {
   document.getElementById("settings-scheduler-time").value = `${hour}:${minute}`;
   document.getElementById("settings-scheduler-timezone").value = sched.timezone || "America/Denver";
 
+  const subSearch = data.sub_search || {};
+  document.getElementById("settings-sub-radius").value = String(subSearch.search_radius_miles || 25);
+  document.getElementById("settings-sub-min-rating").value = subSearch.min_rating ?? 3.5;
+  document.getElementById("settings-sub-min-reviews").value = subSearch.min_review_count ?? 5;
+
   const keys = data.api_keys || {};
   document.getElementById("api-key-status").innerHTML = `
     <li>SAM.gov: ${keys.sam_gov ? "configured" : "missing"}</li>
     <li>Anthropic: ${keys.anthropic ? "configured" : "missing"}</li>
+    <li>Google Places: ${keys.google_places ? "configured" : "missing"}</li>
     <li>PostgreSQL: ${keys.database ? "configured" : "missing"}</li>
   `;
 
@@ -977,6 +940,9 @@ async function saveSettings() {
       scheduler_hour: schedTime.hour,
       scheduler_minute: schedTime.minute,
       scheduler_timezone: document.getElementById("settings-scheduler-timezone").value,
+      sub_search_radius_miles: Number(document.getElementById("settings-sub-radius").value),
+      sub_min_rating: Number(document.getElementById("settings-sub-min-rating").value),
+      sub_min_review_count: Number(document.getElementById("settings-sub-min-reviews").value),
     };
     const res = await apiFetch("/api/settings", {
       method: "PUT",

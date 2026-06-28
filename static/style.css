@@ -1136,6 +1136,165 @@ body {
   color: var(--muted);
 }
 
+.detail-header {
+  margin-bottom: 1rem;
+}
+
+.detail-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.detail-agency {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent, #2563eb);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.network-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.btn-small {
+  font-size: 0.82rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.subs-cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.sub-card {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.sub-card-selected {
+  background: #ecfdf5;
+  border-color: #34d399;
+}
+
+.sub-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.sub-card-meta,
+.sub-card-phone,
+.sub-card-links,
+.sub-card-claude {
+  font-size: 0.88rem;
+  margin: 0.35rem 0;
+}
+
+.selected-quote-note {
+  color: #047857;
+  font-weight: 600;
+}
+
+.pursue-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pursue-btn {
+  max-width: 280px;
+}
+
+.btn-pursue-active {
+  background: var(--green, #16a34a);
+  color: #fff;
+}
+
+.btn-skip-active {
+  background: #fee2e2;
+  color: var(--red, #dc2626);
+}
+
+.subs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.subs-state-input {
+  max-width: 4rem;
+}
+
+.my-subs-table tbody tr {
+  cursor: pointer;
+}
+
+.my-subs-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.sub-history-panel {
+  background: #f8fafc;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  margin: 1rem 0;
+  padding: 1rem;
+}
+
+.manual-sub-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 480px;
+}
+
+.my-subs-notes {
+  font-size: 0.85rem;
+  max-width: 14rem;
+}
+
+.sub-history-notes {
+  color: var(--muted, #64748b);
+  display: inline-block;
+  font-size: 0.88rem;
+  margin-top: 0.2rem;
+}
+
+.card-subs-searching {
+  color: var(--muted, #64748b);
+  font-style: italic;
+}
+
+.card-section-subs .link-button {
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.sub-save-hint {
+  color: #047857;
+  font-size: 0.82rem;
+  margin: 0.35rem 0 0;
+}
+
+.card-find-subs {
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: 1fr;

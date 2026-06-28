@@ -39,11 +39,26 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
-    from models import AppSetting, Contract  # noqa: F401
+    from models import AppSetting, Contract, ContractSub, Sub  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_sam_raw()
     _migrate_add_pricing_intel()
+    _migrate_add_sub_finder()
+
+
+def _migrate_add_sub_finder() -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS selected_sub_quote NUMERIC(14, 2)")
+        )
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sub_search_status VARCHAR(32)")
+        )
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sub_search_radius_miles INTEGER")
+        )
+        conn.commit()
 
 
 def _migrate_add_sam_raw() -> None:

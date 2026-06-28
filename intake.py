@@ -116,6 +116,10 @@ def full_intake_contract(row: Contract, *, force: bool = False) -> dict[str, Any
         if analysis.get("estimated_value") and not row.estimated_value:
             row.estimated_value = str(analysis["estimated_value"])[:128]
 
+        from sub_finder import maybe_auto_sub_search
+
+        maybe_auto_sub_search(row)
+
         return {
             "notice_id": row.notice_id,
             "skipped": False,

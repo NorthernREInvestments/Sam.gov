@@ -20,6 +20,9 @@ SCHEDULER_ENABLED_KEY = "scheduler_enabled"
 SCHEDULER_HOUR_KEY = "scheduler_hour"
 SCHEDULER_MINUTE_KEY = "scheduler_minute"
 SCHEDULER_TIMEZONE_KEY = "scheduler_timezone"
+SUB_SEARCH_RADIUS_KEY = "sub_search_radius_miles"
+SUB_MIN_RATING_KEY = "sub_min_rating"
+SUB_MIN_REVIEWS_KEY = "sub_min_review_count"
 
 
 def _get_setting(session, key: str) -> str | None:
@@ -103,6 +106,27 @@ def get_scheduler_settings() -> dict[str, Any]:
     }
 
 
+def get_sub_search_settings() -> dict[str, Any]:
+    session = SessionLocal()
+    try:
+        radius_raw = _get_setting(session, SUB_SEARCH_RADIUS_KEY)
+        rating_raw = _get_setting(session, SUB_MIN_RATING_KEY)
+        reviews_raw = _get_setting(session, SUB_MIN_REVIEWS_KEY)
+    finally:
+        session.close()
+
+    radius = int(radius_raw) if radius_raw else int(os.getenv("SUB_SEARCH_RADIUS_MILES", "25"))
+    min_rating = float(rating_raw) if rating_raw else float(os.getenv("SUB_MIN_RATING", "3.5"))
+    min_reviews = int(reviews_raw) if reviews_raw else int(os.getenv("SUB_MIN_REVIEW_COUNT", "5"))
+    if radius not in (10, 25, 50, 100):
+        radius = 25
+    return {
+        "search_radius_miles": max(10, min(100, radius)),
+        "min_rating": max(0.0, min(5.0, min_rating)),
+        "min_review_count": max(0, min_reviews),
+    }
+
+
 def get_screening_prompt() -> tuple[str, bool]:
     session = SessionLocal()
     try:
@@ -124,6 +148,7 @@ def get_all_settings() -> dict[str, Any]:
 
     prompt, prompt_custom = get_screening_prompt()
     scheduler = get_scheduler_settings()
+    sub_search = get_sub_search_settings()
     return {
         "naics_codes": get_naics_codes(),
         "naics_labels": NAICS_LABELS,
@@ -132,10 +157,12 @@ def get_all_settings() -> dict[str, Any]:
         "screening_prompt": prompt,
         "screening_prompt_custom": prompt_custom,
         "scheduler": scheduler,
+        "sub_search": sub_search,
         "api_budget": get_usage_snapshot(),
         "api_keys": {
             "sam_gov": bool(os.getenv("SAM_GOV_API_KEY", "").strip()),
             "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
+            "google_places": bool(os.getenv("GOOGLE_PLACES_API_KEY", "").strip()),
             "database": bool(os.getenv("DATABASE_URL", "").strip()),
         },
     }
@@ -150,6 +177,9 @@ def save_settings(
     scheduler_hour: int | None = None,
     scheduler_minute: int | None = None,
     scheduler_timezone: str | None = None,
+    sub_search_radius_miles: int | None = None,
+    sub_min_rating: float | None = None,
+    sub_min_review_count: int | None = None,
 ) -> dict[str, Any]:
     cleaned_naics = [c.strip() for c in naics_codes if c.strip()]
     if not cleaned_naics:
@@ -170,6 +200,12 @@ def save_settings(
             _set_setting(session, SCHEDULER_MINUTE_KEY, str(max(0, min(59, scheduler_minute))))
         if scheduler_timezone is not None:
             _set_setting(session, SCHEDULER_TIMEZONE_KEY, scheduler_timezone.strip())
+        if sub_search_radius_miles is not None:
+            _set_setting(session, SUB_SEARCH_RADIUS_KEY, str(max(10, min(100, sub_search_radius_miles))))
+        if sub_min_rating is not None:
+            _set_setting(session, SUB_MIN_RATING_KEY, str(max(0.0, min(5.0, float(sub_min_rating)))))
+        if sub_min_review_count is not None:
+            _set_setting(session, SUB_MIN_REVIEWS_KEY, str(max(0, int(sub_min_review_count))))
         session.commit()
     finally:
         session.close()

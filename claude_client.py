@@ -529,3 +529,74 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         }
 
     return analysis
+
+
+SUB_ANALYSIS_PROMPT = """You are helping a prime contractor evaluate potential subcontractors found via Google Places.
+
+For each subcontractor candidate, assign a recommendation score from 1-10 and a one-sentence reason using these signals:
+- Rating above 4.0 stars — positive
+- More than 20 reviews — positive
+- Website present — positive
+- Review count under 5 — negative (may be too small)
+- Rating under 3.5 — negative
+- Distance under 10 miles — positive
+
+Return JSON only:
+{
+  "subs": [
+    {"place_id": "string", "score": 7, "reason": "One sentence."}
+  ]
+}
+Include every place_id from the input list. No markdown."""
+
+
+def analyze_subcontractors(
+    contract: Any,
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Claude scores each Google Places subcontractor candidate."""
+    if not candidates:
+        return []
+
+    from usaspending_client import extract_work_location
+
+    work = extract_work_location(
+        contract.location,
+        contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else None,
+    )
+    summary_lines = [
+        f"Contract: {contract.title}",
+        f"Location: {work.get('label') or contract.location}",
+        f"Sub type needed: {(contract.analysis or {}).get('sub_type_needed') or 'unknown'}",
+        "",
+        "Candidates:",
+        json.dumps(candidates, indent=2, default=str),
+    ]
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=SUB_ANALYSIS_PROMPT,
+        messages=[{"role": "user", "content": "\n".join(summary_lines)}],
+    )
+    text = response.content[0].text if response.content else "{}"
+    data = _extract_json(text)
+    rows = data.get("subs") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return []
+    by_place: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        place_id = str(row.get("place_id") or "").strip()
+        if not place_id:
+            continue
+        score = row.get("score")
+        try:
+            score_int = max(1, min(10, int(score)))
+        except (TypeError, ValueError):
+            score_int = 5
+        reason = str(row.get("reason") or "").strip() or "No reason provided."
+        by_place[place_id] = {"place_id": place_id, "score": score_int, "reason": reason}
+    return [by_place.get(c["place_id"], {"place_id": c["place_id"], "score": 5, "reason": "Not analyzed."}) for c in candidates if c.get("place_id")]
+

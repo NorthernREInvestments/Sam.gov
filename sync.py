@@ -237,6 +237,29 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         sam_attachments = analysis.get("sam_attachments") or []
         doc_access = sam_raw.get("documentAccess") or analysis.get("document_access") or {}
         external_links = sam_raw.get("opportunityLinks") or analysis.get("external_links") or []
+
+    from sub_serializers import contract_sub_summary
+
+    session = SessionLocal()
+    try:
+        sub_summary = contract_sub_summary(row, session)
+        from sub_finder import nearby_network_subs
+        from usaspending_client import extract_work_location
+
+        work = extract_work_location(
+            row.location,
+            row.sam_raw if isinstance(row.sam_raw, dict) else None,
+        )
+        sub_summary["city"] = work.get("city") or work.get("label")
+        try:
+            network = nearby_network_subs(session, row.notice_id)
+            nearby_network_count = network.get("count", 0)
+        except Exception:
+            nearby_network_count = 0
+    finally:
+        session.close()
+
+    selected_quote = float(row.selected_sub_quote) if row.selected_sub_quote is not None else None
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -261,6 +284,10 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "pricing_intelligence": analysis.get("pricing_intelligence"),
         "pricing_intel": row.pricing_intel,
         "sub_type_needed": analysis.get("sub_type_needed"),
+        "sub_summary": sub_summary,
+        "nearby_network_count": nearby_network_count,
+        "selected_sub_quote": selected_quote,
+        "sub_search_status": row.sub_search_status,
         "red_flags": analysis.get("red_flags") or [],
         "security_clearance_required": security_clearance_required,
         "document_access": doc_access,

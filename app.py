@@ -76,6 +76,40 @@ class SettingsUpdate(BaseModel):
     scheduler_hour: int = Field(6, ge=0, le=23)
     scheduler_minute: int = Field(0, ge=0, le=59)
     scheduler_timezone: str = Field("America/Denver", min_length=3)
+    sub_search_radius_miles: int = Field(25, ge=10, le=100)
+    sub_min_rating: float = Field(3.5, ge=0, le=5)
+    sub_min_review_count: int = Field(5, ge=0, le=1000)
+
+
+class ContractSubUpdate(BaseModel):
+    status: str | None = None
+    contact_notes: str | None = None
+    quote_amount: float | None = None
+    quote_date: str | None = None
+
+
+class ManualSubCreate(BaseModel):
+    business_name: str = Field(..., min_length=2, max_length=512)
+    phone: str | None = None
+    rating: float | None = Field(None, ge=0, le=5)
+    review_count: int | None = Field(None, ge=0)
+    address: str | None = None
+    city: str | None = None
+    state: str | None = Field(None, max_length=2)
+    zip: str | None = None
+    website: str | None = None
+    google_maps_url: str | None = None
+    sub_type: str | None = None
+    notes: str | None = None
+    place_id: str | None = None
+
+
+class SubNotesUpdate(BaseModel):
+    notes: str | None = None
+
+
+class AddNetworkSubsRequest(BaseModel):
+    sub_ids: list[int] = Field(..., min_length=1)
 
 
 @app.get("/api/health")
@@ -286,6 +320,9 @@ def update_settings(body: SettingsUpdate):
             scheduler_hour=body.scheduler_hour,
             scheduler_minute=body.scheduler_minute,
             scheduler_timezone=body.scheduler_timezone,
+            sub_search_radius_miles=body.sub_search_radius_miles,
+            sub_min_rating=body.sub_min_rating,
+            sub_min_review_count=body.sub_min_review_count,
         )
         configure_scheduler()
         return result
@@ -297,6 +334,136 @@ def update_settings(body: SettingsUpdate):
 def restore_default_prompt():
     prompt = reset_screening_prompt()
     return {"screening_prompt": prompt, "screening_prompt_custom": False}
+
+
+@app.post("/api/contracts/{notice_id}/find-subs")
+def run_find_subs(notice_id: str, force: bool = Query(False)):
+    from sub_finder import start_background_sub_search
+
+    session = SessionLocal()
+    try:
+        from models import Contract
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+    finally:
+        session.close()
+    start_background_sub_search(notice_id, force=force)
+    return {"notice_id": notice_id, "started": True}
+
+
+@app.get("/api/contracts/{notice_id}/subs")
+def get_contract_subs(notice_id: str):
+    session = SessionLocal()
+    try:
+        from sub_finder import list_contract_subs
+
+        return list_contract_subs(session, notice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/nearby-subs")
+def get_nearby_network_subs(notice_id: str):
+    session = SessionLocal()
+    try:
+        from sub_finder import nearby_network_subs
+
+        return nearby_network_subs(session, notice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/subs/add-network")
+def add_network_subs(notice_id: str, body: AddNetworkSubsRequest):
+    try:
+        from sub_finder import find_subs_for_contract
+
+        return find_subs_for_contract(notice_id, sub_ids=body.sub_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.patch("/api/contract-subs/{link_id}")
+def patch_contract_sub(link_id: int, body: ContractSubUpdate):
+    session = SessionLocal()
+    try:
+        from sub_finder import update_contract_sub
+        from sub_serializers import contract_sub_to_dict
+
+        link = update_contract_sub(
+            session,
+            link_id,
+            body.model_dump(exclude_unset=True),
+        )
+        return contract_sub_to_dict(link)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/subs")
+def get_subs(
+    search: str | None = Query(None),
+    sub_type: str | None = Query(None),
+    state: str | None = Query(None),
+):
+    session = SessionLocal()
+    try:
+        from sub_finder import list_master_subs
+
+        return {"subs": list_master_subs(session, search=search, sub_type=sub_type, state=state)}
+    finally:
+        session.close()
+
+
+@app.get("/api/subs/{sub_id}")
+def get_sub_detail(sub_id: int):
+    session = SessionLocal()
+    try:
+        from sub_finder import get_sub_history
+
+        return get_sub_history(session, sub_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/subs")
+def create_sub(body: ManualSubCreate):
+    session = SessionLocal()
+    try:
+        from sub_finder import create_manual_sub
+        from sub_serializers import sub_to_dict
+
+        row = create_manual_sub(session, body.model_dump())
+        return sub_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/subs/{sub_id}")
+def patch_sub_notes(sub_id: int, body: SubNotesUpdate):
+    session = SessionLocal()
+    try:
+        from sub_finder import update_sub_notes
+        from sub_serializers import sub_to_dict
+
+        row = update_sub_notes(session, sub_id, body.notes)
+        return sub_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

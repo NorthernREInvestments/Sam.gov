@@ -14,6 +14,7 @@
     </div>
     <nav class="main-nav">
       <button id="tab-dashboard" class="tab active" type="button">Dashboard</button>
+      <button id="tab-subs" class="tab" type="button">My Subs</button>
       <button id="tab-settings" class="tab" type="button">Settings</button>
       <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
     </nav>
@@ -73,6 +74,52 @@
     </div>
   </div>
 
+  <div id="view-subs" hidden>
+    <div class="settings-page subs-page">
+      <h2>My Subs</h2>
+      <p class="settings-help">Every subcontractor found via Google Places or added manually. Call notes and bids are saved permanently.</p>
+      <div class="subs-toolbar">
+        <input type="text" id="subs-search" class="settings-input" placeholder="Search name, city, state, type">
+        <select id="subs-type-filter" class="settings-input">
+          <option value="">All types</option>
+          <option value="janitorial">Janitorial</option>
+          <option value="landscaping">Landscaping</option>
+          <option value="pest control">Pest control</option>
+          <option value="security">Security</option>
+          <option value="hvac">HVAC</option>
+        </select>
+        <input type="text" id="subs-state-filter" class="settings-input subs-state-input" placeholder="State" maxlength="2">
+        <button id="subs-search-btn" class="btn btn-secondary-action" type="button">Search</button>
+      </div>
+      <table class="pricing-table my-subs-table">
+        <thead>
+          <tr><th>Business</th><th>Type</th><th>Location</th><th>Rating</th><th>Phone</th><th>Notes</th><th>Contacted</th><th>Selected</th><th>Last contact</th></tr>
+        </thead>
+        <tbody id="my-subs-body"></tbody>
+      </table>
+      <div id="sub-history-panel" class="sub-history-panel" hidden></div>
+      <section class="settings-section">
+        <h3>Add sub manually</h3>
+        <form id="manual-sub-form" class="manual-sub-form">
+          <input name="business_name" class="settings-input" placeholder="Business name" required>
+          <input name="phone" class="settings-input" placeholder="Phone">
+          <input name="city" class="settings-input" placeholder="City">
+          <input name="state" class="settings-input subs-state-input" placeholder="State" maxlength="2">
+          <input name="sub_type" class="settings-input" placeholder="Sub type (e.g. janitorial)">
+          <input name="website" class="settings-input" placeholder="Website URL">
+          <textarea name="notes" class="settings-input" rows="2" placeholder="General notes"></textarea>
+          <button class="btn btn-primary" type="submit">Add sub</button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-contract-subs" hidden>
+    <div class="settings-page">
+      <div id="contract-subs-content"></div>
+    </div>
+  </div>
+
   <div id="view-settings" hidden>
     <div class="settings-page">
       <h2>Settings</h2>
@@ -106,6 +153,22 @@
           <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
         </div>
         <p class="settings-help">After a prompt update, use Reset prompt to get the latest plain-English summary format.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Sub Finder</h3>
+        <p class="settings-help">Set <code>GOOGLE_PLACES_API_KEY</code> in Railway or <code>.env</code> (Places API New must be enabled).</p>
+        <label class="filter-label" for="settings-sub-radius">Default search radius (miles)</label>
+        <select id="settings-sub-radius" class="settings-input">
+          <option value="10">10 miles</option>
+          <option value="25">25 miles</option>
+          <option value="50">50 miles</option>
+          <option value="100">100 miles</option>
+        </select>
+        <label class="filter-label" for="settings-sub-min-rating">Minimum rating (stars)</label>
+        <input type="number" id="settings-sub-min-rating" class="settings-input" min="0" max="5" step="0.1" value="3.5">
+        <label class="filter-label" for="settings-sub-min-reviews">Minimum review count</label>
+        <input type="number" id="settings-sub-min-reviews" class="settings-input" min="0" value="5">
       </section>
 
       <section class="settings-section">
@@ -154,5 +217,6 @@
   </div>
 
   <script src="/app.js"></script>
+  <script src="/subs.js"></script>
 </body>
 </html>
