@@ -175,10 +175,13 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
         return f"Historical pricing lookup note: {pricing_intel['error']}"
 
     lines = [
-        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — contracts only, last 3 years, same NAICS + state):",
+        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — contracts only, last 3 years, same NAICS + work location):",
+        "IMPORTANT: Only awards where work was performed in the same area as this opportunity. "
+        "Search widens from city to state to neighboring states at most — never national.",
         "IMPORTANT: Each award includes award_date and recency_weight. Recent awards (last 12 months) are much more relevant than 2–3 year old awards.",
         f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
-        f"State: {pricing_intel.get('state_code', 'unknown')}",
+        f"Work area: {pricing_intel.get('location_scope') or pricing_intel.get('state_code', 'unknown')}",
+        f"Scope note: {pricing_intel.get('location_scope_note') or 'Comparable contracts filtered to this work area only.'}",
         f"Comparable awards found: {pricing_intel.get('awards_count', 0)} ({pricing_intel.get('awards_with_dates', 0)} with dates, {pricing_intel.get('awards_last_12_months', 0)} in last 12 months)",
         f"Date range: {pricing_intel.get('oldest_award_date', '?')} to {pricing_intel.get('newest_award_date', '?')}",
         f"Recency-weighted average: {pricing_intel.get('weighted_average_amount')}",

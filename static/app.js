@@ -1,5 +1,7 @@
 let config = { naics_codes: [], naics_labels: {}, default_min_days: 30, default_min_score: 1 };
 let contracts = [];
+let activeDetailId = null;
+let detailPollTimer = null;
 
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, options);
@@ -173,19 +175,38 @@ function wrapDetailSection(title, innerHtml, extraClass = "") {
     </section>`;
 }
 
-async function openDetail(noticeId) {
-  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}`);
-  if (!res.ok) return;
-  const c = await res.json();
+function getContractSummary(c) {
+  return c.plain_english_summary || c.executive_summary || c.analysis?.plain_english_summary || c.analysis?.executive_summary;
+}
+
+function stopDetailPolling() {
+  if (detailPollTimer) {
+    clearInterval(detailPollTimer);
+    detailPollTimer = null;
+  }
+}
+
+function buildSummaryInner(c, analyzing = false) {
+  const summary = getContractSummary(c);
+  if (summary) {
+    return `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`;
+  }
+  if (analyzing) {
+    return `<div class="executive-summary-placeholder analyzing">
+      <p class="analyzing-title">Analyzing this contract…</p>
+      <p class="detail-note">Reading attachments, checking historical pricing, and writing your plain-English summary. This usually takes 30–90 seconds.</p>
+    </div>`;
+  }
+  return `<div class="executive-summary-placeholder">
+    <p>Summary not available yet.</p>
+  </div>`;
+}
+
+function renderDetailModal(c, { analyzing = false } = {}) {
   const due = formatDue(c);
-  const summary = c.plain_english_summary || c.executive_summary || c.analysis?.plain_english_summary || c.analysis?.executive_summary;
+  const summary = getContractSummary(c);
   const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-  const summaryInner = summary
-    ? `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`
-    : `<div class="executive-summary-placeholder">
-         Plain-English summary is being generated automatically. Refresh in a minute, or analyze now:
-         <button type="button" class="btn btn-primary" id="screen-one-btn" style="margin-top:0.75rem">Analyze this contract now</button>
-       </div>`;
+  const summaryInner = buildSummaryInner(c, analyzing && !summary);
   const pricingInner = pricingIntel
     ? renderClaudePricingPanel(pricingIntel, c.pricing_intel)
     : `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
@@ -211,11 +232,11 @@ async function openDetail(noticeId) {
       </div>
       <div class="detail-item detail-item-wide">
         <span class="detail-item-label">Quick reason</span>
-        <p class="detail-item-value">${escapeHtml(c.reason || c.analysis?.reason || "-")}</p>
+        <p class="detail-item-value">${escapeHtml(c.reason || c.analysis?.reason || (analyzing ? "Analysis in progress…" : "-"))}</p>
       </div>
       <div class="detail-item">
         <span class="detail-item-label">Sub type needed</span>
-        <p class="detail-item-value">${escapeHtml(c.sub_type_needed || "-")}</p>
+        <p class="detail-item-value">${escapeHtml(c.sub_type_needed || c.analysis?.sub_type_needed || (analyzing ? "Analysis in progress…" : "-"))}</p>
       </div>
       <div class="detail-item detail-item-wide">
         <span class="detail-item-label">Red flags</span>
@@ -259,25 +280,86 @@ async function openDetail(noticeId) {
     ${wrapDetailSection("Screening verdict", screeningInner, "detail-section-screening")}
     ${wrapDetailSection("Contract details", contractInner, "detail-section-contract")}
   `;
-  document.getElementById("modal").hidden = false;
-  if (!pricingIntel) loadPricingIntel(noticeId);
+}
 
-  const screenBtn = document.getElementById("screen-one-btn");
-  if (screenBtn) {
-    screenBtn.addEventListener("click", async () => {
-      screenBtn.disabled = true;
-      screenBtn.textContent = "Analyzing...";
-      const sres = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/screen`, { method: "POST" });
-      const data = await sres.json();
-      if (sres.ok) {
+async function fetchContract(noticeId) {
+  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function requestContractScreening(noticeId) {
+  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/screen`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok && !data.in_progress) {
+    throw new Error(data.detail || "Screening failed");
+  }
+  return data;
+}
+
+function startDetailLiveUpdates(noticeId) {
+  stopDetailPolling();
+  activeDetailId = noticeId;
+
+  detailPollTimer = setInterval(async () => {
+    if (activeDetailId !== noticeId || document.getElementById("modal").hidden) {
+      stopDetailPolling();
+      return;
+    }
+    try {
+      const c = await fetchContract(noticeId);
+      if (!c) return;
+      if (getContractSummary(c)) {
+        renderDetailModal(c);
         await loadContracts();
-        openDetail(noticeId);
-      } else {
-        screenBtn.textContent = "Analyze this contract";
-        screenBtn.disabled = false;
-        showSyncStatus(data.detail || "Screening failed", true);
+        stopDetailPolling();
       }
-    });
+    } catch {
+      /* keep polling */
+    }
+  }, 3000);
+}
+
+async function beginAutoAnalysis(noticeId) {
+  startDetailLiveUpdates(noticeId);
+
+  try {
+    await requestContractScreening(noticeId);
+    const c = await fetchContract(noticeId);
+    if (c && getContractSummary(c)) {
+      renderDetailModal(c);
+      if (!c.pricing_intelligence && !c.analysis?.pricing_intelligence) {
+        loadPricingIntel(noticeId);
+      }
+      await loadContracts();
+      stopDetailPolling();
+    }
+  } catch (err) {
+    if (err.message !== "Login required") {
+      showSyncStatus(err.message, true);
+    }
+  }
+}
+
+async function openDetail(noticeId) {
+  stopDetailPolling();
+  activeDetailId = noticeId;
+
+  const c = await fetchContract(noticeId);
+  if (!c) return;
+
+  const summary = getContractSummary(c);
+  const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
+
+  renderDetailModal(c, { analyzing: !summary });
+  document.getElementById("modal").hidden = false;
+
+  if (!pricingIntel) {
+    loadPricingIntel(noticeId);
+  }
+
+  if (!summary) {
+    beginAutoAnalysis(noticeId);
   }
 }
 
@@ -329,17 +411,30 @@ function sortAwardsByDate(awards) {
   });
 }
 
+function formatPricingLocationScope(intel) {
+  if (!intel) return "this work area";
+  if (intel.location_scope) return intel.location_scope;
+  return intel.state_code || "this work area";
+}
+
+function formatAwardLocation(award) {
+  if (award?.performance_location) return award.performance_location;
+  const parts = [award?.performance_city, award?.performance_state, award?.performance_zip].filter(Boolean);
+  return parts.length ? parts.join(", ") : "—";
+}
+
 function renderAwardsTable(awards) {
   const rows = sortAwardsByDate(awards);
   if (!rows.length) return "";
   return `<table class="pricing-table">
     <thead>
-      <tr><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
+      <tr><th>Award date</th><th>Work location</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
     </thead>
     <tbody>
       ${rows.map((a) => `
         <tr class="${a.days_ago != null && a.days_ago <= 365 ? "pricing-row-recent" : ""}">
           <td>${escapeHtml(formatAwardDate(a))}</td>
+          <td>${escapeHtml(formatAwardLocation(a))}</td>
           <td>${escapeHtml(a.recipient_name || "—")}</td>
           <td>${formatMoney(a.award_amount)}</td>
           <td>${escapeHtml(a.awarding_agency || "—")}</td>
@@ -360,15 +455,17 @@ function renderClaudePricingPanel(pricing, rawIntel) {
   const incumbent = pricing.incumbent || rawIntel?.likely_incumbent || "Not identified";
   const winner = pricing.most_frequent_winner || "—";
   const recentCount = rawIntel?.awards_last_12_months;
+  const locationScope = formatPricingLocationScope(rawIntel);
   const awardsNote = rawIntel?.awards_count
-    ? `${rawIntel.awards_count} comparable awards${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""} · ${rawIntel.state_code || ""}`
-    : "Based on USAspending.gov historical data";
+    ? `${rawIntel.awards_count} comparable awards where work was performed in ${locationScope}${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""}`
+    : "Based on USAspending.gov historical data in the same work area";
 
   const awardsTable = renderAwardsTable(rawIntel?.awards);
 
   return `
     <div class="pricing-panel">
-      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis · recent awards weighted higher)</span></p>
+      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis · same work area · recent awards weighted higher)</span></p>
+      ${rawIntel?.location_scope_note ? `<p class="pricing-note">${escapeHtml(rawIntel.location_scope_note)}</p>` : ""}
       <div class="pricing-bid-hero">
         <span class="pricing-bid-label">Recommended bid range</span>
         <span class="pricing-bid-range">${bidLow} – ${bidHigh}</span>
@@ -417,18 +514,21 @@ function renderPricingPanel(intel) {
     ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (score ${intel.most_frequent_winner_count})` : ""}`
     : "—";
 
+  const locationScope = formatPricingLocationScope(intel);
+
   const awardsTable = renderAwardsTable(intel.awards)
-    || `<p class="pricing-meta">No comparable awards found for this NAICS and state in the last 3 years.</p>`;
+    || `<p class="pricing-meta">No comparable awards found for this NAICS in ${escapeHtml(locationScope)} over the last 3 years.</p>`;
 
   return `
     <div class="pricing-panel">
       <p class="pricing-intro">
-        ${intel.awards_with_dates || intel.awards_count} dated contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} in
-        <strong>${escapeHtml(intel.state_code || "")}</strong> · NAICS
+        ${intel.awards_with_dates || intel.awards_count} dated contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} where work was performed in
+        <strong>${escapeHtml(locationScope)}</strong> · NAICS
         <strong>${escapeHtml(intel.naics_code || "")}</strong>
         ${intel.awards_last_12_months != null ? ` · ${intel.awards_last_12_months} in last 12 months` : ""}
-        <span class="pricing-source">(USAspending.gov · recent awards weighted higher)</span>
+        <span class="pricing-source">(USAspending.gov · same work area · recent awards weighted higher)</span>
       </p>
+      ${intel.location_scope_note ? `<p class="pricing-note">${escapeHtml(intel.location_scope_note)}</p>` : ""}
       <div class="pricing-stats">
         <div class="pricing-stat">
           <span class="pricing-stat-label">Weighted average</span>
@@ -475,6 +575,8 @@ async function loadPricingIntel(noticeId, refresh = false) {
 }
 
 function closeModal() {
+  stopDetailPolling();
+  activeDetailId = null;
   document.getElementById("modal").hidden = true;
 }
 

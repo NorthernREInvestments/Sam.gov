@@ -5,16 +5,21 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from usaspending_client import extract_state, fetch_pricing_intelligence
+from usaspending_client import extract_work_location, fetch_pricing_intelligence
 
 
 def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) -> dict[str, Any]:
     """Return cached or freshly fetched USAspending pricing intelligence."""
     naics_code = (contract.naics_code or "").strip() or None
-    state_code = extract_state(contract.location, contract.sam_raw if isinstance(contract.sam_raw, dict) else None)
+    work_location = extract_work_location(
+        contract.location,
+        contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
+    )
+    state_code = work_location.get("state_code")
+    city = work_location.get("city")
 
     cached = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else None
-    if cached and not force_refresh and _cache_fresh(cached):
+    if cached and not force_refresh and _cache_fresh(cached) and cached.get("location_scope"):
         return cached
 
     if not naics_code:
@@ -22,13 +27,13 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
 
     if not state_code:
         return _error_payload(
-            f"Could not determine state from location '{contract.location or 'unknown'}'.",
+            "Could not determine where the work is performed — need a state for regional pricing lookup.",
             naics_code,
             state_code,
         )
 
     try:
-        intel = fetch_pricing_intelligence(naics_code, state_code)
+        intel = fetch_pricing_intelligence(naics_code, state_code, city=city)
     except Exception as exc:
         return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
 

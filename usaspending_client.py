@@ -24,6 +24,9 @@ AWARD_FIELDS = [
     "End Date",
     "Awarding Agency",
     "Contract Award Type",
+    "Place of Performance State Code",
+    "Place of Performance City Name",
+    "Place of Performance Zip5",
 ]
 
 STATE_NAME_TO_CODE: dict[str, str] = {
@@ -86,6 +89,73 @@ STATE_NAME_TO_CODE: dict[str, str] = {
     ]},
 }
 
+STATE_CODE_TO_NAME: dict[str, str] = {
+    code: name.title()
+    for name, code in STATE_NAME_TO_CODE.items()
+    if len(name) > 2
+}
+
+MIN_LOCAL_COMPARABLE_AWARDS = 3
+
+# Land-adjacent states only — widest geographic search allowed.
+BORDERING_STATES: dict[str, list[str]] = {
+    "AL": ["MS", "TN", "GA", "FL"],
+    "AK": [],
+    "AZ": ["CA", "NV", "UT", "CO", "NM"],
+    "AR": ["MO", "TN", "MS", "LA", "TX", "OK"],
+    "CA": ["OR", "NV", "AZ"],
+    "CO": ["WY", "NE", "KS", "OK", "NM", "AZ", "UT"],
+    "CT": ["NY", "MA", "RI"],
+    "DC": ["MD", "VA"],
+    "DE": ["MD", "PA", "NJ"],
+    "FL": ["GA", "AL"],
+    "GA": ["FL", "AL", "TN", "NC", "SC"],
+    "HI": [],
+    "ID": ["MT", "WY", "UT", "NV", "OR", "WA"],
+    "IL": ["WI", "IA", "MO", "KY", "IN"],
+    "IN": ["MI", "OH", "KY", "IL"],
+    "IA": ["MN", "WI", "IL", "MO", "NE", "SD"],
+    "KS": ["NE", "MO", "OK", "CO"],
+    "KY": ["IL", "IN", "OH", "WV", "VA", "TN", "MO"],
+    "LA": ["TX", "AR", "MS"],
+    "ME": ["NH"],
+    "MD": ["PA", "DE", "WV", "VA", "DC"],
+    "MA": ["NH", "RI", "CT", "NY", "VT"],
+    "MI": ["OH", "IN", "WI"],
+    "MN": ["WI", "IA", "SD", "ND"],
+    "MS": ["LA", "AR", "TN", "AL"],
+    "MO": ["IA", "IL", "KY", "TN", "AR", "OK", "KS", "NE"],
+    "MT": ["ND", "SD", "WY", "ID"],
+    "NE": ["SD", "IA", "MO", "KS", "CO", "WY"],
+    "NV": ["OR", "ID", "UT", "AZ", "CA"],
+    "NH": ["ME", "MA", "VT"],
+    "NJ": ["NY", "PA", "DE"],
+    "NM": ["AZ", "UT", "CO", "OK", "TX"],
+    "NY": ["VT", "MA", "CT", "NJ", "PA"],
+    "NC": ["VA", "TN", "GA", "SC"],
+    "ND": ["MN", "SD", "MT"],
+    "OH": ["PA", "WV", "KY", "IN", "MI"],
+    "OK": ["KS", "MO", "AR", "TX", "NM", "CO"],
+    "OR": ["WA", "ID", "NV", "CA"],
+    "PA": ["NY", "NJ", "DE", "MD", "WV", "OH"],
+    "RI": ["MA", "CT"],
+    "SC": ["NC", "GA"],
+    "SD": ["ND", "MN", "IA", "NE", "WY", "MT"],
+    "TN": ["KY", "VA", "NC", "GA", "AL", "MS", "AR", "MO"],
+    "TX": ["NM", "OK", "AR", "LA"],
+    "UT": ["ID", "WY", "CO", "NM", "AZ", "NV"],
+    "VT": ["NY", "NH", "MA"],
+    "VA": ["MD", "WV", "KY", "TN", "NC", "DC"],
+    "WA": ["ID", "OR"],
+    "WV": ["PA", "MD", "VA", "KY", "OH"],
+    "WI": ["MI", "MN", "IA", "IL"],
+    "WY": ["MT", "SD", "NE", "CO", "UT", "ID"],
+}
+
+
+def _state_names(codes: list[str]) -> str:
+    return ", ".join(STATE_CODE_TO_NAME.get(code, code) for code in codes)
+
 
 def normalize_state(value: str | None) -> str | None:
     if not value:
@@ -101,30 +171,81 @@ def normalize_state(value: str | None) -> str | None:
     return None
 
 
-def extract_state(location: str | None, sam_raw: dict[str, Any] | None = None) -> str | None:
-    """Pull a two-letter state code from contract location or SAM.gov raw record."""
+def _parse_sam_location_block(block: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
+    city = block.get("city")
+    if isinstance(city, dict):
+        city = city.get("name") or city.get("code")
+    state = block.get("state") or block.get("stateCode") or block.get("state_code")
+    if isinstance(state, dict):
+        state = state.get("code") or state.get("name")
+    zip_code = block.get("zip") or block.get("zipcode") or block.get("zipCode")
+    state_code = normalize_state(str(state) if state else "")
+    city_name = str(city).strip() if city else None
+    zip_text = str(zip_code).strip()[:5] if zip_code else None
+    return city_name or None, state_code, zip_text
+
+
+def extract_work_location(
+    location: str | None,
+    sam_raw: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Where the work is performed — place of performance only, not contracting office."""
+    city: str | None = None
+    state_code: str | None = None
+    zip_code: str | None = None
+
     if sam_raw:
-        for key in ("placeOfPerformance", "officeAddress", "placeOfPerformanceLocation"):
+        for key in ("placeOfPerformance", "placeOfPerformanceLocation"):
             block = sam_raw.get(key)
             if isinstance(block, dict):
-                for field in ("state", "stateCode", "state_code", "code"):
-                    code = normalize_state(str(block.get(field) or ""))
-                    if code:
-                        return code
+                city, state_code, zip_code = _parse_sam_location_block(block)
+                if state_code:
+                    break
 
-    if not location:
+    if not state_code and location:
+        parts = [part.strip() for part in location.split(",") if part.strip()]
+        state_idx: int | None = None
+        for idx in range(len(parts) - 1, -1, -1):
+            part = parts[idx]
+            if re.fullmatch(r"\d{5}(?:-\d{4})?", part):
+                zip_code = part[:5]
+                continue
+            code = normalize_state(part)
+            if code:
+                state_code = code
+                state_idx = idx
+                break
+        if state_code and state_idx is not None and state_idx > 0:
+            city = ", ".join(parts[:state_idx]) or None
+        elif state_code and len(parts) == 1:
+            city = None
+
+    if not state_code and location:
+        match = re.search(r"\b([A-Z]{2})\b", location.upper())
+        if match:
+            state_code = normalize_state(match.group(1))
+
+    label = format_location_scope(state_code, city)
+    return {
+        "state_code": state_code,
+        "city": city,
+        "zip": zip_code,
+        "label": label,
+    }
+
+
+def format_location_scope(state_code: str | None, city: str | None = None) -> str | None:
+    if not state_code:
         return None
+    state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
+    if city:
+        return f"{city}, {state_name}"
+    return state_name
 
-    parts = [part.strip() for part in location.split(",") if part.strip()]
-    for part in reversed(parts):
-        code = normalize_state(part)
-        if code:
-            return code
 
-    match = re.search(r"\b([A-Z]{2})\b", location.upper())
-    if match:
-        return normalize_state(match.group(1))
-    return None
+def extract_state(location: str | None, sam_raw: dict[str, Any] | None = None) -> str | None:
+    """Pull a two-letter state code from place of performance."""
+    return extract_work_location(location, sam_raw).get("state_code")
 
 
 def _parse_award_date(value: str | None) -> date | None:
@@ -174,6 +295,12 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
     days_ago = (today - award_date).days if award_date else None
     recency_weight = round(_recency_weight(award_date, today), 3) if award_date else None
 
+    pop_state = normalize_state(str(row.get("Place of Performance State Code") or ""))
+    pop_city = str(row.get("Place of Performance City Name") or "").strip() or None
+    pop_zip = str(row.get("Place of Performance Zip5") or "").strip()[:5] or None
+    location_parts = [p for p in (pop_city, pop_state, pop_zip) if p]
+    performance_location = ", ".join(location_parts) if location_parts else None
+
     return {
         "award_id": row.get("Award ID"),
         "recipient_name": row.get("Recipient Name"),
@@ -185,16 +312,33 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
         "recency_weight": recency_weight,
         "awarding_agency": row.get("Awarding Agency"),
         "contract_award_type": row.get("Contract Award Type"),
+        "performance_state": pop_state,
+        "performance_city": pop_city,
+        "performance_zip": pop_zip,
+        "performance_location": performance_location,
     }
 
 
-def build_search_payload(naics_code: str, state_code: str, limit: int = 20) -> dict[str, Any]:
+def build_search_payload(
+    naics_code: str,
+    state_codes: str | list[str],
+    *,
+    city: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
     end_date = date.today()
     start_date = end_date - timedelta(days=365 * 3)
+    if isinstance(state_codes, str):
+        state_codes = [state_codes]
+    if city and len(state_codes) == 1:
+        locations: list[dict[str, str]] = [{"country": "USA", "state": state_codes[0], "city": city}]
+    else:
+        locations = [{"country": "USA", "state": code} for code in state_codes]
     return {
         "filters": {
             "naics_codes": {"require": [naics_code]},
-            "place_of_performance_locations": [{"country": "USA", "state": state_code}],
+            "place_of_performance_scope": "domestic",
+            "place_of_performance_locations": locations,
             "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
             "time_period": [
                 {
@@ -211,11 +355,73 @@ def build_search_payload(naics_code: str, state_code: str, limit: int = 20) -> d
     }
 
 
+def _count_dated_awards(awards: list[dict[str, Any]]) -> int:
+    return sum(
+        1
+        for award in awards
+        if award.get("award_date") and award.get("award_amount") and award["award_amount"] > 0
+    )
+
+
+def _filter_awards_by_states(
+    awards: list[dict[str, Any]],
+    allowed_states: set[str],
+) -> list[dict[str, Any]]:
+    """Drop any award whose place of performance is outside the allowed states."""
+    matched: list[dict[str, Any]] = []
+    for award in awards:
+        pop_state = award.get("performance_state")
+        if pop_state and pop_state not in allowed_states:
+            continue
+        matched.append(award)
+    return matched
+
+
+def _filter_awards_by_state(awards: list[dict[str, Any]], state_code: str) -> list[dict[str, Any]]:
+    return _filter_awards_by_states(awards, {state_code})
+
+
+def _query_awards(
+    naics_code: str,
+    state_code: str,
+    *,
+    city: str | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    return _query_awards_in_states(naics_code, [state_code], city=city, limit=limit)
+
+
+def _query_awards_in_states(
+    naics_code: str,
+    state_codes: list[str],
+    *,
+    city: str | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    payload = build_search_payload(naics_code, state_codes, city=city, limit=limit)
+    url = f"{BASE_URL}{SEARCH_PATH}"
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    today = date.today()
+    allowed = set(state_codes)
+    awards = [_normalize_award(row, today) for row in (data.get("results") or [])[:limit]]
+    awards = _filter_awards_by_states(awards, allowed)
+    awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    return awards
+
+
 def summarize_awards(
     awards: list[dict[str, Any]],
     *,
     naics_code: str,
     state_code: str,
+    location_scope: str | None = None,
+    location_scope_type: str | None = None,
+    location_scope_note: str | None = None,
+    surrounding_states: list[str] | None = None,
 ) -> dict[str, Any]:
     today = date.today()
     dated_awards = [
@@ -248,6 +454,10 @@ def summarize_awards(
     summary: dict[str, Any] = {
         "naics_code": naics_code,
         "state_code": state_code,
+        "location_scope": location_scope or format_location_scope(state_code),
+        "location_scope_type": location_scope_type or "state",
+        "location_scope_note": location_scope_note,
+        "surrounding_states": surrounding_states or [],
         "lookback_years": 3,
         "awards_count": len(awards),
         "awards_with_dates": len(dated_awards),
@@ -306,30 +516,104 @@ def fetch_pricing_intelligence(
     naics_code: str | None,
     state_code: str | None,
     *,
+    city: str | None = None,
     limit: int = 20,
 ) -> dict[str, Any]:
-    """Query USAspending.gov and return pricing intelligence for similar contracts."""
+    """Query USAspending.gov for comparable contracts in the same work area."""
     if not naics_code:
         raise ValueError("NAICS code is required for pricing lookup.")
     if not state_code:
         raise ValueError("Could not determine the contract state for pricing lookup.")
 
-    payload = build_search_payload(naics_code, state_code, limit=limit)
-    url = f"{BASE_URL}{SEARCH_PATH}"
+    state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
+    neighbors = BORDERING_STATES.get(state_code, [])
+    awards: list[dict[str, Any]]
+    location_scope: str
+    location_scope_type = "state"
+    location_scope_note: str | None = None
+    surrounding_states: list[str] = []
 
-    with httpx.Client(timeout=60.0) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
+    if city:
+        local_awards = _query_awards(naics_code, state_code, city=city, limit=limit)
+        local_dated = _count_dated_awards(local_awards)
+        if local_dated >= MIN_LOCAL_COMPARABLE_AWARDS:
+            awards = local_awards
+            location_scope = format_location_scope(state_code, city) or f"{city}, {state_name}"
+            location_scope_type = "city"
+        else:
+            state_awards = _query_awards(naics_code, state_code, limit=limit)
+            state_dated = _count_dated_awards(state_awards)
+            if state_dated >= MIN_LOCAL_COMPARABLE_AWARDS or not neighbors:
+                awards = state_awards
+                location_scope = state_name
+                location_scope_note = (
+                    f"Only {local_dated} recent comparable award(s) in {city}; "
+                    f"expanded to all contracts performed in {state_name}."
+                    if local_dated > 0
+                    else f"No recent comparable awards in {city}; showing contracts performed statewide in {state_name}."
+                )
+            else:
+                awards, location_scope, location_scope_note, surrounding_states = _regional_fallback(
+                    naics_code,
+                    state_code,
+                    state_name,
+                    neighbors,
+                    limit=limit,
+                    prior_note=(
+                        f"Few comparables in {city} and {state_name}; "
+                        f"expanded to neighboring states (widest search)."
+                    ),
+                )
+                location_scope_type = "region"
+    else:
+        state_awards = _query_awards(naics_code, state_code, limit=limit)
+        state_dated = _count_dated_awards(state_awards)
+        if state_dated >= MIN_LOCAL_COMPARABLE_AWARDS or not neighbors:
+            awards = state_awards
+            location_scope = state_name
+        else:
+            awards, location_scope, location_scope_note, surrounding_states = _regional_fallback(
+                naics_code,
+                state_code,
+                state_name,
+                neighbors,
+                limit=limit,
+                prior_note=(
+                    f"Only {state_dated} recent comparable award(s) in {state_name}; "
+                    f"expanded to neighboring states (widest search)."
+                ),
+            )
+            location_scope_type = "region"
 
-    raw_results = data.get("results") or []
-    today = date.today()
-    awards = [_normalize_award(row, today) for row in raw_results[:limit]]
-    awards.sort(
-        key=lambda a: a.get("award_date") or "",
-        reverse=True,
+    summary = summarize_awards(
+        awards,
+        naics_code=naics_code,
+        state_code=state_code,
+        location_scope=location_scope,
+        location_scope_type=location_scope_type,
+        location_scope_note=location_scope_note,
+        surrounding_states=surrounding_states,
     )
-    summary = summarize_awards(awards, naics_code=naics_code, state_code=state_code)
     summary["source"] = "USAspending.gov"
     summary["fetched_at"] = date.today().isoformat()
     return summary
+
+
+def _regional_fallback(
+    naics_code: str,
+    state_code: str,
+    state_name: str,
+    neighbors: list[str],
+    *,
+    limit: int,
+    prior_note: str,
+) -> tuple[list[dict[str, Any]], str, str, list[str]]:
+    """Widest allowed search: home state plus bordering states only."""
+    regional_states = [state_code, *neighbors]
+    awards = _query_awards_in_states(naics_code, regional_states, limit=limit)
+    location_scope = f"{state_name} and neighboring states"
+    location_scope_note = (
+        f"{prior_note} Includes {_state_names(regional_states)}. "
+        "National or distant-state awards are never included."
+    )
+    return awards, location_scope, location_scope_note, neighbors

@@ -54,7 +54,9 @@ def _set_aside_matches(opp: dict[str, Any]) -> bool:
 
 
 def _format_location(raw: dict[str, Any]) -> str | None:
-    place = raw.get("placeOfPerformance") or raw.get("officeAddress")
+    place = raw.get("placeOfPerformance") or raw.get("placeOfPerformanceLocation")
+    if not isinstance(place, dict):
+        place = raw.get("officeAddress")
     if isinstance(place, dict):
         city = place.get("city")
         state = place.get("state")

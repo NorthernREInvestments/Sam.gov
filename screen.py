@@ -16,6 +16,23 @@ from models import Contract
 logger = logging.getLogger("govtracker.screening")
 _background_lock = threading.Lock()
 _background_running = False
+_screening_ids: set[str] = set()
+_screening_ids_lock = threading.Lock()
+
+
+def _try_begin_screening(notice_id: str) -> bool:
+    with _screening_ids_lock:
+        if notice_id in _screening_ids:
+            return False
+        _screening_ids.add(notice_id)
+        return True
+
+
+def _end_screening(notice_id: str) -> None:
+    with _screening_ids_lock:
+        _screening_ids.discard(notice_id)
+
+
 def screen_pending(limit: int = 5, force: bool = False, matching_only: bool = False) -> dict[str, Any]:
     """
     Screen contracts without analysis.
@@ -44,6 +61,9 @@ def screen_pending(limit: int = 5, force: bool = False, matching_only: bool = Fa
             if row.analysis and not force:
                 skipped += 1
                 continue
+            if not _try_begin_screening(row.notice_id):
+                skipped += 1
+                continue
             try:
                 analysis = screen_contract(row)
                 row.analysis = analysis
@@ -59,6 +79,8 @@ def screen_pending(limit: int = 5, force: bool = False, matching_only: bool = Fa
             except Exception as exc:
                 session.rollback()
                 errors.append(f"{row.notice_id}: {exc}")
+            finally:
+                _end_screening(row.notice_id)
 
         pending = session.query(Contract).filter(Contract.analysis.is_(None)).count()
     finally:
@@ -80,18 +102,23 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
             raise ValueError(f"Contract not found: {notice_id}")
         if row.analysis and not force:
             return {"notice_id": notice_id, "skipped": True, "analysis": row.analysis}
+        if not _try_begin_screening(notice_id):
+            return {"notice_id": notice_id, "in_progress": True}
 
-        analysis = screen_contract(row)
-        row.analysis = analysis
-        row.last_updated_at = datetime.now(timezone.utc)
-        if analysis.get("pursue") is False:
-            row.status = "skipped"
-        elif row.status in ("new", "skipped"):
-            row.status = "reviewing"
-        if analysis.get("estimated_value") and not row.estimated_value:
-            row.estimated_value = str(analysis["estimated_value"])[:128]
-        session.commit()
-        return {"notice_id": notice_id, "skipped": False, "analysis": analysis}
+        try:
+            analysis = screen_contract(row)
+            row.analysis = analysis
+            row.last_updated_at = datetime.now(timezone.utc)
+            if analysis.get("pursue") is False:
+                row.status = "skipped"
+            elif row.status in ("new", "skipped"):
+                row.status = "reviewing"
+            if analysis.get("estimated_value") and not row.estimated_value:
+                row.estimated_value = str(analysis["estimated_value"])[:128]
+            session.commit()
+            return {"notice_id": notice_id, "skipped": False, "analysis": analysis}
+        finally:
+            _end_screening(notice_id)
     finally:
         session.close()
 

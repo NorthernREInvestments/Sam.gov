@@ -685,6 +685,17 @@ body {
   color: #92400e;
 }
 
+.executive-summary-placeholder.analyzing {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a8a;
+}
+
+.analyzing-title {
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
 .detail-section-title {
   font-size: 0.8rem;
   font-weight: 700;
