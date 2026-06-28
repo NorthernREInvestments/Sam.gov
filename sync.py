@@ -155,6 +155,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "pursue": analysis.get("pursue"),
         "score": analysis.get("score"),
         "reason": analysis.get("reason"),
+        "plain_english_summary": analysis.get("plain_english_summary") or analysis.get("executive_summary"),
         "executive_summary": analysis.get("executive_summary"),
         "sub_type_needed": analysis.get("sub_type_needed"),
         "red_flags": analysis.get("red_flags") or [],

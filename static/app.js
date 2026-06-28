@@ -102,7 +102,7 @@ function renderCards() {
     const tone = cardTone(c);
     const due = formatDue(c);
     const subType = c.sub_type_needed || "Not screened yet";
-    const summary = c.executive_summary;
+    const summary = c.plain_english_summary || c.executive_summary;
     const headline = summary ? firstSentence(summary, 160) : null;
     const titleBlock = headline
       ? `<h3 class="card-title">${escapeHtml(headline)}</h3>
@@ -149,7 +149,7 @@ async function openDetail(noticeId) {
   if (!res.ok) return;
   const c = await res.json();
   const due = formatDue(c);
-  const summary = c.executive_summary || c.analysis?.executive_summary;
+  const summary = c.plain_english_summary || c.executive_summary || c.analysis?.plain_english_summary || c.analysis?.executive_summary;
   const summaryBlock = summary
     ? `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`
     : `<div class="executive-summary-placeholder">
