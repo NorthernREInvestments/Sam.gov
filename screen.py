@@ -9,6 +9,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
+from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
 from claude_client import screen_contract
 from database import SessionLocal
 from models import Contract
@@ -64,8 +65,15 @@ def screen_pending(limit: int = 5, force: bool = False, matching_only: bool = Fa
             if not _try_begin_screening(row.notice_id):
                 skipped += 1
                 continue
+            if not can_screen():
+                errors.append("Daily Claude screening budget reached — try again tomorrow or raise ANTHROPIC_DAILY_SCREEN_BUDGET.")
+                break
             try:
                 analysis = screen_contract(row)
+                if not record_screen_usage():
+                    session.rollback()
+                    errors.append("Daily Claude screening budget reached while saving usage.")
+                    break
                 row.analysis = analysis
                 row.last_updated_at = datetime.now(timezone.utc)
                 if analysis.get("pursue") is False:
@@ -106,6 +114,9 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
             return {"notice_id": notice_id, "in_progress": True}
 
         try:
+            if not can_screen():
+                raise ScreenBudgetExceeded()
+
             from sam_enrich import ensure_enriched_sam_raw
             from sam_client import normalize_opportunity
 
@@ -118,6 +129,8 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
                     row.location = refreshed["location"]
 
             analysis = screen_contract(row)
+            if not record_screen_usage():
+                raise ScreenBudgetExceeded()
             row.analysis = analysis
             row.last_updated_at = datetime.now(timezone.utc)
             if analysis.get("pursue") is False:
@@ -135,7 +148,12 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
 
 
 def start_background_screening(batch_size: int = 5) -> None:
-    """Screen unscreened contracts in a background thread (used after sync and on startup)."""
+    """Screen unscreened contracts in a background thread (opt-in via AUTO_SCREEN_ON_STARTUP)."""
+    from api_budget import auto_screen_on_startup
+
+    if not auto_screen_on_startup():
+        return
+
     global _background_running
 
     with _background_lock:
@@ -148,6 +166,9 @@ def start_background_screening(batch_size: int = 5) -> None:
         try:
             total = 0
             while True:
+                if not can_screen():
+                    logger.info("Background screening stopped: daily Claude budget reached")
+                    break
                 result = screen_pending(limit=batch_size, matching_only=False)
                 total += result.get("screened", 0)
                 if result.get("screened", 0) == 0:

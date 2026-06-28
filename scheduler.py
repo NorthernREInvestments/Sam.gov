@@ -21,7 +21,6 @@ def _timezone(name: str) -> ZoneInfo:
 
 
 def run_daily_sync() -> None:
-    from screen import start_background_screening
     from sync import sync_all_naics
 
     logger.info("Starting scheduled daily SAM.gov sync")
@@ -33,7 +32,6 @@ def run_daily_sync() -> None:
             result["new"],
             result["total_in_db"],
         )
-        start_background_screening()
     except Exception:
         logger.exception("Scheduled daily sync failed")
 

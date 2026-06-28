@@ -24,7 +24,7 @@ from sam_client import min_days_from_env, naics_from_env
 from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
 from pricing import get_contract_pricing_intel
-from sync import contract_to_dict, get_naics_sync_status, list_contracts, refresh_stale_sam_raw, sync_all_naics, sync_from_sam
+from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
 from screen import screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -48,9 +48,12 @@ async def lifespan(app: FastAPI):
 
     init_db()
     start_scheduler()
-    from screen import start_background_screening
+    from api_budget import auto_screen_on_startup
 
-    start_background_screening()
+    if auto_screen_on_startup():
+        from screen import start_background_screening
+
+        start_background_screening()
     yield
     stop_scheduler()
 
@@ -135,7 +138,6 @@ def get_contracts(
     naics_codes = [c.strip() for c in naics.split(",") if c.strip()] if naics else None
     session = SessionLocal()
     try:
-        refresh_stale_sam_raw(session, limit=12)
         rows = list_contracts(
             session,
             naics_codes=naics_codes,
@@ -144,7 +146,13 @@ def get_contracts(
             agency=agency,
             pursue_only=pursue_only,
         )
-        return {"count": len(rows), "contracts": [contract_to_dict(r) for r in rows]}
+        from api_budget import get_usage_snapshot
+
+        return {
+            "count": len(rows),
+            "contracts": [contract_to_dict(r) for r in rows],
+            "api_budget": get_usage_snapshot(),
+        }
     finally:
         session.close()
 
@@ -212,12 +220,16 @@ def run_sync(all_naics: bool = Query(False)):
 
 @app.post("/api/screen")
 def run_screen(
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(5, ge=1, le=25),
     force: bool = Query(False),
     matching_only: bool = Query(True),
 ):
     try:
+        from api_budget import ScreenBudgetExceeded
+
         return screen_pending(limit=limit, force=force, matching_only=matching_only)
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -227,7 +239,11 @@ def run_screen(
 @app.post("/api/contracts/{notice_id}/screen")
 def run_screen_one(notice_id: str, force: bool = Query(False)):
     try:
+        from api_budget import ScreenBudgetExceeded
+
         return screen_one(notice_id, force=force)
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:

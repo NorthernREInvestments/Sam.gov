@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from api_budget import can_spend_sam, record_sam_usage
 from usaspending_client import STATE_NAME_TO_CODE, normalize_state
 
 NOTICE_DESC_URL = "https://api.sam.gov/prod/opportunities/v1/noticedesc"
@@ -30,6 +31,20 @@ STATE_NAME_PATTERN = "|".join(
 
 def _api_key() -> str:
     return os.getenv("SAM_GOV_API_KEY", "").strip()
+
+
+def _sam_api_get(url: str, *, params: dict[str, Any] | None = None, timeout: float = 45.0) -> httpx.Response | None:
+    """Perform one SAM.gov API GET and count it against the daily budget."""
+    if not can_spend_sam(1):
+        return None
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(url, params=params)
+            response.raise_for_status()
+            record_sam_usage(1)
+            return response
+    except Exception:
+        return None
 
 
 def html_to_text(html: str | None) -> str:
@@ -84,16 +99,16 @@ def fetch_notice_description(notice_id: str, api_key: str | None = None) -> str 
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
         return None
+    response = _sam_api_get(
+        NOTICE_DESC_URL,
+        params={"noticeid": notice_id, "api_key": api_key},
+    )
+    if not response:
+        return None
     try:
-        with httpx.Client(timeout=45.0) as client:
-            response = client.get(
-                NOTICE_DESC_URL,
-                params={"noticeid": notice_id, "api_key": api_key},
-            )
-            response.raise_for_status()
-            payload = response.json()
-            description = payload.get("description")
-            return str(description) if description else None
+        payload = response.json()
+        description = payload.get("description")
+        return str(description) if description else None
     except Exception:
         return None
 
@@ -105,13 +120,11 @@ def fetch_opportunity_attachments(notice_id: str, api_key: str | None = None) ->
         return []
 
     url = SAM_RESOURCES_URL.format(notice_id=notice_id)
+    response = _sam_api_get(url, params={"api_key": api_key})
+    if not response or not response.text.strip():
+        return []
     try:
-        with httpx.Client(timeout=45.0) as client:
-            response = client.get(url, params={"api_key": api_key})
-            response.raise_for_status()
-            if not response.text.strip():
-                return []
-            data = response.json()
+        data = response.json()
     except Exception:
         return []
 
@@ -386,14 +399,15 @@ def fetch_opportunity_raw(notice_id: str, api_key: str | None = None) -> dict[st
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
         return None
+    response = _sam_api_get(
+        SAM_SEARCH_URL,
+        params={"api_key": api_key, "noticeid": notice_id, "limit": 1},
+        timeout=60.0,
+    )
+    if not response:
+        return None
     try:
-        with httpx.Client(timeout=60.0) as client:
-            response = client.get(
-                SAM_SEARCH_URL,
-                params={"api_key": api_key, "noticeid": notice_id, "limit": 1},
-            )
-            response.raise_for_status()
-            rows = response.json().get("opportunitiesData") or []
-            return rows[0] if rows else None
+        rows = response.json().get("opportunitiesData") or []
+        return rows[0] if rows else None
     except Exception:
         return None

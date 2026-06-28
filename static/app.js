@@ -677,6 +677,11 @@ function showSyncStatus(message, isError = false) {
   el.classList.toggle("error", isError);
 }
 
+function formatApiBudget(budget) {
+  if (!budget) return "";
+  return `SAM.gov: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left) · Claude screens: ${budget.screens_used_today}/${budget.screen_daily_limit} (${budget.screens_remaining} left)`;
+}
+
 async function runSync(allNaics = false) {
   const btn = document.getElementById(allNaics ? "sync-all-btn" : "refresh-btn");
   const other = document.getElementById(allNaics ? "refresh-btn" : "sync-all-btn");
@@ -693,7 +698,11 @@ async function runSync(allNaics = false) {
     const res = await apiFetch(url, { method: "POST" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Sync failed");
-    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated. ${data.total_in_db} total in database.`);
+    const budgetLine = data.api_budget ? ` ${formatApiBudget(data.api_budget)}` : "";
+    const enrichLine = data.attachments_enriched
+      ? ` Enriched attachments on ${data.attachments_enriched} contract(s).`
+      : "";
+    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${enrichLine}${budgetLine}`);
     await loadConfig();
     await loadContracts();
   } catch (err) {
@@ -711,7 +720,7 @@ async function runScreen() {
   btn.textContent = "Screening...";
   showSyncStatus("Analyzing matching contracts (reads PDF attachments — may take several minutes)...");
   try {
-    const res = await apiFetch("/api/screen?limit=25&matching_only=true", { method: "POST" });
+    const res = await apiFetch("/api/screen?limit=5&matching_only=true", { method: "POST" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Screening failed");
     let msg = `Screened ${data.screened} contract(s). ${data.pending_remaining} still unscreened in database.`;
@@ -751,6 +760,14 @@ async function loadSettingsPage() {
     <li>SAM.gov: ${keys.sam_gov ? "configured" : "missing"}</li>
     <li>Anthropic: ${keys.anthropic ? "configured" : "missing"}</li>
     <li>PostgreSQL: ${keys.database ? "configured" : "missing"}</li>
+  `;
+
+  const budget = data.api_budget || {};
+  document.getElementById("api-budget-status").innerHTML = `
+    <li>SAM.gov API: ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
+    <li>Claude screenings: ${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)</li>
+    <li>Attachment enrich on sync: up to ${budget.enrich_on_sync_limit ?? 5} contracts per sync</li>
+    <li>Auto-screen on startup: ${budget.auto_screen_on_startup ? "on" : "off"}</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");

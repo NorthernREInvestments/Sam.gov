@@ -141,17 +141,24 @@ def _collect_urls(raw: dict[str, Any]) -> list[str]:
 
 
 def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
+    from api_budget import can_spend_sam, record_sam_usage
+
     blocks: list[dict[str, Any]] = []
     reviewed: list[str] = []
     with httpx.Client(timeout=60.0, follow_redirects=True) as client:
         for url in urls:
             if len(blocks) >= MAX_PDFS:
                 break
+            is_sam_download = "sam.gov" in url.lower()
+            if is_sam_download and not can_spend_sam(1):
+                continue
             try:
                 resp = client.get(url)
                 resp.raise_for_status()
             except httpx.HTTPError:
                 continue
+            if is_sam_download:
+                record_sam_usage(1)
             content_type = (resp.headers.get("content-type") or "").lower()
             is_pdf = (
                 "pdf" in content_type
@@ -363,7 +370,7 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         if refreshed.get("location"):
             contract.location = refreshed["location"]
 
-    pricing_intel = get_contract_pricing_intel(contract, force_refresh=True)
+    pricing_intel = get_contract_pricing_intel(contract, force_refresh=False)
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     urls = _collect_attachment_urls(raw)

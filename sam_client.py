@@ -115,12 +115,16 @@ def fetch_naics_from_sam(
     api_key: str | None = None,
 ) -> list[dict[str, Any]]:
     """One SAM.gov API call for a single NAICS code. Returns normalized opportunities."""
+    from api_budget import can_spend_sam, record_sam_usage
+
     api_key = (api_key or os.getenv("SAM_GOV_API_KEY", "")).strip()
     if not api_key:
         raise ValueError(
             "SAM_GOV_API_KEY is required. "
             "Get a free key at sam.gov -> Account Details -> Public API Key."
         )
+    if not can_spend_sam(1):
+        raise ValueError("SAM.gov daily API budget reached — try again tomorrow or raise SAM_DAILY_API_BUDGET.")
 
     posted_to = date.today()
     posted_from = posted_to - timedelta(days=30)
@@ -140,21 +144,21 @@ def fetch_naics_from_sam(
         resp.raise_for_status()
         batch = resp.json().get("opportunitiesData") or []
 
-    from sam_enrich import enrich_opportunity
+    record_sam_usage(1)
 
     results: list[dict[str, Any]] = []
     seen: set[str] = set()
     for raw in batch:
         if not _set_aside_matches(raw):
             continue
-        enriched = enrich_opportunity(raw, api_key)
-        opp = normalize_opportunity(enriched)
-        if enriched.get("descriptionText"):
-            opp["description"] = enriched["descriptionText"][:8000]
+        opp = normalize_opportunity(raw)
+        description = raw.get("description")
+        if isinstance(description, str) and description.strip() and not description.startswith("http"):
+            opp["description"] = description[:8000]
         nid = str(opp.get("notice_id") or "")
         if not nid or nid in seen:
             continue
         seen.add(nid)
-        results.append({**opp, "sam_raw": enriched})
+        results.append({**opp, "sam_raw": dict(raw)})
 
     return results

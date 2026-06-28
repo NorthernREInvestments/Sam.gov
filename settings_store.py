@@ -120,6 +120,8 @@ def resolve_screening_prompt() -> str:
 
 
 def get_all_settings() -> dict[str, Any]:
+    from api_budget import get_usage_snapshot
+
     prompt, prompt_custom = get_screening_prompt()
     scheduler = get_scheduler_settings()
     return {
@@ -130,6 +132,7 @@ def get_all_settings() -> dict[str, Any]:
         "screening_prompt": prompt,
         "screening_prompt_custom": prompt_custom,
         "scheduler": scheduler,
+        "api_budget": get_usage_snapshot(),
         "api_keys": {
             "sam_gov": bool(os.getenv("SAM_GOV_API_KEY", "").strip()),
             "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),

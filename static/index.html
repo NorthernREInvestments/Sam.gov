@@ -102,6 +102,12 @@
       </section>
 
       <section class="settings-section">
+        <h3>API usage today</h3>
+        <p class="settings-help">GovTracker tracks daily limits to protect your SAM.gov key and Claude credits. Limits reset at midnight (server time). Adjust caps in Railway / <code>.env</code>.</p>
+        <ul id="api-budget-status" class="api-key-status"></ul>
+      </section>
+
+      <section class="settings-section">
         <h3>API keys</h3>
         <p class="settings-help">Keys are set in Railway variables or your local <code>.env</code> file — not stored in the browser.</p>
         <ul id="api-key-status" class="api-key-status"></ul>
@@ -109,7 +115,7 @@
 
       <section class="settings-section">
         <h3>Daily sync schedule</h3>
-        <p class="filter-help">Automatically pulls new contracts from SAM.gov each day, then analyzes them with Claude.</p>
+        <p class="filter-help">Automatically pulls new contracts from SAM.gov each day. Claude screening only runs when you click Screen or open an unscreened contract.</p>
         <label class="checkbox-inline settings-checkbox">
           <input type="checkbox" id="settings-scheduler-enabled" checked> Enable daily sync
         </label>
