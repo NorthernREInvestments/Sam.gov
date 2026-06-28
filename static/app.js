@@ -240,6 +240,45 @@ function formatMoney(value) {
   }).format(num);
 }
 
+function formatAwardDate(award) {
+  const raw = award?.award_date || award?.start_date;
+  if (!raw) return "Date unknown";
+  const d = new Date(`${String(raw).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return String(raw);
+  const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (award?.days_ago == null) return label;
+  if (award.days_ago <= 365) return `${label} (${award.days_ago} days ago)`;
+  const years = (award.days_ago / 365).toFixed(1);
+  return `${label} (${years} yrs ago)`;
+}
+
+function sortAwardsByDate(awards) {
+  return [...(awards || [])].sort((a, b) => {
+    const da = a?.award_date || a?.start_date || "";
+    const db = b?.award_date || b?.start_date || "";
+    return db.localeCompare(da);
+  });
+}
+
+function renderAwardsTable(awards) {
+  const rows = sortAwardsByDate(awards);
+  if (!rows.length) return "";
+  return `<table class="pricing-table">
+    <thead>
+      <tr><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
+    </thead>
+    <tbody>
+      ${rows.map((a) => `
+        <tr class="${a.days_ago != null && a.days_ago <= 365 ? "pricing-row-recent" : ""}">
+          <td>${escapeHtml(formatAwardDate(a))}</td>
+          <td>${escapeHtml(a.recipient_name || "—")}</td>
+          <td>${formatMoney(a.award_amount)}</td>
+          <td>${escapeHtml(a.awarding_agency || "—")}</td>
+        </tr>`).join("")}
+    </tbody>
+  </table>`;
+}
+
 function renderClaudePricingPanel(pricing, rawIntel) {
   const bidLow = formatMoney(pricing.recommended_bid_low);
   const bidHigh = formatMoney(pricing.recommended_bid_high);
@@ -249,33 +288,19 @@ function renderClaudePricingPanel(pricing, rawIntel) {
   const confidence = pricing.pricing_confidence
     ? `${pricing.pricing_confidence.charAt(0).toUpperCase()}${pricing.pricing_confidence.slice(1)} confidence`
     : "—";
-  const incumbent = pricing.incumbent || "Not identified";
+  const incumbent = pricing.incumbent || rawIntel?.likely_incumbent || "Not identified";
   const winner = pricing.most_frequent_winner || "—";
+  const recentCount = rawIntel?.awards_last_12_months;
   const awardsNote = rawIntel?.awards_count
-    ? `${rawIntel.awards_count} comparable awards · NAICS ${rawIntel.naics_code || ""} · ${rawIntel.state_code || ""}`
+    ? `${rawIntel.awards_count} comparable awards${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""} · ${rawIntel.state_code || ""}`
     : "Based on USAspending.gov historical data";
 
-  const awardsTable = rawIntel?.awards?.length
-    ? `<table class="pricing-table">
-        <thead>
-          <tr><th>Date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
-        </thead>
-        <tbody>
-          ${rawIntel.awards.map((a) => `
-            <tr>
-              <td>${escapeHtml(a.start_date || "—")}</td>
-              <td>${escapeHtml(a.recipient_name || "—")}</td>
-              <td>${formatMoney(a.award_amount)}</td>
-              <td>${escapeHtml(a.awarding_agency || "—")}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>`
-    : "";
+  const awardsTable = renderAwardsTable(rawIntel?.awards);
 
   return `
     <p class="detail-section-title">Pricing intelligence</p>
     <div class="pricing-panel">
-      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis)</span></p>
+      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis · recent awards weighted higher)</span></p>
       <div class="pricing-bid-hero">
         <span class="pricing-bid-label">Recommended bid range</span>
         <span class="pricing-bid-range">${bidLow} – ${bidHigh}</span>
@@ -322,44 +347,26 @@ function renderPricingPanel(intel) {
   }
 
   const winner = intel.most_frequent_winner
-    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (${intel.most_frequent_winner_count} awards)` : ""}`
+    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (score ${intel.most_frequent_winner_count})` : ""}`
     : "—";
 
-  const awardsTable = (intel.awards || []).length
-    ? `<table class="pricing-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Recipient</th>
-            <th>Amount</th>
-            <th>Agency</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${intel.awards.map((a) => `
-            <tr>
-              <td>${escapeHtml(a.start_date || "—")}</td>
-              <td>${escapeHtml(a.recipient_name || "—")}</td>
-              <td>${formatMoney(a.award_amount)}</td>
-              <td>${escapeHtml(a.awarding_agency || "—")}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>`
-    : `<p class="pricing-meta">No comparable awards found for this NAICS and state in the last 3 years.</p>`;
+  const awardsTable = renderAwardsTable(intel.awards)
+    || `<p class="pricing-meta">No comparable awards found for this NAICS and state in the last 3 years.</p>`;
 
   return `
     <p class="detail-section-title">Pricing intelligence</p>
     <div class="pricing-panel">
       <p class="pricing-intro">
-        ${intel.awards_count} comparable contract${intel.awards_count === 1 ? "" : "s"} in
+        ${intel.awards_with_dates || intel.awards_count} dated contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} in
         <strong>${escapeHtml(intel.state_code || "")}</strong> · NAICS
-        <strong>${escapeHtml(intel.naics_code || "")}</strong> · last 3 years
-        <span class="pricing-source">(USAspending.gov)</span>
+        <strong>${escapeHtml(intel.naics_code || "")}</strong>
+        ${intel.awards_last_12_months != null ? ` · ${intel.awards_last_12_months} in last 12 months` : ""}
+        <span class="pricing-source">(USAspending.gov · recent awards weighted higher)</span>
       </p>
       <div class="pricing-stats">
         <div class="pricing-stat">
-          <span class="pricing-stat-label">Average award</span>
-          <span class="pricing-stat-value">${formatMoney(intel.average_amount)}</span>
+          <span class="pricing-stat-label">Weighted average</span>
+          <span class="pricing-stat-value">${formatMoney(intel.weighted_average_amount || intel.average_amount)}</span>
         </div>
         <div class="pricing-stat">
           <span class="pricing-stat-label">Highest award</span>

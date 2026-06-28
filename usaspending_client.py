@@ -127,31 +127,62 @@ def extract_state(location: str | None, sam_raw: dict[str, Any] | None = None) -
     return None
 
 
-def _percentile(values: list[float], pct: float) -> float:
-    if not values:
-        raise ValueError("values required")
-    if len(values) == 1:
-        return values[0]
-    ordered = sorted(values)
-    index = (len(ordered) - 1) * (pct / 100.0)
-    lower = int(index)
-    upper = min(lower + 1, len(ordered) - 1)
-    weight = index - lower
-    return ordered[lower] * (1 - weight) + ordered[upper] * weight
+def _parse_award_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    cleaned = str(value).strip()[:10]
+    try:
+        return date.fromisoformat(cleaned)
+    except ValueError:
+        return None
 
 
-def _normalize_award(row: dict[str, Any]) -> dict[str, Any]:
+def _recency_weight(award_date: date, today: date | None = None) -> float:
+    """Exponential decay — awards from ~1 year ago weigh 2x more than ~3 years ago."""
+    today = today or date.today()
+    days_ago = max(0, (today - award_date).days)
+    return 0.5 ** (days_ago / 365.0)
+
+
+def _weighted_percentile(pairs: list[tuple[float, float]], pct: float) -> float:
+    """Percentile using recency weights. pairs = [(amount, weight), ...]"""
+    if not pairs:
+        raise ValueError("pairs required")
+    if len(pairs) == 1:
+        return pairs[0][0]
+    ordered = sorted(pairs, key=lambda item: item[0])
+    total_weight = sum(weight for _, weight in ordered)
+    target = total_weight * (pct / 100.0)
+    cumulative = 0.0
+    for amount, weight in ordered:
+        cumulative += weight
+        if cumulative >= target:
+            return amount
+    return ordered[-1][0]
+
+
+def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str, Any]:
+    today = today or date.today()
     amount = row.get("Award Amount")
     try:
         amount_value = float(amount) if amount is not None else None
     except (TypeError, ValueError):
         amount_value = None
+
+    start_raw = row.get("Start Date")
+    award_date = _parse_award_date(start_raw)
+    days_ago = (today - award_date).days if award_date else None
+    recency_weight = round(_recency_weight(award_date, today), 3) if award_date else None
+
     return {
         "award_id": row.get("Award ID"),
         "recipient_name": row.get("Recipient Name"),
         "award_amount": amount_value,
-        "start_date": row.get("Start Date"),
+        "award_date": award_date.isoformat() if award_date else None,
+        "start_date": start_raw,
         "end_date": row.get("End Date"),
+        "days_ago": days_ago,
+        "recency_weight": recency_weight,
         "awarding_agency": row.get("Awarding Agency"),
         "contract_award_type": row.get("Contract Award Type"),
     }
@@ -186,51 +217,84 @@ def summarize_awards(
     naics_code: str,
     state_code: str,
 ) -> dict[str, Any]:
-    amounts = [a["award_amount"] for a in awards if a.get("award_amount") and a["award_amount"] > 0]
-    recipient_counts = Counter(
-        a["recipient_name"].strip()
+    today = date.today()
+    dated_awards = [
+        a
         for a in awards
-        if a.get("recipient_name") and str(a["recipient_name"]).strip()
+        if a.get("award_date") and a.get("award_amount") and a["award_amount"] > 0
+    ]
+    dated_awards.sort(key=lambda a: a["award_date"], reverse=True)
+
+    amounts = [a["award_amount"] for a in dated_awards]
+    weighted_pairs = [
+        (a["award_amount"], a["recency_weight"])
+        for a in dated_awards
+        if a.get("recency_weight")
+    ]
+
+    recipient_weights: Counter[str] = Counter()
+    for award in dated_awards:
+        name = str(award.get("recipient_name") or "").strip()
+        if name and award.get("recency_weight"):
+            recipient_weights[name] += award["recency_weight"]
+
+    top_winner, top_winner_score = recipient_weights.most_common(1)[0] if recipient_weights else (None, 0)
+    incumbent = dated_awards[0]["recipient_name"] if dated_awards else None
+
+    awards_last_12_months = sum(
+        1 for a in dated_awards if a.get("days_ago") is not None and a["days_ago"] <= 365
     )
-    top_winner, top_winner_count = recipient_counts.most_common(1)[0] if recipient_counts else (None, 0)
 
     summary: dict[str, Any] = {
         "naics_code": naics_code,
         "state_code": state_code,
         "lookback_years": 3,
         "awards_count": len(awards),
+        "awards_with_dates": len(dated_awards),
+        "awards_missing_dates": len(awards) - len([a for a in awards if a.get("award_date")]),
+        "awards_last_12_months": awards_last_12_months,
         "awards_with_amounts": len(amounts),
-        "unique_bidders": len(recipient_counts),
+        "unique_bidders": len(recipient_weights),
         "average_amount": None,
+        "weighted_average_amount": None,
         "highest_amount": None,
         "lowest_amount": None,
         "most_frequent_winner": top_winner,
-        "most_frequent_winner_count": top_winner_count,
+        "most_frequent_winner_count": round(top_winner_score, 1) if top_winner_score else 0,
+        "likely_incumbent": incumbent,
         "recommended_bid_low": None,
         "recommended_bid_high": None,
         "recommended_bid_note": None,
+        "newest_award_date": dated_awards[0]["award_date"] if dated_awards else None,
+        "oldest_award_date": dated_awards[-1]["award_date"] if dated_awards else None,
         "awards": awards,
     }
 
     if not amounts:
-        summary["recommended_bid_note"] = "No award dollar amounts returned for comparable contracts."
+        summary["recommended_bid_note"] = (
+            "No dated award amounts returned for comparable contracts."
+        )
         return summary
 
+    total_weight = sum(weight for _, weight in weighted_pairs)
+    weighted_avg = sum(amount * weight for amount, weight in weighted_pairs) / total_weight
     summary["average_amount"] = round(statistics.mean(amounts), 2)
+    summary["weighted_average_amount"] = round(weighted_avg, 2)
     summary["highest_amount"] = round(max(amounts), 2)
     summary["lowest_amount"] = round(min(amounts), 2)
 
-    if len(amounts) >= 4:
-        low = _percentile(amounts, 25)
-        high = _percentile(amounts, 75)
+    if len(weighted_pairs) >= 4:
+        low = _weighted_percentile(weighted_pairs, 25)
+        high = _weighted_percentile(weighted_pairs, 75)
         summary["recommended_bid_note"] = (
-            "Suggested range based on the middle 50% of comparable awards (25th–75th percentile)."
+            "Suggested range based on recency-weighted awards — last 12 months count roughly "
+            "twice as much as awards from 2–3 years ago."
         )
     else:
         low = min(amounts)
         high = max(amounts)
         summary["recommended_bid_note"] = (
-            "Limited comparable awards found — suggested range spans the observed low and high."
+            "Limited dated comparable awards — suggested range spans the observed low and high."
         )
 
     summary["recommended_bid_low"] = round(low, 2)
@@ -259,7 +323,12 @@ def fetch_pricing_intelligence(
         data = response.json()
 
     raw_results = data.get("results") or []
-    awards = [_normalize_award(row) for row in raw_results[:limit]]
+    today = date.today()
+    awards = [_normalize_award(row, today) for row in raw_results[:limit]]
+    awards.sort(
+        key=lambda a: a.get("award_date") or "",
+        reverse=True,
+    )
     summary = summarize_awards(awards, naics_code=naics_code, state_code=state_code)
     summary["source"] = "USAspending.gov"
     summary["fetched_at"] = date.today().isoformat()

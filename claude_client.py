@@ -44,9 +44,10 @@ Cover these points in simple conversational language:
 8. END with one sentence summarizing pricing — e.g. "Similar contracts in this area have awarded between $X and $Y. I recommend bidding around $Z to be competitive." Use the historical pricing data provided.
 
 PRICING INTELLIGENCE (pricing_intelligence field):
-Use the USAspending.gov historical award data included in the user message. Analyze it alongside the contract scope.
+Use the USAspending.gov historical award data included in the user message. Each award includes award_date and recency_weight — recent awards (last 12 months) matter much more than older ones.
+- Weight recent pricing heavily when recommending bid range
 - Format all dollar amounts as strings like "$125,000"
-- incumbent: the most likely current holder of similar work (most recent or most frequent winner), or null if unclear
+- incumbent: the most recent dated award's winner, or the recency-weighted most frequent winner
 - competition_level: "low" (1-3 unique past winners), "medium" (4-9), or "high" (10+)
 - pricing_confidence: "high" (15+ comparable awards), "medium" (5-14), or "low" (fewer than 5 or no data)
 - pricing_summary: 2-3 plain English sentences on what the historical data suggests and what to bid
@@ -175,17 +176,20 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
 
     lines = [
         "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — contracts only, last 3 years, same NAICS + state):",
+        "IMPORTANT: Each award includes award_date and recency_weight. Recent awards (last 12 months) are much more relevant than 2–3 year old awards.",
         f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
         f"State: {pricing_intel.get('state_code', 'unknown')}",
-        f"Comparable awards found: {pricing_intel.get('awards_count', 0)}",
-        f"Unique winning companies: {pricing_intel.get('unique_bidders', 0)}",
-        f"Average award: {pricing_intel.get('average_amount')}",
+        f"Comparable awards found: {pricing_intel.get('awards_count', 0)} ({pricing_intel.get('awards_with_dates', 0)} with dates, {pricing_intel.get('awards_last_12_months', 0)} in last 12 months)",
+        f"Date range: {pricing_intel.get('oldest_award_date', '?')} to {pricing_intel.get('newest_award_date', '?')}",
+        f"Recency-weighted average: {pricing_intel.get('weighted_average_amount')}",
+        f"Simple average (unweighted): {pricing_intel.get('average_amount')}",
         f"Highest award: {pricing_intel.get('highest_amount')}",
         f"Lowest award: {pricing_intel.get('lowest_amount')}",
-        f"Suggested bid range (25th–75th percentile): {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
-        f"Most frequent winner: {pricing_intel.get('most_frequent_winner') or 'none identified'}",
+        f"Recency-weighted bid range: {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
+        f"Most frequent winner (recency-weighted): {pricing_intel.get('most_frequent_winner') or 'none identified'}",
+        f"Most recent award winner (likely incumbent): {pricing_intel.get('likely_incumbent') or 'unknown'}",
         "",
-        "Recent comparable awards (most recent first):",
+        "Comparable awards (newest first — each has award_date, days_ago, recency_weight):",
         json.dumps(pricing_intel.get("awards") or [], indent=2, default=str),
     ]
     return "\n".join(lines)
