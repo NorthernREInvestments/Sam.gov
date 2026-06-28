@@ -26,10 +26,15 @@ AWARD_FIELDS = [
     "End Date",
     "Awarding Agency",
     "Contract Award Type",
+    "Description",
     "Place of Performance State Code",
     "Place of Performance City Name",
     "Place of Performance Zip5",
 ]
+
+# Pull extra candidates, then keep only scope-similar awards.
+SEARCH_FETCH_LIMIT = 100
+COMPARABLE_DISPLAY_LIMIT = 20
 
 STATE_NAME_TO_CODE: dict[str, str] = {
     "ALABAMA": "AL",
@@ -327,6 +332,7 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
         "recency_weight": recency_weight,
         "awarding_agency": row.get("Awarding Agency"),
         "contract_award_type": row.get("Contract Award Type"),
+        "description": str(row.get("Description") or "").strip() or None,
         "performance_state": pop_state,
         "performance_city": pop_city,
         "performance_zip": pop_zip,
@@ -437,6 +443,8 @@ def summarize_awards(
     location_scope_type: str | None = None,
     location_scope_note: str | None = None,
     surrounding_states: list[str] | None = None,
+    scope_profile: dict[str, Any] | None = None,
+    unit_rate_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     today = date.today()
     dated_awards = [
@@ -508,22 +516,22 @@ def summarize_awards(
     summary["highest_amount"] = round(max(amounts), 2)
     summary["lowest_amount"] = round(min(amounts), 2)
 
-    if len(weighted_pairs) >= 4:
-        low = _weighted_percentile(weighted_pairs, 25)
-        high = _weighted_percentile(weighted_pairs, 75)
-        summary["recommended_bid_note"] = (
-            "Suggested range based on recency-weighted awards — last 12 months count roughly "
-            "twice as much as awards from 2–3 years ago."
-        )
+    if unit_rate_summary:
+        summary["unit_rate_summary"] = unit_rate_summary
+        if unit_rate_summary.get("recommended_annual_bid") is not None:
+            summary["recommended_annual_bid"] = unit_rate_summary["recommended_annual_bid"]
+            summary["recommended_bid_formula"] = unit_rate_summary.get("recommended_bid_formula")
+            summary["recommended_bid_low"] = unit_rate_summary.get("recommended_bid_low")
+            summary["recommended_bid_high"] = unit_rate_summary.get("recommended_bid_high")
+            summary["recommended_bid_note"] = unit_rate_summary.get("recommended_bid_note")
+        elif unit_rate_summary.get("recommended_bid_note"):
+            summary["recommended_bid_note"] = unit_rate_summary["recommended_bid_note"]
     else:
-        low = min(amounts)
-        high = max(amounts)
         summary["recommended_bid_note"] = (
-            "Limited dated comparable awards — suggested range spans the observed low and high."
+            "Comparable award totals shown in the table — recommended annual bid requires "
+            "unit rates ($/sq ft per visit) from your contract scope."
         )
 
-    summary["recommended_bid_low"] = round(low, 2)
-    summary["recommended_bid_high"] = round(high, 2)
     return summary
 
 
@@ -534,13 +542,26 @@ def fetch_pricing_intelligence(
     city: str | None = None,
     zip_code: str | None = None,
     origin_location: dict[str, Any] | None = None,
-    limit: int = 20,
+    scope_profile: dict[str, Any] | None = None,
+    limit: int = COMPARABLE_DISPLAY_LIMIT,
 ) -> dict[str, Any]:
-    """Query USAspending.gov for comparable contracts in the same work area."""
+    """Query USAspending.gov for comparable contracts; normalize to $/sq ft per visit."""
+    from comparable_scope import (
+        filter_clearance_compatible_awards,
+        pricing_allow_neighbor_states,
+        pricing_max_distance_miles,
+        summarize_unit_rates,
+    )
+    from geo import filter_local_awards
+
     if not naics_code:
         raise ValueError("NAICS code is required for pricing lookup.")
     if not state_code:
         raise ValueError("Could not determine the contract state for pricing lookup.")
+
+    fetch_limit = SEARCH_FETCH_LIMIT
+    max_miles = pricing_max_distance_miles()
+    allow_neighbors = pricing_allow_neighbor_states()
 
     origin = origin_location or {
         "state_code": state_code,
@@ -557,14 +578,14 @@ def fetch_pricing_intelligence(
     surrounding_states: list[str] = []
 
     if city:
-        local_awards = _query_awards(naics_code, state_code, city=city, limit=limit)
+        local_awards = _query_awards(naics_code, state_code, city=city, limit=fetch_limit)
         local_dated = _count_dated_awards(local_awards)
         if local_dated >= MIN_LOCAL_COMPARABLE_AWARDS:
             awards = local_awards
             location_scope = format_location_scope(state_code, city) or f"{city}, {state_name}"
             location_scope_type = "city"
         else:
-            state_awards = _query_awards(naics_code, state_code, limit=limit)
+            state_awards = _query_awards(naics_code, state_code, limit=fetch_limit)
             state_dated = _count_dated_awards(state_awards)
             if state_dated >= MIN_LOCAL_COMPARABLE_AWARDS or not neighbors:
                 awards = state_awards
@@ -576,39 +597,81 @@ def fetch_pricing_intelligence(
                     else f"No recent comparable awards in {city}; showing contracts performed statewide in {state_name}."
                 )
             else:
-                awards, location_scope, location_scope_note, surrounding_states = _regional_fallback(
-                    naics_code,
-                    state_code,
-                    state_name,
-                    neighbors,
-                    limit=limit,
-                    prior_note=(
-                        f"Few comparables in {city} and {state_name}; "
-                        f"expanded to neighboring states (widest search)."
-                    ),
-                )
-                location_scope_type = "region"
+                if allow_neighbors:
+                    awards, location_scope, location_scope_note, surrounding_states = _regional_fallback(
+                        naics_code,
+                        state_code,
+                        state_name,
+                        neighbors,
+                        limit=fetch_limit,
+                        prior_note=(
+                            f"Few comparables in {city} and {state_name}; "
+                            f"expanded to neighboring states within {max_miles} mi."
+                        ),
+                    )
+                    location_scope_type = "region"
+                else:
+                    awards = state_awards
+                    location_scope = state_name
+                    location_scope_note = (
+                        f"Only {local_dated} local award(s) in {city}; "
+                        f"showing same-state contracts within {max_miles} mi (neighboring states disabled)."
+                        if local_dated > 0
+                        else f"No local awards in {city}; showing same-state contracts within {max_miles} mi."
+                    )
     else:
-        state_awards = _query_awards(naics_code, state_code, limit=limit)
+        state_awards = _query_awards(naics_code, state_code, limit=fetch_limit)
         state_dated = _count_dated_awards(state_awards)
         if state_dated >= MIN_LOCAL_COMPARABLE_AWARDS or not neighbors:
             awards = state_awards
             location_scope = state_name
-        else:
+        elif allow_neighbors:
             awards, location_scope, location_scope_note, surrounding_states = _regional_fallback(
                 naics_code,
                 state_code,
                 state_name,
                 neighbors,
-                limit=limit,
+                limit=fetch_limit,
                 prior_note=(
                     f"Only {state_dated} recent comparable award(s) in {state_name}; "
-                    f"expanded to neighboring states (widest search)."
+                    f"expanded to neighboring states within {max_miles} mi."
                 ),
             )
             location_scope_type = "region"
+        else:
+            awards = state_awards
+            location_scope = state_name
+            location_scope_note = (
+                f"Only {state_dated} award(s) in {state_name}; "
+                f"staying in-state within {max_miles} mi (neighboring states disabled)."
+            )
 
     awards = annotate_award_distances(awards, origin, state_names=STATE_CODE_TO_NAME)
+
+    awards, geo_meta = filter_local_awards(
+        awards,
+        origin_state=state_code,
+        max_miles=max_miles,
+        require_same_state=not allow_neighbors,
+    )
+    if geo_meta.get("dropped_out_of_range") or geo_meta.get("dropped_other_state"):
+        geo_note = (
+            f"Geography filter: kept {geo_meta['local_count']} award(s) within {max_miles} mi"
+            f"{' and in ' + state_name if not allow_neighbors else ''}."
+        )
+        location_scope_note = f"{location_scope_note} {geo_note}".strip() if location_scope_note else geo_note
+
+    profile = scope_profile or {}
+    awards, scope_meta = filter_clearance_compatible_awards(awards, profile)
+    awards = awards[:limit]
+    if scope_meta.get("scope_note"):
+        location_scope_note = (
+            f"{location_scope_note} {scope_meta['scope_note']}"
+            if location_scope_note
+            else scope_meta["scope_note"]
+        )
+
+    unit_rate_summary = summarize_unit_rates(awards, profile)
 
     summary = summarize_awards(
         awards,
@@ -618,6 +681,8 @@ def fetch_pricing_intelligence(
         location_scope_type=location_scope_type,
         location_scope_note=location_scope_note,
         surrounding_states=surrounding_states,
+        scope_profile=profile,
+        unit_rate_summary=unit_rate_summary,
     )
     summary["origin_location"] = origin
     if awards:
@@ -627,6 +692,10 @@ def fetch_pricing_intelligence(
         summary["closest_award_location"] = closest.get("performance_location")
     summary["source"] = "USAspending.gov"
     summary["fetched_at"] = date.today().isoformat()
+    summary["scope_profile"] = profile
+    summary["scope_matching"] = scope_meta
+    summary["unit_rate_summary"] = unit_rate_summary
+    summary["geo_filter"] = geo_meta
     return summary
 
 

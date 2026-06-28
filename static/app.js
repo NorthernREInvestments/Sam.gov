@@ -1,4 +1,4 @@
-let config = { naics_codes: [], naics_labels: {}, default_min_days: 30, default_min_score: 1 };
+let config = { naics_codes: [], naics_labels: {}, default_min_days: 10, default_min_score: 1 };
 let contracts = [];
 let activeDetailId = null;
 let detailPollTimer = null;
@@ -29,8 +29,11 @@ async function loadConfig() {
   document.getElementById("min-score-value").textContent = config.default_min_score || 1;
 
   const sync = config.naics_sync || {};
+  const nextNaics = sync.next_naics ? ` · next: ${sync.next_naics}` : "";
   document.getElementById("naics-sync-status").textContent =
-    `NAICS coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} codes synced from SAM.gov`;
+    `NAICS coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} codes synced from SAM.gov${nextNaics}`;
+
+  populateSyncNaicsSelect();
 
   const labels = config.naics_labels || {};
   const container = document.getElementById("naics-filters");
@@ -44,6 +47,27 @@ async function loadConfig() {
     </label>`
     )
     .join("");
+}
+
+function selectedSyncNaics() {
+  const select = document.getElementById("sync-naics-select");
+  return select ? select.value : "";
+}
+
+function populateSyncNaicsSelect() {
+  const select = document.getElementById("sync-naics-select");
+  if (!select) return;
+  const labels = config.naics_labels || {};
+  const sync = config.naics_sync || {};
+  const nextNaics = sync.next_naics || "";
+  const options = [
+    `<option value="">Next in rotation${nextNaics ? ` (${nextNaics})` : ""}</option>`,
+    ...(config.naics_codes || []).map(
+      (code) =>
+        `<option value="${code}">${escapeHtml(code)} — ${escapeHtml(labels[code] || "Other Services")}</option>`
+    ),
+  ];
+  select.innerHTML = options.join("");
 }
 
 function selectedNaics() {
@@ -106,11 +130,11 @@ function renderCards() {
     const subType = c.sub_type_needed || "Not screened yet";
     const summary = c.plain_english_summary || c.executive_summary;
     const headline = summary ? firstSentence(summary, 160) : null;
-    const pricing = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-    const bidPreview = pricing?.recommended_bid_low && pricing?.recommended_bid_high
+    const annualBid = recommendedAnnualBid(c.pricing_intel);
+    const bidPreview = annualBid
       ? `<div class="card-section card-section-bid">
-           <span class="card-label">Recommended bid</span>
-           <span class="card-bid-range">${formatMoney(pricing.recommended_bid_low)} – ${formatMoney(pricing.recommended_bid_high)}</span>
+           <span class="card-label">Recommended annual bid</span>
+           <span class="card-bid-range">${formatMoney(annualBid)}</span>
          </div>`
       : "";
     const titleBlock = headline
@@ -130,6 +154,7 @@ function renderCards() {
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-top">
         ${screeningBadge(c)}
+        ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance required</span>' : ""}
         <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
           <span class="card-due-label">Due</span>
           <span class="card-due-date">${escapeHtml(due.main)}</span>
@@ -369,6 +394,10 @@ function renderDetailModal(c, { analyzing = false } = {}) {
         <p class="detail-item-value">${escapeHtml(c.set_aside || "-")}</p>
       </div>
       <div class="detail-item">
+        <span class="detail-item-label">Security clearance</span>
+        <p class="detail-item-value">${formatClearanceRequired(c)}</p>
+      </div>
+      <div class="detail-item">
         <span class="detail-item-label">Status</span>
         <p class="detail-item-value">${escapeHtml(c.status)}</p>
       </div>
@@ -527,12 +556,46 @@ function formatAwardDistance(award) {
   return "—";
 }
 
+function formatClearanceRequired(c) {
+  const flagged = c.security_clearance_required ?? c.analysis?.security_clearance_required;
+  if (flagged === true) return "Required (or restricted access)";
+  if (flagged === false) return "Not required";
+  return "Unknown — check solicitation";
+}
+
+function recommendedAnnualBid(intel) {
+  if (!intel) return null;
+  return intel.recommended_annual_bid
+    ?? intel.unit_rate_summary?.recommended_annual_bid
+    ?? null;
+}
+
+function recommendedBidFormula(intel) {
+  if (!intel) return "";
+  return intel.recommended_bid_formula
+    ?? intel.unit_rate_summary?.recommended_bid_formula
+    ?? "";
+}
+
+function formatUnitRate(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const n = Number(value);
+  if (n >= 1) return `$${n.toFixed(2)}/sq ft/visit`;
+  if (n >= 0.01) return `$${n.toFixed(3)}/sq ft/visit`;
+  return `$${n.toFixed(4)}/sq ft/visit`;
+}
+
+function formatSqFt(value) {
+  if (value == null) return "—";
+  return `${Number(value).toLocaleString()} sq ft`;
+}
+
 function awardsTableCaption(intel) {
   const origin = intel?.origin_location?.label || formatPricingLocationScope(intel);
   const closest = intel?.closest_award_label;
-  let text = `Sorted closest to your contract location (${origin}) first — best nearby subcontractor markets.`;
+  let text = `Source awards near ${origin} — each row shows $/sq ft per visit used in the recommended bid.`;
   if (closest) {
-    text += ` Nearest comparable award: ${closest}.`;
+    text += ` Nearest match: ${closest}.`;
   }
   return text;
 }
@@ -556,7 +619,7 @@ function renderAwardsTable(awards, intel) {
     <p class="pricing-table-caption">${escapeHtml(awardsTableCaption(intel))}</p>
     <table class="pricing-table">
     <thead>
-      <tr><th>Distance</th><th>Work location</th><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
+      <tr><th>Distance</th><th>Work location</th><th>Sq ft</th><th>Frequency</th><th>$/sq ft/visit</th><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
     </thead>
     <tbody>
       ${rows.map((a, index) => `
@@ -567,6 +630,9 @@ function renderAwardsTable(awards, intel) {
         ].filter(Boolean).join(" ")}">
           <td class="pricing-distance">${escapeHtml(formatAwardDistance(a))}</td>
           <td>${escapeHtml(formatAwardLocation(a))}</td>
+          <td>${escapeHtml(formatSqFt(a.award_square_feet))}</td>
+          <td>${escapeHtml(a.award_frequency_label || "—")}</td>
+          <td>${escapeHtml(formatUnitRate(a.price_per_sqft_per_visit))}</td>
           <td>${escapeHtml(formatAwardDate(a))}</td>
           <td>${escapeHtml(a.recipient_name || "—")}</td>
           <td>${formatMoney(a.award_amount)}</td>
@@ -576,9 +642,54 @@ function renderAwardsTable(awards, intel) {
   </table>`;
 }
 
+function renderPricingBidHero(intel) {
+  const annualBid = recommendedAnnualBid(intel);
+  const bidFormula = recommendedBidFormula(intel);
+  if (!annualBid) {
+    return `<p class="pricing-note pricing-note-muted">${escapeHtml(intel.recommended_bid_note || "Recommended annual bid will appear once square footage, frequency, and rated comparables are available.")}</p>`;
+  }
+  return `
+    <div class="pricing-bid-hero">
+      <span class="pricing-bid-label">Recommended annual bid</span>
+      <span class="pricing-bid-range">${formatMoney(annualBid)}</span>
+    </div>
+    ${bidFormula ? `<p class="pricing-note pricing-formula">${escapeHtml(bidFormula)}</p>` : ""}
+    <p class="pricing-note pricing-note-muted">Initial interest only — regional avg $/sq ft per visit × your sq ft × annual visits. See table for source awards.</p>`;
+}
+
+function renderPricingSupportingStats(intel, { winner } = {}) {
+  const ur = intel?.unit_rate_summary;
+  const winnerLabel = winner ?? (intel.most_frequent_winner
+    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (score ${intel.most_frequent_winner_count})` : ""}`
+    : "—");
+  if (!ur?.regional_avg_price_per_sqft_per_visit) {
+    return winnerLabel !== "—"
+      ? `<div class="pricing-stats"><div class="pricing-stat pricing-stat-wide"><span class="pricing-stat-label">Most frequent winner</span><span class="pricing-stat-value pricing-stat-text">${escapeHtml(winnerLabel)}</span></div></div>`
+      : "";
+  }
+  return `
+    <div class="pricing-stats">
+      <div class="pricing-stat pricing-stat-highlight">
+        <span class="pricing-stat-label">Regional avg (drives bid)</span>
+        <span class="pricing-stat-value">${escapeHtml(formatUnitRate(ur.regional_avg_price_per_sqft_per_visit))}</span>
+      </div>
+      <div class="pricing-stat">
+        <span class="pricing-stat-label">$/sq ft/visit range</span>
+        <span class="pricing-stat-value">${escapeHtml(formatUnitRate(ur.lowest_price_per_sqft_per_visit))} – ${escapeHtml(formatUnitRate(ur.highest_price_per_sqft_per_visit))}</span>
+      </div>
+      <div class="pricing-stat">
+        <span class="pricing-stat-label">Rated comparables</span>
+        <span class="pricing-stat-value">${ur.rated_awards_count ?? "—"} of ${intel.awards_count ?? "—"}</span>
+      </div>
+      <div class="pricing-stat pricing-stat-wide">
+        <span class="pricing-stat-label">Most frequent winner</span>
+        <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winnerLabel)}</span>
+      </div>
+    </div>`;
+}
+
 function renderClaudePricingPanel(pricing, rawIntel) {
-  const bidLow = formatMoney(pricing.recommended_bid_low);
-  const bidHigh = formatMoney(pricing.recommended_bid_high);
+  const annualBid = recommendedAnnualBid(rawIntel);
   const competition = pricing.competition_level
     ? `${pricing.competition_level.charAt(0).toUpperCase()}${pricing.competition_level.slice(1)} competition`
     : "—";
@@ -590,37 +701,20 @@ function renderClaudePricingPanel(pricing, rawIntel) {
   const recentCount = rawIntel?.awards_last_12_months;
   const locationScope = formatPricingLocationScope(rawIntel);
   const awardsNote = rawIntel?.awards_count
-    ? `${rawIntel.awards_count} comparable awards where work was performed in ${locationScope}${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""}`
+    ? `${rawIntel.awards_count} local comparables in ${locationScope}${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""}`
     : "Based on USAspending.gov historical data in the same work area";
 
   const awardsTable = renderAwardsTable(rawIntel?.awards, rawIntel);
 
   return `
     <div class="pricing-panel">
-      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis · same work area · recent awards weighted higher)</span></p>
+      ${renderPricingBidHero(rawIntel)}
+      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(table = source data · bid = unit-rate formula)</span></p>
       ${rawIntel?.location_scope_note ? `<p class="pricing-note">${escapeHtml(rawIntel.location_scope_note)}</p>` : ""}
-      <div class="pricing-bid-hero">
-        <span class="pricing-bid-label">Recommended bid range</span>
-        <span class="pricing-bid-range">${bidLow} – ${bidHigh}</span>
-      </div>
+      ${awardsTable}
+      ${renderPricingSupportingStats(rawIntel, { winner })}
       ${pricing.pricing_summary ? `<p class="pricing-summary">${escapeHtml(pricing.pricing_summary)}</p>` : ""}
       <div class="pricing-stats">
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Average historical award</span>
-          <span class="pricing-stat-value">${formatMoney(pricing.average_historical_award)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Highest award</span>
-          <span class="pricing-stat-value">${formatMoney(pricing.highest_historical_award)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Lowest award</span>
-          <span class="pricing-stat-value">${formatMoney(pricing.lowest_historical_award)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Most frequent winner</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winner)}</span>
-        </div>
         <div class="pricing-stat">
           <span class="pricing-stat-label">Incumbent</span>
           <span class="pricing-stat-value pricing-stat-text">${escapeHtml(incumbent)}</span>
@@ -630,7 +724,6 @@ function renderClaudePricingPanel(pricing, rawIntel) {
           <span class="pricing-stat-value pricing-stat-text">${escapeHtml(competition)} · ${escapeHtml(confidence)}</span>
         </div>
       </div>
-      ${awardsTable}
     </div>`;
 }
 
@@ -654,38 +747,17 @@ function renderPricingPanel(intel) {
 
   return `
     <div class="pricing-panel">
+      ${renderPricingBidHero(intel)}
       <p class="pricing-intro">
-        ${intel.awards_with_dates || intel.awards_count} dated contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} where work was performed in
+        ${intel.awards_with_dates || intel.awards_count} local contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} near
         <strong>${escapeHtml(locationScope)}</strong> · NAICS
         <strong>${escapeHtml(intel.naics_code || "")}</strong>
         ${intel.awards_last_12_months != null ? ` · ${intel.awards_last_12_months} in last 12 months` : ""}
-        <span class="pricing-source">(USAspending.gov · same work area · recent awards weighted higher)</span>
+        <span class="pricing-source">(table = source awards · recommended bid = unit-rate formula only)</span>
       </p>
       ${intel.location_scope_note ? `<p class="pricing-note">${escapeHtml(intel.location_scope_note)}</p>` : ""}
-      <div class="pricing-stats">
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Weighted average</span>
-          <span class="pricing-stat-value">${formatMoney(intel.weighted_average_amount || intel.average_amount)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Highest award</span>
-          <span class="pricing-stat-value">${formatMoney(intel.highest_amount)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Lowest award</span>
-          <span class="pricing-stat-value">${formatMoney(intel.lowest_amount)}</span>
-        </div>
-        <div class="pricing-stat pricing-stat-wide">
-          <span class="pricing-stat-label">Most frequent winner</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winner)}</span>
-        </div>
-        <div class="pricing-stat pricing-stat-highlight">
-          <span class="pricing-stat-label">Recommended bid range</span>
-          <span class="pricing-stat-value">${formatMoney(intel.recommended_bid_low)} – ${formatMoney(intel.recommended_bid_high)}</span>
-        </div>
-      </div>
-      ${intel.recommended_bid_note ? `<p class="pricing-note">${escapeHtml(intel.recommended_bid_note)}</p>` : ""}
       ${awardsTable}
+      ${renderPricingSupportingStats(intel, { winner })}
     </div>`;
 }
 
@@ -720,46 +792,89 @@ function showSyncStatus(message, isError = false) {
   el.classList.toggle("error", isError);
 }
 
-function formatApiBudget(budget) {
+function formatScreenBudget(budget) {
   if (!budget) return "";
-  return `SAM.gov: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left) · Claude screens: ${budget.screens_used_today}/${budget.screen_daily_limit} (${budget.screens_remaining} left)`;
+  const used = budget.screens_used_today ?? 0;
+  if (budget.screens_unlimited || budget.screen_daily_limit === 0) {
+    return `Claude screens: ${used} today (no daily cap)`;
+  }
+  return `Claude screens: ${used}/${budget.screen_daily_limit} (${budget.screens_remaining} left)`;
 }
 
-async function runSync(allNaics = false) {
-  const btn = document.getElementById(allNaics ? "sync-all-btn" : "refresh-btn");
-  const other = document.getElementById(allNaics ? "refresh-btn" : "sync-all-btn");
-  btn.disabled = true;
-  other.disabled = true;
-  const label = btn.textContent;
-  btn.textContent = "Syncing...";
-    showSyncStatus(allNaics
-    ? `Pulling all ${config.naics_codes?.length || 6} NAICS codes, then reading descriptions + attachments and writing summaries…`
-    : "Searching SAM.gov, then reading descriptions + attachments and writing summaries for matching bids…");
+function formatApiBudget(budget) {
+  if (!budget) return "";
+  return `SAM.gov: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left) · ${formatScreenBudget(budget)}`;
+}
+
+async function runSync({ allNaics = false, searchOnly = false } = {}) {
+  const buttonIds = ["sync-all-btn", "refresh-btn", "search-only-btn"];
+  const buttons = buttonIds.map((id) => document.getElementById(id)).filter(Boolean);
+  const activeBtn = allNaics
+    ? document.getElementById("sync-all-btn")
+    : searchOnly
+      ? document.getElementById("search-only-btn")
+      : document.getElementById("refresh-btn");
+  const savedLabels = Object.fromEntries(buttons.map((b) => [b.id, b.textContent]));
+  buttons.forEach((b) => {
+    b.disabled = true;
+  });
+  if (activeBtn) activeBtn.textContent = "Syncing...";
+
+  const naics = selectedSyncNaics();
+  if (allNaics) {
+    showSyncStatus(
+      `Pulling all ${config.naics_codes?.length || 6} NAICS codes, then reading descriptions + attachments and writing summaries…`
+    );
+  } else if (searchOnly) {
+    showSyncStatus(
+      `Searching SAM.gov for NAICS ${naics || config.naics_sync?.next_naics || "next in rotation"} (1 API call only)…`
+    );
+  } else {
+    showSyncStatus("Searching SAM.gov, then reading descriptions + attachments and writing summaries for matching bids…");
+  }
 
   try {
-    const url = allNaics ? "/api/sync?all_naics=true" : "/api/sync";
+    const params = new URLSearchParams();
+    if (allNaics) {
+      params.set("all_naics", "true");
+    } else {
+      if (naics) params.set("naics", naics);
+      if (searchOnly) params.set("search_only", "true");
+    }
+    const url = `/api/sync?${params.toString()}`;
     const res = await apiFetch(url, { method: "POST" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Sync failed");
     const budgetLine = data.api_budget ? ` ${formatApiBudget(data.api_budget)}` : "";
     const intake = data.intake || {};
-    const intakeLine = intake.screened
-      ? ` Wrote summaries for ${intake.screened} contract(s).`
-      : intake.processed
-        ? ` Processed ${intake.processed} (descriptions loaded; summaries may still be running in background).`
+    const intakeLine =
+      searchOnly || !intake.screened
+        ? searchOnly
+          ? " Open a contract card to test PIEE attachments and summaries."
+          : intake.processed
+            ? ` Processed ${intake.processed} (descriptions loaded; summaries may still be running in background).`
+            : ""
+        : ` Wrote summaries for ${intake.screened} contract(s).`;
+    const attachLine =
+      !searchOnly && data.scrape?.scraped_complete
+        ? ` Scraped ${data.scrape.scraped_complete} complete (all attachments).`
+        : !searchOnly && data.attachments?.attachments_enriched
+          ? ` Loaded attachments on ${data.attachments.attachments_enriched} contract(s).`
+          : "";
+    const skippedLine =
+      data.scrape?.scraped_skipped
+        ? ` ${data.scrape.scraped_skipped} incomplete (SAM budget — retry tomorrow or raise SAM_DAILY_API_BUDGET).`
         : "";
-    const attachLine = data.attachments?.attachments_enriched
-      ? ` Loaded attachments on ${data.attachments.attachments_enriched} contract(s).`
-      : "";
-    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${attachLine}${intakeLine}${budgetLine}`);
+    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${attachLine}${skippedLine}${intakeLine}${budgetLine}`);
     await loadConfig();
     await loadContracts();
   } catch (err) {
     if (err.message !== "Login required") showSyncStatus(err.message, true);
   } finally {
-    btn.disabled = false;
-    other.disabled = false;
-    btn.textContent = label;
+    buttons.forEach((b) => {
+      b.disabled = false;
+      b.textContent = savedLabels[b.id];
+    });
   }
 }
 
@@ -812,13 +927,15 @@ async function loadSettingsPage() {
   `;
 
   const budget = data.api_budget || {};
+  const screenLine = budget.screens_unlimited || budget.screen_daily_limit === 0
+    ? `${budget.screens_used_today ?? 0} used today (no daily cap)`
+    : `${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)`;
   document.getElementById("api-budget-status").innerHTML = `
     <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
     <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
-    <li>Claude screenings: ${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)</li>
-    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} summaries per sync)</li>
-    <li>Attachment lists on sync: up to ${budget.attachment_enrich_per_sync_limit ?? 30} matching bids per sync, then background</li>
-    <li>Attachment refresh on dashboard load: up to ${budget.attachment_enrich_on_list_limit ?? 10} per refresh</li>
+    <li>Claude screenings: ${screenLine}</li>
+    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} Claude summaries per sync)</li>
+    <li>Contract scrape: every sync pulls SAM attachments + PIEE file lists before saving</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");
@@ -902,8 +1019,9 @@ document.getElementById("tab-dashboard").addEventListener("click", () => showVie
 document.getElementById("tab-settings").addEventListener("click", () => showView("settings"));
 document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("apply-filters").addEventListener("click", loadContracts);
-document.getElementById("refresh-btn").addEventListener("click", () => runSync(false));
-document.getElementById("sync-all-btn").addEventListener("click", () => runSync(true));
+document.getElementById("search-only-btn").addEventListener("click", () => runSync({ searchOnly: true }));
+document.getElementById("refresh-btn").addEventListener("click", () => runSync({ searchOnly: false }));
+document.getElementById("sync-all-btn").addEventListener("click", () => runSync({ allNaics: true }));
 document.getElementById("screen-btn").addEventListener("click", runScreen);
 document.getElementById("modal-close").addEventListener("click", closeModal);
 document.getElementById("modal-backdrop").addEventListener("click", closeModal);

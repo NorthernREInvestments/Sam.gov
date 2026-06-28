@@ -25,7 +25,14 @@
     <div class="toolbar">
       <button id="screen-btn" class="btn btn-secondary-header" type="button">Screen all matching</button>
       <button id="sync-all-btn" class="btn btn-secondary-header" type="button">Sync all NAICS</button>
-      <button id="refresh-btn" class="btn btn-primary" type="button">Refresh (1 NAICS)</button>
+      <div class="sync-controls">
+        <label class="sync-label" for="sync-naics-select">NAICS</label>
+        <select id="sync-naics-select" class="sync-select" aria-label="NAICS code to search">
+          <option value="">Next in rotation</option>
+        </select>
+        <button id="search-only-btn" class="btn btn-secondary-header" type="button" title="List only — 1 SAM.gov API call, attachments not scraped">Search only</button>
+        <button id="refresh-btn" class="btn btn-primary" type="button" title="Search + scrape every attachment (SAM + PIEE) for each contract">Sync NAICS</button>
+      </div>
     </div>
 
     <div class="layout">
@@ -37,8 +44,8 @@
 
         <label class="filter-label" for="min-days">Minimum days until due</label>
         <div class="slider-row">
-        <input type="range" id="min-days" min="0" max="120" value="30">
-        <span id="min-days-value">30</span>
+        <input type="range" id="min-days" min="0" max="120" value="10">
+        <span id="min-days-value">10</span>
         </div>
 
         <label class="filter-label" for="min-score">Minimum fit score (1–10)</label>
@@ -78,8 +85,8 @@
 
         <label class="filter-label" for="settings-min-days">Minimum days until due (default)</label>
         <div class="slider-row">
-        <input type="range" id="settings-min-days" min="0" max="120" value="30">
-        <span id="settings-min-days-value">30</span>
+        <input type="range" id="settings-min-days" min="0" max="120" value="10">
+        <span id="settings-min-days-value">10</span>
         </div>
       </section>
 

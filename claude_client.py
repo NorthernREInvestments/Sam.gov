@@ -51,6 +51,8 @@ Cover these points in simple conversational language:
 
 PRICING INTELLIGENCE (pricing_intelligence field):
 Use the USAspending.gov historical award data included in the user message. Each award includes award_date and recency_weight — recent awards (last 12 months) matter much more than older ones.
+When recommended_annual_bid is provided, that is the ONLY recommended bid — do not substitute raw award totals from the table.
+The table shows source comparables; the bid comes solely from: regional avg $/sq ft per visit × this contract's sq ft × annual visits.
 - Weight recent pricing heavily when recommending bid range
 - Format all dollar amounts as strings like "$125,000"
 - incumbent: the most recent dated award's winner, or the recency-weighted most frequent winner
@@ -242,14 +244,20 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
         return f"Historical pricing lookup note: {pricing_intel['error']}"
 
     lines = [
-        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — contracts only, last 3 years, same NAICS + work location):",
-        "IMPORTANT: Only awards where work was performed in the same area as this opportunity. "
-        "Search widens from city to state to neighboring states at most — never national.",
+        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — same NAICS & local work area):",
+        "IMPORTANT: Past awards are normalized to $/sq ft per visit = contract value ÷ square footage ÷ visits per year.",
+        "IMPORTANT: Awards are NOT filtered by building size — different sq ft contracts are comparable after normalization.",
         "IMPORTANT: Each award includes award_date and recency_weight. Recent awards (last 12 months) are much more relevant than 2–3 year old awards.",
         f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
         f"Work area: {pricing_intel.get('location_scope') or pricing_intel.get('state_code', 'unknown')}",
         f"Your contract location: {pricing_intel.get('origin_location', {}).get('label') or pricing_intel.get('location_scope') or 'unknown'}",
-        f"Scope note: {pricing_intel.get('location_scope_note') or 'Comparable contracts filtered to this work area only.'}",
+        f"Your contract scope: {pricing_intel.get('scope_profile', {}).get('square_feet') or 'unknown'} sq ft; "
+        f"frequency: {pricing_intel.get('scope_profile', {}).get('service_frequency_label') or 'unknown'}",
+        f"Geography note: {pricing_intel.get('location_scope_note') or 'Same work area as this opportunity.'}",
+        f"Pricing note: {pricing_intel.get('scope_matching', {}).get('scope_note') or 'Clearance filter applied when known.'}",
+        f"Unit rate summary: {json.dumps(pricing_intel.get('unit_rate_summary') or {}, default=str)}",
+        f"Recommended annual bid (formula): {pricing_intel.get('recommended_annual_bid')}",
+        f"Bid formula: {pricing_intel.get('recommended_bid_formula') or 'unavailable'}",
         f"Closest comparable award: {pricing_intel.get('closest_award_label') or 'unknown'}"
         + (
             f" ({pricing_intel.get('closest_award_location')})"
@@ -262,11 +270,11 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
         f"Simple average (unweighted): {pricing_intel.get('average_amount')}",
         f"Highest award: {pricing_intel.get('highest_amount')}",
         f"Lowest award: {pricing_intel.get('lowest_amount')}",
-        f"Recency-weighted bid range: {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
+        f"Recency-weighted bid range (rough band from comparables): {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
         f"Most frequent winner (recency-weighted): {pricing_intel.get('most_frequent_winner') or 'none identified'}",
         f"Most recent award winner (likely incumbent): {pricing_intel.get('likely_incumbent') or 'unknown'}",
         "",
-        "Comparable awards (closest to your contract first — each has distance_label, distance_miles, award_date, recency_weight):",
+        "Comparable awards (closest first — each has price_per_sqft_per_visit, award_square_feet, award_frequency_label, distance_label, award_date, recency_weight):",
         json.dumps(pricing_intel.get("awards") or [], indent=2, default=str),
     ]
     return "\n".join(lines)

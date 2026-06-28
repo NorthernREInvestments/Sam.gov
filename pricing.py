@@ -5,7 +5,28 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from comparable_scope import extract_scope_profile
 from usaspending_client import extract_work_location, fetch_pricing_intelligence
+
+
+def build_scope_profile_from_contract(contract: Any) -> dict[str, Any]:
+    """Scope signals from title, description, SAM text, and Claude screening."""
+    parts: list[str] = []
+    if contract.title:
+        parts.append(contract.title)
+    if contract.description:
+        parts.append(contract.description)
+    sam_raw = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    if sam_raw.get("descriptionText"):
+        parts.append(str(sam_raw["descriptionText"]))
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    clearance_flag = analysis.get("security_clearance_required")
+    clearance_required = clearance_flag is True if clearance_flag is not None else None
+    if analysis.get("square_footage"):
+        parts.append(str(analysis["square_footage"]))
+    if analysis.get("plain_english_summary"):
+        parts.append(str(analysis["plain_english_summary"]))
+    return extract_scope_profile(*parts, clearance_required=clearance_required)
 
 
 def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) -> dict[str, Any]:
@@ -20,7 +41,7 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
     zip_code = work_location.get("zip")
 
     cached = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else None
-    if cached and not force_refresh and _cache_fresh(cached) and _cache_has_distances(cached):
+    if cached and not force_refresh and _cache_fresh(cached) and _cache_valid(cached):
         return cached
 
     if not naics_code:
@@ -33,6 +54,8 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
             state_code,
         )
 
+    scope_profile = build_scope_profile_from_contract(contract)
+
     try:
         intel = fetch_pricing_intelligence(
             naics_code,
@@ -40,6 +63,7 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
             city=city,
             zip_code=zip_code,
             origin_location=work_location,
+            scope_profile=scope_profile,
         )
     except Exception as exc:
         return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
@@ -47,6 +71,12 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False) ->
     intel["cached_at"] = datetime.now(timezone.utc).isoformat()
     contract.pricing_intel = intel
     return intel
+
+
+def _cache_valid(payload: dict[str, Any]) -> bool:
+    if not _cache_has_distances(payload):
+        return False
+    return "recommended_annual_bid" in payload or "unit_rate_summary" in payload
 
 
 def _cache_has_distances(payload: dict[str, Any]) -> bool:

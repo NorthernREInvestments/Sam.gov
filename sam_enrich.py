@@ -113,20 +113,20 @@ def fetch_notice_description(notice_id: str, api_key: str | None = None) -> str 
         return None
 
 
-def fetch_opportunity_attachments(notice_id: str, api_key: str | None = None) -> list[dict[str, Any]]:
-    """Fetch attachments and links posted on the SAM.gov opportunity."""
+def fetch_opportunity_attachments(notice_id: str, api_key: str | None = None) -> list[dict[str, Any]] | None:
+    """Fetch attachments and links posted on the SAM.gov opportunity. None if the API call failed."""
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
-        return []
+        return None
 
     url = SAM_RESOURCES_URL.format(notice_id=notice_id)
     response = _sam_api_get(url, params={"api_key": api_key})
     if not response or not response.text.strip():
-        return []
+        return None
     try:
         data = response.json()
     except Exception:
-        return []
+        return None
 
     embedded = data.get("_embedded") if isinstance(data, dict) else None
     if not isinstance(embedded, dict):
@@ -299,6 +299,11 @@ def refresh_opportunity_attachments(raw: dict[str, Any], api_key: str | None = N
     notice_id = str(raw.get("noticeId") or "")
     description_text = str(raw.get("descriptionText") or html_to_text(raw.get("descriptionHtml")))
     attachments = fetch_opportunity_attachments(notice_id, api_key)
+    if attachments is None:
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "sam_attachments_failed"
+        return failed
     return _apply_attachment_fields(raw, attachments=attachments, description_text=description_text)
 
 
@@ -318,6 +323,11 @@ def enrich_opportunity(raw: dict[str, Any] | None, api_key: str | None = None) -
 
     description_text = html_to_text(description_html) or str(raw.get("descriptionText") or "")
     attachments = fetch_opportunity_attachments(notice_id, api_key)
+    if attachments is None:
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "sam_attachments_failed"
+        return failed
 
     work_states = extract_states_from_text(
         raw.get("title"),
@@ -348,26 +358,118 @@ def _place_of_performance_text(raw: dict[str, Any]) -> str | None:
 
 
 def needs_attachment_refresh(sam_raw: dict[str, Any] | None) -> bool:
+    return not is_scrape_complete(sam_raw)
+
+
+def is_scrape_complete(sam_raw: dict[str, Any] | None) -> bool:
+    """True when SAM attachments + PIEE manifest were fetched for this opportunity."""
     if not isinstance(sam_raw, dict) or not sam_raw:
-        return True
+        return False
+    if sam_raw.get("scrapeStatus") != "complete":
+        return False
     if "opportunityAttachments" not in sam_raw:
-        return True
+        return False
     doc_access = sam_raw.get("documentAccess")
     if not isinstance(doc_access, dict):
-        return True
+        return False
     if "attachment_labels" not in doc_access:
-        return True
-    return False
+        return False
+    return True
 
 
 def needs_enrichment(sam_raw: dict[str, Any] | None) -> bool:
-    if needs_attachment_refresh(sam_raw):
-        return True
-    if not isinstance(sam_raw, dict) or not sam_raw:
-        return True
-    if not sam_raw.get("descriptionText"):
-        return True
-    return False
+    return not is_scrape_complete(sam_raw)
+
+
+def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None) -> tuple[dict[str, Any], bool]:
+    """
+    Full scrape for one opportunity: SAM description + all attachments/links + PIEE manifest.
+    Returns (sam_raw, success). Incomplete records must not be treated as ready contracts.
+    """
+    from datetime import datetime, timezone
+
+    from piee_client import attach_piee_manifest
+
+    if is_scrape_complete(raw):
+        refreshed = attach_piee_manifest(dict(raw))
+        if is_scrape_complete(refreshed):
+            return refreshed, True
+
+    notice_id = str(raw.get("noticeId") or "")
+    if not notice_id:
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "missing_notice_id"
+        return failed, False
+
+    if not can_spend_sam(1):
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "sam_budget_exhausted"
+        return failed, False
+
+    enriched = enrich_opportunity(raw, api_key)
+    if enriched.get("scrapeStatus") == "incomplete":
+        return enriched, False
+
+    enriched = attach_piee_manifest(enriched)
+    enriched["scrapeStatus"] = "complete"
+    enriched["scrapedAt"] = datetime.now(timezone.utc).isoformat()
+    enriched.pop("scrapeError", None)
+    return enriched, True
+
+
+def scrape_opportunities_batch(opportunities: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Scrape every contract in a SAM search batch before database upsert.
+    Skips opportunities that cannot be fully scraped (e.g. SAM budget exhausted).
+    """
+    from api_budget import scrape_max_per_sync
+    from sam_client import normalize_opportunity
+
+    complete_rows: list[dict[str, Any]] = []
+    skipped: list[str] = []
+    budget_stopped = False
+    max_scrape = scrape_max_per_sync()
+
+    for opp in opportunities:
+        raw = opp.get("sam_raw") if isinstance(opp.get("sam_raw"), dict) else {}
+        notice_id = str(opp.get("notice_id") or raw.get("noticeId") or "")
+
+        if budget_stopped:
+            if notice_id:
+                skipped.append(notice_id)
+            continue
+
+        if max_scrape > 0 and len(complete_rows) >= max_scrape:
+            if notice_id:
+                skipped.append(notice_id)
+            continue
+
+        enriched_raw, ok = scrape_opportunity_complete(raw)
+        if not ok:
+            if enriched_raw.get("scrapeError") == "sam_budget_exhausted":
+                budget_stopped = True
+            if notice_id:
+                skipped.append(notice_id)
+            continue
+
+        row = dict(opp)
+        row["sam_raw"] = enriched_raw
+        if enriched_raw.get("descriptionText"):
+            row["description"] = enriched_raw["descriptionText"][:8000]
+        normalized = normalize_opportunity(enriched_raw)
+        if normalized.get("location"):
+            row["location"] = normalized["location"]
+        complete_rows.append(row)
+
+    return {
+        "opportunities": complete_rows,
+        "scraped_complete": len(complete_rows),
+        "scraped_skipped": len(skipped),
+        "skipped_notice_ids": skipped,
+        "budget_stopped": budget_stopped,
+    }
 
 
 def ensure_enriched_sam_raw(
@@ -385,13 +487,12 @@ def ensure_enriched_sam_raw(
             fresh = fetch_opportunity_raw(notice_id, api_key) if notice_id else None
             raw = fresh or raw
         if raw:
-            if raw.get("descriptionText") or raw.get("descriptionHtml"):
-                raw = refresh_opportunity_attachments(raw, api_key)
-                if not raw.get("descriptionText"):
-                    raw = enrich_opportunity(raw, api_key)
-            else:
-                raw = enrich_opportunity(raw, api_key)
-            contract.sam_raw = raw
+            enriched, ok = scrape_opportunity_complete(raw, api_key)
+            if ok:
+                contract.sam_raw = enriched
+                if enriched.get("descriptionText"):
+                    contract.description = enriched["descriptionText"][:8000]
+                raw = enriched
     return raw
 
 

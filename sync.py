@@ -90,6 +90,77 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
     return new_count, updated_count
 
 
+def opportunity_passes_filters(
+    opp: dict[str, Any],
+    *,
+    naics_codes: list[str] | None = None,
+    min_days_until_due: int | None = None,
+    min_score: int | None = None,
+    analysis: dict[str, Any] | None = None,
+) -> bool:
+    """Same matching rules as the dashboard — apply before spending SAM credits on attachments."""
+    from settings_store import get_min_score_threshold
+
+    naics_set = set(naics_codes or naics_from_env())
+    min_days = min_days_until_due if min_days_until_due is not None else min_days_from_env()
+    min_score_threshold = min_score if min_score is not None else get_min_score_threshold()
+
+    code = str(opp.get("naics_code") or "").strip()
+    if code and code not in naics_set:
+        return False
+
+    due = _parse_due_date(opp.get("due_date"))
+    if due is not None:
+        if (due - date.today()).days < min_days:
+            return False
+
+    if analysis:
+        score = analysis.get("score")
+        if score is not None and int(score) < min_score_threshold:
+            return False
+
+    return True
+
+
+def filter_search_results(
+    opportunities: list[dict[str, Any]],
+    session: Session | None = None,
+    *,
+    naics_codes: list[str] | None = None,
+    min_days_until_due: int | None = None,
+    min_score: int | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Drop search hits that fail dashboard criteria before attachment scrape."""
+    analysis_by_notice: dict[str, dict[str, Any]] = {}
+    if session is not None:
+        notice_ids = [str(o.get("notice_id") or "") for o in opportunities if o.get("notice_id")]
+        if notice_ids:
+            rows = session.query(Contract).filter(Contract.notice_id.in_(notice_ids)).all()
+            analysis_by_notice = {
+                row.notice_id: row.analysis
+                for row in rows
+                if isinstance(row.analysis, dict)
+            }
+
+    matched: list[dict[str, Any]] = []
+    for opp in opportunities:
+        notice_id = str(opp.get("notice_id") or "")
+        if opportunity_passes_filters(
+            opp,
+            naics_codes=naics_codes,
+            min_days_until_due=min_days_until_due,
+            min_score=min_score,
+            analysis=analysis_by_notice.get(notice_id),
+        ):
+            matched.append(opp)
+
+    return matched, {
+        "search_results": len(opportunities),
+        "matched_filters": len(matched),
+        "filtered_out": len(opportunities) - len(matched),
+    }
+
+
 def list_contracts(
     session: Session,
     naics_codes: list[str] | None = None,
@@ -139,8 +210,19 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
 
     today = date.today()
     days_left = (row.due_date - today).days if row.due_date else None
-    analysis = row.analysis or {}
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
     sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    from sam_enrich import is_scrape_complete
+
+    clearance_flag = analysis.get("security_clearance_required")
+    if clearance_flag is True:
+        security_clearance_required = True
+    elif clearance_flag is False:
+        security_clearance_required = False
+    else:
+        from comparable_scope import detect_clearance_level
+
+        security_clearance_required = bool(detect_clearance_level(row.description or ""))
     attachments = sam_raw.get("opportunityAttachments")
     piee_attachments = sam_raw.get("pieeAttachments") if isinstance(sam_raw.get("pieeAttachments"), list) else []
     if isinstance(attachments, list) and attachments:
@@ -180,9 +262,11 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "pricing_intel": row.pricing_intel,
         "sub_type_needed": analysis.get("sub_type_needed"),
         "red_flags": analysis.get("red_flags") or [],
+        "security_clearance_required": security_clearance_required,
         "document_access": doc_access,
         "external_links": external_links,
         "sam_attachments": sam_attachments,
+        "scrape_complete": is_scrape_complete(sam_raw),
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
         "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
     }
@@ -245,56 +329,103 @@ def refresh_stale_sam_raw(session: Session, limit: int | None = None) -> int:
     return refreshed
 
 
-def sync_from_sam() -> dict[str, Any]:
-    """Pull one NAICS code from SAM.gov (1 API call) and upsert into PostgreSQL."""
+def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
+    """Pull one NAICS code from SAM.gov and upsert fully scraped contracts into PostgreSQL."""
     naics_codes = naics_from_env()
     session = SessionLocal()
     intake_result: dict[str, Any] = {}
-    attachment_result: dict[str, Any] = {}
+    scrape_result: dict[str, Any] = {}
+    filter_stats: dict[str, int] = {}
+    batch: list[dict[str, Any]] = []
+    search_count = 0
+    new_count = 0
+    updated_count = 0
+    total = 0
+    loaded = 0
+    fetch_status = ""
     try:
         index = int(_get_setting(session, "naics_rotation_index", "0")) % len(naics_codes)
-        naics_today = naics_codes[index]
+        if naics_code:
+            naics_today = str(naics_code).strip()
+            if naics_today not in naics_codes:
+                raise ValueError(f"NAICS {naics_today} is not in your configured list.")
+        else:
+            naics_today = naics_codes[index]
 
         batch = fetch_naics_from_sam(naics_today)
-        new_count, updated_count = upsert_contracts(session, batch)
-        batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
-        from intake import enrich_matching_attachments, intake_matching_contracts
+        search_count = len(batch)
+        batch, filter_stats = filter_search_results(batch, session)
+        batch_notice_ids: list[str] = []
 
-        attachment_result = enrich_matching_attachments(session, batch_notice_ids)
-        intake_result = intake_matching_contracts(session, batch_notice_ids)
+        if search_only:
+            new_count, updated_count = upsert_contracts(session, batch)
+            batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
+        else:
+            from sam_enrich import scrape_opportunities_batch
+            from intake import intake_matching_contracts
+
+            scrape_result = scrape_opportunities_batch(batch)
+            scraped_batch = scrape_result["opportunities"]
+            new_count, updated_count = upsert_contracts(session, scraped_batch)
+            batch_notice_ids = [str(o.get("notice_id") or "") for o in scraped_batch if o.get("notice_id")]
+            intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
         synced_map[naics_today] = date.today().isoformat()
         _set_setting(session, "naics_last_synced", json.dumps(synced_map))
-        _set_setting(session, "naics_rotation_index", str((index + 1) % len(naics_codes)))
+        if not naics_code:
+            _set_setting(session, "naics_rotation_index", str((index + 1) % len(naics_codes)))
         session.commit()
 
         total = session.query(Contract).count()
         loaded = len(synced_map)
         next_naics = naics_codes[(index + 1) % len(naics_codes)]
-        fetch_status = (
-            f"Searched NAICS {naics_today} ({index + 1} of {len(naics_codes)}). "
-            f"Fetched {len(batch)} from SAM.gov. Coverage: {loaded}/{len(naics_codes)} NAICS codes."
-        )
-        if loaded < len(naics_codes):
-            fetch_status += f" Run sync again for {next_naics}, or use --all."
+        filter_note = ""
+        if filter_stats.get("filtered_out"):
+            filter_note = (
+                f" {filter_stats['filtered_out']} search result(s) dropped "
+                f"(failed min-days/NAICS/score filters before attachment scrape)."
+            )
+        if search_only:
+            fetch_status = (
+                f"Search only — NAICS {naics_today}. "
+                f"{filter_stats.get('matched_filters', len(batch))} matching opportunities "
+                f"from {search_count} SAM result(s) (1 API call).{filter_note} "
+                f"Attachments were not scraped."
+            )
+        else:
+            skipped = scrape_result.get("scraped_skipped", 0)
+            fetch_status = (
+                f"NAICS {naics_today}: scraped {scrape_result.get('scraped_complete', 0)} complete contract(s) "
+                f"from {filter_stats.get('matched_filters', len(batch))} matching search result(s) "
+                f"({search_count} total from SAM).{filter_note}"
+            )
+            if skipped:
+                fetch_status += f" {skipped} not scraped (cap or SAM budget)."
+            fetch_status += f" Coverage: {loaded}/{len(naics_codes)} NAICS codes."
+            if loaded < len(naics_codes):
+                fetch_status += f" Next rotation: {next_naics}."
     finally:
         session.close()
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
     from intake import start_background_attachment_enrich, start_background_intake
 
-    if intake_on_sync_enabled():
-        start_background_intake()
-    start_background_attachment_enrich()
+    if not search_only:
+        if intake_on_sync_enabled():
+            start_background_intake()
+        start_background_attachment_enrich()
 
     return {
         "api_calls": 1,
+        "naics_code": naics_today,
+        "search_only": search_only,
         "fetch_status": fetch_status,
-        "fetched_from_sam": len(batch),
+        "fetched_from_sam": search_count,
+        "filter": filter_stats,
         "new": new_count,
         "updated": updated_count,
-        "attachments": attachment_result,
+        "scrape": scrape_result,
         "intake": intake_result,
         "total_in_db": total,
         "naics_synced": loaded,
@@ -304,10 +435,14 @@ def sync_from_sam() -> dict[str, Any]:
 
 
 def sync_all_naics() -> dict[str, Any]:
-    """Pull every configured NAICS code (1 API call each) and upsert into PostgreSQL."""
+    """Pull every configured NAICS code and upsert fully scraped contracts into PostgreSQL."""
     naics_codes = naics_from_env()
     api_calls = 0
     fetched_total = 0
+    matched_total = 0
+    filtered_total = 0
+    scraped_total = 0
+    skipped_total = 0
     new_total = 0
     updated_total = 0
     per_naics: list[dict[str, Any]] = []
@@ -321,15 +456,26 @@ def sync_all_naics() -> dict[str, Any]:
     finally:
         status_session.close()
 
+    from sam_enrich import scrape_opportunities_batch
+
     for naics in naics_codes:
         batch = fetch_naics_from_sam(naics)
         api_calls += 1
         fetched_total += len(batch)
-        all_notice_ids.extend(str(o.get("notice_id") or "") for o in batch if o.get("notice_id"))
 
         session = SessionLocal()
         try:
-            new_count, updated_count = upsert_contracts(session, batch)
+            batch, filter_stats = filter_search_results(batch, session)
+            matched_total += filter_stats.get("matched_filters", len(batch))
+            filtered_total += filter_stats.get("filtered_out", 0)
+
+            scrape_result = scrape_opportunities_batch(batch)
+            scraped_batch = scrape_result["opportunities"]
+            scraped_total += scrape_result.get("scraped_complete", 0)
+            skipped_total += scrape_result.get("scraped_skipped", 0)
+            all_notice_ids.extend(str(o.get("notice_id") or "") for o in scraped_batch if o.get("notice_id"))
+
+            new_count, updated_count = upsert_contracts(session, scraped_batch)
             synced_map[naics] = date.today().isoformat()
             _set_setting(session, "naics_last_synced", json.dumps(synced_map))
             session.commit()
@@ -338,14 +484,22 @@ def sync_all_naics() -> dict[str, Any]:
 
         new_total += new_count
         updated_total += updated_count
-        per_naics.append({"naics": naics, "fetched": len(batch), "new": new_count, "updated": updated_count})
+        per_naics.append({
+            "naics": naics,
+            "fetched": len(batch) + filter_stats.get("filtered_out", 0),
+            "matched_filters": filter_stats.get("matched_filters", len(batch)),
+            "filtered_out": filter_stats.get("filtered_out", 0),
+            "scraped_complete": scrape_result.get("scraped_complete", 0),
+            "scraped_skipped": scrape_result.get("scraped_skipped", 0),
+            "new": new_count,
+            "updated": updated_count,
+        })
 
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
-        from intake import enrich_matching_attachments, intake_matching_contracts
+        from intake import intake_matching_contracts
 
-        attachment_result = enrich_matching_attachments(session, all_notice_ids)
         intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
         total = session.query(Contract).count()
@@ -354,8 +508,11 @@ def sync_all_naics() -> dict[str, Any]:
 
     fetch_status = (
         f"Synced all {len(naics_codes)} NAICS codes. "
-        f"Fetched {fetched_total} opportunities from SAM.gov."
+        f"Scraped {scraped_total} complete contract(s) from {matched_total} matching result(s) "
+        f"({fetched_total} total from SAM; {filtered_total} filtered out before scrape)."
     )
+    if skipped_total:
+        fetch_status += f" {skipped_total} skipped when SAM.gov budget ran out."
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
     from intake import start_background_attachment_enrich, start_background_intake
@@ -368,9 +525,12 @@ def sync_all_naics() -> dict[str, Any]:
         "api_calls": api_calls,
         "fetch_status": fetch_status,
         "fetched_from_sam": fetched_total,
+        "matched_filters": matched_total,
+        "filtered_out": filtered_total,
+        "scraped_complete": scraped_total,
+        "scraped_skipped": skipped_total,
         "new": new_total,
         "updated": updated_total,
-        "attachments": attachment_result,
         "intake": intake_result,
         "total_in_db": total,
         "naics_synced": len(naics_codes),
@@ -385,13 +545,17 @@ def get_naics_sync_status() -> dict[str, Any]:
     session = SessionLocal()
     try:
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
+        index = int(_get_setting(session, "naics_rotation_index", "0")) % max(len(naics_codes), 1)
     finally:
         session.close()
+    next_naics = naics_codes[index] if naics_codes else None
     return {
         "naics_codes": naics_codes,
         "last_synced": synced_map,
         "synced_count": sum(1 for code in naics_codes if code in synced_map),
         "total_count": len(naics_codes),
+        "next_naics": next_naics,
+        "rotation_index": index,
     }
 
 
@@ -399,8 +563,16 @@ def main() -> None:
     import sys
 
     all_naics = "--all" in sys.argv
+    search_only = "--search-only" in sys.argv
+    naics_arg = None
+    for arg in sys.argv[1:]:
+        if arg.startswith("--naics="):
+            naics_arg = arg.split("=", 1)[1].strip()
     print("Syncing SAM.gov -> PostgreSQL...")
-    result = sync_all_naics() if all_naics else sync_from_sam()
+    if all_naics:
+        result = sync_all_naics()
+    else:
+        result = sync_from_sam(naics_arg, search_only=search_only)
     print(f"Used {result['api_calls']} SAM.gov API call(s)")
     print(result["fetch_status"])
     print(

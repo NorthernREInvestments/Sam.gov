@@ -331,6 +331,30 @@ body {
   border-color: #f5c2c2;
 }
 
+.sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sync-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sync-select {
+  min-width: 12rem;
+  max-width: 18rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
 .naics-sync-status {
   font-size: 0.85rem;
   color: var(--muted);
@@ -600,6 +624,11 @@ body {
 .badge-skip {
   background: #fee2e2;
   color: var(--red);
+}
+
+.badge-clearance {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .due-soon {
@@ -932,10 +961,20 @@ body {
 .pricing-loading,
 .pricing-meta,
 .pricing-note,
+.pricing-note-muted,
 .pricing-intro {
   font-size: 0.9rem;
   line-height: 1.45;
   margin: 0.35rem 0;
+}
+
+.pricing-note-muted {
+  color: var(--muted);
+}
+
+.pricing-formula {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
 }
 
 .pricing-source {

@@ -146,16 +146,12 @@ def get_contracts(
             agency=agency,
             pursue_only=pursue_only,
         )
-        from api_budget import attachment_enrich_on_list_limit, get_usage_snapshot
+        from api_budget import get_usage_snapshot
         from intake import enrich_matching_attachments, start_background_attachment_enrich
 
         notice_ids = [r.notice_id for r in rows]
-        attachment_refresh = enrich_matching_attachments(
-            session,
-            notice_ids,
-            limit=attachment_enrich_on_list_limit(),
-        )
-        if attachment_refresh.get("attachments_pending", 0) > attachment_refresh.get("attachments_enriched", 0):
+        attachment_refresh = enrich_matching_attachments(session, notice_ids, limit=None)
+        if attachment_refresh.get("attachments_pending", 0) > 0:
             start_background_attachment_enrich()
 
         return {
@@ -219,9 +215,16 @@ def get_contract_pricing(notice_id: str, refresh: bool = Query(False)):
 
 
 @app.post("/api/sync")
-def run_sync(all_naics: bool = Query(False)):
+def run_sync(
+    all_naics: bool = Query(False),
+    naics: str | None = Query(None, description="Specific NAICS to search (defaults to next in rotation)"),
+    search_only: bool = Query(False, description="Only pull opportunities — 1 SAM.gov API call, no enrich/intake"),
+):
     try:
-        result = sync_all_naics() if all_naics else sync_from_sam()
+        if all_naics:
+            result = sync_all_naics()
+        else:
+            result = sync_from_sam(naics, search_only=search_only)
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

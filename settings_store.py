@@ -65,7 +65,7 @@ def get_min_days_until_due() -> int:
             return int(raw)
     finally:
         session.close()
-    return int(os.getenv("MIN_DAYS_UNTIL_DUE", "30"))
+    return int(os.getenv("MIN_DAYS_UNTIL_DUE", "10"))
 
 
 def get_min_score_threshold() -> int:

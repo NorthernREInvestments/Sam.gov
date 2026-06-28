@@ -9,8 +9,6 @@ from typing import Any
 
 from api_budget import (
     ScreenBudgetExceeded,
-    attachment_enrich_on_list_limit,
-    attachment_enrich_per_sync_limit,
     can_screen,
     can_spend_sam,
     intake_on_sync_enabled,
@@ -44,47 +42,22 @@ def _end_intake(notice_id: str) -> None:
 
 
 def enrich_contract_attachments(row: Contract) -> bool:
-    """Load SAM.gov attachment list and posting description (1–2 API calls)."""
-    from sam_enrich import (
-        enrich_opportunity,
-        fetch_opportunity_raw,
-        needs_attachment_refresh,
-        refresh_opportunity_attachments,
-    )
+    """Load full SAM.gov scrape (description + attachments + PIEE manifest)."""
+    from sam_enrich import is_scrape_complete, scrape_opportunity_complete
     from sam_client import normalize_opportunity
 
     raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    if not needs_attachment_refresh(raw) and raw.get("descriptionText"):
+    if is_scrape_complete(raw):
         return False
 
-    notice_id = str(row.notice_id or raw.get("noticeId") or "")
-    if not raw or not raw.get("noticeId"):
-        if not can_spend_sam(1):
-            return False
-        raw = fetch_opportunity_raw(notice_id) if notice_id else None
-        raw = raw or (row.sam_raw if isinstance(row.sam_raw, dict) else {})
-
-    if not raw:
+    enriched, ok = scrape_opportunity_complete(raw)
+    if not ok:
         return False
-
-    if raw.get("descriptionText") or raw.get("descriptionHtml"):
-        if not can_spend_sam(1):
-            return False
-        enriched = refresh_opportunity_attachments(raw)
-        if not enriched.get("descriptionText") and can_spend_sam(2):
-            enriched = enrich_opportunity(raw)
-    else:
-        if not can_spend_sam(2):
-            return False
-        enriched = enrich_opportunity(raw)
 
     row.sam_raw = enriched
     if enriched.get("descriptionText"):
         row.description = enriched["descriptionText"][:8000]
 
-    from piee_client import attach_piee_manifest
-
-    row.sam_raw = attach_piee_manifest(row.sam_raw)
     refreshed = normalize_opportunity(enriched)
     if refreshed.get("location"):
         row.location = refreshed["location"]
@@ -110,7 +83,10 @@ def full_intake_contract(row: Contract, *, force: bool = False) -> dict[str, Any
         return {"notice_id": row.notice_id, "in_progress": True}
 
     try:
-        if not enrich_contract_from_sam(row):
+        from sam_enrich import is_scrape_complete
+
+        enriched = enrich_contract_from_sam(row)
+        if not enriched and not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {}):
             return {
                 "notice_id": row.notice_id,
                 "skipped": True,
@@ -293,11 +269,10 @@ def enrich_matching_attachments(
     *,
     limit: int | None = None,
 ) -> dict[str, Any]:
-    """Fetch SAM.gov attachment lists for matching contracts (no Claude). Runs even if already screened."""
-    from sam_enrich import needs_attachment_refresh
+    """Backfill incomplete scrapes for matching contracts (no Claude)."""
+    from sam_enrich import is_scrape_complete
     from sync import list_contracts
 
-    cap = limit if limit is not None else attachment_enrich_per_sync_limit()
     matching_rows = list_contracts(session)
     if notice_ids is not None:
         id_set = set(notice_ids)
@@ -308,13 +283,13 @@ def enrich_matching_attachments(
     enriched = 0
     errors: list[str] = []
     for row in candidates:
-        if enriched >= cap:
+        if limit is not None and enriched >= limit:
             break
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-        if not needs_attachment_refresh(raw) and raw.get("descriptionText"):
+        if is_scrape_complete(raw):
             continue
         if not can_spend_sam(1):
-            errors.append("SAM.gov daily budget reached — attachment lists pending.")
+            errors.append("SAM.gov daily budget reached — incomplete contracts pending.")
             break
         try:
             if enrich_contract_attachments(row):
@@ -327,8 +302,7 @@ def enrich_matching_attachments(
     pending = sum(
         1
         for row in candidates
-        if needs_attachment_refresh(row.sam_raw if isinstance(row.sam_raw, dict) else {})
-        or not (row.sam_raw if isinstance(row.sam_raw, dict) else {}).get("descriptionText")
+        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
     )
 
     return {
@@ -353,7 +327,7 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
             while can_spend_sam(1):
                 session = SessionLocal()
                 try:
-                    result = enrich_matching_attachments(session, limit=batch_size)
+                    result = enrich_matching_attachments(session, limit=None)
                     total += result.get("attachments_enriched", 0)
                     if result.get("attachments_enriched", 0) == 0:
                         break

@@ -156,6 +156,36 @@ def format_distance_label(
     return "Distance unknown"
 
 
+def filter_local_awards(
+    awards: list[dict[str, Any]],
+    *,
+    origin_state: str | None,
+    max_miles: int,
+    require_same_state: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Keep only geographically local comparables."""
+    kept: list[dict[str, Any]] = []
+    dropped_distance = 0
+    dropped_state = 0
+    for award in awards:
+        perf_state = award.get("performance_state")
+        if require_same_state and origin_state and perf_state and perf_state != origin_state:
+            dropped_state += 1
+            continue
+        miles = award.get("distance_miles")
+        if miles is not None and miles > max_miles:
+            dropped_distance += 1
+            continue
+        kept.append(award)
+    return kept, {
+        "max_distance_miles": max_miles,
+        "same_state_only": require_same_state,
+        "dropped_out_of_range": dropped_distance,
+        "dropped_other_state": dropped_state,
+        "local_count": len(kept),
+    }
+
+
 def annotate_award_distances(
     awards: list[dict[str, Any]],
     origin: dict[str, Any],

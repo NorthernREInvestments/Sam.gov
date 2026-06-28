@@ -23,11 +23,13 @@ def _daily_limit(env_key: str, default: int) -> int:
 
 
 def sam_daily_limit() -> int:
-    return _daily_limit("SAM_DAILY_API_BUDGET", 150)
+    """SAM.gov search + enrich calls per day (protect expiring API key credits)."""
+    return _daily_limit("SAM_DAILY_API_BUDGET", 10)
 
 
 def screen_daily_limit() -> int:
-    return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 10)
+    """Claude screenings per day. 0 = unlimited (no daily cap)."""
+    return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 0)
 
 
 def enrich_on_sync_limit() -> int:
@@ -43,13 +45,18 @@ def intake_per_sync_limit() -> int:
     return _daily_limit("INTAKE_PER_SYNC_LIMIT", 5)
 
 
+def scrape_max_per_sync() -> int:
+    """Max fully scraped contracts per NAICS sync. 0 = scrape every search result."""
+    return _daily_limit("SCRAPE_MAX_PER_SYNC", 0)
+
+
 def attachment_enrich_per_sync_limit() -> int:
     """How many matching contracts get SAM attachment lists loaded per sync / list refresh."""
-    return _daily_limit("ATTACHMENT_ENRICH_PER_SYNC_LIMIT", 30)
+    return _daily_limit("ATTACHMENT_ENRICH_PER_SYNC_LIMIT", 5)
 
 
 def attachment_enrich_on_list_limit() -> int:
-    return _daily_limit("ATTACHMENT_ENRICH_ON_LIST_LIMIT", 10)
+    return _daily_limit("ATTACHMENT_ENRICH_ON_LIST_LIMIT", 3)
 
 
 def auto_screen_on_startup() -> bool:
@@ -60,8 +67,8 @@ def auto_screen_on_startup() -> bool:
 
 
 def sam_pdf_download_limit() -> int:
-    """Separate daily cap for PDF bytes fetched during Claude screening."""
-    return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 25)
+    """Separate daily cap for PDF bytes fetched from SAM.gov during Claude screening."""
+    return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 10)
 
 
 def _usage_key(prefix: str) -> str:
@@ -99,6 +106,7 @@ def get_usage_snapshot() -> dict[str, Any]:
     sam_limit = sam_daily_limit()
     sam_pdf_limit = sam_pdf_download_limit()
     screen_limit = screen_daily_limit()
+    screens_unlimited = screen_limit == 0
     return {
         "sam_used_today": sam_used,
         "sam_daily_limit": sam_limit,
@@ -108,7 +116,8 @@ def get_usage_snapshot() -> dict[str, Any]:
         "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used),
         "screens_used_today": screen_used,
         "screen_daily_limit": screen_limit,
-        "screens_remaining": max(0, screen_limit - screen_used),
+        "screens_unlimited": screens_unlimited,
+        "screens_remaining": None if screens_unlimited else max(0, screen_limit - screen_used),
         "auto_screen_on_startup": auto_screen_on_startup(),
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
@@ -126,6 +135,9 @@ def can_spend_sam(credits: int = 1) -> bool:
 
 
 def can_download_screening_pdf() -> bool:
+    limit = sam_pdf_download_limit()
+    if limit == 0:
+        return True
     snap = get_usage_snapshot()
     return snap["sam_pdf_downloads_remaining"] > 0
 
@@ -136,7 +148,7 @@ def record_sam_pdf_download() -> bool:
     try:
         used = _get_usage(session, "sam_pdf")
         limit = sam_pdf_download_limit()
-        if used + 1 > limit:
+        if limit > 0 and used + 1 > limit:
             return False
         _set_usage(session, "sam_pdf", used + 1)
         session.commit()
@@ -146,8 +158,11 @@ def record_sam_pdf_download() -> bool:
 
 
 def can_screen() -> bool:
+    limit = screen_daily_limit()
+    if limit == 0:
+        return True
     snap = get_usage_snapshot()
-    return snap["screens_remaining"] > 0
+    return (snap["screens_remaining"] or 0) > 0
 
 
 def record_sam_usage(credits: int = 1) -> bool:
@@ -172,7 +187,7 @@ def record_screen_usage() -> bool:
     try:
         used = _get_usage(session, "anthropic_screen")
         limit = screen_daily_limit()
-        if used + 1 > limit:
+        if limit > 0 and used + 1 > limit:
             return False
         _set_usage(session, "anthropic_screen", used + 1)
         session.commit()
