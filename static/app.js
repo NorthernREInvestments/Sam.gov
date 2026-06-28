@@ -186,18 +186,45 @@ function stopDetailPolling() {
   }
 }
 
+function renderDocumentAccessBanner(c) {
+  const access = c.document_access || c.analysis?.document_access;
+  const links = c.external_links || c.analysis?.external_links || [];
+  if (!access) return "";
+
+  const samLink = access.sam_gov_link || c.link;
+  const linkItems = links.length
+    ? `<ul class="document-link-list">${links.map((item) => {
+        const url = item.url || item;
+        const label = item.label || url;
+        return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a></li>`;
+      }).join("")}</ul>`
+    : "";
+
+  const samCta = samLink
+    ? `<p class="document-access-cta"><a class="detail-link" href="${escapeHtml(samLink)}" target="_blank" rel="noopener">Open on SAM.gov → Attachments/Links</a></p>`
+    : "";
+
+  return `
+    <div class="document-access-banner ${access.requires_external_portal ? "document-access-external" : ""}">
+      <p class="document-access-title">${escapeHtml(access.summary || "Document access")}</p>
+      ${linkItems}
+      ${samCta}
+    </div>`;
+}
+
 function buildSummaryInner(c, analyzing = false) {
   const summary = getContractSummary(c);
+  const documentBanner = renderDocumentAccessBanner(c);
   if (summary) {
-    return `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`;
+    return `${documentBanner}<div class="executive-summary">${formatSummaryHtml(summary)}</div>`;
   }
   if (analyzing) {
-    return `<div class="executive-summary-placeholder analyzing">
+    return `${documentBanner}<div class="executive-summary-placeholder analyzing">
       <p class="analyzing-title">Analyzing this contract…</p>
-      <p class="detail-note">Reading attachments, checking historical pricing, and writing your plain-English summary. This usually takes 30–90 seconds.</p>
+      <p class="detail-note">Reading the posting description, checking linked documents, historical pricing, and writing your plain-English summary. This usually takes 30–90 seconds.</p>
     </div>`;
   }
-  return `<div class="executive-summary-placeholder">
+  return `${documentBanner}<div class="executive-summary-placeholder">
     <p>Summary not available yet.</p>
   </div>`;
 }

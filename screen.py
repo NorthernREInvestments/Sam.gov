@@ -106,6 +106,17 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
             return {"notice_id": notice_id, "in_progress": True}
 
         try:
+            from sam_enrich import ensure_enriched_sam_raw
+            from sam_client import normalize_opportunity
+
+            ensure_enriched_sam_raw(row)
+            if isinstance(row.sam_raw, dict):
+                if row.sam_raw.get("descriptionText"):
+                    row.description = row.sam_raw["descriptionText"][:8000]
+                refreshed = normalize_opportunity(row.sam_raw)
+                if refreshed.get("location"):
+                    row.location = refreshed["location"]
+
             analysis = screen_contract(row)
             row.analysis = analysis
             row.last_updated_at = datetime.now(timezone.utc)

@@ -696,6 +696,39 @@ body {
   margin: 0 0 0.35rem;
 }
 
+.document-access-banner {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.document-access-external {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.document-access-title {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #9a3412;
+}
+
+.document-access-external .document-access-title {
+  color: #1e3a8a;
+}
+
+.document-link-list {
+  margin: 0.65rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.document-access-cta {
+  margin: 0.65rem 0 0;
+}
+
 .detail-section-title {
   font-size: 0.8rem;
   font-weight: 700;

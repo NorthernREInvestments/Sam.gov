@@ -36,7 +36,11 @@ def _set_setting(session: Session, key: str, value: str) -> None:
 
 def _fields_from_opportunity(opp: dict[str, Any]) -> dict[str, Any]:
     raw = opp.get("sam_raw") if isinstance(opp.get("sam_raw"), dict) else {}
-    description = raw.get("description") or opp.get("description")
+    description = (
+        raw.get("descriptionText")
+        or raw.get("description")
+        or opp.get("description")
+    )
     estimated = raw.get("award") or raw.get("estimatedValue")
     if isinstance(estimated, dict):
         estimated = estimated.get("amount") or estimated.get("value")
@@ -74,7 +78,7 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
                 if key == "notice_id":
                     continue
                 setattr(existing, key, value)
-            if sam_raw:
+            if isinstance(sam_raw, dict):
                 existing.sam_raw = sam_raw
             existing.last_updated_at = now
             updated_count += 1
@@ -161,6 +165,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "pricing_intel": row.pricing_intel,
         "sub_type_needed": analysis.get("sub_type_needed"),
         "red_flags": analysis.get("red_flags") or [],
+        "document_access": analysis.get("document_access"),
+        "external_links": analysis.get("external_links") or [],
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
         "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
     }

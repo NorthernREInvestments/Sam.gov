@@ -22,7 +22,13 @@ MAX_TOKENS = 4096
 
 DEFAULT_SCREENING_PROMPT = """You are a government contract screening specialist for a small business prime contractor using the subcontracting middleman model.
 
-YOUR #1 JOB: Read the contract posting, every attached PDF/solicitation document, AND the historical pricing intelligence from USAspending.gov. Extract the full scope of work and produce actionable bid guidance.
+YOUR #1 JOB: Read the contract posting, every attached PDF/solicitation document you receive, AND the historical pricing intelligence from USAspending.gov. Extract the full scope of work and produce actionable bid guidance.
+
+IMPORTANT — EXTERNAL SOLICITATION PORTALS:
+Many DoD and federal postings do NOT attach PDFs directly on SAM.gov. Documents may live on PIEE, FedConnect, NECO, or other portals linked from the SAM.gov "Attachments/Links" section.
+- If document_access in the user message shows external portal or external links, DO NOT say "no attachments" or "no PDFs included."
+- Instead explain where documents live, that quotes/SOW are on that portal, and what the posting description already tells us about scope, states, dates, and size.
+- Always use the full posting description text provided — it often contains the real scope even when PDFs are external.
 
 SCREENING RULES (for pursue/skip):
 - FAR 52.219-14 present and checked → pursue false, flag SKIP
@@ -80,7 +86,9 @@ Return JSON only with these exact fields:
 - far_52_219_14: true or false
 - security_clearance_required: true or false
 - option_years: number or null
-- attachments_reviewed: array of strings listing PDF filenames or URLs you read
+- attachments_reviewed: array of strings listing PDF filenames or URLs you read (empty array if none downloaded — note external portal instead in plain_english_summary)
+- document_access: object echoing the document_access block from the user message (status, summary, external_portals, requires_external_portal)
+- external_links: array of {url, label} objects from the posting when provided
 
 Respond with JSON only. No markdown fences."""
 
@@ -205,6 +213,36 @@ def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
     return "\n".join(lines)
 
 
+def _format_document_access_block(raw: dict[str, Any]) -> str:
+    access = raw.get("documentAccess") if isinstance(raw.get("documentAccess"), dict) else {}
+    lines = [
+        "DOCUMENT ACCESS (from SAM.gov):",
+        f"Status: {access.get('status', 'unknown')}",
+        f"Summary: {access.get('summary', 'unknown')}",
+        f"PDF attachments on SAM.gov: {access.get('pdf_attachment_count', 0)}",
+        f"External links on SAM.gov: {access.get('external_link_count', 0)}",
+        f"External portals detected: {', '.join(access.get('external_portals') or []) or 'none'}",
+        f"Requires external portal review: {access.get('requires_external_portal', False)}",
+        f"Solicitation number: {access.get('solicitation_number') or 'unknown'}",
+    ]
+    links = raw.get("opportunityLinks") or []
+    if links:
+        lines.append("External / linked resources from SAM.gov:")
+        for item in links[:10]:
+            if isinstance(item, dict):
+                lines.append(f"- {item.get('label') or 'Link'}: {item.get('url')}")
+            else:
+                lines.append(f"- {item}")
+    elif access.get("requires_external_portal"):
+        lines.append(
+            "No direct link URLs returned by API — user must open the SAM.gov posting "
+            "and use Attachments/Links (often PIEE Solicitation Module)."
+        )
+        if access.get("sam_gov_link"):
+            lines.append(f"SAM.gov UI link: {access['sam_gov_link']}")
+    return "\n".join(lines)
+
+
 def build_screening_text(
     contract: Any,
     attachment_count: int,
@@ -212,27 +250,35 @@ def build_screening_text(
 ) -> str:
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     description = (
-        contract.description
+        raw.get("descriptionText")
+        or contract.description
         or raw.get("description")
         or raw.get("additionalInfoLink")
         or "Not provided in posting"
     )
+    if isinstance(description, str) and description.startswith("http"):
+        description = raw.get("descriptionText") or "Description URL provided but text not loaded."
     urls = _collect_urls(raw)
+    work_states = raw.get("workStates") or []
     lines = [
-        "Analyze this federal contract. Read all attached PDF documents carefully for scope, size, and requirements.",
+        "Analyze this federal contract. Read all attached PDF documents included in this message.",
+        "If documents are on an external portal (PIEE, etc.), use the full posting description and document access notes below.",
         "Use the historical pricing data below to fill pricing_intelligence and include a pricing sentence in plain_english_summary.",
         "",
         f"Notice ID: {contract.notice_id}",
         f"Title: {contract.title}",
         f"Agency: {contract.agency or 'Unknown'}",
         f"Location: {contract.location or 'Unknown'}",
+        f"Work states detected: {', '.join(work_states) if work_states else 'Unknown'}",
         f"NAICS: {contract.naics_code or 'Unknown'}",
         f"Set-aside: {contract.set_aside or 'Unknown'}",
         f"Due date: {contract.due_date.isoformat() if contract.due_date else 'Unknown'}",
         f"SAM.gov link: {contract.link or 'Unknown'}",
         f"PDF attachments included in this message: {attachment_count}",
         "",
-        "Posting description:",
+        _format_document_access_block(raw),
+        "",
+        "Full posting description:",
         str(description)[:15000],
         "",
         _format_pricing_block(pricing_intel),
@@ -245,6 +291,28 @@ def build_screening_text(
     return "\n".join(lines)
 
 
+def _collect_attachment_urls(raw: dict[str, Any]) -> list[str]:
+    urls = _collect_urls(raw)
+    resource_links = raw.get("resourceLinks") or []
+    if isinstance(resource_links, list):
+        for item in resource_links:
+            if isinstance(item, str) and item.startswith("http"):
+                urls.append(item)
+    opportunity_links = raw.get("opportunityLinks") or []
+    for item in opportunity_links:
+        if isinstance(item, dict):
+            url = item.get("url")
+            if isinstance(url, str) and url.startswith("http"):
+                urls.append(url)
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            ordered.append(url)
+    return ordered
+
+
 def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:
     """Fetch USAspending data, send contract + pricing to Claude, return screening JSON."""
     if system_prompt is None:
@@ -253,11 +321,22 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         system_prompt = resolve_screening_prompt()
 
     from pricing import get_contract_pricing_intel
+    from sam_enrich import ensure_enriched_sam_raw
+
+    ensure_enriched_sam_raw(contract)
+    if contract.sam_raw and isinstance(contract.sam_raw, dict):
+        if contract.sam_raw.get("descriptionText") and not contract.description:
+            contract.description = contract.sam_raw["descriptionText"][:8000]
+        from sam_client import normalize_opportunity
+
+        refreshed = normalize_opportunity(contract.sam_raw)
+        if refreshed.get("location"):
+            contract.location = refreshed["location"]
 
     pricing_intel = get_contract_pricing_intel(contract, force_refresh=True)
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
-    urls = _collect_urls(raw)
+    urls = _collect_attachment_urls(raw)
     pdf_blocks, fetched_labels = _attachment_blocks(urls)
     text = build_screening_text(contract, len(pdf_blocks), pricing_intel)
 
@@ -279,6 +358,13 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
 
     if fetched_labels and not analysis.get("attachments_reviewed"):
         analysis["attachments_reviewed"] = fetched_labels
+
+    document_access = raw.get("documentAccess") if isinstance(raw.get("documentAccess"), dict) else None
+    if document_access and not analysis.get("document_access"):
+        analysis["document_access"] = document_access
+    opportunity_links = raw.get("opportunityLinks") or []
+    if opportunity_links and not analysis.get("external_links"):
+        analysis["external_links"] = opportunity_links
 
     if analysis.get("pursue") is True:
         analysis["pursue"] = True

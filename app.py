@@ -157,6 +157,17 @@ def get_contract(notice_id: str):
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             raise HTTPException(status_code=404, detail="Contract not found")
+        from sam_enrich import ensure_enriched_sam_raw
+        from sam_client import normalize_opportunity
+
+        ensure_enriched_sam_raw(row)
+        if isinstance(row.sam_raw, dict):
+            if row.sam_raw.get("descriptionText"):
+                row.description = row.sam_raw["descriptionText"][:8000]
+            refreshed = normalize_opportunity(row.sam_raw)
+            if refreshed.get("location"):
+                row.location = refreshed["location"]
+        session.commit()
         data = contract_to_dict(row)
         data["sam_raw"] = row.sam_raw
         return data

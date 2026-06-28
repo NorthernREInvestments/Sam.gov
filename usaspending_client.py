@@ -197,6 +197,14 @@ def extract_work_location(
     zip_code: str | None = None
 
     if sam_raw:
+        work_states = sam_raw.get("workStates")
+        if isinstance(work_states, list) and work_states:
+            for code in work_states:
+                normalized = normalize_state(str(code))
+                if normalized:
+                    state_code = normalized
+                    break
+
         for key in ("placeOfPerformance", "placeOfPerformanceLocation"):
             block = sam_raw.get(key)
             if isinstance(block, dict):
@@ -228,11 +236,16 @@ def extract_work_location(
             state_code = normalize_state(match.group(1))
 
     label = format_location_scope(state_code, city)
+    work_states = sam_raw.get("workStates") if isinstance(sam_raw, dict) else None
+    if isinstance(work_states, list) and len(work_states) > 1:
+        label = f"Multiple states ({', '.join(work_states)})"
+
     return {
         "state_code": state_code,
         "city": city,
         "zip": zip_code,
         "label": label,
+        "work_states": work_states if isinstance(work_states, list) else [],
     }
 
 

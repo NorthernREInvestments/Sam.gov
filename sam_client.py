@@ -54,6 +54,17 @@ def _set_aside_matches(opp: dict[str, Any]) -> bool:
 
 
 def _format_location(raw: dict[str, Any]) -> str | None:
+    from sam_enrich import extract_states_from_text, _place_of_performance_text
+
+    pop_text = _place_of_performance_text(raw)
+    work_states = extract_states_from_text(raw.get("title"), pop_text)
+    if work_states and len(work_states) > 1:
+        return f"Multiple locations ({', '.join(work_states)})"
+    if pop_text:
+        if len(pop_text) > 180:
+            return pop_text[:177] + "..."
+        return pop_text
+
     place = raw.get("placeOfPerformance") or raw.get("placeOfPerformanceLocation")
     if not isinstance(place, dict):
         place = raw.get("officeAddress")
@@ -65,7 +76,9 @@ def _format_location(raw: dict[str, Any]) -> str | None:
         if isinstance(state, dict):
             state = state.get("code") or state.get("name")
         parts = [city, state, place.get("zip")]
-        return ", ".join(str(p) for p in parts if p) or None
+        formatted = ", ".join(str(p) for p in parts if p)
+        if formatted:
+            return formatted
     return str(place) if place else None
 
 
@@ -127,16 +140,21 @@ def fetch_naics_from_sam(
         resp.raise_for_status()
         batch = resp.json().get("opportunitiesData") or []
 
+    from sam_enrich import enrich_opportunity
+
     results: list[dict[str, Any]] = []
     seen: set[str] = set()
     for raw in batch:
         if not _set_aside_matches(raw):
             continue
-        opp = normalize_opportunity(raw)
+        enriched = enrich_opportunity(raw, api_key)
+        opp = normalize_opportunity(enriched)
+        if enriched.get("descriptionText"):
+            opp["description"] = enriched["descriptionText"][:8000]
         nid = str(opp.get("notice_id") or "")
         if not nid or nid in seen:
             continue
         seen.add(nid)
-        results.append({**opp, "sam_raw": raw})
+        results.append({**opp, "sam_raw": enriched})
 
     return results
