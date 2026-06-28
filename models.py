@@ -11,6 +11,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
 
 
+class AppSetting(Base):
+    """Key-value store for sync rotation and other app state."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+
+
 class Contract(Base):
     __tablename__ = "contracts"
 
@@ -27,6 +36,7 @@ class Contract(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[str] = mapped_column(String(32), default="new", index=True)
+    sam_raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     first_seen_at: Mapped[datetime] = mapped_column(

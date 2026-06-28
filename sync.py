@@ -2,23 +2,44 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import Contract
-from sam_client import fetch_opportunities
+from models import AppSetting, Contract
+from sam_client import fetch_naics_from_sam, min_days_from_env, naics_from_env
 
 
 def _parse_due_date(value: str | None) -> date | None:
     if not value:
         return None
-    return date.fromisoformat(value)
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
+
+
+def _get_setting(session: Session, key: str, default: str = "") -> str:
+    row = session.get(AppSetting, key)
+    return row.value if row else default
+
+
+def _set_setting(session: Session, key: str, value: str) -> None:
+    row = session.get(AppSetting, key)
+    if row:
+        row.value = value
+    else:
+        session.add(AppSetting(key=key, value=value))
 
 
 def _fields_from_opportunity(opp: dict[str, Any]) -> dict[str, Any]:
+    raw = opp.get("sam_raw") if isinstance(opp.get("sam_raw"), dict) else {}
+    description = raw.get("description") or opp.get("description")
+    estimated = raw.get("award") or raw.get("estimatedValue")
+    if isinstance(estimated, dict):
+        estimated = estimated.get("amount") or estimated.get("value")
     return {
         "notice_id": str(opp["notice_id"]),
         "title": (opp.get("title") or "Untitled")[:512],
@@ -28,6 +49,8 @@ def _fields_from_opportunity(opp: dict[str, Any]) -> dict[str, Any]:
         "set_aside": (opp.get("set_aside") or None),
         "due_date": _parse_due_date(opp.get("due_date")),
         "link": (opp.get("link") or None),
+        "description": str(description)[:8000] if description else None,
+        "estimated_value": str(estimated)[:128] if estimated else None,
     }
 
 
@@ -43,6 +66,7 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
             continue
 
         fields = _fields_from_opportunity(opp)
+        sam_raw = opp.get("sam_raw")
         existing = session.query(Contract).filter_by(notice_id=notice_id).first()
 
         if existing:
@@ -50,47 +74,221 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
                 if key == "notice_id":
                     continue
                 setattr(existing, key, value)
+            if sam_raw:
+                existing.sam_raw = sam_raw
             existing.last_updated_at = now
             updated_count += 1
         else:
-            session.add(Contract(**fields, status="new"))
+            session.add(Contract(**fields, sam_raw=sam_raw, status="new"))
             new_count += 1
 
     session.commit()
     return new_count, updated_count
 
 
-def sync_from_sam() -> dict[str, Any]:
-    """Pull from SAM.gov (1 API call) and upsert into the database."""
-    opportunities, api_calls, fetch_status = fetch_opportunities()
+def list_contracts(
+    session: Session,
+    naics_codes: list[str] | None = None,
+    min_days_until_due: int | None = None,
+    min_score: int | None = None,
+    agency: str | None = None,
+    pursue_only: bool = False,
+) -> list[Contract]:
+    """Return contracts from PostgreSQL matching filters."""
+    from settings_store import get_min_score_threshold
 
+    naics_codes = naics_codes or naics_from_env()
+    min_days = min_days_until_due if min_days_until_due is not None else min_days_from_env()
+    min_score = min_score if min_score is not None else get_min_score_threshold()
+    naics_set = set(naics_codes)
+    today = date.today()
+    agency_query = agency.strip().lower() if agency else None
+
+    rows = session.query(Contract).filter(Contract.naics_code.in_(naics_set)).all()
+    results: list[Contract] = []
+    for row in rows:
+        if row.due_date is not None:
+            days_left = (row.due_date - today).days
+            if days_left < min_days:
+                continue
+        if agency_query and (not row.agency or agency_query not in row.agency.lower()):
+            continue
+        analysis = row.analysis or {}
+        score = analysis.get("score")
+        if score is not None and int(score) < min_score:
+            continue
+        if pursue_only and analysis.get("pursue") is not True:
+            continue
+        results.append(row)
+
+    results.sort(
+        key=lambda r: (
+            r.due_date is None,
+            (r.due_date - today).days if r.due_date else 9999,
+        )
+    )
+    return results
+
+
+def contract_to_dict(row: Contract) -> dict[str, Any]:
+    today = date.today()
+    days_left = (row.due_date - today).days if row.due_date else None
+    analysis = row.analysis or {}
+    return {
+        "notice_id": row.notice_id,
+        "title": row.title,
+        "agency": row.agency,
+        "location": row.location,
+        "naics_code": row.naics_code,
+        "set_aside": row.set_aside,
+        "due_date": row.due_date.isoformat() if row.due_date else None,
+        "days_until_due": days_left,
+        "link": row.link,
+        "estimated_value": row.estimated_value,
+        "description": row.description,
+        "status": row.status,
+        "analysis": analysis,
+        "pursue": analysis.get("pursue"),
+        "score": analysis.get("score"),
+        "reason": analysis.get("reason"),
+        "executive_summary": analysis.get("executive_summary"),
+        "sub_type_needed": analysis.get("sub_type_needed"),
+        "red_flags": analysis.get("red_flags") or [],
+        "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
+        "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
+    }
+
+
+def sync_from_sam() -> dict[str, Any]:
+    """Pull one NAICS code from SAM.gov (1 API call) and upsert into PostgreSQL."""
+    naics_codes = naics_from_env()
     session = SessionLocal()
     try:
-        new_count, updated_count = upsert_contracts(session, opportunities)
+        index = int(_get_setting(session, "naics_rotation_index", "0")) % len(naics_codes)
+        naics_today = naics_codes[index]
+
+        batch = fetch_naics_from_sam(naics_today)
+        new_count, updated_count = upsert_contracts(session, batch)
+
+        synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
+        synced_map[naics_today] = date.today().isoformat()
+        _set_setting(session, "naics_last_synced", json.dumps(synced_map))
+        _set_setting(session, "naics_rotation_index", str((index + 1) % len(naics_codes)))
+        session.commit()
+
         total = session.query(Contract).count()
+        loaded = len(synced_map)
+        next_naics = naics_codes[(index + 1) % len(naics_codes)]
+        fetch_status = (
+            f"Searched NAICS {naics_today} ({index + 1} of {len(naics_codes)}). "
+            f"Fetched {len(batch)} from SAM.gov. Coverage: {loaded}/{len(naics_codes)} NAICS codes."
+        )
+        if loaded < len(naics_codes):
+            fetch_status += f" Run sync again for {next_naics}, or use --all."
     finally:
         session.close()
 
     return {
-        "api_calls": api_calls,
+        "api_calls": 1,
         "fetch_status": fetch_status,
-        "synced_from_sam": len(opportunities),
+        "fetched_from_sam": len(batch),
         "new": new_count,
         "updated": updated_count,
         "total_in_db": total,
+        "naics_synced": loaded,
+        "naics_total": len(naics_codes),
+    }
+
+
+def sync_all_naics() -> dict[str, Any]:
+    """Pull every configured NAICS code (1 API call each) and upsert into PostgreSQL."""
+    naics_codes = naics_from_env()
+    api_calls = 0
+    fetched_total = 0
+    new_total = 0
+    updated_total = 0
+    per_naics: list[dict[str, Any]] = []
+    synced_map: dict[str, str] = {}
+
+    status_session = SessionLocal()
+    try:
+        synced_map = json.loads(_get_setting(status_session, "naics_last_synced", "{}"))
+    finally:
+        status_session.close()
+
+    for naics in naics_codes:
+        batch = fetch_naics_from_sam(naics)
+        api_calls += 1
+        fetched_total += len(batch)
+
+        session = SessionLocal()
+        try:
+            new_count, updated_count = upsert_contracts(session, batch)
+            synced_map[naics] = date.today().isoformat()
+            _set_setting(session, "naics_last_synced", json.dumps(synced_map))
+            session.commit()
+        finally:
+            session.close()
+
+        new_total += new_count
+        updated_total += updated_count
+        per_naics.append({"naics": naics, "fetched": len(batch), "new": new_count, "updated": updated_count})
+
+    session = SessionLocal()
+    try:
+        _set_setting(session, "naics_rotation_index", "0")
+        session.commit()
+        total = session.query(Contract).count()
+    finally:
+        session.close()
+
+    fetch_status = (
+        f"Synced all {len(naics_codes)} NAICS codes. "
+        f"Fetched {fetched_total} opportunities from SAM.gov."
+    )
+    return {
+        "api_calls": api_calls,
+        "fetch_status": fetch_status,
+        "fetched_from_sam": fetched_total,
+        "new": new_total,
+        "updated": updated_total,
+        "total_in_db": total,
+        "naics_synced": len(naics_codes),
+        "naics_total": len(naics_codes),
+        "per_naics": per_naics,
+    }
+
+
+def get_naics_sync_status() -> dict[str, Any]:
+    naics_codes = naics_from_env()
+    session = SessionLocal()
+    try:
+        synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
+    finally:
+        session.close()
+    return {
+        "naics_codes": naics_codes,
+        "last_synced": synced_map,
+        "synced_count": sum(1 for code in naics_codes if code in synced_map),
+        "total_count": len(naics_codes),
     }
 
 
 def main() -> None:
+    import sys
+
+    all_naics = "--all" in sys.argv
     print("Syncing SAM.gov -> PostgreSQL...")
-    result = sync_from_sam()
+    result = sync_all_naics() if all_naics else sync_from_sam()
     print(f"Used {result['api_calls']} SAM.gov API call(s)")
     print(result["fetch_status"])
     print(
-        f"Synced {result['synced_from_sam']} contract(s) - "
-        f"{result['new']} new, {result['updated']} updated. "
+        f"Saved to database - {result['new']} new, {result['updated']} updated. "
         f"{result['total_in_db']} total in database."
     )
+    if result.get("per_naics"):
+        for row in result["per_naics"]:
+            print(f"  NAICS {row['naics']}: {row['fetched']} fetched, {row['new']} new")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GovTracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>GovTracker</h1>
+      <p class="subtitle">Federal contract opportunities</p>
+    </div>
+    <nav class="main-nav">
+      <button id="tab-dashboard" class="tab active" type="button">Dashboard</button>
+      <button id="tab-settings" class="tab" type="button">Settings</button>
+      <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
+    </nav>
+  </header>
+
+  <div id="sync-status" class="sync-status" hidden></div>
+
+  <div id="view-dashboard">
+    <div class="toolbar">
+      <button id="screen-btn" class="btn btn-secondary-header" type="button">Screen all matching</button>
+      <button id="sync-all-btn" class="btn btn-secondary-header" type="button">Sync all NAICS</button>
+      <button id="refresh-btn" class="btn btn-primary" type="button">Refresh (1 NAICS)</button>
+    </div>
+
+    <div class="layout">
+      <aside class="filters">
+        <h2>Filters</h2>
+
+        <label class="filter-label">NAICS codes</label>
+        <div id="naics-filters" class="checkbox-group"></div>
+
+        <label class="filter-label" for="min-days">Minimum days until due</label>
+        <div class="slider-row">
+        <input type="range" id="min-days" min="0" max="120" value="30">
+        <span id="min-days-value">30</span>
+        </div>
+
+        <label class="filter-label" for="min-score">Minimum score</label>
+        <div class="slider-row">
+          <input type="range" id="min-score" min="1" max="10" value="1">
+          <span id="min-score-value">1</span>
+        </div>
+
+        <label class="filter-label" for="agency-filter">Agency contains</label>
+        <input type="text" id="agency-filter" placeholder="e.g. Veterans, Army">
+
+        <label class="checkbox-inline">
+          <input type="checkbox" id="pursue-only"> Pursue only
+        </label>
+
+        <button id="apply-filters" class="btn btn-secondary" type="button">Apply filters</button>
+      </aside>
+
+      <main class="main">
+        <p id="naics-sync-status" class="naics-sync-status"></p>
+        <p id="results-count" class="results-count">Loading...</p>
+        <div id="cards" class="cards"></div>
+      </main>
+    </div>
+  </div>
+
+  <div id="view-settings" hidden>
+    <div class="settings-page">
+      <h2>Settings</h2>
+      <p class="settings-help">Changes apply to sync, screening, and dashboard filters.</p>
+
+      <section class="settings-section">
+        <h3>Search</h3>
+        <label class="filter-label" for="settings-naics">NAICS codes (comma-separated)</label>
+        <input type="text" id="settings-naics" class="settings-input">
+
+        <label class="filter-label" for="settings-min-days">Minimum days until due (default)</label>
+        <div class="slider-row">
+        <input type="range" id="settings-min-days" min="0" max="120" value="30">
+        <span id="settings-min-days-value">30</span>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Screening</h3>
+        <label class="filter-label" for="settings-min-score">Minimum score threshold (default)</label>
+        <div class="slider-row">
+          <input type="range" id="settings-min-score" min="1" max="10" value="1">
+          <span id="settings-min-score-value">1</span>
+        </div>
+
+        <label class="filter-label" for="settings-prompt">Claude screening prompt</label>
+        <p id="prompt-status" class="prompt-status"></p>
+        <textarea id="settings-prompt" class="prompt-textarea" rows="14"></textarea>
+        <button id="reset-prompt-btn" class="btn btn-secondary-header" type="button">Reset prompt to default</button>
+        <p class="settings-help">After a prompt update, use Settings → Reset prompt to get the latest screening format with plain-English summaries.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>API keys</h3>
+        <p class="settings-help">Keys are set in Railway variables or your local <code>.env</code> file — not stored in the browser.</p>
+        <ul id="api-key-status" class="api-key-status"></ul>
+      </section>
+
+      <section class="settings-section">
+        <h3>Scheduler</h3>
+        <p id="scheduler-status" class="settings-help">Loading...</p>
+      </section>
+
+      <div class="settings-actions">
+        <button id="save-settings-btn" class="btn btn-primary" type="button">Save settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-panel modal-panel-detail">
+      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

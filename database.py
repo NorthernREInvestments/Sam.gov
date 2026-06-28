@@ -39,6 +39,15 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
-    from models import Contract  # noqa: F401
+    from models import AppSetting, Contract  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_sam_raw()
+
+
+def _migrate_add_sam_raw() -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sam_raw JSONB")
+        )
+        conn.commit()
