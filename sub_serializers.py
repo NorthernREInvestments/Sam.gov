@@ -31,6 +31,11 @@ def sub_to_dict(row: Sub, *, stats: dict[str, Any] | None = None, outreach: dict
         "google_maps_url": row.google_maps_url,
         "sub_type": row.sub_type,
         "notes": row.notes,
+        "owner_name": row.owner_name,
+        "owner_title": row.owner_title,
+        "license_number": row.license_number,
+        "insurance_carrier": row.insurance_carrier,
+        "business_email": row.business_email,
         "date_first_found": row.date_first_found.isoformat() if row.date_first_found else None,
         "date_last_updated": row.date_last_updated.isoformat() if row.date_last_updated else None,
     }
@@ -41,9 +46,9 @@ def sub_to_dict(row: Sub, *, stats: dict[str, Any] | None = None, outreach: dict
     return payload
 
 
-def contract_sub_to_dict(link: ContractSub) -> dict[str, Any]:
+def contract_sub_to_dict(link: ContractSub, *, agreement: dict[str, Any] | None = None) -> dict[str, Any]:
     sub = link.sub
-    return {
+    payload = {
         "id": link.id,
         "contract_id": link.contract_id,
         "sub_id": link.sub_id,
@@ -56,6 +61,8 @@ def contract_sub_to_dict(link: ContractSub) -> dict[str, Any]:
         "distance_miles": _dec(link.distance_miles),
         "date_status_updated": link.date_status_updated.isoformat() if link.date_status_updated else None,
         "date_added": link.date_added.isoformat() if link.date_added else None,
+        "agreement_signature_status": link.agreement_signature_status or "Agreement Not Generated",
+        "agreement_status_log": link.agreement_status_log or [],
         "business_name": sub.business_name if sub else None,
         "phone": sub.phone if sub else None,
         "rating": _dec(sub.rating) if sub else None,
@@ -68,8 +75,16 @@ def contract_sub_to_dict(link: ContractSub) -> dict[str, Any]:
         "google_maps_url": sub.google_maps_url if sub else None,
         "sub_type": sub.sub_type if sub else None,
         "place_id": sub.place_id if sub else None,
+        "owner_name": sub.owner_name if sub else None,
+        "owner_title": sub.owner_title if sub else None,
+        "license_number": sub.license_number if sub else None,
+        "insurance_carrier": sub.insurance_carrier if sub else None,
+        "business_email": sub.business_email if sub else None,
         "is_selected": link.status == "Selected",
     }
+    if agreement:
+        payload["agreement"] = agreement
+    return payload
 
 
 def contract_sub_summary(contract: Contract, session) -> dict[str, Any]:

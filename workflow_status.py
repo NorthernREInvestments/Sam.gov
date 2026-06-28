@@ -134,4 +134,58 @@ def compute_workflow_status(contract: Contract, session) -> dict[str, Any]:
         "items": items,
         "proposal_id": proposal.id if proposal else None,
         "quoted_sub_count": quoted_count,
+        "already_bid": stage in ("submitted", "won"),
+        "do_not_rebid": stage in ("submitted", "won"),
+    }
+
+
+def compute_card_pipeline(contract: Contract, session) -> dict[str, Any]:
+    """Visual intake + bid steps for dashboard cards."""
+    from sam_enrich import is_scrape_complete
+
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    wf = compute_workflow_status(contract, session)
+
+    intake_steps = [
+        {
+            "key": "attachments",
+            "label": "Attachments",
+            "state": "done" if is_scrape_complete(raw) else "pending",
+        },
+        {
+            "key": "analysis",
+            "label": "Claude analysis",
+            "state": "done" if analysis.get("screening_stage") == "full" else "pending",
+        },
+    ]
+
+    bid_steps: list[dict[str, str]] = []
+    if analysis.get("pursue") is True:
+        stage = wf.get("stage") or "none"
+        bid_steps = [
+            {
+                "key": "sub_quote",
+                "label": "Sub quote",
+                "state": "done" if stage not in ("needs_sub_quote", "none") else "pending",
+            },
+            {
+                "key": "proposal",
+                "label": "Proposal",
+                "state": "done"
+                if stage in ("draft_ready", "ready", "submitted", "won", "lost", "proposal_incomplete")
+                else "pending",
+            },
+            {
+                "key": "submitted",
+                "label": "Submitted",
+                "state": "done" if stage in ("submitted", "won", "lost") else "pending",
+            },
+        ]
+
+    return {
+        "intake": intake_steps,
+        "bid": bid_steps,
+        "do_not_rebid": wf.get("do_not_rebid", False),
+        "already_bid_label": wf.get("label") if wf.get("do_not_rebid") else "",
     }

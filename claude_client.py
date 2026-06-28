@@ -860,6 +860,41 @@ def generate_proposal_content(contract: Any, config: dict[str, Any]) -> tuple[st
     return html, sections
 
 
+def generate_subcontract_agreement(contract: Any, config: dict[str, Any]) -> str:
+    from agreement_prompt import SUBCONTRACT_AGREEMENT_SYSTEM_PROMPT, SUBCONTRACT_AGREEMENT_TEMPLATE
+
+    user_message = "\n".join(
+        [
+            "Fill in the subcontract agreement template using ONLY the JSON data below.",
+            "Return complete HTML for the filled agreement.",
+            "",
+            "TEMPLATE:",
+            SUBCONTRACT_AGREEMENT_TEMPLATE,
+            "",
+            "DATA (JSON):",
+            json.dumps(config, indent=2, default=str),
+            "",
+            "Contract context:",
+            f"Title: {contract.title}",
+            f"Agency: {contract.agency}",
+            f"Location: {contract.location}",
+        ]
+    )
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=16000,
+        system=SUBCONTRACT_AGREEMENT_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_message}],
+    )
+    text = response.content[0].text if response.content else ""
+    html = text.strip()
+    if html.startswith("```"):
+        html = re.sub(r"^```(?:html)?\s*", "", html)
+        html = re.sub(r"\s*```$", "", html)
+    return html
+
+
 def regenerate_proposal_section(contract: Any, config: dict[str, Any], section_key: str) -> str:
     from proposal_defaults import SECTION_TITLES
     from proposal_prompt import PROPOSAL_SYSTEM_PROMPT, SECTION_REGEN_PROMPT

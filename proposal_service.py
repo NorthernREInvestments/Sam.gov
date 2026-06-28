@@ -322,6 +322,18 @@ def generate_proposal(
     if not contract:
         raise ValueError("Contract not found")
 
+    existing = (
+        session.query(Proposal)
+        .filter_by(contract_id=contract.id)
+        .order_by(Proposal.date_updated.desc())
+        .first()
+    )
+    if existing and existing.status in ("submitted", "won"):
+        raise ValueError(
+            "This contract already has a submitted bid on file. "
+            "Open the existing proposal — do not create a duplicate application."
+        )
+
     html, sections = generate_proposal_content(contract, config)
     missing = detect_missing_fields(config)
     html = highlight_missing_in_html(html, missing)
@@ -416,6 +428,12 @@ def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, A
     if "notes" in payload:
         proposal.notes = payload["notes"]
     if "status" in payload and payload["status"] in PROPOSAL_STATUSES:
+        if payload["status"] == "submitted":
+            config = proposal.config_json if isinstance(proposal.config_json, dict) else {}
+            missing = detect_missing_fields(config)
+            if missing:
+                labels = ", ".join(m["label"] for m in missing if isinstance(m, dict))
+                raise ValueError(f"Cannot mark submitted until required fields are filled: {labels}")
         proposal.status = payload["status"]
         if payload["status"] == "submitted":
             proposal.date_submitted = datetime.now(timezone.utc)

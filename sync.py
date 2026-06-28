@@ -291,9 +291,10 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             nearby_network_count = network.get("count", 0)
         except Exception:
             nearby_network_count = 0
-        from workflow_status import compute_workflow_status
+        from workflow_status import compute_card_pipeline, compute_workflow_status
 
         workflow = compute_workflow_status(row, session)
+        pipeline = compute_card_pipeline(row, session)
     finally:
         session.close()
 
@@ -348,6 +349,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "sam_attachments": sam_attachments,
         "scrape_complete": is_scrape_complete(sam_raw),
         "workflow": workflow,
+        "pipeline": pipeline,
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
         "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
     }

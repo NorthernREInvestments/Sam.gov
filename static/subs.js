@@ -9,6 +9,13 @@ const SUB_STATUSES = [
   "Selected",
 ];
 
+const AGREEMENT_SIGNATURE_STATUSES = [
+  "Agreement Not Generated",
+  "Agreement Sent",
+  "Agreement Signed",
+  "Agreement Declined",
+];
+
 let activeContractSubsId = null;
 let contractSubsPollTimer = null;
 let mySubsCache = [];
@@ -208,8 +215,16 @@ function renderSubCard(sub) {
     ? `<a href="tel:${escapeHtml(String(sub.phone).replace(/[^\d+]/g, ""))}">${escapeHtml(sub.phone)}</a>`
     : "—";
   const stars = sub.rating != null ? `${sub.rating} ★ (${sub.review_count ?? 0} reviews)` : "No rating";
+  const agreementSection =
+    sub.status === "Selected"
+      ? renderAgreementSection(sub)
+      : "";
+  const profileSection =
+    sub.status === "Selected"
+      ? renderSubProfileFields(sub)
+      : "";
   return `
-    <article class="sub-card ${sub.is_selected ? "sub-card-selected" : ""}" data-link-id="${sub.id}">
+    <article class="sub-card ${sub.is_selected ? "sub-card-selected" : ""}" data-link-id="${sub.id}" data-sub-id="${sub.sub_id}">
       <h3 class="sub-card-title">${escapeHtml(sub.business_name || "Unknown")}</h3>
       <p class="sub-card-meta">${escapeHtml(stars)} · ${sub.distance_miles != null ? `${sub.distance_miles} mi` : "—"}</p>
       <p class="sub-card-phone">${phoneLink}</p>
@@ -224,24 +239,135 @@ function renderSubCard(sub) {
       </select>
       <label class="filter-label">Call notes</label>
       <textarea class="settings-input sub-notes" data-field="contact_notes" rows="3" placeholder="Who you spoke with, availability, follow-up…">${escapeHtml(sub.contact_notes || "")}</textarea>
-      <label class="filter-label">Bid / quote amount</label>
-      <input type="number" class="settings-input sub-quote-amount" data-field="quote_amount" value="${sub.quote_amount ?? ""}" step="0.01" placeholder="Annual or per-visit bid">
+      <label class="filter-label">Bid / quote amount (monthly)</label>
+      <input type="number" class="settings-input sub-quote-amount" data-field="quote_amount" value="${sub.quote_amount ?? ""}" step="0.01" placeholder="Monthly sub quote">
       <label class="filter-label">Quote date</label>
       <input type="date" class="settings-input sub-quote-date" data-field="quote_date" value="${sub.quote_date || ""}">
+      ${profileSection}
+      ${agreementSection}
       ${sub.status === "Selected" ? `<p class="detail-note selected-quote-note sub-card-selected-note">This sub's quote will be used in your proposal.</p>` : ""}
       <p class="sub-save-hint" data-save-hint hidden>Saved</p>
     </article>`;
 }
 
+function renderSubProfileFields(sub) {
+  return `
+    <div class="sub-agreement-profile">
+      <p class="card-label">Sub profile for agreement</p>
+      <label class="filter-label">Owner / representative</label>
+      <input type="text" class="settings-input sub-profile-field" data-profile="owner_name" value="${escapeHtml(sub.owner_name || "")}" placeholder="Legal signatory name">
+      <label class="filter-label">Owner title</label>
+      <input type="text" class="settings-input sub-profile-field" data-profile="owner_title" value="${escapeHtml(sub.owner_title || "")}" placeholder="Owner">
+      <label class="filter-label">Street address</label>
+      <input type="text" class="settings-input sub-profile-field" data-profile="address" value="${escapeHtml(sub.address || "")}">
+      <div class="sub-profile-row">
+        <div><label class="filter-label">City</label><input type="text" class="settings-input sub-profile-field" data-profile="city" value="${escapeHtml(sub.city || "")}"></div>
+        <div><label class="filter-label">State</label><input type="text" class="settings-input sub-profile-field" data-profile="state" value="${escapeHtml(sub.state || "")}" maxlength="8"></div>
+        <div><label class="filter-label">ZIP</label><input type="text" class="settings-input sub-profile-field" data-profile="zip" value="${escapeHtml(sub.zip || "")}"></div>
+      </div>
+      <label class="filter-label">License number</label>
+      <input type="text" class="settings-input sub-profile-field" data-profile="license_number" value="${escapeHtml(sub.license_number || "")}">
+      <label class="filter-label">Insurance carrier</label>
+      <input type="text" class="settings-input sub-profile-field" data-profile="insurance_carrier" value="${escapeHtml(sub.insurance_carrier || "")}">
+      <label class="filter-label">Sub email</label>
+      <input type="email" class="settings-input sub-profile-field" data-profile="business_email" value="${escapeHtml(sub.business_email || "")}">
+    </div>`;
+}
+
+function renderSelectChecklist(sub) {
+  const checks = [
+    { ok: Boolean(sub.quote_amount), label: "Quote amount entered" },
+    { ok: Boolean(sub.owner_name), label: "Owner / representative name" },
+    { ok: Boolean(sub.license_number), label: "License number" },
+    { ok: Boolean(sub.insurance_carrier), label: "Insurance carrier" },
+    { ok: Boolean(sub.business_email), label: "Sub email for notices" },
+    { ok: Boolean(sub.address), label: "Street address" },
+  ];
+  const ready = checks.every((c) => c.ok);
+  return `
+    <ul class="sub-select-checklist">
+      ${checks
+        .map(
+          (c) =>
+            `<li class="${c.ok ? "check-ok" : "check-missing"}">${c.ok ? "✓" : "○"} ${escapeHtml(c.label)}</li>`
+        )
+        .join("")}
+    </ul>
+    ${ready ? "" : `<p class="detail-note">Complete checklist before generating agreement.</p>`}`;
+}
+
+function renderAgreementSection(sub) {
+  const agreement = sub.agreement || {};
+  const hasAgreement = agreement.has_agreement;
+  const status = sub.agreement_signature_status || agreement.agreement_signature_status || "Agreement Not Generated";
+  const missing = agreement.missing_fields || [];
+  const blockGenerate = missing.length > 0;
+  const missingNote =
+    missing.length
+      ? `<p class="detail-note agreement-missing-note">Required before generate: ${escapeHtml(missing.map((m) => m.label).join(", "))}</p>`
+      : "";
+  const generatedNote = hasAgreement && agreement.generated_at
+    ? `<p class="detail-note">Generated ${new Date(agreement.generated_at).toLocaleString()} (v${agreement.version || 1})</p>`
+    : "";
+  const log = sub.agreement_status_log || agreement.agreement_status_log || [];
+  const logHtml = log.length
+    ? `<ul class="agreement-status-log">${log
+        .slice()
+        .reverse()
+        .slice(0, 5)
+        .map(
+          (e) =>
+            `<li>${escapeHtml(e.status)} · ${e.at ? new Date(e.at).toLocaleString() : ""}${e.note ? ` — ${escapeHtml(e.note)}` : ""}</li>`
+        )
+        .join("")}</ul>`
+    : "";
+  const disabled = blockGenerate ? "disabled" : "";
+  const actions = hasAgreement
+    ? `<button type="button" class="btn btn-secondary-action btn-small sub-agreement-resend" data-link-id="${sub.id}" ${disabled}>Resend Agreement</button>
+       <button type="button" class="btn btn-secondary-action btn-small sub-agreement-download" data-link-id="${sub.id}">Download PDF</button>`
+    : `<button type="button" class="btn btn-primary-action btn-small sub-agreement-generate" data-link-id="${sub.id}" ${disabled}>Generate Subcontract Agreement</button>`;
+  return `
+    <div class="sub-agreement-section">
+      <p class="card-label">Subcontract agreement</p>
+      ${renderSelectChecklist(sub)}
+      ${missingNote}
+      ${generatedNote}
+      ${logHtml}
+      <label class="filter-label">Signature status</label>
+      <select class="settings-input sub-agreement-status" data-field="agreement_signature_status">
+        ${AGREEMENT_SIGNATURE_STATUSES.map(
+          (s) => `<option value="${escapeHtml(s)}" ${s === status ? "selected" : ""}>${escapeHtml(s)}</option>`
+        ).join("")}
+      </select>
+      <div class="sub-agreement-actions">${actions}</div>
+      <p class="sub-agreement-status-msg" data-agreement-msg hidden></p>
+    </div>`;
+}
+
 function bindContractSubCards(container) {
   container.querySelectorAll(".sub-card").forEach((card) => {
     const linkId = card.dataset.linkId;
+    const subId = card.dataset.subId;
     const save = debounceSubSave(linkId, card);
     card.querySelectorAll("[data-field]").forEach((el) => {
       el.addEventListener("change", save);
       if (el.tagName === "TEXTAREA" || el.type === "number" || el.type === "date") {
         el.addEventListener("input", save);
       }
+    });
+    const profileSave = debounceSubProfileSave(subId, card);
+    card.querySelectorAll("[data-profile]").forEach((el) => {
+      el.addEventListener("change", profileSave);
+      el.addEventListener("input", profileSave);
+    });
+    card.querySelector(".sub-agreement-generate")?.addEventListener("click", () => {
+      generateSubAgreement(linkId, card, false).catch((err) => showSyncStatus(err.message, true));
+    });
+    card.querySelector(".sub-agreement-resend")?.addEventListener("click", () => {
+      generateSubAgreement(linkId, card, true).catch((err) => showSyncStatus(err.message, true));
+    });
+    card.querySelector(".sub-agreement-download")?.addEventListener("click", () => {
+      downloadSubAgreementPdf(linkId).catch((err) => showSyncStatus(err.message, true));
     });
   });
   const back = container.querySelector("#subs-back-btn") || document.getElementById("subs-back-btn");
@@ -255,6 +381,83 @@ function bindContractSubCards(container) {
 }
 
 const _subSaveTimers = new Map();
+const _subProfileSaveTimers = new Map();
+
+function debounceSubProfileSave(subId, card) {
+  return () => {
+    clearTimeout(_subProfileSaveTimers.get(subId));
+    _subProfileSaveTimers.set(
+      subId,
+      setTimeout(() => patchSubProfile(subId, card), 500)
+    );
+  };
+}
+
+async function patchSubProfile(subId, card) {
+  const payload = {};
+  card.querySelectorAll("[data-profile]").forEach((el) => {
+    payload[el.dataset.profile] = el.value.trim() || null;
+  });
+  const res = await apiFetch(`/api/subs/${subId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    showSyncStatus(data.detail || "Could not save sub profile", true);
+    return;
+  }
+  if (activeContractSubsId) {
+    await loadContractSubsPage(activeContractSubsId, { quiet: true });
+  }
+}
+
+async function generateSubAgreement(linkId, card, resend) {
+  const btn = card.querySelector(resend ? ".sub-agreement-resend" : ".sub-agreement-generate");
+  if (btn?.disabled) {
+    showSyncStatus("Fill all required sub profile and contract fields before generating.", true);
+    return;
+  }
+  const msg = card.querySelector("[data-agreement-msg]");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = resend ? "Regenerating…" : "Generating…";
+  }
+  if (msg) {
+    msg.hidden = false;
+    msg.textContent = "Claude is filling the agreement — this may take a minute…";
+  }
+  showSyncStatus(resend ? "Regenerating subcontract agreement…" : "Generating subcontract agreement with Claude…");
+  const url = resend
+    ? `/api/contract-subs/${linkId}/agreement/resend`
+    : `/api/contract-subs/${linkId}/agreement/generate`;
+  const res = await apiFetch(url, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Agreement generation failed");
+  showSyncStatus(resend ? "Subcontract agreement regenerated and saved." : "Subcontract agreement generated — download PDF or update signature status.");
+  if (activeContractSubsId) await loadContractSubsPage(activeContractSubsId, { quiet: true });
+}
+
+async function downloadSubAgreementPdf(linkId) {
+  const res = await apiFetch(`/api/contract-subs/${linkId}/agreement/pdf`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Download failed");
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : "SubcontractAgreement.pdf";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showSyncStatus("Agreement PDF downloaded.");
+}
+
 function debounceSubSave(linkId, card) {
   return () => {
     clearTimeout(_subSaveTimers.get(linkId));

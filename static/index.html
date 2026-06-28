@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GovTracker</title>
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -181,25 +181,36 @@
 
       <section class="settings-section">
         <h3>Proposal / business info</h3>
-        <p class="settings-help">Used when generating proposals for Northern RE Investments, LLC.</p>
+        <p class="settings-help">Used when generating proposals and subcontract agreements for Northern RE Investments, LLC.</p>
+        <div id="settings-owner-completion" class="settings-owner-completion"></div>
+        <label class="filter-label">Legal business name</label>
+        <input id="settings-owner-legal" class="settings-input" data-owner-required="legal_business_name" value="Northern RE Investments, LLC">
         <label class="filter-label">Owner name</label>
-        <input id="settings-owner-name" class="settings-input" value="Mark Graham II">
+        <input id="settings-owner-name" class="settings-input" data-owner-required="owner_name" value="Mark Graham II">
+        <label class="filter-label">Owner title</label>
+        <input id="settings-owner-title" class="settings-input" value="Owner">
         <label class="filter-label">Business email</label>
-        <input id="settings-owner-email" class="settings-input" value="NorthernREInvestments@outlook.com">
+        <input id="settings-owner-email" class="settings-input" type="email" value="NorthernREInvestments@outlook.com">
         <label class="filter-label">Business phone</label>
         <input id="settings-owner-phone" class="settings-input" value="970-380-0862">
         <label class="filter-label">Address line 1</label>
-        <input id="settings-owner-address" class="settings-input">
+        <input id="settings-owner-address" class="settings-input" data-owner-required="address_line_1" placeholder="1527 22nd Street">
+        <label class="filter-label">Address line 2</label>
+        <input id="settings-owner-address2" class="settings-input" placeholder="Suite / unit (optional)">
         <label class="filter-label">City / State / ZIP</label>
-        <input id="settings-owner-city" class="settings-input" placeholder="City">
-        <input id="settings-owner-state" class="settings-input subs-state-input" placeholder="WY" maxlength="2">
-        <input id="settings-owner-zip" class="settings-input" placeholder="ZIP">
+        <div class="settings-owner-row">
+          <input id="settings-owner-city" class="settings-input" data-owner-required="city" placeholder="City">
+          <input id="settings-owner-state" class="settings-input subs-state-input" placeholder="WY" maxlength="8">
+          <input id="settings-owner-zip" class="settings-input" data-owner-required="zip" placeholder="ZIP">
+        </div>
         <label class="filter-label">UEI / CAGE / EIN</label>
-        <input id="settings-owner-uei" class="settings-input" placeholder="UEI">
-        <input id="settings-owner-cage" class="settings-input" placeholder="CAGE">
-        <input id="settings-owner-ein" class="settings-input" placeholder="EIN">
+        <div class="settings-owner-row">
+          <input id="settings-owner-uei" class="settings-input" data-owner-required="uei" placeholder="UEI">
+          <input id="settings-owner-cage" class="settings-input" data-owner-required="cage_code" placeholder="CAGE">
+          <input id="settings-owner-ein" class="settings-input" data-owner-required="ein" placeholder="EIN">
+        </div>
         <label class="filter-label">SAM expiration</label>
-        <input id="settings-owner-sam-exp" class="settings-input" type="date">
+        <input id="settings-owner-sam-exp" class="settings-input" type="date" data-owner-required="sam_expiration">
       </section>
 
       <section class="settings-section">

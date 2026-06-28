@@ -193,6 +193,38 @@ function screeningBadge(c) {
   return `<span class="badge badge-pending">Not screened</span>`;
 }
 
+function renderPipelineStrip(c) {
+  const pipe = c.pipeline || {};
+  const steps = [...(pipe.intake || []), ...(pipe.bid || [])];
+  if (!steps.length) return "";
+  const locked = pipe.do_not_rebid;
+  return `
+    <div class="card-pipeline${locked ? " card-pipeline-locked" : ""}">
+      ${locked ? `<p class="card-pipeline-lock">Already submitted — do not bid again</p>` : ""}
+      <div class="card-pipeline-steps">
+        ${steps
+          .map(
+            (s) =>
+              `<span class="pipeline-step pipeline-${s.state}" title="${escapeHtml(s.label)}">${escapeHtml(s.label)}</span>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+}
+
+function renderSolicitationMetaSection(c) {
+  const analysis = c.analysis || {};
+  const sol = analysis.solicitation_meta || {};
+  const start = sol.base_year_start || analysis.base_year_start || "—";
+  const end = sol.base_year_end || analysis.base_year_end || "—";
+  const co = sol.contracting_officer_name || analysis.contracting_officer_name || "—";
+  return `
+    <p class="detail-item"><span class="detail-item-label">Performance period</span> ${escapeHtml(start)} – ${escapeHtml(end)}</p>
+    <p class="detail-item"><span class="detail-item-label">Contracting Officer</span> ${escapeHtml(co)}</p>
+    <button type="button" class="btn btn-secondary-action btn-small" id="extract-solicitation-btn" data-notice-id="${escapeHtml(c.notice_id)}">Extract dates &amp; CO from PDFs</button>
+    <p class="detail-note">Uses Claude to read attachments — fills proposal and subcontract agreement fields.</p>`;
+}
+
 function renderForceFullAnalysisButton(c) {
   if (c.screening_stage === "full") return "";
   return `<button type="button" class="btn btn-secondary-action btn-small card-force-full" data-force-full="${escapeHtml(c.notice_id)}">Force Full Analysis</button>`;
@@ -272,6 +304,7 @@ function renderCards() {
     const workflowClass = wf.stage && wf.stage !== "none" ? ` card-workflow-${wf.stage}` : "";
     const workflowBanner = typeof renderWorkflowBanner === "function" ? renderWorkflowBanner(c) : "";
     const continueProposal = typeof renderContinueProposal === "function" ? renderContinueProposal(c) : "";
+    const pipelineStrip = renderPipelineStrip(c);
     return `
     <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
       <div class="card-top">
@@ -285,6 +318,7 @@ function renderCards() {
           ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
         </div>
       </div>
+      ${pipelineStrip}
       ${workflowBanner}
       ${titleBlock}
       ${networkBanner}
@@ -485,6 +519,7 @@ function renderDetailModal(c, { analyzing = false } = {}) {
        </div>`;
   const subsLink = typeof renderSubSummaryLink === "function" ? renderSubSummaryLink(c) : "";
   const pursueSection = typeof renderPursueSection === "function" ? renderPursueSection(c) : "";
+  const solSection = renderSolicitationMetaSection(c);
 
   document.getElementById("modal-content").innerHTML = `
     <div class="detail-header">
@@ -492,10 +527,26 @@ function renderDetailModal(c, { analyzing = false } = {}) {
       <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
     </div>
     ${wrapDetailSection("Plain English summary", summaryInner, "detail-section-summary")}
+    ${wrapDetailSection("Solicitation details", solSection, "detail-section-solicitation")}
     ${wrapDetailSection("Pricing intelligence", pricingInner, "detail-section-pricing")}
     ${wrapDetailSection("Recommended subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
     ${wrapDetailSection("Pursue", pursueSection, "detail-section-pursue")}
   `;
+  document.getElementById("extract-solicitation-btn")?.addEventListener("click", () => {
+    extractSolicitationMeta(c.notice_id).catch((err) => showSyncStatus(err.message, true));
+  });
+}
+
+async function extractSolicitationMeta(noticeId) {
+  showSyncStatus("Extracting solicitation details from PDFs…");
+  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/extract-solicitation`, {
+    method: "POST",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Extraction failed");
+  showSyncStatus("Solicitation details updated.");
+  await loadContracts();
+  if (activeDetailId === noticeId) openDetail(noticeId);
 }
 
 async function fetchContract(noticeId) {
@@ -777,10 +828,24 @@ async function loadSettingsPage() {
 
   const owner = data.owner || {};
   const set = (id, key) => { const el = document.getElementById(id); if (el) el.value = owner[key] || el.defaultValue || ""; };
+  const completion = data.owner_completion || {};
+  const missingOwner = completion.missing || [];
+  document.getElementById("settings-owner-completion") &&
+    (document.getElementById("settings-owner-completion").innerHTML = completion.complete
+      ? `<p class="settings-complete">Business profile complete for proposals and agreements.</p>`
+      : `<p class="settings-incomplete">Still needed: ${escapeHtml(missingOwner.map((m) => m.label).join(", "))}</p>`);
+  document.querySelectorAll("[data-owner-required]").forEach((el) => {
+    const key = el.dataset.ownerRequired;
+    const empty = !String(owner[key] || "").trim();
+    el.classList.toggle("settings-field-missing", empty);
+  });
+  set("settings-owner-legal", "legal_business_name");
+  set("settings-owner-title", "owner_title");
   set("settings-owner-name", "owner_name");
   set("settings-owner-email", "business_email");
   set("settings-owner-phone", "business_phone");
   set("settings-owner-address", "address_line_1");
+  set("settings-owner-address2", "address_line_2");
   set("settings-owner-city", "city");
   set("settings-owner-state", "state");
   set("settings-owner-zip", "zip");
@@ -872,10 +937,13 @@ async function saveSettings() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Save failed");
     const ownerBody = {
+      legal_business_name: document.getElementById("settings-owner-legal")?.value,
       owner_name: document.getElementById("settings-owner-name")?.value,
+      owner_title: document.getElementById("settings-owner-title")?.value,
       business_email: document.getElementById("settings-owner-email")?.value,
       business_phone: document.getElementById("settings-owner-phone")?.value,
       address_line_1: document.getElementById("settings-owner-address")?.value,
+      address_line_2: document.getElementById("settings-owner-address2")?.value,
       city: document.getElementById("settings-owner-city")?.value,
       state: document.getElementById("settings-owner-state")?.value,
       zip: document.getElementById("settings-owner-zip")?.value,

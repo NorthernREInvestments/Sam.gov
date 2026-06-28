@@ -189,6 +189,12 @@ def resolve_screening_prompt() -> str:
 def get_all_settings() -> dict[str, Any]:
     from api_budget import get_usage_snapshot
 
+    def _owner_completion() -> dict[str, Any]:
+        from workflow_status import _owner_gaps
+
+        missing = _owner_gaps()
+        return {"complete": len(missing) == 0, "missing": missing}
+
     prompt, prompt_custom = get_screening_prompt()
     scheduler = get_scheduler_settings()
     sub_search = get_sub_search_settings()
@@ -206,6 +212,7 @@ def get_all_settings() -> dict[str, Any]:
         "scheduler": scheduler,
         "sub_search": sub_search,
         "owner": get_owner_settings(),
+        "owner_completion": _owner_completion(),
         "api_budget": get_usage_snapshot(),
         "api_keys": {
             "sam_gov": bool(os.getenv("SAM_GOV_API_KEY", "").strip()),

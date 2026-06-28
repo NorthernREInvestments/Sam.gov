@@ -13,6 +13,15 @@ SUB_STATUSES: tuple[str, ...] = (
     "Selected",
 )
 
+AGREEMENT_SIGNATURE_STATUSES: tuple[str, ...] = (
+    "Agreement Not Generated",
+    "Agreement Sent",
+    "Agreement Signed",
+    "Agreement Declined",
+)
+
+DEFAULT_AGREEMENT_SIGNATURE_STATUS = AGREEMENT_SIGNATURE_STATUSES[0]
+
 DEFAULT_SUB_STATUS = SUB_STATUSES[0]
 
 AUTO_SUB_SEARCH_MIN_SCORE = 6

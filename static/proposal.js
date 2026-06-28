@@ -298,6 +298,8 @@ function renderProposalEditor(data) {
         <button type="button" class="btn btn-secondary-action btn-small" id="proposal-humanize" disabled title="Select text in the proposal first">Make More Human</button>
         <button type="button" class="btn btn-secondary-action btn-small" id="proposal-reduce-ai" title="Second pass on the full proposal to sound less AI-generated">Reduce AI Score</button>
         <button type="button" class="btn btn-primary btn-small" id="proposal-save-draft">Save Draft</button>
+        <button type="button" class="btn btn-pursue-active btn-small" id="proposal-mark-submitted" ${missing.length ? "disabled title='Fill all required fields first'" : ""}>Mark as Submitted</button>
+        <p class="detail-note">Mark submitted after you file on SAM.gov — prevents duplicate bids on this contract.</p>
         <div class="proposal-downloads">
           <h4>Download</h4>
           <button type="button" class="btn btn-secondary-action btn-small" id="proposal-download-word">Download as Word</button>
@@ -366,6 +368,7 @@ function bindProposalEditor(data) {
     });
   });
   document.getElementById("proposal-save-draft")?.addEventListener("click", () => saveProposalDraft());
+  document.getElementById("proposal-mark-submitted")?.addEventListener("click", () => markProposalSubmitted());
   document.getElementById("proposal-reduce-ai")?.addEventListener("click", () => reduceProposalAi());
   document.getElementById("proposal-humanize")?.addEventListener("click", () => humanizeSelectedText());
   document.getElementById("proposal-download-word")?.addEventListener("click", () => downloadProposalExport("docx"));
@@ -443,6 +446,33 @@ async function saveProposalDraft() {
   } else {
     showSyncStatus(data.detail || "Save failed", true);
   }
+}
+
+async function markProposalSubmitted() {
+  if (!activeProposalId) return;
+  const sections = {};
+  document.querySelectorAll(".proposal-editable").forEach((el) => {
+    sections[el.dataset.section] = el.innerHTML;
+  });
+  const html = Object.values(sections).join("\n\n");
+  const res = await apiFetch(`/api/proposals/${activeProposalId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      proposal_html: html,
+      sections_json: sections,
+      notes: document.getElementById("proposal-notes")?.value,
+      status: "submitted",
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    showSyncStatus(data.detail || "Could not mark submitted", true);
+    return;
+  }
+  showSyncStatus("Marked as submitted — this contract is locked against duplicate bids.");
+  showView("dashboard");
+  await loadContracts();
 }
 
 async function humanizeSelectedText() {
@@ -537,6 +567,9 @@ async function reduceProposalAi() {
 
 function renderPursueButton(c) {
   if (c.pursue !== true) return "";
+  if (c.pipeline?.do_not_rebid || c.workflow?.do_not_rebid) {
+    return `<p class="detail-note card-rebid-block">Bid already submitted — open Continue proposal to review.</p>`;
+  }
   return `<button type="button" class="btn btn-pursue-active btn-small card-pursue-btn" data-pursue="${escapeHtml(c.notice_id)}">Pursue</button>`;
 }
 

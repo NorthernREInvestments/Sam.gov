@@ -39,7 +39,7 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
-    from models import AppSetting, Contract, ContractSub, Proposal, Sub  # noqa: F401
+    from models import AppSetting, Contract, ContractSub, Proposal, Sub, SubcontractAgreement  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_sam_raw()
@@ -48,6 +48,30 @@ def init_db() -> None:
     _migrate_add_internal_pricing()
     _migrate_add_proposals()
     _migrate_add_contract_tier()
+    _migrate_add_sub_agreements()
+
+
+def _migrate_add_sub_agreements() -> None:
+    sub_columns = [
+        ("owner_name", "VARCHAR(256)"),
+        ("owner_title", "VARCHAR(128)"),
+        ("license_number", "VARCHAR(128)"),
+        ("insurance_carrier", "VARCHAR(256)"),
+        ("business_email", "VARCHAR(256)"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in sub_columns:
+            conn.execute(text(f"ALTER TABLE subs ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+        conn.execute(
+            text(
+                "ALTER TABLE contract_subs ADD COLUMN IF NOT EXISTS "
+                "agreement_signature_status VARCHAR(64) DEFAULT 'Agreement Not Generated'"
+            )
+        )
+        conn.execute(
+            text("ALTER TABLE contract_subs ADD COLUMN IF NOT EXISTS agreement_status_log JSONB")
+        )
+        conn.commit()
 
 
 def _migrate_add_contract_tier() -> None:

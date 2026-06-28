@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -88,6 +88,11 @@ class Sub(Base):
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    owner_title: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    license_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    insurance_carrier: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    business_email: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
     date_first_found: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -113,6 +118,10 @@ class ContractSub(Base):
     claude_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     claude_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     distance_miles: Mapped[Decimal | None] = mapped_column(Numeric(8, 1), nullable=True)
+    agreement_signature_status: Mapped[str] = mapped_column(
+        String(64), default="Agreement Not Generated", index=True
+    )
+    agreement_status_log: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
     date_status_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -120,6 +129,33 @@ class ContractSub(Base):
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="contract_subs")
     sub: Mapped["Sub"] = relationship("Sub", back_populates="contract_links")
+    agreements: Mapped[list["SubcontractAgreement"]] = relationship(
+        "SubcontractAgreement", back_populates="contract_sub", cascade="all, delete-orphan"
+    )
+
+
+class SubcontractAgreement(Base):
+    __tablename__ = "subcontract_agreements"
+    __table_args__ = (UniqueConstraint("contract_sub_id", name="uq_subcontract_agreement_link"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int] = mapped_column(ForeignKey("subs.id", ondelete="CASCADE"), index=True)
+    contract_sub_id: Mapped[int] = mapped_column(
+        ForeignKey("contract_subs.id", ondelete="CASCADE"), index=True
+    )
+    agreement_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    config_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pdf_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    date_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    contract: Mapped["Contract"] = relationship("Contract", backref="subcontract_agreements")
+    sub: Mapped["Sub"] = relationship("Sub", backref="subcontract_agreements")
+    contract_sub: Mapped["ContractSub"] = relationship("ContractSub", back_populates="agreements")
 
 
 class Proposal(Base):

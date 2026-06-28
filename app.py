@@ -88,6 +88,7 @@ class ContractSubUpdate(BaseModel):
     contact_notes: str | None = None
     quote_amount: float | None = None
     quote_date: str | None = None
+    agreement_signature_status: str | None = None
 
 
 class ContractOutcomeUpdate(BaseModel):
@@ -113,6 +114,24 @@ class ManualSubCreate(BaseModel):
 
 class SubNotesUpdate(BaseModel):
     notes: str | None = None
+
+
+class SubProfileUpdate(BaseModel):
+    owner_name: str | None = None
+    owner_title: str | None = None
+    license_number: str | None = None
+    insurance_carrier: str | None = None
+    business_email: str | None = None
+    address: str | None = None
+    city: str | None = None
+    state: str | None = Field(None, max_length=8)
+    zip: str | None = None
+    phone: str | None = None
+    notes: str | None = None
+
+
+class AgreementSignatureUpdate(BaseModel):
+    agreement_signature_status: str = Field(..., min_length=3, max_length=64)
 
 
 class AddNetworkSubsRequest(BaseModel):
@@ -302,6 +321,41 @@ def get_contract(notice_id: str):
         data = contract_to_dict(row)
         data["sam_raw"] = row.sam_raw
         return data
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/extract-solicitation")
+def extract_contract_solicitation(notice_id: str):
+    """Pull CO name, submission method, base year dates from bid PDFs via Claude."""
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from proposal_service import ensure_solicitation_meta
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        from api_budget import ScreenBudgetExceeded
+
+        try:
+            meta = ensure_solicitation_meta(session, row)
+        except ScreenBudgetExceeded as exc:
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
+        session.refresh(row)
+        data = contract_to_dict(row)
+        analysis = row.analysis if isinstance(row.analysis, dict) else {}
+        sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+        return {
+            "solicitation_meta": meta,
+            "base_year_start": sol.get("base_year_start") or meta.get("base_year_start"),
+            "base_year_end": sol.get("base_year_end") or meta.get("base_year_end"),
+            "contract": data,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Extraction failed: {exc}") from exc
     finally:
         session.close()
 
@@ -534,7 +588,10 @@ def patch_contract_sub(link_id: int, body: ContractSubUpdate):
             link_id,
             body.model_dump(exclude_unset=True),
         )
-        return contract_sub_to_dict(link)
+        from agreement_service import agreement_for_link, agreement_to_dict
+
+        agreement_info = agreement_to_dict(agreement_for_link(session, link_id), link)
+        return contract_sub_to_dict(link, agreement=agreement_info)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
@@ -585,16 +642,129 @@ def create_sub(body: ManualSubCreate):
 
 
 @app.patch("/api/subs/{sub_id}")
-def patch_sub_notes(sub_id: int, body: SubNotesUpdate):
+def patch_sub(sub_id: int, body: SubProfileUpdate):
     session = SessionLocal()
     try:
-        from sub_finder import update_sub_notes
+        from agreement_service import update_sub_profile
         from sub_serializers import sub_to_dict
 
-        row = update_sub_notes(session, sub_id, body.notes)
+        payload = body.model_dump(exclude_unset=True)
+        if len(payload) == 1 and "notes" in payload:
+            from sub_finder import update_sub_notes
+
+            row = update_sub_notes(session, sub_id, payload.get("notes"))
+        else:
+            row = update_sub_profile(session, sub_id, payload)
         return sub_to_dict(row)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contract-subs/{link_id}/agreement")
+def get_subcontract_agreement(link_id: int):
+    session = SessionLocal()
+    try:
+        from agreement_service import agreement_for_link, agreement_to_dict, build_agreement_config
+        from models import ContractSub
+
+        link = session.get(ContractSub, link_id)
+        if not link:
+            raise HTTPException(status_code=404, detail="Contract sub link not found")
+        row = agreement_for_link(session, link_id)
+        config = None
+        try:
+            config = build_agreement_config(session, link_id)
+        except ValueError:
+            pass
+        return {
+            "agreement": agreement_to_dict(row, link),
+            "preview_config": config,
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/contract-subs/{link_id}/agreement/generate")
+def generate_subcontract_agreement_endpoint(link_id: int):
+    session = SessionLocal()
+    try:
+        from agreement_service import generate_agreement
+        from api_budget import ScreenBudgetExceeded
+
+        return generate_agreement(session, link_id, resend=False)
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Agreement generation failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contract-subs/{link_id}/agreement/resend")
+def resend_subcontract_agreement(link_id: int):
+    session = SessionLocal()
+    try:
+        from agreement_service import generate_agreement
+        from api_budget import ScreenBudgetExceeded
+
+        return generate_agreement(session, link_id, resend=True)
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Agreement generation failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contract-subs/{link_id}/agreement/pdf")
+def download_subcontract_agreement_pdf(link_id: int):
+    session = SessionLocal()
+    try:
+        from agreement_export import agreement_meta, build_agreement_pdf
+        from agreement_service import agreement_for_link
+        from models import ContractSub
+
+        link = session.get(ContractSub, link_id)
+        if not link:
+            raise HTTPException(status_code=404, detail="Contract sub link not found")
+        row = agreement_for_link(session, link_id)
+        if not row or not row.agreement_html:
+            raise HTTPException(status_code=404, detail="No agreement generated yet")
+        if row.pdf_bytes:
+            pdf_bytes = row.pdf_bytes
+        else:
+            pdf_bytes, _engine = build_agreement_pdf(row)
+            row.pdf_bytes = pdf_bytes
+            session.commit()
+        meta = agreement_meta(row)
+        filename = meta["filenames"]["pdf"]
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    finally:
+        session.close()
+
+
+@app.patch("/api/contract-subs/{link_id}/agreement/status")
+def patch_agreement_signature_status(link_id: int, body: AgreementSignatureUpdate):
+    session = SessionLocal()
+    try:
+        from agreement_service import agreement_for_link, agreement_to_dict, update_agreement_signature_status
+        from sub_serializers import contract_sub_to_dict
+
+        link = update_agreement_signature_status(session, link_id, body.agreement_signature_status)
+        agreement_info = agreement_to_dict(agreement_for_link(session, link_id), link)
+        return contract_sub_to_dict(link, agreement=agreement_info)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         session.close()
 

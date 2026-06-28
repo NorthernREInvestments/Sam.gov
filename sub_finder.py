@@ -408,13 +408,26 @@ def list_contract_subs(session: Session, notice_id: str) -> dict[str, Any]:
     )
     summary = contract_sub_summary(contract, session)
     summary["city"] = work.get("city") or work.get("label")
+    from agreement_service import agreement_for_link, agreement_to_dict, build_agreement_config
+
+    subs_payload = []
+    for link in links:
+        agreement_row = agreement_for_link(session, link.id)
+        agreement_info = agreement_to_dict(agreement_row, link)
+        if link.status == "Selected" and not agreement_info.get("has_agreement"):
+            try:
+                preview = build_agreement_config(session, link.id)
+                agreement_info["missing_fields"] = preview.get("missing_fields") or []
+            except ValueError:
+                pass
+        subs_payload.append(contract_sub_to_dict(link, agreement=agreement_info))
     return {
         "notice_id": notice_id,
         "contract_title": contract.title,
         "agency": contract.agency,
         "summary": summary,
         "selected_sub_quote": float(contract.selected_sub_quote) if contract.selected_sub_quote else None,
-        "subs": [contract_sub_to_dict(link) for link in links],
+        "subs": subs_payload,
     }
 
 
@@ -468,8 +481,21 @@ def update_contract_sub(session: Session, link_id: int, payload: dict[str, Any])
     if "quote_date" in payload:
         raw = payload["quote_date"]
         link.quote_date = date.fromisoformat(raw) if raw else None
+    if "agreement_signature_status" in payload:
+        from sub_constants import AGREEMENT_SIGNATURE_STATUSES
 
-    outreach_fields = {"contact_notes", "quote_amount", "quote_date", "status"}
+        status = payload["agreement_signature_status"]
+        if status not in AGREEMENT_SIGNATURE_STATUSES:
+            raise ValueError(
+                f"Invalid agreement status. Choose one of: {', '.join(AGREEMENT_SIGNATURE_STATUSES)}"
+            )
+        if link.agreement_signature_status != status:
+            from agreement_service import append_agreement_status_log
+
+            append_agreement_status_log(link, status, note="Updated on contract subs page")
+        link.agreement_signature_status = status
+
+    outreach_fields = {"contact_notes", "quote_amount", "quote_date", "status", "agreement_signature_status"}
     if outreach_fields.intersection(payload.keys()):
         link.date_status_updated = datetime.now(timezone.utc)
         sub = session.get(Sub, link.sub_id)
