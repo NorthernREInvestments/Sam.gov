@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -11,7 +13,9 @@ from claude_client import screen_contract
 from database import SessionLocal
 from models import Contract
 
-
+logger = logging.getLogger("govtracker.screening")
+_background_lock = threading.Lock()
+_background_running = False
 def screen_pending(limit: int = 5, force: bool = False, matching_only: bool = False) -> dict[str, Any]:
     """
     Screen contracts without analysis.
@@ -90,6 +94,37 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
         return {"notice_id": notice_id, "skipped": False, "analysis": analysis}
     finally:
         session.close()
+
+
+def start_background_screening(batch_size: int = 5) -> None:
+    """Screen unscreened contracts in a background thread (used after sync and on startup)."""
+    global _background_running
+
+    with _background_lock:
+        if _background_running:
+            return
+        _background_running = True
+
+    def _run() -> None:
+        global _background_running
+        try:
+            total = 0
+            while True:
+                result = screen_pending(limit=batch_size, matching_only=False)
+                total += result.get("screened", 0)
+                if result.get("screened", 0) == 0:
+                    break
+                if result.get("pending_remaining", 0) == 0:
+                    break
+            if total:
+                logger.info("Background screening finished: %s contract(s) analyzed", total)
+        except Exception:
+            logger.exception("Background screening failed")
+        finally:
+            with _background_lock:
+                _background_running = False
+
+    threading.Thread(target=_run, daemon=True, name="govtracker-screen").start()
 
 
 def main() -> None:

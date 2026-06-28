@@ -131,6 +131,8 @@ def list_contracts(
 
 
 def contract_to_dict(row: Contract) -> dict[str, Any]:
+    from naics_labels import naics_display, naics_label
+
     today = date.today()
     days_left = (row.due_date - today).days if row.due_date else None
     analysis = row.analysis or {}
@@ -140,6 +142,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "agency": row.agency,
         "location": row.location,
         "naics_code": row.naics_code,
+        "naics_label": naics_label(row.naics_code),
+        "naics_display": naics_display(row.naics_code),
         "set_aside": row.set_aside,
         "due_date": row.due_date.isoformat() if row.due_date else None,
         "days_until_due": days_left,
@@ -187,6 +191,11 @@ def sync_from_sam() -> dict[str, Any]:
             fetch_status += f" Run sync again for {next_naics}, or use --all."
     finally:
         session.close()
+
+    from screen import start_background_screening
+
+    if new_count > 0:
+        start_background_screening()
 
     return {
         "api_calls": 1,
@@ -246,6 +255,12 @@ def sync_all_naics() -> dict[str, Any]:
         f"Synced all {len(naics_codes)} NAICS codes. "
         f"Fetched {fetched_total} opportunities from SAM.gov."
     )
+
+    from screen import start_background_screening
+
+    if new_total > 0:
+        start_background_screening()
+
     return {
         "api_calls": api_calls,
         "fetch_status": fetch_status,

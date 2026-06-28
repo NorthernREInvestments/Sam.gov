@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,12 +13,7 @@ logger = logging.getLogger("govtracker.scheduler")
 scheduler = BackgroundScheduler()
 
 
-def _enabled() -> bool:
-    return os.getenv("SCHEDULER_ENABLED", "true").strip().lower() not in ("0", "false", "no")
-
-
-def _timezone() -> ZoneInfo:
-    name = os.getenv("SCHEDULER_TIMEZONE", "America/Denver").strip()
+def _timezone(name: str) -> ZoneInfo:
     try:
         return ZoneInfo(name)
     except Exception:
@@ -27,6 +21,7 @@ def _timezone() -> ZoneInfo:
 
 
 def run_daily_sync() -> None:
+    from screen import start_background_screening
     from sync import sync_all_naics
 
     logger.info("Starting scheduled daily SAM.gov sync")
@@ -38,29 +33,53 @@ def run_daily_sync() -> None:
             result["new"],
             result["total_in_db"],
         )
+        start_background_screening()
     except Exception:
         logger.exception("Scheduled daily sync failed")
 
 
-def start_scheduler() -> None:
-    if not _enabled():
-        logger.info("Scheduler disabled via SCHEDULER_ENABLED")
+def configure_scheduler() -> None:
+    from settings_store import get_scheduler_settings
+
+    settings = get_scheduler_settings()
+    if not settings["enabled"]:
+        if scheduler.running:
+            job = scheduler.get_job("daily_sam_sync")
+            if job:
+                scheduler.remove_job("daily_sam_sync")
+        logger.info("Scheduler disabled in settings")
         return
+
+    hour = settings["hour"]
+    minute = settings["minute"]
+    tz = _timezone(settings["timezone"])
+    trigger = CronTrigger(hour=hour, minute=minute, timezone=tz)
+
     if scheduler.running:
-        return
+        job = scheduler.get_job("daily_sam_sync")
+        if job:
+            scheduler.reschedule_job("daily_sam_sync", trigger=trigger)
+        else:
+            scheduler.add_job(
+                run_daily_sync,
+                trigger,
+                id="daily_sam_sync",
+                replace_existing=True,
+            )
+    else:
+        scheduler.add_job(
+            run_daily_sync,
+            trigger,
+            id="daily_sam_sync",
+            replace_existing=True,
+        )
+        scheduler.start()
 
-    hour = int(os.getenv("DAILY_REFRESH_HOUR", "6"))
-    minute = int(os.getenv("DAILY_REFRESH_MINUTE", "0"))
-    tz = _timezone()
+    logger.info("Scheduler configured: daily sync at %02d:%02d %s", hour, minute, tz)
 
-    scheduler.add_job(
-        run_daily_sync,
-        CronTrigger(hour=hour, minute=minute, timezone=tz),
-        id="daily_sam_sync",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("Scheduler started: daily sync at %02d:%02d %s", hour, minute, tz)
+
+def start_scheduler() -> None:
+    configure_scheduler()
 
 
 def stop_scheduler() -> None:
@@ -69,15 +88,18 @@ def stop_scheduler() -> None:
 
 
 def scheduler_status() -> dict:
-    if not _enabled():
-        return {"enabled": False, "running": False}
+    from settings_store import get_scheduler_settings
 
-    job = scheduler.get_job("daily_sam_sync")
+    settings = get_scheduler_settings()
+    if not settings["enabled"]:
+        return {"enabled": False, "running": False, **settings}
+
+    job = scheduler.get_job("daily_sam_sync") if scheduler.running else None
     return {
         "enabled": True,
         "running": scheduler.running,
-        "hour": int(os.getenv("DAILY_REFRESH_HOUR", "6")),
-        "minute": int(os.getenv("DAILY_REFRESH_MINUTE", "0")),
-        "timezone": str(_timezone()),
+        "hour": settings["hour"],
+        "minute": settings["minute"],
+        "timezone": settings["timezone"],
         "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
     }

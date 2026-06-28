@@ -1,4 +1,4 @@
-let config = { naics_codes: [], default_min_days: 30, default_min_score: 1 };
+let config = { naics_codes: [], naics_labels: {}, default_min_days: 30, default_min_score: 1 };
 let contracts = [];
 
 async function apiFetch(url, options = {}) {
@@ -30,13 +30,15 @@ async function loadConfig() {
   document.getElementById("naics-sync-status").textContent =
     `NAICS coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} codes synced from SAM.gov`;
 
+  const labels = config.naics_labels || {};
   const container = document.getElementById("naics-filters");
   container.innerHTML = config.naics_codes
     .map(
       (code) => `
     <label>
       <input type="checkbox" class="naics-check" value="${code}" checked>
-      ${code}
+      <span class="naics-filter-label">${escapeHtml(code)}</span>
+      <span class="naics-filter-desc">${escapeHtml(labels[code] || "Other Services")}</span>
     </label>`
     )
     .join("");
@@ -100,9 +102,14 @@ function renderCards() {
     const tone = cardTone(c);
     const due = formatDue(c);
     const subType = c.sub_type_needed || "Not screened yet";
-    const summaryLine = c.executive_summary
-      ? `<p class="card-summary">${escapeHtml(firstSentence(c.executive_summary, 180))}</p>`
-      : "";
+    const summary = c.executive_summary;
+    const headline = summary ? firstSentence(summary, 160) : null;
+    const titleBlock = headline
+      ? `<h3 class="card-title">${escapeHtml(headline)}</h3>
+         <p class="card-official-title">${escapeHtml(c.title)}</p>`
+      : `<h3 class="card-title">${escapeHtml(c.title)}</h3>
+         <p class="card-pending-note">Plain-English summary being generated…</p>`;
+    const naicsLine = c.naics_display || c.naics_code || "";
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-header">${screeningBadge(c)}</div>
@@ -111,12 +118,11 @@ function renderCards() {
         <span class="card-due-date">${escapeHtml(due.main)}</span>
         ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
       </div>
-      <h3 class="card-title">${escapeHtml(c.title)}</h3>
-      ${summaryLine}
+      ${titleBlock}
       <p class="card-meta">${escapeHtml(c.agency || "Unknown agency")}</p>
       <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
       <p class="card-subtype"><strong>Sub type:</strong> ${escapeHtml(subType)}</p>
-      <p class="card-meta card-naics">NAICS ${escapeHtml(c.naics_code || "")}</p>
+      <p class="card-meta card-naics"><span class="card-naics-label">${escapeHtml(naicsLine)}</span></p>
     </article>`;
   }).join("");
 
@@ -147,8 +153,8 @@ async function openDetail(noticeId) {
   const summaryBlock = summary
     ? `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`
     : `<div class="executive-summary-placeholder">
-         Not screened yet — no plain-English summary.
-         <button type="button" class="btn btn-primary" id="screen-one-btn" style="margin-top:0.75rem">Analyze this contract</button>
+         Plain-English summary is being generated automatically. Refresh in a minute, or analyze now:
+         <button type="button" class="btn btn-primary" id="screen-one-btn" style="margin-top:0.75rem">Analyze this contract now</button>
        </div>`;
   const redFlags = c.red_flags?.length
     ? `<ul>${c.red_flags.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
@@ -161,16 +167,17 @@ async function openDetail(noticeId) {
   document.getElementById("modal-content").innerHTML = `
     ${summaryBlock}
     <div class="modal-badges">${screeningBadge(c)}</div>
-    <h2>${escapeHtml(c.title)}</h2>
+    ${summary ? "" : `<h2>${escapeHtml(c.title)}</h2>`}
     <div class="detail-due">${due.main}${due.sub ? ` · ${due.sub}` : ""}</div>
     ${attachmentNote}
     <div class="detail-row"><strong>Quick reason</strong><p>${escapeHtml(c.reason || c.analysis?.reason || "-")}</p></div>
     <div class="detail-row"><strong>Sub type needed</strong><p>${escapeHtml(c.sub_type_needed || "-")}</p></div>
     <div class="detail-row"><strong>Red flags</strong>${redFlags}</div>
     <p class="detail-section-title">Contract details</p>
+    <div class="detail-row"><strong>Official title</strong><p>${escapeHtml(c.title)}</p></div>
     <div class="detail-row"><strong>Agency</strong><p>${escapeHtml(c.agency || "-")}</p></div>
     <div class="detail-row"><strong>Location</strong><p>${escapeHtml(c.location || "-")}</p></div>
-    <div class="detail-row"><strong>NAICS</strong><p>${escapeHtml(c.naics_code || "-")}</p></div>
+    <div class="detail-row"><strong>NAICS</strong><p>${escapeHtml(c.naics_display || c.naics_code || "-")}</p></div>
     <div class="detail-row"><strong>Set-aside</strong><p>${escapeHtml(c.set_aside || "-")}</p></div>
     <div class="detail-row"><strong>Status</strong><p>${escapeHtml(c.status)}</p></div>
     ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}
@@ -285,6 +292,13 @@ async function loadSettingsPage() {
     ? "Using your custom prompt"
     : "Using the built-in default prompt";
 
+  const sched = data.scheduler || {};
+  document.getElementById("settings-scheduler-enabled").checked = sched.enabled !== false;
+  const hour = String(sched.hour ?? 6).padStart(2, "0");
+  const minute = String(sched.minute ?? 0).padStart(2, "0");
+  document.getElementById("settings-scheduler-time").value = `${hour}:${minute}`;
+  document.getElementById("settings-scheduler-timezone").value = sched.timezone || "America/Denver";
+
   const keys = data.api_keys || {};
   document.getElementById("api-key-status").innerHTML = `
     <li>SAM.gov: ${keys.sam_gov ? "configured" : "missing"}</li>
@@ -293,10 +307,26 @@ async function loadSettingsPage() {
   `;
 
   const schedRes = await apiFetch("/api/scheduler");
-  const sched = await schedRes.json();
-  document.getElementById("scheduler-status").textContent = sched.enabled
-    ? `Daily sync at ${String(sched.hour).padStart(2, "0")}:${String(sched.minute).padStart(2, "0")} ${sched.timezone}${sched.next_run ? ` · next run ${sched.next_run}` : ""}`
-    : "Scheduler disabled";
+  const schedStatus = await schedRes.json();
+  document.getElementById("scheduler-status").textContent = schedStatus.enabled
+    ? `Next automatic sync: ${formatSchedulerStatus(schedStatus)}`
+    : "Daily sync is turned off";
+}
+
+function formatSchedulerStatus(sched) {
+  const hour = String(sched.hour ?? 6).padStart(2, "0");
+  const minute = String(sched.minute ?? 0).padStart(2, "0");
+  const tz = (sched.timezone || "America/Denver").replace("America/", "");
+  if (sched.next_run) {
+    const next = new Date(sched.next_run);
+    return `${hour}:${minute} ${tz} · next run ${next.toLocaleString()}`;
+  }
+  return `${hour}:${minute} ${tz}`;
+}
+
+function parseSchedulerTime(value) {
+  const [hour, minute] = (value || "06:00").split(":");
+  return { hour: Number(hour) || 6, minute: Number(minute) || 0 };
 }
 
 async function saveSettings() {
@@ -305,11 +335,16 @@ async function saveSettings() {
   try {
     const naics = document.getElementById("settings-naics").value
       .split(",").map((s) => s.trim()).filter(Boolean);
+    const schedTime = parseSchedulerTime(document.getElementById("settings-scheduler-time").value);
     const body = {
       naics_codes: naics,
       min_days_until_due: Number(document.getElementById("settings-min-days").value),
       min_score_threshold: Number(document.getElementById("settings-min-score").value),
       screening_prompt: document.getElementById("settings-prompt").value.trim(),
+      scheduler_enabled: document.getElementById("settings-scheduler-enabled").checked,
+      scheduler_hour: schedTime.hour,
+      scheduler_minute: schedTime.minute,
+      scheduler_timezone: document.getElementById("settings-scheduler-timezone").value,
     };
     const res = await apiFetch("/api/settings", {
       method: "PUT",
@@ -321,7 +356,7 @@ async function saveSettings() {
     showSyncStatus("Settings saved.");
     await loadConfig();
     await loadContracts();
-    document.getElementById("prompt-status").textContent = "Using your custom prompt";
+    await loadSettingsPage();
   } catch (err) {
     if (err.message !== "Login required") showSyncStatus(err.message, true);
   } finally {

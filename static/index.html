@@ -41,7 +41,8 @@
         <span id="min-days-value">30</span>
         </div>
 
-        <label class="filter-label" for="min-score">Minimum score</label>
+        <label class="filter-label" for="min-score">Minimum fit score (1–10)</label>
+        <p class="filter-help">Claude rates how good a match each contract is for your business. Contracts below this score are hidden.</p>
         <div class="slider-row">
           <input type="range" id="min-score" min="1" max="10" value="1">
           <span id="min-score-value">1</span>
@@ -84,7 +85,8 @@
 
       <section class="settings-section">
         <h3>Screening</h3>
-        <label class="filter-label" for="settings-min-score">Minimum score threshold (default)</label>
+        <label class="filter-label" for="settings-min-score">Minimum fit score (default 1–10)</label>
+        <p class="filter-help">1 = poor match, 10 = great match. Hide contracts Claude scores below this number.</p>
         <div class="slider-row">
           <input type="range" id="settings-min-score" min="1" max="10" value="1">
           <span id="settings-min-score-value">1</span>
@@ -93,8 +95,10 @@
         <label class="filter-label" for="settings-prompt">Claude screening prompt</label>
         <p id="prompt-status" class="prompt-status"></p>
         <textarea id="settings-prompt" class="prompt-textarea" rows="14"></textarea>
-        <button id="reset-prompt-btn" class="btn btn-secondary-header" type="button">Reset prompt to default</button>
-        <p class="settings-help">After a prompt update, use Settings → Reset prompt to get the latest screening format with plain-English summaries.</p>
+        <div class="settings-button-row">
+          <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
+        </div>
+        <p class="settings-help">After a prompt update, use Reset prompt to get the latest screening format with plain-English summaries.</p>
       </section>
 
       <section class="settings-section">
@@ -104,7 +108,21 @@
       </section>
 
       <section class="settings-section">
-        <h3>Scheduler</h3>
+        <h3>Daily sync schedule</h3>
+        <p class="filter-help">Automatically pulls new contracts from SAM.gov each day, then analyzes them with Claude.</p>
+        <label class="checkbox-inline settings-checkbox">
+          <input type="checkbox" id="settings-scheduler-enabled" checked> Enable daily sync
+        </label>
+        <label class="filter-label" for="settings-scheduler-time">Sync time</label>
+        <input type="time" id="settings-scheduler-time" class="settings-input settings-time" value="06:00">
+        <label class="filter-label" for="settings-scheduler-timezone">Timezone</label>
+        <select id="settings-scheduler-timezone" class="settings-input">
+          <option value="America/Denver">Mountain (Denver)</option>
+          <option value="America/Chicago">Central (Chicago)</option>
+          <option value="America/New_York">Eastern (New York)</option>
+          <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+          <option value="America/Phoenix">Arizona (no DST)</option>
+        </select>
         <p id="scheduler-status" class="settings-help">Loading...</p>
       </section>
 

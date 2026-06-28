@@ -21,7 +21,7 @@ from auth import (
 )
 from database import SessionLocal
 from sam_client import min_days_from_env, naics_from_env
-from scheduler import scheduler_status, start_scheduler, stop_scheduler
+from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
 from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
 from screen import screen_one, screen_pending
@@ -44,6 +44,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    from screen import start_background_screening
+
+    start_background_screening()
     yield
     stop_scheduler()
 
@@ -62,6 +65,10 @@ class SettingsUpdate(BaseModel):
     min_days_until_due: int = Field(..., ge=0, le=365)
     min_score_threshold: int = Field(..., ge=1, le=10)
     screening_prompt: str | None = Field(None, min_length=20)
+    scheduler_enabled: bool = True
+    scheduler_hour: int = Field(6, ge=0, le=23)
+    scheduler_minute: int = Field(0, ge=0, le=59)
+    scheduler_timezone: str = Field("America/Denver", min_length=3)
 
 
 @app.get("/api/health")
@@ -105,6 +112,7 @@ def config():
     settings = get_all_settings()
     return {
         "naics_codes": settings["naics_codes"],
+        "naics_labels": settings["naics_labels"],
         "default_min_days": settings["min_days_until_due"],
         "default_min_score": settings["min_score_threshold"],
         "naics_sync": sync_status,
@@ -200,12 +208,18 @@ def read_settings():
 @app.put("/api/settings")
 def update_settings(body: SettingsUpdate):
     try:
-        return save_settings(
+        result = save_settings(
             naics_codes=body.naics_codes,
             min_days_until_due=body.min_days_until_due,
             min_score_threshold=body.min_score_threshold,
             screening_prompt=body.screening_prompt,
+            scheduler_enabled=body.scheduler_enabled,
+            scheduler_hour=body.scheduler_hour,
+            scheduler_minute=body.scheduler_minute,
+            scheduler_timezone=body.scheduler_timezone,
         )
+        configure_scheduler()
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

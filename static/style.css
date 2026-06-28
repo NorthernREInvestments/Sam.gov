@@ -149,11 +149,20 @@ body {
   margin: 1rem 0 0.35rem;
 }
 
+.login-card input[type="email"],
 .login-card input[type="password"] {
+  display: block;
   width: 100%;
-  padding: 0.6rem;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.login-card input[type="password"] {
+  width: 100%;
 }
 
 .login-btn {
@@ -209,13 +218,30 @@ body {
   margin: 1rem 0 0.5rem;
 }
 
+.filter-help {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.1rem 0 0.5rem;
+  line-height: 1.4;
+}
+
 .checkbox-group label {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  margin-bottom: 0.35rem;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  margin-bottom: 0.5rem;
   cursor: pointer;
+  line-height: 1.35;
+}
+
+.naics-filter-label {
+  font-weight: 600;
+  min-width: 3.5rem;
+}
+
+.naics-filter-desc {
+  color: var(--muted);
 }
 
 .slider-row {
@@ -260,6 +286,29 @@ body {
   color: var(--text);
   width: 100%;
   margin-top: 1.25rem;
+}
+
+.btn-secondary-action {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  margin-top: 0.75rem;
+}
+
+.btn-secondary-action:hover {
+  background: var(--bg);
+}
+
+.settings-button-row {
+  margin-top: 0.5rem;
+}
+
+.settings-time {
+  max-width: 12rem;
+}
+
+.settings-checkbox {
+  margin: 0.75rem 0;
 }
 
 .btn:disabled {
@@ -529,7 +578,28 @@ body {
 }
 
 .modal-panel-detail {
-  max-width: 720px;
+  max-width: min(1100px, 92vw);
+}
+
+.card-official-title {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0.35rem 0 0.5rem;
+  line-height: 1.4;
+}
+
+.card-pending-note {
+  font-size: 0.88rem;
+  color: #92400e;
+  background: #fffbeb;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.card-naics-label {
+  font-weight: 600;
+  color: var(--text);
 }
 
 .executive-summary {
