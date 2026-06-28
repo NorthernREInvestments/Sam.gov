@@ -140,6 +140,16 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
     today = date.today()
     days_left = (row.due_date - today).days if row.due_date else None
     analysis = row.analysis or {}
+    sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    attachments = sam_raw.get("opportunityAttachments")
+    if isinstance(attachments, list):
+        doc_access = sam_raw.get("documentAccess") or {}
+        external_links = sam_raw.get("opportunityLinks") or []
+        sam_attachments = attachments
+    else:
+        doc_access = {}
+        external_links = []
+        sam_attachments = []
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -165,11 +175,58 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "pricing_intel": row.pricing_intel,
         "sub_type_needed": analysis.get("sub_type_needed"),
         "red_flags": analysis.get("red_flags") or [],
-        "document_access": analysis.get("document_access"),
-        "external_links": analysis.get("external_links") or [],
+        "document_access": doc_access,
+        "external_links": external_links,
+        "sam_attachments": sam_attachments,
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
         "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
     }
+
+
+def refresh_stale_sam_raw(session: Session, limit: int = 12) -> int:
+    """Refresh SAM.gov attachment metadata for contracts missing the v3 attachment list."""
+    from sam_enrich import (
+        enrich_opportunity,
+        fetch_opportunity_raw,
+        needs_attachment_refresh,
+        refresh_opportunity_attachments,
+    )
+
+    rows = session.query(Contract).order_by(Contract.last_updated_at.desc()).limit(250).all()
+    refreshed = 0
+    for row in rows:
+        if refreshed >= limit:
+            break
+        raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+        if not needs_attachment_refresh(raw):
+            continue
+
+        notice_id = str(row.notice_id or raw.get("noticeId") or "")
+        if not notice_id:
+            continue
+
+        if not raw or not raw.get("noticeId"):
+            fresh = fetch_opportunity_raw(notice_id)
+            raw = fresh or raw
+
+        if not raw:
+            continue
+
+        if raw.get("descriptionText") or raw.get("descriptionHtml"):
+            raw = refresh_opportunity_attachments(raw)
+            if not raw.get("descriptionText"):
+                raw = enrich_opportunity(raw)
+        else:
+            raw = enrich_opportunity(raw)
+
+        row.sam_raw = raw
+        if raw.get("descriptionText"):
+            row.description = raw["descriptionText"][:8000]
+        refreshed += 1
+
+    if refreshed:
+        session.commit()
+    return refreshed
 
 
 def sync_from_sam() -> dict[str, Any]:

@@ -226,7 +226,18 @@ def _format_document_access_block(raw: dict[str, Any]) -> str:
         f"Solicitation number: {access.get('solicitation_number') or 'unknown'}",
     ]
     links = raw.get("opportunityLinks") or []
-    if links:
+    attachments = raw.get("opportunityAttachments") or []
+    if attachments:
+        lines.append("Attachments/links posted on SAM.gov:")
+        for item in attachments[:12]:
+            label = item.get("description") or "Attachment"
+            if item.get("type") == "file":
+                lines.append(f"- FILE: {label}")
+            elif item.get("url"):
+                lines.append(f"- LINK: {label} -> {item['url']}")
+            else:
+                lines.append(f"- {label}")
+    elif links:
         lines.append("External / linked resources from SAM.gov:")
         for item in links[:10]:
             if isinstance(item, dict):
@@ -292,18 +303,32 @@ def build_screening_text(
 
 
 def _collect_attachment_urls(raw: dict[str, Any]) -> list[str]:
-    urls = _collect_urls(raw)
+    urls: list[str] = []
+
+    for url in raw.get("attachmentDownloadUrls") or []:
+        if isinstance(url, str) and url.startswith("http"):
+            urls.append(url)
+
+    for item in raw.get("opportunityAttachments") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("download_url"):
+            urls.append(item["download_url"])
+        elif item.get("is_pdf_link") and item.get("url"):
+            urls.append(item["url"])
+
     resource_links = raw.get("resourceLinks") or []
     if isinstance(resource_links, list):
         for item in resource_links:
             if isinstance(item, str) and item.startswith("http"):
                 urls.append(item)
-    opportunity_links = raw.get("opportunityLinks") or []
-    for item in opportunity_links:
+
+    for item in raw.get("opportunityLinks") or []:
         if isinstance(item, dict):
             url = item.get("url")
-            if isinstance(url, str) and url.startswith("http"):
+            if isinstance(url, str) and url.startswith("http") and _looks_like_pdf_link(url):
                 urls.append(url)
+
     seen: set[str] = set()
     ordered: list[str] = []
     for url in urls:
@@ -311,6 +336,11 @@ def _collect_attachment_urls(raw: dict[str, Any]) -> list[str]:
             seen.add(url)
             ordered.append(url)
     return ordered
+
+
+def _looks_like_pdf_link(url: str) -> bool:
+    cleaned = url.lower().split("?")[0]
+    return cleaned.endswith(".pdf")
 
 
 def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:
@@ -360,11 +390,14 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         analysis["attachments_reviewed"] = fetched_labels
 
     document_access = raw.get("documentAccess") if isinstance(raw.get("documentAccess"), dict) else None
-    if document_access and not analysis.get("document_access"):
+    if document_access:
         analysis["document_access"] = document_access
     opportunity_links = raw.get("opportunityLinks") or []
-    if opportunity_links and not analysis.get("external_links"):
+    if opportunity_links:
         analysis["external_links"] = opportunity_links
+    attachments = raw.get("opportunityAttachments") or []
+    if attachments:
+        analysis["sam_attachments"] = attachments
 
     if analysis.get("pursue") is True:
         analysis["pursue"] = True

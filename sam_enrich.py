@@ -1,4 +1,4 @@
-"""Fetch full SAM.gov opportunity details: description, links, document access."""
+"""Fetch full SAM.gov opportunity details: description, attachments, document access."""
 
 from __future__ import annotations
 
@@ -13,14 +13,14 @@ from usaspending_client import STATE_NAME_TO_CODE, normalize_state
 
 NOTICE_DESC_URL = "https://api.sam.gov/prod/opportunities/v1/noticedesc"
 SAM_SEARCH_URL = "https://api.sam.gov/opportunities/v2/search"
-SAM_LINKS_URL = "https://sam.gov/api/prod/file-services/v1/opps/{notice_id}/links"
+SAM_RESOURCES_URL = "https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources"
+SAM_FILE_DOWNLOAD_URL = "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/{resource_id}/download"
 
 EXTERNAL_PORTAL_PATTERNS: list[tuple[str, str]] = [
-    ("PIEE", r"\bPIEE\b"),
+    ("PIEE", r"\bPIEE\b|piee\.eb\.mil"),
     ("FedConnect", r"FedConnect|fedconnect\.net"),
     ("NECO", r"\bNECO\b"),
     ("DIBBS", r"\bDIBBS\b"),
-    ("beta.sam.gov", r"beta\.sam\.gov"),
 ]
 
 STATE_NAME_PATTERN = "|".join(
@@ -74,6 +74,12 @@ def detect_external_portals(*texts: str | None) -> list[str]:
     return portals
 
 
+def build_file_download_url(resource_id: str, api_key: str | None = None) -> str:
+    api_key = api_key or _api_key()
+    base = SAM_FILE_DOWNLOAD_URL.format(resource_id=resource_id)
+    return f"{base}?api_key={api_key}" if api_key else base
+
+
 def fetch_notice_description(notice_id: str, api_key: str | None = None) -> str | None:
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
@@ -92,143 +98,224 @@ def fetch_notice_description(notice_id: str, api_key: str | None = None) -> str 
         return None
 
 
-def fetch_opportunity_links(notice_id: str, api_key: str | None = None) -> list[dict[str, Any]]:
-    """Best-effort fetch of SAM.gov link resources (PIEE, etc.)."""
+def fetch_opportunity_attachments(notice_id: str, api_key: str | None = None) -> list[dict[str, Any]]:
+    """Fetch attachments and links posted on the SAM.gov opportunity."""
     api_key = api_key or _api_key()
-    if not notice_id:
+    if not notice_id or not api_key:
         return []
-    url = SAM_LINKS_URL.format(notice_id=notice_id)
+
+    url = SAM_RESOURCES_URL.format(notice_id=notice_id)
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.get(url, params={"api_key": api_key} if api_key else None)
-            if response.status_code != 200 or not response.text.strip():
+        with httpx.Client(timeout=45.0) as client:
+            response = client.get(url, params={"api_key": api_key})
+            response.raise_for_status()
+            if not response.text.strip():
                 return []
             data = response.json()
     except Exception:
         return []
 
-    links: list[dict[str, Any]] = []
-    if isinstance(data, list):
-        items = data
-    elif isinstance(data, dict):
-        items = data.get("links") or data.get("opportunityLinks") or data.get("_embedded", {}).get("links") or []
-        if isinstance(items, dict):
-            items = items.get("links") or []
-    else:
-        items = []
+    embedded = data.get("_embedded") if isinstance(data, dict) else None
+    if not isinstance(embedded, dict):
+        return []
 
-    for item in items:
-        if isinstance(item, str):
-            links.append({"url": item, "label": item})
-        elif isinstance(item, dict):
-            url = item.get("url") or item.get("href") or item.get("link")
-            if url:
-                links.append(
-                    {
-                        "url": url,
-                        "label": item.get("description") or item.get("name") or item.get("title") or url,
-                    }
-                )
+    attachment_lists = embedded.get("opportunityAttachmentList") or []
+    raw_items: list[dict[str, Any]] = []
+    for block in attachment_lists:
+        if isinstance(block, dict):
+            raw_items.extend(block.get("attachments") or [])
+
+    attachments: list[dict[str, Any]] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        att_type = str(item.get("type") or "file").lower()
+        description = (
+            item.get("description")
+            or item.get("name")
+            or item.get("resourceName")
+            or "Attachment"
+        )
+        resource_id = item.get("resourceId")
+        uri = item.get("uri")
+
+        entry: dict[str, Any] = {
+            "type": att_type,
+            "description": str(description).strip(),
+            "resource_id": resource_id,
+            "attachment_id": item.get("attachmentId"),
+            "mime_type": item.get("mimeType"),
+            "size": item.get("size"),
+            "posted_date": item.get("postedDate"),
+        }
+
+        if att_type == "link" and uri:
+            entry["url"] = str(uri).strip()
+            entry["is_pdf_link"] = _looks_like_pdf_url(entry["url"])
+        elif att_type == "file" and resource_id:
+            entry["download_url"] = build_file_download_url(str(resource_id), api_key)
+            entry["is_pdf_link"] = True
+
+        attachments.append(entry)
+
+    attachments.sort(key=lambda row: row.get("posted_date") or "", reverse=True)
+    return attachments
+
+
+def _looks_like_pdf_url(url: str) -> bool:
+    cleaned = url.lower().split("?")[0]
+    return cleaned.endswith(".pdf")
+
+
+def attachments_to_links(attachments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    links: list[dict[str, Any]] = []
+    for item in attachments:
+        if item.get("type") == "link" and item.get("url"):
+            links.append({"url": item["url"], "label": item.get("description") or item["url"]})
     return links
 
 
-def fetch_opportunity_raw(notice_id: str, api_key: str | None = None) -> dict[str, Any] | None:
-    api_key = api_key or _api_key()
-    if not notice_id or not api_key:
-        return None
-    try:
-        with httpx.Client(timeout=60.0) as client:
-            response = client.get(
-                SAM_SEARCH_URL,
-                params={"api_key": api_key, "noticeid": notice_id, "limit": 1},
-            )
-            response.raise_for_status()
-            rows = response.json().get("opportunitiesData") or []
-            return rows[0] if rows else None
-    except Exception:
-        return None
+def attachments_to_download_urls(attachments: list[dict[str, Any]]) -> list[str]:
+    urls: list[str] = []
+    for item in attachments:
+        if item.get("download_url"):
+            urls.append(item["download_url"])
+        elif item.get("is_pdf_link") and item.get("url"):
+            urls.append(item["url"])
+    return urls
 
 
 def build_document_access(
     raw: dict[str, Any],
     *,
     description_text: str,
-    opportunity_links: list[dict[str, Any]],
+    attachments: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    resource_links = raw.get("resourceLinks") or []
-    pdf_count = len(resource_links) if isinstance(resource_links, list) else 0
-    link_count = len(opportunity_links)
+    file_count = sum(1 for item in attachments if item.get("type") == "file")
+    link_count = sum(1 for item in attachments if item.get("type") == "link")
+    pdf_link_count = sum(1 for item in attachments if item.get("is_pdf_link"))
+    total = len(attachments)
+
+    link_labels = [str(item.get("description") or "Link") for item in attachments if item.get("type") == "link"]
+    file_labels = [str(item.get("description") or "File") for item in attachments if item.get("type") == "file"]
+
     external_portals = detect_external_portals(
         description_text,
         raw.get("title"),
-        " ".join(str(link.get("label") or "") for link in opportunity_links),
+        " ".join(link_labels),
+        " ".join(item.get("url") or "" for item in attachments),
     )
-    requires_external = bool(external_portals) or (pdf_count == 0 and link_count > 0)
 
-    if pdf_count:
+    if total == 0:
+        legacy_links = raw.get("resourceLinks") or []
+        if isinstance(legacy_links, list) and legacy_links:
+            total = len(legacy_links)
+            file_count = total
+            status = "pdf_attachments"
+            summary = f"{total} PDF attachment(s) listed on SAM.gov."
+        elif external_portals:
+            status = "external_portal"
+            summary = (
+                f"Documents referenced on {', '.join(external_portals)} - "
+                "check SAM.gov Attachments/Links (API returned no attachment list)."
+            )
+        else:
+            status = "none_found"
+            summary = "No attachments or links found on SAM.gov yet."
+    elif file_count and link_count:
+        status = "mixed_attachments"
+        summary = (
+            f"{total} item(s) on SAM.gov: {file_count} file(s) "
+            f"({', '.join(file_labels[:2])}{'…' if len(file_labels) > 2 else ''}) "
+            f"and {link_count} link(s)."
+        )
+    elif file_count:
         status = "pdf_attachments"
-        summary = f"{pdf_count} PDF attachment(s) available on SAM.gov."
-    elif link_count:
-        status = "external_links"
-        summary = (
-            f"No direct PDF attachments on SAM.gov — {link_count} external link(s) listed "
-            f"(often PIEE or another portal where the SOW lives)."
-        )
-    elif external_portals:
-        status = "external_portal"
-        portal_text = ", ".join(external_portals)
-        summary = (
-            f"No downloadable PDFs on SAM.gov. Solicitation documents are on {portal_text} - "
-            "open the SAM.gov posting and use the Attachments/Links section."
-        )
+        summary = f"{file_count} file attachment(s) on SAM.gov."
     else:
-        status = "none_found"
-        summary = "No PDF attachments or external links found on SAM.gov yet."
+        status = "sam_links"
+        summary = f"{link_count} link(s) on SAM.gov."
+        if pdf_link_count:
+            summary += f" Includes {pdf_link_count} direct PDF link(s) we can read."
+
+    requires_external = bool(external_portals) and file_count == 0
 
     return {
         "status": status,
         "summary": summary,
-        "pdf_attachment_count": pdf_count,
+        "total_count": total,
+        "file_attachment_count": file_count,
+        "link_count": link_count,
+        "pdf_link_count": pdf_link_count,
+        "pdf_attachment_count": file_count + pdf_link_count,
         "external_link_count": link_count,
         "external_portals": external_portals,
         "requires_external_portal": requires_external,
         "sam_gov_link": raw.get("uiLink"),
         "solicitation_number": raw.get("solicitationNumber"),
+        "attachment_labels": [item.get("description") for item in attachments if item.get("description")],
     }
 
 
+def _apply_attachment_fields(
+    raw: dict[str, Any],
+    *,
+    attachments: list[dict[str, Any]],
+    description_text: str,
+) -> dict[str, Any]:
+    opportunity_links = attachments_to_links(attachments)
+    download_urls = attachments_to_download_urls(attachments)
+    document_access = build_document_access(
+        raw,
+        description_text=description_text,
+        attachments=attachments,
+    )
+
+    enriched = dict(raw)
+    enriched["opportunityAttachments"] = attachments
+    enriched["opportunityLinks"] = opportunity_links
+    enriched["attachmentDownloadUrls"] = download_urls
+    if download_urls:
+        enriched["resourceLinks"] = download_urls
+    enriched["documentAccess"] = document_access
+    return enriched
+
+
+def refresh_opportunity_attachments(raw: dict[str, Any], api_key: str | None = None) -> dict[str, Any]:
+    """Fast path: fetch SAM.gov attachments/links only (skips description + search refetch)."""
+    notice_id = str(raw.get("noticeId") or "")
+    description_text = str(raw.get("descriptionText") or html_to_text(raw.get("descriptionHtml")))
+    attachments = fetch_opportunity_attachments(notice_id, api_key)
+    return _apply_attachment_fields(raw, attachments=attachments, description_text=description_text)
+
+
 def enrich_opportunity(raw: dict[str, Any] | None, api_key: str | None = None) -> dict[str, Any]:
-    """Merge search metadata with full description text and link/document access info."""
+    """Merge search metadata with full description text and SAM.gov attachments."""
     if not raw:
         return {}
     notice_id = str(raw.get("noticeId") or "")
     description_field = raw.get("description")
-    description_html: str | None = None
+    description_html: str | None = raw.get("descriptionHtml")
 
-    if isinstance(description_field, str) and description_field.startswith("http"):
-        description_html = fetch_notice_description(notice_id, api_key)
-    elif isinstance(description_field, str) and description_field.strip():
-        description_html = description_field
+    if not description_html:
+        if isinstance(description_field, str) and description_field.startswith("http"):
+            description_html = fetch_notice_description(notice_id, api_key)
+        elif isinstance(description_field, str) and description_field.strip():
+            description_html = description_field
 
-    description_text = html_to_text(description_html)
-    opportunity_links = fetch_opportunity_links(notice_id, api_key)
+    description_text = html_to_text(description_html) or str(raw.get("descriptionText") or "")
+    attachments = fetch_opportunity_attachments(notice_id, api_key)
+
     work_states = extract_states_from_text(
         raw.get("title"),
         _place_of_performance_text(raw),
         description_text,
     )
-    document_access = build_document_access(
-        raw,
-        description_text=description_text,
-        opportunity_links=opportunity_links,
-    )
 
-    enriched = dict(raw)
+    enriched = _apply_attachment_fields(raw, attachments=attachments, description_text=description_text)
     enriched["descriptionHtml"] = description_html
     enriched["descriptionText"] = description_text
-    enriched["opportunityLinks"] = opportunity_links
     enriched["workStates"] = work_states
-    enriched["documentAccess"] = document_access
     return enriched
 
 
@@ -247,12 +334,25 @@ def _place_of_performance_text(raw: dict[str, Any]) -> str | None:
     return ", ".join(str(p) for p in parts if p) or None
 
 
+def needs_attachment_refresh(sam_raw: dict[str, Any] | None) -> bool:
+    if not isinstance(sam_raw, dict) or not sam_raw:
+        return True
+    if "opportunityAttachments" not in sam_raw:
+        return True
+    doc_access = sam_raw.get("documentAccess")
+    if not isinstance(doc_access, dict):
+        return True
+    if "attachment_labels" not in doc_access:
+        return True
+    return False
+
+
 def needs_enrichment(sam_raw: dict[str, Any] | None) -> bool:
+    if needs_attachment_refresh(sam_raw):
+        return True
     if not isinstance(sam_raw, dict) or not sam_raw:
         return True
     if not sam_raw.get("descriptionText"):
-        return True
-    if "documentAccess" not in sam_raw:
         return True
     return False
 
@@ -261,14 +361,39 @@ def ensure_enriched_sam_raw(
     contract: Any,
     *,
     api_key: str | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Return enriched sam_raw, refreshing from SAM.gov when needed."""
     raw = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
-    if needs_enrichment(raw):
-        notice_id = getattr(contract, "notice_id", None)
-        fresh = fetch_opportunity_raw(str(notice_id or ""), api_key) if notice_id else None
-        raw = fresh or raw
-    if raw:
-        raw = enrich_opportunity(raw, api_key)
-        contract.sam_raw = raw
+    notice_id = str(getattr(contract, "notice_id", None) or raw.get("noticeId") or "")
+
+    if force or needs_enrichment(raw):
+        if not raw or not raw.get("noticeId"):
+            fresh = fetch_opportunity_raw(notice_id, api_key) if notice_id else None
+            raw = fresh or raw
+        if raw:
+            if raw.get("descriptionText") or raw.get("descriptionHtml"):
+                raw = refresh_opportunity_attachments(raw, api_key)
+                if not raw.get("descriptionText"):
+                    raw = enrich_opportunity(raw, api_key)
+            else:
+                raw = enrich_opportunity(raw, api_key)
+            contract.sam_raw = raw
     return raw
+
+
+def fetch_opportunity_raw(notice_id: str, api_key: str | None = None) -> dict[str, Any] | None:
+    api_key = api_key or _api_key()
+    if not notice_id or not api_key:
+        return None
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            response = client.get(
+                SAM_SEARCH_URL,
+                params={"api_key": api_key, "noticeid": notice_id, "limit": 1},
+            )
+            response.raise_for_status()
+            rows = response.json().get("opportunitiesData") or []
+            return rows[0] if rows else None
+    except Exception:
+        return None

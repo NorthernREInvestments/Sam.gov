@@ -125,6 +125,10 @@ function renderCards() {
            <p class="card-pending-note">Plain-English summary being generated…</p>
          </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
+    const docsLine = formatCardDocs(c);
+    const docsHtml = docsLine
+      ? `<p class="card-meta card-docs">${escapeHtml(docsLine)}</p>`
+      : "";
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-top">
@@ -141,6 +145,7 @@ function renderCards() {
         <span class="card-label">Where</span>
         <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
         <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
+        ${docsHtml}
       </div>
       <div class="card-section card-section-footer">
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
@@ -187,29 +192,55 @@ function stopDetailPolling() {
 }
 
 function renderDocumentAccessBanner(c) {
-  const access = c.document_access || c.analysis?.document_access;
-  const links = c.external_links || c.analysis?.external_links || [];
-  if (!access) return "";
+  const access = c.sam_raw?.documentAccess || c.document_access || c.analysis?.document_access;
+  const attachments = c.sam_raw?.opportunityAttachments || c.sam_attachments || c.analysis?.sam_attachments || [];
+  const links = c.external_links || c.analysis?.external_links || c.sam_raw?.opportunityLinks || [];
+  if (!access && !attachments.length) return "";
 
-  const samLink = access.sam_gov_link || c.link;
-  const linkItems = links.length
-    ? `<ul class="document-link-list">${links.map((item) => {
-        const url = item.url || item;
-        const label = item.label || url;
-        return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a></li>`;
+  const samLink = access?.sam_gov_link || c.link;
+  const attachmentItems = attachments.length
+    ? `<ul class="document-link-list">${attachments.map((item) => {
+        const label = item.description || item.url || "Attachment";
+        if (item.type === "link" && item.url) {
+          return `<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a></li>`;
+        }
+        return `<li>${escapeHtml(label)}${item.type === "file" ? " (SAM.gov file)" : ""}</li>`;
       }).join("")}</ul>`
-    : "";
+    : links.length
+      ? `<ul class="document-link-list">${links.map((item) => {
+          const url = item.url || item;
+          const label = item.label || url;
+          return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a></li>`;
+        }).join("")}</ul>`
+      : "";
 
   const samCta = samLink
-    ? `<p class="document-access-cta"><a class="detail-link" href="${escapeHtml(samLink)}" target="_blank" rel="noopener">Open on SAM.gov → Attachments/Links</a></p>`
+    ? `<p class="document-access-cta"><a class="detail-link" href="${escapeHtml(samLink)}" target="_blank" rel="noopener">View full posting on SAM.gov</a></p>`
     : "";
 
   return `
-    <div class="document-access-banner ${access.requires_external_portal ? "document-access-external" : ""}">
-      <p class="document-access-title">${escapeHtml(access.summary || "Document access")}</p>
-      ${linkItems}
+    <div class="document-access-banner ${access?.requires_external_portal ? "document-access-external" : ""}">
+      <p class="document-access-title">${escapeHtml(access?.summary || "SAM.gov attachments")}</p>
+      ${attachmentItems}
       ${samCta}
     </div>`;
+}
+
+function formatCardDocs(c) {
+  const attachments = c.sam_attachments || [];
+  if (attachments.length) {
+    const labels = attachments
+      .slice(0, 2)
+      .map((item) => item.description || item.url || "Attachment")
+      .join(", ");
+    const extra = attachments.length > 2 ? ` +${attachments.length - 2} more` : "";
+    const access = c.document_access;
+    const prefix = access?.summary ? `${access.summary} — ` : `${attachments.length} on SAM.gov: `;
+    return `${prefix}${labels}${extra}`;
+  }
+  const access = c.document_access;
+  if (access?.summary) return access.summary;
+  return "";
 }
 
 function buildSummaryInner(c, analyzing = false) {

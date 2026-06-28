@@ -24,7 +24,7 @@ from sam_client import min_days_from_env, naics_from_env
 from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
 from pricing import get_contract_pricing_intel
-from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
+from sync import contract_to_dict, get_naics_sync_status, list_contracts, refresh_stale_sam_raw, sync_all_naics, sync_from_sam
 from screen import screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -135,6 +135,7 @@ def get_contracts(
     naics_codes = [c.strip() for c in naics.split(",") if c.strip()] if naics else None
     session = SessionLocal()
     try:
+        refresh_stale_sam_raw(session, limit=12)
         rows = list_contracts(
             session,
             naics_codes=naics_codes,
@@ -157,10 +158,10 @@ def get_contract(notice_id: str):
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             raise HTTPException(status_code=404, detail="Contract not found")
-        from sam_enrich import ensure_enriched_sam_raw
+        from sam_enrich import ensure_enriched_sam_raw, needs_enrichment
         from sam_client import normalize_opportunity
 
-        ensure_enriched_sam_raw(row)
+        ensure_enriched_sam_raw(row, force=needs_enrichment(row.sam_raw if isinstance(row.sam_raw, dict) else None))
         if isinstance(row.sam_raw, dict):
             if row.sam_raw.get("descriptionText"):
                 row.description = row.sam_raw["descriptionText"][:8000]
