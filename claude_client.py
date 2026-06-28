@@ -17,7 +17,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 MODEL = "claude-sonnet-4-6"
 MAX_PDF_BYTES = 4_500_000
-MAX_PDFS = 5
+MAX_PDFS = 8
 MAX_TOKENS = 4096
 
 DEFAULT_SCREENING_PROMPT = """You are a government contract screening specialist for a small business prime contractor using the subcontracting middleman model.
@@ -138,6 +138,49 @@ def _collect_urls(raw: dict[str, Any]) -> list[str]:
             seen.add(url)
             ordered.append(url)
     return ordered
+
+
+def _pdf_blocks_from_bytes(pdfs: list[tuple[str, bytes]]) -> tuple[list[dict[str, Any]], list[str]]:
+    blocks: list[dict[str, Any]] = []
+    labels: list[str] = []
+    for name, data in pdfs:
+        if len(blocks) >= MAX_PDFS:
+            break
+        if not data.startswith(b"%PDF"):
+            continue
+        blocks.append(
+            {
+                "type": "document",
+                "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": base64.standard_b64encode(data).decode("ascii"),
+                },
+            }
+        )
+        labels.append(name)
+    return blocks, labels
+
+
+def _piee_pdf_blocks(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    from piee_client import fetch_piee_pdfs
+
+    skipped: list[str] = []
+    try:
+        pdfs, notice_url = fetch_piee_pdfs(raw)
+    except ImportError:
+        skipped.append("Playwright not installed — PIEE documents unavailable.")
+        return [], [], skipped
+    except Exception as exc:
+        skipped.append(f"PIEE download failed: {exc}")
+        return [], [], skipped
+
+    if notice_url and not pdfs:
+        skipped.append(f"No PIEE PDFs downloaded from {notice_url}")
+    blocks, labels = _pdf_blocks_from_bytes(pdfs)
+    if pdfs and not blocks:
+        skipped.append("PIEE returned files but none were readable PDFs.")
+    return blocks, labels, skipped
 
 
 def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
@@ -401,7 +444,28 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     urls = _collect_attachment_urls(raw)
-    pdf_blocks, fetched_labels, skipped_labels = _attachment_blocks(urls)
+    piee_blocks, piee_labels, piee_skipped = _piee_pdf_blocks(raw)
+    sam_blocks, sam_labels, sam_skipped = _attachment_blocks(urls)
+
+    pdf_blocks: list[dict[str, Any]] = []
+    fetched_labels: list[str] = []
+    for block, label in zip(piee_blocks + sam_blocks, piee_labels + sam_labels):
+        if len(pdf_blocks) >= MAX_PDFS:
+            break
+        pdf_blocks.append(block)
+        fetched_labels.append(label)
+
+    skipped_labels = piee_skipped + sam_skipped
+    if len(piee_blocks) + len(sam_blocks) > len(pdf_blocks):
+        skipped_labels.append(
+            f"Sent {len(pdf_blocks)} of {len(piee_blocks) + len(sam_blocks)} PDFs to Claude (SOW/solicitation prioritized)."
+        )
+
+    if piee_labels:
+        raw = dict(raw)
+        raw["pieeDownloaded"] = piee_labels
+        contract.sam_raw = raw
+
     text = build_screening_text(
         contract,
         len(pdf_blocks),
@@ -430,6 +494,7 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         analysis["attachments_reviewed"] = fetched_labels
     analysis["pdfs_sent_to_claude"] = len(pdf_blocks)
     analysis["pdf_urls_attempted"] = len(urls)
+    analysis["piee_pdfs_sent"] = len(piee_labels)
     if skipped_labels:
         analysis["pdfs_not_included"] = skipped_labels[:12]
 

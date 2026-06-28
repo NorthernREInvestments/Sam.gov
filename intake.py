@@ -81,6 +81,10 @@ def enrich_contract_attachments(row: Contract) -> bool:
     row.sam_raw = enriched
     if enriched.get("descriptionText"):
         row.description = enriched["descriptionText"][:8000]
+
+    from piee_client import attach_piee_manifest
+
+    row.sam_raw = attach_piee_manifest(row.sam_raw)
     refreshed = normalize_opportunity(enriched)
     if refreshed.get("location"):
         row.location = refreshed["location"]

@@ -142,10 +142,15 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
     analysis = row.analysis or {}
     sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
     attachments = sam_raw.get("opportunityAttachments")
+    piee_attachments = sam_raw.get("pieeAttachments") if isinstance(sam_raw.get("pieeAttachments"), list) else []
     if isinstance(attachments, list) and attachments:
         doc_access = sam_raw.get("documentAccess") or {}
         external_links = sam_raw.get("opportunityLinks") or []
-        sam_attachments = attachments
+        sam_attachments = attachments + piee_attachments
+    elif piee_attachments:
+        doc_access = sam_raw.get("documentAccess") or {}
+        external_links = sam_raw.get("opportunityLinks") or []
+        sam_attachments = piee_attachments
     else:
         sam_attachments = analysis.get("sam_attachments") or []
         doc_access = sam_raw.get("documentAccess") or analysis.get("document_access") or {}

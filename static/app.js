@@ -270,7 +270,7 @@ function renderCardAttachments(c) {
   const items = attachments.map((item) => {
     const label = item.description || item.url || "Attachment";
     const url = item.url || item.download_url;
-    const tag = item.type === "file" ? " (file)" : "";
+    const tag = item.source === "piee" ? " (PIEE)" : item.type === "file" ? " (file)" : "";
     if (url) {
       return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(label)}${tag}</a></li>`;
     }
