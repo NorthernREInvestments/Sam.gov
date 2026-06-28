@@ -150,11 +150,18 @@ async function openDetail(noticeId) {
   const c = await res.json();
   const due = formatDue(c);
   const summary = c.plain_english_summary || c.executive_summary || c.analysis?.plain_english_summary || c.analysis?.executive_summary;
+  const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
   const summaryBlock = summary
     ? `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`
     : `<div class="executive-summary-placeholder">
          Plain-English summary is being generated automatically. Refresh in a minute, or analyze now:
          <button type="button" class="btn btn-primary" id="screen-one-btn" style="margin-top:0.75rem">Analyze this contract now</button>
+       </div>`;
+  const pricingBlock = pricingIntel
+    ? renderClaudePricingPanel(pricingIntel, c.pricing_intel)
+    : `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
+         <p class="detail-section-title">Pricing intelligence</p>
+         <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
        </div>`;
   const redFlags = c.red_flags?.length
     ? `<ul>${c.red_flags.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
@@ -166,6 +173,7 @@ async function openDetail(noticeId) {
 
   document.getElementById("modal-content").innerHTML = `
     ${summaryBlock}
+    ${pricingBlock}
     <div class="modal-badges">${screeningBadge(c)}</div>
     ${summary ? "" : `<h2>${escapeHtml(c.title)}</h2>`}
     <div class="detail-due">${due.main}${due.sub ? ` · ${due.sub}` : ""}</div>
@@ -173,10 +181,6 @@ async function openDetail(noticeId) {
     <div class="detail-row"><strong>Quick reason</strong><p>${escapeHtml(c.reason || c.analysis?.reason || "-")}</p></div>
     <div class="detail-row"><strong>Sub type needed</strong><p>${escapeHtml(c.sub_type_needed || "-")}</p></div>
     <div class="detail-row"><strong>Red flags</strong>${redFlags}</div>
-    <div id="pricing-panel" class="pricing-panel pricing-panel-loading">
-      <p class="detail-section-title">Pricing intelligence</p>
-      <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
-    </div>
     <p class="detail-section-title">Contract details</p>
     <div class="detail-row"><strong>Official title</strong><p>${escapeHtml(c.title)}</p></div>
     <div class="detail-row"><strong>Agency</strong><p>${escapeHtml(c.agency || "-")}</p></div>
@@ -187,7 +191,7 @@ async function openDetail(noticeId) {
     ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}
   `;
   document.getElementById("modal").hidden = false;
-  loadPricingIntel(noticeId);
+  if (!pricingIntel) loadPricingIntel(noticeId);
 
   const screenBtn = document.getElementById("screen-one-btn");
   if (screenBtn) {
@@ -225,12 +229,86 @@ function firstSentence(text, maxLen = 180) {
 }
 
 function formatMoney(value) {
-  if (value == null || value === "" || Number.isNaN(Number(value))) return "—";
+  if (value == null || value === "") return "—";
+  if (typeof value === "string" && value.trim().startsWith("$")) return value.trim();
+  const num = Number(String(value).replace(/[^0-9.-]/g, ""));
+  if (Number.isNaN(num)) return String(value);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(Number(value));
+  }).format(num);
+}
+
+function renderClaudePricingPanel(pricing, rawIntel) {
+  const bidLow = formatMoney(pricing.recommended_bid_low);
+  const bidHigh = formatMoney(pricing.recommended_bid_high);
+  const competition = pricing.competition_level
+    ? `${pricing.competition_level.charAt(0).toUpperCase()}${pricing.competition_level.slice(1)} competition`
+    : "—";
+  const confidence = pricing.pricing_confidence
+    ? `${pricing.pricing_confidence.charAt(0).toUpperCase()}${pricing.pricing_confidence.slice(1)} confidence`
+    : "—";
+  const incumbent = pricing.incumbent || "Not identified";
+  const winner = pricing.most_frequent_winner || "—";
+  const awardsNote = rawIntel?.awards_count
+    ? `${rawIntel.awards_count} comparable awards · NAICS ${rawIntel.naics_code || ""} · ${rawIntel.state_code || ""}`
+    : "Based on USAspending.gov historical data";
+
+  const awardsTable = rawIntel?.awards?.length
+    ? `<table class="pricing-table">
+        <thead>
+          <tr><th>Date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
+        </thead>
+        <tbody>
+          ${rawIntel.awards.map((a) => `
+            <tr>
+              <td>${escapeHtml(a.start_date || "—")}</td>
+              <td>${escapeHtml(a.recipient_name || "—")}</td>
+              <td>${formatMoney(a.award_amount)}</td>
+              <td>${escapeHtml(a.awarding_agency || "—")}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`
+    : "";
+
+  return `
+    <p class="detail-section-title">Pricing intelligence</p>
+    <div class="pricing-panel">
+      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis)</span></p>
+      <div class="pricing-bid-hero">
+        <span class="pricing-bid-label">Recommended bid range</span>
+        <span class="pricing-bid-range">${bidLow} – ${bidHigh}</span>
+      </div>
+      ${pricing.pricing_summary ? `<p class="pricing-summary">${escapeHtml(pricing.pricing_summary)}</p>` : ""}
+      <div class="pricing-stats">
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Average historical award</span>
+          <span class="pricing-stat-value">${formatMoney(pricing.average_historical_award)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Highest award</span>
+          <span class="pricing-stat-value">${formatMoney(pricing.highest_historical_award)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Lowest award</span>
+          <span class="pricing-stat-value">${formatMoney(pricing.lowest_historical_award)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Most frequent winner</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winner)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Incumbent</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(incumbent)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Competition</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(competition)} · ${escapeHtml(confidence)}</span>
+        </div>
+      </div>
+      ${awardsTable}
+    </div>`;
 }
 
 function renderPricingPanel(intel) {

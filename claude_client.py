@@ -18,11 +18,11 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 MODEL = "claude-sonnet-4-6"
 MAX_PDF_BYTES = 4_500_000
 MAX_PDFS = 5
-MAX_TOKENS = 3000
+MAX_TOKENS = 4096
 
 DEFAULT_SCREENING_PROMPT = """You are a government contract screening specialist for a small business prime contractor using the subcontracting middleman model.
 
-YOUR #1 JOB: Read the contract posting AND every attached PDF/solicitation document. Extract the full scope of work. Then write a plain-English summary a busy contractor can understand in 15 seconds.
+YOUR #1 JOB: Read the contract posting, every attached PDF/solicitation document, AND the historical pricing intelligence from USAspending.gov. Extract the full scope of work and produce actionable bid guidance.
 
 SCREENING RULES (for pursue/skip):
 - FAR 52.219-14 present and checked → pursue false, flag SKIP
@@ -41,9 +41,29 @@ Cover these points in simple conversational language:
 5. How long — base year plus any option years
 6. What kind of subcontractor is needed — be specific (e.g. "licensed commercial janitorial company" or "licensed landscaping crew")
 7. Any gotchas — security requirements, specialized equipment, tight deadline, unusual requirements
+8. END with one sentence summarizing pricing — e.g. "Similar contracts in this area have awarded between $X and $Y. I recommend bidding around $Z to be competitive." Use the historical pricing data provided.
+
+PRICING INTELLIGENCE (pricing_intelligence field):
+Use the USAspending.gov historical award data included in the user message. Analyze it alongside the contract scope.
+- Format all dollar amounts as strings like "$125,000"
+- incumbent: the most likely current holder of similar work (most recent or most frequent winner), or null if unclear
+- competition_level: "low" (1-3 unique past winners), "medium" (4-9), or "high" (10+)
+- pricing_confidence: "high" (15+ comparable awards), "medium" (5-14), or "low" (fewer than 5 or no data)
+- pricing_summary: 2-3 plain English sentences on what the historical data suggests and what to bid
 
 Return JSON only with these exact fields:
-- plain_english_summary: string (the summary above — MOST IMPORTANT FIELD)
+- plain_english_summary: string
+- pricing_intelligence: object with:
+  - recommended_bid_low: string (dollar amount)
+  - recommended_bid_high: string (dollar amount)
+  - average_historical_award: string (dollar amount)
+  - highest_historical_award: string (dollar amount)
+  - lowest_historical_award: string (dollar amount)
+  - most_frequent_winner: string
+  - incumbent: string or null
+  - competition_level: "low", "medium", or "high"
+  - pricing_confidence: "high", "medium", or "low"
+  - pricing_summary: string (2-3 sentences)
 - pursue: true or false
 - score: 1-10 (how good a fit for the subcontracting middleman model)
 - reason: one sentence
@@ -146,7 +166,36 @@ def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]
     return blocks, reviewed
 
 
-def build_screening_text(contract: Any, attachment_count: int) -> str:
+def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
+    if not pricing_intel:
+        return "Historical pricing: not available (NAICS or state could not be determined)."
+
+    if pricing_intel.get("error"):
+        return f"Historical pricing lookup note: {pricing_intel['error']}"
+
+    lines = [
+        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — contracts only, last 3 years, same NAICS + state):",
+        f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
+        f"State: {pricing_intel.get('state_code', 'unknown')}",
+        f"Comparable awards found: {pricing_intel.get('awards_count', 0)}",
+        f"Unique winning companies: {pricing_intel.get('unique_bidders', 0)}",
+        f"Average award: {pricing_intel.get('average_amount')}",
+        f"Highest award: {pricing_intel.get('highest_amount')}",
+        f"Lowest award: {pricing_intel.get('lowest_amount')}",
+        f"Suggested bid range (25th–75th percentile): {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
+        f"Most frequent winner: {pricing_intel.get('most_frequent_winner') or 'none identified'}",
+        "",
+        "Recent comparable awards (most recent first):",
+        json.dumps(pricing_intel.get("awards") or [], indent=2, default=str),
+    ]
+    return "\n".join(lines)
+
+
+def build_screening_text(
+    contract: Any,
+    attachment_count: int,
+    pricing_intel: dict[str, Any] | None = None,
+) -> str:
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     description = (
         contract.description
@@ -157,6 +206,7 @@ def build_screening_text(contract: Any, attachment_count: int) -> str:
     urls = _collect_urls(raw)
     lines = [
         "Analyze this federal contract. Read all attached PDF documents carefully for scope, size, and requirements.",
+        "Use the historical pricing data below to fill pricing_intelligence and include a pricing sentence in plain_english_summary.",
         "",
         f"Notice ID: {contract.notice_id}",
         f"Title: {contract.title}",
@@ -170,6 +220,8 @@ def build_screening_text(contract: Any, attachment_count: int) -> str:
         "",
         "Posting description:",
         str(description)[:15000],
+        "",
+        _format_pricing_block(pricing_intel),
     ]
     if urls:
         lines.extend(["", "All linked URLs from posting:"])
@@ -180,16 +232,20 @@ def build_screening_text(contract: Any, attachment_count: int) -> str:
 
 
 def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:
-    """Send one contract to Claude and return parsed screening JSON."""
+    """Fetch USAspending data, send contract + pricing to Claude, return screening JSON."""
     if system_prompt is None:
         from settings_store import resolve_screening_prompt
 
         system_prompt = resolve_screening_prompt()
 
+    from pricing import get_contract_pricing_intel
+
+    pricing_intel = get_contract_pricing_intel(contract, force_refresh=True)
+
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     urls = _collect_urls(raw)
     pdf_blocks, fetched_labels = _attachment_blocks(urls)
-    text = build_screening_text(contract, len(pdf_blocks))
+    text = build_screening_text(contract, len(pdf_blocks), pricing_intel)
 
     content: list[dict[str, Any]] = [
         {"type": "text", "text": text},
@@ -214,5 +270,12 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         analysis["pursue"] = True
     elif analysis.get("pursue") is False:
         analysis["pursue"] = False
+
+    if pricing_intel and not pricing_intel.get("error"):
+        analysis["usaspending_source"] = {
+            "naics_code": pricing_intel.get("naics_code"),
+            "state_code": pricing_intel.get("state_code"),
+            "awards_count": pricing_intel.get("awards_count"),
+        }
 
     return analysis

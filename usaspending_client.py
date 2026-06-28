@@ -200,6 +200,7 @@ def summarize_awards(
         "lookback_years": 3,
         "awards_count": len(awards),
         "awards_with_amounts": len(amounts),
+        "unique_bidders": len(recipient_counts),
         "average_amount": None,
         "highest_amount": None,
         "lowest_amount": None,

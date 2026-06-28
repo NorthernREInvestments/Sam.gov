@@ -157,6 +157,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "reason": analysis.get("reason"),
         "plain_english_summary": analysis.get("plain_english_summary") or analysis.get("executive_summary"),
         "executive_summary": analysis.get("executive_summary"),
+        "pricing_intelligence": analysis.get("pricing_intelligence"),
+        "pricing_intel": row.pricing_intel,
         "sub_type_needed": analysis.get("sub_type_needed"),
         "red_flags": analysis.get("red_flags") or [],
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
