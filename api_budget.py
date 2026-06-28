@@ -38,6 +38,11 @@ def enrich_on_sync_limit() -> int:
     return _daily_limit("ENRICH_ON_SYNC_LIMIT", 5)
 
 
+def sam_pdf_download_limit() -> int:
+    """Separate daily cap for PDF bytes fetched during Claude screening."""
+    return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 25)
+
+
 def _usage_key(prefix: str) -> str:
     return f"{prefix}_usage_{_today()}"
 
@@ -65,16 +70,21 @@ def get_usage_snapshot() -> dict[str, Any]:
     session = SessionLocal()
     try:
         sam_used = _get_usage(session, "sam_api")
+        sam_pdf_used = _get_usage(session, "sam_pdf")
         screen_used = _get_usage(session, "anthropic_screen")
     finally:
         session.close()
 
     sam_limit = sam_daily_limit()
+    sam_pdf_limit = sam_pdf_download_limit()
     screen_limit = screen_daily_limit()
     return {
         "sam_used_today": sam_used,
         "sam_daily_limit": sam_limit,
         "sam_remaining": max(0, sam_limit - sam_used),
+        "sam_pdf_downloads_today": sam_pdf_used,
+        "sam_pdf_download_limit": sam_pdf_limit,
+        "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used),
         "screens_used_today": screen_used,
         "screen_daily_limit": screen_limit,
         "screens_remaining": max(0, screen_limit - screen_used),
@@ -88,6 +98,26 @@ def can_spend_sam(credits: int = 1) -> bool:
         return True
     snap = get_usage_snapshot()
     return snap["sam_remaining"] >= credits
+
+
+def can_download_screening_pdf() -> bool:
+    snap = get_usage_snapshot()
+    return snap["sam_pdf_downloads_remaining"] > 0
+
+
+def record_sam_pdf_download() -> bool:
+    """Record one SAM.gov-hosted PDF download during Claude screening."""
+    session = SessionLocal()
+    try:
+        used = _get_usage(session, "sam_pdf")
+        limit = sam_pdf_download_limit()
+        if used + 1 > limit:
+            return False
+        _set_usage(session, "sam_pdf", used + 1)
+        session.commit()
+        return True
+    finally:
+        session.close()
 
 
 def can_screen() -> bool:

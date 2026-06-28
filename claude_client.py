@@ -140,32 +140,41 @@ def _collect_urls(raw: dict[str, Any]) -> list[str]:
     return ordered
 
 
-def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
-    from api_budget import can_spend_sam, record_sam_usage
+def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    from api_budget import can_download_screening_pdf, record_sam_pdf_download
 
     blocks: list[dict[str, Any]] = []
     reviewed: list[str] = []
-    with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+    skipped: list[str] = []
+    with httpx.Client(timeout=90.0, follow_redirects=True) as client:
         for url in urls:
             if len(blocks) >= MAX_PDFS:
-                break
+                skipped.append(f"{url} (max {MAX_PDFS} PDFs per screen)")
+                continue
             is_sam_download = "sam.gov" in url.lower()
-            if is_sam_download and not can_spend_sam(1):
+            if is_sam_download and not can_download_screening_pdf():
+                skipped.append(f"{url} (SAM PDF download budget reached)")
                 continue
             try:
                 resp = client.get(url)
                 resp.raise_for_status()
             except httpx.HTTPError:
+                skipped.append(url)
                 continue
-            if is_sam_download:
-                record_sam_usage(1)
             content_type = (resp.headers.get("content-type") or "").lower()
             is_pdf = (
                 "pdf" in content_type
                 or url.lower().split("?")[0].endswith(".pdf")
                 or resp.content[:4] == b"%PDF"
             )
-            if not is_pdf or len(resp.content) > MAX_PDF_BYTES:
+            if not is_pdf:
+                skipped.append(f"{url} (not a PDF)")
+                continue
+            if len(resp.content) > MAX_PDF_BYTES:
+                skipped.append(f"{url} (PDF too large)")
+                continue
+            if is_sam_download and not record_sam_pdf_download():
+                skipped.append(f"{url} (SAM PDF download budget reached)")
                 continue
             label = url.split("/")[-1][:80] or url[:80]
             reviewed.append(label)
@@ -179,7 +188,7 @@ def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]
                     },
                 }
             )
-    return blocks, reviewed
+    return blocks, reviewed, skipped
 
 
 def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
@@ -265,6 +274,9 @@ def build_screening_text(
     contract: Any,
     attachment_count: int,
     pricing_intel: dict[str, Any] | None = None,
+    *,
+    attachment_urls: list[str] | None = None,
+    pdfs_skipped: list[str] | None = None,
 ) -> str:
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     description = (
@@ -293,14 +305,23 @@ def build_screening_text(
         f"Due date: {contract.due_date.isoformat() if contract.due_date else 'Unknown'}",
         f"SAM.gov link: {contract.link or 'Unknown'}",
         f"PDF attachments included in this message: {attachment_count}",
+        f"Attachment URLs attempted: {len(attachment_urls or [])}",
         "",
         _format_document_access_block(raw),
+    ]
+    if pdfs_skipped:
+        lines.extend([
+            "",
+            "PDF download notes (not included as documents — explain gaps in plain_english_summary if relevant):",
+            *[f"- {note}" for note in pdfs_skipped[:8]],
+        ])
+    lines.extend([
         "",
         "Full posting description:",
         str(description)[:15000],
         "",
         _format_pricing_block(pricing_intel),
-    ]
+    ])
     if urls:
         lines.extend(["", "All linked URLs from posting:"])
         lines.extend(f"- {url}" for url in urls[:15])
@@ -310,35 +331,37 @@ def build_screening_text(
 
 
 def _collect_attachment_urls(raw: dict[str, Any]) -> list[str]:
-    urls: list[str] = []
-
-    for url in raw.get("attachmentDownloadUrls") or []:
-        if isinstance(url, str) and url.startswith("http"):
-            urls.append(url)
+    """Collect every URL we might download as a PDF for Claude (files first, then all links)."""
+    file_urls: list[str] = []
+    link_urls: list[str] = []
 
     for item in raw.get("opportunityAttachments") or []:
         if not isinstance(item, dict):
             continue
         if item.get("download_url"):
-            urls.append(item["download_url"])
-        elif item.get("is_pdf_link") and item.get("url"):
-            urls.append(item["url"])
+            file_urls.append(str(item["download_url"]))
+            continue
+        url = item.get("url")
+        if isinstance(url, str) and url.startswith("http"):
+            link_urls.append(url)
 
-    resource_links = raw.get("resourceLinks") or []
-    if isinstance(resource_links, list):
-        for item in resource_links:
-            if isinstance(item, str) and item.startswith("http"):
-                urls.append(item)
+    for url in raw.get("attachmentDownloadUrls") or []:
+        if isinstance(url, str) and url.startswith("http"):
+            file_urls.append(url)
 
+    extra: list[str] = []
+    for item in raw.get("resourceLinks") or []:
+        if isinstance(item, str) and item.startswith("http"):
+            extra.append(item)
     for item in raw.get("opportunityLinks") or []:
         if isinstance(item, dict):
             url = item.get("url")
-            if isinstance(url, str) and url.startswith("http") and _looks_like_pdf_link(url):
-                urls.append(url)
+            if isinstance(url, str) and url.startswith("http"):
+                extra.append(url)
 
     seen: set[str] = set()
     ordered: list[str] = []
-    for url in urls:
+    for url in file_urls + link_urls + extra:
         if url not in seen:
             seen.add(url)
             ordered.append(url)
@@ -358,9 +381,13 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         system_prompt = resolve_screening_prompt()
 
     from pricing import get_contract_pricing_intel
-    from sam_enrich import ensure_enriched_sam_raw
+    from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
 
-    ensure_enriched_sam_raw(contract)
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    ensure_enriched_sam_raw(
+        contract,
+        force=needs_attachment_refresh(raw) or not raw.get("descriptionText"),
+    )
     if contract.sam_raw and isinstance(contract.sam_raw, dict):
         if contract.sam_raw.get("descriptionText") and not contract.description:
             contract.description = contract.sam_raw["descriptionText"][:8000]
@@ -374,8 +401,14 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     urls = _collect_attachment_urls(raw)
-    pdf_blocks, fetched_labels = _attachment_blocks(urls)
-    text = build_screening_text(contract, len(pdf_blocks), pricing_intel)
+    pdf_blocks, fetched_labels, skipped_labels = _attachment_blocks(urls)
+    text = build_screening_text(
+        contract,
+        len(pdf_blocks),
+        pricing_intel,
+        attachment_urls=urls,
+        pdfs_skipped=skipped_labels,
+    )
 
     content: list[dict[str, Any]] = [
         {"type": "text", "text": text},
@@ -395,6 +428,10 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
 
     if fetched_labels and not analysis.get("attachments_reviewed"):
         analysis["attachments_reviewed"] = fetched_labels
+    analysis["pdfs_sent_to_claude"] = len(pdf_blocks)
+    analysis["pdf_urls_attempted"] = len(urls)
+    if skipped_labels:
+        analysis["pdfs_not_included"] = skipped_labels[:12]
 
     document_access = raw.get("documentAccess") if isinstance(raw.get("documentAccess"), dict) else None
     if document_access:

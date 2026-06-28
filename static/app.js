@@ -764,7 +764,8 @@ async function loadSettingsPage() {
 
   const budget = data.api_budget || {};
   document.getElementById("api-budget-status").innerHTML = `
-    <li>SAM.gov API: ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
+    <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
+    <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
     <li>Claude screenings: ${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)</li>
     <li>Attachment enrich on sync: up to ${budget.enrich_on_sync_limit ?? 5} contracts per sync</li>
     <li>Auto-screen on startup: ${budget.auto_screen_on_startup ? "on" : "off"}</li>
