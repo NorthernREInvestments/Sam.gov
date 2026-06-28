@@ -43,11 +43,20 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_sam_raw()
+    _migrate_add_pricing_intel()
 
 
 def _migrate_add_sam_raw() -> None:
     with engine.connect() as conn:
         conn.execute(
             text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sam_raw JSONB")
+        )
+        conn.commit()
+
+
+def _migrate_add_pricing_intel() -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
         )
         conn.commit()

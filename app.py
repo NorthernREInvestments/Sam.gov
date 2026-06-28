@@ -23,6 +23,7 @@ from database import SessionLocal
 from sam_client import min_days_from_env, naics_from_env
 from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
+from pricing import get_contract_pricing_intel
 from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
 from screen import screen_one, screen_pending
 
@@ -43,6 +44,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from database import init_db
+
+    init_db()
     start_scheduler()
     from screen import start_background_screening
 
@@ -156,6 +160,29 @@ def get_contract(notice_id: str):
         data = contract_to_dict(row)
         data["sam_raw"] = row.sam_raw
         return data
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/pricing")
+def get_contract_pricing(notice_id: str, refresh: bool = Query(False)):
+    session = SessionLocal()
+    try:
+        from models import Contract
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        intel = get_contract_pricing_intel(row, force_refresh=refresh)
+        session.commit()
+        return intel
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=f"Pricing lookup failed: {exc}") from exc
     finally:
         session.close()
 

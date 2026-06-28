@@ -173,6 +173,10 @@ async function openDetail(noticeId) {
     <div class="detail-row"><strong>Quick reason</strong><p>${escapeHtml(c.reason || c.analysis?.reason || "-")}</p></div>
     <div class="detail-row"><strong>Sub type needed</strong><p>${escapeHtml(c.sub_type_needed || "-")}</p></div>
     <div class="detail-row"><strong>Red flags</strong>${redFlags}</div>
+    <div id="pricing-panel" class="pricing-panel pricing-panel-loading">
+      <p class="detail-section-title">Pricing intelligence</p>
+      <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
+    </div>
     <p class="detail-section-title">Contract details</p>
     <div class="detail-row"><strong>Official title</strong><p>${escapeHtml(c.title)}</p></div>
     <div class="detail-row"><strong>Agency</strong><p>${escapeHtml(c.agency || "-")}</p></div>
@@ -183,6 +187,7 @@ async function openDetail(noticeId) {
     ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}
   `;
   document.getElementById("modal").hidden = false;
+  loadPricingIntel(noticeId);
 
   const screenBtn = document.getElementById("screen-one-btn");
   if (screenBtn) {
@@ -217,6 +222,109 @@ function firstSentence(text, maxLen = 180) {
   const sentence = match ? match[0].trim() : trimmed;
   if (sentence.length <= maxLen) return sentence;
   return `${sentence.slice(0, maxLen).trim()}…`;
+}
+
+function formatMoney(value) {
+  if (value == null || value === "" || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number(value));
+}
+
+function renderPricingPanel(intel) {
+  if (intel.error) {
+    return `
+      <p class="detail-section-title">Pricing intelligence</p>
+      <div class="pricing-panel pricing-panel-error">
+        <p>${escapeHtml(intel.error)}</p>
+        ${intel.naics_code ? `<p class="pricing-meta">NAICS ${escapeHtml(intel.naics_code)}${intel.state_code ? ` · ${escapeHtml(intel.state_code)}` : ""}</p>` : ""}
+      </div>`;
+  }
+
+  const winner = intel.most_frequent_winner
+    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (${intel.most_frequent_winner_count} awards)` : ""}`
+    : "—";
+
+  const awardsTable = (intel.awards || []).length
+    ? `<table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Recipient</th>
+            <th>Amount</th>
+            <th>Agency</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${intel.awards.map((a) => `
+            <tr>
+              <td>${escapeHtml(a.start_date || "—")}</td>
+              <td>${escapeHtml(a.recipient_name || "—")}</td>
+              <td>${formatMoney(a.award_amount)}</td>
+              <td>${escapeHtml(a.awarding_agency || "—")}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`
+    : `<p class="pricing-meta">No comparable awards found for this NAICS and state in the last 3 years.</p>`;
+
+  return `
+    <p class="detail-section-title">Pricing intelligence</p>
+    <div class="pricing-panel">
+      <p class="pricing-intro">
+        ${intel.awards_count} comparable contract${intel.awards_count === 1 ? "" : "s"} in
+        <strong>${escapeHtml(intel.state_code || "")}</strong> · NAICS
+        <strong>${escapeHtml(intel.naics_code || "")}</strong> · last 3 years
+        <span class="pricing-source">(USAspending.gov)</span>
+      </p>
+      <div class="pricing-stats">
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Average award</span>
+          <span class="pricing-stat-value">${formatMoney(intel.average_amount)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Highest award</span>
+          <span class="pricing-stat-value">${formatMoney(intel.highest_amount)}</span>
+        </div>
+        <div class="pricing-stat">
+          <span class="pricing-stat-label">Lowest award</span>
+          <span class="pricing-stat-value">${formatMoney(intel.lowest_amount)}</span>
+        </div>
+        <div class="pricing-stat pricing-stat-wide">
+          <span class="pricing-stat-label">Most frequent winner</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winner)}</span>
+        </div>
+        <div class="pricing-stat pricing-stat-highlight">
+          <span class="pricing-stat-label">Recommended bid range</span>
+          <span class="pricing-stat-value">${formatMoney(intel.recommended_bid_low)} – ${formatMoney(intel.recommended_bid_high)}</span>
+        </div>
+      </div>
+      ${intel.recommended_bid_note ? `<p class="pricing-note">${escapeHtml(intel.recommended_bid_note)}</p>` : ""}
+      ${awardsTable}
+    </div>`;
+}
+
+async function loadPricingIntel(noticeId, refresh = false) {
+  const container = document.getElementById("pricing-panel");
+  if (!container) return;
+  container.className = "pricing-panel pricing-panel-loading";
+  container.innerHTML = `
+    <p class="detail-section-title">Pricing intelligence</p>
+    <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>`;
+
+  try {
+    const url = `/api/contracts/${encodeURIComponent(noticeId)}/pricing${refresh ? "?refresh=true" : ""}`;
+    const res = await apiFetch(url);
+    const intel = await res.json();
+    if (!res.ok) throw new Error(intel.detail || "Pricing lookup failed");
+    container.outerHTML = renderPricingPanel(intel);
+  } catch (err) {
+    container.className = "pricing-panel pricing-panel-error";
+    container.innerHTML = `
+      <p class="detail-section-title">Pricing intelligence</p>
+      <p>${escapeHtml(err.message || "Could not load pricing data.")}</p>`;
+  }
 }
 
 function closeModal() {

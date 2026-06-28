@@ -38,6 +38,7 @@ class Contract(Base):
     status: Mapped[str] = mapped_column(String(32), default="new", index=True)
     sam_raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pricing_intel: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
