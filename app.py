@@ -48,12 +48,12 @@ async def lifespan(app: FastAPI):
 
     init_db()
     start_scheduler()
-    from api_budget import auto_screen_on_startup
+    from api_budget import intake_on_sync_enabled
 
-    if auto_screen_on_startup():
-        from screen import start_background_screening
+    if intake_on_sync_enabled():
+        from intake import start_background_intake
 
-        start_background_screening()
+        start_background_intake()
     yield
     stop_scheduler()
 

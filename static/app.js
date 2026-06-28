@@ -689,9 +689,9 @@ async function runSync(allNaics = false) {
   other.disabled = true;
   const label = btn.textContent;
   btn.textContent = "Syncing...";
-  showSyncStatus(allNaics
-    ? `Pulling all ${config.naics_codes?.length || 6} NAICS codes from SAM.gov...`
-    : "Pulling next NAICS code from SAM.gov (1 API call)...");
+    showSyncStatus(allNaics
+    ? `Pulling all ${config.naics_codes?.length || 6} NAICS codes, then reading descriptions + attachments and writing summaries…`
+    : "Searching SAM.gov, then reading descriptions + attachments and writing summaries for matching bids…");
 
   try {
     const url = allNaics ? "/api/sync?all_naics=true" : "/api/sync";
@@ -699,10 +699,13 @@ async function runSync(allNaics = false) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Sync failed");
     const budgetLine = data.api_budget ? ` ${formatApiBudget(data.api_budget)}` : "";
-    const enrichLine = data.attachments_enriched
-      ? ` Enriched attachments on ${data.attachments_enriched} contract(s).`
-      : "";
-    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${enrichLine}${budgetLine}`);
+    const intake = data.intake || {};
+    const intakeLine = intake.screened
+      ? ` Wrote summaries for ${intake.screened} contract(s).`
+      : intake.processed
+        ? ` Processed ${intake.processed} (descriptions loaded; summaries may still be running in background).`
+        : "";
+    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${intakeLine}${budgetLine}`);
     await loadConfig();
     await loadContracts();
   } catch (err) {
@@ -767,8 +770,7 @@ async function loadSettingsPage() {
     <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
     <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
     <li>Claude screenings: ${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)</li>
-    <li>Attachment enrich on sync: up to ${budget.enrich_on_sync_limit ?? 5} contracts per sync</li>
-    <li>Auto-screen on startup: ${budget.auto_screen_on_startup ? "on" : "off"}</li>
+    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} matching bids per sync, then background)</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");

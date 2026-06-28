@@ -244,14 +244,17 @@ def sync_from_sam() -> dict[str, Any]:
     """Pull one NAICS code from SAM.gov (1 API call) and upsert into PostgreSQL."""
     naics_codes = naics_from_env()
     session = SessionLocal()
-    attachments_enriched = 0
+    intake_result: dict[str, Any] = {}
     try:
         index = int(_get_setting(session, "naics_rotation_index", "0")) % len(naics_codes)
         naics_today = naics_codes[index]
 
         batch = fetch_naics_from_sam(naics_today)
         new_count, updated_count = upsert_contracts(session, batch)
-        attachments_enriched = refresh_stale_sam_raw(session)
+        batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
+        from intake import intake_matching_contracts
+
+        intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
         synced_map[naics_today] = date.today().isoformat()
@@ -271,12 +274,11 @@ def sync_from_sam() -> dict[str, Any]:
     finally:
         session.close()
 
-    from api_budget import auto_screen_on_startup, get_usage_snapshot
+    from api_budget import get_usage_snapshot, intake_on_sync_enabled
+    from intake import start_background_intake
 
-    if new_count > 0 and auto_screen_on_startup():
-        from screen import start_background_screening
-
-        start_background_screening()
+    if intake_on_sync_enabled():
+        start_background_intake()
 
     return {
         "api_calls": 1,
@@ -284,7 +286,7 @@ def sync_from_sam() -> dict[str, Any]:
         "fetched_from_sam": len(batch),
         "new": new_count,
         "updated": updated_count,
-        "attachments_enriched": attachments_enriched,
+        "intake": intake_result,
         "total_in_db": total,
         "naics_synced": loaded,
         "naics_total": len(naics_codes),
@@ -301,7 +303,8 @@ def sync_all_naics() -> dict[str, Any]:
     updated_total = 0
     per_naics: list[dict[str, Any]] = []
     synced_map: dict[str, str] = {}
-    attachments_enriched = 0
+    intake_result: dict[str, Any] = {}
+    all_notice_ids: list[str] = []
 
     status_session = SessionLocal()
     try:
@@ -313,6 +316,7 @@ def sync_all_naics() -> dict[str, Any]:
         batch = fetch_naics_from_sam(naics)
         api_calls += 1
         fetched_total += len(batch)
+        all_notice_ids.extend(str(o.get("notice_id") or "") for o in batch if o.get("notice_id"))
 
         session = SessionLocal()
         try:
@@ -330,7 +334,9 @@ def sync_all_naics() -> dict[str, Any]:
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
-        attachments_enriched = refresh_stale_sam_raw(session)
+        from intake import intake_matching_contracts
+
+        intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
         total = session.query(Contract).count()
     finally:
@@ -341,12 +347,11 @@ def sync_all_naics() -> dict[str, Any]:
         f"Fetched {fetched_total} opportunities from SAM.gov."
     )
 
-    from api_budget import auto_screen_on_startup, get_usage_snapshot
+    from api_budget import get_usage_snapshot, intake_on_sync_enabled
+    from intake import start_background_intake
 
-    if new_total > 0 and auto_screen_on_startup():
-        from screen import start_background_screening
-
-        start_background_screening()
+    if intake_on_sync_enabled():
+        start_background_intake()
 
     return {
         "api_calls": api_calls,
@@ -354,7 +359,7 @@ def sync_all_naics() -> dict[str, Any]:
         "fetched_from_sam": fetched_total,
         "new": new_total,
         "updated": updated_total,
-        "attachments_enriched": attachments_enriched,
+        "intake": intake_result,
         "total_in_db": total,
         "naics_synced": len(naics_codes),
         "naics_total": len(naics_codes),

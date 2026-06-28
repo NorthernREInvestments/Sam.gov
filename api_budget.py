@@ -30,12 +30,24 @@ def screen_daily_limit() -> int:
     return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 10)
 
 
-def auto_screen_on_startup() -> bool:
-    return os.getenv("AUTO_SCREEN_ON_STARTUP", "false").strip().lower() in ("1", "true", "yes")
-
-
 def enrich_on_sync_limit() -> int:
     return _daily_limit("ENRICH_ON_SYNC_LIMIT", 5)
+
+
+def intake_on_sync_enabled() -> bool:
+    raw = os.getenv("INTAKE_ON_SYNC", "true").strip().lower()
+    return raw not in ("0", "false", "no")
+
+
+def intake_per_sync_limit() -> int:
+    return _daily_limit("INTAKE_PER_SYNC_LIMIT", 5)
+
+
+def auto_screen_on_startup() -> bool:
+    """Legacy flag — intake on startup uses INTAKE_ON_SYNC instead."""
+    if os.getenv("AUTO_SCREEN_ON_STARTUP", "").strip():
+        return os.getenv("AUTO_SCREEN_ON_STARTUP", "false").strip().lower() in ("1", "true", "yes")
+    return intake_on_sync_enabled()
 
 
 def sam_pdf_download_limit() -> int:
@@ -90,6 +102,8 @@ def get_usage_snapshot() -> dict[str, Any]:
         "screens_remaining": max(0, screen_limit - screen_used),
         "auto_screen_on_startup": auto_screen_on_startup(),
         "enrich_on_sync_limit": enrich_on_sync_limit(),
+        "intake_on_sync": intake_on_sync_enabled(),
+        "intake_per_sync_limit": intake_per_sync_limit(),
     }
 
 
