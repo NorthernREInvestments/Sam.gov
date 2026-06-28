@@ -385,12 +385,74 @@ body {
   margin-bottom: 0.65rem;
 }
 
+.card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-top .card-due {
+  margin-bottom: 0;
+  flex: 1 1 180px;
+}
+
+.card-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.card-label-inline {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
+
+.card-section {
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.card-section-summary {
+  border-top: none;
+  padding-top: 0;
+}
+
+.card-section-bid {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.card-bid-range {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #15803d;
+  margin-top: 0.15rem;
+}
+
+.card-section-footer {
+  padding-bottom: 0;
+}
+
 .card-due {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.35rem 0.6rem;
-  margin-bottom: 0.75rem;
   padding: 0.55rem 0.65rem;
   background: #eef2ff;
   border-radius: 8px;
@@ -603,12 +665,6 @@ body {
 }
 
 .executive-summary {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-left: 4px solid var(--primary);
-  border-radius: 8px;
-  padding: 1rem 1.1rem;
-  margin: 0 0 1.25rem;
   font-size: 1rem;
   line-height: 1.6;
   color: var(--text);
@@ -623,11 +679,9 @@ body {
 }
 
 .executive-summary-placeholder {
-  background: #fffbeb;
   border: 1px dashed #fbbf24;
   border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 1rem;
   color: #92400e;
 }
 
@@ -638,6 +692,98 @@ body {
   letter-spacing: 0.04em;
   color: var(--muted);
   margin: 1.25rem 0 0.5rem;
+}
+
+.detail-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.detail-section-heading {
+  margin: 0 0 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.detail-section-summary {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.detail-section-pricing {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.detail-section-screening {
+  background: #fafafa;
+}
+
+.detail-section-contract {
+  background: #fff;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.detail-item-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-item-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.detail-item-value {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.detail-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.detail-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.detail-section .executive-summary,
+.detail-section .executive-summary-placeholder {
+  margin: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.detail-section .pricing-panel {
+  margin: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pricing-panel {

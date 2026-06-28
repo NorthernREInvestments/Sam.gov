@@ -104,25 +104,46 @@ function renderCards() {
     const subType = c.sub_type_needed || "Not screened yet";
     const summary = c.plain_english_summary || c.executive_summary;
     const headline = summary ? firstSentence(summary, 160) : null;
+    const pricing = c.pricing_intelligence || c.analysis?.pricing_intelligence;
+    const bidPreview = pricing?.recommended_bid_low && pricing?.recommended_bid_high
+      ? `<div class="card-section card-section-bid">
+           <span class="card-label">Recommended bid</span>
+           <span class="card-bid-range">${formatMoney(pricing.recommended_bid_low)} – ${formatMoney(pricing.recommended_bid_high)}</span>
+         </div>`
+      : "";
     const titleBlock = headline
-      ? `<h3 class="card-title">${escapeHtml(headline)}</h3>
-         <p class="card-official-title">${escapeHtml(c.title)}</p>`
-      : `<h3 class="card-title">${escapeHtml(c.title)}</h3>
-         <p class="card-pending-note">Plain-English summary being generated…</p>`;
+      ? `<div class="card-section card-section-summary">
+           <span class="card-label">What it is</span>
+           <h3 class="card-title">${escapeHtml(headline)}</h3>
+           <p class="card-official-title">${escapeHtml(c.title)}</p>
+         </div>`
+      : `<div class="card-section card-section-summary">
+           <span class="card-label">What it is</span>
+           <h3 class="card-title">${escapeHtml(c.title)}</h3>
+           <p class="card-pending-note">Plain-English summary being generated…</p>
+         </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
-      <div class="card-header">${screeningBadge(c)}</div>
-      <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
-        <span class="card-due-label">Due</span>
-        <span class="card-due-date">${escapeHtml(due.main)}</span>
-        ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
+      <div class="card-top">
+        ${screeningBadge(c)}
+        <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
+          <span class="card-due-label">Due</span>
+          <span class="card-due-date">${escapeHtml(due.main)}</span>
+          ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
+        </div>
       </div>
       ${titleBlock}
-      <p class="card-meta">${escapeHtml(c.agency || "Unknown agency")}</p>
-      <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
-      <p class="card-subtype"><strong>Sub type:</strong> ${escapeHtml(subType)}</p>
-      <p class="card-meta card-naics"><span class="card-naics-label">${escapeHtml(naicsLine)}</span></p>
+      ${bidPreview}
+      <div class="card-section card-section-location">
+        <span class="card-label">Where</span>
+        <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
+        <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
+      </div>
+      <div class="card-section card-section-footer">
+        <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
+        <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
+      </div>
     </article>`;
   }).join("");
 
@@ -144,6 +165,14 @@ async function loadContracts() {
   renderCards();
 }
 
+function wrapDetailSection(title, innerHtml, extraClass = "") {
+  return `
+    <section class="detail-section ${extraClass}">
+      <h3 class="detail-section-heading">${escapeHtml(title)}</h3>
+      ${innerHtml}
+    </section>`;
+}
+
 async function openDetail(noticeId) {
   const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}`);
   if (!res.ok) return;
@@ -151,44 +180,84 @@ async function openDetail(noticeId) {
   const due = formatDue(c);
   const summary = c.plain_english_summary || c.executive_summary || c.analysis?.plain_english_summary || c.analysis?.executive_summary;
   const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-  const summaryBlock = summary
+  const summaryInner = summary
     ? `<div class="executive-summary">${formatSummaryHtml(summary)}</div>`
     : `<div class="executive-summary-placeholder">
          Plain-English summary is being generated automatically. Refresh in a minute, or analyze now:
          <button type="button" class="btn btn-primary" id="screen-one-btn" style="margin-top:0.75rem">Analyze this contract now</button>
        </div>`;
-  const pricingBlock = pricingIntel
+  const pricingInner = pricingIntel
     ? renderClaudePricingPanel(pricingIntel, c.pricing_intel)
     : `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
-         <p class="detail-section-title">Pricing intelligence</p>
          <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
        </div>`;
   const redFlags = c.red_flags?.length
-    ? `<ul>${c.red_flags.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
+    ? `<ul class="detail-list">${c.red_flags.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
     : "<p>None</p>";
   const attachments = c.analysis?.attachments_reviewed;
   const attachmentNote = attachments?.length
-    ? `<p class="card-meta">PDFs reviewed: ${attachments.map(escapeHtml).join(", ")}</p>`
+    ? `<p class="detail-note">PDFs reviewed: ${attachments.map(escapeHtml).join(", ")}</p>`
     : "";
 
+  const screeningInner = `
+    <div class="detail-grid">
+      <div class="detail-item">
+        <span class="detail-item-label">Verdict</span>
+        <div class="modal-badges">${screeningBadge(c)}</div>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Due date</span>
+        <p class="detail-item-value">${escapeHtml(due.main)}${due.sub ? ` · ${escapeHtml(due.sub)}` : ""}</p>
+      </div>
+      <div class="detail-item detail-item-wide">
+        <span class="detail-item-label">Quick reason</span>
+        <p class="detail-item-value">${escapeHtml(c.reason || c.analysis?.reason || "-")}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Sub type needed</span>
+        <p class="detail-item-value">${escapeHtml(c.sub_type_needed || "-")}</p>
+      </div>
+      <div class="detail-item detail-item-wide">
+        <span class="detail-item-label">Red flags</span>
+        ${redFlags}
+      </div>
+    </div>
+    ${attachmentNote}`;
+
+  const contractInner = `
+    <div class="detail-grid">
+      <div class="detail-item detail-item-wide">
+        <span class="detail-item-label">Official title</span>
+        <p class="detail-item-value">${escapeHtml(c.title)}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Agency</span>
+        <p class="detail-item-value">${escapeHtml(c.agency || "-")}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Location</span>
+        <p class="detail-item-value">${escapeHtml(c.location || "-")}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">NAICS</span>
+        <p class="detail-item-value">${escapeHtml(c.naics_display || c.naics_code || "-")}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Set-aside</span>
+        <p class="detail-item-value">${escapeHtml(c.set_aside || "-")}</p>
+      </div>
+      <div class="detail-item">
+        <span class="detail-item-label">Status</span>
+        <p class="detail-item-value">${escapeHtml(c.status)}</p>
+      </div>
+    </div>
+    ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}`;
+
   document.getElementById("modal-content").innerHTML = `
-    ${summaryBlock}
-    ${pricingBlock}
-    <div class="modal-badges">${screeningBadge(c)}</div>
-    ${summary ? "" : `<h2>${escapeHtml(c.title)}</h2>`}
-    <div class="detail-due">${due.main}${due.sub ? ` · ${due.sub}` : ""}</div>
-    ${attachmentNote}
-    <div class="detail-row"><strong>Quick reason</strong><p>${escapeHtml(c.reason || c.analysis?.reason || "-")}</p></div>
-    <div class="detail-row"><strong>Sub type needed</strong><p>${escapeHtml(c.sub_type_needed || "-")}</p></div>
-    <div class="detail-row"><strong>Red flags</strong>${redFlags}</div>
-    <p class="detail-section-title">Contract details</p>
-    <div class="detail-row"><strong>Official title</strong><p>${escapeHtml(c.title)}</p></div>
-    <div class="detail-row"><strong>Agency</strong><p>${escapeHtml(c.agency || "-")}</p></div>
-    <div class="detail-row"><strong>Location</strong><p>${escapeHtml(c.location || "-")}</p></div>
-    <div class="detail-row"><strong>NAICS</strong><p>${escapeHtml(c.naics_display || c.naics_code || "-")}</p></div>
-    <div class="detail-row"><strong>Set-aside</strong><p>${escapeHtml(c.set_aside || "-")}</p></div>
-    <div class="detail-row"><strong>Status</strong><p>${escapeHtml(c.status)}</p></div>
-    ${c.link ? `<a class="detail-link" href="${escapeHtml(c.link)}" target="_blank" rel="noopener">View on SAM.gov</a>` : ""}
+    ${wrapDetailSection("Plain English summary", summaryInner, "detail-section-summary")}
+    ${wrapDetailSection("Pricing intelligence", pricingInner, "detail-section-pricing")}
+    ${wrapDetailSection("Screening verdict", screeningInner, "detail-section-screening")}
+    ${wrapDetailSection("Contract details", contractInner, "detail-section-contract")}
   `;
   document.getElementById("modal").hidden = false;
   if (!pricingIntel) loadPricingIntel(noticeId);
@@ -298,7 +367,6 @@ function renderClaudePricingPanel(pricing, rawIntel) {
   const awardsTable = renderAwardsTable(rawIntel?.awards);
 
   return `
-    <p class="detail-section-title">Pricing intelligence</p>
     <div class="pricing-panel">
       <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(USAspending.gov + Claude analysis · recent awards weighted higher)</span></p>
       <div class="pricing-bid-hero">
@@ -339,7 +407,6 @@ function renderClaudePricingPanel(pricing, rawIntel) {
 function renderPricingPanel(intel) {
   if (intel.error) {
     return `
-      <p class="detail-section-title">Pricing intelligence</p>
       <div class="pricing-panel pricing-panel-error">
         <p>${escapeHtml(intel.error)}</p>
         ${intel.naics_code ? `<p class="pricing-meta">NAICS ${escapeHtml(intel.naics_code)}${intel.state_code ? ` · ${escapeHtml(intel.state_code)}` : ""}</p>` : ""}
@@ -354,7 +421,6 @@ function renderPricingPanel(intel) {
     || `<p class="pricing-meta">No comparable awards found for this NAICS and state in the last 3 years.</p>`;
 
   return `
-    <p class="detail-section-title">Pricing intelligence</p>
     <div class="pricing-panel">
       <p class="pricing-intro">
         ${intel.awards_with_dates || intel.awards_count} dated contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} in
@@ -394,9 +460,7 @@ async function loadPricingIntel(noticeId, refresh = false) {
   const container = document.getElementById("pricing-panel");
   if (!container) return;
   container.className = "pricing-panel pricing-panel-loading";
-  container.innerHTML = `
-    <p class="detail-section-title">Pricing intelligence</p>
-    <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>`;
+  container.innerHTML = `<p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>`;
 
   try {
     const url = `/api/contracts/${encodeURIComponent(noticeId)}/pricing${refresh ? "?refresh=true" : ""}`;
@@ -406,9 +470,7 @@ async function loadPricingIntel(noticeId, refresh = false) {
     container.outerHTML = renderPricingPanel(intel);
   } catch (err) {
     container.className = "pricing-panel pricing-panel-error";
-    container.innerHTML = `
-      <p class="detail-section-title">Pricing intelligence</p>
-      <p>${escapeHtml(err.message || "Could not load pricing data.")}</p>`;
+    container.innerHTML = `<p>${escapeHtml(err.message || "Could not load pricing data.")}</p>`;
   }
 }
 
