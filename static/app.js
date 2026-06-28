@@ -198,17 +198,45 @@ function renderPipelineStrip(c) {
   const steps = [...(pipe.intake || []), ...(pipe.bid || [])];
   if (!steps.length) return "";
   const locked = pipe.do_not_rebid;
+  let currentIdx = steps.findIndex((s) => s.state === "pending");
+  if (currentIdx === -1) currentIdx = steps.length - 1;
+
   return `
-    <div class="card-pipeline${locked ? " card-pipeline-locked" : ""}">
-      ${locked ? `<p class="card-pipeline-lock">Already submitted — do not bid again</p>` : ""}
-      <div class="card-pipeline-steps">
+    <div class="workflow-track${locked ? " workflow-track-locked" : ""}" aria-label="Contract progress">
+      ${locked ? `<p class="workflow-track-lock">Already submitted — do not bid again</p>` : ""}
+      <ol class="workflow-stepper">
         ${steps
-          .map(
-            (s) =>
-              `<span class="pipeline-step pipeline-${s.state}" title="${escapeHtml(s.label)}">${escapeHtml(s.label)}</span>`
-          )
+          .map((s, i) => {
+            let stepClass = "upcoming";
+            if (s.state === "done") stepClass = "done";
+            else if (i === currentIdx) stepClass = "current";
+            return `<li class="workflow-step workflow-step-${stepClass}">
+              <span class="workflow-step-marker" aria-hidden="true"></span>
+              <span class="workflow-step-label">${escapeHtml(s.label)}</span>
+            </li>`;
+          })
           .join("")}
+      </ol>
+    </div>`;
+}
+
+function renderCardActions(c) {
+  const wf = c.workflow || {};
+  const pursueBtn = typeof renderPursueButton === "function" ? renderPursueButton(c) : "";
+  const continueProposal = typeof renderContinueProposal === "function" ? renderContinueProposal(c) : "";
+  const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
+  const forceFullBtn = renderForceFullAnalysisButton(c);
+  const primary = continueProposal || pursueBtn;
+  const secondary = [findSubsBtn, forceFullBtn].filter(Boolean).join("");
+  if (!primary && !secondary) return "";
+  return `
+    <div class="card-actions">
+      <span class="card-label">Next step</span>
+      <div class="card-actions-row">
+        ${primary ? `<div class="card-actions-primary">${primary}</div>` : ""}
+        ${secondary ? `<div class="card-actions-secondary">${secondary}</div>` : ""}
       </div>
+      ${wf.label && c.pursue === true ? `<p class="card-actions-hint">${escapeHtml(wf.label)}</p>` : ""}
     </div>`;
 }
 
@@ -297,21 +325,15 @@ function renderCards() {
     const attachmentsHtml = renderCardAttachments(c);
     const networkBanner = typeof renderNetworkBanner === "function" ? renderNetworkBanner(c) : "";
     const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
-    const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
-    const pursueBtn = typeof renderPursueButton === "function" ? renderPursueButton(c) : "";
-    const forceFullBtn = renderForceFullAnalysisButton(c);
     const wf = c.workflow || {};
     const workflowClass = wf.stage && wf.stage !== "none" ? ` card-workflow-${wf.stage}` : "";
     const workflowBanner = typeof renderWorkflowBanner === "function" ? renderWorkflowBanner(c) : "";
-    const continueProposal = typeof renderContinueProposal === "function" ? renderContinueProposal(c) : "";
     const pipelineStrip = renderPipelineStrip(c);
+    const cardActions = renderCardActions(c);
     return `
     <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
       <div class="card-top">
-        ${screeningBadge(c)}
-        ${tierBadge(c)}
-        ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""}
-        ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance required</span>' : ""}
+        <div class="card-badges">${screeningBadge(c)} ${tierBadge(c)} ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""} ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance</span>' : ""}</div>
         <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
           <span class="card-due-label">Due</span>
           <span class="card-due-date">${escapeHtml(due.main)}</span>
@@ -320,24 +342,25 @@ function renderCards() {
       </div>
       ${pipelineStrip}
       ${workflowBanner}
-      ${titleBlock}
-      ${networkBanner}
-      ${subSummaryCard}
-      ${bidPreview}
+      <div class="card-body">
+        <div class="card-main">
+          ${titleBlock}
+          ${networkBanner}
+          ${subSummaryCard}
+        </div>
+        <aside class="card-side">
+          ${bidPreview}
+          <div class="card-section card-section-location card-section-compact">
+            <span class="card-label">Where</span>
+            <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
+            <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
+            <p class="card-meta card-naics"><span class="card-label-inline">NAICS</span> ${escapeHtml(naicsLine)}</p>
+            <p class="card-subtype"><span class="card-label-inline">Sub type</span> ${escapeHtml(subType)}</p>
+          </div>
+        </aside>
+      </div>
       ${attachmentsHtml}
-      <div class="card-section card-section-location">
-        <span class="card-label">Where</span>
-        <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
-        <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
-      </div>
-      <div class="card-section card-section-footer">
-        <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
-        <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
-        ${findSubsBtn}
-        ${forceFullBtn}
-        ${continueProposal}
-        ${pursueBtn}
-      </div>
+      ${cardActions}
     </article>`;
   }).join("");
 
@@ -520,17 +543,21 @@ function renderDetailModal(c, { analyzing = false } = {}) {
   const subsLink = typeof renderSubSummaryLink === "function" ? renderSubSummaryLink(c) : "";
   const pursueSection = typeof renderPursueSection === "function" ? renderPursueSection(c) : "";
   const solSection = renderSolicitationMetaSection(c);
+  const pipelineStrip = renderPipelineStrip(c);
 
   document.getElementById("modal-content").innerHTML = `
     <div class="detail-header">
       <h2 class="detail-title">${escapeHtml(c.title)}</h2>
       <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
     </div>
-    ${wrapDetailSection("Plain English summary", summaryInner, "detail-section-summary")}
-    ${wrapDetailSection("Solicitation details", solSection, "detail-section-solicitation")}
-    ${wrapDetailSection("Pricing intelligence", pricingInner, "detail-section-pricing")}
-    ${wrapDetailSection("Recommended subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
-    ${wrapDetailSection("Pursue", pursueSection, "detail-section-pursue")}
+    ${pipelineStrip}
+    <div class="detail-workflow-grid">
+      ${wrapDetailSection("1 · Evaluate", summaryInner, "detail-section-summary")}
+      ${wrapDetailSection("2 · Solicitation", solSection, "detail-section-solicitation")}
+      ${wrapDetailSection("3 · Pricing", pricingInner, "detail-section-pricing")}
+      ${wrapDetailSection("4 · Subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
+      ${wrapDetailSection("5 · Pursue", pursueSection, "detail-section-pursue")}
+    </div>
   `;
   document.getElementById("extract-solicitation-btn")?.addEventListener("click", () => {
     extractSolicitationMeta(c.notice_id).catch((err) => showSyncStatus(err.message, true));

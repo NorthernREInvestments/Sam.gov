@@ -207,7 +207,7 @@ function renderContractSubsPage(data) {
       ${selectedNote}
       <button type="button" class="btn btn-secondary-action btn-small" data-find-subs="${escapeHtml(data.notice_id)}">Run Google Places search</button>
     </div>
-    <div class="subs-cards">${(data.subs || []).map(renderSubCard).join("") || '<p class="empty">No subs linked yet.</p>'}</div>`;
+    <div class="subs-cards subs-workflow-grid">${(data.subs || []).map(renderSubCard).join("") || '<p class="empty">No subs linked yet.</p>'}</div>`;
 }
 
 function renderSubCard(sub) {
@@ -215,37 +215,67 @@ function renderSubCard(sub) {
     ? `<a href="tel:${escapeHtml(String(sub.phone).replace(/[^\d+]/g, ""))}">${escapeHtml(sub.phone)}</a>`
     : "—";
   const stars = sub.rating != null ? `${sub.rating} ★ (${sub.review_count ?? 0} reviews)` : "No rating";
-  const agreementSection =
+  const agreementSection = sub.status === "Selected" ? renderAgreementSection(sub) : "";
+  const profileSection = sub.status === "Selected" ? renderSubProfileFields(sub) : "";
+  const selectedClass = sub.is_selected ? " sub-card-selected sub-card-workflow-active" : "";
+
+  const outreachBlock = `
+    <div class="sub-workflow-step">
+      <div class="sub-workflow-step-head"><span class="sub-workflow-num">1</span> Outreach</div>
+      <div class="sub-outreach-grid">
+        <div class="sub-outreach-field sub-outreach-field-full">
+          <label class="filter-label">Status</label>
+          <select class="settings-input sub-status-select" data-field="status">
+            ${SUB_STATUSES.map((s) => `<option value="${escapeHtml(s)}" ${s === sub.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="sub-outreach-field">
+          <label class="filter-label">Monthly quote</label>
+          <input type="number" class="settings-input sub-quote-amount" data-field="quote_amount" value="${sub.quote_amount ?? ""}" step="0.01" placeholder="Amount">
+        </div>
+        <div class="sub-outreach-field">
+          <label class="filter-label">Quote date</label>
+          <input type="date" class="settings-input sub-quote-date" data-field="quote_date" value="${sub.quote_date || ""}">
+        </div>
+        <div class="sub-outreach-field sub-outreach-field-full">
+          <label class="filter-label">Call notes</label>
+          <textarea class="settings-input sub-notes" data-field="contact_notes" rows="2" placeholder="Who you spoke with…">${escapeHtml(sub.contact_notes || "")}</textarea>
+        </div>
+      </div>
+    </div>`;
+
+  const agreementBlock =
     sub.status === "Selected"
-      ? renderAgreementSection(sub)
+      ? `<div class="sub-workflow-columns">
+          <div class="sub-workflow-step">
+            <div class="sub-workflow-step-head"><span class="sub-workflow-num">2</span> Agreement info</div>
+            ${profileSection.replace('class="sub-agreement-profile"', 'class="sub-agreement-profile sub-workflow-panel"')}
+          </div>
+          <div class="sub-workflow-step">
+            <div class="sub-workflow-step-head"><span class="sub-workflow-num">3</span> Generate &amp; send</div>
+            ${agreementSection.replace('class="sub-agreement-section"', 'class="sub-agreement-section sub-workflow-panel"')}
+          </div>
+        </div>`
       : "";
-  const profileSection =
-    sub.status === "Selected"
-      ? renderSubProfileFields(sub)
-      : "";
+
   return `
-    <article class="sub-card ${sub.is_selected ? "sub-card-selected" : ""}" data-link-id="${sub.id}" data-sub-id="${sub.sub_id}">
-      <h3 class="sub-card-title">${escapeHtml(sub.business_name || "Unknown")}</h3>
-      <p class="sub-card-meta">${escapeHtml(stars)} · ${sub.distance_miles != null ? `${sub.distance_miles} mi` : "—"}</p>
-      <p class="sub-card-phone">${phoneLink}</p>
-      <p class="sub-card-links">
-        ${sub.website ? `<a href="${escapeHtml(sub.website)}" target="_blank" rel="noopener">Website</a>` : ""}
-        ${sub.google_maps_url ? `<a href="${escapeHtml(sub.google_maps_url)}" target="_blank" rel="noopener">Google Maps</a>` : ""}
-      </p>
+    <article class="sub-card${selectedClass}" data-link-id="${sub.id}" data-sub-id="${sub.sub_id}">
+      <header class="sub-card-header">
+        <div>
+          <h3 class="sub-card-title">${escapeHtml(sub.business_name || "Unknown")}</h3>
+          <p class="sub-card-meta">${escapeHtml(stars)} · ${sub.distance_miles != null ? `${sub.distance_miles} mi` : "—"} · ${phoneLink}</p>
+        </div>
+        <div class="sub-card-links">
+          ${sub.website ? `<a href="${escapeHtml(sub.website)}" target="_blank" rel="noopener">Website</a>` : ""}
+          ${sub.google_maps_url ? `<a href="${escapeHtml(sub.google_maps_url)}" target="_blank" rel="noopener">Maps</a>` : ""}
+        </div>
+      </header>
       <p class="sub-card-claude"><strong>Claude ${sub.claude_score ?? "—"}/10</strong> — ${escapeHtml(sub.claude_reason || "Not analyzed")}</p>
-      <label class="filter-label">Status</label>
-      <select class="settings-input sub-status-select" data-field="status">
-        ${SUB_STATUSES.map((s) => `<option value="${escapeHtml(s)}" ${s === sub.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
-      </select>
-      <label class="filter-label">Call notes</label>
-      <textarea class="settings-input sub-notes" data-field="contact_notes" rows="3" placeholder="Who you spoke with, availability, follow-up…">${escapeHtml(sub.contact_notes || "")}</textarea>
-      <label class="filter-label">Bid / quote amount (monthly)</label>
-      <input type="number" class="settings-input sub-quote-amount" data-field="quote_amount" value="${sub.quote_amount ?? ""}" step="0.01" placeholder="Monthly sub quote">
-      <label class="filter-label">Quote date</label>
-      <input type="date" class="settings-input sub-quote-date" data-field="quote_date" value="${sub.quote_date || ""}">
-      ${profileSection}
-      ${agreementSection}
-      ${sub.status === "Selected" ? `<p class="detail-note selected-quote-note sub-card-selected-note">This sub's quote will be used in your proposal.</p>` : ""}
+      <div class="sub-workflow-body">
+        ${outreachBlock}
+        ${agreementBlock}
+      </div>
+      ${sub.status === "Selected" ? `<p class="detail-note selected-quote-note sub-card-selected-note">Selected for proposal &amp; subcontract agreement.</p>` : ""}
       <p class="sub-save-hint" data-save-hint hidden>Saved</p>
     </article>`;
 }
@@ -253,7 +283,6 @@ function renderSubCard(sub) {
 function renderSubProfileFields(sub) {
   return `
     <div class="sub-agreement-profile">
-      <p class="card-label">Sub profile for agreement</p>
       <label class="filter-label">Owner / representative</label>
       <input type="text" class="settings-input sub-profile-field" data-profile="owner_name" value="${escapeHtml(sub.owner_name || "")}" placeholder="Legal signatory name">
       <label class="filter-label">Owner title</label>
