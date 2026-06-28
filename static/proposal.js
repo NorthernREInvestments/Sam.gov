@@ -298,6 +298,12 @@ function renderProposalEditor(data) {
         <button type="button" class="btn btn-secondary-action btn-small" id="proposal-humanize" disabled title="Select text in the proposal first">Make More Human</button>
         <button type="button" class="btn btn-secondary-action btn-small" id="proposal-reduce-ai" title="Second pass on the full proposal to sound less AI-generated">Reduce AI Score</button>
         <button type="button" class="btn btn-primary btn-small" id="proposal-save-draft">Save Draft</button>
+        <div class="proposal-downloads">
+          <h4>Download</h4>
+          <button type="button" class="btn btn-secondary-action btn-small" id="proposal-download-word">Download as Word</button>
+          <button type="button" class="btn btn-secondary-action btn-small" id="proposal-download-pdf">Download as PDF</button>
+          <button type="button" class="btn btn-secondary-action btn-small" id="proposal-download-capability">Capability Statement PDF</button>
+        </div>
         <label class="filter-label">Internal notes</label>
         <textarea id="proposal-notes" class="settings-input" rows="3">${escapeHtml(data.notes || "")}</textarea>
       </aside>
@@ -362,6 +368,9 @@ function bindProposalEditor(data) {
   document.getElementById("proposal-save-draft")?.addEventListener("click", () => saveProposalDraft());
   document.getElementById("proposal-reduce-ai")?.addEventListener("click", () => reduceProposalAi());
   document.getElementById("proposal-humanize")?.addEventListener("click", () => humanizeSelectedText());
+  document.getElementById("proposal-download-word")?.addEventListener("click", () => downloadProposalExport("docx"));
+  document.getElementById("proposal-download-pdf")?.addEventListener("click", () => downloadProposalExport("pdf"));
+  document.getElementById("proposal-download-capability")?.addEventListener("click", () => downloadProposalExport("capability-pdf"));
   document.querySelectorAll(".regen-section").forEach((btn) => {
     btn.addEventListener("click", () => regenerateProposalSection(btn.dataset.section));
   });
@@ -478,6 +487,42 @@ async function regenerateProposalSection(sectionKey) {
   if (!res.ok) { showSyncStatus(data.detail || "Failed", true); return; }
   renderProposalEditor(data);
   showSyncStatus("Section regenerated.");
+}
+
+async function downloadProposalExport(kind) {
+  if (!activeProposalId) return;
+  const sections = {};
+  document.querySelectorAll(".proposal-editable").forEach((el) => {
+    sections[el.dataset.section] = el.innerHTML;
+  });
+  const labels = { docx: "Word document", pdf: "PDF", "capability-pdf": "Capability statement" };
+  showSyncStatus(`Building ${labels[kind] || "file"}…`);
+  try {
+    const res = await apiFetch(`/api/proposals/${activeProposalId}/export/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sections_json: sections }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Download failed");
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get("Content-Disposition") || "";
+    const match = disp.match(/filename=\"?([^\";]+)\"?/i);
+    const filename = match ? match[1] : `proposal.${kind === "docx" ? "docx" : "pdf"}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showSyncStatus(`Downloaded ${filename}`);
+  } catch (err) {
+    showSyncStatus(err.message, true);
+  }
 }
 
 async function reduceProposalAi() {

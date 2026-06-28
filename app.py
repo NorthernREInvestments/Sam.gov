@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from typing import Literal
 
@@ -172,6 +172,10 @@ class RegenerateSectionRequest(BaseModel):
 
 class RestoreVersionRequest(BaseModel):
     version_index: int = Field(..., ge=0)
+
+
+class ProposalExportRequest(BaseModel):
+    sections_json: dict[str, str] | None = None
 
 
 @app.get("/api/health")
@@ -748,6 +752,78 @@ def post_reduce_ai(proposal_id: int):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     finally:
         session.close()
+
+
+def _proposal_export_response(proposal_id: int, body: ProposalExportRequest | None, exporter):
+    session = SessionLocal()
+    try:
+        from models import Proposal
+        from proposal_export import export_meta, resolve_sections
+        from sqlalchemy.orm import joinedload
+
+        row = (
+            session.query(Proposal)
+            .options(joinedload(Proposal.contract))
+            .filter_by(id=proposal_id)
+            .first()
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        sections = resolve_sections(row, body.sections_json if body else None)
+        if not sections and not row.proposal_html:
+            raise HTTPException(status_code=400, detail="Proposal has no content to export")
+        meta = export_meta(row)
+        content, media_type, filename = exporter(row, sections, meta)
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Export failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/proposals/{proposal_id}/export/docx")
+def export_proposal_docx(proposal_id: int, body: ProposalExportRequest | None = None):
+    from proposal_export import build_proposal_docx
+
+    def _export(row, sections, meta):
+        data = build_proposal_docx(row, sections, meta)
+        return (
+            data,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            meta["filenames"]["docx"],
+        )
+
+    return _proposal_export_response(proposal_id, body, _export)
+
+
+@app.post("/api/proposals/{proposal_id}/export/pdf")
+def export_proposal_pdf(proposal_id: int, body: ProposalExportRequest | None = None):
+    from proposal_export import build_proposal_pdf
+
+    def _export(row, sections, meta):
+        data, _engine = build_proposal_pdf(row, sections, meta)
+        return data, "application/pdf", meta["filenames"]["pdf"]
+
+    return _proposal_export_response(proposal_id, body, _export)
+
+
+@app.post("/api/proposals/{proposal_id}/export/capability-pdf")
+def export_capability_pdf(proposal_id: int, body: ProposalExportRequest | None = None):
+    from proposal_export import build_capability_pdf
+
+    def _export(row, sections, meta):
+        data, _engine = build_capability_pdf(row, sections, meta)
+        return data, "application/pdf", meta["filenames"]["capability"]
+
+    return _proposal_export_response(proposal_id, body, _export)
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
