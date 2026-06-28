@@ -108,6 +108,38 @@ Return JSON only with these exact fields:
 
 Respond with JSON only. No markdown fences."""
 
+TEXT_SCREENING_PROMPT = """You are a government contract screening specialist for a small business prime contractor using the subcontracting middleman model.
+
+This is STEP 1 — TEXT-ONLY triage. You only have the SAM.gov posting description and metadata. No PDFs are attached.
+
+Score how good a fit this is for a prime who finds local subs and bids as middleman (NAICS 561720 janitorial/facilities services focus).
+
+SCREENING RULES:
+- FAR 52.219-14 or performance-of-work clause requiring prime to self-perform → pursue false
+- Security clearances or restricted access required → pursue false
+- Not standard service work a local subcontractor could do → pursue false
+- Location must plausibly have local subs
+
+Return JSON only with these fields:
+- score: integer 1-10 (fit for subcontracting middleman model)
+- pursue: true or false (quick bid/no-bid)
+- reason: one sentence explaining the score
+- contract_title: string
+- agency: string
+- location: string
+- due_date: string or null
+- naics_code: string or null
+- estimated_value: string or null
+- red_flags: array of strings (only if visible from posting text)
+- far_52_219_14: true or false (best guess from posting text)
+- security_clearance_required: true or false (best guess from posting text)
+- sub_type_needed: string or null (brief guess from posting text)
+
+Do NOT invent square footage, wage determinations, or pricing. Keep reason under 30 words.
+Respond with JSON only. No markdown fences."""
+
+TEXT_SCREEN_MAX_TOKENS = 1024
+
 SYSTEM_PROMPT = DEFAULT_SCREENING_PROMPT
 
 
@@ -498,8 +530,71 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
     return {k: v for k, v in data.items() if v is not None and str(v).strip()}
 
 
+    return "\n".join(lines)
+
+
+def build_text_screening_text(contract: Any) -> str:
+    """Metadata + posting description only — no PDF references."""
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    description = (
+        raw.get("descriptionText")
+        or contract.description
+        or raw.get("description")
+        or "Not provided in posting"
+    )
+    if isinstance(description, str) and description.startswith("http"):
+        description = raw.get("descriptionText") or "Description URL provided but text not loaded."
+    work_states = raw.get("workStates") or []
+    lines = [
+        "Text-only triage — no PDFs attached. Score this posting for subcontracting middleman fit.",
+        "",
+        f"Notice ID: {contract.notice_id}",
+        f"Title: {contract.title}",
+        f"Agency: {contract.agency or 'Unknown'}",
+        f"Location: {contract.location or 'Unknown'}",
+        f"Work states: {', '.join(work_states) if work_states else 'Unknown'}",
+        f"NAICS: {contract.naics_code or 'Unknown'}",
+        f"Set-aside: {contract.set_aside or 'Unknown'}",
+        f"Due date: {contract.due_date.isoformat() if contract.due_date else 'Unknown'}",
+        f"SAM.gov link: {contract.link or 'Unknown'}",
+        "",
+        "Posting description:",
+        str(description)[:12000],
+    ]
+    return "\n".join(lines)
+
+
+def screen_contract_text(contract: Any) -> dict[str, Any]:
+    """Step 1: fast text-only Claude screening — no PDF download."""
+    from datetime import datetime, timezone
+
+    text = build_text_screening_text(contract)
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=TEXT_SCREEN_MAX_TOKENS,
+        system=TEXT_SCREENING_PROMPT,
+        messages=[{"role": "user", "content": text}],
+    )
+    response_text = "".join(block.text for block in response.content if hasattr(block, "text"))
+    analysis = _extract_json(response_text)
+    score = analysis.get("score")
+    try:
+        score_int = max(1, min(10, int(score)))
+    except (TypeError, ValueError):
+        score_int = 5
+    analysis["score"] = score_int
+    analysis["text_score"] = score_int
+    analysis["screening_stage"] = "text"
+    analysis["text_screened_at"] = datetime.now(timezone.utc).isoformat()
+    analysis["pdfs_sent_to_claude"] = 0
+    if analysis.get("reason"):
+        analysis["text_reason"] = analysis["reason"]
+    return analysis
+
+
 def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:
-    """Fetch USAspending data, send contract + pricing to Claude, return screening JSON."""
+    """Step 2: full screening with PDFs, pricing intel, and complete analysis fields."""
     if system_prompt is None:
         from settings_store import resolve_screening_prompt
 
@@ -601,6 +696,10 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
             "state_code": pricing_intel.get("state_code"),
             "awards_count": pricing_intel.get("awards_count"),
         }
+
+    analysis["screening_stage"] = "full"
+    if analysis.get("text_score") is None and analysis.get("score") is not None:
+        analysis["text_score"] = analysis.get("score")
 
     return analysis
 

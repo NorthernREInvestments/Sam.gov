@@ -95,6 +95,10 @@ function buildQuery() {
 }
 
 function cardTone(c) {
+  const stage = c.screening_stage;
+  const textScore = c.text_score ?? c.score;
+  if (stage === "text" && textScore != null && textScore < 6) return "skip";
+  if (stage === "text" && !c.plain_english_summary) return "text-pending";
   if (c.pursue === true) return "pursue";
   if (c.pursue === false) return "skip";
   if (c.score != null && c.score >= 5 && c.score <= 7) return "maybe";
@@ -103,10 +107,41 @@ function cardTone(c) {
 
 function screeningBadge(c) {
   const tone = cardTone(c);
+  const stage = c.screening_stage;
+  const textScore = c.text_score ?? c.score;
+  if (stage === "text" && textScore != null) {
+    if (textScore < 6 || c.skip_reason) {
+      const label = c.skip_reason || "Low score";
+      return `<span class="badge badge-skip">Text ${textScore}/10 · ${escapeHtml(label)}</span>`;
+    }
+    if (!c.plain_english_summary) {
+      return `<span class="badge badge-text-pending">Text ${textScore}/10 · Awaiting full analysis</span>`;
+    }
+  }
   if (tone === "pursue") return `<span class="badge badge-pursue">Pursue${c.score != null ? ` · ${c.score}/10` : ""}</span>`;
   if (tone === "skip") return `<span class="badge badge-skip">Skip${c.score != null ? ` · ${c.score}/10` : ""}</span>`;
   if (tone === "maybe") return `<span class="badge badge-maybe">Maybe · ${c.score}/10</span>`;
+  if (tone === "text-pending") return `<span class="badge badge-text-pending">Text ${textScore ?? "?"}/10</span>`;
   return `<span class="badge badge-pending">Not screened</span>`;
+}
+
+function renderForceFullAnalysisButton(c) {
+  if (c.screening_stage === "full") return "";
+  return `<button type="button" class="btn btn-secondary-action btn-small card-force-full" data-force-full="${escapeHtml(c.notice_id)}">Force Full Analysis</button>`;
+}
+
+async function forceFullAnalysis(noticeId) {
+  showSyncStatus("Downloading PDFs and running full analysis…");
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/full-analysis`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Full analysis failed");
+    showSyncStatus("Full analysis complete.");
+    await loadContracts();
+    if (activeDetailId === noticeId) openDetail(noticeId);
+  } catch (err) {
+    showSyncStatus(err.message, true);
+  }
 }
 
 function formatDue(c) {
@@ -154,7 +189,9 @@ function renderCards() {
       : `<div class="card-section card-section-summary">
            <span class="card-label">What it is</span>
            <h3 class="card-title">${escapeHtml(c.title)}</h3>
-           <p class="card-pending-note">Plain-English summary being generated…</p>
+           ${c.text_score != null && c.screening_stage === "text" && !c.plain_english_summary
+             ? `<p class="card-pending-note">Text score ${c.text_score}/10 — ${c.text_score >= 6 ? "full PDF analysis pending" : escapeHtml(c.skip_reason || "below threshold")}</p>`
+             : `<p class="card-pending-note">Plain-English summary being generated…</p>`}
          </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
     const attachmentsHtml = renderCardAttachments(c);
@@ -162,6 +199,7 @@ function renderCards() {
     const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
     const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
     const pursueBtn = typeof renderPursueButton === "function" ? renderPursueButton(c) : "";
+    const forceFullBtn = renderForceFullAnalysisButton(c);
     const wf = c.workflow || {};
     const workflowClass = wf.stage && wf.stage !== "none" ? ` card-workflow-${wf.stage}` : "";
     const workflowBanner = typeof renderWorkflowBanner === "function" ? renderWorkflowBanner(c) : "";
@@ -193,6 +231,7 @@ function renderCards() {
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
         <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
         ${findSubsBtn}
+        ${forceFullBtn}
         ${continueProposal}
         ${pursueBtn}
       </div>
@@ -203,6 +242,13 @@ function renderCards() {
     el.addEventListener("click", (e) => {
       if (e.target.closest("button, a, input, select, textarea")) return;
       openDetail(el.dataset.id);
+    });
+  });
+  container.querySelectorAll("[data-force-full]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      forceFullAnalysis(btn.dataset.forceFull);
     });
   });
 }
@@ -218,8 +264,11 @@ let cardPollTimer = null;
 function cardNeedsPolling(c) {
   const subsSearching =
     c.sub_search_status === "searching" || (c.sub_summary || {}).status === "searching";
-  const attachmentsPending = !(c.sam_attachments || []).length;
-  return subsSearching || attachmentsPending;
+  const attachmentsPending = !(c.sam_attachments || []).length && c.screening_stage === "full";
+  const textPendingFull =
+    c.screening_stage === "text" && (c.text_score ?? 0) >= 6 && !c.plain_english_summary;
+  const notScreened = !c.analysis && !c.text_score;
+  return subsSearching || attachmentsPending || textPendingFull || notScreened;
 }
 
 function manageCardPolling() {

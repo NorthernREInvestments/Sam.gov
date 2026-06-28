@@ -611,6 +611,16 @@ body {
   color: var(--muted);
 }
 
+.badge-text-pending {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.card-text-pending,
+.card-text-pending.card {
+  border-color: #7dd3fc;
+}
+
 .badge-pursue {
   background: #dcfce7;
   color: var(--green);

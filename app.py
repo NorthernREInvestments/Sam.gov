@@ -27,7 +27,7 @@ from scheduler import configure_scheduler, scheduler_status, start_scheduler, st
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
 from pricing import get_full_pricing_intel, get_pricing_dashboard
 from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
-from screen import screen_one, screen_pending
+from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -399,6 +399,21 @@ def run_screen_one(notice_id: str, force: bool = Query(False)):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Screening failed: {exc}") from exc
+
+
+@app.post("/api/contracts/{notice_id}/full-analysis")
+def run_force_full_analysis(notice_id: str):
+    """Manual override — PIEE/PDF download + full Claude analysis regardless of text score."""
+    try:
+        from api_budget import ScreenBudgetExceeded
+
+        return force_full_analysis(notice_id)
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Full analysis failed: {exc}") from exc
 
 
 @app.get("/api/scheduler")

@@ -284,6 +284,9 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "analysis": analysis,
         "pursue": analysis.get("pursue"),
         "score": analysis.get("score"),
+        "text_score": analysis.get("text_score") or analysis.get("score"),
+        "screening_stage": analysis.get("screening_stage") or ("full" if analysis.get("plain_english_summary") else None),
+        "skip_reason": analysis.get("skip_reason"),
         "reason": analysis.get("reason"),
         "plain_english_summary": analysis.get("plain_english_summary") or analysis.get("executive_summary"),
         "executive_summary": analysis.get("executive_summary"),
@@ -377,7 +380,6 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
     intake_result: dict[str, Any] = {}
     scrape_result: dict[str, Any] = {}
     filter_stats: dict[str, int] = {}
-    batch: list[dict[str, Any]] = []
     search_count = 0
     new_count = 0
     updated_count = 0
@@ -402,13 +404,12 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
             new_count, updated_count = upsert_contracts(session, batch)
             batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
         else:
-            from sam_enrich import scrape_opportunities_batch
             from intake import intake_matching_contracts
+            from screening_pipeline import full_analysis_min_score
 
-            scrape_result = scrape_opportunities_batch(batch)
-            scraped_batch = scrape_result["opportunities"]
-            new_count, updated_count = upsert_contracts(session, scraped_batch)
-            batch_notice_ids = [str(o.get("notice_id") or "") for o in scraped_batch if o.get("notice_id")]
+            # Upsert search hits first; two-step intake text-screens then full-scrapes high scores only.
+            new_count, updated_count = upsert_contracts(session, batch)
+            batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
             intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
@@ -435,16 +436,13 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
                 f"Attachments were not scraped."
             )
         else:
-            skipped = scrape_result.get("scraped_skipped", 0)
             fetch_status = (
-                f"NAICS {naics_today}: scraped {scrape_result.get('scraped_complete', 0)} complete contract(s) "
-                f"from {filter_stats.get('matched_filters', len(batch))} matching search result(s) "
-                f"({search_count} total from SAM).{filter_note}"
+                f"NAICS {naics_today}: saved {filter_stats.get('matched_filters', len(batch))} matching search result(s) "
+                f"from {search_count} SAM result(s) (1 search call).{filter_note} "
+                f"Two-step intake: text screen first, full PDF analysis for score {full_analysis_min_score()}+."
             )
-            if skipped:
-                fetch_status += f" {skipped} not scraped (cap or SAM budget)."
-            fetch_status += f" Coverage: {loaded}/{len(naics_codes)} NAICS codes."
             if loaded < len(naics_codes):
+                fetch_status += f" Coverage: {loaded}/{len(naics_codes)} NAICS codes."
                 fetch_status += f" Next rotation: {next_naics}."
     finally:
         session.close()
@@ -497,7 +495,7 @@ def sync_all_naics() -> dict[str, Any]:
     finally:
         status_session.close()
 
-    from sam_enrich import scrape_opportunities_batch
+    from intake import intake_matching_contracts
 
     for naics in naics_codes:
         batch = fetch_naics_from_sam(naics)
@@ -510,13 +508,8 @@ def sync_all_naics() -> dict[str, Any]:
             matched_total += filter_stats.get("matched_filters", len(batch))
             filtered_total += filter_stats.get("filtered_out", 0)
 
-            scrape_result = scrape_opportunities_batch(batch)
-            scraped_batch = scrape_result["opportunities"]
-            scraped_total += scrape_result.get("scraped_complete", 0)
-            skipped_total += scrape_result.get("scraped_skipped", 0)
-            all_notice_ids.extend(str(o.get("notice_id") or "") for o in scraped_batch if o.get("notice_id"))
-
-            new_count, updated_count = upsert_contracts(session, scraped_batch)
+            new_count, updated_count = upsert_contracts(session, batch)
+            all_notice_ids.extend(str(o.get("notice_id") or "") for o in batch if o.get("notice_id"))
             synced_map[naics] = date.today().isoformat()
             _set_setting(session, "naics_last_synced", json.dumps(synced_map))
             session.commit()
@@ -530,8 +523,6 @@ def sync_all_naics() -> dict[str, Any]:
             "fetched": len(batch) + filter_stats.get("filtered_out", 0),
             "matched_filters": filter_stats.get("matched_filters", len(batch)),
             "filtered_out": filter_stats.get("filtered_out", 0),
-            "scraped_complete": scrape_result.get("scraped_complete", 0),
-            "scraped_skipped": scrape_result.get("scraped_skipped", 0),
             "new": new_count,
             "updated": updated_count,
         })
@@ -539,7 +530,6 @@ def sync_all_naics() -> dict[str, Any]:
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
-        from intake import intake_matching_contracts
 
         intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
@@ -549,11 +539,9 @@ def sync_all_naics() -> dict[str, Any]:
 
     fetch_status = (
         f"Synced all {len(naics_codes)} NAICS codes. "
-        f"Scraped {scraped_total} complete contract(s) from {matched_total} matching result(s) "
-        f"({fetched_total} total from SAM; {filtered_total} filtered out before scrape)."
+        f"Saved {matched_total} matching result(s) from {fetched_total} SAM search hits "
+        f"({filtered_total} filtered out). Two-step intake runs text screen then full PDF analysis."
     )
-    if skipped_total:
-        fetch_status += f" {skipped_total} skipped when SAM.gov budget ran out."
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
     from intake import start_background_attachment_enrich, start_background_intake

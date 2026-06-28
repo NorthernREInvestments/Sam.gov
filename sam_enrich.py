@@ -307,6 +307,35 @@ def refresh_opportunity_attachments(raw: dict[str, Any], api_key: str | None = N
     return _apply_attachment_fields(raw, attachments=attachments, description_text=description_text)
 
 
+def enrich_description_only(raw: dict[str, Any] | None, api_key: str | None = None) -> dict[str, Any]:
+    """Light enrich for text screening — description text only, no attachment API calls."""
+    from datetime import datetime, timezone
+
+    if not raw:
+        return {}
+    notice_id = str(raw.get("noticeId") or "")
+    if raw.get("descriptionText"):
+        return dict(raw)
+
+    description_field = raw.get("description")
+    description_html: str | None = raw.get("descriptionHtml")
+
+    if not description_html:
+        if isinstance(description_field, str) and description_field.startswith("http"):
+            description_html = fetch_notice_description(notice_id, api_key)
+        elif isinstance(description_field, str) and description_field.strip():
+            description_html = description_field
+
+    description_text = html_to_text(description_html) or str(raw.get("descriptionText") or "")
+    enriched = dict(raw)
+    if description_html:
+        enriched["descriptionHtml"] = description_html
+    if description_text:
+        enriched["descriptionText"] = description_text
+    enriched["textEnrichedAt"] = datetime.now(timezone.utc).isoformat() if description_text else None
+    return enriched
+
+
 def enrich_opportunity(raw: dict[str, Any] | None, api_key: str | None = None) -> dict[str, Any]:
     """Merge search metadata with full description text and SAM.gov attachments."""
     if not raw:
