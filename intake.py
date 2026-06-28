@@ -9,6 +9,8 @@ from typing import Any
 
 from api_budget import (
     ScreenBudgetExceeded,
+    attachment_enrich_on_list_limit,
+    attachment_enrich_per_sync_limit,
     can_screen,
     can_spend_sam,
     intake_on_sync_enabled,
@@ -22,6 +24,8 @@ from models import Contract
 logger = logging.getLogger("govtracker.intake")
 _background_lock = threading.Lock()
 _background_running = False
+_attachment_lock = threading.Lock()
+_attachment_running = False
 _intake_ids: set[str] = set()
 _intake_ids_lock = threading.Lock()
 
@@ -39,36 +43,53 @@ def _end_intake(notice_id: str) -> None:
         _intake_ids.discard(notice_id)
 
 
-def enrich_contract_from_sam(row: Contract) -> bool:
-    """Fetch full posting description and attachment list from SAM.gov."""
-    from sam_enrich import enrich_opportunity, fetch_opportunity_raw
+def enrich_contract_attachments(row: Contract) -> bool:
+    """Load SAM.gov attachment list and posting description (1–2 API calls)."""
+    from sam_enrich import (
+        enrich_opportunity,
+        fetch_opportunity_raw,
+        needs_attachment_refresh,
+        refresh_opportunity_attachments,
+    )
     from sam_client import normalize_opportunity
 
     raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    notice_id = str(row.notice_id or raw.get("noticeId") or "")
+    if not needs_attachment_refresh(raw) and raw.get("descriptionText"):
+        return False
 
+    notice_id = str(row.notice_id or raw.get("noticeId") or "")
     if not raw or not raw.get("noticeId"):
         if not can_spend_sam(1):
             return False
-        fresh = fetch_opportunity_raw(notice_id) if notice_id else None
-        raw = fresh or raw
+        raw = fetch_opportunity_raw(notice_id) if notice_id else None
+        raw = raw or (row.sam_raw if isinstance(row.sam_raw, dict) else {})
 
     if not raw:
         return False
 
-    # Description (1 call) + attachments (1 call) when budget allows.
-    if not can_spend_sam(2):
-        return False
+    if raw.get("descriptionText") or raw.get("descriptionHtml"):
+        if not can_spend_sam(1):
+            return False
+        enriched = refresh_opportunity_attachments(raw)
+        if not enriched.get("descriptionText") and can_spend_sam(2):
+            enriched = enrich_opportunity(raw)
+    else:
+        if not can_spend_sam(2):
+            return False
+        enriched = enrich_opportunity(raw)
 
-    enriched = enrich_opportunity(raw)
     row.sam_raw = enriched
     if enriched.get("descriptionText"):
         row.description = enriched["descriptionText"][:8000]
-
     refreshed = normalize_opportunity(enriched)
     if refreshed.get("location"):
         row.location = refreshed["location"]
     return True
+
+
+def enrich_contract_from_sam(row: Contract) -> bool:
+    """Fetch full posting description and attachment list from SAM.gov."""
+    return enrich_contract_attachments(row)
 
 
 def full_intake_contract(row: Contract, *, force: bool = False) -> dict[str, Any]:
@@ -260,3 +281,88 @@ def start_background_intake(batch_size: int = 3) -> None:
                 _background_running = False
 
     threading.Thread(target=_run, daemon=True, name="govtracker-intake").start()
+
+
+def enrich_matching_attachments(
+    session,
+    notice_ids: list[str] | None = None,
+    *,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Fetch SAM.gov attachment lists for matching contracts (no Claude). Runs even if already screened."""
+    from sam_enrich import needs_attachment_refresh
+    from sync import list_contracts
+
+    cap = limit if limit is not None else attachment_enrich_per_sync_limit()
+    matching_rows = list_contracts(session)
+    if notice_ids is not None:
+        id_set = set(notice_ids)
+        candidates = [r for r in matching_rows if r.notice_id in id_set]
+    else:
+        candidates = matching_rows
+
+    enriched = 0
+    errors: list[str] = []
+    for row in candidates:
+        if enriched >= cap:
+            break
+        raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+        if not needs_attachment_refresh(raw) and raw.get("descriptionText"):
+            continue
+        if not can_spend_sam(1):
+            errors.append("SAM.gov daily budget reached — attachment lists pending.")
+            break
+        try:
+            if enrich_contract_attachments(row):
+                session.commit()
+                enriched += 1
+        except Exception as exc:
+            session.rollback()
+            errors.append(f"{row.notice_id}: {exc}")
+
+    pending = sum(
+        1
+        for row in candidates
+        if needs_attachment_refresh(row.sam_raw if isinstance(row.sam_raw, dict) else {})
+        or not (row.sam_raw if isinstance(row.sam_raw, dict) else {}).get("descriptionText")
+    )
+
+    return {
+        "attachments_enriched": enriched,
+        "attachments_pending": pending,
+        "errors": errors,
+    }
+
+
+def start_background_attachment_enrich(batch_size: int = 8) -> None:
+    """Load missing SAM.gov attachment lists for matching dashboard contracts."""
+    global _attachment_running
+    with _attachment_lock:
+        if _attachment_running:
+            return
+        _attachment_running = True
+
+    def _run() -> None:
+        global _attachment_running
+        try:
+            total = 0
+            while can_spend_sam(1):
+                session = SessionLocal()
+                try:
+                    result = enrich_matching_attachments(session, limit=batch_size)
+                    total += result.get("attachments_enriched", 0)
+                    if result.get("attachments_enriched", 0) == 0:
+                        break
+                    if any("SAM.gov daily budget" in e for e in result.get("errors", [])):
+                        break
+                finally:
+                    session.close()
+            if total:
+                logger.info("Background attachment enrich finished: %s contract(s)", total)
+        except Exception:
+            logger.exception("Background attachment enrich failed")
+        finally:
+            with _attachment_lock:
+                _attachment_running = False
+
+    threading.Thread(target=_run, daemon=True, name="govtracker-attachments").start()

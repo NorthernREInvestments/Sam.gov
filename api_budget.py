@@ -43,6 +43,15 @@ def intake_per_sync_limit() -> int:
     return _daily_limit("INTAKE_PER_SYNC_LIMIT", 5)
 
 
+def attachment_enrich_per_sync_limit() -> int:
+    """How many matching contracts get SAM attachment lists loaded per sync / list refresh."""
+    return _daily_limit("ATTACHMENT_ENRICH_PER_SYNC_LIMIT", 30)
+
+
+def attachment_enrich_on_list_limit() -> int:
+    return _daily_limit("ATTACHMENT_ENRICH_ON_LIST_LIMIT", 10)
+
+
 def auto_screen_on_startup() -> bool:
     """Legacy flag — intake on startup uses INTAKE_ON_SYNC instead."""
     if os.getenv("AUTO_SCREEN_ON_STARTUP", "").strip():
@@ -104,6 +113,8 @@ def get_usage_snapshot() -> dict[str, Any]:
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
         "intake_per_sync_limit": intake_per_sync_limit(),
+        "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),
+        "attachment_enrich_on_list_limit": attachment_enrich_on_list_limit(),
     }
 
 

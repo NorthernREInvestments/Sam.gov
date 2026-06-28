@@ -142,14 +142,14 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
     analysis = row.analysis or {}
     sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
     attachments = sam_raw.get("opportunityAttachments")
-    if isinstance(attachments, list):
+    if isinstance(attachments, list) and attachments:
         doc_access = sam_raw.get("documentAccess") or {}
         external_links = sam_raw.get("opportunityLinks") or []
         sam_attachments = attachments
     else:
-        doc_access = {}
-        external_links = []
-        sam_attachments = []
+        sam_attachments = analysis.get("sam_attachments") or []
+        doc_access = sam_raw.get("documentAccess") or analysis.get("document_access") or {}
+        external_links = sam_raw.get("opportunityLinks") or analysis.get("external_links") or []
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -245,6 +245,7 @@ def sync_from_sam() -> dict[str, Any]:
     naics_codes = naics_from_env()
     session = SessionLocal()
     intake_result: dict[str, Any] = {}
+    attachment_result: dict[str, Any] = {}
     try:
         index = int(_get_setting(session, "naics_rotation_index", "0")) % len(naics_codes)
         naics_today = naics_codes[index]
@@ -252,8 +253,9 @@ def sync_from_sam() -> dict[str, Any]:
         batch = fetch_naics_from_sam(naics_today)
         new_count, updated_count = upsert_contracts(session, batch)
         batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
-        from intake import intake_matching_contracts
+        from intake import enrich_matching_attachments, intake_matching_contracts
 
+        attachment_result = enrich_matching_attachments(session, batch_notice_ids)
         intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
@@ -275,10 +277,11 @@ def sync_from_sam() -> dict[str, Any]:
         session.close()
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
-    from intake import start_background_intake
+    from intake import start_background_attachment_enrich, start_background_intake
 
     if intake_on_sync_enabled():
         start_background_intake()
+    start_background_attachment_enrich()
 
     return {
         "api_calls": 1,
@@ -286,6 +289,7 @@ def sync_from_sam() -> dict[str, Any]:
         "fetched_from_sam": len(batch),
         "new": new_count,
         "updated": updated_count,
+        "attachments": attachment_result,
         "intake": intake_result,
         "total_in_db": total,
         "naics_synced": loaded,
@@ -334,8 +338,9 @@ def sync_all_naics() -> dict[str, Any]:
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
-        from intake import intake_matching_contracts
+        from intake import enrich_matching_attachments, intake_matching_contracts
 
+        attachment_result = enrich_matching_attachments(session, all_notice_ids)
         intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
         total = session.query(Contract).count()
@@ -348,10 +353,11 @@ def sync_all_naics() -> dict[str, Any]:
     )
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
-    from intake import start_background_intake
+    from intake import start_background_attachment_enrich, start_background_intake
 
     if intake_on_sync_enabled():
         start_background_intake()
+    start_background_attachment_enrich()
 
     return {
         "api_calls": api_calls,
@@ -359,6 +365,7 @@ def sync_all_naics() -> dict[str, Any]:
         "fetched_from_sam": fetched_total,
         "new": new_total,
         "updated": updated_total,
+        "attachments": attachment_result,
         "intake": intake_result,
         "total_in_db": total,
         "naics_synced": len(naics_codes),

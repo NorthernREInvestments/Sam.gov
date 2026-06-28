@@ -125,10 +125,7 @@ function renderCards() {
            <p class="card-pending-note">Plain-English summary being generated…</p>
          </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
-    const docsLine = formatCardDocs(c);
-    const docsHtml = docsLine
-      ? `<p class="card-meta card-docs">${escapeHtml(docsLine)}</p>`
-      : "";
+    const attachmentsHtml = renderCardAttachments(c);
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-top">
@@ -141,11 +138,11 @@ function renderCards() {
       </div>
       ${titleBlock}
       ${bidPreview}
+      ${attachmentsHtml}
       <div class="card-section card-section-location">
         <span class="card-label">Where</span>
         <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
         <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
-        ${docsHtml}
       </div>
       <div class="card-section card-section-footer">
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
@@ -165,11 +162,40 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+let cardPollTimer = null;
+
 async function loadContracts() {
   const res = await apiFetch(`/api/contracts?${buildQuery()}`);
   const data = await res.json();
   contracts = data.contracts || [];
   renderCards();
+
+  const needsAttachments = contracts.some((c) => !(c.sam_attachments || []).length);
+  if (needsAttachments && !cardPollTimer) {
+    cardPollTimer = setInterval(async () => {
+      const pending = contracts.some((c) => !(c.sam_attachments || []).length);
+      if (!pending) {
+        clearInterval(cardPollTimer);
+        cardPollTimer = null;
+        return;
+      }
+      await loadContractsQuiet();
+    }, 8000);
+  } else if (!needsAttachments && cardPollTimer) {
+    clearInterval(cardPollTimer);
+    cardPollTimer = null;
+  }
+}
+
+async function loadContractsQuiet() {
+  const res = await apiFetch(`/api/contracts?${buildQuery()}`);
+  const data = await res.json();
+  contracts = data.contracts || [];
+  renderCards();
+  if (!contracts.some((c) => !(c.sam_attachments || []).length) && cardPollTimer) {
+    clearInterval(cardPollTimer);
+    cardPollTimer = null;
+  }
 }
 
 function wrapDetailSection(title, innerHtml, extraClass = "") {
@@ -226,21 +252,38 @@ function renderDocumentAccessBanner(c) {
     </div>`;
 }
 
-function formatCardDocs(c) {
-  const attachments = c.sam_attachments || [];
-  if (attachments.length) {
-    const labels = attachments
-      .slice(0, 2)
-      .map((item) => item.description || item.url || "Attachment")
-      .join(", ");
-    const extra = attachments.length > 2 ? ` +${attachments.length - 2} more` : "";
-    const access = c.document_access;
-    const prefix = access?.summary ? `${access.summary} — ` : `${attachments.length} on SAM.gov: `;
-    return `${prefix}${labels}${extra}`;
+function renderCardAttachments(c) {
+  const attachments = c.sam_attachments || c.analysis?.sam_attachments || [];
+  const access = c.document_access || c.analysis?.document_access;
+  if (!attachments.length) {
+    if (access?.summary) {
+      return `<div class="card-section card-section-attachments">
+        <span class="card-label">Attachments</span>
+        <p class="card-meta card-attachments-pending">${escapeHtml(access.summary)}</p>
+      </div>`;
+    }
+    return `<div class="card-section card-section-attachments">
+      <span class="card-label">Attachments</span>
+      <p class="card-meta card-attachments-pending">Loading from SAM.gov…</p>
+    </div>`;
   }
-  const access = c.document_access;
-  if (access?.summary) return access.summary;
-  return "";
+  const items = attachments.map((item) => {
+    const label = item.description || item.url || "Attachment";
+    const url = item.url || item.download_url;
+    const tag = item.type === "file" ? " (file)" : "";
+    if (url) {
+      return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(label)}${tag}</a></li>`;
+    }
+    return `<li>${escapeHtml(label)}${tag}</li>`;
+  }).join("");
+  const summary = access?.summary
+    ? `<p class="card-meta card-attachments-summary">${escapeHtml(access.summary)}</p>`
+    : "";
+  return `<div class="card-section card-section-attachments">
+    <span class="card-label">Attachments (${attachments.length})</span>
+    ${summary}
+    <ul class="card-attachment-list">${items}</ul>
+  </div>`;
 }
 
 function buildSummaryInner(c, analyzing = false) {
@@ -705,7 +748,10 @@ async function runSync(allNaics = false) {
       : intake.processed
         ? ` Processed ${intake.processed} (descriptions loaded; summaries may still be running in background).`
         : "";
-    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${intakeLine}${budgetLine}`);
+    const attachLine = data.attachments?.attachments_enriched
+      ? ` Loaded attachments on ${data.attachments.attachments_enriched} contract(s).`
+      : "";
+    showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${attachLine}${intakeLine}${budgetLine}`);
     await loadConfig();
     await loadContracts();
   } catch (err) {
@@ -770,7 +816,9 @@ async function loadSettingsPage() {
     <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
     <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
     <li>Claude screenings: ${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)</li>
-    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} matching bids per sync, then background)</li>
+    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} summaries per sync)</li>
+    <li>Attachment lists on sync: up to ${budget.attachment_enrich_per_sync_limit ?? 30} matching bids per sync, then background</li>
+    <li>Attachment refresh on dashboard load: up to ${budget.attachment_enrich_on_list_limit ?? 10} per refresh</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");

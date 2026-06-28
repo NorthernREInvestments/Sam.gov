@@ -146,12 +146,23 @@ def get_contracts(
             agency=agency,
             pursue_only=pursue_only,
         )
-        from api_budget import get_usage_snapshot
+        from api_budget import attachment_enrich_on_list_limit, get_usage_snapshot
+        from intake import enrich_matching_attachments, start_background_attachment_enrich
+
+        notice_ids = [r.notice_id for r in rows]
+        attachment_refresh = enrich_matching_attachments(
+            session,
+            notice_ids,
+            limit=attachment_enrich_on_list_limit(),
+        )
+        if attachment_refresh.get("attachments_pending", 0) > attachment_refresh.get("attachments_enriched", 0):
+            start_background_attachment_enrich()
 
         return {
             "count": len(rows),
             "contracts": [contract_to_dict(r) for r in rows],
             "api_budget": get_usage_snapshot(),
+            "attachments_refreshed": attachment_refresh.get("attachments_enriched", 0),
         }
     finally:
         session.close()
