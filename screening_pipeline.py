@@ -1,4 +1,4 @@
-"""Two-step contract screening: text-first, then full PDF analysis if score >= threshold."""
+"""Contract screening: attachments first, then full Claude analysis for ranking."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ SKIP_LOW_SCORE_LABEL = "Skipped — Low Score"
 
 
 def full_analysis_min_score() -> int:
+    """Legacy threshold — used for auto sub-search hints, not intake gating."""
     raw = os.getenv("FULL_ANALYSIS_MIN_SCORE", "6").strip()
     try:
         return max(1, min(10, int(raw)))
@@ -42,13 +43,17 @@ def text_score_from_analysis(analysis: dict[str, Any] | None) -> int | None:
     return None
 
 
+def has_attachments_ready(row: Contract) -> bool:
+    from sam_enrich import is_scrape_complete
+
+    raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    return is_scrape_complete(raw)
+
+
 def qualifies_for_full_analysis(analysis: dict[str, Any] | None, *, force: bool = False) -> bool:
     if force:
         return True
-    if is_full_analysis_complete(analysis):
-        return False
-    score = text_score_from_analysis(analysis)
-    return score is not None and score >= full_analysis_min_score()
+    return not is_full_analysis_complete(analysis)
 
 
 def needs_text_screening(analysis: dict[str, Any] | None) -> bool:
@@ -60,12 +65,10 @@ def needs_text_screening(analysis: dict[str, Any] | None) -> bool:
 def needs_intake(row: Contract, *, force: bool = False) -> bool:
     if force:
         return True
+    if not has_attachments_ready(row):
+        return False
     analysis = row.analysis if isinstance(row.analysis, dict) else None
-    if needs_text_screening(analysis):
-        return True
-    if qualifies_for_full_analysis(analysis):
-        return True
-    return False
+    return qualifies_for_full_analysis(analysis)
 
 
 def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:

@@ -100,7 +100,9 @@ def scheduler_status() -> dict:
         return {"enabled": False, "running": False, **settings}
 
     scheduled_tiers = tiers_for_scheduled_sync()
-    scheduled_codes = get_naics_codes_for_tiers(scheduled_tiers)
+    scheduled_pool = get_naics_codes_for_tiers(scheduled_tiers)
+    from api_budget import scheduled_naics_per_sync
+
     job = scheduler.get_job("daily_sam_sync") if scheduler.running else None
     return {
         "enabled": True,
@@ -110,6 +112,7 @@ def scheduler_status() -> dict:
         "timezone": settings["timezone"],
         "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
         "scheduled_tiers": scheduled_tiers,
-        "scheduled_code_count": len(scheduled_codes),
-        "tier_schedule": "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday",
+        "scheduled_pool_size": len(scheduled_pool),
+        "scheduled_per_sync": scheduled_naics_per_sync(),
+        "tier_schedule": "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday · rotates a few codes per run",
     }

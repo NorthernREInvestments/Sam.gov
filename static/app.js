@@ -106,9 +106,14 @@ async function loadConfig() {
   const sync = config.naics_sync || {};
   const nextNaics = sync.next_naics ? ` · next: ${sync.next_naics}` : "";
   const tierSchedule = config.naics_tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
-  const scheduledToday = sync.scheduled_tiers ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${sync.scheduled_code_count || "?"} codes)` : "";
+  const batchSize = sync.scheduled_batch_size || sync.scheduled_per_sync || 2;
+  const nextBatch = (sync.scheduled_next_batch || []).join(", ");
+  const poolSize = sync.scheduled_pool_size || sync.total_count || config.naics_codes.length;
+  const scheduledToday = sync.scheduled_tiers
+    ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${poolSize} in pool, ${batchSize}/run${nextBatch ? ` · next: ${nextBatch}` : ""})`
+    : "";
   document.getElementById("naics-sync-status").textContent =
-    `${tierSchedule}. Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${scheduledToday}${nextNaics}`;
+    `${tierSchedule}. Auto-sync searches ${batchSize} code(s) per run.${scheduledToday} Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${nextNaics ? ` · manual rotation: ${nextNaics}` : ""}`;
 
   populateSyncNaicsSelect();
   renderNaicsFilters();
@@ -226,7 +231,7 @@ function renderCards() {
 
   if (!contracts.length) {
     container.innerHTML =
-      '<div class="empty">No contracts match your filters. Try adjusting filters or sync from SAM.gov.</div>';
+      '<div class="empty">No contracts with full attachments match your filters yet. Matching bids are saved on sync; attachments and Claude analysis finish over the next run(s).</div>';
     return;
   }
 
@@ -253,7 +258,7 @@ function renderCards() {
            <span class="card-label">What it is</span>
            <h3 class="card-title">${escapeHtml(c.title)}</h3>
            ${c.text_score != null && c.screening_stage === "text" && !c.plain_english_summary
-             ? `<p class="card-pending-note">Text score ${c.text_score}/10 — ${c.text_score >= 6 ? "full PDF analysis pending" : escapeHtml(c.skip_reason || "below threshold")}</p>`
+             ? `<p class="card-pending-note">Text score ${c.text_score}/10 — full PDF analysis pending</p>`
              : `<p class="card-pending-note">Plain-English summary being generated…</p>`}
          </div>`;
     const naicsLine = c.naics_display || c.naics_code || "";
@@ -330,7 +335,7 @@ function cardNeedsPolling(c) {
     c.sub_search_status === "searching" || (c.sub_summary || {}).status === "searching";
   const attachmentsPending = !(c.sam_attachments || []).length && c.screening_stage === "full";
   const textPendingFull =
-    c.screening_stage === "text" && (c.text_score ?? 0) >= 6 && !c.plain_english_summary;
+    c.screening_stage === "text" && !c.plain_english_summary;
   const notScreened = !c.analysis && !c.text_score;
   return subsSearching || attachmentsPending || textPendingFull || notScreened;
 }
@@ -670,7 +675,7 @@ async function runSync({ allNaics = false, searchOnly = false } = {}) {
       `Searching SAM.gov for NAICS ${naics || config.naics_sync?.next_naics || "next in rotation"} (1 API call only)…`
     );
   } else {
-    showSyncStatus("Searching SAM.gov, then reading descriptions + attachments and writing summaries for matching bids…");
+    showSyncStatus("Searching SAM.gov — saves all filter-matching contracts, then pulls attachments and runs Claude analysis when ready…");
   }
 
   try {
@@ -696,15 +701,15 @@ async function runSync({ allNaics = false, searchOnly = false } = {}) {
             : ""
         : ` Wrote summaries for ${intake.screened} contract(s).`;
     const attachLine =
-      !searchOnly && data.scrape?.scraped_complete
-        ? ` Scraped ${data.scrape.scraped_complete} complete (all attachments).`
-        : !searchOnly && data.attachments?.attachments_enriched
-          ? ` Loaded attachments on ${data.attachments.attachments_enriched} contract(s).`
-          : "";
-    const skippedLine =
-      data.scrape?.scraped_skipped
-        ? ` ${data.scrape.scraped_skipped} incomplete (SAM budget — retry tomorrow or raise SAM_DAILY_API_BUDGET).`
+      !searchOnly && (data.scrape?.attachments_enriched ?? data.attachments?.attachments_enriched)
+        ? ` Attachments ready on ${data.scrape?.attachments_enriched ?? data.attachments?.attachments_enriched} contract(s) this run.`
         : "";
+    const skippedLine =
+      data.scrape?.attachments_pending
+        ? ` ${data.scrape.attachments_pending} still waiting on attachments (retried next sync).`
+        : data.scrape?.scraped_skipped
+          ? ` ${data.scrape.scraped_skipped} incomplete (SAM budget — retry tomorrow or raise SAM_DAILY_API_BUDGET).`
+          : "";
     showSyncStatus(`${data.fetch_status} Saved ${data.new} new, ${data.updated} updated.${attachLine}${skippedLine}${intakeLine}${budgetLine}`);
     await loadConfig();
     await loadContracts();
@@ -802,8 +807,10 @@ async function loadSettingsPage() {
     <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
     <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
     <li>Claude screenings: ${screenLine}</li>
-    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} (up to ${budget.intake_per_sync_limit ?? 5} Claude summaries per sync)</li>
-    <li>Contract scrape: every sync pulls SAM attachments + PIEE file lists before saving</li>
+    <li>Dashboard cards only show filter-matching contracts once SAM attachments are fully loaded</li>
+    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} — Claude PDF analysis on every attachment-ready contract (ranking score)</li>
+    <li>Scheduled auto-sync: ${budget.scheduled_naics_per_sync ?? 2} NAICS code(s) per 6am run (rotates through tier pool)</li>
+    <li>Attachment pull: budget-limited per sync; pending contracts resume on the next run</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");
@@ -818,8 +825,9 @@ function formatSchedulerStatus(sched) {
   const minute = String(sched.minute ?? 0).padStart(2, "0");
   const tz = (sched.timezone || "America/Denver").replace("America/", "");
   const tierLine = sched.tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
+  const batchLine = sched.scheduled_per_sync ? ` · ${sched.scheduled_per_sync} code(s)/run` : "";
   const todayLine = sched.scheduled_tiers
-    ? ` · next run searches tiers ${sched.scheduled_tiers.join(", ")} (${sched.scheduled_code_count || 0} codes)`
+    ? ` · pool tiers ${sched.scheduled_tiers.join(", ")} (${sched.scheduled_pool_size || "?"} codes${batchLine})`
     : "";
   if (sched.next_run) {
     const next = new Date(sched.next_run);

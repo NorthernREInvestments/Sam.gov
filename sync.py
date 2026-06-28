@@ -12,6 +12,8 @@ from database import SessionLocal
 from models import AppSetting, Contract
 from sam_client import fetch_naics_from_sam, min_days_from_env, naics_from_env
 
+SCHEDULED_ROTATION_KEY = "naics_scheduled_rotation_index"
+
 
 def _parse_due_date(value: str | None) -> date | None:
     if not value:
@@ -82,7 +84,13 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
                     continue
                 setattr(existing, key, value)
             if isinstance(sam_raw, dict):
-                existing.sam_raw = sam_raw
+                from sam_enrich import is_scrape_complete
+
+                existing_raw = existing.sam_raw if isinstance(existing.sam_raw, dict) else {}
+                if is_scrape_complete(existing_raw) and not is_scrape_complete(sam_raw):
+                    pass
+                else:
+                    existing.sam_raw = sam_raw
             existing.last_updated_at = now
             updated_count += 1
         else:
@@ -172,8 +180,14 @@ def list_contracts(
     agency: str | None = None,
     pursue_only: bool = False,
     tier: int | None = None,
+    require_scrape_complete: bool = True,
+    notice_ids: list[str] | None = None,
 ) -> list[Contract]:
-    """Return contracts from PostgreSQL matching filters."""
+    """Return contracts matching dashboard search filters.
+
+    Cards only show rows with full attachments when require_scrape_complete=True (default).
+    """
+    from sam_enrich import is_scrape_complete
     from settings_store import get_min_score_threshold
 
     if naics_codes is None:
@@ -183,12 +197,15 @@ def list_contracts(
     min_days = min_days_until_due if min_days_until_due is not None else min_days_from_env()
     min_score = min_score if min_score is not None else get_min_score_threshold()
     naics_set = set(naics_codes)
+    id_set = set(notice_ids) if notice_ids else None
     today = date.today()
     agency_query = agency.strip().lower() if agency else None
 
     rows = session.query(Contract).filter(Contract.naics_code.in_(naics_set)).all()
     results: list[Contract] = []
     for row in rows:
+        if id_set is not None and row.notice_id not in id_set:
+            continue
         if tier is not None and row.tier != tier:
             continue
         if row.due_date is not None:
@@ -203,10 +220,19 @@ def list_contracts(
             continue
         if pursue_only and analysis.get("pursue") is not True:
             continue
+        if require_scrape_complete:
+            raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+            if not is_scrape_complete(raw):
+                continue
         results.append(row)
 
     results.sort(
         key=lambda r: (
+            0
+            if (r.analysis or {}).get("screening_stage") == "full"
+            and (r.analysis or {}).get("score") is not None
+            else 1,
+            -int((r.analysis or {}).get("score") or 0),
             r.due_date is None,
             (r.due_date - today).days if r.due_date else 9999,
         )
@@ -385,7 +411,7 @@ def refresh_stale_sam_raw(session: Session, limit: int | None = None) -> int:
 
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
-    """Pull one enabled NAICS code from SAM.gov and upsert fully scraped contracts into PostgreSQL."""
+    """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
     naics_codes = naics_from_env()
     if not naics_codes:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
@@ -412,17 +438,24 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
         search_count = len(batch)
         batch, filter_stats = filter_search_results(batch, session)
         batch_notice_ids: list[str] = []
+        scrape_result: dict[str, Any] = {"scraped_complete": 0, "scraped_skipped": 0}
+        intake_result: dict[str, Any] = {}
 
         if search_only:
             new_count, updated_count = upsert_contracts(session, batch)
             batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
         else:
-            from intake import intake_matching_contracts
-            from screening_pipeline import full_analysis_min_score
+            from api_budget import attachment_enrich_per_sync_limit
+            from intake import enrich_matching_attachments, intake_matching_contracts
 
-            # Upsert search hits first; two-step intake text-screens then full-scrapes high scores only.
+            batch_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
             new_count, updated_count = upsert_contracts(session, batch)
-            batch_notice_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
+            scrape_result = enrich_matching_attachments(
+                session,
+                batch_ids,
+                limit=attachment_enrich_per_sync_limit(),
+            )
+            batch_notice_ids = batch_ids
             intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
@@ -450,9 +483,11 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
             )
         else:
             fetch_status = (
-                f"NAICS {naics_today}: saved {filter_stats.get('matched_filters', len(batch))} matching search result(s) "
+                f"NAICS {naics_today}: saved {filter_stats.get('matched_filters', len(batch))} matching contract(s) "
                 f"from {search_count} SAM result(s) (1 search call).{filter_note} "
-                f"Two-step intake: text screen first, full PDF analysis for score {full_analysis_min_score()}+."
+                f"Attachments ready: {scrape_result.get('attachments_enriched', 0)}; "
+                f"pending: {scrape_result.get('attachments_pending', 0)}. "
+                f"Claude analysis runs when attachments are complete."
             )
             if loaded < len(naics_codes):
                 fetch_status += f" Coverage: {loaded}/{len(naics_codes)} NAICS codes."
@@ -486,6 +521,15 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
     }
 
 
+def _rotated_code_batch(codes: list[str], index: int, count: int) -> tuple[list[str], int]:
+    """Pick the next `count` codes from a rotating pool."""
+    if not codes or count <= 0:
+        return [], index
+    selected = [codes[(index + i) % len(codes)] for i in range(min(count, len(codes)))]
+    next_index = (index + len(selected)) % len(codes)
+    return selected, next_index
+
+
 def _sync_naics_code_list(
     naics_codes: list[str],
     *,
@@ -500,6 +544,8 @@ def _sync_naics_code_list(
     fetched_total = 0
     matched_total = 0
     filtered_total = 0
+    scraped_total = 0
+    scrape_skipped_total = 0
     new_total = 0
     updated_total = 0
     per_naics: list[dict[str, Any]] = []
@@ -514,14 +560,21 @@ def _sync_naics_code_list(
         status_session.close()
 
     from intake import intake_matching_contracts
+    from api_budget import can_spend_sam
 
+    budget_skipped: list[str] = []
     for naics in naics_codes:
+        if not can_spend_sam(1):
+            budget_skipped.extend(naics_codes[len(per_naics):])
+            break
         batch = fetch_naics_from_sam(naics)
         api_calls += 1
         fetched_total += len(batch)
 
         session = SessionLocal()
         filter_stats: dict[str, int] = {}
+        scrape_result: dict[str, Any] = {"scraped_complete": 0, "scraped_skipped": 0}
+        attach_result: dict[str, Any] = {"attachments_enriched": 0, "attachments_pending": 0}
         new_count = 0
         updated_count = 0
         try:
@@ -529,8 +582,21 @@ def _sync_naics_code_list(
             matched_total += filter_stats.get("matched_filters", len(batch))
             filtered_total += filter_stats.get("filtered_out", 0)
 
+            batch_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
             new_count, updated_count = upsert_contracts(session, batch)
-            all_notice_ids.extend(str(o.get("notice_id") or "") for o in batch if o.get("notice_id"))
+
+            from api_budget import attachment_enrich_per_sync_limit
+            from intake import enrich_matching_attachments
+
+            attach_result = enrich_matching_attachments(
+                session,
+                batch_ids,
+                limit=attachment_enrich_per_sync_limit(),
+            )
+            scraped_total += attach_result.get("attachments_enriched", 0)
+            scrape_skipped_total += attach_result.get("attachments_pending", 0)
+
+            all_notice_ids.extend(batch_ids)
             synced_map[naics] = date.today().isoformat()
             _set_setting(session, "naics_last_synced", json.dumps(synced_map))
             session.commit()
@@ -544,6 +610,8 @@ def _sync_naics_code_list(
             "fetched": len(batch) + filter_stats.get("filtered_out", 0),
             "matched_filters": filter_stats.get("matched_filters", len(batch)),
             "filtered_out": filter_stats.get("filtered_out", 0),
+            "attachments_enriched": attach_result.get("attachments_enriched", 0),
+            "attachments_pending": attach_result.get("attachments_pending", 0),
             "new": new_count,
             "updated": updated_count,
         })
@@ -551,22 +619,37 @@ def _sync_naics_code_list(
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
+        from intake import intake_matching_contracts
+
         intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
         total = session.query(Contract).count()
     finally:
         session.close()
 
+    scrape_result = {
+        "attachments_enriched": scraped_total,
+        "attachments_pending": scrape_skipped_total,
+    }
+
     if manual_all_tiers:
         scope = f"Manual search all tiers — {len(naics_codes)} enabled code(s)"
     elif scheduled_tiers:
-        scope = f"Scheduled sync — tiers {', '.join(str(t) for t in scheduled_tiers)} ({len(naics_codes)} code(s))"
+        searched = len(per_naics)
+        scope = (
+            f"Scheduled sync — tiers {', '.join(str(t) for t in scheduled_tiers)}: "
+            f"searched {searched} code(s) this run"
+        )
+        if budget_skipped:
+            scope += f" ({len(budget_skipped)} skipped — SAM budget)"
     else:
         scope = f"Synced {len(naics_codes)} NAICS code(s)"
 
     fetch_status = (
-        f"{scope}. Saved {matched_total} matching result(s) from {fetched_total} SAM search hits "
-        f"({filtered_total} filtered out). Two-step intake runs text screen then full PDF analysis."
+        f"{scope}. Saved {matched_total} filter-matching contract(s); "
+        f"attachments pulled for {scraped_total} this run "
+        f"({scrape_skipped_total} still pending — retried on next sync). "
+        f"Claude full analysis runs on every contract once attachments are ready (ranking score)."
     )
 
     from api_budget import get_usage_snapshot, intake_on_sync_enabled
@@ -585,24 +668,53 @@ def _sync_naics_code_list(
         "new": new_total,
         "updated": updated_total,
         "intake": intake_result,
+        "scrape": scrape_result,
         "total_in_db": total,
         "naics_synced": len(naics_codes),
         "naics_total": len(naics_from_env()),
         "scheduled_tiers": scheduled_tiers,
         "manual_all_tiers": manual_all_tiers,
+        "budget_skipped": budget_skipped,
         "per_naics": per_naics,
         "api_budget": get_usage_snapshot(),
     }
 
 
 def sync_scheduled_naics() -> dict[str, Any]:
-    """Tiered scheduled sync — tier 1 daily, tier 2 Mon/Wed/Fri, tier 3 Sunday."""
+    """Tiered scheduled sync — rotates a small batch through today's tier pool."""
+    from api_budget import scheduled_sync_batch_size
     from naics_labels import tiers_for_scheduled_sync
     from settings_store import get_naics_codes_for_tiers
 
     tiers = tiers_for_scheduled_sync()
-    codes = get_naics_codes_for_tiers(tiers)
-    return _sync_naics_code_list(codes, scheduled_tiers=tiers)
+    pool = get_naics_codes_for_tiers(tiers)
+    if not pool:
+        raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
+
+    batch_size = scheduled_sync_batch_size()
+    if batch_size <= 0:
+        raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
+
+    session = SessionLocal()
+    try:
+        index = int(_get_setting(session, SCHEDULED_ROTATION_KEY, "0")) % max(len(pool), 1)
+    finally:
+        session.close()
+
+    codes, next_index = _rotated_code_batch(pool, index, batch_size)
+    result = _sync_naics_code_list(codes, scheduled_tiers=tiers)
+    result["scheduled_pool"] = pool
+    result["scheduled_pool_size"] = len(pool)
+    result["scheduled_batch"] = codes
+    result["scheduled_next_index"] = next_index
+
+    session = SessionLocal()
+    try:
+        _set_setting(session, SCHEDULED_ROTATION_KEY, str(next_index))
+        session.commit()
+    finally:
+        session.close()
+    return result
 
 
 def sync_all_naics() -> dict[str, Any]:
@@ -612,19 +724,23 @@ def sync_all_naics() -> dict[str, Any]:
 
 
 def get_naics_sync_status() -> dict[str, Any]:
+    from api_budget import scheduled_naics_per_sync, scheduled_sync_batch_size
     from naics_labels import tiers_for_scheduled_sync
     from settings_store import get_naics_codes_for_tiers
 
     naics_codes = naics_from_env()
     scheduled_tiers = tiers_for_scheduled_sync()
-    scheduled_codes = get_naics_codes_for_tiers(scheduled_tiers)
+    scheduled_pool = get_naics_codes_for_tiers(scheduled_tiers)
+    batch_size = scheduled_sync_batch_size() or scheduled_naics_per_sync()
     session = SessionLocal()
     try:
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
         index = int(_get_setting(session, "naics_rotation_index", "0")) % max(len(naics_codes), 1)
+        sched_index = int(_get_setting(session, SCHEDULED_ROTATION_KEY, "0")) % max(len(scheduled_pool), 1)
     finally:
         session.close()
     next_naics = naics_codes[index] if naics_codes else None
+    next_batch, _ = _rotated_code_batch(scheduled_pool, sched_index, batch_size)
     return {
         "naics_codes": naics_codes,
         "last_synced": synced_map,
@@ -633,7 +749,11 @@ def get_naics_sync_status() -> dict[str, Any]:
         "next_naics": next_naics,
         "rotation_index": index,
         "scheduled_tiers": scheduled_tiers,
-        "scheduled_code_count": len(scheduled_codes),
+        "scheduled_pool_size": len(scheduled_pool),
+        "scheduled_batch_size": batch_size,
+        "scheduled_per_sync": scheduled_naics_per_sync(),
+        "scheduled_next_batch": next_batch,
+        "scheduled_rotation_index": sched_index,
     }
 
 

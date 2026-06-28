@@ -27,6 +27,20 @@ def sam_daily_limit() -> int:
     return _daily_limit("SAM_DAILY_API_BUDGET", 10)
 
 
+def scheduled_naics_per_sync() -> int:
+    """How many NAICS codes the 6am scheduled sync searches per run (rotates through the pool)."""
+    return max(1, _daily_limit("SCHEDULED_NAICS_PER_SYNC", 2))
+
+
+def scheduled_sync_batch_size() -> int:
+    """Scheduled sync batch size capped by remaining SAM.gov budget."""
+    snap = get_usage_snapshot()
+    remaining = snap["sam_remaining"]
+    if remaining <= 0:
+        return 0
+    return min(scheduled_naics_per_sync(), remaining)
+
+
 def screen_daily_limit() -> int:
     """Claude screenings per day. 0 = unlimited (no daily cap)."""
     return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 0)
@@ -122,6 +136,7 @@ def get_usage_snapshot() -> dict[str, Any]:
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
         "intake_per_sync_limit": intake_per_sync_limit(),
+        "scheduled_naics_per_sync": scheduled_naics_per_sync(),
         "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),
         "attachment_enrich_on_list_limit": attachment_enrich_on_list_limit(),
     }

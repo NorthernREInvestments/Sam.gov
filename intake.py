@@ -22,6 +22,7 @@ from screening_pipeline import (
     SKIP_LOW_SCORE_LABEL,
     finalize_full_analysis,
     full_analysis_min_score,
+    has_attachments_ready,
     is_full_analysis_complete,
     mark_low_text_score,
     mark_pending_full_analysis,
@@ -218,11 +219,7 @@ def run_full_analysis(row: Contract, *, prior: dict[str, Any] | None = None) -> 
 
 
 def full_intake_contract(row: Contract, *, force: bool = False, force_full: bool = False) -> dict[str, Any]:
-    """
-    Two-step intake:
-    1. Text screening (no PDFs)
-    2. Full PDF analysis only if text score >= FULL_ANALYSIS_MIN_SCORE (default 6) or force_full
-    """
+    """Run full Claude analysis once SAM attachments are complete (drives dashboard ranking)."""
     if is_full_analysis_complete(row.analysis) and not force and not force_full:
         return {"notice_id": row.notice_id, "skipped": True, "reason": "already_analyzed"}
 
@@ -230,32 +227,16 @@ def full_intake_contract(row: Contract, *, force: bool = False, force_full: bool
         return {"notice_id": row.notice_id, "in_progress": True}
 
     try:
-        analysis = row.analysis if isinstance(row.analysis, dict) else {}
-
-        if force_full or (is_full_analysis_complete(analysis) and force):
-            return run_full_analysis(row, prior=analysis)
-
-        if needs_text_screening(analysis) or force:
-            text_result = run_text_screen(row)
-            if text_result.get("skipped") and text_result.get("reason") == "screen_budget":
-                return text_result
-            analysis = row.analysis if isinstance(row.analysis, dict) else text_result.get("analysis", {})
-
-        if force_full or qualifies_for_full_analysis(analysis, force=force_full):
-            return run_full_analysis(row, prior=analysis)
-
-        if text_score_from_analysis(analysis) is not None:
+        if not has_attachments_ready(row):
             return {
                 "notice_id": row.notice_id,
-                "skipped": False,
-                "text_screened": True,
-                "full_analysis": False,
-                "text_score": text_score_from_analysis(analysis),
-                "skip_reason": analysis.get("skip_reason"),
-                "analysis": analysis,
+                "skipped": True,
+                "reason": "pending_attachments",
+                "message": "Waiting for SAM.gov attachments before Claude analysis.",
             }
 
-        return {"notice_id": row.notice_id, "skipped": True, "reason": "no_description"}
+        analysis = row.analysis if isinstance(row.analysis, dict) else {}
+        return run_full_analysis(row, prior=analysis)
     finally:
         _end_intake(row.notice_id)
 
@@ -288,7 +269,7 @@ def intake_matching_contracts(
     force: bool = False,
     force_full: bool = False,
 ) -> dict[str, Any]:
-    """Run two-step intake for synced contracts that need text or full analysis."""
+    """Run Claude full analysis for filter-matching contracts with attachments ready."""
     from sync import list_contracts
 
     if not intake_on_sync_enabled() and not force and not force_full:
@@ -298,7 +279,12 @@ def intake_matching_contracts(
     if cap == 0 and limit is None:
         cap = 999999
 
-    matching = {r.notice_id: r for r in list_contracts(session)}
+    id_set = set(notice_ids) if notice_ids else None
+    matching = {
+        r.notice_id: r
+        for r in list_contracts(session, require_scrape_complete=True)
+        if id_set is None or r.notice_id in id_set
+    }
 
     processed = 0
     screened = 0
@@ -307,7 +293,8 @@ def intake_matching_contracts(
     skipped = 0
     errors: list[str] = []
 
-    for notice_id in notice_ids:
+    ids_to_process = notice_ids if notice_ids else list(matching.keys())
+    for notice_id in ids_to_process:
         if processed >= cap:
             break
         row = matching.get(notice_id)
@@ -345,11 +332,7 @@ def intake_matching_contracts(
             session.rollback()
             errors.append(f"{notice_id}: {exc}")
 
-    pending = sum(
-        1
-        for row in matching.values()
-        if row.notice_id in notice_ids and needs_intake(row)
-    )
+    pending = sum(1 for row in matching.values() if needs_intake(row))
 
     return {
         "processed": processed,
@@ -425,29 +408,21 @@ def enrich_matching_attachments(
     *,
     limit: int | None = None,
 ) -> dict[str, Any]:
-    """Full scrape only for contracts queued for full PDF analysis (text score >= threshold)."""
+    """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
     from sam_enrich import is_scrape_complete
     from sync import list_contracts
 
-    matching_rows = list_contracts(session)
-    if notice_ids is not None:
-        id_set = set(notice_ids)
-        candidates = [r for r in matching_rows if r.notice_id in id_set]
-    else:
-        candidates = [
-            r
-            for r in matching_rows
-            if qualifies_for_full_analysis(r.analysis if isinstance(r.analysis, dict) else None)
-            and not is_scrape_complete(r.sam_raw if isinstance(r.sam_raw, dict) else {})
-        ]
+    candidates = [
+        row
+        for row in list_contracts(session, require_scrape_complete=False, notice_ids=notice_ids)
+        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
+    ]
 
     enriched = 0
     errors: list[str] = []
     for row in candidates:
         if limit is not None and enriched >= limit:
             break
-        if not qualifies_for_full_analysis(row.analysis if isinstance(row.analysis, dict) else None):
-            continue
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if is_scrape_complete(raw):
             continue
@@ -465,8 +440,7 @@ def enrich_matching_attachments(
     pending = sum(
         1
         for row in candidates
-        if qualifies_for_full_analysis(row.analysis if isinstance(row.analysis, dict) else None)
-        and not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
+        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
     )
 
     return {
@@ -477,7 +451,7 @@ def enrich_matching_attachments(
 
 
 def start_background_attachment_enrich(batch_size: int = 8) -> None:
-    """Full scrape for high text-score contracts awaiting PDF analysis."""
+    """Continue full scrape for matching contracts that still need attachments."""
     global _attachment_running
     with _attachment_lock:
         if _attachment_running:
@@ -501,6 +475,8 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
                     session.close()
             if total:
                 logger.info("Background full scrape finished: %s contract(s)", total)
+            if total and intake_on_sync_enabled():
+                start_background_intake()
         except Exception:
             logger.exception("Background attachment enrich failed")
         finally:
