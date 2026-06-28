@@ -30,6 +30,7 @@ class Contract(Base):
     agency: Mapped[str | None] = mapped_column(String(512), nullable=True)
     location: Mapped[str | None] = mapped_column(String(256), nullable=True)
     naics_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tier: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     set_aside: Mapped[str | None] = mapped_column(String(256), nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     link: Mapped[str | None] = mapped_column(String(512), nullable=True)

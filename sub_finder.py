@@ -24,7 +24,7 @@ from sub_constants import (
     DEFAULT_SUB_STATUS,
     SUB_STATUSES,
     classify_sub_type,
-    search_terms_for_sub_type,
+    resolve_search_terms,
 )
 from sub_serializers import contract_sub_summary, contract_sub_to_dict, sub_to_dict
 from usaspending_client import extract_work_location
@@ -73,11 +73,12 @@ def _passes_filters(place: dict[str, Any], settings: dict[str, Any]) -> bool:
 def _google_search_candidates(
     *,
     sub_type_needed: str | None,
+    naics_code: str | None,
     latitude: float,
     longitude: float,
     settings: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], int]:
-    terms = search_terms_for_sub_type(sub_type_needed)
+    terms = resolve_search_terms(sub_type_needed, naics_code)
     primary_radius = settings["search_radius_miles"]
     radii = [primary_radius]
     if primary_radius < 50:
@@ -289,6 +290,7 @@ def _run_places_search(session: Session, contract: Contract, *, force: bool) -> 
         lat, lng, work = _contract_coords(contract)
         candidates, used_radius = _google_search_candidates(
             sub_type_needed=sub_type_needed,
+            naics_code=contract.naics_code,
             latitude=lat,
             longitude=lng,
             settings=settings,
@@ -305,7 +307,7 @@ def _run_places_search(session: Session, contract: Contract, *, force: bool) -> 
                 "summary": contract_sub_summary(contract, session),
             }
 
-        sub_type = classify_sub_type(sub_type_needed)
+        sub_type = classify_sub_type(sub_type_needed, contract.naics_code)
         links: list[ContractSub] = []
         for place in candidates:
             sub = upsert_sub(session, place, sub_type=sub_type)

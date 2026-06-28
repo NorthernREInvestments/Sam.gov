@@ -13,7 +13,9 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 SAM_SEARCH_URL = "https://api.sam.gov/opportunities/v2/search"
-DEFAULT_NAICS = ["561720", "561210", "561730", "561710", "561790", "561612"]
+from naics_labels import ALL_NAICS_CODES
+
+DEFAULT_NAICS = ALL_NAICS_CODES.copy()
 
 
 def _parse_date(value: str | None) -> date | None:

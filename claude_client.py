@@ -36,6 +36,23 @@ SCREENING RULES (for pursue/skip):
 - Not standard service work a local subcontractor could do with basic business licensing → pursue false
 - Location must have a realistic market of subcontractors
 
+SERVICE-TYPE AWARENESS — tailor sub_type_needed, red flags, and bid reasoning to the NAICS/service type:
+- Janitorial / facilities (561720, 561210, 561790, 561740): licensed commercial cleaning/janitorial subs; watch for sq ft, frequency, floor wax/carpet/window scope, wage determinations, bonded crews, after-hours access.
+- Landscaping / grounds (561730): licensed landscaping or grounds maintenance crews; watch for seasonal vs year-round, mowing/snow/irrigation, equipment requirements, acreage, pesticide applicator licenses.
+- Pest control (561710): licensed commercial exterminators; watch for integrated pest management scope, restricted pesticides, recurring service vs one-time treatment, interior/exterior coverage.
+- Waste (562111, 562119): waste haulers; watch for hazardous waste, DOT licensing, roll-off vs route collection.
+- Document shredding (561439): NAID-certified destruction vendors; recurring pickup routes, multi-location scope.
+- Translation (541930): certified interpreters/translators; language pairs, clearance, on-site vs remote.
+- Vehicle washing (811192): fleet washing vendors; fleet size, mobile vs fixed bay, frequency.
+- HVAC/plumbing maintenance (238220): licensed HVAC/plumbing contractors; maintenance-only vs install, refrigerant EPA 608, emergency response.
+- Remediation (562910): environmental remediation firms; hazmat, EPA certs, site complexity.
+- Moving (484210): commercial movers; local vs interstate, crating, timing windows.
+- Local freight (484110): local carriers; DOT authority, liftgate/dock, insurance.
+- Couriers (492110): courier services; clearance, specialized delivery requirements.
+- Photography (711320): commercial photographers; clearance, equipment, deliverables.
+- Equipment rental (532490): equipment rental companies; specialized gear, operator certs, maintenance.
+- Telephone answering (561422): answering services; after-hours, call volume, specialized knowledge.
+
 PLAIN ENGLISH SUMMARY (plain_english_summary field — MOST IMPORTANT):
 Write under 200 words. Sound like you're explaining it to a friend, not a lawyer. No jargon.
 
@@ -112,28 +129,56 @@ TEXT_SCREENING_PROMPT = """You are a government contract screening specialist fo
 
 This is STEP 1 — TEXT-ONLY triage. You only have the SAM.gov posting description and metadata. No PDFs are attached.
 
-Score how good a fit this is for a prime who finds local subs and bids as middleman (NAICS 561720 janitorial/facilities services focus).
+Score how good a fit this is for a prime who finds local subs and bids as middleman across our NAICS portfolio:
 
-SCREENING RULES:
+TIER 1 (daily search — janitorial, facilities, grounds, pest, waste):
+561720 Janitorial · 561210 Facilities Support · 561730 Landscaping · 561710 Pest Control · 562111 Solid Waste · 561790 Building Services · 561740 Carpet Cleaning · 562119 Other Waste
+
+TIER 2 (Mon/Wed/Fri — specialized services):
+561439 Document Shredding · 541930 Translation · 811192 Vehicle Washing · 238220 HVAC/Plumbing Maintenance · 562910 Remediation · 484210 Moving · 484110 Local Freight · 492110 Couriers
+
+TIER 3 (weekly — expansion):
+711320 Photography · 532490 Equipment Rental · 561422 Telephone Answering
+
+Use the contract NAICS code and posting text to identify the service type. Tailor sub_type_needed, red_flags, and your reason to that specific category.
+
+CATEGORY-SPECIFIC EVALUATION (apply the matching block):
+- Janitorial / facilities (561720, 561210, 561790, 561740): sq ft, frequency, floor/carpet/window scope, wage determinations, after-hours access.
+- Landscaping (561730): seasonal vs year-round, mowing/snow/irrigation, acreage, pesticide applicator licenses.
+- Pest control (561710): IPM scope, restricted pesticides, recurring vs one-time, interior/exterior coverage.
+- Waste (562111, 562119): roll-off vs route collection, hazardous waste, DOT licensing.
+- Document shredding (561439): NAID certification requirements, recurring pickup schedules, number of locations.
+- Translation (541930): language pairs required, clearance requirements, certified interpreter requirements.
+- Vehicle washing (811192): fleet size, frequency, mobile vs fixed location.
+- HVAC/plumbing maintenance (238220): maintenance-only vs installation, refrigerant handling (EPA 608), emergency response scope.
+- Remediation (562910): hazmat requirements, EPA certifications, site complexity, soil/contamination scope.
+- Moving (484210): local vs interstate, specialized equipment, timing/window requirements.
+- Local freight (484110): liftgate/dock requirements, DOT authority, local delivery radius.
+- Couriers (492110): security clearance requirements, specialized delivery (medical, legal, classified).
+- Photography (711320): clearance requirements, specialized equipment, deliverables and turnaround.
+- Equipment rental (532490): specialized equipment types, maintenance requirements, operator certification.
+- Telephone answering (561422): after-hours coverage, specialized knowledge, call volume.
+
+UNIVERSAL SCREENING RULES:
 - FAR 52.219-14 or performance-of-work clause requiring prime to self-perform → pursue false
 - Security clearances or restricted access required → pursue false
 - Not standard service work a local subcontractor could do → pursue false
-- Location must plausibly have local subs
+- Location must plausibly have local subs for THIS service type
 
 Return JSON only with these fields:
-- score: integer 1-10 (fit for subcontracting middleman model)
+- score: integer 1-10 (fit for subcontracting middleman model for this service type)
 - pursue: true or false (quick bid/no-bid)
-- reason: one sentence explaining the score
+- reason: one sentence explaining the score — name the service type
 - contract_title: string
 - agency: string
 - location: string
 - due_date: string or null
 - naics_code: string or null
 - estimated_value: string or null
-- red_flags: array of strings (only if visible from posting text)
+- red_flags: array of strings (category-specific flags visible from posting text)
 - far_52_219_14: true or false (best guess from posting text)
 - security_clearance_required: true or false (best guess from posting text)
-- sub_type_needed: string or null (brief guess from posting text)
+- sub_type_needed: string or null (specific sub type for this NAICS)
 
 Do NOT invent square footage, wage determinations, or pricing. Keep reason under 30 words.
 Respond with JSON only. No markdown fences."""
@@ -530,11 +575,10 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
     return {k: v for k, v in data.items() if v is not None and str(v).strip()}
 
 
-    return "\n".join(lines)
-
-
 def build_text_screening_text(contract: Any) -> str:
     """Metadata + posting description only — no PDF references."""
+    from naics_labels import naics_display
+
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     description = (
         raw.get("descriptionText")
@@ -553,7 +597,7 @@ def build_text_screening_text(contract: Any) -> str:
         f"Agency: {contract.agency or 'Unknown'}",
         f"Location: {contract.location or 'Unknown'}",
         f"Work states: {', '.join(work_states) if work_states else 'Unknown'}",
-        f"NAICS: {contract.naics_code or 'Unknown'}",
+        f"NAICS: {naics_display(contract.naics_code) if contract.naics_code else 'Unknown'}",
         f"Set-aside: {contract.set_aside or 'Unknown'}",
         f"Due date: {contract.due_date.isoformat() if contract.due_date else 'Unknown'}",
         f"SAM.gov link: {contract.link or 'Unknown'}",

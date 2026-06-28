@@ -47,6 +47,21 @@ def init_db() -> None:
     _migrate_add_sub_finder()
     _migrate_add_internal_pricing()
     _migrate_add_proposals()
+    _migrate_add_contract_tier()
+
+
+def _migrate_add_contract_tier() -> None:
+    from naics_labels import NAICS_TIER_BY_CODE
+
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS tier INTEGER"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_contracts_tier ON contracts (tier)"))
+        for code, tier in NAICS_TIER_BY_CODE.items():
+            conn.execute(
+                text("UPDATE contracts SET tier = :tier WHERE naics_code = :code AND tier IS NULL"),
+                {"tier": tier, "code": code},
+            )
+        conn.commit()
 
 
 def _migrate_add_proposals() -> None:

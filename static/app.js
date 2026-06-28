@@ -1,4 +1,4 @@
-let config = { naics_codes: [], naics_labels: {}, default_min_days: 10, default_min_score: 1 };
+let config = { naics_codes: [], naics_labels: {}, naics_tiers: [], naics_groups: [], all_naics_codes: [], default_min_days: 10, default_min_score: 1 };
 let contracts = [];
 let activeDetailId = null;
 let detailPollTimer = null;
@@ -28,6 +28,73 @@ function showView(name) {
   if (name === "settings") loadSettingsPage();
 }
 
+function renderNaicsFilters() {
+  const labels = config.naics_labels || {};
+  const container = document.getElementById("naics-filters");
+  if (!container) return;
+  const activeCodes = config.naics_codes || [];
+  container.innerHTML = activeCodes
+    .map(
+      (code) => `
+    <label>
+      <input type="checkbox" class="naics-check" value="${code}" checked>
+      <span class="naics-filter-label">${escapeHtml(code)}</span>
+      <span class="naics-filter-desc">${escapeHtml(labels[code] || "Other Services")}</span>
+    </label>`
+    )
+    .join("");
+}
+
+function renderNaicsSettingsToggles(activeCodes) {
+  const container = document.getElementById("settings-naics-toggles");
+  if (!container) return;
+  const labels = config.naics_labels || {};
+  const active = new Set(activeCodes || []);
+  const tiers = config.naics_tiers || config.naics_groups || [];
+  if (!tiers.length) {
+    container.innerHTML = (config.all_naics_codes || config.naics_codes || [])
+      .map(
+        (code) => `
+      <label class="naics-settings-toggle">
+        <input type="checkbox" class="settings-naics-toggle" value="${code}" ${active.has(code) ? "checked" : ""}>
+        <span class="naics-filter-label">${escapeHtml(code)}</span>
+        <span class="naics-filter-desc">${escapeHtml(labels[code] || "Other Services")}</span>
+      </label>`
+      )
+      .join("");
+    return;
+  }
+  container.innerHTML = tiers
+    .map(
+      (group) => `
+    <div class="naics-settings-group naics-tier-group">
+      <h4>${escapeHtml(group.name || `Tier ${group.tier}`)}</h4>
+      <p class="filter-help tier-schedule-help">${escapeHtml(group.schedule || "")}</p>
+      ${(group.codes || [])
+        .map(
+          (code) => `
+        <label class="naics-settings-toggle">
+          <input type="checkbox" class="settings-naics-toggle" value="${code}" ${active.has(code) ? "checked" : ""}>
+          <span class="naics-filter-label">${escapeHtml(code)}</span>
+          <span class="naics-filter-desc">${escapeHtml(labels[code] || "Other Services")}</span>
+        </label>`
+        )
+        .join("")}
+    </div>`
+    )
+    .join("");
+}
+
+function tierBadge(c) {
+  if (!c.tier) return "";
+  const label = c.tier_label || `Tier ${c.tier}`;
+  return `<span class="badge badge-tier badge-tier-${c.tier}">${escapeHtml(label)}</span>`;
+}
+
+function selectedSettingsNaics() {
+  return [...document.querySelectorAll(".settings-naics-toggle:checked")].map((el) => el.value);
+}
+
 async function loadConfig() {
   const res = await apiFetch("/api/config");
   config = await res.json();
@@ -38,23 +105,13 @@ async function loadConfig() {
 
   const sync = config.naics_sync || {};
   const nextNaics = sync.next_naics ? ` · next: ${sync.next_naics}` : "";
+  const tierSchedule = config.naics_tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
+  const scheduledToday = sync.scheduled_tiers ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${sync.scheduled_code_count || "?"} codes)` : "";
   document.getElementById("naics-sync-status").textContent =
-    `NAICS coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} codes synced from SAM.gov${nextNaics}`;
+    `${tierSchedule}. Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${scheduledToday}${nextNaics}`;
 
   populateSyncNaicsSelect();
-
-  const labels = config.naics_labels || {};
-  const container = document.getElementById("naics-filters");
-  container.innerHTML = config.naics_codes
-    .map(
-      (code) => `
-    <label>
-      <input type="checkbox" class="naics-check" value="${code}" checked>
-      <span class="naics-filter-label">${escapeHtml(code)}</span>
-      <span class="naics-filter-desc">${escapeHtml(labels[code] || "Other Services")}</span>
-    </label>`
-    )
-    .join("");
+  renderNaicsFilters();
 }
 
 function selectedSyncNaics() {
@@ -85,12 +142,18 @@ function selectedNaics() {
 function buildQuery() {
   const params = new URLSearchParams();
   const naics = selectedNaics();
-  if (naics.length) params.set("naics", naics.join(","));
+  if (naics.length) {
+    params.set("naics", naics.join(","));
+  } else {
+    params.set("naics", "__none__");
+  }
   params.set("min_days", document.getElementById("min-days").value);
   params.set("min_score", document.getElementById("min-score").value);
   const agency = document.getElementById("agency-filter").value.trim();
   if (agency) params.set("agency", agency);
   if (document.getElementById("pursue-only").checked) params.set("pursue_only", "true");
+  const tier = document.getElementById("tier-filter")?.value;
+  if (tier) params.set("tier", tier);
   return params.toString();
 }
 
@@ -208,6 +271,7 @@ function renderCards() {
     <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
       <div class="card-top">
         ${screeningBadge(c)}
+        ${tierBadge(c)}
         ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""}
         ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance required</span>' : ""}
         <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
@@ -574,10 +638,10 @@ function formatApiBudget(budget) {
 }
 
 async function runSync({ allNaics = false, searchOnly = false } = {}) {
-  const buttonIds = ["sync-all-btn", "refresh-btn", "search-only-btn"];
+  const buttonIds = ["search-all-btn", "refresh-btn", "search-only-btn"];
   const buttons = buttonIds.map((id) => document.getElementById(id)).filter(Boolean);
   const activeBtn = allNaics
-    ? document.getElementById("sync-all-btn")
+    ? document.getElementById("search-all-btn")
     : searchOnly
       ? document.getElementById("search-only-btn")
       : document.getElementById("refresh-btn");
@@ -589,8 +653,17 @@ async function runSync({ allNaics = false, searchOnly = false } = {}) {
 
   const naics = selectedSyncNaics();
   if (allNaics) {
+    const enabledCount = config.naics_codes?.length || 0;
+    if (!enabledCount) {
+      showSyncStatus("No NAICS codes enabled. Turn on codes in Settings → Search.", true);
+      buttons.forEach((b) => {
+        b.disabled = false;
+        b.textContent = savedLabels[b.id];
+      });
+      return;
+    }
     showSyncStatus(
-      `Pulling all ${config.naics_codes?.length || 6} NAICS codes, then reading descriptions + attachments and writing summaries…`
+      `Search All — ${enabledCount} enabled code(s) across all tiers, then reading descriptions + attachments…`
     );
   } else if (searchOnly) {
     showSyncStatus(
@@ -669,7 +742,13 @@ async function runScreen() {
 async function loadSettingsPage() {
   const res = await apiFetch("/api/settings");
   const data = await res.json();
-  document.getElementById("settings-naics").value = (data.naics_codes || []).join(", ");
+  config.naics_codes = data.naics_codes || [];
+  config.all_naics_codes = data.all_naics_codes || config.naics_codes;
+  config.naics_tiers = data.naics_tiers || data.naics_groups || config.naics_tiers || [];
+  config.naics_groups = data.naics_groups || config.naics_groups || [];
+  config.naics_tier_schedule = data.naics_tier_schedule || config.naics_tier_schedule || "";
+  config.naics_labels = data.naics_labels || config.naics_labels || {};
+  renderNaicsSettingsToggles(data.naics_codes || []);
   document.getElementById("settings-min-days").value = data.min_days_until_due;
   document.getElementById("settings-min-days-value").textContent = data.min_days_until_due;
   document.getElementById("settings-min-score").value = data.min_score_threshold;
@@ -738,11 +817,15 @@ function formatSchedulerStatus(sched) {
   const hour = String(sched.hour ?? 6).padStart(2, "0");
   const minute = String(sched.minute ?? 0).padStart(2, "0");
   const tz = (sched.timezone || "America/Denver").replace("America/", "");
+  const tierLine = sched.tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
+  const todayLine = sched.scheduled_tiers
+    ? ` · next run searches tiers ${sched.scheduled_tiers.join(", ")} (${sched.scheduled_code_count || 0} codes)`
+    : "";
   if (sched.next_run) {
     const next = new Date(sched.next_run);
-    return `${hour}:${minute} ${tz} · next run ${next.toLocaleString()}`;
+    return `${tierLine} · ${hour}:${minute} ${tz} · next ${next.toLocaleString()}${todayLine}`;
   }
-  return `${hour}:${minute} ${tz}`;
+  return `${tierLine} · ${hour}:${minute} ${tz}${todayLine}`;
 }
 
 function parseSchedulerTime(value) {
@@ -754,8 +837,11 @@ async function saveSettings() {
   const btn = document.getElementById("save-settings-btn");
   btn.disabled = true;
   try {
-    const naics = document.getElementById("settings-naics").value
-      .split(",").map((s) => s.trim()).filter(Boolean);
+    const naics = selectedSettingsNaics();
+    if (!naics.length) {
+      alert("Select at least one NAICS code.");
+      return;
+    }
     const schedTime = parseSchedulerTime(document.getElementById("settings-scheduler-time").value);
     const body = {
       naics_codes: naics,
@@ -831,7 +917,7 @@ document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("apply-filters").addEventListener("click", loadContracts);
 document.getElementById("search-only-btn").addEventListener("click", () => runSync({ searchOnly: true }));
 document.getElementById("refresh-btn").addEventListener("click", () => runSync({ searchOnly: false }));
-document.getElementById("sync-all-btn").addEventListener("click", () => runSync({ allNaics: true }));
+document.getElementById("search-all-btn").addEventListener("click", () => runSync({ allNaics: true }));
 document.getElementById("screen-btn").addEventListener("click", runScreen);
 document.getElementById("modal-close").addEventListener("click", closeModal);
 document.getElementById("modal-backdrop").addEventListener("click", closeModal);

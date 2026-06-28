@@ -26,7 +26,7 @@
   <div id="view-dashboard">
     <div class="toolbar">
       <button id="screen-btn" class="btn btn-secondary-header" type="button">Screen all matching</button>
-      <button id="sync-all-btn" class="btn btn-secondary-header" type="button">Sync all NAICS</button>
+      <button id="search-all-btn" class="btn btn-secondary-header" type="button" title="Search all enabled NAICS codes across every tier immediately">Search All</button>
       <div class="sync-controls">
         <label class="sync-label" for="sync-naics-select">NAICS</label>
         <select id="sync-naics-select" class="sync-select" aria-label="NAICS code to search">
@@ -41,7 +41,8 @@
       <aside class="filters">
         <h2>Filters</h2>
 
-        <label class="filter-label">NAICS codes</label>
+        <label class="filter-label">Show on dashboard</label>
+        <p class="filter-help">Only codes enabled in Settings appear here. Uncheck to hide categories from this view — SAM.gov sync always follows Settings.</p>
         <div id="naics-filters" class="checkbox-group"></div>
 
         <label class="filter-label" for="min-days">Minimum days until due</label>
@@ -59,6 +60,14 @@
 
         <label class="filter-label" for="agency-filter">Agency contains</label>
         <input type="text" id="agency-filter" placeholder="e.g. Veterans, Army">
+
+        <label class="filter-label" for="tier-filter">Search tier</label>
+        <select id="tier-filter" class="settings-input">
+          <option value="">All tiers</option>
+          <option value="1">Tier 1 only</option>
+          <option value="2">Tier 2 only</option>
+          <option value="3">Tier 3 only</option>
+        </select>
 
         <label class="checkbox-inline">
           <input type="checkbox" id="pursue-only"> Pursue only
@@ -142,8 +151,8 @@
 
       <section class="settings-section">
         <h3>Search</h3>
-        <label class="filter-label" for="settings-naics">NAICS codes (comma-separated)</label>
-        <input type="text" id="settings-naics" class="settings-input">
+        <p class="filter-help">Turn off a code to exclude it from all SAM.gov searches. Scheduled sync uses tiers: Tier 1 daily, Tier 2 Mon/Wed/Fri, Tier 3 Sunday. At least one code must stay on.</p>
+        <div id="settings-naics-toggles" class="naics-settings"></div>
 
         <label class="filter-label" for="settings-min-days">Minimum days until due (default)</label>
         <div class="slider-row">

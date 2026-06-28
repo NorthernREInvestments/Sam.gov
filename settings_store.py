@@ -9,8 +9,7 @@ from typing import Any
 from claude_client import DEFAULT_SCREENING_PROMPT
 from database import SessionLocal
 from models import AppSetting
-from naics_labels import NAICS_LABELS
-from sam_client import DEFAULT_NAICS
+from naics_labels import ALL_NAICS_CODES, NAICS_LABELS, NAICS_TIER_GROUPS, TIER_SCHEDULE_SUMMARY
 
 SCREENING_PROMPT_KEY = "screening_prompt"
 NAICS_CODES_KEY = "naics_codes"
@@ -46,19 +45,30 @@ def _delete_setting(session, key: str) -> None:
 
 
 def get_naics_codes() -> list[str]:
+    """Active NAICS codes — only these are searched on SAM.gov and shown by default."""
     session = SessionLocal()
     try:
         raw = _get_setting(session, NAICS_CODES_KEY)
         if raw:
             data = json.loads(raw)
             if isinstance(data, list) and data:
-                return [str(c).strip() for c in data if str(c).strip()]
+                cleaned = [str(c).strip() for c in data if str(c).strip() in NAICS_LABELS]
+                if cleaned:
+                    return cleaned
     finally:
         session.close()
     env_raw = os.getenv("NAICS_CODES", "")
     if env_raw.strip():
-        return [c.strip() for c in env_raw.split(",") if c.strip()]
-    return DEFAULT_NAICS.copy()
+        return [c.strip() for c in env_raw.split(",") if c.strip() in NAICS_LABELS]
+    return ALL_NAICS_CODES.copy()
+
+
+def get_naics_codes_for_tiers(tier_numbers: list[int]) -> list[str]:
+    """Enabled NAICS codes limited to the requested search tiers."""
+    from naics_labels import codes_in_tiers
+
+    enabled = set(get_naics_codes())
+    return [code for code in codes_in_tiers(tier_numbers) if code in enabled]
 
 
 def get_min_days_until_due() -> int:
@@ -184,6 +194,10 @@ def get_all_settings() -> dict[str, Any]:
     sub_search = get_sub_search_settings()
     return {
         "naics_codes": get_naics_codes(),
+        "all_naics_codes": ALL_NAICS_CODES,
+        "naics_tiers": NAICS_TIER_GROUPS,
+        "naics_groups": NAICS_TIER_GROUPS,
+        "naics_tier_schedule": TIER_SCHEDULE_SUMMARY,
         "naics_labels": NAICS_LABELS,
         "min_days_until_due": get_min_days_until_due(),
         "min_score_threshold": get_min_score_threshold(),
@@ -216,6 +230,9 @@ def save_settings(
     sub_min_review_count: int | None = None,
 ) -> dict[str, Any]:
     cleaned_naics = [c.strip() for c in naics_codes if c.strip()]
+    unknown = [c for c in cleaned_naics if c not in NAICS_LABELS]
+    if unknown:
+        raise ValueError(f"Unknown NAICS code(s): {', '.join(unknown)}")
     if not cleaned_naics:
         raise ValueError("At least one NAICS code is required")
 

@@ -1,4 +1,4 @@
-"""Daily SAM.gov sync scheduler."""
+"""Tiered SAM.gov sync scheduler."""
 
 from __future__ import annotations
 
@@ -21,13 +21,14 @@ def _timezone(name: str) -> ZoneInfo:
 
 
 def run_daily_sync() -> None:
-    from sync import sync_all_naics
+    from sync import sync_scheduled_naics
 
-    logger.info("Starting scheduled daily SAM.gov sync")
+    logger.info("Starting scheduled tiered SAM.gov sync")
     try:
-        result = sync_all_naics()
+        result = sync_scheduled_naics()
         logger.info(
-            "Scheduled sync done: %s API calls, %s new, %s total in DB",
+            "Scheduled sync done: tiers=%s, %s API calls, %s new, %s total in DB",
+            result.get("scheduled_tiers"),
             result["api_calls"],
             result["new"],
             result["total_in_db"],
@@ -73,7 +74,12 @@ def configure_scheduler() -> None:
         )
         scheduler.start()
 
-    logger.info("Scheduler configured: daily sync at %02d:%02d %s", hour, minute, tz)
+    logger.info(
+        "Scheduler configured: tiered sync at %02d:%02d %s (T1 daily, T2 Mon/Wed/Fri, T3 Sun)",
+        hour,
+        minute,
+        tz,
+    )
 
 
 def start_scheduler() -> None:
@@ -86,12 +92,15 @@ def stop_scheduler() -> None:
 
 
 def scheduler_status() -> dict:
-    from settings_store import get_scheduler_settings
+    from naics_labels import tiers_for_scheduled_sync
+    from settings_store import get_naics_codes_for_tiers, get_scheduler_settings
 
     settings = get_scheduler_settings()
     if not settings["enabled"]:
         return {"enabled": False, "running": False, **settings}
 
+    scheduled_tiers = tiers_for_scheduled_sync()
+    scheduled_codes = get_naics_codes_for_tiers(scheduled_tiers)
     job = scheduler.get_job("daily_sam_sync") if scheduler.running else None
     return {
         "enabled": True,
@@ -100,4 +109,7 @@ def scheduler_status() -> dict:
         "minute": settings["minute"],
         "timezone": settings["timezone"],
         "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
+        "scheduled_tiers": scheduled_tiers,
+        "scheduled_code_count": len(scheduled_codes),
+        "tier_schedule": "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday",
     }

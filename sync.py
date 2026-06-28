@@ -35,6 +35,8 @@ def _set_setting(session: Session, key: str, value: str) -> None:
 
 
 def _fields_from_opportunity(opp: dict[str, Any]) -> dict[str, Any]:
+    from naics_labels import naics_tier
+
     raw = opp.get("sam_raw") if isinstance(opp.get("sam_raw"), dict) else {}
     description = (
         raw.get("descriptionText")
@@ -50,6 +52,7 @@ def _fields_from_opportunity(opp: dict[str, Any]) -> dict[str, Any]:
         "agency": (opp.get("agency") or None),
         "location": (opp.get("location") or None),
         "naics_code": str(opp.get("naics_code") or "")[:16] or None,
+        "tier": naics_tier(opp.get("naics_code")),
         "set_aside": (opp.get("set_aside") or None),
         "due_date": _parse_due_date(opp.get("due_date")),
         "link": (opp.get("link") or None),
@@ -168,11 +171,15 @@ def list_contracts(
     min_score: int | None = None,
     agency: str | None = None,
     pursue_only: bool = False,
+    tier: int | None = None,
 ) -> list[Contract]:
     """Return contracts from PostgreSQL matching filters."""
     from settings_store import get_min_score_threshold
 
-    naics_codes = naics_codes or naics_from_env()
+    if naics_codes is None:
+        naics_codes = naics_from_env()
+    if not naics_codes:
+        return []
     min_days = min_days_until_due if min_days_until_due is not None else min_days_from_env()
     min_score = min_score if min_score is not None else get_min_score_threshold()
     naics_set = set(naics_codes)
@@ -182,6 +189,8 @@ def list_contracts(
     rows = session.query(Contract).filter(Contract.naics_code.in_(naics_set)).all()
     results: list[Contract] = []
     for row in rows:
+        if tier is not None and row.tier != tier:
+            continue
         if row.due_date is not None:
             days_left = (row.due_date - today).days
             if days_left < min_days:
@@ -206,7 +215,7 @@ def list_contracts(
 
 
 def contract_to_dict(row: Contract) -> dict[str, Any]:
-    from naics_labels import naics_display, naics_label
+    from naics_labels import naics_display, naics_label, tier_label
 
     today = date.today()
     days_left = (row.due_date - today).days if row.due_date else None
@@ -274,6 +283,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "naics_code": row.naics_code,
         "naics_label": naics_label(row.naics_code),
         "naics_display": naics_display(row.naics_code),
+        "tier": row.tier,
+        "tier_label": tier_label(row.tier),
         "set_aside": row.set_aside,
         "due_date": row.due_date.isoformat() if row.due_date else None,
         "days_until_due": days_left,
@@ -374,8 +385,10 @@ def refresh_stale_sam_raw(session: Session, limit: int | None = None) -> int:
 
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
-    """Pull one NAICS code from SAM.gov and upsert fully scraped contracts into PostgreSQL."""
+    """Pull one enabled NAICS code from SAM.gov and upsert fully scraped contracts into PostgreSQL."""
     naics_codes = naics_from_env()
+    if not naics_codes:
+        raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
     session = SessionLocal()
     intake_result: dict[str, Any] = {}
     scrape_result: dict[str, Any] = {}
@@ -473,15 +486,20 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
     }
 
 
-def sync_all_naics() -> dict[str, Any]:
-    """Pull every configured NAICS code and upsert fully scraped contracts into PostgreSQL."""
-    naics_codes = naics_from_env()
+def _sync_naics_code_list(
+    naics_codes: list[str],
+    *,
+    scheduled_tiers: list[int] | None = None,
+    manual_all_tiers: bool = False,
+) -> dict[str, Any]:
+    """Pull a list of NAICS codes from SAM.gov and run two-step intake."""
+    if not naics_codes:
+        raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
+
     api_calls = 0
     fetched_total = 0
     matched_total = 0
     filtered_total = 0
-    scraped_total = 0
-    skipped_total = 0
     new_total = 0
     updated_total = 0
     per_naics: list[dict[str, Any]] = []
@@ -503,6 +521,9 @@ def sync_all_naics() -> dict[str, Any]:
         fetched_total += len(batch)
 
         session = SessionLocal()
+        filter_stats: dict[str, int] = {}
+        new_count = 0
+        updated_count = 0
         try:
             batch, filter_stats = filter_search_results(batch, session)
             matched_total += filter_stats.get("matched_filters", len(batch))
@@ -530,16 +551,21 @@ def sync_all_naics() -> dict[str, Any]:
     session = SessionLocal()
     try:
         _set_setting(session, "naics_rotation_index", "0")
-
         intake_result = intake_matching_contracts(session, all_notice_ids)
         session.commit()
         total = session.query(Contract).count()
     finally:
         session.close()
 
+    if manual_all_tiers:
+        scope = f"Manual search all tiers — {len(naics_codes)} enabled code(s)"
+    elif scheduled_tiers:
+        scope = f"Scheduled sync — tiers {', '.join(str(t) for t in scheduled_tiers)} ({len(naics_codes)} code(s))"
+    else:
+        scope = f"Synced {len(naics_codes)} NAICS code(s)"
+
     fetch_status = (
-        f"Synced all {len(naics_codes)} NAICS codes. "
-        f"Saved {matched_total} matching result(s) from {fetched_total} SAM search hits "
+        f"{scope}. Saved {matched_total} matching result(s) from {fetched_total} SAM search hits "
         f"({filtered_total} filtered out). Two-step intake runs text screen then full PDF analysis."
     )
 
@@ -556,21 +582,42 @@ def sync_all_naics() -> dict[str, Any]:
         "fetched_from_sam": fetched_total,
         "matched_filters": matched_total,
         "filtered_out": filtered_total,
-        "scraped_complete": scraped_total,
-        "scraped_skipped": skipped_total,
         "new": new_total,
         "updated": updated_total,
         "intake": intake_result,
         "total_in_db": total,
         "naics_synced": len(naics_codes),
-        "naics_total": len(naics_codes),
+        "naics_total": len(naics_from_env()),
+        "scheduled_tiers": scheduled_tiers,
+        "manual_all_tiers": manual_all_tiers,
         "per_naics": per_naics,
         "api_budget": get_usage_snapshot(),
     }
 
 
-def get_naics_sync_status() -> dict[str, Any]:
+def sync_scheduled_naics() -> dict[str, Any]:
+    """Tiered scheduled sync — tier 1 daily, tier 2 Mon/Wed/Fri, tier 3 Sunday."""
+    from naics_labels import tiers_for_scheduled_sync
+    from settings_store import get_naics_codes_for_tiers
+
+    tiers = tiers_for_scheduled_sync()
+    codes = get_naics_codes_for_tiers(tiers)
+    return _sync_naics_code_list(codes, scheduled_tiers=tiers)
+
+
+def sync_all_naics() -> dict[str, Any]:
+    """Manual full search — all enabled NAICS codes across every tier."""
     naics_codes = naics_from_env()
+    return _sync_naics_code_list(naics_codes, manual_all_tiers=True)
+
+
+def get_naics_sync_status() -> dict[str, Any]:
+    from naics_labels import tiers_for_scheduled_sync
+    from settings_store import get_naics_codes_for_tiers
+
+    naics_codes = naics_from_env()
+    scheduled_tiers = tiers_for_scheduled_sync()
+    scheduled_codes = get_naics_codes_for_tiers(scheduled_tiers)
     session = SessionLocal()
     try:
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
@@ -585,6 +632,8 @@ def get_naics_sync_status() -> dict[str, Any]:
         "total_count": len(naics_codes),
         "next_naics": next_naics,
         "rotation_index": index,
+        "scheduled_tiers": scheduled_tiers,
+        "scheduled_code_count": len(scheduled_codes),
     }
 
 

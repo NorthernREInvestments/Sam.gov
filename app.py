@@ -219,6 +219,10 @@ def config():
     settings = get_all_settings()
     return {
         "naics_codes": settings["naics_codes"],
+        "all_naics_codes": settings["all_naics_codes"],
+        "naics_tiers": settings["naics_tiers"],
+        "naics_groups": settings["naics_groups"],
+        "naics_tier_schedule": settings["naics_tier_schedule"],
         "naics_labels": settings["naics_labels"],
         "default_min_days": settings["min_days_until_due"],
         "default_min_score": settings["min_score_threshold"],
@@ -234,8 +238,14 @@ def get_contracts(
     min_score: int | None = Query(None, ge=1, le=10),
     agency: str | None = Query(None),
     pursue_only: bool = Query(False),
+    tier: int | None = Query(None, ge=1, le=3, description="Filter by search tier"),
 ):
-    naics_codes = [c.strip() for c in naics.split(",") if c.strip()] if naics else None
+    if naics == "__none__":
+        naics_codes: list[str] | None = []
+    elif naics:
+        naics_codes = [c.strip() for c in naics.split(",") if c.strip()]
+    else:
+        naics_codes = None
     session = SessionLocal()
     try:
         rows = list_contracts(
@@ -245,6 +255,7 @@ def get_contracts(
             min_score=min_score,
             agency=agency,
             pursue_only=pursue_only,
+            tier=tier,
         )
         from api_budget import get_usage_snapshot
         from intake import enrich_matching_attachments, start_background_attachment_enrich
