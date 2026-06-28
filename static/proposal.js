@@ -1,0 +1,372 @@
+/** Proposal Writer — 3-step pursue workflow */
+
+let proposalNoticeId = null;
+let proposalConfig = null;
+let activeProposalId = null;
+
+function startProposalWorkflow(noticeId) {
+  proposalNoticeId = noticeId;
+  proposalConfig = null;
+  activeProposalId = null;
+  showView("proposal-subs");
+  loadProposalSubStep(noticeId);
+}
+
+async function loadProposalSubStep(noticeId) {
+  const el = document.getElementById("proposal-step-content");
+  if (!el) return;
+  el.innerHTML = `<p class="pricing-loading">Loading subs…</p>`;
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/subs`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load subs");
+    el.innerHTML = renderProposalSubStep(data);
+    bindProposalSubStep(data);
+  } catch (err) {
+    el.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderProposalSubStep(data) {
+  if (!data.has_quotes) {
+    return `
+      <div class="proposal-page">
+        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-dashboard">← Back</button>
+        <h2>Select Subcontractor for ${escapeHtml(data.contract_title)}</h2>
+        <div class="network-banner proposal-warning">
+          You haven't recorded any sub quotes for this contract yet. Go to the Subs page and update at least one sub to <strong>Quote Received</strong> before writing a proposal.
+        </div>
+        <button type="button" class="btn btn-primary" id="proposal-go-subs">Go to Subs Page</button>
+      </div>`;
+  }
+  return `
+    <div class="proposal-page">
+      <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-dashboard">← Back</button>
+      <h2>Select Subcontractor for ${escapeHtml(data.contract_title)}</h2>
+      <p class="detail-note">Choose the sub whose quote will be used in your bid.</p>
+      <div class="subs-cards">${data.subs.map(renderProposalSubCard).join("")}</div>
+    </div>`;
+}
+
+function renderProposalSubCard(sub) {
+  return `
+    <article class="sub-card proposal-sub-pick" data-contract-sub-id="${sub.contract_sub_id}">
+      <h3 class="sub-card-title">${escapeHtml(sub.business_name)}</h3>
+      <p class="sub-card-meta">${sub.rating != null ? `${sub.rating} ★ (${sub.review_count ?? 0})` : "No rating"} · ${sub.distance_miles != null ? `${sub.distance_miles} mi` : "—"}</p>
+      <p class="sub-card-meta"><strong>Quote:</strong> ${formatMoney(sub.quote_amount)}</p>
+      ${sub.contact_notes ? `<p class="sub-card-meta">${escapeHtml(sub.contact_notes)}</p>` : ""}
+      <button type="button" class="btn btn-primary btn-small proposal-pick-sub">Use this sub</button>
+    </article>`;
+}
+
+function bindProposalSubStep(data) {
+  document.getElementById("proposal-back-dashboard")?.addEventListener("click", () => showView("dashboard"));
+  document.getElementById("proposal-go-subs")?.addEventListener("click", () => {
+    if (proposalNoticeId) openContractSubs(proposalNoticeId);
+  });
+  document.querySelectorAll(".proposal-pick-sub").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const card = e.target.closest(".proposal-sub-pick");
+      const id = Number(card?.dataset.contractSubId);
+      if (id) loadProposalConfigStep(proposalNoticeId, id);
+    });
+  });
+}
+
+async function loadProposalConfigStep(noticeId, contractSubId) {
+  showView("proposal-config");
+  const el = document.getElementById("proposal-config-content");
+  el.innerHTML = `<p class="pricing-loading">Building bid configuration…</p>`;
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contract_sub_id: contractSubId }),
+    });
+    const config = await res.json();
+    if (!res.ok) throw new Error(config.detail || "Config failed");
+    proposalConfig = config;
+    el.innerHTML = renderProposalConfigStep(config);
+    bindProposalConfigStep(noticeId);
+  } catch (err) {
+    el.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderProposalConfigStep(config) {
+  const a = config.section_a || {};
+  const b = config.section_b || {};
+  const c = config.section_c || {};
+  const d = config.section_d || {};
+  const sub = config.sub || {};
+  const rs = c.bid_range_status || {};
+  const opt = c.option_years || {};
+  const missing = config.missing_fields || [];
+  const missingBanner = missing.length
+    ? `<div class="network-banner proposal-warning">Action Required: ${missing.length} field(s) need attention in Settings or solicitation data before submitting.</div>`
+    : "";
+  const confirm = `<div class="network-banner proposal-confirm">Using <strong>${escapeHtml(sub.business_name)}</strong> — Quote: ${formatMoney(sub.quote_amount)}. This quote will be used to calculate your bid.</div>`;
+
+  return `
+    <div class="proposal-page">
+      <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-subs">← Back to sub selection</button>
+      <h2>Bid configuration</h2>
+      ${confirm}
+      ${missingBanner}
+      <section class="settings-section">
+        <h3>Section A — Contract information</h3>
+        <label class="filter-label">Contract title</label><input class="settings-input cfg-a" data-key="contract_title" value="${escapeHtml(a.contract_title || "")}" readonly>
+        <label class="filter-label">Solicitation number</label><input class="settings-input cfg-a" data-key="solicitation_number" value="${escapeHtml(a.solicitation_number || "")}">
+        <label class="filter-label">Agency</label><input class="settings-input cfg-a" data-key="agency_name" value="${escapeHtml(a.agency_name || "")}" readonly>
+        <label class="filter-label">Contracting Officer</label><input class="settings-input cfg-a" data-key="contracting_officer_name" value="${escapeHtml(a.contracting_officer_name || "")}">
+        <label class="filter-label">CO email</label><input class="settings-input cfg-a" data-key="contracting_officer_email" value="${escapeHtml(a.contracting_officer_email || "")}">
+        <label class="filter-label">Submission method</label><input class="settings-input cfg-a" data-key="submission_method" value="${escapeHtml(a.submission_method || "")}">
+        <label class="filter-label">Deadline</label><input class="settings-input cfg-a" data-key="submission_deadline" value="${escapeHtml(a.submission_deadline || "")}">
+        <label class="filter-label">Place of performance</label><input class="settings-input cfg-a" data-key="place_of_performance" value="${escapeHtml(a.place_of_performance || "")}" readonly>
+      </section>
+      <section class="settings-section">
+        <h3>Section B — Your business</h3>
+        <label class="filter-label">Legal name</label><input class="settings-input cfg-b" data-key="legal_business_name" value="${escapeHtml(b.legal_business_name || "")}">
+        <label class="filter-label">Owner</label><input class="settings-input cfg-b" data-key="owner_name" value="${escapeHtml(b.owner_name || "")}">
+        <label class="filter-label">Address</label><input class="settings-input cfg-b" data-key="address_line_1" value="${escapeHtml(b.address_line_1 || "")}">
+        <label class="filter-label">City / State / ZIP</label>
+        <input class="settings-input cfg-b" data-key="city" placeholder="City" value="${escapeHtml(b.city || "")}">
+        <input class="settings-input cfg-b subs-state-input" data-key="state" placeholder="ST" value="${escapeHtml(b.state || "")}">
+        <input class="settings-input cfg-b" data-key="zip" placeholder="ZIP" value="${escapeHtml(b.zip || "")}">
+        <label class="filter-label">UEI / CAGE / EIN</label>
+        <input class="settings-input cfg-b" data-key="uei" placeholder="UEI" value="${escapeHtml(b.uei || "")}">
+        <input class="settings-input cfg-b" data-key="cage_code" placeholder="CAGE" value="${escapeHtml(b.cage_code || "")}">
+        <input class="settings-input cfg-b" data-key="ein" placeholder="EIN" value="${escapeHtml(b.ein || "")}">
+        <label class="filter-label">Phone / Email</label>
+        <input class="settings-input cfg-b" data-key="business_phone" value="${escapeHtml(b.business_phone || "")}">
+        <input class="settings-input cfg-b" data-key="business_email" value="${escapeHtml(b.business_email || "")}">
+      </section>
+      <section class="settings-section">
+        <h3>Section C — Pricing</h3>
+        <p class="detail-note">Sub quote: <strong>${formatMoney(c.sub_quote)}</strong> (fixed)</p>
+        <label class="filter-label">Your margin <span id="prop-margin-label">${c.margin_percentage}%</span></label>
+        <input type="range" id="prop-margin" min="10" max="35" value="${c.margin_percentage || 18}">
+        <div class="pricing-stats" id="prop-pricing-stats">
+          <div class="pricing-stat pricing-stat-highlight"><span class="pricing-stat-label">Base year bid</span><span class="pricing-stat-value" id="prop-base-bid">${formatMoney(c.base_year_bid)}</span></div>
+          <div class="pricing-stat"><span class="pricing-stat-label">Your profit</span><span class="pricing-stat-value" id="prop-profit">${formatMoney(c.base_year_profit)}</span></div>
+          <div class="pricing-stat"><span class="pricing-stat-label">Total all years</span><span class="pricing-stat-value" id="prop-total">${formatMoney(c.total_all_years)}</span></div>
+        </div>
+        <p class="pricing-note calc-range-${rs.level || "neutral"}" id="prop-range-status">${escapeHtml(rs.message || "")}</p>
+        <table class="pricing-table"><thead><tr><th>Period</th><th>Amount</th></tr></thead><tbody>
+          <tr><td>Base Year</td><td id="prop-oy-base">${formatMoney(opt.base_year || c.base_year_bid)}</td></tr>
+          <tr><td>Option Year 1</td><td id="prop-oy-1">${formatMoney(opt.option_year_1)}</td></tr>
+          <tr><td>Option Year 2</td><td id="prop-oy-2">${formatMoney(opt.option_year_2)}</td></tr>
+          <tr><td>Option Year 3</td><td id="prop-oy-3">${formatMoney(opt.option_year_3)}</td></tr>
+          <tr><td>Option Year 4</td><td id="prop-oy-4">${formatMoney(opt.option_year_4)}</td></tr>
+        </tbody></table>
+        <label class="filter-label">Option year increase %</label>
+        <input type="number" id="prop-oy-pct" class="settings-input" value="${c.option_year_increase_pct || 3}" step="0.5" min="0" max="15">
+      </section>
+      <section class="settings-section">
+        <h3>Section D — Options</h3>
+        <label class="checkbox-inline"><input type="checkbox" id="prop-past-perf" ${d.include_past_performance !== false ? "checked" : ""}> Include past performance</label>
+        <label class="checkbox-inline"><input type="checkbox" id="prop-capability" ${d.include_capability_statement !== false ? "checked" : ""}> Include capability statement</label>
+        <label class="filter-label">Writing tone</label>
+        <select id="prop-tone" class="settings-input"><option>Professional</option><option>Confident</option><option>Conservative</option></select>
+        <label class="filter-label">Technical detail</label>
+        <select id="prop-detail" class="settings-input"><option>Detailed</option><option>Standard</option></select>
+      </section>
+      <button type="button" class="btn btn-pursue-active pursue-btn" id="proposal-generate-btn">Generate Proposal</button>
+    </div>`;
+}
+
+function bindProposalConfigStep(noticeId) {
+  document.getElementById("proposal-back-subs")?.addEventListener("click", () => loadProposalSubStep(noticeId));
+  const recalc = () => updateProposalPricingFromUI();
+  document.getElementById("prop-margin")?.addEventListener("input", recalc);
+  document.getElementById("prop-oy-pct")?.addEventListener("input", recalc);
+  document.getElementById("proposal-generate-btn")?.addEventListener("click", () => generateProposal(noticeId));
+}
+
+function updateProposalPricingFromUI() {
+  if (!proposalConfig?.section_c) return;
+  const sub = proposalConfig.section_c.sub_quote;
+  const margin = Number(document.getElementById("prop-margin")?.value || 18);
+  const increase = Number(document.getElementById("prop-oy-pct")?.value || 3);
+  document.getElementById("prop-margin-label").textContent = `${margin}%`;
+  const base = sub / (1 - margin / 100);
+  const profit = base - sub;
+  let prev = base;
+  const mult = 1 + increase / 100;
+  const years = { base_year: base, option_year_1: prev * mult };
+  prev = years.option_year_1;
+  years.option_year_2 = prev * mult;
+  prev = years.option_year_2;
+  years.option_year_3 = prev * mult;
+  prev = years.option_year_3;
+  years.option_year_4 = prev * mult;
+  const total = base + years.option_year_1 + years.option_year_2 + years.option_year_3 + years.option_year_4;
+  proposalConfig.section_c.margin_percentage = margin;
+  proposalConfig.section_c.base_year_bid = Math.round(base * 100) / 100;
+  proposalConfig.section_c.base_year_profit = Math.round(profit * 100) / 100;
+  proposalConfig.section_c.option_years = Object.fromEntries(
+    Object.entries(years).map(([k, v]) => [k, Math.round(v * 100) / 100])
+  );
+  proposalConfig.section_c.total_all_years = Math.round(total * 100) / 100;
+  proposalConfig.section_c.option_year_increase_pct = increase;
+  document.getElementById("prop-base-bid").textContent = formatMoney(base);
+  document.getElementById("prop-profit").textContent = formatMoney(profit);
+  document.getElementById("prop-total").textContent = formatMoney(total);
+  document.getElementById("prop-oy-base").textContent = formatMoney(base);
+  document.getElementById("prop-oy-1").textContent = formatMoney(years.option_year_1);
+  document.getElementById("prop-oy-2").textContent = formatMoney(years.option_year_2);
+  document.getElementById("prop-oy-3").textContent = formatMoney(years.option_year_3);
+  document.getElementById("prop-oy-4").textContent = formatMoney(years.option_year_4);
+}
+
+function collectConfigFromUI() {
+  if (!proposalConfig) return null;
+  document.querySelectorAll(".cfg-a").forEach((el) => {
+    proposalConfig.section_a[el.dataset.key] = el.value;
+  });
+  document.querySelectorAll(".cfg-b").forEach((el) => {
+    proposalConfig.section_b[el.dataset.key] = el.value;
+  });
+  proposalConfig.section_d = {
+    include_past_performance: document.getElementById("prop-past-perf")?.checked,
+    include_capability_statement: document.getElementById("prop-capability")?.checked,
+    writing_tone: document.getElementById("prop-tone")?.value,
+    technical_detail: document.getElementById("prop-detail")?.value,
+  };
+  updateProposalPricingFromUI();
+  return proposalConfig;
+}
+
+async function generateProposal(noticeId) {
+  const config = collectConfigFromUI();
+  const btn = document.getElementById("proposal-generate-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "Generating…"; }
+  showSyncStatus("Claude is writing your proposal — this may take 1–2 minutes.");
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Generation failed");
+    activeProposalId = data.id;
+    showView("proposal-editor");
+    renderProposalEditor(data);
+    showSyncStatus("Proposal generated.");
+  } catch (err) {
+    showSyncStatus(err.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Generate Proposal"; }
+  }
+}
+
+function renderProposalEditor(data) {
+  const el = document.getElementById("proposal-editor-content");
+  if (!el) return;
+  const sections = data.sections || {};
+  const titles = data.section_titles || {};
+  const keys = Object.keys(titles).length ? Object.keys(titles) : Object.keys(sections);
+  const missing = data.missing_fields || [];
+  el.innerHTML = `
+    <div class="proposal-editor-layout">
+      <aside class="proposal-sidebar">
+        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-editor-back">← Back</button>
+        <h3>Sections</h3>
+        <nav class="proposal-nav">${keys.map((k) => `<button type="button" class="proposal-nav-btn" data-section="${k}">${escapeHtml(titles[k] || k)} <span class="proposal-wc">${data.word_counts?.[k] || 0}w</span></button>`).join("")}</nav>
+        <p class="detail-note">Total: ${data.total_word_count || 0} words</p>
+        <button type="button" class="btn btn-secondary-action btn-small" id="proposal-reduce-ai">Reduce AI Score</button>
+        <button type="button" class="btn btn-primary btn-small" id="proposal-save-draft">Save Draft</button>
+        <label class="filter-label">Internal notes</label>
+        <textarea id="proposal-notes" class="settings-input" rows="3">${escapeHtml(data.notes || "")}</textarea>
+      </aside>
+      <main class="proposal-main">
+        ${missing.length ? `<div class="network-banner proposal-warning">Action Required: ${missing.length} fields need attention. Check Settings.</div>` : ""}
+        <div id="proposal-sections">${keys.map((k) => `
+          <section class="proposal-section-block" id="section-${k}">
+            <div class="proposal-section-header">
+              <h3>${escapeHtml(titles[k] || k)}</h3>
+              <button type="button" class="btn btn-secondary-action btn-small regen-section" data-section="${k}">Regenerate section</button>
+            </div>
+            <div class="proposal-editable" contenteditable="true" data-section="${k}">${sections[k] || ""}</div>
+          </section>`).join("")}</div>
+      </main>
+    </div>`;
+  bindProposalEditor(data);
+}
+
+function bindProposalEditor(data) {
+  document.getElementById("proposal-editor-back")?.addEventListener("click", () => showView("dashboard"));
+  document.querySelectorAll(".proposal-nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById(`section-${btn.dataset.section}`)?.scrollIntoView({ behavior: "smooth" });
+    });
+  });
+  document.getElementById("proposal-save-draft")?.addEventListener("click", () => saveProposalDraft());
+  document.getElementById("proposal-reduce-ai")?.addEventListener("click", () => reduceProposalAi());
+  document.querySelectorAll(".regen-section").forEach((btn) => {
+    btn.addEventListener("click", () => regenerateProposalSection(btn.dataset.section));
+  });
+}
+
+async function saveProposalDraft() {
+  if (!activeProposalId) return;
+  const sections = {};
+  document.querySelectorAll(".proposal-editable").forEach((el) => {
+    sections[el.dataset.section] = el.innerHTML;
+  });
+  const html = Object.values(sections).join("\n\n");
+  const res = await apiFetch(`/api/proposals/${activeProposalId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      proposal_html: html,
+      sections_json: sections,
+      notes: document.getElementById("proposal-notes")?.value,
+      status: "draft",
+    }),
+  });
+  if (res.ok) showSyncStatus("Draft saved.");
+  else showSyncStatus((await res.json()).detail || "Save failed", true);
+}
+
+async function regenerateProposalSection(sectionKey) {
+  if (!activeProposalId) return;
+  showSyncStatus(`Regenerating ${sectionKey}…`);
+  const res = await apiFetch(`/api/proposals/${activeProposalId}/regenerate-section`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ section_key: sectionKey }),
+  });
+  const data = await res.json();
+  if (!res.ok) { showSyncStatus(data.detail || "Failed", true); return; }
+  renderProposalEditor(data);
+  showSyncStatus("Section regenerated.");
+}
+
+async function reduceProposalAi() {
+  if (!activeProposalId) return;
+  showSyncStatus("Running AI-score reduction pass…");
+  const res = await apiFetch(`/api/proposals/${activeProposalId}/reduce-ai-score`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) { showSyncStatus(data.detail || "Failed", true); return; }
+  renderProposalEditor(data);
+  showSyncStatus("Proposal updated.");
+}
+
+function renderPursueButton(c) {
+  if (c.pursue !== true) return "";
+  return `<button type="button" class="btn btn-pursue-active btn-small card-pursue-btn" data-pursue="${escapeHtml(c.notice_id)}">Pursue</button>`;
+}
+
+function bindProposalPursueClicks() {
+  document.body.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-pursue]");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    startProposalWorkflow(btn.dataset.pursue);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", bindProposalPursueClicks);

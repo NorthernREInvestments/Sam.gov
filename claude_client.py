@@ -50,15 +50,14 @@ Cover these points in simple conversational language:
 8. END with one sentence summarizing pricing — e.g. "Similar contracts in this area have awarded between $X and $Y. I recommend bidding around $Z to be competitive." Use the historical pricing data provided.
 
 PRICING INTELLIGENCE (pricing_intelligence field):
-Use the USAspending.gov historical award data included in the user message. Each award includes award_date and recency_weight — recent awards (last 12 months) matter much more than older ones.
-When recommended_annual_bid is provided, that is the ONLY recommended bid — do not substitute raw award totals from the table.
-The table shows source comparables; the bid comes solely from: regional avg $/sq ft per visit × this contract's sq ft × annual visits.
-- Weight recent pricing heavily when recommending bid range
-- Format all dollar amounts as strings like "$125,000"
+Use the USAspending.gov regional benchmark data in the user message for context only.
+USAspending does NOT include square footage or cleaning frequency — do not invent $/sq ft per visit from public awards alone.
+- Reference regional average/highest/lowest award amounts when summarizing market context
+- Format dollar amounts as strings like "$125,000"
 - incumbent: the most recent dated award's winner, or the recency-weighted most frequent winner
 - competition_level: "low" (1-3 unique past winners), "medium" (4-9), or "high" (10+)
-- pricing_confidence: "high" (15+ comparable awards), "medium" (5-14), or "low" (fewer than 5 or no data)
-- pricing_summary: 2-3 plain English sentences on what the historical data suggests and what to bid
+- pricing_confidence: match regional benchmark confidence when provided (high/medium/low)
+- pricing_summary: 2-3 plain English sentences on regional award levels — not a specific bid recommendation unless internal pricing is provided
 
 Return JSON only with these exact fields:
 - plain_english_summary: string
@@ -83,6 +82,13 @@ Return JSON only with these exact fields:
 - naics_code: string
 - estimated_value: string or null
 - square_footage: string or null
+- pws_extraction: object with fields extracted from PWS/solicitation attachments (use null for any field not found):
+  - square_footage: integer or null — exact sq ft from "gross square footage", "cleanable square footage", "area to be cleaned", "net square footage"
+  - building_type: one of office, medical, warehouse, military, courthouse, other — classify from agency and building description
+  - cleaning_frequency_per_week: number or null — convert phrases like "five days per week", "Monday through Friday", "daily", "three times per week" to a numeric days-per-week value
+  - special_requirements: array of strings — e.g. floor waxing, carpet cleaning, window cleaning, exterior, restrooms only
+  - wage_determination_number: string or null — format WD XXXX-XXXX
+  - wage_determination_rate: number or null — hourly rate from wage determination if stated
 - sub_type_needed: string
 - red_flags: array of strings
 - far_52_219_14: true or false
@@ -238,43 +244,27 @@ def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]
 
 def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
     if not pricing_intel:
-        return "Historical pricing: not available (NAICS or state could not be determined)."
+        return "Regional pricing benchmarks: not available (NAICS or state could not be determined)."
 
     if pricing_intel.get("error"):
-        return f"Historical pricing lookup note: {pricing_intel['error']}"
+        return f"Regional pricing lookup note: {pricing_intel['error']}"
 
     lines = [
-        "HISTORICAL PRICING INTELLIGENCE (USAspending.gov — same NAICS & local work area):",
-        "IMPORTANT: Past awards are normalized to $/sq ft per visit = contract value ÷ square footage ÷ visits per year.",
-        "IMPORTANT: Awards are NOT filtered by building size — different sq ft contracts are comparable after normalization.",
-        "IMPORTANT: Each award includes award_date and recency_weight. Recent awards (last 12 months) are much more relevant than 2–3 year old awards.",
+        "REGIONAL AWARD BENCHMARKS (USAspending.gov — same NAICS & state, last 3 years):",
+        "NOTE: USAspending does NOT include square footage or cleaning frequency.",
+        "Use these as regional context only — not $/sq ft per visit.",
         f"NAICS: {pricing_intel.get('naics_code', 'unknown')}",
-        f"Work area: {pricing_intel.get('location_scope') or pricing_intel.get('state_code', 'unknown')}",
-        f"Your contract location: {pricing_intel.get('origin_location', {}).get('label') or pricing_intel.get('location_scope') or 'unknown'}",
-        f"Your contract scope: {pricing_intel.get('scope_profile', {}).get('square_feet') or 'unknown'} sq ft; "
-        f"frequency: {pricing_intel.get('scope_profile', {}).get('service_frequency_label') or 'unknown'}",
-        f"Geography note: {pricing_intel.get('location_scope_note') or 'Same work area as this opportunity.'}",
-        f"Pricing note: {pricing_intel.get('scope_matching', {}).get('scope_note') or 'Clearance filter applied when known.'}",
-        f"Unit rate summary: {json.dumps(pricing_intel.get('unit_rate_summary') or {}, default=str)}",
-        f"Recommended annual bid (formula): {pricing_intel.get('recommended_annual_bid')}",
-        f"Bid formula: {pricing_intel.get('recommended_bid_formula') or 'unavailable'}",
-        f"Closest comparable award: {pricing_intel.get('closest_award_label') or 'unknown'}"
-        + (
-            f" ({pricing_intel.get('closest_award_location')})"
-            if pricing_intel.get("closest_award_location")
-            else ""
-        ),
-        f"Comparable awards found: {pricing_intel.get('awards_count', 0)} ({pricing_intel.get('awards_with_dates', 0)} with dates, {pricing_intel.get('awards_last_12_months', 0)} in last 12 months)",
-        f"Date range: {pricing_intel.get('oldest_award_date', '?')} to {pricing_intel.get('newest_award_date', '?')}",
-        f"Recency-weighted average: {pricing_intel.get('weighted_average_amount')}",
-        f"Simple average (unweighted): {pricing_intel.get('average_amount')}",
-        f"Highest award: {pricing_intel.get('highest_amount')}",
-        f"Lowest award: {pricing_intel.get('lowest_amount')}",
-        f"Recency-weighted bid range (rough band from comparables): {pricing_intel.get('recommended_bid_low')} – {pricing_intel.get('recommended_bid_high')}",
-        f"Most frequent winner (recency-weighted): {pricing_intel.get('most_frequent_winner') or 'none identified'}",
-        f"Most recent award winner (likely incumbent): {pricing_intel.get('likely_incumbent') or 'unknown'}",
+        f"State: {pricing_intel.get('state_name') or pricing_intel.get('state_code', 'unknown')}",
+        f"Contracts found: {pricing_intel.get('awards_count', 0)}",
+        f"Confidence: {pricing_intel.get('confidence_label') or pricing_intel.get('confidence', 'unknown')}",
+        f"Regional average award: {pricing_intel.get('average_annual_award')}",
+        f"Highest award: {pricing_intel.get('highest_award')}",
+        f"Lowest award: {pricing_intel.get('lowest_award')}",
+        f"Most frequent winner: {pricing_intel.get('most_frequent_winner') or 'none identified'}",
+        f"Likely incumbent (most recent): {pricing_intel.get('likely_incumbent') or 'unknown'}",
+        f"Note: {pricing_intel.get('benchmark_note', '')}",
         "",
-        "Comparable awards (closest first — each has price_per_sqft_per_visit, award_square_feet, award_frequency_label, distance_label, award_date, recency_weight):",
+        "Recent awards (amounts only — no sq ft or frequency):",
         json.dumps(pricing_intel.get("awards") or [], indent=2, default=str),
     ]
     return "\n".join(lines)
@@ -599,4 +589,94 @@ def analyze_subcontractors(
         reason = str(row.get("reason") or "").strip() or "No reason provided."
         by_place[place_id] = {"place_id": place_id, "score": score_int, "reason": reason}
     return [by_place.get(c["place_id"], {"place_id": c["place_id"], "score": 5, "reason": "Not analyzed."}) for c in candidates if c.get("place_id")]
+
+
+def _proposal_user_message(contract: Any, config: dict[str, Any]) -> str:
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    lines = [
+        "Generate the complete six-section proposal HTML for this contract.",
+        "",
+        f"Contract title: {contract.title}",
+        f"Agency: {contract.agency}",
+        f"Location: {contract.location}",
+        f"NAICS: {contract.naics_code}",
+        f"Square footage: {contract.square_footage}",
+        f"Plain English summary: {analysis.get('plain_english_summary') or analysis.get('executive_summary') or ''}",
+        "",
+        "CONFIGURATION (use these exact values):",
+        json.dumps(config, indent=2, default=str),
+        "",
+        "SAM posting excerpt:",
+        (contract.description or sam.get("descriptionText") or "")[:6000],
+    ]
+    return "\n".join(lines)
+
+
+def generate_proposal_content(contract: Any, config: dict[str, Any]) -> tuple[str, dict[str, str]]:
+    from proposal_prompt import PROPOSAL_SYSTEM_PROMPT
+    from proposal_service import parse_sections_from_html
+
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=16000,
+        system=PROPOSAL_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": _proposal_user_message(contract, config)}],
+    )
+    text = response.content[0].text if response.content else ""
+    html = text.strip()
+    if html.startswith("```"):
+        html = re.sub(r"^```(?:html)?\s*", "", html)
+        html = re.sub(r"\s*```$", "", html)
+    sections = parse_sections_from_html(html)
+    return html, sections
+
+
+def regenerate_proposal_section(contract: Any, config: dict[str, Any], section_key: str) -> str:
+    from proposal_defaults import SECTION_TITLES
+    from proposal_prompt import PROPOSAL_SYSTEM_PROMPT, SECTION_REGEN_PROMPT
+
+    title = SECTION_TITLES.get(section_key, section_key)
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
+        system=f"{PROPOSAL_SYSTEM_PROMPT}\n\n{SECTION_REGEN_PROMPT}",
+        messages=[
+            {
+                "role": "user",
+                "content": f"Regenerate SECTION: {title} ({section_key})\n\n{_proposal_user_message(contract, config)}",
+            }
+        ],
+    )
+    text = response.content[0].text if response.content else ""
+    return text.strip()
+
+
+def humanize_proposal_text(fragment: str) -> str:
+    from proposal_prompt import HUMANIZE_PROMPT
+
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=HUMANIZE_PROMPT,
+        messages=[{"role": "user", "content": fragment}],
+    )
+    return (response.content[0].text if response.content else fragment).strip()
+
+
+def reduce_proposal_ai_score(html: str) -> str:
+    from proposal_prompt import REDUCE_AI_PROMPT
+
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=16000,
+        system=REDUCE_AI_PROMPT,
+        messages=[{"role": "user", "content": html}],
+    )
+    text = response.content[0].text if response.content else html
+    return text.strip()
 

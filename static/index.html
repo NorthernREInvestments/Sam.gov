@@ -15,6 +15,7 @@
     <nav class="main-nav">
       <button id="tab-dashboard" class="tab active" type="button">Dashboard</button>
       <button id="tab-subs" class="tab" type="button">My Subs</button>
+      <button id="tab-pricing" class="tab" type="button">Pricing</button>
       <button id="tab-settings" class="tab" type="button">Settings</button>
       <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
     </nav>
@@ -120,6 +121,20 @@
     </div>
   </div>
 
+  <div id="view-proposal-subs" hidden>
+    <div class="settings-page"><div id="proposal-step-content"></div></div>
+  </div>
+  <div id="view-proposal-config" hidden>
+    <div class="settings-page"><div id="proposal-config-content"></div></div>
+  </div>
+  <div id="view-proposal-editor" hidden>
+    <div id="proposal-editor-content"></div>
+  </div>
+
+  <div id="view-pricing" hidden>
+    <div class="settings-page" id="pricing-dashboard-content"></div>
+  </div>
+
   <div id="view-settings" hidden>
     <div class="settings-page">
       <h2>Settings</h2>
@@ -153,6 +168,29 @@
           <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
         </div>
         <p class="settings-help">After a prompt update, use Reset prompt to get the latest plain-English summary format.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Proposal / business info</h3>
+        <p class="settings-help">Used when generating proposals for Northern RE Investments, LLC.</p>
+        <label class="filter-label">Owner name</label>
+        <input id="settings-owner-name" class="settings-input" value="Mark Graham II">
+        <label class="filter-label">Business email</label>
+        <input id="settings-owner-email" class="settings-input" value="NorthernREIncestments@outlook.com">
+        <label class="filter-label">Business phone</label>
+        <input id="settings-owner-phone" class="settings-input" value="970-380-0862">
+        <label class="filter-label">Address line 1</label>
+        <input id="settings-owner-address" class="settings-input">
+        <label class="filter-label">City / State / ZIP</label>
+        <input id="settings-owner-city" class="settings-input" placeholder="City">
+        <input id="settings-owner-state" class="settings-input subs-state-input" placeholder="WY" maxlength="2">
+        <input id="settings-owner-zip" class="settings-input" placeholder="ZIP">
+        <label class="filter-label">UEI / CAGE / EIN</label>
+        <input id="settings-owner-uei" class="settings-input" placeholder="UEI">
+        <input id="settings-owner-cage" class="settings-input" placeholder="CAGE">
+        <input id="settings-owner-ein" class="settings-input" placeholder="EIN">
+        <label class="filter-label">SAM expiration</label>
+        <input id="settings-owner-sam-exp" class="settings-input" type="date">
       </section>
 
       <section class="settings-section">
@@ -218,5 +256,7 @@
 
   <script src="/app.js"></script>
   <script src="/subs.js"></script>
+  <script src="/pricing.js"></script>
+  <script src="/proposal.js"></script>
 </body>
 </html>

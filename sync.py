@@ -260,6 +260,9 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         session.close()
 
     selected_quote = float(row.selected_sub_quote) if row.selected_sub_quote is not None else None
+    from pws_fields import pws_snapshot
+
+    pws = pws_snapshot(row)
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -283,6 +286,13 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "executive_summary": analysis.get("executive_summary"),
         "pricing_intelligence": analysis.get("pricing_intelligence"),
         "pricing_intel": row.pricing_intel,
+        "pws": pws,
+        "square_footage": row.square_footage,
+        "building_type": row.building_type,
+        "cleaning_frequency_per_week": float(row.cleaning_frequency_per_week)
+        if row.cleaning_frequency_per_week is not None
+        else None,
+        "awarded_amount": float(row.awarded_amount) if row.awarded_amount is not None else None,
         "sub_type_needed": analysis.get("sub_type_needed"),
         "sub_summary": sub_summary,
         "nearby_network_count": nearby_network_count,

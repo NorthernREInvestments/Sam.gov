@@ -44,6 +44,18 @@ class Contract(Base):
     sub_search_status: Mapped[str | None] = mapped_column(String(32), nullable=True, default="none")
     sub_search_radius_miles: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # PWS / internal pricing database fields
+    square_footage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    building_type: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    cleaning_frequency_per_week: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    special_requirements: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    wage_determination_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    wage_determination_rate: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    awarded_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    price_per_sqft_per_year: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    price_per_sqft_per_visit: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    pricing_region: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -107,3 +119,45 @@ class ContractSub(Base):
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="contract_subs")
     sub: Mapped["Sub"] = relationship("Sub", back_populates="contract_links")
+
+
+class Proposal(Base):
+    __tablename__ = "proposals"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int | None] = mapped_column(ForeignKey("subs.id", ondelete="SET NULL"), nullable=True)
+    contract_sub_id: Mapped[int | None] = mapped_column(
+        ForeignKey("contract_subs.id", ondelete="SET NULL"), nullable=True
+    )
+
+    sub_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    sub_quote: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    margin_percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    base_year_bid: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    option_year_1: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    option_year_2: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    option_year_3: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    option_year_4: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    total_all_years: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    option_year_increase_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+
+    proposal_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sections_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    config_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
+    version_history: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    winning_bid_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    contracting_officer_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    submission_method: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    submission_deadline: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    missing_fields: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+    date_created: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    date_submitted: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    date_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    contract: Mapped["Contract"] = relationship("Contract", backref="proposals")

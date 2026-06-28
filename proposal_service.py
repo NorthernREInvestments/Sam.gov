@@ -1,0 +1,468 @@
+"""Proposal writer — bid math, config assembly, generation orchestration."""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime, timezone
+from decimal import Decimal
+from typing import Any
+
+from sqlalchemy.orm import Session, joinedload
+
+from models import Contract, ContractSub, Proposal, Sub
+from proposal_defaults import DEFAULT_OWNER_SETTINGS, PROPOSAL_SECTIONS, PROPOSAL_STATUSES, SECTION_TITLES
+from settings_store import get_owner_settings
+
+QUOTED_STATUSES = ("Quote Received", "Selected")
+
+
+def _dec(value: Decimal | float | int | None) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def calculate_bid_pricing(
+    sub_quote: float,
+    margin_pct: float,
+    option_years: int = 4,
+    increase_pct: float = 3.0,
+) -> dict[str, Any]:
+    margin = max(10.0, min(35.0, margin_pct))
+    sub = float(sub_quote)
+    base_bid = sub / (1 - margin / 100.0) if margin < 100 else sub
+    profit = base_bid - sub
+
+    years: dict[str, float] = {"base_year": round(base_bid, 2)}
+    prev = base_bid
+    mult = 1 + increase_pct / 100.0
+    for i in range(1, max(0, option_years) + 1):
+        prev = prev * mult
+        years[f"option_year_{i}"] = round(prev, 2)
+
+    total = round(sum(years.values()), 2)
+    return {
+        "sub_quote": round(sub, 2),
+        "margin_percentage": margin,
+        "base_year_bid": years["base_year"],
+        "base_year_profit": round(profit, 2),
+        "option_year_increase_pct": increase_pct,
+        "option_years": years,
+        "total_all_years": total,
+    }
+
+
+def bid_range_status(base_bid: float, pricing: dict[str, Any] | None) -> dict[str, str]:
+    """Green/yellow/red vs internal or regional recommended range."""
+    if not pricing:
+        return {"level": "neutral", "message": ""}
+    internal = pricing.get("internal") or {}
+    low = internal.get("recommended_bid_low")
+    high = internal.get("recommended_bid_high")
+    if not low and not high:
+        regional = pricing.get("regional_benchmark") or {}
+        avg = regional.get("average_annual_award")
+        if avg:
+            low = avg * 0.85
+            high = avg * 1.15
+    if not low or not high:
+        return {"level": "neutral", "message": "No regional benchmark available for comparison."}
+    if base_bid <= high:
+        if base_bid >= low:
+            return {"level": "green", "message": "Within recommended bid range."}
+        return {"level": "green", "message": "Below recommended range — aggressive bid."}
+    if base_bid <= high * 1.15:
+        return {
+            "level": "yellow",
+            "message": "Slightly above regional average — still competitive.",
+        }
+    return {
+        "level": "red",
+        "message": "Significantly above regional average. Consider reducing margin to improve win probability.",
+    }
+
+
+def quoted_subs_for_contract(session: Session, notice_id: str) -> dict[str, Any]:
+    contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+    if not contract:
+        raise ValueError("Contract not found")
+    links = (
+        session.query(ContractSub)
+        .options(joinedload(ContractSub.sub))
+        .filter(
+            ContractSub.contract_id == contract.id,
+            ContractSub.status.in_(QUOTED_STATUSES),
+            ContractSub.quote_amount.isnot(None),
+        )
+        .all()
+    )
+    subs = []
+    for link in links:
+        sub = link.sub
+        subs.append(
+            {
+                "contract_sub_id": link.id,
+                "sub_id": sub.id if sub else None,
+                "business_name": sub.business_name if sub else "Unknown",
+                "rating": _dec(sub.rating) if sub else None,
+                "review_count": sub.review_count if sub else None,
+                "quote_amount": _dec(link.quote_amount),
+                "distance_miles": _dec(link.distance_miles),
+                "contact_notes": link.contact_notes,
+                "status": link.status,
+                "is_selected": link.status == "Selected",
+            }
+        )
+    return {
+        "notice_id": notice_id,
+        "contract_title": contract.title,
+        "has_quotes": len(subs) > 0,
+        "subs": subs,
+    }
+
+
+def _extract_solicitation_meta(contract: Contract) -> dict[str, Any]:
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    sam = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
+    sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+
+    solicitation_number = (
+        sol.get("solicitation_number")
+        or sam.get("solicitationNumber")
+        or sam.get("noticeId")
+        or contract.notice_id
+    )
+    return {
+        "solicitation_number": solicitation_number,
+        "contracting_officer_name": sol.get("contracting_officer_name") or analysis.get("contracting_officer_name"),
+        "contracting_officer_email": sol.get("contracting_officer_email") or analysis.get("contracting_officer_email"),
+        "submission_method": sol.get("submission_method") or analysis.get("submission_method"),
+        "submission_deadline": contract.due_date.isoformat() if contract.due_date else None,
+        "base_year_start": sol.get("base_year_start") or pws.get("base_year_start"),
+        "base_year_end": sol.get("base_year_end") or pws.get("base_year_end"),
+        "option_years": analysis.get("option_years") or sol.get("option_years") or 4,
+        "place_of_performance": contract.location,
+        "agency_address": sol.get("agency_address") or analysis.get("agency_address"),
+    }
+
+
+def build_proposal_config(
+    session: Session,
+    notice_id: str,
+    *,
+    contract_sub_id: int,
+    margin_pct: float | None = None,
+    option_increase_pct: float | None = None,
+) -> dict[str, Any]:
+    from pricing import get_full_pricing_intel
+
+    contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+    if not contract:
+        raise ValueError("Contract not found")
+    link = (
+        session.query(ContractSub)
+        .options(joinedload(ContractSub.sub))
+        .filter_by(id=contract_sub_id, contract_id=contract.id)
+        .first()
+    )
+    if not link or not link.quote_amount:
+        raise ValueError("Selected sub must have a quote amount")
+    if link.status not in QUOTED_STATUSES:
+        raise ValueError("Sub must have status Quote Received or Selected")
+
+    owner = get_owner_settings()
+    margin = margin_pct if margin_pct is not None else float(owner.get("default_margin_pct", 18))
+    increase = option_increase_pct if option_increase_pct is not None else float(
+        owner.get("default_option_year_increase_pct", 3)
+    )
+    option_years = int(_extract_solicitation_meta(contract).get("option_years") or 4)
+    pricing_math = calculate_bid_pricing(
+        float(link.quote_amount), margin, option_years=option_years, increase_pct=increase
+    )
+    full_pricing = get_full_pricing_intel(contract, session)
+    range_status = bid_range_status(pricing_math["base_year_bid"], full_pricing)
+
+    sol = _extract_solicitation_meta(contract)
+    sub = link.sub
+    config = {
+        "section_a": {
+            "contract_title": contract.title,
+            "solicitation_number": sol["solicitation_number"],
+            "agency_name": contract.agency,
+            "contracting_officer_name": sol["contracting_officer_name"],
+            "contracting_officer_email": sol["contracting_officer_email"],
+            "submission_method": sol["submission_method"],
+            "submission_deadline": sol["submission_deadline"],
+            "base_year_start": sol["base_year_start"],
+            "base_year_end": sol["base_year_end"],
+            "option_years": option_years,
+            "place_of_performance": sol["place_of_performance"],
+            "agency_address": sol["agency_address"],
+        },
+        "section_b": owner,
+        "section_c": {**pricing_math, "bid_range_status": range_status, "pricing": full_pricing},
+        "section_d": {
+            "include_past_performance": True,
+            "include_capability_statement": True,
+            "writing_tone": "Professional",
+            "technical_detail": "Detailed",
+        },
+        "sub": {
+            "contract_sub_id": link.id,
+            "sub_id": sub.id if sub else None,
+            "business_name": sub.business_name if sub else None,
+            "rating": _dec(sub.rating) if sub else None,
+            "review_count": sub.review_count if sub else None,
+            "quote_amount": _dec(link.quote_amount),
+            "distance_miles": _dec(link.distance_miles),
+            "notes": link.contact_notes,
+        },
+        "contract": {
+            "notice_id": notice_id,
+            "square_footage": contract.square_footage,
+            "building_type": contract.building_type,
+            "plain_english_summary": analysis_plain(contract),
+        },
+    }
+    config["missing_fields"] = detect_missing_fields(config)
+    return config
+
+
+def analysis_plain(contract: Contract) -> str:
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    return analysis.get("plain_english_summary") or analysis.get("executive_summary") or ""
+
+
+def detect_missing_fields(config: dict[str, Any]) -> list[dict[str, str]]:
+    missing: list[dict[str, str]] = []
+    owner = config.get("section_b") or {}
+    required_owner = [
+        ("address_line_1", "Business address", "settings"),
+        ("city", "City", "settings"),
+        ("zip", "ZIP code", "settings"),
+        ("uei", "UEI number", "settings"),
+        ("cage_code", "CAGE code", "settings"),
+        ("ein", "EIN", "settings"),
+        ("sam_expiration", "SAM registration expiration", "settings"),
+    ]
+    for key, label, where in required_owner:
+        if not str(owner.get(key) or "").strip():
+            missing.append({"field": key, "label": label, "where": where})
+
+    sec_a = config.get("section_a") or {}
+    for key, label in [
+        ("contracting_officer_name", "Contracting Officer name"),
+        ("contracting_officer_email", "Contracting Officer email"),
+        ("submission_method", "Submission method"),
+    ]:
+        if not str(sec_a.get(key) or "").strip():
+            missing.append({"field": key, "label": label, "where": "solicitation"})
+    return missing
+
+
+def generate_proposal(
+    session: Session,
+    notice_id: str,
+    config: dict[str, Any],
+) -> Proposal:
+    from claude_client import generate_proposal_content
+
+    contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+    if not contract:
+        raise ValueError("Contract not found")
+
+    html, sections = generate_proposal_content(contract, config)
+    missing = detect_missing_fields(config)
+    html = highlight_missing_in_html(html, missing)
+
+    sub = config.get("sub") or {}
+    pricing = config.get("section_c") or {}
+    sec_a = config.get("section_a") or {}
+    opt = pricing.get("option_years") or {}
+
+    proposal = Proposal(
+        contract_id=contract.id,
+        sub_id=sub.get("sub_id"),
+        contract_sub_id=sub.get("contract_sub_id"),
+        sub_name=sub.get("business_name"),
+        sub_quote=Decimal(str(pricing.get("sub_quote"))) if pricing.get("sub_quote") else None,
+        margin_percentage=Decimal(str(pricing.get("margin_percentage", 18))),
+        base_year_bid=Decimal(str(pricing.get("base_year_bid"))) if pricing.get("base_year_bid") else None,
+        option_year_1=Decimal(str(opt.get("option_year_1"))) if opt.get("option_year_1") else None,
+        option_year_2=Decimal(str(opt.get("option_year_2"))) if opt.get("option_year_2") else None,
+        option_year_3=Decimal(str(opt.get("option_year_3"))) if opt.get("option_year_3") else None,
+        option_year_4=Decimal(str(opt.get("option_year_4"))) if opt.get("option_year_4") else None,
+        total_all_years=Decimal(str(pricing.get("total_all_years"))) if pricing.get("total_all_years") else None,
+        option_year_increase_pct=Decimal(str(pricing.get("option_year_increase_pct", 3))),
+        proposal_html=html,
+        sections_json=sections,
+        config_json=config,
+        status="draft",
+        version_history=[],
+        contracting_officer_name=sec_a.get("contracting_officer_name"),
+        submission_method=sec_a.get("submission_method"),
+        submission_deadline=sec_a.get("submission_deadline"),
+        missing_fields=missing,
+    )
+    session.add(proposal)
+    session.commit()
+    session.refresh(proposal)
+    return proposal
+
+
+def highlight_missing_in_html(html: str, missing: list[dict[str, str]]) -> str:
+    return html
+
+
+def parse_sections_from_html(html: str) -> dict[str, str]:
+    sections: dict[str, str] = {}
+    patterns = [
+        (r"SECTION\s*1[^<]*COVER\s*LETTER", "cover_letter"),
+        (r"SECTION\s*2[^<]*TECHNICAL", "technical_approach"),
+        (r"SECTION\s*3[^<]*PRICE", "price_schedule"),
+        (r"SECTION\s*4[^<]*PAST\s*PERFORMANCE", "past_performance"),
+        (r"SECTION\s*5[^<]*CAPABILITY", "capability_statement"),
+        (r"SECTION\s*6[^<]*CERTIFICATION", "certifications"),
+    ]
+    upper = html.upper()
+    for i, (pattern, key) in enumerate(patterns):
+        match = re.search(pattern, upper)
+        if not match:
+            continue
+        start = match.start()
+        end = len(html)
+        for j in range(i + 1, len(patterns)):
+            m2 = re.search(patterns[j][0], upper[start + 10 :])
+            if m2:
+                end = start + 10 + m2.start()
+                break
+        sections[key] = html[start:end].strip()
+    if not sections:
+        sections["full"] = html
+    return sections
+
+
+def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, Any]) -> Proposal:
+    proposal = session.get(Proposal, proposal_id)
+    if not proposal:
+        raise ValueError("Proposal not found")
+
+    history = list(proposal.version_history or [])
+    if proposal.proposal_html:
+        history.append(
+            {
+                "html": proposal.proposal_html,
+                "sections": proposal.sections_json,
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        history = history[-20:]
+
+    if "proposal_html" in payload:
+        proposal.proposal_html = payload["proposal_html"]
+    if "sections_json" in payload:
+        proposal.sections_json = payload["sections_json"]
+    if "notes" in payload:
+        proposal.notes = payload["notes"]
+    if "status" in payload and payload["status"] in PROPOSAL_STATUSES:
+        proposal.status = payload["status"]
+        if payload["status"] == "submitted":
+            proposal.date_submitted = datetime.now(timezone.utc)
+    if "winning_bid_amount" in payload and payload["winning_bid_amount"] is not None:
+        proposal.winning_bid_amount = Decimal(str(payload["winning_bid_amount"]))
+
+    proposal.version_history = history
+    proposal.date_updated = datetime.now(timezone.utc)
+    session.commit()
+    session.refresh(proposal)
+    return proposal
+
+
+def proposal_to_dict(proposal: Proposal) -> dict[str, Any]:
+    sections = proposal.sections_json or {}
+    if not sections and proposal.proposal_html:
+        sections = parse_sections_from_html(proposal.proposal_html)
+    word_counts = {k: _word_count(v) for k, v in sections.items()}
+    return {
+        "id": proposal.id,
+        "contract_id": proposal.contract_id,
+        "notice_id": proposal.contract.notice_id if proposal.contract else None,
+        "sub_id": proposal.sub_id,
+        "sub_name": proposal.sub_name,
+        "sub_quote": _dec(proposal.sub_quote),
+        "margin_percentage": _dec(proposal.margin_percentage),
+        "base_year_bid": _dec(proposal.base_year_bid),
+        "option_year_1": _dec(proposal.option_year_1),
+        "option_year_2": _dec(proposal.option_year_2),
+        "option_year_3": _dec(proposal.option_year_3),
+        "option_year_4": _dec(proposal.option_year_4),
+        "total_all_years": _dec(proposal.total_all_years),
+        "proposal_html": proposal.proposal_html,
+        "sections": sections,
+        "section_titles": SECTION_TITLES,
+        "word_counts": word_counts,
+        "total_word_count": sum(word_counts.values()),
+        "status": proposal.status,
+        "version_history": proposal.version_history or [],
+        "missing_fields": proposal.missing_fields or [],
+        "config": proposal.config_json,
+        "notes": proposal.notes,
+        "date_created": proposal.date_created.isoformat() if proposal.date_created else None,
+        "date_updated": proposal.date_updated.isoformat() if proposal.date_updated else None,
+    }
+
+
+def _word_count(html: str) -> int:
+    text = re.sub(r"<[^>]+>", " ", html or "")
+    return len(text.split())
+
+
+def regenerate_section(session: Session, proposal_id: int, section_key: str) -> Proposal:
+    from claude_client import regenerate_proposal_section
+
+    proposal = session.get(Proposal, proposal_id)
+    if not proposal or not proposal.config_json:
+        raise ValueError("Proposal not found")
+    if section_key not in PROPOSAL_SECTIONS:
+        raise ValueError(f"Invalid section: {section_key}")
+
+    contract = session.get(Contract, proposal.contract_id)
+    new_html = regenerate_proposal_section(contract, proposal.config_json, section_key)
+    sections = dict(proposal.sections_json or parse_sections_from_html(proposal.proposal_html or ""))
+    sections[section_key] = new_html
+    full = _rebuild_full_html(sections)
+    proposal.sections_json = sections
+    proposal.proposal_html = full
+    session.commit()
+    session.refresh(proposal)
+    return proposal
+
+
+def _rebuild_full_html(sections: dict[str, str]) -> str:
+    parts = []
+    for key in PROPOSAL_SECTIONS:
+        if sections.get(key):
+            parts.append(sections[key])
+    return "\n\n".join(parts) if parts else sections.get("full", "")
+
+
+def humanize_selection(session: Session, proposal_id: int, selected_html: str) -> str:
+    from claude_client import humanize_proposal_text
+
+    return humanize_proposal_text(selected_html)
+
+
+def reduce_ai_score_pass(session: Session, proposal_id: int) -> Proposal:
+    from claude_client import reduce_proposal_ai_score
+
+    proposal = session.get(Proposal, proposal_id)
+    if not proposal or not proposal.proposal_html:
+        raise ValueError("Proposal not found")
+    new_html = reduce_proposal_ai_score(proposal.proposal_html)
+    proposal.proposal_html = new_html
+    proposal.sections_json = parse_sections_from_html(new_html)
+    session.commit()
+    session.refresh(proposal)
+    return proposal

@@ -109,6 +109,11 @@ def full_intake_contract(row: Contract, *, force: bool = False) -> dict[str, Any
 
         row.analysis = analysis
         row.last_updated_at = datetime.now(timezone.utc)
+
+        from pws_fields import apply_pws_extraction
+
+        apply_pws_extraction(row, analysis)
+
         if analysis.get("pursue") is False:
             row.status = "skipped"
         elif row.status == "new":

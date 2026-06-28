@@ -37,15 +37,16 @@ function renderSubSummaryLink(c) {
 }
 
 function renderPursueSection(c) {
-  const tone = cardTone(c);
   const pursue = c.pursue === true;
   const label = pursue ? "Pursue this contract" : c.pursue === false ? "Skip this contract" : "Screening pending";
-  const btnClass = pursue ? "btn-pursue-active" : tone === "skip" ? "btn-skip-active" : "btn-secondary-action";
+  const btnClass = pursue ? "btn-pursue-active" : "btn-secondary-action";
+  const disabled = pursue ? "" : "disabled";
+  const pursueAttr = pursue ? ` data-pursue="${escapeHtml(c.notice_id)}"` : "";
   return `
     <div class="pursue-section">
       <div class="modal-badges">${screeningBadge(c)}</div>
       <p class="detail-item-value">${escapeHtml(c.reason || c.analysis?.reason || "Run screening to get a pursue/skip recommendation.")}</p>
-      <button type="button" class="btn ${btnClass} pursue-btn" disabled>${escapeHtml(label)}</button>
+      <button type="button" class="btn ${btnClass} pursue-btn"${pursueAttr} ${disabled}>${escapeHtml(label)}</button>
       ${c.selected_sub_quote ? `<p class="detail-note">Selected sub quote: ${formatMoney(c.selected_sub_quote)}</p>` : ""}
     </div>`;
 }

@@ -10,7 +10,7 @@ load_dotenv()
 
 from database import SessionLocal
 from models import Contract
-from pricing import get_contract_pricing_intel
+from pricing import get_regional_benchmark
 
 
 def main() -> None:
@@ -37,15 +37,12 @@ def main() -> None:
         session.commit()
 
         for row in rows:
-            intel = get_contract_pricing_intel(row, force_refresh=True)
+            intel = get_regional_benchmark(row, force_refresh=True)
             session.commit()
-            bid = intel.get("recommended_annual_bid")
-            rated = (intel.get("unit_rate_summary") or {}).get("rated_awards_count", 0)
-            print(f"{row.notice_id[:8]}… | awards={intel.get('awards_count')} rated={rated} | bid={bid}")
-            if intel.get("recommended_bid_formula"):
-                print(f"  {intel['recommended_bid_formula']}")
-            elif intel.get("recommended_bid_note"):
-                print(f"  {intel['recommended_bid_note']}")
+            bid = intel.get("average_annual_award")
+            print(f"{row.notice_id[:8]}… | awards={intel.get('awards_count')} | avg={bid}")
+            if intel.get("benchmark_note"):
+                print(f"  {intel['benchmark_note']}")
     finally:
         session.close()
 

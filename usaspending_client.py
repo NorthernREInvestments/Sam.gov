@@ -717,3 +717,68 @@ def _regional_fallback(
         "National or distant-state awards are never included."
     )
     return awards, location_scope, location_scope_note, neighbors
+
+
+def fetch_regional_benchmarks(
+    naics_code: str,
+    state_code: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """
+    Tier 1 — state-level USAspending contract awards for regional annual benchmarks.
+    Filters out awards under $10,000.
+    """
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT, regional_confidence
+
+    state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
+    raw_awards = _query_awards_in_states(naics_code, [state_code], limit=limit)
+
+    dated_awards = [
+        a
+        for a in raw_awards
+        if a.get("award_date")
+        and a.get("award_amount")
+        and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
+    ]
+    dated_awards.sort(key=lambda a: a["award_date"], reverse=True)
+
+    amounts = [a["award_amount"] for a in dated_awards]
+    recipient_weights: Counter[str] = Counter()
+    for award in dated_awards:
+        name = str(award.get("recipient_name") or "").strip()
+        if name:
+            recipient_weights[name] += award.get("recency_weight") or 1.0
+
+    top_winner, top_winner_score = recipient_weights.most_common(1)[0] if recipient_weights else (None, 0)
+    incumbent = dated_awards[0]["recipient_name"] if dated_awards else None
+    conf_key, conf_label = regional_confidence(len(dated_awards))
+
+    summary: dict[str, Any] = {
+        "tier": "regional_benchmark",
+        "naics_code": naics_code,
+        "state_code": state_code,
+        "state_name": state_name,
+        "lookback_years": 3,
+        "min_award_amount": MIN_REGIONAL_AWARD_AMOUNT,
+        "awards_count": len(dated_awards),
+        "awards_with_dates": len(dated_awards),
+        "average_annual_award": round(statistics.mean(amounts), 2) if amounts else None,
+        "highest_award": round(max(amounts), 2) if amounts else None,
+        "lowest_award": round(min(amounts), 2) if amounts else None,
+        "most_frequent_winner": top_winner,
+        "most_frequent_winner_count": round(top_winner_score, 1) if top_winner_score else 0,
+        "likely_incumbent": incumbent,
+        "confidence": conf_key,
+        "confidence_label": conf_label,
+        "benchmark_note": (
+            f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
+            f"over the last 3 years. Award amounts vary by building size and cleaning frequency."
+            if dated_awards
+            else f"No contracts over ${MIN_REGIONAL_AWARD_AMOUNT:,} found in {state_name} for this NAICS."
+        ),
+        "awards": dated_awards[:20],
+        "source": "USAspending.gov",
+        "fetched_at": date.today().isoformat(),
+    }
+    return summary

@@ -39,12 +39,38 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
-    from models import AppSetting, Contract, ContractSub, Sub  # noqa: F401
+    from models import AppSetting, Contract, ContractSub, Proposal, Sub  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_sam_raw()
     _migrate_add_pricing_intel()
     _migrate_add_sub_finder()
+    _migrate_add_internal_pricing()
+    _migrate_add_proposals()
+
+
+def _migrate_add_proposals() -> None:
+    """Proposals table created via create_all; no-op migration hook for future alters."""
+    pass
+
+
+def _migrate_add_internal_pricing() -> None:
+    columns = [
+        ("square_footage", "INTEGER"),
+        ("building_type", "VARCHAR(32)"),
+        ("cleaning_frequency_per_week", "NUMERIC(5, 2)"),
+        ("special_requirements", "JSONB"),
+        ("wage_determination_number", "VARCHAR(32)"),
+        ("wage_determination_rate", "NUMERIC(8, 2)"),
+        ("awarded_amount", "NUMERIC(14, 2)"),
+        ("price_per_sqft_per_year", "NUMERIC(12, 6)"),
+        ("price_per_sqft_per_visit", "NUMERIC(12, 6)"),
+        ("pricing_region", "VARCHAR(8)"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in columns:
+            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+        conn.commit()
 
 
 def _migrate_add_sub_finder() -> None:

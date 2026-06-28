@@ -8,6 +8,8 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Literal
+
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -23,7 +25,7 @@ from database import SessionLocal
 from sam_client import min_days_from_env, naics_from_env
 from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
-from pricing import get_contract_pricing_intel
+from pricing import get_full_pricing_intel, get_pricing_dashboard
 from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
 from screen import screen_one, screen_pending
 
@@ -88,6 +90,11 @@ class ContractSubUpdate(BaseModel):
     quote_date: str | None = None
 
 
+class ContractOutcomeUpdate(BaseModel):
+    status: Literal["won", "lost", "bidding", "reviewing", "new", "skipped"] | None = None
+    awarded_amount: float | None = Field(None, ge=0)
+
+
 class ManualSubCreate(BaseModel):
     business_name: str = Field(..., min_length=2, max_length=512)
     phone: str | None = None
@@ -110,6 +117,57 @@ class SubNotesUpdate(BaseModel):
 
 class AddNetworkSubsRequest(BaseModel):
     sub_ids: list[int] = Field(..., min_length=1)
+
+
+class OwnerSettingsUpdate(BaseModel):
+    legal_business_name: str | None = None
+    owner_name: str | None = None
+    owner_title: str | None = None
+    business_phone: str | None = None
+    business_email: str | None = None
+    address_line_1: str | None = None
+    address_line_2: str | None = None
+    city: str | None = None
+    state: str | None = None
+    zip: str | None = None
+    uei: str | None = None
+    cage_code: str | None = None
+    ein: str | None = None
+    sam_expiration: str | None = None
+    default_margin_pct: float | None = Field(None, ge=10, le=35)
+    default_option_year_increase_pct: float | None = Field(None, ge=0, le=15)
+    commercial_experience: str | None = None
+    certifications: str | None = None
+    past_performance: str | None = None
+
+
+class ProposalConfigRequest(BaseModel):
+    contract_sub_id: int
+    margin_pct: float | None = Field(None, ge=10, le=35)
+    option_increase_pct: float | None = Field(None, ge=0, le=15)
+    section_d: dict | None = None
+    section_a_overrides: dict | None = None
+    section_b_overrides: dict | None = None
+
+
+class ProposalGenerateRequest(BaseModel):
+    config: dict
+
+
+class ProposalSaveRequest(BaseModel):
+    proposal_html: str | None = None
+    sections_json: dict | None = None
+    notes: str | None = None
+    status: str | None = None
+    winning_bid_amount: float | None = None
+
+
+class HumanizeRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+
+
+class RegenerateSectionRequest(BaseModel):
+    section_key: str
 
 
 @app.get("/api/health")
@@ -234,7 +292,7 @@ def get_contract_pricing(notice_id: str, refresh: bool = Query(False)):
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             raise HTTPException(status_code=404, detail="Contract not found")
-        intel = get_contract_pricing_intel(row, force_refresh=refresh)
+        intel = get_full_pricing_intel(row, session, force_refresh=refresh)
         session.commit()
         return intel
     except ValueError as exc:
@@ -244,6 +302,43 @@ def get_contract_pricing(notice_id: str, refresh: bool = Query(False)):
     except Exception as exc:
         session.rollback()
         raise HTTPException(status_code=502, detail=f"Pricing lookup failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/contracts/{notice_id}")
+def patch_contract(notice_id: str, body: ContractOutcomeUpdate):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from pws_fields import recalculate_pricing_derivatives
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        if body.status is not None:
+            row.status = body.status
+        if body.awarded_amount is not None:
+            from decimal import Decimal
+
+            row.awarded_amount = Decimal(str(body.awarded_amount))
+            recalculate_pricing_derivatives(row)
+        session.commit()
+        return contract_to_dict(row)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/pricing/dashboard")
+def pricing_dashboard():
+    session = SessionLocal()
+    try:
+        return get_pricing_dashboard(session)
     finally:
         session.close()
 
@@ -462,6 +557,152 @@ def patch_sub_notes(sub_id: int, body: SubNotesUpdate):
         return sub_to_dict(row)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/settings/owner")
+def patch_owner_settings(body: OwnerSettingsUpdate):
+    from settings_store import save_owner_settings
+
+    return save_owner_settings(body.model_dump(exclude_unset=True))
+
+
+@app.get("/api/contracts/{notice_id}/proposal/subs")
+def get_proposal_subs(notice_id: str):
+    session = SessionLocal()
+    try:
+        from proposal_service import quoted_subs_for_contract
+
+        return quoted_subs_for_contract(session, notice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/proposal/config")
+def post_proposal_config(notice_id: str, body: ProposalConfigRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import build_proposal_config
+
+        config = build_proposal_config(
+            session,
+            notice_id,
+            contract_sub_id=body.contract_sub_id,
+            margin_pct=body.margin_pct,
+            option_increase_pct=body.option_increase_pct,
+        )
+        if body.section_a_overrides:
+            config["section_a"].update(body.section_a_overrides)
+        if body.section_b_overrides:
+            config["section_b"].update(body.section_b_overrides)
+        if body.section_d:
+            config["section_d"].update(body.section_d)
+        from proposal_service import detect_missing_fields
+
+        config["missing_fields"] = detect_missing_fields(config)
+        return config
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/proposal/generate")
+def post_generate_proposal(notice_id: str, body: ProposalGenerateRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import generate_proposal, proposal_to_dict
+
+        proposal = generate_proposal(session, notice_id, body.config)
+        return proposal_to_dict(proposal)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=f"Proposal generation failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/proposals/{proposal_id}")
+def get_proposal(proposal_id: int):
+    session = SessionLocal()
+    try:
+        from models import Proposal
+        from proposal_service import proposal_to_dict
+        from sqlalchemy.orm import joinedload
+
+        row = (
+            session.query(Proposal)
+            .options(joinedload(Proposal.contract))
+            .filter_by(id=proposal_id)
+            .first()
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return proposal_to_dict(row)
+    finally:
+        session.close()
+
+
+@app.patch("/api/proposals/{proposal_id}")
+def patch_proposal(proposal_id: int, body: ProposalSaveRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import proposal_to_dict, save_proposal_draft
+
+        row = save_proposal_draft(session, proposal_id, body.model_dump(exclude_unset=True))
+        return proposal_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/proposals/{proposal_id}/regenerate-section")
+def post_regenerate_section(proposal_id: int, body: RegenerateSectionRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import proposal_to_dict, regenerate_section
+
+        row = regenerate_section(session, proposal_id, body.section_key)
+        return proposal_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/proposals/{proposal_id}/humanize")
+def post_humanize(proposal_id: int, body: HumanizeRequest):
+    session = SessionLocal()
+    try:
+        from proposal_service import humanize_selection
+
+        return {"html": humanize_selection(session, proposal_id, body.text)}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/proposals/{proposal_id}/reduce-ai-score")
+def post_reduce_ai(proposal_id: int):
+    session = SessionLocal()
+    try:
+        from proposal_service import proposal_to_dict, reduce_ai_score_pass
+
+        row = reduce_ai_score_pass(session, proposal_id)
+        return proposal_to_dict(row)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     finally:
         session.close()
 

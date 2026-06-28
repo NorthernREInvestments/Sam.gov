@@ -17,8 +17,13 @@ function showView(name) {
   document.getElementById("view-settings").hidden = name !== "settings";
   document.getElementById("view-subs").hidden = name !== "subs";
   document.getElementById("view-contract-subs").hidden = name !== "contract-subs";
+  document.getElementById("view-pricing").hidden = name !== "pricing";
+  document.getElementById("view-proposal-subs").hidden = name !== "proposal-subs";
+  document.getElementById("view-proposal-config").hidden = name !== "proposal-config";
+  document.getElementById("view-proposal-editor").hidden = name !== "proposal-editor";
   document.getElementById("tab-dashboard").classList.toggle("active", name === "dashboard");
   document.getElementById("tab-subs").classList.toggle("active", name === "subs");
+  document.getElementById("tab-pricing").classList.toggle("active", name === "pricing");
   document.getElementById("tab-settings").classList.toggle("active", name === "settings");
   if (name === "settings") loadSettingsPage();
 }
@@ -133,7 +138,7 @@ function renderCards() {
     const subType = c.sub_type_needed || "Not screened yet";
     const summary = c.plain_english_summary || c.executive_summary;
     const headline = summary ? firstSentence(summary, 160) : null;
-    const annualBid = recommendedAnnualBid(c.pricing_intel);
+    const annualBid = recommendedAnnualBid(c);
     const bidPreview = annualBid
       ? `<div class="card-section card-section-bid">
            <span class="card-label">Recommended annual bid</span>
@@ -156,6 +161,7 @@ function renderCards() {
     const networkBanner = typeof renderNetworkBanner === "function" ? renderNetworkBanner(c) : "";
     const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
     const findSubsBtn = typeof renderFindSubsButton === "function" ? renderFindSubsButton(c) : "";
+    const pursueBtn = typeof renderPursueButton === "function" ? renderPursueButton(c) : "";
     return `
     <article class="card card-${tone}" data-id="${c.notice_id}">
       <div class="card-top">
@@ -181,6 +187,7 @@ function renderCards() {
         <p class="card-subtype"><span class="card-label-inline">Sub type:</span> ${escapeHtml(subType)}</p>
         <p class="card-meta card-naics"><span class="card-label-inline">NAICS:</span> ${escapeHtml(naicsLine)}</p>
         ${findSubsBtn}
+        ${pursueBtn}
       </div>
     </article>`;
   }).join("");
@@ -348,11 +355,8 @@ function buildSummaryInner(c, analyzing = false) {
 
 function renderDetailModal(c, { analyzing = false } = {}) {
   const summaryInner = buildSummaryInner(c, analyzing && !getContractSummary(c));
-  const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-  const pricingInner = pricingIntel
-    ? renderClaudePricingPanel(pricingIntel, c.pricing_intel)
-    : `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
-         <p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>
+  const pricingInner = `<div id="pricing-panel" class="pricing-panel pricing-panel-loading">
+         <p class="pricing-loading">Loading pricing intelligence…</p>
        </div>`;
   const subsLink = typeof renderSubSummaryLink === "function" ? renderSubSummaryLink(c) : "";
   const pursueSection = typeof renderPursueSection === "function" ? renderPursueSection(c) : "";
@@ -363,7 +367,7 @@ function renderDetailModal(c, { analyzing = false } = {}) {
       <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
     </div>
     ${wrapDetailSection("Plain English summary", summaryInner, "detail-section-summary")}
-    ${wrapDetailSection("Historical bids", pricingInner, "detail-section-pricing")}
+    ${wrapDetailSection("Pricing intelligence", pricingInner, "detail-section-pricing")}
     ${wrapDetailSection("Recommended subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
     ${wrapDetailSection("Pursue", pursueSection, "detail-section-pursue")}
   `;
@@ -398,6 +402,7 @@ function startDetailLiveUpdates(noticeId) {
       if (!c) return;
       if (getContractSummary(c)) {
         renderDetailModal(c);
+        loadPricingIntel(noticeId);
         await loadContracts();
         stopDetailPolling();
       }
@@ -415,9 +420,7 @@ async function beginAutoAnalysis(noticeId) {
     const c = await fetchContract(noticeId);
     if (c && getContractSummary(c)) {
       renderDetailModal(c);
-      if (!c.pricing_intelligence && !c.analysis?.pricing_intelligence) {
-        loadPricingIntel(noticeId);
-      }
+      loadPricingIntel(noticeId);
       await loadContracts();
       stopDetailPolling();
     }
@@ -436,14 +439,9 @@ async function openDetail(noticeId) {
   if (!c) return;
 
   const summary = getContractSummary(c);
-  const pricingIntel = c.pricing_intelligence || c.analysis?.pricing_intelligence;
-
   renderDetailModal(c, { analyzing: !summary });
   document.getElementById("modal").hidden = false;
-
-  if (!pricingIntel) {
-    loadPricingIntel(noticeId);
-  }
+  loadPricingIntel(noticeId);
 
   if (!summary) {
     beginAutoAnalysis(noticeId);
@@ -478,60 +476,10 @@ function formatMoney(value) {
   }).format(num);
 }
 
-function formatAwardDate(award) {
-  const raw = award?.award_date || award?.start_date;
-  if (!raw) return "Date unknown";
-  const d = new Date(`${String(raw).slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return String(raw);
-  const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  if (award?.days_ago == null) return label;
-  if (award.days_ago <= 365) return `${label} (${award.days_ago} days ago)`;
-  const years = (award.days_ago / 365).toFixed(1);
-  return `${label} (${years} yrs ago)`;
-}
-
-function sortAwardsByDistance(awards) {
-  return [...(awards || [])].sort((a, b) => {
-    const da = a?.distance_miles;
-    const db = b?.distance_miles;
-    if (da == null && db == null) {
-      const ad = a?.award_date || a?.start_date || "";
-      const bd = b?.award_date || b?.start_date || "";
-      return bd.localeCompare(ad);
-    }
-    if (da == null) return 1;
-    if (db == null) return -1;
-    if (da !== db) return da - db;
-    const ad = a?.award_date || a?.start_date || "";
-    const bd = b?.award_date || b?.start_date || "";
-    return bd.localeCompare(ad);
-  });
-}
-
-function formatAwardDistance(award) {
-  if (award?.distance_label) return award.distance_label;
-  return "—";
-}
-
-function formatClearanceRequired(c) {
-  const flagged = c.security_clearance_required ?? c.analysis?.security_clearance_required;
-  if (flagged === true) return "Required (or restricted access)";
-  if (flagged === false) return "Not required";
-  return "Unknown — check solicitation";
-}
-
-function recommendedAnnualBid(intel) {
-  if (!intel) return null;
-  return intel.recommended_annual_bid
-    ?? intel.unit_rate_summary?.recommended_annual_bid
-    ?? null;
-}
-
-function recommendedBidFormula(intel) {
-  if (!intel) return "";
-  return intel.recommended_bid_formula
-    ?? intel.unit_rate_summary?.recommended_bid_formula
-    ?? "";
+function recommendedAnnualBid(c) {
+  const intel = c?.pricing_intel;
+  if (intel?.internal?.recommended_annual_bid) return intel.internal.recommended_annual_bid;
+  return c?.pws?.square_footage ? null : null;
 }
 
 function formatUnitRate(value) {
@@ -540,200 +488,6 @@ function formatUnitRate(value) {
   if (n >= 1) return `$${n.toFixed(2)}/sq ft/visit`;
   if (n >= 0.01) return `$${n.toFixed(3)}/sq ft/visit`;
   return `$${n.toFixed(4)}/sq ft/visit`;
-}
-
-function formatSqFt(value) {
-  if (value == null) return "—";
-  return `${Number(value).toLocaleString()} sq ft`;
-}
-
-function awardsTableCaption(intel) {
-  const origin = intel?.origin_location?.label || formatPricingLocationScope(intel);
-  const closest = intel?.closest_award_label;
-  let text = `Source awards near ${origin} — each row shows $/sq ft per visit used in the recommended bid.`;
-  if (closest) {
-    text += ` Nearest match: ${closest}.`;
-  }
-  return text;
-}
-
-function formatPricingLocationScope(intel) {
-  if (!intel) return "this work area";
-  if (intel.location_scope) return intel.location_scope;
-  return intel.state_code || "this work area";
-}
-
-function formatAwardLocation(award) {
-  if (award?.performance_location) return award.performance_location;
-  const parts = [award?.performance_city, award?.performance_state, award?.performance_zip].filter(Boolean);
-  return parts.length ? parts.join(", ") : "—";
-}
-
-function renderAwardsTable(awards, intel) {
-  const rows = sortAwardsByDistance(awards);
-  if (!rows.length) return "";
-  return `
-    <p class="pricing-table-caption">${escapeHtml(awardsTableCaption(intel))}</p>
-    <table class="pricing-table">
-    <thead>
-      <tr><th>Distance</th><th>Work location</th><th>Sq ft</th><th>Frequency</th><th>$/sq ft/visit</th><th>Award date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr>
-    </thead>
-    <tbody>
-      ${rows.map((a, index) => `
-        <tr class="${[
-          index === 0 && a.distance_miles != null ? "pricing-row-closest" : "",
-          a.days_ago != null && a.days_ago <= 365 ? "pricing-row-recent" : "",
-          a.distance_same_state === false ? "pricing-row-other-state" : "",
-        ].filter(Boolean).join(" ")}">
-          <td class="pricing-distance">${escapeHtml(formatAwardDistance(a))}</td>
-          <td>${escapeHtml(formatAwardLocation(a))}</td>
-          <td>${escapeHtml(formatSqFt(a.award_square_feet))}</td>
-          <td>${escapeHtml(a.award_frequency_label || "—")}</td>
-          <td>${escapeHtml(formatUnitRate(a.price_per_sqft_per_visit))}</td>
-          <td>${escapeHtml(formatAwardDate(a))}</td>
-          <td>${escapeHtml(a.recipient_name || "—")}</td>
-          <td>${formatMoney(a.award_amount)}</td>
-          <td>${escapeHtml(a.awarding_agency || "—")}</td>
-        </tr>`).join("")}
-    </tbody>
-  </table>`;
-}
-
-function renderPricingBidHero(intel) {
-  const annualBid = recommendedAnnualBid(intel);
-  const bidFormula = recommendedBidFormula(intel);
-  if (!annualBid) {
-    return `<p class="pricing-note pricing-note-muted">${escapeHtml(intel.recommended_bid_note || "Recommended annual bid will appear once square footage, frequency, and rated comparables are available.")}</p>`;
-  }
-  return `
-    <div class="pricing-bid-hero">
-      <span class="pricing-bid-label">Recommended annual bid</span>
-      <span class="pricing-bid-range">${formatMoney(annualBid)}</span>
-    </div>
-    ${bidFormula ? `<p class="pricing-note pricing-formula">${escapeHtml(bidFormula)}</p>` : ""}
-    <p class="pricing-note pricing-note-muted">Initial interest only — regional avg $/sq ft per visit × your sq ft × annual visits. See table for source awards.</p>`;
-}
-
-function renderPricingSupportingStats(intel, { winner } = {}) {
-  const ur = intel?.unit_rate_summary;
-  const winnerLabel = winner ?? (intel.most_frequent_winner
-    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (score ${intel.most_frequent_winner_count})` : ""}`
-    : "—");
-  if (!ur?.regional_avg_price_per_sqft_per_visit) {
-    return winnerLabel !== "—"
-      ? `<div class="pricing-stats"><div class="pricing-stat pricing-stat-wide"><span class="pricing-stat-label">Most frequent winner</span><span class="pricing-stat-value pricing-stat-text">${escapeHtml(winnerLabel)}</span></div></div>`
-      : "";
-  }
-  return `
-    <div class="pricing-stats">
-      <div class="pricing-stat pricing-stat-highlight">
-        <span class="pricing-stat-label">Regional avg (drives bid)</span>
-        <span class="pricing-stat-value">${escapeHtml(formatUnitRate(ur.regional_avg_price_per_sqft_per_visit))}</span>
-      </div>
-      <div class="pricing-stat">
-        <span class="pricing-stat-label">$/sq ft/visit range</span>
-        <span class="pricing-stat-value">${escapeHtml(formatUnitRate(ur.lowest_price_per_sqft_per_visit))} – ${escapeHtml(formatUnitRate(ur.highest_price_per_sqft_per_visit))}</span>
-      </div>
-      <div class="pricing-stat">
-        <span class="pricing-stat-label">Rated comparables</span>
-        <span class="pricing-stat-value">${ur.rated_awards_count ?? "—"} of ${intel.awards_count ?? "—"}</span>
-      </div>
-      <div class="pricing-stat pricing-stat-wide">
-        <span class="pricing-stat-label">Most frequent winner</span>
-        <span class="pricing-stat-value pricing-stat-text">${escapeHtml(winnerLabel)}</span>
-      </div>
-    </div>`;
-}
-
-function renderClaudePricingPanel(pricing, rawIntel) {
-  const annualBid = recommendedAnnualBid(rawIntel);
-  const competition = pricing.competition_level
-    ? `${pricing.competition_level.charAt(0).toUpperCase()}${pricing.competition_level.slice(1)} competition`
-    : "—";
-  const confidence = pricing.pricing_confidence
-    ? `${pricing.pricing_confidence.charAt(0).toUpperCase()}${pricing.pricing_confidence.slice(1)} confidence`
-    : "—";
-  const incumbent = pricing.incumbent || rawIntel?.likely_incumbent || "Not identified";
-  const winner = pricing.most_frequent_winner || "—";
-  const recentCount = rawIntel?.awards_last_12_months;
-  const locationScope = formatPricingLocationScope(rawIntel);
-  const awardsNote = rawIntel?.awards_count
-    ? `${rawIntel.awards_count} local comparables in ${locationScope}${recentCount != null ? ` · ${recentCount} in last 12 months` : ""} · NAICS ${rawIntel.naics_code || ""}`
-    : "Based on USAspending.gov historical data in the same work area";
-
-  const awardsTable = renderAwardsTable(rawIntel?.awards, rawIntel);
-
-  return `
-    <div class="pricing-panel">
-      ${renderPricingBidHero(rawIntel)}
-      <p class="pricing-intro">${escapeHtml(awardsNote)} <span class="pricing-source">(table = source data · bid = unit-rate formula)</span></p>
-      ${rawIntel?.location_scope_note ? `<p class="pricing-note">${escapeHtml(rawIntel.location_scope_note)}</p>` : ""}
-      ${awardsTable}
-      ${renderPricingSupportingStats(rawIntel, { winner })}
-      ${pricing.pricing_summary ? `<p class="pricing-summary">${escapeHtml(pricing.pricing_summary)}</p>` : ""}
-      <div class="pricing-stats">
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Incumbent</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(incumbent)}</span>
-        </div>
-        <div class="pricing-stat">
-          <span class="pricing-stat-label">Competition</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(competition)} · ${escapeHtml(confidence)}</span>
-        </div>
-      </div>
-    </div>`;
-}
-
-function renderPricingPanel(intel) {
-  if (intel.error) {
-    return `
-      <div class="pricing-panel pricing-panel-error">
-        <p>${escapeHtml(intel.error)}</p>
-        ${intel.naics_code ? `<p class="pricing-meta">NAICS ${escapeHtml(intel.naics_code)}${intel.state_code ? ` · ${escapeHtml(intel.state_code)}` : ""}</p>` : ""}
-      </div>`;
-  }
-
-  const winner = intel.most_frequent_winner
-    ? `${intel.most_frequent_winner}${intel.most_frequent_winner_count > 1 ? ` (score ${intel.most_frequent_winner_count})` : ""}`
-    : "—";
-
-  const locationScope = formatPricingLocationScope(intel);
-
-  const awardsTable = renderAwardsTable(intel.awards, intel)
-    || `<p class="pricing-meta">No comparable awards found for this NAICS in ${escapeHtml(locationScope)} over the last 3 years.</p>`;
-
-  return `
-    <div class="pricing-panel">
-      ${renderPricingBidHero(intel)}
-      <p class="pricing-intro">
-        ${intel.awards_with_dates || intel.awards_count} local contract${(intel.awards_with_dates || intel.awards_count) === 1 ? "" : "s"} near
-        <strong>${escapeHtml(locationScope)}</strong> · NAICS
-        <strong>${escapeHtml(intel.naics_code || "")}</strong>
-        ${intel.awards_last_12_months != null ? ` · ${intel.awards_last_12_months} in last 12 months` : ""}
-        <span class="pricing-source">(table = source awards · recommended bid = unit-rate formula only)</span>
-      </p>
-      ${intel.location_scope_note ? `<p class="pricing-note">${escapeHtml(intel.location_scope_note)}</p>` : ""}
-      ${awardsTable}
-      ${renderPricingSupportingStats(intel, { winner })}
-    </div>`;
-}
-
-async function loadPricingIntel(noticeId, refresh = false) {
-  const container = document.getElementById("pricing-panel");
-  if (!container) return;
-  container.className = "pricing-panel pricing-panel-loading";
-  container.innerHTML = `<p class="pricing-loading">Loading comparable awards from USAspending.gov…</p>`;
-
-  try {
-    const url = `/api/contracts/${encodeURIComponent(noticeId)}/pricing${refresh ? "?refresh=true" : ""}`;
-    const res = await apiFetch(url);
-    const intel = await res.json();
-    if (!res.ok) throw new Error(intel.detail || "Pricing lookup failed");
-    container.outerHTML = renderPricingPanel(intel);
-  } catch (err) {
-    container.className = "pricing-panel pricing-panel-error";
-    container.innerHTML = `<p>${escapeHtml(err.message || "Could not load pricing data.")}</p>`;
-  }
 }
 
 function closeModal() {
@@ -881,6 +635,22 @@ async function loadSettingsPage() {
   document.getElementById("settings-sub-min-rating").value = subSearch.min_rating ?? 3.5;
   document.getElementById("settings-sub-min-reviews").value = subSearch.min_review_count ?? 5;
 
+  const owner = data.owner || {};
+  const set = (id, key) => { const el = document.getElementById(id); if (el) el.value = owner[key] || el.defaultValue || ""; };
+  set("settings-owner-name", "owner_name");
+  set("settings-owner-email", "business_email");
+  set("settings-owner-phone", "business_phone");
+  set("settings-owner-address", "address_line_1");
+  set("settings-owner-city", "city");
+  set("settings-owner-state", "state");
+  set("settings-owner-zip", "zip");
+  set("settings-owner-uei", "uei");
+  set("settings-owner-cage", "cage_code");
+  set("settings-owner-ein", "ein");
+  if (document.getElementById("settings-owner-sam-exp")) {
+    document.getElementById("settings-owner-sam-exp").value = owner.sam_expiration || "";
+  }
+
   const keys = data.api_keys || {};
   document.getElementById("api-key-status").innerHTML = `
     <li>SAM.gov: ${keys.sam_gov ? "configured" : "missing"}</li>
@@ -951,6 +721,24 @@ async function saveSettings() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Save failed");
+    const ownerBody = {
+      owner_name: document.getElementById("settings-owner-name")?.value,
+      business_email: document.getElementById("settings-owner-email")?.value,
+      business_phone: document.getElementById("settings-owner-phone")?.value,
+      address_line_1: document.getElementById("settings-owner-address")?.value,
+      city: document.getElementById("settings-owner-city")?.value,
+      state: document.getElementById("settings-owner-state")?.value,
+      zip: document.getElementById("settings-owner-zip")?.value,
+      uei: document.getElementById("settings-owner-uei")?.value,
+      cage_code: document.getElementById("settings-owner-cage")?.value,
+      ein: document.getElementById("settings-owner-ein")?.value,
+      sam_expiration: document.getElementById("settings-owner-sam-exp")?.value,
+    };
+    await apiFetch("/api/settings/owner", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ownerBody),
+    });
     showSyncStatus("Settings saved.");
     await loadConfig();
     await loadContracts();

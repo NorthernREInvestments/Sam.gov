@@ -23,6 +23,7 @@ SCHEDULER_TIMEZONE_KEY = "scheduler_timezone"
 SUB_SEARCH_RADIUS_KEY = "sub_search_radius_miles"
 SUB_MIN_RATING_KEY = "sub_min_rating"
 SUB_MIN_REVIEWS_KEY = "sub_min_review_count"
+OWNER_SETTINGS_KEY = "proposal_owner_settings"
 
 
 def _get_setting(session, key: str) -> str | None:
@@ -127,6 +128,34 @@ def get_sub_search_settings() -> dict[str, Any]:
     }
 
 
+def get_owner_settings() -> dict[str, Any]:
+    from proposal_defaults import DEFAULT_OWNER_SETTINGS
+
+    session = SessionLocal()
+    try:
+        raw = _get_setting(session, OWNER_SETTINGS_KEY)
+        if raw:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                merged = {**DEFAULT_OWNER_SETTINGS, **data}
+                return merged
+    finally:
+        session.close()
+    return dict(DEFAULT_OWNER_SETTINGS)
+
+
+def save_owner_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    current = get_owner_settings()
+    current.update({k: v for k, v in payload.items() if v is not None})
+    session = SessionLocal()
+    try:
+        _set_setting(session, OWNER_SETTINGS_KEY, json.dumps(current, default=str))
+        session.commit()
+    finally:
+        session.close()
+    return get_owner_settings()
+
+
 def get_screening_prompt() -> tuple[str, bool]:
     session = SessionLocal()
     try:
@@ -158,6 +187,7 @@ def get_all_settings() -> dict[str, Any]:
         "screening_prompt_custom": prompt_custom,
         "scheduler": scheduler,
         "sub_search": sub_search,
+        "owner": get_owner_settings(),
         "api_budget": get_usage_snapshot(),
         "api_keys": {
             "sam_gov": bool(os.getenv("SAM_GOV_API_KEY", "").strip()),
