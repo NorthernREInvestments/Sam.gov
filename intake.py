@@ -155,9 +155,15 @@ def run_text_screen(row: Contract) -> dict[str, Any]:
     }
 
 
-def run_full_analysis(row: Contract, *, prior: dict[str, Any] | None = None) -> dict[str, Any]:
+def run_full_analysis(
+    row: Contract,
+    *,
+    prior: dict[str, Any] | None = None,
+    session=None,
+) -> dict[str, Any]:
     """Step 2 — PIEE/attachments + PDFs + full Claude analysis."""
-    from pws_fields import apply_pws_extraction
+    from pws_fields import apply_pws_extraction, contract_pws_missing
+    from screening_pipeline import pdfs_expected_on_contract, pdfs_read_in_analysis
     from sub_finder import maybe_auto_sub_search
 
     prior = prior or (row.analysis if isinstance(row.analysis, dict) else {})
@@ -198,29 +204,116 @@ def run_full_analysis(row: Contract, *, prior: dict[str, Any] | None = None) -> 
     if prior.get("text_screened_at"):
         analysis["text_screened_at"] = prior["text_screened_at"]
 
-    finalize_full_analysis(row, analysis)
-    apply_pws_extraction(row, analysis)
+    row.analysis = analysis
+
+    from claude_client import contract_attachment_text
+    from pws_fields import supplement_pws_from_pdf_text
+
+    def _persist_scope_from_pdfs() -> None:
+        nonlocal analysis
+        full_text = contract_attachment_text(row, max_pdfs=12)
+        supplement_pws_from_pdf_text(analysis, full_text)
+        apply_pws_extraction(row, analysis)
+        if row.square_footage is None and can_screen():
+            from claude_client import try_extract_sqft_from_drawings
+
+            if try_extract_sqft_from_drawings(row, analysis):
+                apply_pws_extraction(row, analysis)
+            record_screen_usage()
+        row.analysis = analysis
+
+    _persist_scope_from_pdfs()
+
+    if session is not None and contract_pws_missing(row):
+        from proposal_service import ensure_solicitation_meta
+
+        ensure_solicitation_meta(session, row, force=True)
+        analysis = row.analysis if isinstance(row.analysis, dict) else analysis
+        _persist_scope_from_pdfs()
 
     if analysis.get("estimated_value") and not row.estimated_value:
         row.estimated_value = str(analysis["estimated_value"])[:128]
 
-    maybe_auto_sub_search(row)
+    if pdfs_expected_on_contract(row) and contract_pws_missing(row):
+        analysis["screening_stage"] = "pdf_pending"
+        analysis["pdf_pending_reason"] = "Attachments not fully processed — automatic retry queued."
+        row.analysis = analysis
+        row.status = "reviewing"
+        full_done = False
+    elif contract_pws_missing(row):
+        analysis["screening_stage"] = "pdf_pending"
+        analysis["pdf_pending_reason"] = "Scope extraction incomplete — automatic retry queued."
+        row.analysis = analysis
+        row.status = "reviewing"
+        full_done = False
+    else:
+        finalize_full_analysis(row, analysis)
+        full_done = True
+
+    if full_done:
+        maybe_auto_sub_search(row)
 
     return {
         "notice_id": row.notice_id,
         "skipped": False,
         "enriched": True,
-        "screened": True,
-        "full_analysis": True,
+        "screened": full_done,
+        "full_analysis": full_done,
+        "pdf_pending": not full_done,
         "text_score": text_score,
         "pdfs_sent": analysis.get("pdfs_sent_to_claude", 0),
         "analysis": analysis,
     }
 
 
-def full_intake_contract(row: Contract, *, force: bool = False, force_full: bool = False) -> dict[str, Any]:
+def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
+    """Backfill PWS scope + solicitation meta from PDFs into PostgreSQL (no full re-screen)."""
+    from pws_fields import contract_pws_missing
+    from proposal_service import ensure_solicitation_meta
+
+    if not has_attachments_ready(row):
+        return {
+            "notice_id": row.notice_id,
+            "skipped": True,
+            "reason": "pending_attachments",
+        }
+    if not contract_pws_missing(row):
+        return {"notice_id": row.notice_id, "skipped": True, "reason": "scope_complete"}
+
+    if not can_screen():
+        return {
+            "notice_id": row.notice_id,
+            "skipped": True,
+            "reason": "screen_budget",
+            "message": "Claude budget reached before PWS scope could be extracted.",
+        }
+
+    ensure_solicitation_meta(session, row, force=True)
+    row.last_updated_at = datetime.now(timezone.utc)
+    return {
+        "notice_id": row.notice_id,
+        "skipped": False,
+        "scope_extracted": True,
+        "square_footage": row.square_footage,
+        "cleaning_frequency_per_week": float(row.cleaning_frequency_per_week)
+        if row.cleaning_frequency_per_week is not None
+        else None,
+    }
+
+
+def full_intake_contract(
+    row: Contract,
+    *,
+    session=None,
+    force: bool = False,
+    force_full: bool = False,
+) -> dict[str, Any]:
     """Run full Claude analysis once SAM attachments are complete (drives dashboard ranking)."""
-    if is_full_analysis_complete(row.analysis) and not force and not force_full:
+    from pws_fields import contract_pws_missing
+
+    if is_full_analysis_complete(row.analysis, row) and not force and not force_full:
+        if session is not None and contract_pws_missing(row):
+            return run_scope_extraction(row, session)
         return {"notice_id": row.notice_id, "skipped": True, "reason": "already_analyzed"}
 
     if not _try_begin_intake(row.notice_id):
@@ -236,7 +329,7 @@ def full_intake_contract(row: Contract, *, force: bool = False, force_full: bool
             }
 
         analysis = row.analysis if isinstance(row.analysis, dict) else {}
-        return run_full_analysis(row, prior=analysis)
+        return run_full_analysis(row, prior=analysis, session=session)
     finally:
         _end_intake(row.notice_id)
 
@@ -273,16 +366,22 @@ def intake_matching_contracts(
     from sync import list_contracts
 
     if not intake_on_sync_enabled() and not force and not force_full:
-        return {"processed": 0, "screened": 0, "text_screened": 0, "enriched_only": 0, "skipped": 0, "errors": []}
+        from pws_fields import contract_pws_missing
+
+        scope_rows = [r for r in matching.values() if contract_pws_missing(r)]
+        if not scope_rows:
+            return {"processed": 0, "screened": 0, "text_screened": 0, "enriched_only": 0, "skipped": 0, "errors": []}
+        matching = {r.notice_id: r for r in scope_rows}
+        cap = min(cap, 5)
 
     cap = intake_per_sync_limit() if limit is None else max(0, limit)
-    if cap == 0 and limit is None:
+    if cap is None:
         cap = 999999
 
     id_set = set(notice_ids) if notice_ids else None
     matching = {
         r.notice_id: r
-        for r in list_contracts(session, require_scrape_complete=True)
+        for r in list_contracts(session, require_dashboard_ready=False, require_scrape_complete=True)
         if id_set is None or r.notice_id in id_set
     }
 
@@ -305,10 +404,12 @@ def intake_matching_contracts(
             continue
 
         try:
-            result = full_intake_contract(row, force=force, force_full=force_full)
+            result = full_intake_contract(row, session=session, force=force, force_full=force_full)
             session.commit()
             processed += 1
             if result.get("screened") or result.get("full_analysis"):
+                screened += 1
+            elif result.get("scope_extracted"):
                 screened += 1
             if result.get("text_screened"):
                 text_screened += 1
@@ -351,7 +452,7 @@ def intake_pending(*, limit: int = 3, matching_only: bool = True, force: bool = 
     session = SessionLocal()
     try:
         if matching_only:
-            rows = list_contracts(session)
+            rows = list_contracts(session, require_dashboard_ready=False, require_scrape_complete=True)
             if not force and not force_full:
                 rows = [r for r in rows if needs_intake(r)]
             rows = rows[:limit]
@@ -367,7 +468,7 @@ def intake_pending(*, limit: int = 3, matching_only: bool = True, force: bool = 
         session.close()
 
 
-def start_background_intake(batch_size: int = 3) -> None:
+def start_background_intake(batch_size: int = 8) -> None:
     """Continue two-step intake for matching contracts after sync."""
     if not intake_on_sync_enabled():
         return
@@ -382,7 +483,7 @@ def start_background_intake(batch_size: int = 3) -> None:
         global _background_running
         try:
             total = 0
-            while intake_on_sync_enabled() and can_screen() and can_spend_sam(2):
+            while intake_on_sync_enabled():
                 result = intake_pending(limit=batch_size, matching_only=True)
                 total += result.get("screened", 0) + result.get("text_screened", 0)
                 if result.get("processed", 0) == 0:
@@ -407,6 +508,7 @@ def enrich_matching_attachments(
     notice_ids: list[str] | None = None,
     *,
     limit: int | None = None,
+    naics_code: str | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
     from sam_enrich import is_scrape_complete
@@ -417,6 +519,8 @@ def enrich_matching_attachments(
         for row in list_contracts(session, require_scrape_complete=False, notice_ids=notice_ids)
         if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
     ]
+    if naics_code:
+        candidates.sort(key=lambda row: 0 if row.naics_code == naics_code else 1)
 
     enriched = 0
     errors: list[str] = []
@@ -461,11 +565,23 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
     def _run() -> None:
         global _attachment_running
         try:
+            from sync import FOCUS_NAICS_KEY, get_focus_naics
+
+            focus_session = SessionLocal()
+            try:
+                focus = get_focus_naics(focus_session)
+            finally:
+                focus_session.close()
+
             total = 0
             while can_spend_sam(1):
                 session = SessionLocal()
                 try:
-                    result = enrich_matching_attachments(session, limit=batch_size)
+                    result = enrich_matching_attachments(
+                        session,
+                        limit=batch_size,
+                        naics_code=focus,
+                    )
                     total += result.get("attachments_enriched", 0)
                     if result.get("attachments_enriched", 0) == 0:
                         break
@@ -475,7 +591,7 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
                     session.close()
             if total:
                 logger.info("Background full scrape finished: %s contract(s)", total)
-            if total and intake_on_sync_enabled():
+            if total:
                 start_background_intake()
         except Exception:
             logger.exception("Background attachment enrich failed")

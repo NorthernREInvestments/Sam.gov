@@ -61,12 +61,18 @@ def get_full_pricing_intel(contract: Any, session, *, force_refresh: bool = Fals
         ),
     }
 
+    from proposal_defaults import resolve_contract_margin
+
+    margin = resolve_contract_margin(contract)
+
     payload = {
         "pws": pws,
         "internal": internal,
         "regional_benchmark": regional,
         "competitive": competitive,
         "selected_sub_quote": float(contract.selected_sub_quote) if contract.selected_sub_quote else None,
+        "margin_percentage": float(contract.margin_percentage) if contract.margin_percentage is not None else None,
+        "effective_margin_pct": margin,
         "status": contract.status,
         "awarded_amount": float(contract.awarded_amount) if contract.awarded_amount else None,
         "notice_id": contract.notice_id,

@@ -56,8 +56,7 @@ Northern RE Investments LLC shall serve as prime contractor and shall be respons
 
 COMPENSATION
 
-For the base year of performance Northern RE Investments LLC shall pay Subcontractor the fixed monthly amount of [SUB QUOTE AMOUNT] payable within 15 days of receipt of payment from the government under the Prime Contract.
-This is a pay-when-paid agreement. Payment to Subcontractor is expressly conditioned upon receipt of payment by Northern RE Investments LLC from the government. In the event the government fails to pay Northern RE Investments LLC for any reason directly attributable to Subcontractor's performance failure Northern RE Investments LLC shall have no obligation to pay Subcontractor for that period.
+For the base year of performance Northern RE Investments LLC shall pay Subcontractor the fixed monthly amount of [SUB QUOTE AMOUNT].
 For each option year exercised under the Prime Contract compensation shall increase by 3% over the prior year rate unless otherwise agreed in writing by both parties.
 Option Year 1: [OY1 AMOUNT] per month
 
@@ -66,7 +65,11 @@ Option Year 2: [OY2 AMOUNT] per month
 Option Year 3: [OY3 AMOUNT] per month
 
 Option Year 4: [OY4 AMOUNT] per month
+
+PAYMENT TERMS
+
 Subcontractor shall submit invoices to Northern RE Investments LLC by the 25th of each month for services performed during that month. Invoices shall include the contract number, period of performance, and a brief description of services performed.
+Payment terms are Net 45 from Northern RE Investments LLC's receipt of a complete and acceptable Subcontractor invoice. Payment to Subcontractor is expressly conditioned upon Northern RE Investments LLC's receipt of corresponding payment from the government under the Prime Contract. The Net 45 payment period shall commence upon receipt of Subcontractor's invoice; however, Northern RE Investments LLC shall have no obligation to pay any invoice until it has received payment from the government for the services covered by that invoice. In the event the government fails to pay Northern RE Investments LLC for any reason directly attributable to Subcontractor's performance failure Northern RE Investments LLC shall have no obligation to pay Subcontractor for that period.
 
 INSURANCE REQUIREMENTS
 

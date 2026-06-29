@@ -13,6 +13,7 @@ from models import AppSetting, Contract
 from sam_client import fetch_naics_from_sam, min_days_from_env, naics_from_env
 
 SCHEDULED_ROTATION_KEY = "naics_scheduled_rotation_index"
+FOCUS_NAICS_KEY = "sam_focus_naics"
 
 
 def _parse_due_date(value: str | None) -> date | None:
@@ -180,14 +181,15 @@ def list_contracts(
     agency: str | None = None,
     pursue_only: bool = False,
     tier: int | None = None,
-    require_scrape_complete: bool = True,
+    require_scrape_complete: bool = False,
+    require_dashboard_ready: bool = True,
     notice_ids: list[str] | None = None,
 ) -> list[Contract]:
     """Return contracts matching dashboard search filters.
 
-    Cards only show rows with full attachments when require_scrape_complete=True (default).
+    By default only rows with attachments downloaded, PDFs read, and PWS scope extracted.
     """
-    from sam_enrich import is_scrape_complete
+    from screening_pipeline import is_dashboard_ready
     from settings_store import get_min_score_threshold
 
     if naics_codes is None:
@@ -220,7 +222,12 @@ def list_contracts(
             continue
         if pursue_only and analysis.get("pursue") is not True:
             continue
-        if require_scrape_complete:
+        if require_dashboard_ready:
+            if not is_dashboard_ready(row):
+                continue
+        elif require_scrape_complete:
+            from sam_enrich import is_scrape_complete
+
             raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
             if not is_scrape_complete(raw):
                 continue
@@ -299,6 +306,12 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         session.close()
 
     selected_quote = float(row.selected_sub_quote) if row.selected_sub_quote is not None else None
+    from proposal_defaults import resolve_contract_margin
+
+    effective_margin = resolve_contract_margin(row)
+    estimated_annual_bid = None
+    if selected_quote and selected_quote > 0:
+        estimated_annual_bid = round(selected_quote / (1 - effective_margin / 100.0), 2)
     from pws_fields import pws_snapshot
 
     pws = pws_snapshot(row)
@@ -341,6 +354,9 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "sub_summary": sub_summary,
         "nearby_network_count": nearby_network_count,
         "selected_sub_quote": selected_quote,
+        "margin_percentage": float(row.margin_percentage) if row.margin_percentage is not None else None,
+        "effective_margin_pct": effective_margin,
+        "estimated_annual_bid": estimated_annual_bid,
         "sub_search_status": row.sub_search_status,
         "red_flags": analysis.get("red_flags") or [],
         "security_clearance_required": security_clearance_required,
@@ -412,6 +428,11 @@ def refresh_stale_sam_raw(session: Session, limit: int | None = None) -> int:
     return refreshed
 
 
+def get_focus_naics(session: Session) -> str | None:
+    code = _get_setting(session, FOCUS_NAICS_KEY).strip()
+    return code or None
+
+
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
     """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
     naics_codes = naics_from_env()
@@ -452,11 +473,15 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
 
             batch_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
             new_count, updated_count = upsert_contracts(session, batch)
+            enrich_limit = attachment_enrich_per_sync_limit()
             scrape_result = enrich_matching_attachments(
                 session,
                 batch_ids,
-                limit=attachment_enrich_per_sync_limit(),
+                limit=enrich_limit,
+                naics_code=naics_today if enrich_limit is None else None,
             )
+            if enrich_limit is None:
+                _set_setting(session, FOCUS_NAICS_KEY, naics_today)
             batch_notice_ids = batch_ids
             intake_result = intake_matching_contracts(session, batch_notice_ids)
 
@@ -532,11 +557,24 @@ def _rotated_code_batch(codes: list[str], index: int, count: int) -> tuple[list[
     return selected, next_index
 
 
+def _pending_scrape_notice_ids(session: Session, naics_code: str) -> list[str]:
+    """Filter-matching contracts for this NAICS that still need SAM attachment scrape."""
+    from sam_enrich import is_scrape_complete
+
+    rows = list_contracts(session, require_scrape_complete=False, naics_codes=[naics_code])
+    return [
+        row.notice_id
+        for row in rows
+        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
+    ]
+
+
 def _sync_naics_code_list(
     naics_codes: list[str],
     *,
     scheduled_tiers: list[int] | None = None,
     manual_all_tiers: bool = False,
+    use_all_sam_budget_for_attachments: bool = False,
 ) -> dict[str, Any]:
     """Pull a list of NAICS codes from SAM.gov and run two-step intake."""
     if not naics_codes:
@@ -590,10 +628,12 @@ def _sync_naics_code_list(
             from api_budget import attachment_enrich_per_sync_limit
             from intake import enrich_matching_attachments
 
+            enrich_limit = None if use_all_sam_budget_for_attachments else attachment_enrich_per_sync_limit()
             attach_result = enrich_matching_attachments(
                 session,
                 batch_ids,
-                limit=attachment_enrich_per_sync_limit(),
+                limit=enrich_limit,
+                naics_code=naics if use_all_sam_budget_for_attachments else None,
             )
             scraped_total += attach_result.get("attachments_enriched", 0)
             scrape_skipped_total += attach_result.get("attachments_pending", 0)
@@ -682,9 +722,57 @@ def _sync_naics_code_list(
     }
 
 
+def _pool_index(pool: list[str], naics_code: str) -> int:
+    try:
+        return pool.index(naics_code)
+    except ValueError:
+        return 0
+
+
+def _sync_single_naics_scheduled(naics: str) -> dict[str, Any]:
+    """One SAM search + attachment pulls for filter-matching contracts (uses remaining budget)."""
+    from api_budget import can_spend_sam
+    from intake import enrich_matching_attachments
+
+    if not can_spend_sam(1):
+        return {"skipped": True, "reason": "no_budget"}
+
+    batch = fetch_naics_from_sam(naics)
+    session = SessionLocal()
+    try:
+        batch, filter_stats = filter_search_results(batch, session)
+        batch_ids = [str(o.get("notice_id") or "") for o in batch if o.get("notice_id")]
+        new_count, updated_count = upsert_contracts(session, batch)
+        attach_result = enrich_matching_attachments(session, batch_ids, limit=None, naics_code=naics)
+        synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
+        synced_map[naics] = date.today().isoformat()
+        _set_setting(session, "naics_last_synced", json.dumps(synced_map))
+        session.commit()
+        pending_after = _pending_scrape_notice_ids(session, naics)
+        return {
+            "naics": naics,
+            "search_results": len(batch) + filter_stats.get("filtered_out", 0),
+            "matched": filter_stats.get("matched_filters", len(batch)),
+            "filtered_out": filter_stats.get("filtered_out", 0),
+            "new": new_count,
+            "updated": updated_count,
+            "attachments_enriched": attach_result.get("attachments_enriched", 0),
+            "attachments_pending": len(pending_after),
+            "batch_ids": batch_ids,
+        }
+    finally:
+        session.close()
+
+
 def sync_scheduled_naics() -> dict[str, Any]:
-    """Tiered scheduled sync — rotates a small batch through today's tier pool."""
-    from api_budget import scheduled_sync_batch_size
+    """Use the full daily SAM budget: finish current NAICS, then search/enrich the next."""
+    from api_budget import can_spend_sam, get_usage_snapshot
+    from intake import (
+        enrich_matching_attachments,
+        intake_matching_contracts,
+        start_background_attachment_enrich,
+        start_background_intake,
+    )
     from naics_labels import tiers_for_scheduled_sync
     from settings_store import get_naics_codes_for_tiers
 
@@ -693,30 +781,120 @@ def sync_scheduled_naics() -> dict[str, Any]:
     if not pool:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
 
-    batch_size = scheduled_sync_batch_size()
-    if batch_size <= 0:
+    if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
 
     session = SessionLocal()
     try:
-        index = int(_get_setting(session, SCHEDULED_ROTATION_KEY, "0")) % max(len(pool), 1)
+        focus = get_focus_naics(session)
+        current_index = int(_get_setting(session, SCHEDULED_ROTATION_KEY, "0")) % max(len(pool), 1)
     finally:
         session.close()
 
-    codes, next_index = _rotated_code_batch(pool, index, batch_size)
-    result = _sync_naics_code_list(codes, scheduled_tiers=tiers)
-    result["scheduled_pool"] = pool
-    result["scheduled_pool_size"] = len(pool)
-    result["scheduled_batch"] = codes
-    result["scheduled_next_index"] = next_index
+    focus_code = focus if focus in pool else None
+    phases: list[dict[str, Any]] = []
+    all_notice_ids: list[str] = []
+    searches_run = 0
+    attachments_enriched = 0
+
+    while can_spend_sam(1):
+        # 1) Finish pending attachments on the focus NAICS before searching another.
+        if focus_code:
+            session = SessionLocal()
+            try:
+                pending = _pending_scrape_notice_ids(session, focus_code)
+            finally:
+                session.close()
+            if pending:
+                session = SessionLocal()
+                try:
+                    attach_result = enrich_matching_attachments(
+                        session, pending, limit=None, naics_code=focus_code
+                    )
+                    session.commit()
+                finally:
+                    session.close()
+                attachments_enriched += attach_result.get("attachments_enriched", 0)
+                all_notice_ids.extend(pending)
+                phases.append({
+                    "mode": "enrich",
+                    "naics": focus_code,
+                    "attachments_enriched": attach_result.get("attachments_enriched", 0),
+                })
+                session = SessionLocal()
+                try:
+                    pending_after = _pending_scrape_notice_ids(session, focus_code)
+                finally:
+                    session.close()
+                if pending_after:
+                    break
+                completed = focus_code
+                focus_code = None
+                current_index = (_pool_index(pool, completed) + 1) % len(pool)
+                if not can_spend_sam(1):
+                    break
+                continue
+
+        # 2) Search the next NAICS and spend remaining budget on its attachments.
+        codes, _ = _rotated_code_batch(pool, current_index, 1)
+        naics = codes[0]
+        result = _sync_single_naics_scheduled(naics)
+        if result.get("skipped"):
+            break
+        searches_run += 1
+        attachments_enriched += result.get("attachments_enriched", 0)
+        all_notice_ids.extend(result.get("batch_ids", []))
+        phases.append({"mode": "search", **result})
+        focus_code = naics
+
+        if result.get("attachments_pending", 0) > 0:
+            current_index = _pool_index(pool, naics)
+            break
+
+        current_index = (current_index + 1) % len(pool)
+        focus_code = None
 
     session = SessionLocal()
     try:
-        _set_setting(session, SCHEDULED_ROTATION_KEY, str(next_index))
+        _set_setting(session, FOCUS_NAICS_KEY, focus_code or "")
+        _set_setting(session, SCHEDULED_ROTATION_KEY, str(current_index))
+        if all_notice_ids:
+            intake_matching_contracts(session, list(dict.fromkeys(all_notice_ids)))
         session.commit()
+        pending_focus = len(_pending_scrape_notice_ids(session, focus_code)) if focus_code else 0
     finally:
         session.close()
-    return result
+
+    start_background_attachment_enrich()
+    start_background_intake()
+
+    budget = get_usage_snapshot()
+    searched_naics = [p["naics"] for p in phases if p.get("mode") == "search"]
+    status_parts = [
+        f"SAM.gov: {budget['sam_used_today']}/{budget['sam_daily_limit']} API calls used today",
+        f"{searches_run} NAICS search(es)",
+        f"{attachments_enriched} attachment pull(s)",
+    ]
+    if focus_code and pending_focus:
+        status_parts.append(f"staying on NAICS {focus_code} ({pending_focus} pending tomorrow)")
+    elif searches_run:
+        status_parts.append("rotation advanced — no pending attachments on last NAICS searched")
+
+    return {
+        "mode": "budget_loop",
+        "scheduled_tiers": tiers,
+        "scheduled_pool": pool,
+        "scheduled_pool_size": len(pool),
+        "scheduled_batch": searched_naics,
+        "scheduled_next_index": current_index,
+        "focus_naics": focus_code,
+        "attachments_enriched": attachments_enriched,
+        "attachments_pending": pending_focus,
+        "phases": phases,
+        "api_calls": budget["sam_used_today"],
+        "fetch_status": ". ".join(status_parts) + ".",
+        "api_budget": budget,
+    }
 
 
 def sync_all_naics() -> dict[str, Any]:
@@ -739,6 +917,8 @@ def get_naics_sync_status() -> dict[str, Any]:
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
         index = int(_get_setting(session, "naics_rotation_index", "0")) % max(len(naics_codes), 1)
         sched_index = int(_get_setting(session, SCHEDULED_ROTATION_KEY, "0")) % max(len(scheduled_pool), 1)
+        focus_naics = get_focus_naics(session)
+        focus_pending = len(_pending_scrape_notice_ids(session, focus_naics)) if focus_naics else 0
     finally:
         session.close()
     next_naics = naics_codes[index] if naics_codes else None
@@ -756,6 +936,8 @@ def get_naics_sync_status() -> dict[str, Any]:
         "scheduled_per_sync": scheduled_naics_per_sync(),
         "scheduled_next_batch": next_batch,
         "scheduled_rotation_index": sched_index,
+        "focus_naics": focus_naics,
+        "focus_pending_attachments": focus_pending,
     }
 
 

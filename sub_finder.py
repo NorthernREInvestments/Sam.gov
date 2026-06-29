@@ -52,7 +52,11 @@ def _contract_coords(contract: Contract) -> tuple[float, float, dict[str, Any]]:
         contract.location,
         contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
     )
-    coords = resolve_coordinates(work.get("city"), work.get("state_code"), work.get("zip"))
+    coords = resolve_coordinates(
+        city=work.get("city"),
+        state_code=work.get("state_code"),
+        zip_code=work.get("zip"),
+    )
     if not coords:
         raise ValueError(
             f"Could not geocode contract location ({work.get('label') or contract.location})."
@@ -284,6 +288,13 @@ def _run_places_search(session: Session, contract: Contract, *, force: bool) -> 
     session.commit()
 
     try:
+        if force:
+            session.query(ContractSub).filter(
+                ContractSub.contract_id == contract.id,
+                ContractSub.status != "Selected",
+            ).delete(synchronize_session=False)
+            session.flush()
+
         analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
         sub_type_needed = analysis.get("sub_type_needed")
         settings = get_sub_search_settings()

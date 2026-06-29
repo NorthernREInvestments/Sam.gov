@@ -42,6 +42,7 @@ class Contract(Base):
     analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     pricing_intel: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     selected_sub_quote: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    margin_percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     sub_search_status: Mapped[str | None] = mapped_column(String(32), nullable=True, default="none")
     sub_search_radius_miles: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

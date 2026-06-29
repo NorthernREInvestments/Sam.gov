@@ -16,8 +16,9 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 MODEL = "claude-sonnet-4-6"
-MAX_PDF_BYTES = 4_500_000
-MAX_PDFS = 8
+MAX_PDF_BYTES = 8_000_000  # send native PDF to Claude when under this size
+MAX_PDF_DOWNLOAD_BYTES = 40_000_000  # download and text-extract up to 40 MB
+MAX_PDFS = 12  # read every solicitation attachment (PWS, drawings, WD, etc.)
 MAX_TOKENS = 4096
 
 DEFAULT_SCREENING_PROMPT = """You are a government contract screening specialist for a small business prime contractor using the subcontracting middleman model.
@@ -37,7 +38,8 @@ SCREENING RULES (for pursue/skip):
 - Location must have a realistic market of subcontractors
 
 SERVICE-TYPE AWARENESS — tailor sub_type_needed, red flags, and bid reasoning to the NAICS/service type:
-- Janitorial / facilities (561720, 561210, 561790, 561740): licensed commercial cleaning/janitorial subs; watch for sq ft, frequency, floor wax/carpet/window scope, wage determinations, bonded crews, after-hours access.
+- Janitorial / carpet (561720, 561790, 561740): licensed commercial cleaning/janitorial subs; watch for sq ft, frequency, floor wax/carpet/window scope, wage determinations, bonded crews, after-hours access.
+- Facilities support / building maintenance (561210): read the PWS — may be integrated facilities, trades (HVAC, electrical, plumbing), or preventive maintenance NOT janitorial; do NOT default to cleaning unless the SOW is actually custodial work.
 - Landscaping / grounds (561730): licensed landscaping or grounds maintenance crews; watch for seasonal vs year-round, mowing/snow/irrigation, equipment requirements, acreage, pesticide applicator licenses.
 - Pest control (561710): licensed commercial exterminators; watch for integrated pest management scope, restricted pesticides, recurring service vs one-time treatment, interior/exterior coverage.
 - Waste (562111, 562119): waste haulers; watch for hazardous waste, DOT licensing, roll-off vs route collection.
@@ -62,7 +64,7 @@ Cover these points in simple conversational language:
 3. How big — square footage or unit count if available
 4. How often — daily, weekly, monthly, or one-time
 5. How long — base year plus any option years
-6. What kind of subcontractor is needed — be specific (e.g. "licensed commercial janitorial company" or "licensed landscaping crew")
+6. What kind of subcontractor is needed — be specific (e.g. "licensed commercial HVAC maintenance contractor" or "licensed commercial janitorial company"). Base this on PWS/attachment scope, not NAICS alone.
 7. Any gotchas — security requirements, specialized equipment, tight deadline, unusual requirements
 8. END with one sentence summarizing pricing — e.g. "Similar contracts in this area have awarded between $X and $Y. I recommend bidding around $Z to be competitive." Use the historical pricing data provided.
 
@@ -100,7 +102,7 @@ Return JSON only with these exact fields:
 - estimated_value: string or null
 - square_footage: string or null
 - pws_extraction: object with fields extracted from PWS/solicitation attachments (use null for any field not found):
-  - square_footage: integer or null — exact sq ft from "gross square footage", "cleanable square footage", "area to be cleaned", "net square footage"
+- square_footage: integer or null — exact sq ft from "gross square footage", "cleanable square footage", "area to be cleaned", "net square footage". Search ALL attachments including PWS, PRS, drawings, and floor plans — sq ft is often in drawings even when absent from the PWS narrative.
   - building_type: one of office, medical, warehouse, military, courthouse, other — classify from agency and building description
   - cleaning_frequency_per_week: number or null — convert phrases like "five days per week", "Monday through Friday", "daily", "three times per week" to a numeric days-per-week value
   - special_requirements: array of strings — e.g. floor waxing, carpet cleaning, window cleaning, exterior, restrooms only
@@ -114,7 +116,7 @@ Return JSON only with these exact fields:
   - base_year_end: string or null — base year end date
   - agency_address: string or null — mailing address for the agency or contracting office
   - solicitation_number: string or null — solicitation/RFP number if stated in the PDF (may differ from SAM notice ID)
-- sub_type_needed: string
+- sub_type_needed: string — REQUIRED. Name the exact trade(s) a local subcontractor must perform to execute this contract (e.g. "licensed commercial HVAC maintenance contractor", "NAID-certified document shredding vendor"). Derive from PWS/solicitation PDFs and posting text — NOT from NAICS code alone. Never label janitorial/cleaning unless the scope is actually custodial cleaning. For 561210 Facilities Support, read the SOW first — it is often building/trades maintenance, not janitorial.
 - red_flags: array of strings
 - far_52_219_14: true or false
 - security_clearance_required: true or false
@@ -143,7 +145,8 @@ TIER 3 (weekly — expansion):
 Use the contract NAICS code and posting text to identify the service type. Tailor sub_type_needed, red_flags, and your reason to that specific category.
 
 CATEGORY-SPECIFIC EVALUATION (apply the matching block):
-- Janitorial / facilities (561720, 561210, 561790, 561740): sq ft, frequency, floor/carpet/window scope, wage determinations, after-hours access.
+- Janitorial / carpet (561720, 561790, 561740): sq ft, frequency, floor/carpet/window scope, wage determinations, after-hours access.
+- Facilities support (561210): building maintenance, trades, or integrated facilities — do NOT assume janitorial; infer from posting text only.
 - Landscaping (561730): seasonal vs year-round, mowing/snow/irrigation, acreage, pesticide applicator licenses.
 - Pest control (561710): IPM scope, restricted pesticides, recurring vs one-time, interior/exterior coverage.
 - Waste (562111, 562119): roll-off vs route collection, hazardous waste, DOT licensing.
@@ -178,7 +181,7 @@ Return JSON only with these fields:
 - red_flags: array of strings (category-specific flags visible from posting text)
 - far_52_219_14: true or false (best guess from posting text)
 - security_clearance_required: true or false (best guess from posting text)
-- sub_type_needed: string or null (specific sub type for this NAICS)
+- sub_type_needed: string or null — best guess for the specific subcontractor trade from posting text (e.g. "commercial landscaping crew", NOT generic "janitorial" for facilities maintenance postings)
 
 Do NOT invent square footage, wage determinations, or pricing. Keep reason under 30 words.
 Respond with JSON only. No markdown fences."""
@@ -200,7 +203,14 @@ def _extract_json(text: str) -> dict[str, Any]:
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
-    data = json.loads(cleaned)
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        start = cleaned.rfind("{")
+        end = cleaned.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        data = json.loads(cleaned[start : end + 1])
     if not isinstance(data, dict):
         raise ValueError("Claude response was not a JSON object")
     return data
@@ -233,15 +243,18 @@ def _collect_urls(raw: dict[str, Any]) -> list[str]:
     return ordered
 
 
-def _pdf_blocks_from_bytes(pdfs: list[tuple[str, bytes]]) -> tuple[list[dict[str, Any]], list[str]]:
-    blocks: list[dict[str, Any]] = []
-    labels: list[str] = []
-    for name, data in pdfs:
-        if len(blocks) >= MAX_PDFS:
-            break
-        if not data.startswith(b"%PDF"):
-            continue
-        blocks.append(
+def _claude_blocks_for_pdf(name: str, data: bytes) -> tuple[list[dict[str, Any]], str | None]:
+    """Build Claude content blocks for one PDF; text-extract when the file exceeds MAX_PDF_BYTES."""
+    from pdf_text import extract_pdf_text
+
+    label = name or "document.pdf"
+    if not data.startswith(b"%PDF"):
+        return [], f"{label} (not a PDF)"
+    if len(data) > MAX_PDF_DOWNLOAD_BYTES:
+        mb = MAX_PDF_DOWNLOAD_BYTES // 1_000_000
+        return [], f"{label} (PDF exceeds {mb} MB download limit)"
+    if len(data) <= MAX_PDF_BYTES:
+        return [
             {
                 "type": "document",
                 "source": {
@@ -250,9 +263,40 @@ def _pdf_blocks_from_bytes(pdfs: list[tuple[str, bytes]]) -> tuple[list[dict[str
                     "data": base64.standard_b64encode(data).decode("ascii"),
                 },
             }
-        )
+        ], None
+    text = extract_pdf_text(data)
+    if not text.strip():
+        return [], f"{label} (PDF too large — {len(data)} bytes — and text extraction failed)"
+    return [
+        {
+            "type": "text",
+            "text": (
+                f"--- Extracted text from {label} ({len(data)} byte PDF; sent as text) ---\n\n{text}"
+            ),
+        }
+    ], None
+
+
+def _pdf_blocks_from_bytes(
+    pdfs: list[tuple[str, bytes]],
+    *,
+    max_pdfs: int | None = None,
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
+    blocks: list[dict[str, Any]] = []
+    labels: list[str] = []
+    skipped: list[str] = []
+    for name, data in pdfs:
+        if len(labels) >= cap:
+            skipped.append(f"{name} (max {cap} PDFs per screen)")
+            continue
+        new_blocks, skip_note = _claude_blocks_for_pdf(name, data)
+        if skip_note:
+            skipped.append(skip_note)
+            continue
+        blocks.extend(new_blocks)
         labels.append(name)
-    return blocks, labels
+    return blocks, labels, skipped
 
 
 def _piee_pdf_blocks(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
@@ -270,26 +314,22 @@ def _piee_pdf_blocks(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], list[st
 
     if notice_url and not pdfs:
         skipped.append(f"No PIEE PDFs downloaded from {notice_url}")
-    blocks, labels = _pdf_blocks_from_bytes(pdfs)
+    blocks, labels, pdf_skipped = _pdf_blocks_from_bytes(pdfs, max_pdfs=MAX_PDFS)
+    skipped.extend(pdf_skipped)
     if pdfs and not blocks:
         skipped.append("PIEE returned files but none were readable PDFs.")
     return blocks, labels, skipped
 
 
-def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
-    from api_budget import can_download_screening_pdf, record_sam_pdf_download
-
+def _attachment_blocks(urls: list[str], *, max_pdfs: int | None = None) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
     blocks: list[dict[str, Any]] = []
     reviewed: list[str] = []
     skipped: list[str] = []
-    with httpx.Client(timeout=90.0, follow_redirects=True) as client:
+    with httpx.Client(timeout=180.0, follow_redirects=True) as client:
         for url in urls:
-            if len(blocks) >= MAX_PDFS:
-                skipped.append(f"{url} (max {MAX_PDFS} PDFs per screen)")
-                continue
-            is_sam_download = "sam.gov" in url.lower()
-            if is_sam_download and not can_download_screening_pdf():
-                skipped.append(f"{url} (SAM PDF download budget reached)")
+            if len(reviewed) >= cap:
+                skipped.append(f"{url} (max {cap} PDFs per screen)")
                 continue
             try:
                 resp = client.get(url)
@@ -297,34 +337,24 @@ def _attachment_blocks(urls: list[str]) -> tuple[list[dict[str, Any]], list[str]
             except httpx.HTTPError:
                 skipped.append(url)
                 continue
-            content_type = (resp.headers.get("content-type") or "").lower()
-            is_pdf = (
-                "pdf" in content_type
-                or url.lower().split("?")[0].endswith(".pdf")
-                or resp.content[:4] == b"%PDF"
-            )
-            if not is_pdf:
-                skipped.append(f"{url} (not a PDF)")
+            label = _attachment_label(url, resp)
+            new_blocks, skip_note = _claude_blocks_for_pdf(label, resp.content)
+            if skip_note:
+                skipped.append(skip_note)
                 continue
-            if len(resp.content) > MAX_PDF_BYTES:
-                skipped.append(f"{url} (PDF too large)")
-                continue
-            if is_sam_download and not record_sam_pdf_download():
-                skipped.append(f"{url} (SAM PDF download budget reached)")
-                continue
-            label = url.split("/")[-1][:80] or url[:80]
             reviewed.append(label)
-            blocks.append(
-                {
-                    "type": "document",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "application/pdf",
-                        "data": base64.standard_b64encode(resp.content).decode("ascii"),
-                    },
-                }
-            )
+            blocks.extend(new_blocks)
     return blocks, reviewed, skipped
+
+
+def _attachment_label(url: str, resp: httpx.Response) -> str:
+    """Best-effort filename for an attachment download."""
+    cd = resp.headers.get("content-disposition") or ""
+    match = re.search(r'filename="?([^";\n]+)"?', cd, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()[:120]
+    tail = url.split("/")[-1].split("?")[0]
+    return tail[:80] or url[:80]
 
 
 def _format_pricing_block(pricing_intel: dict[str, Any] | None) -> str:
@@ -499,9 +529,9 @@ def _looks_like_pdf_link(url: str) -> bool:
     return cleaned.endswith(".pdf")
 
 
-SOLICITATION_META_PROMPT = """You extract contracting and submission details from federal solicitation PDFs.
+SOLICITATION_META_PROMPT = """You extract contracting, submission, and PWS scope details from federal solicitation PDFs.
 
-Read the attached solicitation, PWS, and instruction documents. Return JSON only:
+Read the attached solicitation, PWS, wage determination, and instruction documents. Return JSON only:
 {
   "contracting_officer_name": string or null,
   "contracting_officer_email": string or null,
@@ -509,20 +539,35 @@ Read the attached solicitation, PWS, and instruction documents. Return JSON only
   "base_year_start": string or null,
   "base_year_end": string or null,
   "agency_address": string or null,
-  "solicitation_number": string or null
+  "solicitation_number": string or null,
+  "pws_extraction": {
+    "square_footage": integer or null,
+    "building_type": "office" | "medical" | "warehouse" | "military" | "courthouse" | "other" | null,
+    "cleaning_frequency_per_week": number or null,
+    "special_requirements": array of strings or null,
+    "wage_determination_number": string or null,
+    "wage_determination_rate": number or null
+  }
 }
 
 Rules:
 - submission_method should state HOW to submit (email address, SAM.gov, PIEE, FedConnect, etc.)
-- Use exact names and emails from the document — do not invent values
+- square_footage: exact sq ft — search every attached document (PWS, PRS, drawings, floor plans). Never null if any document states area or square footage.
+- cleaning_frequency_per_week: convert "daily", "Monday through Friday", "five days per week", etc. to a number
+- Use exact names, emails, and numbers from the document — do not invent values
 - Use null for anything not clearly stated
 No markdown fences."""
 
 
-def _contract_pdf_blocks(contract: Any) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load PDF blocks for Claude (same prioritization as screening)."""
+def _contract_pdf_blocks(
+    contract: Any,
+    *,
+    max_pdfs: int | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Load PDF blocks for Claude (PIEE + SAM attachments)."""
     from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
 
+    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     ensure_enriched_sam_raw(
         contract,
@@ -531,16 +576,271 @@ def _contract_pdf_blocks(contract: Any) -> tuple[list[dict[str, Any]], list[str]
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     urls = _collect_attachment_urls(raw)
     piee_blocks, piee_labels, _ = _piee_pdf_blocks(raw)
-    sam_blocks, sam_labels, _ = _attachment_blocks(urls)
+    sam_blocks, sam_labels, _ = _attachment_blocks(urls, max_pdfs=cap)
 
     pdf_blocks: list[dict[str, Any]] = []
     fetched_labels: list[str] = []
     for block, label in zip(piee_blocks + sam_blocks, piee_labels + sam_labels):
-        if len(pdf_blocks) >= MAX_PDFS:
+        if len(pdf_blocks) >= cap:
             break
         pdf_blocks.append(block)
         fetched_labels.append(label)
     return pdf_blocks, fetched_labels
+
+
+def contract_attachment_text(contract: Any, *, max_pdfs: int | None = None) -> str:
+    """Plain text from every contract PDF attachment."""
+    pdf_blocks, _ = _contract_pdf_blocks(contract, max_pdfs=max_pdfs or MAX_PDFS)
+    parts: list[str] = []
+    for block in pdf_blocks:
+        if block.get("type") == "text":
+            parts.append(str(block.get("text") or ""))
+    return "\n\n".join(parts)
+
+
+_DRAWING_NAME_HINTS: tuple[str, ...] = (
+    "drawing",
+    "drawings",
+    "floor plan",
+    "floor_plan",
+    "floorplan",
+    "blueprint",
+    "site plan",
+    "site_plan",
+    "layout",
+    "as-built",
+    "as built",
+    "architect",
+    "floorplan",
+)
+
+
+def _pdf_page_count(data: bytes) -> int:
+    try:
+        import fitz
+
+        doc = fitz.open(stream=data, filetype="pdf")
+        return doc.page_count
+    except Exception:
+        return 0
+
+
+def _pdf_text_length(data: bytes) -> int:
+    from pdf_text import extract_pdf_text
+
+    return len(extract_pdf_text(data, max_chars=2000).strip())
+
+
+def is_drawing_pdf(name: str, data: bytes) -> bool:
+    """True for floor plans / image-heavy drawing attachments."""
+    low = (name or "").lower()
+    if any(hint in low for hint in _DRAWING_NAME_HINTS):
+        return True
+    # Image-only PDFs (no text layer) are usually floor plans or scans.
+    if data.startswith(b"%PDF") and _pdf_page_count(data) >= 1 and _pdf_text_length(data) < 120:
+        return True
+    return False
+
+
+def iter_contract_pdf_bytes(contract: Any) -> list[tuple[str, bytes]]:
+    """Download every PIEE + SAM PDF for a contract."""
+    from piee_client import fetch_piee_pdfs
+
+    raw = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    merged: list[tuple[str, bytes]] = []
+    seen: set[str] = set()
+
+    try:
+        piee_pdfs, _ = fetch_piee_pdfs(raw)
+        for name, data in piee_pdfs:
+            if not data.startswith(b"%PDF"):
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append((name, data))
+    except Exception:
+        pass
+
+    for url in _collect_attachment_urls(raw):
+        try:
+            with httpx.Client(timeout=180.0, follow_redirects=True) as client:
+                resp = client.get(url)
+                resp.raise_for_status()
+        except httpx.HTTPError:
+            continue
+        if not resp.content.startswith(b"%PDF"):
+            continue
+        label = _attachment_label(url, resp)
+        key = label.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append((label, resp.content))
+    return merged
+
+
+def _pdf_pages_as_image_blocks(
+    data: bytes,
+    *,
+    max_pages: int = 8,
+    zoom: float = 3.5,
+) -> list[dict[str, Any]]:
+    """Render PDF pages to PNG for Claude vision (floor plans, scanned drawings)."""
+    try:
+        import fitz
+    except ImportError:
+        return []
+
+    blocks: list[dict[str, Any]] = []
+    try:
+        doc = fitz.open(stream=data, filetype="pdf")
+        matrix = fitz.Matrix(zoom, zoom)
+        for i in range(min(doc.page_count, max_pages)):
+            pix = doc[i].get_pixmap(matrix=matrix, alpha=False)
+            png = pix.tobytes("png")
+            blocks.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": base64.standard_b64encode(png).decode("ascii"),
+                    },
+                }
+            )
+    except Exception:
+        return []
+    return blocks
+
+
+DRAWING_SQFT_PROMPT = """You are a federal contract scope analyst. Find building square footage from architectural drawings and floor plans.
+
+You will receive floor plan / drawing images. Read dimensions, room areas, scale bars, title block notes, and labeled totals.
+
+For janitorial/custodial contracts:
+- Sum only CLEANABLE area (exclude rooms hatched or labeled "NO CUSTODIAL SERVICES REQUIRED").
+- If multiple buildings on one contract, sum cleanable area across all in-scope buildings.
+
+Return a JSON object (you may include brief reasoning before the JSON):
+{
+  "square_footage": integer or null,
+  "square_footage_basis": "gross" | "net" | "cleanable" | "rentable" | "total building" | null,
+  "source_document": string,
+  "calculation_notes": string,
+  "estimated": boolean
+}
+
+Rules:
+- Prefer an explicit labeled total (e.g. "GROSS SF", "TOTAL AREA") if shown.
+- If no total, sum labeled room square footages when clearly stated.
+- If only dimensions or a scale bar are shown, compute areas and sum in-scope rooms.
+- If no numeric labels exist, estimate cleanable sq ft from plan proportions and room layout — set estimated=true.
+- Use null only if the plans are unreadable or contain zero spatial information.
+- calculation_notes: one sentence on how the number was derived."""
+
+
+def extract_sqft_from_drawings(contract: Any) -> dict[str, Any]:
+    """
+    Vision pass on floor-plan / drawing PDFs when square footage is not in text documents.
+    Renders pages as images so Claude can read graphic-only plans.
+    """
+    pdfs = iter_contract_pdf_bytes(contract)
+    drawing_pdfs = [(name, data) for name, data in pdfs if is_drawing_pdf(name, data)]
+    if not drawing_pdfs:
+        return {}
+
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": (
+                f"Contract: {contract.title}\n"
+                f"Location: {contract.location}\n"
+                "Task: total CLEANABLE square footage for janitorial/custodial bidding.\n"
+                "Exclude hatched or labeled NO CUSTODIAL SERVICES REQUIRED areas.\n"
+                f"Drawing files: {', '.join(n for n, _ in drawing_pdfs)}"
+            ),
+        }
+    ]
+
+    for name, data in drawing_pdfs:
+        content.append({"type": "text", "text": f"\n--- Drawing file: {name} ({len(data)} bytes) ---"})
+        page_images = _pdf_pages_as_image_blocks(data)
+        if page_images:
+            content.extend(page_images)
+        elif len(data) <= MAX_PDF_BYTES:
+            blocks, _ = _claude_blocks_for_pdf(name, data)
+            content.extend(blocks)
+
+    if len(content) <= 1:
+        return {}
+
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=DRAWING_SQFT_PROMPT,
+        messages=[{"role": "user", "content": content}],
+    )
+    text = response.content[0].text if response.content else "{}"
+    data = _extract_json(text)
+    if not isinstance(data, dict):
+        return {}
+
+    sqft = data.get("square_footage")
+    try:
+        sqft_int = int(str(sqft).replace(",", "")) if sqft is not None else None
+    except (TypeError, ValueError):
+        sqft_int = None
+    if not sqft_int or sqft_int < 100:
+        return {}
+
+    notes = str(data.get("calculation_notes") or "").lower()
+    estimated = bool(data.get("estimated"))
+    if not estimated:
+        estimated = any(word in notes for word in ("estimat", "approximat", "proportional", "no explicit"))
+
+    return {
+        "square_footage": sqft_int,
+        "square_footage_basis": data.get("square_footage_basis"),
+        "source_document": data.get("source_document") or drawing_pdfs[0][0],
+        "calculation_notes": data.get("calculation_notes"),
+        "estimated": estimated,
+        "drawing_files": [n for n, _ in drawing_pdfs],
+    }
+
+
+def apply_drawing_sqft_to_analysis(contract: Any, analysis: dict[str, Any], drawing: dict[str, Any]) -> None:
+    """Merge drawing vision extraction into analysis + contract row."""
+    from pws_fields import apply_pws_extraction
+
+    if not drawing.get("square_footage"):
+        return
+    pws = analysis.setdefault("pws_extraction", {})
+    if not isinstance(pws, dict):
+        pws = {}
+        analysis["pws_extraction"] = pws
+    pws["square_footage"] = drawing["square_footage"]
+    if drawing.get("square_footage_basis"):
+        pws["square_footage_basis"] = drawing["square_footage_basis"]
+    analysis["drawing_sqft_extraction"] = drawing
+    apply_pws_extraction(contract, analysis)
+
+
+def try_extract_sqft_from_drawings(contract: Any, analysis: dict[str, Any]) -> bool:
+    """Run drawing vision pass if square footage still missing. Returns True if found."""
+    if getattr(contract, "square_footage", None):
+        return False
+    pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
+    if pws.get("square_footage"):
+        return False
+
+    drawing = extract_sqft_from_drawings(contract)
+    if not drawing.get("square_footage"):
+        return False
+    apply_drawing_sqft_to_analysis(contract, analysis, drawing)
+    return True
 
 
 def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
@@ -553,7 +853,7 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
         f"SAM notice ID: {contract.notice_id}",
         f"Due date: {contract.due_date}",
         "",
-        "Extract contracting officer and submission details from the solicitation documents.",
+        "Extract contracting officer, submission details, and PWS scope (square footage, cleaning frequency, wage determination) from the solicitation documents.",
         "SAM posting excerpt:",
         (contract.description or sam.get("descriptionText") or "")[:4000],
     ]
@@ -564,7 +864,7 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
     client = Anthropic(api_key=_api_key())
     response = client.messages.create(
         model=MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         system=SOLICITATION_META_PROMPT,
         messages=[{"role": "user", "content": content}],
     )
@@ -572,7 +872,13 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
     data = _extract_json(text)
     if not isinstance(data, dict):
         return {}
-    return {k: v for k, v in data.items() if v is not None and str(v).strip()}
+    pws = data.pop("pws_extraction", None)
+    result = {k: v for k, v in data.items() if v is not None and str(v).strip()}
+    if isinstance(pws, dict):
+        cleaned_pws = {k: v for k, v in pws.items() if v is not None and v != ""}
+        if cleaned_pws:
+            result["pws_extraction"] = cleaned_pws
+    return result
 
 
 def build_text_screening_text(contract: Any) -> str:
@@ -750,7 +1056,13 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
 
 SUB_ANALYSIS_PROMPT = """You are helping a prime contractor evaluate potential subcontractors found via Google Places.
 
-For each subcontractor candidate, assign a recommendation score from 1-10 and a one-sentence reason using these signals:
+TRADE FIT IS THE TOP PRIORITY:
+- Read sub_type_needed and contract scope — recommend subs who can actually perform that work.
+- Score 1-3 if the business type clearly does NOT match (e.g. janitorial/cleaning company for HVAC-only maintenance, or a carpet cleaner for document shredding).
+- Score 7-10 only when the candidate plausibly performs the required trade for this contract.
+- If business name/category suggests the wrong trade, say so in the reason even if ratings are high.
+
+Secondary signals (only after trade fit):
 - Rating above 4.0 stars — positive
 - More than 20 reviews — positive
 - Website present — positive
@@ -761,7 +1073,7 @@ For each subcontractor candidate, assign a recommendation score from 1-10 and a 
 Return JSON only:
 {
   "subs": [
-    {"place_id": "string", "score": 7, "reason": "One sentence."}
+    {"place_id": "string", "score": 7, "reason": "One sentence mentioning trade fit."}
   ]
 }
 Include every place_id from the input list. No markdown."""
@@ -781,14 +1093,23 @@ def analyze_subcontractors(
         contract.location,
         contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else None,
     )
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
+    special = pws.get("special_requirements")
+    if isinstance(special, list):
+        scope_bits = ", ".join(str(s) for s in special[:8])
+    else:
+        scope_bits = ""
     summary_lines = [
         f"Contract: {contract.title}",
+        f"NAICS: {contract.naics_code}",
         f"Location: {work.get('label') or contract.location}",
-        f"Sub type needed: {(contract.analysis or {}).get('sub_type_needed') or 'unknown'}",
-        "",
-        "Candidates:",
-        json.dumps(candidates, indent=2, default=str),
+        f"Sub type needed: {analysis.get('sub_type_needed') or 'unknown'}",
+        f"Scope summary: {analysis.get('plain_english_summary') or analysis.get('executive_summary') or 'n/a'}",
     ]
+    if scope_bits:
+        summary_lines.append(f"PWS special requirements: {scope_bits}")
+    summary_lines.extend(["", "Candidates:", json.dumps(candidates, indent=2, default=str)])
     client = Anthropic(api_key=_api_key())
     response = client.messages.create(
         model=MODEL,

@@ -28,7 +28,7 @@ AUTO_SUB_SEARCH_MIN_SCORE = 6
 
 _NAICS_CATEGORY: dict[str, str] = {
     "561720": "janitorial",
-    "561210": "janitorial",
+    "561210": "facilities support",
     "561790": "janitorial",
     "561740": "janitorial",
     "561730": "landscaping",
@@ -62,10 +62,36 @@ def search_terms_for_naics(naics_code: str | None) -> list[str] | None:
     return NAICS_SEARCH_TERMS.get(code)
 
 
+def _sub_type_is_specific(sub_type: str | None) -> bool:
+    if not sub_type or not str(sub_type).strip():
+        return False
+    generic = {
+        "general",
+        "commercial service company",
+        "subcontractor",
+        "local subcontractor",
+        "service provider",
+        "unknown",
+    }
+    return str(sub_type).strip().lower() not in generic
+
+
 def search_terms_for_sub_type(sub_type: str | None) -> list[str]:
     """Return Google Places text queries inferred from Claude sub_type text."""
     text = (sub_type or "").lower()
-    if any(k in text for k in ("janitorial", "custodial", "cleaning", "custodian", "carpet", "facilities support")):
+    if any(
+        k in text
+        for k in (
+            "facilities maintenance",
+            "facilities support",
+            "building maintenance",
+            "general maintenance",
+            "integrated facilities",
+            "mro",
+        )
+    ):
+        return ["facilities maintenance company", "commercial building maintenance"]
+    if any(k in text for k in ("janitorial", "custodial", "cleaning", "custodian", "carpet")):
         return ["commercial cleaning company", "janitorial services"]
     if any(k in text for k in ("landscap", "grounds", "lawn", "mowing", "yard")):
         return ["commercial landscaping", "grounds maintenance"]
@@ -105,7 +131,11 @@ def resolve_search_terms(
     sub_type_needed: str | None = None,
     naics_code: str | None = None,
 ) -> list[str]:
-    """Prefer NAICS-specific Google Places queries; fall back to sub_type text."""
+    """Prefer Claude sub_type from attachment review; fall back to NAICS defaults."""
+    if _sub_type_is_specific(sub_type_needed):
+        terms = search_terms_for_sub_type(sub_type_needed)
+        if terms and terms != ["commercial service company"]:
+            return terms
     naics_terms = search_terms_for_naics(naics_code)
     if naics_terms:
         return naics_terms
@@ -114,11 +144,18 @@ def resolve_search_terms(
 
 def classify_sub_type(sub_type_needed: str | None = None, naics_code: str | None = None) -> str:
     """Short category label stored on master sub records."""
-    code = str(naics_code or "").strip()
-    if code in _NAICS_CATEGORY:
-        return _NAICS_CATEGORY[code]
-
     text = (sub_type_needed or "").lower()
+    if any(
+        k in text
+        for k in (
+            "facilities maintenance",
+            "facilities support",
+            "building maintenance",
+            "general maintenance",
+            "integrated facilities",
+        )
+    ):
+        return "facilities support"
     if any(k in text for k in ("janitorial", "custodial", "cleaning", "carpet")):
         return "janitorial"
     if any(k in text for k in ("landscap", "grounds", "lawn", "mowing")):
@@ -149,4 +186,8 @@ def classify_sub_type(sub_type_needed: str | None = None, naics_code: str | None
         return "equipment rental"
     if any(k in text for k in ("answering", "call center")):
         return "telephone answering"
+
+    code = str(naics_code or "").strip()
+    if code in _NAICS_CATEGORY:
+        return _NAICS_CATEGORY[code]
     return normalize_sub_type(sub_type_needed)[:64]

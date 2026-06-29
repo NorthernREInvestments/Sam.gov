@@ -91,7 +91,7 @@ NAICS_GROUPS = NAICS_TIER_GROUPS
 
 NAICS_SEARCH_TERMS: dict[str, list[str]] = {
     "561720": ["commercial cleaning company", "janitorial services"],
-    "561210": ["commercial cleaning company", "janitorial services"],
+    "561210": ["facilities maintenance company", "commercial building maintenance"],
     "561790": ["commercial cleaning company", "janitorial services"],
     "561740": ["commercial cleaning company", "janitorial services"],
     "561730": ["commercial landscaping", "grounds maintenance"],

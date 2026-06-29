@@ -28,8 +28,8 @@ def sam_daily_limit() -> int:
 
 
 def scheduled_naics_per_sync() -> int:
-    """How many NAICS codes the 6am scheduled sync searches per run (rotates through the pool)."""
-    return max(1, _daily_limit("SCHEDULED_NAICS_PER_SYNC", 2))
+    """How many NAICS codes the scheduled sync searches per run (1 = deep focus on one code)."""
+    return max(1, _daily_limit("SCHEDULED_NAICS_PER_SYNC", 1))
 
 
 def scheduled_sync_batch_size() -> int:
@@ -55,8 +55,10 @@ def intake_on_sync_enabled() -> bool:
     return raw not in ("0", "false", "no")
 
 
-def intake_per_sync_limit() -> int:
-    return _daily_limit("INTAKE_PER_SYNC_LIMIT", 5)
+def intake_per_sync_limit() -> int | None:
+    """Max Claude intakes per sync. 0 = unlimited (process entire pending queue)."""
+    raw = _daily_limit("INTAKE_PER_SYNC_LIMIT", 0)
+    return None if raw == 0 else raw
 
 
 def scrape_max_per_sync() -> int:
@@ -64,9 +66,10 @@ def scrape_max_per_sync() -> int:
     return _daily_limit("SCRAPE_MAX_PER_SYNC", 0)
 
 
-def attachment_enrich_per_sync_limit() -> int:
-    """How many matching contracts get SAM attachment lists loaded per sync / list refresh."""
-    return _daily_limit("ATTACHMENT_ENRICH_PER_SYNC_LIMIT", 5)
+def attachment_enrich_per_sync_limit() -> int | None:
+    """Max attachment scrapes per manual sync. 0 = use all remaining SAM budget."""
+    raw = _daily_limit("ATTACHMENT_ENRICH_PER_SYNC_LIMIT", 0)
+    return None if raw == 0 else raw
 
 
 def attachment_enrich_on_list_limit() -> int:
@@ -81,8 +84,8 @@ def auto_screen_on_startup() -> bool:
 
 
 def sam_pdf_download_limit() -> int:
-    """Separate daily cap for PDF bytes fetched from SAM.gov during Claude screening."""
-    return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 10)
+    """Legacy hook — 0 = unlimited. PDF file downloads do not use the SAM API call budget."""
+    return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 0)
 
 
 def _usage_key(prefix: str) -> str:

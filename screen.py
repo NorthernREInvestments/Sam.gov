@@ -9,7 +9,7 @@ from typing import Any
 
 from database import SessionLocal
 from models import Contract
-from intake import force_full_analysis_contract, full_intake_contract, intake_pending
+from intake import force_full_analysis_contract, full_intake_contract, intake_pending, run_scope_extraction
 
 logger = logging.getLogger("govtracker.screening")
 
@@ -41,12 +41,17 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
         if not row:
             raise ValueError(f"Contract not found: {notice_id}")
 
+        from pws_fields import contract_pws_missing
         from screening_pipeline import is_full_analysis_complete
 
-        if is_full_analysis_complete(row.analysis) and not force:
+        if is_full_analysis_complete(row.analysis, row) and not force:
+            if contract_pws_missing(row):
+                result = run_scope_extraction(row, session)
+                session.commit()
+                return result
             return {"notice_id": notice_id, "skipped": True, "analysis": row.analysis}
 
-        result = full_intake_contract(row, force=force)
+        result = full_intake_contract(row, session=session, force=force)
         if result.get("in_progress"):
             return result
         if result.get("reason") == "sam_budget":

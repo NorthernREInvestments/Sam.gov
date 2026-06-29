@@ -53,9 +53,10 @@ async def lifespan(app: FastAPI):
     from api_budget import intake_on_sync_enabled
 
     if intake_on_sync_enabled():
-        from intake import start_background_intake
+        from intake import start_background_attachment_enrich, start_background_intake
 
         start_background_intake()
+        start_background_attachment_enrich()
     yield
     stop_scheduler()
 
@@ -94,6 +95,7 @@ class ContractSubUpdate(BaseModel):
 class ContractOutcomeUpdate(BaseModel):
     status: Literal["won", "lost", "bidding", "reviewing", "new", "skipped"] | None = None
     awarded_amount: float | None = Field(None, ge=0)
+    margin_percentage: float | None = Field(None, ge=10, le=35)
 
 
 class ManualSubCreate(BaseModel):
@@ -288,8 +290,24 @@ def get_contracts(
         if attachment_refresh.get("attachments_pending", 0) > 0:
             start_background_attachment_enrich()
 
+        from screening_pipeline import is_dashboard_ready
+
+        processing_rows = list_contracts(
+            session,
+            naics_codes=naics_codes,
+            min_days_until_due=min_days,
+            min_score=min_score,
+            agency=agency,
+            pursue_only=pursue_only,
+            tier=tier,
+            require_dashboard_ready=False,
+            require_scrape_complete=False,
+        )
+        processing_count = sum(1 for r in processing_rows if not is_dashboard_ready(r))
+
         return {
             "count": len(rows),
+            "processing_count": processing_count,
             "contracts": [contract_to_dict(r) for r in rows],
             "api_budget": get_usage_snapshot(),
             "attachments_refreshed": attachment_refresh.get("attachments_enriched", 0),
@@ -326,8 +344,8 @@ def get_contract(notice_id: str):
 
 
 @app.post("/api/contracts/{notice_id}/extract-solicitation")
-def extract_contract_solicitation(notice_id: str):
-    """Pull CO name, submission method, base year dates from bid PDFs via Claude."""
+def extract_contract_solicitation(notice_id: str, force: bool = Query(False)):
+    """Pull CO, dates, and PWS scope from bid PDFs via Claude."""
     session = SessionLocal()
     try:
         from models import Contract
@@ -339,15 +357,17 @@ def extract_contract_solicitation(notice_id: str):
         from api_budget import ScreenBudgetExceeded
 
         try:
-            meta = ensure_solicitation_meta(session, row)
+            meta = ensure_solicitation_meta(session, row, force=force)
         except ScreenBudgetExceeded as exc:
             raise HTTPException(status_code=429, detail=str(exc)) from exc
         session.refresh(row)
         data = contract_to_dict(row)
         analysis = row.analysis if isinstance(row.analysis, dict) else {}
         sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+        pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
         return {
             "solicitation_meta": meta,
+            "pws_extraction": pws,
             "base_year_start": sol.get("base_year_start") or meta.get("base_year_start"),
             "base_year_end": sol.get("base_year_end") or meta.get("base_year_end"),
             "contract": data,
@@ -400,6 +420,10 @@ def patch_contract(notice_id: str, body: ContractOutcomeUpdate):
 
             row.awarded_amount = Decimal(str(body.awarded_amount))
             recalculate_pricing_derivatives(row)
+        if body.margin_percentage is not None:
+            from decimal import Decimal
+
+            row.margin_percentage = Decimal(str(body.margin_percentage))
         session.commit()
         return contract_to_dict(row)
     except HTTPException:

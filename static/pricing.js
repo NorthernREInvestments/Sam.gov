@@ -1,7 +1,7 @@
 /** Two-tier pricing intelligence UI, bid calculator, and dashboard. */
 
-function formatFrequencyLabel(freq) {
-  if (freq == null) return "Not found in PWS";
+function formatFrequencyLabel(freq, pendingMessage) {
+  if (freq == null) return pendingMessage ? "Pending PDF read" : "Not found in PWS";
   const n = Number(freq);
   if (n === 7) return "Daily (7 days/week)";
   if (n === 5) return "5 days per week";
@@ -9,13 +9,18 @@ function formatFrequencyLabel(freq) {
   return `${n} days per week`;
 }
 
-function formatSqFtDisplay(sqft) {
-  if (!sqft) return "Not found in PWS";
+function formatSqFtDisplay(sqft, pendingMessage) {
+  if (!sqft) return pendingMessage ? "Pending PDF read" : "Not found in PWS";
   return `${Number(sqft).toLocaleString()} sq ft`;
 }
 
 function renderPwsSection(pws) {
   const p = pws || {};
+  const pending = p.status === "pending_piee" || p.status === "pending_pdfs";
+  const pendingNote = pending && p.message
+    ? `<p class="pricing-note pricing-note-warn">${escapeHtml(p.message)}</p>`
+    : "";
+  const pendingMsg = pending ? p.message : null;
   const specials = (p.special_requirements || []).length
     ? `<p class="pricing-note">Special requirements: ${escapeHtml(p.special_requirements.join(", "))}</p>`
     : "";
@@ -24,19 +29,19 @@ function renderPwsSection(pws) {
       ? `<p class="pricing-note">Wage determination: ${escapeHtml(p.wage_determination_number || "—")}${
           p.wage_determination_rate ? ` · $${p.wage_determination_rate}/hr` : ""
         }</p>`
-      : `<p class="pricing-note">Wage determination: Not found in PWS</p>`;
-
+      : `<p class="pricing-note">Wage determination: ${pending ? "Pending PDF read" : "Not found in PWS"}</p>`;
   return `
     <div class="pricing-tier pricing-tier-pws">
       <h4 class="pricing-tier-title">Contract scope (from PWS)</h4>
+      ${pendingNote}
       <div class="pricing-stats">
         <div class="pricing-stat">
           <span class="pricing-stat-label">Square footage</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(formatSqFtDisplay(p.square_footage))}</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(formatSqFtDisplay(p.square_footage, pendingMsg))}</span>
         </div>
         <div class="pricing-stat">
           <span class="pricing-stat-label">Cleaning frequency</span>
-          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(formatFrequencyLabel(p.cleaning_frequency_per_week))}</span>
+          <span class="pricing-stat-value pricing-stat-text">${escapeHtml(formatFrequencyLabel(p.cleaning_frequency_per_week, pendingMsg))}</span>
         </div>
         ${p.building_type ? `<div class="pricing-stat"><span class="pricing-stat-label">Building type</span><span class="pricing-stat-value pricing-stat-text">${escapeHtml(p.building_type)}</span></div>` : ""}
       </div>
@@ -174,13 +179,17 @@ function renderBidCalculator(data) {
   const subDefault = data.selected_sub_quote || "";
   const internal = data.internal || {};
   const optionYears = Number(data.pws?.option_years) || 0;
+  const margin = data.effective_margin_pct ?? data.margin_percentage ?? 20;
+  const marginCustom = data.margin_percentage != null;
   return `
-    <div class="pricing-tier pricing-tier-calculator" id="bid-calculator" data-bid-low="${internal.recommended_bid_low ?? ""}" data-bid-high="${internal.recommended_bid_high ?? ""}" data-option-years="${optionYears}">
+    <div class="pricing-tier pricing-tier-calculator" id="bid-calculator" data-notice-id="${escapeHtml(data.notice_id || "")}" data-bid-low="${internal.recommended_bid_low ?? ""}" data-bid-high="${internal.recommended_bid_high ?? ""}" data-option-years="${optionYears}">
       <h4 class="pricing-tier-title">Bid calculator</h4>
       <label class="filter-label">Sub quote (annual)</label>
       <input type="number" id="calc-sub-quote" class="settings-input" value="${subDefault}" step="0.01" placeholder="From selected sub">
-      <label class="filter-label">Your margin <span id="calc-margin-label">18%</span></label>
-      <input type="range" id="calc-margin" min="10" max="30" value="18" step="1">
+      <label class="filter-label">Your margin <span id="calc-margin-label">${margin}%</span></label>
+      <input type="range" id="calc-margin" min="10" max="35" value="${margin}" step="1">
+      <p class="detail-note">${marginCustom ? "Custom margin saved for this contract." : "Using your default margin from Settings — adjust here to override for this contract."}</p>
+      <p class="sub-save-hint" id="calc-margin-hint" hidden>Saved</p>
       <div class="pricing-stats">
         <div class="pricing-stat pricing-stat-highlight">
           <span class="pricing-stat-label">Your bid</span>
@@ -204,7 +213,7 @@ function updateBidCalculator() {
   const calc = document.getElementById("bid-calculator");
   if (!calc) return;
   const sub = Number(document.getElementById("calc-sub-quote")?.value);
-  const marginPct = Number(document.getElementById("calc-margin")?.value || 18);
+  const marginPct = Number(document.getElementById("calc-margin")?.value || 20);
   const marginLabel = document.getElementById("calc-margin-label");
   if (marginLabel) marginLabel.textContent = `${marginPct}%`;
 
@@ -260,8 +269,36 @@ function updateBidCalculator() {
 
 function bindBidCalculator() {
   document.getElementById("calc-sub-quote")?.addEventListener("input", updateBidCalculator);
-  document.getElementById("calc-margin")?.addEventListener("input", updateBidCalculator);
+  document.getElementById("calc-margin")?.addEventListener("input", () => {
+    updateBidCalculator();
+    scheduleMarginSave();
+  });
   updateBidCalculator();
+}
+
+let marginSaveTimer = null;
+function scheduleMarginSave() {
+  const calc = document.getElementById("bid-calculator");
+  const noticeId = calc?.dataset.noticeId;
+  if (!noticeId) return;
+  const margin = Number(document.getElementById("calc-margin")?.value);
+  if (!Number.isFinite(margin)) return;
+  clearTimeout(marginSaveTimer);
+  marginSaveTimer = setTimeout(() => {
+    saveContractOutcome(noticeId, { margin_percentage: margin })
+      .then((data) => {
+        if (typeof mergeContractUpdate === "function") mergeContractUpdate(data);
+        if (typeof renderCards === "function") renderCards();
+        const hint = document.getElementById("calc-margin-hint");
+        if (hint) {
+          hint.hidden = false;
+          setTimeout(() => { hint.hidden = true; }, 1500);
+        }
+        const note = calc?.querySelector(".detail-note");
+        if (note) note.textContent = "Custom margin saved for this contract.";
+      })
+      .catch((e) => showSyncStatus(e.message, true));
+  }, 450);
 }
 
 async function saveContractOutcome(noticeId, payload) {

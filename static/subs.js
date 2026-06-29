@@ -68,9 +68,10 @@ function renderNetworkBanner(c) {
     </div>`;
 }
 
-async function findSubs(noticeId) {
+async function findSubs(noticeId, { force = false } = {}) {
   showSyncStatus("Searching for subcontractors…");
-  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/find-subs`, { method: "POST" });
+  const qs = force ? "?force=true" : "";
+  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/find-subs${qs}`, { method: "POST" });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Sub search failed");
   markContractSubSearchPending(noticeId);
@@ -666,7 +667,7 @@ function bindSubFinderEvents() {
     if (findBtn) {
       e.preventDefault();
       e.stopPropagation();
-      findSubs(findBtn.dataset.findSubs).catch((err) => showSyncStatus(err.message, true));
+      findSubs(findBtn.dataset.findSubs, { force: true }).catch((err) => showSyncStatus(err.message, true));
       return;
     }
     const openSubs = e.target.closest("[data-open-subs]");

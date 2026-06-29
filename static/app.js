@@ -1,5 +1,6 @@
 let config = { naics_codes: [], naics_labels: {}, naics_tiers: [], naics_groups: [], all_naics_codes: [], default_min_days: 10, default_min_score: 1 };
 let contracts = [];
+let processingCount = 0;
 let activeDetailId = null;
 let detailPollTimer = null;
 
@@ -106,14 +107,17 @@ async function loadConfig() {
   const sync = config.naics_sync || {};
   const nextNaics = sync.next_naics ? ` · next: ${sync.next_naics}` : "";
   const tierSchedule = config.naics_tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
-  const batchSize = sync.scheduled_batch_size || sync.scheduled_per_sync || 2;
+  const batchSize = sync.scheduled_batch_size || sync.scheduled_per_sync || 1;
   const nextBatch = (sync.scheduled_next_batch || []).join(", ");
   const poolSize = sync.scheduled_pool_size || sync.total_count || config.naics_codes.length;
-  const scheduledToday = sync.scheduled_tiers
-    ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${poolSize} in pool, ${batchSize}/run${nextBatch ? ` · next: ${nextBatch}` : ""})`
+  const focusLine = sync.focus_naics
+    ? ` · focus: ${sync.focus_naics}${sync.focus_pending_attachments ? ` (${sync.focus_pending_attachments} attachments pending)` : ""}`
     : "";
-  document.getElementById("naics-sync-status").textContent =
-    `${tierSchedule}. Auto-sync searches ${batchSize} code(s) per run.${scheduledToday} Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${nextNaics ? ` · manual rotation: ${nextNaics}` : ""}`;
+  const scheduledToday = sync.scheduled_tiers
+    ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${poolSize} in pool, 1 NAICS/run${nextBatch ? ` · next search: ${nextBatch}` : ""})`
+    : "";
+    document.getElementById("naics-sync-status").textContent =
+    `${tierSchedule}. Uses all ${config.api_budget?.sam_daily_limit ?? 10} SAM API calls daily: finish current NAICS attachments, then search/enrich the next until budget is gone.${scheduledToday}${focusLine} Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${nextNaics ? ` · manual rotation: ${nextNaics}` : ""}`;
 
   populateSyncNaicsSelect();
   renderNaicsFilters();
@@ -249,8 +253,8 @@ function renderSolicitationMetaSection(c) {
   return `
     <p class="detail-item"><span class="detail-item-label">Performance period</span> ${escapeHtml(start)} – ${escapeHtml(end)}</p>
     <p class="detail-item"><span class="detail-item-label">Contracting Officer</span> ${escapeHtml(co)}</p>
-    <button type="button" class="btn btn-secondary-action btn-small" id="extract-solicitation-btn" data-notice-id="${escapeHtml(c.notice_id)}">Extract dates &amp; CO from PDFs</button>
-    <p class="detail-note">Uses Claude to read attachments — fills proposal and subcontract agreement fields.</p>`;
+    <button type="button" class="btn btn-secondary-action btn-small" id="extract-solicitation-btn" data-notice-id="${escapeHtml(c.notice_id)}">Extract scope &amp; solicitation from PDFs</button>
+    <p class="detail-note">Reads attachments (including large PDFs) — fills PWS scope, dates, CO, proposals, and subcontract agreements.</p>`;
 }
 
 function renderForceFullAnalysisButton(c) {
@@ -284,14 +288,34 @@ function formatDue(c) {
   };
 }
 
+function formatScopePreview(c) {
+  const sqft = c.square_footage ?? c.pws?.square_footage;
+  const freq = c.cleaning_frequency_per_week ?? c.pws?.cleaning_frequency_per_week;
+  if (!sqft && freq == null) return "";
+  const parts = [];
+  if (sqft) parts.push(`${Number(sqft).toLocaleString()} sq ft`);
+  if (freq != null) {
+    const n = Number(freq);
+    parts.push(n === 5 ? "M–F" : n === 7 ? "Daily" : `${n}×/week`);
+  }
+  return `
+    <div class="card-section card-section-scope card-section-compact">
+      <span class="card-label">Scope</span>
+      <p class="card-meta card-scope">${escapeHtml(parts.join(" · "))}</p>
+    </div>`;
+}
+
 function renderCards() {
   const container = document.getElementById("cards");
+  const proc = processingCount > 0 ? ` · ${processingCount} processing (attachments + PDF read)` : "";
   document.getElementById("results-count").textContent =
-    `${contracts.length} contract${contracts.length === 1 ? "" : "s"}`;
+    `${contracts.length} contract${contracts.length === 1 ? "" : "s"}${proc}`;
 
   if (!contracts.length) {
     container.innerHTML =
-      '<div class="empty">No contracts with full attachments match your filters yet. Matching bids are saved on sync; attachments and Claude analysis finish over the next run(s).</div>';
+      processingCount > 0
+        ? `<div class="empty">${processingCount} contract${processingCount === 1 ? "" : "s"} downloading attachments and reading PDFs — they will appear here automatically when ready. Nothing to click.</div>`
+        : '<div class="empty">No contracts match your filters yet.</div>';
     return;
   }
 
@@ -302,9 +326,10 @@ function renderCards() {
     const summary = c.plain_english_summary || c.executive_summary;
     const headline = summary ? firstSentence(summary, 160) : null;
     const annualBid = recommendedAnnualBid(c);
+    const bidLabel = c.selected_sub_quote ? "Your estimated bid" : "Recommended annual bid";
     const bidPreview = annualBid
       ? `<div class="card-section card-section-bid">
-           <span class="card-label">Recommended annual bid</span>
+           <span class="card-label">${bidLabel}</span>
            <span class="card-bid-range">${formatMoney(annualBid)}</span>
          </div>`
       : "";
@@ -350,6 +375,7 @@ function renderCards() {
         </div>
         <aside class="card-side">
           ${bidPreview}
+          ${formatScopePreview(c)}
           <div class="card-section card-section-location card-section-compact">
             <span class="card-label">Where</span>
             <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
@@ -418,6 +444,7 @@ async function loadContracts() {
   const res = await apiFetch(`/api/contracts?${buildQuery()}`);
   const data = await res.json();
   contracts = data.contracts || [];
+  processingCount = data.processing_count || 0;
   renderCards();
   manageCardPolling();
 }
@@ -426,6 +453,7 @@ async function loadContractsQuiet() {
   const res = await apiFetch(`/api/contracts?${buildQuery()}`);
   const data = await res.json();
   contracts = data.contracts || [];
+  processingCount = data.processing_count || 0;
   renderCards();
   manageCardPolling();
 }
@@ -565,15 +593,19 @@ function renderDetailModal(c, { analyzing = false } = {}) {
 }
 
 async function extractSolicitationMeta(noticeId) {
-  showSyncStatus("Extracting solicitation details from PDFs…");
-  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/extract-solicitation`, {
-    method: "POST",
-  });
+  showSyncStatus("Extracting scope and solicitation details from PDFs…");
+  const res = await apiFetch(
+    `/api/contracts/${encodeURIComponent(noticeId)}/extract-solicitation?force=true`,
+    { method: "POST" },
+  );
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Extraction failed");
-  showSyncStatus("Solicitation details updated.");
+  showSyncStatus("Scope and solicitation details updated.");
   await loadContracts();
-  if (activeDetailId === noticeId) openDetail(noticeId);
+  if (activeDetailId === noticeId) {
+    openDetail(noticeId);
+    if (typeof loadPricingIntel === "function") loadPricingIntel(noticeId);
+  }
 }
 
 async function fetchContract(noticeId) {
@@ -679,10 +711,22 @@ function formatMoney(value) {
   }).format(num);
 }
 
+function mergeContractUpdate(updated) {
+  if (!updated?.notice_id) return;
+  const i = contracts.findIndex((c) => c.notice_id === updated.notice_id);
+  if (i >= 0) contracts[i] = { ...contracts[i], ...updated };
+}
+
 function recommendedAnnualBid(c) {
+  const quote = c?.selected_sub_quote;
+  const margin = c?.effective_margin_pct ?? c?.margin_percentage ?? 20;
+  if (quote && quote > 0) {
+    return quote / (1 - margin / 100);
+  }
+  if (c?.estimated_annual_bid) return c.estimated_annual_bid;
   const intel = c?.pricing_intel;
   if (intel?.internal?.recommended_annual_bid) return intel.internal.recommended_annual_bid;
-  return c?.pws?.square_footage ? null : null;
+  return null;
 }
 
 function formatUnitRate(value) {
@@ -706,18 +750,9 @@ function showSyncStatus(message, isError = false) {
   el.classList.toggle("error", isError);
 }
 
-function formatScreenBudget(budget) {
-  if (!budget) return "";
-  const used = budget.screens_used_today ?? 0;
-  if (budget.screens_unlimited || budget.screen_daily_limit === 0) {
-    return `Claude screens: ${used} today (no daily cap)`;
-  }
-  return `Claude screens: ${used}/${budget.screen_daily_limit} (${budget.screens_remaining} left)`;
-}
-
 function formatApiBudget(budget) {
   if (!budget) return "";
-  return `SAM.gov: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left) · ${formatScreenBudget(budget)}`;
+  return `SAM.gov API: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left today)`;
 }
 
 async function runSync({ allNaics = false, searchOnly = false } = {}) {
@@ -892,17 +927,11 @@ async function loadSettingsPage() {
   `;
 
   const budget = data.api_budget || {};
-  const screenLine = budget.screens_unlimited || budget.screen_daily_limit === 0
-    ? `${budget.screens_used_today ?? 0} used today (no daily cap)`
-    : `${budget.screens_used_today ?? 0} / ${budget.screen_daily_limit ?? "?"} used today (${budget.screens_remaining ?? "?"} remaining)`;
   document.getElementById("api-budget-status").innerHTML = `
-    <li>SAM.gov API (search/enrich): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today (${budget.sam_remaining ?? "?"} remaining)</li>
-    <li>SAM.gov PDF downloads (for Claude): ${budget.sam_pdf_downloads_today ?? 0} / ${budget.sam_pdf_download_limit ?? "?"} used today (${budget.sam_pdf_downloads_remaining ?? "?"} remaining)</li>
-    <li>Claude screenings: ${screenLine}</li>
-    <li>Dashboard cards only show filter-matching contracts once SAM attachments are fully loaded</li>
-    <li>Full intake on sync: ${budget.intake_on_sync !== false ? "on" : "off"} — Claude PDF analysis on every attachment-ready contract (ranking score)</li>
-    <li>Scheduled auto-sync: ${budget.scheduled_naics_per_sync ?? 2} NAICS code(s) per 6am run (rotates through tier pool)</li>
-    <li>Attachment pull: budget-limited per sync; pending contracts resume on the next run</li>
+    <li><strong>SAM.gov API</strong> (search + attachment metadata): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today — <strong>${budget.sam_remaining ?? "?"} remaining</strong></li>
+    <li>Only SAM.gov API calls are capped daily. Claude, PDF reads, and other services are not limited by this app.</li>
+    <li>Scheduled 6am sync: uses <strong>all SAM API calls each day</strong> — finish pending attachments, then search/enrich the next NAICS until the budget is exhausted</li>
+    <li>Pending attachment pulls resume on the next run until the SAM.gov daily cap is reached</li>
   `;
 
   const schedRes = await apiFetch("/api/scheduler");

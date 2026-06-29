@@ -157,12 +157,20 @@ def _solicitation_meta_complete(analysis: dict[str, Any]) -> bool:
     return True
 
 
-def ensure_solicitation_meta(session: Session, contract: Contract) -> dict[str, Any]:
-    """Fill solicitation_meta from analysis or extract from bid PDFs on demand."""
+def _contract_pws_missing(contract: Contract) -> bool:
+    from pws_fields import contract_pws_missing
+
+    return contract_pws_missing(contract)
+
+
+def ensure_solicitation_meta(session: Session, contract: Contract, *, force: bool = False) -> dict[str, Any]:
+    """Fill solicitation_meta and PWS scope from analysis or extract from bid PDFs on demand."""
+    from pws_fields import apply_pws_extraction
+
     analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
     sol = dict(analysis.get("solicitation_meta") or {}) if isinstance(analysis.get("solicitation_meta"), dict) else {}
 
-    if _solicitation_meta_complete(analysis):
+    if _solicitation_meta_complete(analysis) and not _contract_pws_missing(contract) and not force:
         return sol
 
     from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
@@ -173,6 +181,7 @@ def ensure_solicitation_meta(session: Session, contract: Contract) -> dict[str, 
 
     extracted = extract_solicitation_meta(contract)
     if extracted:
+        pws = extracted.pop("pws_extraction", None)
         sol.update({k: v for k, v in extracted.items() if v})
         analysis["solicitation_meta"] = sol
         for key in (
@@ -186,11 +195,29 @@ def ensure_solicitation_meta(session: Session, contract: Contract) -> dict[str, 
         ):
             if sol.get(key) and not analysis.get(key):
                 analysis[key] = sol[key]
+        if isinstance(pws, dict) and pws:
+            analysis["pws_extraction"] = pws
         contract.analysis = analysis
-        session.commit()
-        session.refresh(contract)
+        from claude_client import contract_attachment_text
+        from pws_fields import supplement_pws_from_pdf_text
+
+        supplement_pws_from_pdf_text(analysis, contract_attachment_text(contract))
+        apply_pws_extraction(contract, analysis)
         if not record_screen_usage():
             raise ScreenBudgetExceeded()
+
+    if contract.square_footage is None and can_screen():
+        from claude_client import try_extract_sqft_from_drawings
+
+        if try_extract_sqft_from_drawings(contract, analysis):
+            contract.analysis = analysis
+            apply_pws_extraction(contract, analysis)
+        if not record_screen_usage():
+            raise ScreenBudgetExceeded()
+
+    if extracted or contract.square_footage is not None:
+        session.commit()
+        session.refresh(contract)
     return sol
 
 
@@ -222,7 +249,12 @@ def build_proposal_config(
         raise ValueError("Sub must have status Quote Received or Selected")
 
     owner = get_owner_settings()
-    margin = margin_pct if margin_pct is not None else float(owner.get("default_margin_pct", 20))
+    if margin_pct is not None:
+        margin = margin_pct
+    else:
+        from proposal_defaults import resolve_contract_margin
+
+        margin = resolve_contract_margin(contract, owner)
     increase = option_increase_pct if option_increase_pct is not None else float(
         owner.get("default_option_year_increase_pct", 3)
     )
@@ -367,6 +399,10 @@ def generate_proposal(
         submission_deadline=sec_a.get("submission_deadline"),
         missing_fields=missing,
     )
+    margin_val = pricing.get("margin_percentage")
+    if margin_val is not None:
+        contract.margin_percentage = Decimal(str(margin_val))
+
     session.add(proposal)
     session.commit()
     session.refresh(proposal)

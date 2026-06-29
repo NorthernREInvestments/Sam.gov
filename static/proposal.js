@@ -182,10 +182,28 @@ function renderProposalConfigStep(config) {
 
 function bindProposalConfigStep(noticeId) {
   document.getElementById("proposal-back-subs")?.addEventListener("click", () => loadProposalSubStep(noticeId));
-  const recalc = () => updateProposalPricingFromUI();
+  const recalc = () => {
+    updateProposalPricingFromUI();
+    scheduleProposalMarginSave(noticeId);
+  };
   document.getElementById("prop-margin")?.addEventListener("input", recalc);
-  document.getElementById("prop-oy-pct")?.addEventListener("input", recalc);
+  document.getElementById("prop-oy-pct")?.addEventListener("input", updateProposalPricingFromUI);
   document.getElementById("proposal-generate-btn")?.addEventListener("click", () => generateProposal(noticeId));
+}
+
+let proposalMarginSaveTimer = null;
+function scheduleProposalMarginSave(noticeId) {
+  const margin = Number(document.getElementById("prop-margin")?.value);
+  if (!Number.isFinite(margin)) return;
+  clearTimeout(proposalMarginSaveTimer);
+  proposalMarginSaveTimer = setTimeout(() => {
+    if (typeof saveContractOutcome !== "function") return;
+    saveContractOutcome(noticeId, { margin_percentage: margin })
+      .then((data) => {
+        if (typeof mergeContractUpdate === "function") mergeContractUpdate(data);
+      })
+      .catch(() => {});
+  }, 450);
 }
 
 function updateProposalPricingFromUI() {

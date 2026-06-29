@@ -15,7 +15,7 @@ logger = logging.getLogger("govtracker.piee")
 
 PIEE_OPP_LINK = "https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml"
 MAX_PIE_PDFS = 12
-MAX_PIE_PDF_BYTES = 4_500_000
+MAX_PIE_PDF_BYTES = 40_000_000
 
 
 def piee_fetch_enabled() -> bool:
@@ -61,6 +61,10 @@ def _priority_key(filename: str) -> tuple[int, str]:
     name = filename.lower()
     if "statement_of_work" in name or name.startswith("sow") or "_sow_" in name:
         return (0, name)
+    if "pws" in name or "_prs" in name or "performance_requirement" in name:
+        return (1, name)
+    if "drawing" in name or "floor_plan" in name or "floor plan" in name:
+        return (2, name)
     if "solicitation" in name and "instruction" not in name:
         return (1, name)
     if "price_breakout" in name or "pbs" in name:
@@ -95,7 +99,10 @@ def download_piee_zip(notice_url: str) -> bytes | None:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+        )
         try:
             page = browser.new_page()
             page.goto(notice_url, wait_until="networkidle", timeout=120_000)

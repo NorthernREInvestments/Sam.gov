@@ -49,6 +49,15 @@ def init_db() -> None:
     _migrate_add_proposals()
     _migrate_add_contract_tier()
     _migrate_add_sub_agreements()
+    _migrate_add_contract_margin()
+
+
+def _migrate_add_contract_margin() -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS margin_percentage NUMERIC(5, 2)")
+        )
+        conn.commit()
 
 
 def _migrate_add_sub_agreements() -> None:

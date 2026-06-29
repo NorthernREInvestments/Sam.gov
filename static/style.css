@@ -1286,6 +1286,14 @@ a {
   color: var(--muted);
 }
 
+.pricing-note-warn {
+  color: #9a6700;
+  background: #fff8e6;
+  border-left: 3px solid #d4a017;
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+}
+
 .pricing-formula {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85rem;

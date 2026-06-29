@@ -43,6 +43,17 @@ PROPOSAL_SECTIONS = (
     "certifications",
 )
 
+def resolve_contract_margin(contract, owner: dict | None = None) -> float:
+    """Per-contract margin override, else owner default from Settings."""
+    if getattr(contract, "margin_percentage", None) is not None:
+        return float(contract.margin_percentage)
+    if owner is None:
+        from settings_store import get_owner_settings
+
+        owner = get_owner_settings()
+    return float(owner.get("default_margin_pct", 20))
+
+
 SECTION_TITLES = {
     "cover_letter": "Cover Letter",
     "technical_approach": "Technical Approach",
