@@ -75,6 +75,53 @@ function renderInternalPricingSection(internal) {
       </div>
       ${i.recommended_annual_bid ? `<div class="pricing-bid-hero"><span class="pricing-bid-label">Midpoint bid</span><span class="pricing-bid-range">${formatMoney(i.recommended_annual_bid)}</span></div>` : ""}
       ${i.formula_note ? `<p class="pricing-note pricing-formula">${escapeHtml(i.formula_note)}</p>` : ""}
+      ${renderMatchedContractsTable(i.matched_contracts)}
+    </div>`;
+}
+
+function renderMatchedContractsTable(rows) {
+  if (!rows?.length) return "";
+  return `
+    <table class="pricing-table pricing-table-compact">
+      <thead><tr><th>Contract</th><th>Status</th><th>$/sq ft/visit</th><th>Note</th></tr></thead>
+      <tbody>
+        ${rows
+          .map((row) => {
+            const rowClass = row.location_note?.includes("expired") ? "pricing-row-same-site" : "";
+            return `<tr class="${rowClass}">
+              <td>${escapeHtml(row.title || row.notice_id || "—")}</td>
+              <td>${escapeHtml(row.status || "—")}</td>
+              <td>${row.price_per_sqft_per_visit != null ? escapeHtml(formatUnitRate(row.price_per_sqft_per_visit)) : "—"}</td>
+              <td>${row.location_note ? `<span class="pricing-location-badge">${escapeHtml(row.location_note)}</span>` : "—"}</td>
+            </tr>`;
+          })
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
+function renderSiteHistorySection(siteHistory) {
+  if (!siteHistory?.length) return "";
+  return `
+    <div class="pricing-tier pricing-tier-site-history">
+      <h4 class="pricing-tier-title">Same address & scope — prior contracts</h4>
+      <p class="pricing-note">Prior solicitation(s) at this exact address with the same scope of work (matching NAICS). Solicitation numbers may change on recompetes.</p>
+      <table class="pricing-table pricing-table-compact">
+        <thead><tr><th>Contract</th><th>Due date</th><th>Status</th><th>Winning bid</th><th>Note</th></tr></thead>
+        <tbody>
+          ${siteHistory
+            .map(
+              (row) => `<tr class="pricing-row-same-site">
+            <td>${escapeHtml(row.title || row.notice_id || "—")}</td>
+            <td>${escapeHtml(row.due_date || "—")}</td>
+            <td>${escapeHtml(row.status || "—")}</td>
+            <td>${row.awarded_amount != null ? formatMoney(row.awarded_amount) : "—"}</td>
+            <td><span class="pricing-location-badge">${escapeHtml(row.location_note || "Same address & scope")}</span></td>
+          </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
     </div>`;
 }
 
@@ -118,18 +165,23 @@ function renderRegionalAwardsTable(awards) {
   if (!awards?.length) return "";
   return `
     <table class="pricing-table pricing-table-compact">
-      <thead><tr><th>Date</th><th>Recipient</th><th>Amount</th><th>Agency</th></tr></thead>
+      <thead><tr><th>Date</th><th>Recipient</th><th>Amount</th><th>Location</th><th>Agency</th></tr></thead>
       <tbody>
         ${awards
           .slice(0, 10)
-          .map(
-            (a) => `<tr>
+          .map((a) => {
+            const rowClass = a.location_priority ? "pricing-row-same-site" : "";
+            const note = a.location_note
+              ? `<span class="pricing-location-badge">${escapeHtml(a.location_note)}</span>`
+              : "";
+            return `<tr class="${rowClass}">
           <td>${escapeHtml(a.award_date || "—")}</td>
           <td>${escapeHtml(a.recipient_name || "—")}</td>
           <td>${formatMoney(a.award_amount)}</td>
+          <td>${note}${escapeHtml(a.performance_location || "—")}</td>
           <td>${escapeHtml(a.awarding_agency || "—")}</td>
-        </tr>`
-          )
+        </tr>`;
+          })
           .join("")}
       </tbody>
     </table>`;
@@ -343,6 +395,7 @@ function renderFullPricingPanel(data) {
   return `
     <div class="pricing-panel" id="pricing-panel">
       ${renderPwsSection(data.pws)}
+      ${renderSiteHistorySection(data.site_history)}
       ${renderInternalPricingSection(data.internal)}
       ${renderRegionalBenchmarkSection(data.regional_benchmark)}
       ${renderCompetitiveSection(data.competitive)}

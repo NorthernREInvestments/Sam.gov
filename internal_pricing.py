@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import statistics
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -103,6 +104,11 @@ def query_internal_pricing(session: Session, contract: Contract) -> dict[str, An
             "match_count": max(len(tiers[1]), len(tiers[2]), len(tiers[3])),
         }
 
+    from location_matching import prioritize_matched_contracts, extract_site_profile
+
+    matched = prioritize_matched_contracts(contract, matched)
+    origin = extract_site_profile(contract)
+    today = date.today()
     rates = [float(r.price_per_sqft_per_visit) for r in matched]
     avg_rate = statistics.mean(rates)
     sqft = contract.square_footage or 0
@@ -141,18 +147,45 @@ def query_internal_pricing(session: Session, contract: Contract) -> dict[str, An
             else None
         ),
         "matched_contracts": [
-            {
-                "notice_id": r.notice_id,
-                "title": r.title,
-                "square_footage": r.square_footage,
-                "building_type": r.building_type,
-                "pricing_region": r.pricing_region,
-                "price_per_sqft_per_visit": float(r.price_per_sqft_per_visit),
-                "awarded_amount": float(r.awarded_amount) if r.awarded_amount else None,
-                "status": r.status,
-            }
+            _matched_contract_row(contract, r, origin=origin, today=today)
             for r in matched[:10]
         ],
+    }
+
+
+def _matched_contract_row(
+    contract: Contract,
+    row: Contract,
+    *,
+    origin: dict[str, Any],
+    today: date,
+) -> dict[str, Any]:
+    from location_matching import extract_site_profile, same_site_and_scope
+
+    row_profile = extract_site_profile(row)
+    same = same_site_and_scope(origin, row_profile)
+    expired = bool(row.due_date and row.due_date < today)
+    note = None
+    if same and expired:
+        note = "Same address & scope — prior solicitation expired"
+    elif same:
+        note = "Same address & scope"
+    return {
+        "notice_id": row.notice_id,
+        "title": row.title,
+        "location": row.location,
+        "street_address": row_profile.get("street_address"),
+        "due_date": row.due_date.isoformat() if row.due_date else None,
+        "square_footage": row.square_footage,
+        "building_type": row.building_type,
+        "pricing_region": row.pricing_region,
+        "naics_code": row.naics_code,
+        "price_per_sqft_per_visit": float(row.price_per_sqft_per_visit),
+        "awarded_amount": float(row.awarded_amount) if row.awarded_amount else None,
+        "status": row.status,
+        "same_location": same,
+        "expired": expired,
+        "location_note": note,
     }
 
 

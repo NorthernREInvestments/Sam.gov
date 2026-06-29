@@ -444,6 +444,25 @@ def pricing_dashboard():
         session.close()
 
 
+@app.get("/api/export/claude")
+def export_claude_portfolio():
+    """Download a complete JSON snapshot of GovTracker for Claude Projects."""
+    session = SessionLocal()
+    try:
+        from claude_export import export_claude_json_bytes
+
+        data, filename = export_claude_json_bytes(session, include_attachment_text=True)
+        return Response(
+            content=data,
+            media_type="application/json; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Export failed: {exc}") from exc
+    finally:
+        session.close()
+
+
 @app.post("/api/sync")
 def run_sync(
     all_naics: bool = Query(False),
@@ -832,9 +851,14 @@ def post_proposal_config(notice_id: str, body: ProposalConfigRequest):
             config["section_b"].update(body.section_b_overrides)
         if body.section_d:
             config["section_d"].update(body.section_d)
-        from proposal_service import detect_missing_fields
+        from models import Contract
+        from proposal_service import build_proposal_readiness, detect_missing_fields, sync_config_from_contract
 
-        config["missing_fields"] = detect_missing_fields(config)
+        contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if contract:
+            config = sync_config_from_contract(config, contract)
+            config["readiness"] = build_proposal_readiness(contract, config)
+        config["missing_fields"] = detect_missing_fields(config, contract=contract)
         return config
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

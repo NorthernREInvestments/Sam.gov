@@ -857,6 +857,71 @@ async function runScreen() {
   }
 }
 
+async function saveBlobWithPicker(blob, filename, mimeType = "application/json") {
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [
+          {
+            description: "JSON export",
+            accept: { [mimeType]: [".json"] },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return handle.name;
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        throw err;
+      }
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return filename;
+}
+
+async function exportForClaude() {
+  const btn = document.getElementById("export-claude-btn");
+  const statusEl = document.getElementById("export-claude-status");
+  if (!btn) return;
+  btn.disabled = true;
+  if (statusEl) statusEl.textContent = "Building full export — contracts, subs, pricing, and attachment text…";
+  try {
+    const res = await apiFetch("/api/export/claude");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Export failed");
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get("Content-Disposition") || "";
+    const match = disp.match(/filename=\"?([^\";]+)\"?/i);
+    const filename = match ? match[1] : `govtracker-claude-export-${new Date().toISOString().slice(0, 10)}.json`;
+    const savedAs = await saveBlobWithPicker(blob, filename);
+    if (statusEl) statusEl.textContent = `Saved ${savedAs}`;
+    showSyncStatus(`Exported ${savedAs}`);
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      if (statusEl) statusEl.textContent = "Export cancelled.";
+      return;
+    }
+    const msg = err.message || "Export failed";
+    if (statusEl) statusEl.textContent = msg;
+    showSyncStatus(msg, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function loadSettingsPage() {
   const res = await apiFetch("/api/settings");
   const data = await res.json();
@@ -1055,6 +1120,7 @@ document.getElementById("modal-close").addEventListener("click", closeModal);
 document.getElementById("modal-backdrop").addEventListener("click", closeModal);
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);
 document.getElementById("reset-prompt-btn").addEventListener("click", resetPrompt);
+document.getElementById("export-claude-btn")?.addEventListener("click", exportForClaude);
 
 bindSlider("min-days", "min-days-value");
 bindSlider("min-score", "min-score-value");

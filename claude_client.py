@@ -1139,38 +1139,174 @@ def analyze_subcontractors(
     return [by_place.get(c["place_id"], {"place_id": c["place_id"], "score": 5, "reason": "Not analyzed."}) for c in candidates if c.get("place_id")]
 
 
-def _proposal_user_message(contract: Any, config: dict[str, Any]) -> str:
+def _proposal_user_message(
+    contract: Any,
+    config: dict[str, Any],
+    *,
+    pdf_labels: list[str] | None = None,
+) -> str:
     analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
     sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+    pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
+    req = analysis.get("proposal_requirements") if isinstance(analysis.get("proposal_requirements"), dict) else {}
+    drawing = analysis.get("drawing_sqft_extraction") if isinstance(analysis.get("drawing_sqft_extraction"), dict) else {}
+
     lines = [
-        "Generate the complete six-section proposal HTML for this contract.",
+        "Generate the complete seven-section proposal HTML for this contract.",
+        "Use the attached solicitation PDFs, extracted requirements below, and configuration — do not invent requirements or evaluation factors.",
         "",
         f"Contract title: {contract.title}",
         f"Agency: {contract.agency}",
         f"Location: {contract.location}",
         f"NAICS: {contract.naics_code}",
         f"Square footage: {contract.square_footage}",
+        f"Cleaning frequency (per week): {contract.cleaning_frequency_per_week}",
+        f"Building type: {contract.building_type}",
+        f"Special requirements: {contract.special_requirements}",
         f"Plain English summary: {analysis.get('plain_english_summary') or analysis.get('executive_summary') or ''}",
         "",
         "CONFIGURATION (use these exact values):",
         json.dumps(config, indent=2, default=str),
         "",
-        "SAM posting excerpt:",
-        (contract.description or sam.get("descriptionText") or "")[:6000],
+        "SOLICITATION METADATA (from attachments):",
+        json.dumps(sol, indent=2, default=str),
+        "",
+        "PWS SCOPE EXTRACTION (from attachments):",
+        json.dumps(pws, indent=2, default=str),
     ]
+    if req:
+        lines.extend(
+            [
+                "",
+                "PROPOSAL REQUIREMENTS — SECTION L, SECTION M, AND PWS (extracted from attachments; use for compliance matrix):",
+                json.dumps(req, indent=2, default=str),
+            ]
+        )
+    if drawing:
+        lines.extend(
+            [
+                "",
+                "DRAWING / FLOOR PLAN NOTES:",
+                json.dumps(drawing, indent=2, default=str),
+            ]
+        )
+    if pdf_labels:
+        lines.extend(["", f"PDF attachments included in this message ({len(pdf_labels)}):", ", ".join(pdf_labels)])
+    lines.extend(
+        [
+            "",
+            "SAM posting excerpt:",
+            (contract.description or sam.get("descriptionText") or "")[:6000],
+        ]
+    )
+
+    attachment_text = contract_attachment_text(contract, max_pdfs=MAX_PDFS)
+    if attachment_text.strip():
+        lines.extend(
+            [
+                "",
+                "EXTRACTED ATTACHMENT TEXT (PWS / solicitation / Section L / Section M excerpt):",
+                attachment_text[:100_000],
+            ]
+        )
+        if len(attachment_text) > 100_000:
+            lines.append(
+                f"[Text truncated at 100k chars — {len(attachment_text)} total; read attached PDFs for full content.]"
+            )
     return "\n".join(lines)
+
+
+def _proposal_message_content(
+    contract: Any,
+    config: dict[str, Any],
+    *,
+    preamble: str = "",
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Build Claude message content with solicitation PDFs attached."""
+    from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
+
+    raw = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    ensure_enriched_sam_raw(
+        contract,
+        force=needs_attachment_refresh(raw) or not raw.get("descriptionText"),
+    )
+
+    pdf_blocks, labels = _contract_pdf_blocks(contract, max_pdfs=MAX_PDFS)
+    text = preamble + _proposal_user_message(contract, config, pdf_labels=labels)
+    content: list[dict[str, Any]] = [{"type": "text", "text": text}, *pdf_blocks]
+    return content, labels
+
+
+def extract_proposal_requirements(contract: Any) -> dict[str, Any]:
+    """Extract Section L/M evaluation factors and PWS requirements from solicitation PDFs."""
+    from proposal_prompt import PROPOSAL_REQUIREMENTS_PROMPT
+
+    pdf_blocks, labels = _contract_pdf_blocks(contract, max_pdfs=MAX_PDFS)
+    lines = [
+        f"Contract: {contract.title}",
+        f"Agency: {contract.agency}",
+        f"Location: {contract.location}",
+        "",
+        "Extract Section L instructions, Section M evaluation factors, and all material PWS requirements from the attached solicitation documents.",
+    ]
+    if labels:
+        lines.append(f"PDFs attached: {', '.join(labels)}")
+
+    attachment_text = contract_attachment_text(contract, max_pdfs=MAX_PDFS)
+    if attachment_text.strip():
+        lines.extend(["", "Attachment text excerpt:", attachment_text[:60_000]])
+
+    content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
+        system=PROPOSAL_REQUIREMENTS_PROMPT,
+        messages=[{"role": "user", "content": content}],
+    )
+    text = response.content[0].text if response.content else "{}"
+    data = _extract_json(text)
+    if not isinstance(data, dict):
+        return {}
+
+    factors = []
+    section_m = data.get("section_m")
+    if isinstance(section_m, dict):
+        raw_factors = section_m.get("evaluation_factors")
+        if isinstance(raw_factors, list):
+            factors = [f for f in raw_factors if isinstance(f, dict) and f.get("factor_name")]
+
+    pws_reqs = data.get("pws_requirements")
+    if not isinstance(pws_reqs, list):
+        pws_reqs = []
+
+    section_l = data.get("section_l") if isinstance(data.get("section_l"), dict) else {}
+    facility = data.get("facility_characteristics") if isinstance(data.get("facility_characteristics"), dict) else {}
+
+    if not factors and not pws_reqs and not any(section_l.values()):
+        return {}
+
+    return {
+        "section_l": section_l,
+        "section_m_evaluation_factors": factors,
+        "pws_requirements": [r for r in pws_reqs if isinstance(r, dict) and r.get("requirement")],
+        "facility_characteristics": facility,
+        "source_pdfs": labels,
+    }
 
 
 def generate_proposal_content(contract: Any, config: dict[str, Any]) -> tuple[str, dict[str, str]]:
     from proposal_prompt import PROPOSAL_SYSTEM_PROMPT
     from proposal_service import parse_sections_from_html
 
+    content, _labels = _proposal_message_content(contract, config)
     client = Anthropic(api_key=_api_key())
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
         system=PROPOSAL_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _proposal_user_message(contract, config)}],
+        messages=[{"role": "user", "content": content}],
     )
     text = response.content[0].text if response.content else ""
     html = text.strip()
@@ -1221,17 +1357,14 @@ def regenerate_proposal_section(contract: Any, config: dict[str, Any], section_k
     from proposal_prompt import PROPOSAL_SYSTEM_PROMPT, SECTION_REGEN_PROMPT
 
     title = SECTION_TITLES.get(section_key, section_key)
+    preamble = f"Regenerate SECTION: {title} ({section_key})\n\n"
+    content, _labels = _proposal_message_content(contract, config, preamble=preamble)
     client = Anthropic(api_key=_api_key())
     response = client.messages.create(
         model=MODEL,
         max_tokens=4096,
         system=f"{PROPOSAL_SYSTEM_PROMPT}\n\n{SECTION_REGEN_PROMPT}",
-        messages=[
-            {
-                "role": "user",
-                "content": f"Regenerate SECTION: {title} ({section_key})\n\n{_proposal_user_message(contract, config)}",
-            }
-        ],
+        messages=[{"role": "user", "content": content}],
     )
     text = response.content[0].text if response.content else ""
     return text.strip()

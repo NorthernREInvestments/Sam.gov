@@ -98,6 +98,22 @@ function cfgInputClass(missing, fieldKey, extra = "") {
   return `settings-input cfg-field${extra ? ` ${extra}` : ""}${miss ? " field-missing" : ""}`;
 }
 
+function renderReadinessChecklist(readiness) {
+  if (!readiness?.checks?.length) return "";
+  const ready = readiness.ready_to_generate;
+  const banner = ready
+    ? `<div class="network-banner proposal-confirm">Attachment data loaded — ready to generate proposal.</div>`
+    : `<div class="network-banner proposal-warning">Complete the items below before generating. GovTracker will pull Section L/M, PWS, and scope from solicitation PDFs automatically.</div>`;
+  return `
+    ${banner}
+    <section class="settings-section proposal-readiness">
+      <h3>Proposal accuracy checklist</h3>
+      <ul class="proposal-readiness-list">
+        ${readiness.checks.map((c) => `<li class="proposal-readiness-item ${c.ok ? "ok" : "missing"}"><span class="proposal-readiness-icon">${c.ok ? "✓" : "○"}</span> ${escapeHtml(c.label)}</li>`).join("")}
+      </ul>
+    </section>`;
+}
+
 function renderProposalConfigStep(config) {
   const a = config.section_a || {};
   const b = config.section_b || {};
@@ -107,7 +123,9 @@ function renderProposalConfigStep(config) {
   const rs = c.bid_range_status || {};
   const opt = c.option_years || {};
   const missing = config.missing_fields || [];
-  const missingBanner = missing.length
+  const readiness = config.readiness || {};
+  const canGenerate = readiness.ready_to_generate !== false;
+  const missingBanner = missing.length && !readiness.checks?.length
     ? `<div class="network-banner proposal-warning">Action Required: ${missing.length} field(s) need attention in Settings or solicitation data before submitting.</div>`
     : "";
   const confirm = `<div class="network-banner proposal-confirm">Using <strong>${escapeHtml(sub.business_name)}</strong> — Quote: ${formatMoney(sub.quote_amount)}. This quote will be used to calculate your bid.</div>`;
@@ -117,6 +135,7 @@ function renderProposalConfigStep(config) {
       <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-subs">← Back to sub selection</button>
       <h2>Bid configuration</h2>
       ${confirm}
+      ${renderReadinessChecklist(readiness)}
       ${missingBanner}
       <section class="settings-section">
         <h3>Section A — Contract information</h3>
@@ -176,7 +195,7 @@ function renderProposalConfigStep(config) {
         <label class="filter-label">Technical detail</label>
         <select id="prop-detail" class="settings-input"><option>Detailed</option><option>Standard</option></select>
       </section>
-      <button type="button" class="btn btn-pursue-active pursue-btn" id="proposal-generate-btn">Generate Proposal</button>
+      <button type="button" class="btn btn-pursue-active pursue-btn" id="proposal-generate-btn" ${canGenerate ? "" : 'disabled title="Complete the accuracy checklist first — attachment data must be extracted"'}>Generate Proposal</button>
     </div>`;
 }
 
@@ -262,6 +281,11 @@ function collectConfigFromUI() {
 
 async function generateProposal(noticeId) {
   const config = collectConfigFromUI();
+  if (proposalConfig?.readiness?.ready_to_generate === false) {
+    const labels = (proposalConfig.readiness.critical || []).map((m) => m.label).join(", ");
+    showSyncStatus(`Cannot generate yet — missing: ${labels}`, true);
+    return;
+  }
   const btn = document.getElementById("proposal-generate-btn");
   if (btn) { btn.disabled = true; btn.textContent = "Generating…"; }
   showSyncStatus("Claude is writing your proposal — this may take 1–2 minutes.");

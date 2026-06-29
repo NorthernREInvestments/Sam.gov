@@ -663,6 +663,14 @@ def fetch_pricing_intelligence(
 
     profile = scope_profile or {}
     awards, scope_meta = filter_clearance_compatible_awards(awards, profile)
+    from location_matching import annotate_and_prioritize_location_awards
+
+    award_profile_base = {
+        **(origin_location or {}),
+        **(scope_profile or {}),
+        "naics_code": naics_code,
+    }
+    awards = annotate_and_prioritize_location_awards(awards, award_profile_base)
     awards = awards[:limit]
     if scope_meta.get("scope_note"):
         location_scope_note = (
@@ -723,6 +731,8 @@ def fetch_regional_benchmarks(
     naics_code: str,
     state_code: str,
     *,
+    origin_profile: dict[str, Any] | None = None,
+    origin_location: dict[str, Any] | None = None,
     limit: int = 50,
 ) -> dict[str, Any]:
     """
@@ -742,6 +752,14 @@ def fetch_regional_benchmarks(
         and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
     ]
     dated_awards.sort(key=lambda a: a["award_date"], reverse=True)
+
+    from location_matching import annotate_and_prioritize_location_awards
+
+    profile = origin_profile or origin_location or {"state_code": state_code, "naics_code": naics_code}
+    if origin_profile is None and origin_location is not None:
+        profile = {**origin_location, "naics_code": naics_code}
+    dated_awards = annotate_and_prioritize_location_awards(dated_awards, profile)
+    same_site_expired = sum(1 for a in dated_awards if a.get("location_priority"))
 
     amounts = [a["award_amount"] for a in dated_awards]
     recipient_weights: Counter[str] = Counter()
@@ -774,9 +792,15 @@ def fetch_regional_benchmarks(
         "benchmark_note": (
             f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
             f"over the last 3 years. Award amounts vary by building size and cleaning frequency."
+            + (
+                f" {same_site_expired} prior award(s) at this same address & scope (expired) are listed first."
+                if same_site_expired
+                else ""
+            )
             if dated_awards
             else f"No contracts over ${MIN_REGIONAL_AWARD_AMOUNT:,} found in {state_name} for this NAICS."
         ),
+        "same_location_expired_count": same_site_expired,
         "awards": dated_awards[:20],
         "source": "USAspending.gov",
         "fetched_at": date.today().isoformat(),

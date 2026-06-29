@@ -33,7 +33,13 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
         )
 
     try:
-        intel = fetch_regional_benchmarks(naics_code, state_code)
+        from location_matching import extract_site_profile
+
+        intel = fetch_regional_benchmarks(
+            naics_code,
+            state_code,
+            origin_profile=extract_site_profile(contract),
+        )
     except Exception as exc:
         return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
 
@@ -45,8 +51,11 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
 
 def get_full_pricing_intel(contract: Any, session, *, force_refresh: bool = False) -> dict[str, Any]:
     """Combined pricing payload for contract detail UI."""
+    from location_matching import query_site_contract_history
+
     regional = get_regional_benchmark(contract, force_refresh=force_refresh)
     internal = query_internal_pricing(session, contract)
+    site_history = query_site_contract_history(session, contract)
     pws = pws_snapshot(contract)
 
     incumbent = regional.get("likely_incumbent") or regional.get("most_frequent_winner")
@@ -69,6 +78,7 @@ def get_full_pricing_intel(contract: Any, session, *, force_refresh: bool = Fals
         "pws": pws,
         "internal": internal,
         "regional_benchmark": regional,
+        "site_history": site_history,
         "competitive": competitive,
         "selected_sub_quote": float(contract.selected_sub_quote) if contract.selected_sub_quote else None,
         "margin_percentage": float(contract.margin_percentage) if contract.margin_percentage is not None else None,

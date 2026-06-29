@@ -230,6 +230,15 @@
       </section>
 
       <section class="settings-section">
+        <h3>Export for Claude</h3>
+        <p class="settings-help">Downloads a complete snapshot of GovTracker — contracts, analysis, subs, proposals, pricing, and attachment text — ready to upload to a Claude Project.</p>
+        <div class="settings-button-row">
+          <button id="export-claude-btn" class="btn btn-secondary-action" type="button">Export for Claude…</button>
+        </div>
+        <p id="export-claude-status" class="settings-help"></p>
+      </section>
+
+      <section class="settings-section">
         <h3>API usage today</h3>
         <p class="settings-help">GovTracker tracks daily limits to protect your SAM.gov key and Claude credits. Limits reset at midnight (server time). Adjust caps in Railway / <code>.env</code>.</p>
         <ul id="api-budget-status" class="api-key-status"></ul>

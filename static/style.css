@@ -1715,6 +1715,50 @@ a {
   border-color: #34d399;
 }
 
+.pricing-row-same-site {
+  background: #fffbeb;
+}
+
+.pricing-location-badge {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.proposal-readiness-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.proposal-readiness-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  font-size: 0.92rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.proposal-readiness-item.ok {
+  color: #166534;
+}
+
+.proposal-readiness-item.missing {
+  color: #92400e;
+}
+
+.proposal-readiness-icon {
+  font-weight: 700;
+  min-width: 1rem;
+}
+
 .card-pursue-btn {
   margin-top: 0.35rem;
 }

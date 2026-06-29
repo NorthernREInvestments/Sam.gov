@@ -157,10 +157,186 @@ def _solicitation_meta_complete(analysis: dict[str, Any]) -> bool:
     return True
 
 
+CLEANING_NAICS = frozenset({"561720", "561790", "561740", "561210"})
+SETTINGS_ONLY_FIELDS = frozenset(
+    {"address_line_1", "city", "zip", "uei", "cage_code", "ein", "sam_expiration"}
+)
+
+
+def sync_config_from_contract(config: dict[str, Any], contract: Contract) -> dict[str, Any]:
+    """Merge latest attachment extraction and contract scope into proposal config."""
+    config = dict(config)
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    sol = _extract_solicitation_meta(contract)
+    drawing = analysis.get("drawing_sqft_extraction") if isinstance(analysis.get("drawing_sqft_extraction"), dict) else {}
+
+    sec_a = dict(config.get("section_a") or {})
+    auto_fields = {
+        "contract_title": contract.title,
+        "solicitation_number": sol.get("solicitation_number"),
+        "agency_name": contract.agency,
+        "contracting_officer_name": sol.get("contracting_officer_name"),
+        "contracting_officer_email": sol.get("contracting_officer_email"),
+        "submission_method": sol.get("submission_method"),
+        "submission_deadline": sol.get("submission_deadline"),
+        "base_year_start": sol.get("base_year_start"),
+        "base_year_end": sol.get("base_year_end"),
+        "place_of_performance": contract.location or sol.get("place_of_performance"),
+        "agency_address": sol.get("agency_address"),
+    }
+    for key, value in auto_fields.items():
+        if value is not None and str(value).strip() and not str(sec_a.get(key) or "").strip():
+            sec_a[key] = value
+    config["section_a"] = sec_a
+
+    config["proposal_requirements"] = (
+        analysis.get("proposal_requirements") if isinstance(analysis.get("proposal_requirements"), dict) else {}
+    )
+    config["pws_extraction"] = (
+        analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
+    )
+    config["contract"] = {
+        "notice_id": contract.notice_id,
+        "square_footage": contract.square_footage,
+        "building_type": contract.building_type,
+        "cleaning_frequency_per_week": float(contract.cleaning_frequency_per_week)
+        if contract.cleaning_frequency_per_week is not None
+        else None,
+        "special_requirements": contract.special_requirements,
+        "plain_english_summary": analysis_plain(contract),
+        "naics_code": contract.naics_code,
+    }
+    config["attachment_context"] = {
+        "pdfs_read": int(analysis.get("pdfs_sent_to_claude") or 0),
+        "attachments_reviewed": analysis.get("attachments_reviewed") or [],
+        "square_footage_estimated": bool(drawing.get("estimated")),
+        "drawing_sqft_notes": drawing.get("calculation_notes"),
+    }
+    return config
+
+
+def build_proposal_readiness(contract: Contract, config: dict[str, Any]) -> dict[str, Any]:
+    """Structured checklist — critical gaps block generation; settings gaps block submission only."""
+    missing = detect_missing_fields(config, contract=contract)
+    critical = [m for m in missing if m.get("field") not in SETTINGS_ONLY_FIELDS]
+    warnings = [m for m in missing if m.get("field") in SETTINGS_ONLY_FIELDS]
+
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    req = config.get("proposal_requirements") if isinstance(config.get("proposal_requirements"), dict) else {}
+    factors = req.get("section_m_evaluation_factors") or []
+    pws_reqs = req.get("pws_requirements") or []
+    pdfs = int(analysis.get("pdfs_sent_to_claude") or 0)
+    att = config.get("attachment_context") or {}
+    estimated = att.get("square_footage_estimated")
+
+    sqft_label = "Square footage missing"
+    if contract.square_footage:
+        sqft_label = f"Square footage: {int(contract.square_footage):,} sq ft"
+        if estimated:
+            sqft_label += " (estimated from floor plans)"
+
+    freq_label = "Cleaning frequency missing"
+    if contract.cleaning_frequency_per_week is not None:
+        freq_label = f"Cleaning frequency: {contract.cleaning_frequency_per_week:g} days/week"
+
+    checks: list[dict[str, Any]] = [
+        {"ok": pdfs > 0, "label": f"Solicitation PDFs read ({pdfs})" if pdfs else "Solicitation PDFs not read", "field": "pdfs"},
+        {
+            "ok": isinstance(factors, list) and len(factors) >= 1,
+            "label": f"Section M factors ({len(factors)})" if factors else "Section M evaluation factors missing",
+            "field": "section_m_evaluation_factors",
+        },
+        {
+            "ok": isinstance(pws_reqs, list) and len(pws_reqs) >= 3,
+            "label": f"PWS requirements ({len(pws_reqs)})" if len(pws_reqs) >= 3 else "PWS requirements incomplete",
+            "field": "pws_requirements",
+        },
+        {"ok": bool(contract.square_footage), "label": sqft_label, "field": "square_footage"},
+        {
+            "ok": contract.cleaning_frequency_per_week is not None
+            or str(contract.naics_code or "") not in CLEANING_NAICS,
+            "label": freq_label,
+            "field": "cleaning_frequency_per_week",
+        },
+        {
+            "ok": bool(str(sec_a_val := (config.get("section_a") or {}).get("contracting_officer_name") or "").strip()),
+            "label": f"Contracting Officer: {sec_a_val}" if sec_a_val else "Contracting Officer name missing",
+            "field": "contracting_officer_name",
+        },
+        {
+            "ok": bool(str((config.get("section_a") or {}).get("submission_method") or "").strip()),
+            "label": f"Submission: {(config.get('section_a') or {}).get('submission_method')}"
+            if (config.get("section_a") or {}).get("submission_method")
+            else "Submission method missing",
+            "field": "submission_method",
+        },
+        {
+            "ok": bool((config.get("sub") or {}).get("quote_amount")),
+            "label": f"Sub quote: ${float((config.get('sub') or {}).get('quote_amount') or 0):,.2f}",
+            "field": "sub_quote",
+        },
+    ]
+    for m in warnings:
+        checks.append({"ok": False, "label": f"Settings — {m['label']}", "field": m["field"]})
+
+    return {
+        "ready_to_generate": len(critical) == 0,
+        "ready_to_submit": len(missing) == 0,
+        "critical_count": len(critical),
+        "warning_count": len(warnings),
+        "checks": checks,
+        "critical": critical,
+        "warnings": warnings,
+    }
+
+
 def _contract_pws_missing(contract: Contract) -> bool:
     from pws_fields import contract_pws_missing
 
     return contract_pws_missing(contract)
+
+
+def _proposal_requirements_complete(analysis: dict[str, Any]) -> bool:
+    req = analysis.get("proposal_requirements") if isinstance(analysis.get("proposal_requirements"), dict) else {}
+    factors = req.get("section_m_evaluation_factors") or []
+    pws_reqs = req.get("pws_requirements") or []
+    has_m = isinstance(factors, list) and len(factors) >= 1
+    has_pws = isinstance(pws_reqs, list) and len(pws_reqs) >= 3
+    return has_m and has_pws
+
+
+def ensure_proposal_requirements(session: Session, contract: Contract, *, force: bool = False) -> dict[str, Any]:
+    """Extract Section L/M and PWS requirements from solicitation PDFs for proposal writing."""
+    analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
+    existing = analysis.get("proposal_requirements") if isinstance(analysis.get("proposal_requirements"), dict) else {}
+
+    if _proposal_requirements_complete(analysis) and not force:
+        return existing
+
+    from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
+    from claude_client import extract_proposal_requirements
+
+    if not can_screen():
+        return existing
+
+    extracted = extract_proposal_requirements(contract)
+    if extracted:
+        analysis["proposal_requirements"] = extracted
+        contract.analysis = analysis
+        session.commit()
+        session.refresh(contract)
+        if not record_screen_usage():
+            raise ScreenBudgetExceeded()
+        return extracted
+    return existing
+
+
+def ensure_proposal_context(session: Session, contract: Contract, *, force: bool = False) -> None:
+    """Load solicitation metadata, scope, and L/M/PWS requirements from attachments before proposal writing."""
+    ensure_solicitation_meta(session, contract, force=force)
+    session.refresh(contract)
+    ensure_proposal_requirements(session, contract, force=force)
+    session.refresh(contract)
 
 
 def ensure_solicitation_meta(session: Session, contract: Contract, *, force: bool = False) -> dict[str, Any]:
@@ -235,7 +411,7 @@ def build_proposal_config(
     if not contract:
         raise ValueError("Contract not found")
 
-    ensure_solicitation_meta(session, contract)
+    ensure_proposal_context(session, contract)
 
     link = (
         session.query(ContractSub)
@@ -267,6 +443,7 @@ def build_proposal_config(
 
     sol = _extract_solicitation_meta(contract)
     sub = link.sub
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
     config = {
         "section_a": {
             "contract_title": contract.title,
@@ -290,6 +467,10 @@ def build_proposal_config(
             "writing_tone": "Professional",
             "technical_detail": "Detailed",
         },
+        "pws_extraction": analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {},
+        "proposal_requirements": analysis.get("proposal_requirements")
+        if isinstance(analysis.get("proposal_requirements"), dict)
+        else {},
         "sub": {
             "contract_sub_id": link.id,
             "sub_id": sub.id if sub else None,
@@ -304,10 +485,16 @@ def build_proposal_config(
             "notice_id": notice_id,
             "square_footage": contract.square_footage,
             "building_type": contract.building_type,
+            "cleaning_frequency_per_week": float(contract.cleaning_frequency_per_week)
+            if contract.cleaning_frequency_per_week is not None
+            else None,
+            "special_requirements": contract.special_requirements,
             "plain_english_summary": analysis_plain(contract),
         },
     }
-    config["missing_fields"] = detect_missing_fields(config)
+    config = sync_config_from_contract(config, contract)
+    config["readiness"] = build_proposal_readiness(contract, config)
+    config["missing_fields"] = detect_missing_fields(config, contract=contract)
     return config
 
 
@@ -316,7 +503,11 @@ def analysis_plain(contract: Contract) -> str:
     return analysis.get("plain_english_summary") or analysis.get("executive_summary") or ""
 
 
-def detect_missing_fields(config: dict[str, Any]) -> list[dict[str, str]]:
+def detect_missing_fields(
+    config: dict[str, Any],
+    *,
+    contract: Contract | None = None,
+) -> list[dict[str, str]]:
     missing: list[dict[str, str]] = []
     owner = config.get("section_b") or {}
     required_owner = [
@@ -340,6 +531,79 @@ def detect_missing_fields(config: dict[str, Any]) -> list[dict[str, str]]:
     ]:
         if not str(sec_a.get(key) or "").strip():
             missing.append({"field": key, "label": label, "where": "solicitation"})
+
+    req = config.get("proposal_requirements") if isinstance(config.get("proposal_requirements"), dict) else {}
+    factors = req.get("section_m_evaluation_factors") or []
+    pws_reqs = req.get("pws_requirements") or []
+    if not isinstance(factors, list) or len(factors) < 1:
+        missing.append(
+            {
+                "field": "section_m_evaluation_factors",
+                "label": "Section M evaluation factors (from solicitation PDFs)",
+                "where": "solicitation",
+            }
+        )
+    if not isinstance(pws_reqs, list) or len(pws_reqs) < 3:
+        missing.append(
+            {
+                "field": "pws_requirements",
+                "label": "PWS performance requirements (from solicitation PDFs)",
+                "where": "solicitation",
+            }
+        )
+
+    if contract is not None:
+        from screening_pipeline import has_attachments_ready, pdfs_expected_on_contract, pdfs_read_in_analysis
+
+        analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+        if not has_attachments_ready(contract):
+            missing.append(
+                {
+                    "field": "attachments",
+                    "label": "Solicitation attachments not downloaded",
+                    "where": "solicitation",
+                }
+            )
+        elif pdfs_expected_on_contract(contract) and not pdfs_read_in_analysis(analysis):
+            missing.append(
+                {
+                    "field": "pdfs",
+                    "label": "Solicitation PDFs not read from attachments",
+                    "where": "solicitation",
+                }
+            )
+        elif int(analysis.get("pdfs_sent_to_claude") or 0) < 1:
+            missing.append(
+                {
+                    "field": "pdfs",
+                    "label": "No solicitation PDFs sent to Claude yet",
+                    "where": "solicitation",
+                }
+            )
+
+        naics = str(contract.naics_code or "")
+        if naics in CLEANING_NAICS:
+            if not contract.square_footage:
+                missing.append(
+                    {
+                        "field": "square_footage",
+                        "label": "Square footage (from PWS or floor-plan drawings)",
+                        "where": "solicitation",
+                    }
+                )
+            if contract.cleaning_frequency_per_week is None:
+                missing.append(
+                    {
+                        "field": "cleaning_frequency_per_week",
+                        "label": "Cleaning frequency (from PWS)",
+                        "where": "solicitation",
+                    }
+                )
+
+    sub = config.get("sub") or {}
+    if not sub.get("quote_amount"):
+        missing.append({"field": "sub_quote", "label": "Subcontractor quote amount", "where": "subs"})
+
     return missing
 
 
@@ -354,6 +618,20 @@ def generate_proposal(
     if not contract:
         raise ValueError("Contract not found")
 
+    ensure_proposal_context(session, contract)
+    session.refresh(contract)
+
+    config = sync_config_from_contract(config, contract)
+    readiness = build_proposal_readiness(contract, config)
+    config["readiness"] = readiness
+    config["missing_fields"] = detect_missing_fields(config, contract=contract)
+    if not readiness.get("ready_to_generate"):
+        labels = ", ".join(m["label"] for m in readiness.get("critical") or [])
+        raise ValueError(
+            "Proposal data is incomplete — attachment extraction must finish before generating. "
+            f"Missing: {labels}"
+        )
+
     existing = (
         session.query(Proposal)
         .filter_by(contract_id=contract.id)
@@ -367,7 +645,7 @@ def generate_proposal(
         )
 
     html, sections = generate_proposal_content(contract, config)
-    missing = detect_missing_fields(config)
+    missing = detect_missing_fields(config, contract=contract)
     html = highlight_missing_in_html(html, missing)
 
     sub = config.get("sub") or {}
@@ -416,12 +694,13 @@ def highlight_missing_in_html(html: str, missing: list[dict[str, str]]) -> str:
 def parse_sections_from_html(html: str) -> dict[str, str]:
     sections: dict[str, str] = {}
     patterns = [
-        (r"SECTION\s*1[^<]*COVER\s*LETTER", "cover_letter"),
-        (r"SECTION\s*2[^<]*TECHNICAL", "technical_approach"),
-        (r"SECTION\s*3[^<]*PRICE", "price_schedule"),
-        (r"SECTION\s*4[^<]*PAST\s*PERFORMANCE", "past_performance"),
-        (r"SECTION\s*5[^<]*CAPABILITY", "capability_statement"),
-        (r"SECTION\s*6[^<]*CERTIFICATION", "certifications"),
+        (r"SECTION\s*1[^<]*COMPLIANCE", "compliance_matrix"),
+        (r"SECTION\s*2[^<]*COVER\s*LETTER", "cover_letter"),
+        (r"SECTION\s*3[^<]*TECHNICAL", "technical_approach"),
+        (r"SECTION\s*4[^<]*PRICE", "price_schedule"),
+        (r"SECTION\s*5[^<]*PAST\s*PERFORMANCE", "past_performance"),
+        (r"SECTION\s*6[^<]*CAPABILITY", "capability_statement"),
+        (r"SECTION\s*7[^<]*CERTIFICATION", "certifications"),
     ]
     upper = html.upper()
     for i, (pattern, key) in enumerate(patterns):
@@ -465,8 +744,11 @@ def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, A
         proposal.notes = payload["notes"]
     if "status" in payload and payload["status"] in PROPOSAL_STATUSES:
         if payload["status"] == "submitted":
+            contract = session.get(Contract, proposal.contract_id)
             config = proposal.config_json if isinstance(proposal.config_json, dict) else {}
-            missing = detect_missing_fields(config)
+            if contract:
+                config = sync_config_from_contract(config, contract)
+            missing = detect_missing_fields(config, contract=contract)
             if missing:
                 labels = ", ".join(m["label"] for m in missing if isinstance(m, dict))
                 raise ValueError(f"Cannot mark submitted until required fields are filled: {labels}")
@@ -581,6 +863,12 @@ def regenerate_section(session: Session, proposal_id: int, section_key: str) -> 
         raise ValueError(f"Invalid section: {section_key}")
 
     contract = session.get(Contract, proposal.contract_id)
+    if not contract:
+        raise ValueError("Contract not found")
+
+    ensure_proposal_context(session, contract)
+    session.refresh(contract)
+
     new_html = regenerate_proposal_section(contract, proposal.config_json, section_key)
     sections = dict(proposal.sections_json or parse_sections_from_html(proposal.proposal_html or ""))
     sections[section_key] = new_html

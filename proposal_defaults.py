@@ -35,6 +35,7 @@ DEFAULT_OWNER_SETTINGS: dict[str, str | float | int] = {
 PROPOSAL_STATUSES = ("draft", "ready", "submitted", "won", "lost")
 
 PROPOSAL_SECTIONS = (
+    "compliance_matrix",
     "cover_letter",
     "technical_approach",
     "price_schedule",
@@ -55,6 +56,7 @@ def resolve_contract_margin(contract, owner: dict | None = None) -> float:
 
 
 SECTION_TITLES = {
+    "compliance_matrix": "Compliance Matrix",
     "cover_letter": "Cover Letter",
     "technical_approach": "Technical Approach",
     "price_schedule": "Price Schedule",
