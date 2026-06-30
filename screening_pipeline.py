@@ -9,6 +9,7 @@ from typing import Any
 from models import Contract
 
 SKIP_LOW_SCORE_LABEL = "Skipped — Low Score"
+FAR_SUBCONTRACTING_SKIP_LABEL = "Skipped — FAR 52.219-14 Limitations on Subcontracting applies"
 
 
 def full_analysis_min_score() -> int:
@@ -137,6 +138,8 @@ def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:
 
 def is_dashboard_ready(row: Contract) -> bool:
     """Contract may appear on the dashboard only when attachments are read and scope is extracted."""
+    if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
+        return False
     if not has_attachments_ready(row):
         return False
     from pws_fields import contract_pws_missing

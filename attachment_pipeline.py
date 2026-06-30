@@ -323,18 +323,29 @@ def persist_attachment_and_compliance(
     row.attachment_text_extracted_at = datetime.now(timezone.utc)
 
     check = check_subcontracting_limitation(extraction.text, char_count=extraction.char_count)
+    _apply_subcontracting_compliance(row, check)
+    return check
+
+
+def _apply_subcontracting_compliance(row: Contract, check: SubcontractingCheckResult) -> None:
     row.subcontracting_limitation_check = check.check
     row.subcontracting_limitation_context = check.context
     row.subcontracting_limitation_percentage = check.percentage
-    return check
+    if check.check != "FOUND":
+        return
+    from screening_pipeline import FAR_SUBCONTRACTING_SKIP_LABEL
+
+    analysis = dict(row.analysis) if isinstance(row.analysis, dict) else {}
+    analysis["pursue"] = False
+    analysis["skip_reason"] = FAR_SUBCONTRACTING_SKIP_LABEL
+    row.analysis = analysis
+    row.status = "skipped"
 
 
 def rerun_subcontracting_check(row: Contract) -> SubcontractingCheckResult:
     """Re-run FAR 52.219-14 check on stored attachment_text without re-downloading."""
     check = check_subcontracting_limitation(row.attachment_text, char_count=len(row.attachment_text or ""))
-    row.subcontracting_limitation_check = check.check
-    row.subcontracting_limitation_context = check.context
-    row.subcontracting_limitation_percentage = check.percentage
+    _apply_subcontracting_compliance(row, check)
     return check
 
 
