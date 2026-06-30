@@ -82,12 +82,20 @@ def ensure_description_for_text_screen(row: Contract) -> bool:
 
 
 def enrich_contract_attachments(row: Contract) -> bool:
-    """Load full SAM.gov scrape (description + attachments + PIEE manifest)."""
-    from sam_enrich import is_scrape_complete, scrape_opportunity_complete
+    """Load full SAM.gov scrape (description + attachments + PIEE manifest) and extract PDF text."""
+    from attachment_pipeline import is_attachment_extraction_ready, run_attachment_pipeline
+    from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_opportunity_complete
     from sam_client import normalize_opportunity
 
     raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    if is_scrape_complete(raw):
+    if is_scrape_complete(raw) and is_attachment_extraction_ready(row):
+        return False
+
+    if is_sam_metadata_ready(raw) and not is_attachment_extraction_ready(row):
+        run_attachment_pipeline(row)
+        return True
+
+    if is_sam_metadata_ready(raw) and is_scrape_complete(raw):
         return False
 
     enriched, ok = scrape_opportunity_complete(raw)
@@ -101,6 +109,8 @@ def enrich_contract_attachments(row: Contract) -> bool:
     refreshed = normalize_opportunity(enriched)
     if refreshed.get("location"):
         row.location = refreshed["location"]
+
+    run_attachment_pipeline(row)
     return True
 
 
@@ -211,6 +221,9 @@ def run_full_analysis(
 
     def _persist_scope_from_pdfs() -> None:
         nonlocal analysis
+        from attachment_pipeline import run_attachment_pipeline
+
+        run_attachment_pipeline(row)
         full_text = contract_attachment_text(row, max_pdfs=12)
         supplement_pws_from_pdf_text(analysis, full_text)
         apply_pws_extraction(row, analysis)
@@ -511,13 +524,13 @@ def enrich_matching_attachments(
     naics_code: str | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
-    from sam_enrich import is_scrape_complete
+    from screening_pipeline import has_attachments_ready
     from sync import list_contracts
 
     candidates = [
         row
         for row in list_contracts(session, require_scrape_complete=False, notice_ids=notice_ids)
-        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
+        if not has_attachments_ready(row)
     ]
     if naics_code:
         candidates.sort(key=lambda row: 0 if row.naics_code == naics_code else 1)
@@ -528,7 +541,7 @@ def enrich_matching_attachments(
         if limit is not None and enriched >= limit:
             break
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-        if is_scrape_complete(raw):
+        if has_attachments_ready(row):
             continue
         if not can_spend_sam(1):
             errors.append("SAM.gov daily budget reached — full scrape pending.")
@@ -541,11 +554,7 @@ def enrich_matching_attachments(
             session.rollback()
             errors.append(f"{row.notice_id}: {exc}")
 
-    pending = sum(
-        1
-        for row in candidates
-        if not is_scrape_complete(row.sam_raw if isinstance(row.sam_raw, dict) else {})
-    )
+    pending = sum(1 for row in candidates if not has_attachments_ready(row))
 
     return {
         "attachments_enriched": enriched,

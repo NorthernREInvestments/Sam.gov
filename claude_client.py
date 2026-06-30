@@ -589,13 +589,15 @@ def _contract_pdf_blocks(
 
 
 def contract_attachment_text(contract: Any, *, max_pdfs: int | None = None) -> str:
-    """Plain text from every contract PDF attachment."""
-    pdf_blocks, _ = _contract_pdf_blocks(contract, max_pdfs=max_pdfs or MAX_PDFS)
-    parts: list[str] = []
-    for block in pdf_blocks:
-        if block.get("type") == "text":
-            parts.append(str(block.get("text") or ""))
-    return "\n\n".join(parts)
+    """Plain text from every contract PDF attachment (stored in DB when available)."""
+    stored = getattr(contract, "attachment_text", None)
+    if stored and str(stored).strip():
+        return str(stored).strip()
+
+    from attachment_pipeline import extract_contract_attachment_text
+
+    result = extract_contract_attachment_text(contract, max_pdfs=max_pdfs or MAX_PDFS)
+    return result.text
 
 
 _DRAWING_NAME_HINTS: tuple[str, ...] = (

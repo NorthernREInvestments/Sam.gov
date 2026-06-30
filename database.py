@@ -50,6 +50,29 @@ def init_db() -> None:
     _migrate_add_contract_tier()
     _migrate_add_sub_agreements()
     _migrate_add_contract_margin()
+    _migrate_add_attachment_compliance()
+
+
+def _migrate_add_attachment_compliance() -> None:
+    columns = [
+        ("attachment_text", "TEXT"),
+        ("attachment_extraction_method", "VARCHAR(32)"),
+        ("attachment_extraction_note", "TEXT"),
+        ("attachment_text_extracted_at", "TIMESTAMP WITH TIME ZONE"),
+        ("subcontracting_limitation_check", "VARCHAR(32)"),
+        ("subcontracting_limitation_context", "TEXT"),
+        ("subcontracting_limitation_percentage", "NUMERIC(5, 2)"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in columns:
+            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_contracts_subcontracting_limitation_check "
+                "ON contracts (subcontracting_limitation_check)"
+            )
+        )
+        conn.commit()
 
 
 def _migrate_add_contract_margin() -> None:

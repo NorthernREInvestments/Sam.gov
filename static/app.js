@@ -305,6 +305,38 @@ function formatScopePreview(c) {
     </div>`;
 }
 
+function subcontractingLimitationBadge(c) {
+  const check = c.subcontracting_limitation_check;
+  if (!check) return "";
+  if (check === "NOT_FOUND") {
+    return `<span class="badge badge-subcontract-ok">No Subcontracting Limit Found</span>`;
+  }
+  if (check === "FOUND") {
+    const pct = c.subcontracting_limitation_percentage;
+    const pctLabel = pct != null ? ` (${pct}%)` : "";
+    return `<span class="badge badge-subcontract-found">⚠ SUBCONTRACTING LIMIT PRESENT — REVIEW BEFORE BIDDING${escapeHtml(pctLabel)}</span>`;
+  }
+  if (check === "EXTRACTION_FAILED") {
+    return `<span class="badge badge-subcontract-unverified">⚠ Could Not Verify — Manual Check Required</span>`;
+  }
+  return "";
+}
+
+function renderSubcontractingComplianceBanner(c) {
+  const check = c.subcontracting_limitation_check;
+  if (c.pursue !== true) return "";
+  if (check !== "FOUND" && check !== "EXTRACTION_FAILED") return "";
+  const context =
+    check === "FOUND" && c.subcontracting_limitation_context
+      ? `<p class="compliance-banner-context">${escapeHtml(c.subcontracting_limitation_context)}</p>`
+      : "";
+  return `<div class="compliance-banner compliance-banner-${check === "FOUND" ? "found" : "unverified"}">
+    <strong>Subcontracting compliance warning</strong>
+    <p>This contract may limit how much work can be subcontracted, or this could not be verified. Confirm manually before submitting a bid — this directly affects whether Northern RE Investments LLC's business model is compliant for this contract.</p>
+    ${context}
+  </div>`;
+}
+
 function renderCards() {
   const container = document.getElementById("cards");
   const proc = processingCount > 0 ? ` · ${processingCount} processing (attachments + PDF read)` : "";
@@ -358,7 +390,7 @@ function renderCards() {
     return `
     <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
       <div class="card-top">
-        <div class="card-badges">${screeningBadge(c)} ${tierBadge(c)} ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""} ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance</span>' : ""}</div>
+        <div class="card-badges">${screeningBadge(c)} ${subcontractingLimitationBadge(c)} ${tierBadge(c)} ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""} ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance</span>' : ""}</div>
         <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
           <span class="card-due-label">Due</span>
           <span class="card-due-date">${escapeHtml(due.main)}</span>
@@ -578,6 +610,7 @@ function renderDetailModal(c, { analyzing = false } = {}) {
       <h2 class="detail-title">${escapeHtml(c.title)}</h2>
       <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
     </div>
+    ${renderSubcontractingComplianceBanner(c)}
     ${pipelineStrip}
     <div class="detail-workflow-grid">
       ${wrapDetailSection("1 · Evaluate", summaryInner, "detail-section-summary")}

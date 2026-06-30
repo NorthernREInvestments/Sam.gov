@@ -84,10 +84,11 @@ def text_score_from_analysis(analysis: dict[str, Any] | None) -> int | None:
 
 
 def has_attachments_ready(row: Contract) -> bool:
+    from attachment_pipeline import is_attachment_extraction_ready
     from sam_enrich import is_scrape_complete
 
     raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    return is_scrape_complete(raw)
+    return is_scrape_complete(raw) and is_attachment_extraction_ready(row)
 
 
 def qualifies_for_full_analysis(

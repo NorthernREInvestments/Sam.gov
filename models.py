@@ -58,6 +58,15 @@ class Contract(Base):
     price_per_sqft_per_visit: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     pricing_region: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
 
+    # Persisted solicitation PDF text + FAR 52.219-14 compliance
+    attachment_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attachment_extraction_method: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    attachment_extraction_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attachment_text_extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    subcontracting_limitation_check: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    subcontracting_limitation_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subcontracting_limitation_percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

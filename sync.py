@@ -364,6 +364,14 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "external_links": external_links,
         "sam_attachments": sam_attachments,
         "scrape_complete": is_scrape_complete(sam_raw),
+        "attachment_text_chars": len(row.attachment_text or ""),
+        "attachment_extraction_method": row.attachment_extraction_method,
+        "attachment_extraction_note": row.attachment_extraction_note,
+        "subcontracting_limitation_check": row.subcontracting_limitation_check,
+        "subcontracting_limitation_context": row.subcontracting_limitation_context,
+        "subcontracting_limitation_percentage": float(row.subcontracting_limitation_percentage)
+        if row.subcontracting_limitation_percentage is not None
+        else None,
         "workflow": workflow,
         "pipeline": pipeline,
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,

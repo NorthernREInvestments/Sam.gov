@@ -159,8 +159,8 @@ def _contract_record(row: Contract, session: Session, *, attachment_text: str | 
         if row.price_per_sqft_per_visit is not None
         else None,
         "pricing_region": row.pricing_region,
-        "attachment_text": attachment_text,
-        "attachment_text_chars": len(attachment_text) if attachment_text else 0,
+        "attachment_text": row.attachment_text or attachment_text,
+        "attachment_text_chars": len(row.attachment_text or attachment_text or ""),
     }
 
 
@@ -216,9 +216,9 @@ def build_claude_export(session: Session, *, include_attachment_text: bool = Tru
     contract_records: list[dict[str, Any]] = []
     attachment_notes: list[dict[str, Any]] = []
     for row in contracts:
-        att_text = None
+        att_text = row.attachment_text
         att_note = None
-        if include_attachment_text:
+        if not att_text and include_attachment_text:
             att_text, att_note = _attachment_text_for_contract(row)
             if att_note:
                 attachment_notes.append({"notice_id": row.notice_id, "note": att_note})

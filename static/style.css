@@ -922,6 +922,49 @@ a {
   color: #5b21b6;
 }
 
+.badge-subcontract-ok {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+}
+
+.badge-subcontract-found {
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.badge-subcontract-unverified {
+  background: #ffedd5;
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.compliance-banner {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+.compliance-banner-found {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #7f1d1d;
+}
+
+.compliance-banner-unverified {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.compliance-banner-context {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
 .badge-tier {
   font-weight: 700;
 }

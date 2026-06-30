@@ -387,14 +387,15 @@ def _place_of_performance_text(raw: dict[str, Any]) -> str | None:
 
 
 def needs_attachment_refresh(sam_raw: dict[str, Any] | None) -> bool:
-    return not is_scrape_complete(sam_raw)
+    return not is_sam_metadata_ready(sam_raw)
 
 
-def is_scrape_complete(sam_raw: dict[str, Any] | None) -> bool:
-    """True when SAM attachments + PIEE manifest were fetched for this opportunity."""
+def is_sam_metadata_ready(sam_raw: dict[str, Any] | None) -> bool:
+    """True when SAM attachments + PIEE manifest metadata were fetched (before PDF text extraction)."""
     if not isinstance(sam_raw, dict) or not sam_raw:
         return False
-    if sam_raw.get("scrapeStatus") != "complete":
+    status = sam_raw.get("scrapeStatus")
+    if status not in ("metadata_ready", "complete"):
         return False
     if "opportunityAttachments" not in sam_raw:
         return False
@@ -406,8 +407,20 @@ def is_scrape_complete(sam_raw: dict[str, Any] | None) -> bool:
     return True
 
 
+def is_scrape_complete(sam_raw: dict[str, Any] | None) -> bool:
+    """True when SAM metadata is ready AND attachment text extraction finished (see attachmentExtraction)."""
+    if not is_sam_metadata_ready(sam_raw):
+        return False
+    if sam_raw.get("scrapeStatus") != "complete":
+        return False
+    extraction = sam_raw.get("attachmentExtraction")
+    if not isinstance(extraction, dict):
+        return False
+    return extraction.get("method") in ("text", "ocr_needed", "no_pdfs_expected")
+
+
 def needs_enrichment(sam_raw: dict[str, Any] | None) -> bool:
-    return not is_scrape_complete(sam_raw)
+    return not is_sam_metadata_ready(sam_raw)
 
 
 def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None) -> tuple[dict[str, Any], bool]:
@@ -419,10 +432,11 @@ def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None)
 
     from piee_client import attach_piee_manifest
 
-    if is_scrape_complete(raw):
+    if is_sam_metadata_ready(raw):
         refreshed = attach_piee_manifest(dict(raw))
         if is_scrape_complete(refreshed):
             return refreshed, True
+        return refreshed, True
 
     notice_id = str(raw.get("noticeId") or "")
     if not notice_id:
@@ -442,7 +456,7 @@ def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None)
         return enriched, False
 
     enriched = attach_piee_manifest(enriched)
-    enriched["scrapeStatus"] = "complete"
+    enriched["scrapeStatus"] = "metadata_ready"
     enriched["scrapedAt"] = datetime.now(timezone.utc).isoformat()
     enriched.pop("scrapeError", None)
     return enriched, True
