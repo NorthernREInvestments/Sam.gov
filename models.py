@@ -77,6 +77,30 @@ class Contract(Base):
     contract_subs: Mapped[list["ContractSub"]] = relationship(
         "ContractSub", back_populates="contract", cascade="all, delete-orphan"
     )
+    attachments: Mapped[list["ContractAttachment"]] = relationship(
+        "ContractAttachment", back_populates="contract", cascade="all, delete-orphan"
+    )
+
+
+class ContractAttachment(Base):
+    """Persisted solicitation file bytes (PDF and other downloads) — not just URLs."""
+
+    __tablename__ = "contract_attachments"
+    __table_args__ = (UniqueConstraint("contract_id", "filename_key", name="uq_contract_attachment_file"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(512))
+    filename_key: Mapped[str] = mapped_column(String(512))
+    source: Mapped[str] = mapped_column(String(32), default="sam")  # sam | piee
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    content_type: Mapped[str] = mapped_column(String(128), default="application/pdf")
+    file_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    contract: Mapped["Contract"] = relationship("Contract", back_populates="attachments")
 
 
 class Sub(Base):

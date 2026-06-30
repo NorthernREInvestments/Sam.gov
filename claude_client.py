@@ -644,8 +644,23 @@ def is_drawing_pdf(name: str, data: bytes) -> bool:
     return False
 
 
-def iter_contract_pdf_bytes(contract: Any) -> list[tuple[str, bytes]]:
-    """Download every PIEE + SAM PDF for a contract."""
+def iter_contract_pdf_bytes(contract: Any, *, session=None) -> list[tuple[str, bytes]]:
+    """PDF bytes from PostgreSQL when stored; otherwise download and persist."""
+    from database import SessionLocal
+
+    own_session = None
+    if session is None and getattr(contract, "id", None):
+        session = SessionLocal()
+        own_session = session
+    try:
+        if session is not None and getattr(contract, "id", None):
+            from attachment_storage import get_contract_pdf_bytes
+
+            return get_contract_pdf_bytes(session, contract)
+    finally:
+        if own_session:
+            own_session.close()
+
     from piee_client import fetch_piee_pdfs
 
     raw = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}

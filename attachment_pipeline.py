@@ -1,4 +1,4 @@
-"""Download solicitation PDFs, extract text, and run FAR 52.219-14 compliance checks."""
+"""Download solicitation PDFs, persist file bytes, extract text, FAR 52.219-14 checks."""
 
 from __future__ import annotations
 
@@ -8,18 +8,16 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from models import Contract
 
 MIN_TEXT_FOR_FAR_CHECK = 500
 
-
-def _sanitize_pdf_text(text: str) -> str:
-    """PostgreSQL TEXT columns reject NUL bytes from some PDF extractors."""
-    return (text or "").replace("\x00", "")
 FAR_CLAUSE_MARKERS = (
     "52.219-14",
-    "52.219‑14",  # unicode hyphen
-    "52.219–14",  # en dash
+    "52.219‑14",
+    "52.219–14",
     "limitations on subcontracting",
 )
 PERCENTAGE_NEARBY_PATTERN = re.compile(
@@ -27,6 +25,11 @@ PERCENTAGE_NEARBY_PATTERN = re.compile(
     r"(?:cost|amount|price|value)?\s*(?:of\s+)?(?:contract\s+)?(?:performance|incurred|work)?",
     re.IGNORECASE,
 )
+
+
+def _sanitize_pdf_text(text: str) -> str:
+    """PostgreSQL TEXT columns reject NUL bytes from some PDF extractors."""
+    return (text or "").replace("\x00", "")
 
 
 @dataclass
@@ -39,6 +42,8 @@ class AttachmentExtractionResult:
     pdfs_with_text: int
     pdf_labels: list[str]
     skipped: list[str]
+    files_stored: int
+    bytes_stored: int
 
 
 @dataclass
@@ -54,9 +59,20 @@ def _normalize_for_search(text: str) -> str:
     return normalized.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
 
 
-def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) -> AttachmentExtractionResult:
-    """Download every PIEE/SAM PDF and extract plain text (PyMuPDF)."""
-    from claude_client import is_drawing_pdf, iter_contract_pdf_bytes
+def extract_contract_attachment_text(
+    contract: Contract,
+    session: Session,
+    *,
+    max_pdfs: int = 12,
+) -> AttachmentExtractionResult:
+    """Download PDFs, persist bytes to PostgreSQL, extract and merge plain text."""
+    from attachment_storage import (
+        attachment_storage_summary,
+        download_and_persist_attachments,
+        get_contract_pdf_bytes,
+        persist_attachment_files,
+    )
+    from claude_client import is_drawing_pdf
     from pdf_text import extract_pdf_text
     from screening_pipeline import pdfs_expected_on_contract
 
@@ -70,16 +86,21 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
             pdfs_with_text=0,
             pdf_labels=[],
             skipped=[],
+            files_stored=0,
+            bytes_stored=0,
         )
 
     parts: list[str] = []
     labels: list[str] = []
     skipped: list[str] = []
+    extracted_by_name: dict[str, str] = {}
     ocr_only = False
     pdfs_with_text = 0
 
     try:
-        pdf_items = iter_contract_pdf_bytes(contract)[:max_pdfs]
+        pdf_items = get_contract_pdf_bytes(session, contract, max_pdfs=max_pdfs)
+        if not pdf_items:
+            pdf_items = download_and_persist_attachments(session, contract, max_pdfs=max_pdfs)
     except Exception as exc:
         return AttachmentExtractionResult(
             text="",
@@ -90,6 +111,8 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
             pdfs_with_text=0,
             pdf_labels=[],
             skipped=[str(exc)],
+            files_stored=0,
+            bytes_stored=0,
         )
 
     if not pdf_items:
@@ -97,11 +120,13 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
             text="",
             char_count=0,
             method="failed",
-            note="PDFs were expected but none could be downloaded.",
+            note="PDFs were expected but none could be downloaded or stored.",
             pdfs_attempted=0,
             pdfs_with_text=0,
             pdf_labels=[],
             skipped=["download_returned_empty"],
+            files_stored=0,
+            bytes_stored=0,
         )
 
     for name, data in pdf_items:
@@ -113,12 +138,20 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
         text = _sanitize_pdf_text(extract_pdf_text(data, max_chars=350_000))
         if text.strip():
             pdfs_with_text += 1
+            extracted_by_name[label] = text.strip()
             parts.append(f"--- {label} ---\n{text.strip()}")
         elif is_drawing_pdf(label, data):
             ocr_only = True
             skipped.append(f"{label} (image-only PDF — OCR needed)")
         else:
             skipped.append(f"{label} (no extractable text layer)")
+
+    # Re-persist with per-file extracted text
+    persist_rows = [(label, data, "stored", None) for label, data in pdf_items if data.startswith(b"%PDF")]
+    if persist_rows:
+        persist_attachment_files(session, contract, persist_rows, extracted_by_name=extracted_by_name)
+
+    storage = attachment_storage_summary(session, contract.id) if contract.id else {"count": 0, "total_bytes": 0}
 
     merged = "\n\n".join(parts).strip()
     if merged:
@@ -128,10 +161,10 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
             note = "Some attachments are image-only scans; OCR may be required for full coverage."
     elif ocr_only:
         method = "ocr_needed"
-        note = "PDFs downloaded but appear to be image-only scans with no text layer."
+        note = "PDFs stored but appear to be image-only scans with no text layer."
     else:
         method = "failed"
-        note = "PDFs downloaded but no text could be extracted."
+        note = "PDFs stored but no text could be extracted."
 
     return AttachmentExtractionResult(
         text=merged,
@@ -142,10 +175,16 @@ def extract_contract_attachment_text(contract: Contract, *, max_pdfs: int = 12) 
         pdfs_with_text=pdfs_with_text,
         pdf_labels=labels,
         skipped=skipped,
+        files_stored=storage.get("count", 0),
+        bytes_stored=storage.get("total_bytes", 0),
     )
 
 
-def check_subcontracting_limitation(attachment_text: str | None, *, char_count: int | None = None) -> SubcontractingCheckResult:
+def check_subcontracting_limitation(
+    attachment_text: str | None,
+    *,
+    char_count: int | None = None,
+) -> SubcontractingCheckResult:
     """Search full attachment text for FAR 52.219-14 / Limitations on Subcontracting."""
     text = attachment_text or ""
     count = char_count if char_count is not None else len(text)
@@ -190,7 +229,10 @@ def check_subcontracting_limitation(attachment_text: str | None, *, char_count: 
     )
 
 
-def persist_attachment_and_compliance(row: Contract, extraction: AttachmentExtractionResult) -> SubcontractingCheckResult:
+def persist_attachment_and_compliance(
+    row: Contract,
+    extraction: AttachmentExtractionResult,
+) -> SubcontractingCheckResult:
     """Write extraction + compliance fields onto the contract row."""
     row.attachment_text = extraction.text or None
     row.attachment_extraction_method = extraction.method
@@ -204,9 +246,14 @@ def persist_attachment_and_compliance(row: Contract, extraction: AttachmentExtra
     return check
 
 
-def run_attachment_pipeline(row: Contract, *, max_pdfs: int = 12) -> dict[str, Any]:
-    """Extract attachment text and run FAR 52.219-14 check. Returns summary dict."""
-    extraction = extract_contract_attachment_text(row, max_pdfs=max_pdfs)
+def run_attachment_pipeline(
+    row: Contract,
+    session: Session,
+    *,
+    max_pdfs: int = 12,
+) -> dict[str, Any]:
+    """Download, persist file bytes, extract text, run FAR 52.219-14 check."""
+    extraction = extract_contract_attachment_text(row, session, max_pdfs=max_pdfs)
     check = persist_attachment_and_compliance(row, extraction)
     _sync_scrape_status_with_extraction(row, extraction)
     return {
@@ -215,6 +262,8 @@ def run_attachment_pipeline(row: Contract, *, max_pdfs: int = 12) -> dict[str, A
         "attachment_extraction_note": extraction.note,
         "pdfs_attempted": extraction.pdfs_attempted,
         "pdfs_with_text": extraction.pdfs_with_text,
+        "files_stored": extraction.files_stored,
+        "bytes_stored": extraction.bytes_stored,
         "skipped": extraction.skipped,
         "subcontracting_limitation_check": check.check,
         "subcontracting_limitation_percentage": check.percentage,
@@ -222,9 +271,11 @@ def run_attachment_pipeline(row: Contract, *, max_pdfs: int = 12) -> dict[str, A
 
 
 def _sync_scrape_status_with_extraction(row: Contract, extraction: AttachmentExtractionResult) -> None:
-    """scrapeStatus=complete only when extraction succeeded or is legitimately ocr_needed / no PDFs."""
     raw = dict(row.sam_raw) if isinstance(row.sam_raw, dict) else {}
-    if extraction.method in ("text", "ocr_needed", "no_pdfs_expected"):
+    from screening_pipeline import pdfs_expected_on_contract
+
+    files_ok = extraction.files_stored > 0 or not pdfs_expected_on_contract(row)
+    if extraction.method in ("text", "ocr_needed", "no_pdfs_expected") and files_ok:
         raw["scrapeStatus"] = "complete"
         raw.pop("scrapeError", None)
         raw["attachmentExtraction"] = {
@@ -232,20 +283,31 @@ def _sync_scrape_status_with_extraction(row: Contract, extraction: AttachmentExt
             "char_count": extraction.char_count,
             "pdfs_attempted": extraction.pdfs_attempted,
             "pdfs_with_text": extraction.pdfs_with_text,
+            "files_stored": extraction.files_stored,
+            "bytes_stored": extraction.bytes_stored,
             "skipped": extraction.skipped,
         }
     else:
         raw["scrapeStatus"] = "incomplete"
-        raw["scrapeError"] = extraction.note or "attachment_text_extraction_failed"
+        raw["scrapeError"] = extraction.note or "attachment_download_or_extraction_failed"
         raw["attachmentExtraction"] = {
             "method": extraction.method,
             "char_count": extraction.char_count,
+            "files_stored": extraction.files_stored,
             "skipped": extraction.skipped,
         }
     row.sam_raw = raw
 
 
-def is_attachment_extraction_ready(row: Contract) -> bool:
+def is_attachment_extraction_ready(row: Contract, session: Session | None = None) -> bool:
+    from screening_pipeline import pdfs_expected_on_contract
+
+    if pdfs_expected_on_contract(row) and session is not None and row.id:
+        from attachment_storage import attachment_storage_summary
+
+        if attachment_storage_summary(session, row.id)["pdf_count"] < 1:
+            return False
+
     method = getattr(row, "attachment_extraction_method", None)
     if method == "text":
         return bool(row.attachment_text and len(row.attachment_text.strip()) > 0)

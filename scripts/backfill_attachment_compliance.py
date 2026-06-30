@@ -30,16 +30,20 @@ def main() -> None:
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if not is_sam_metadata_ready(raw):
             print(
-                f"{(row.title or '')[:55]:<55} | {before:>8} | {before:>8} | {'SKIP_NO_METADATA':<18} | —"
+                f"{(row.title or '')[:55]:<55} | {before:>8} | {before:>8} | {'SKIP_NO_METADATA':<18} | — | 0 files"
             )
             continue
         try:
-            summary = run_attachment_pipeline(row)
+            summary = run_attachment_pipeline(row, session)
             session.commit()
             after = summary["attachment_text_chars"]
             check = summary["subcontracting_limitation_check"]
             method = summary["attachment_extraction_method"]
-            print(f"{(row.title or '')[:55]:<55} | {before:>8} | {after:>8} | {check:<18} | {method}")
+            stored = summary.get("files_stored", 0)
+            mb = round((summary.get("bytes_stored") or 0) / 1_000_000, 2)
+            print(
+                f"{(row.title or '')[:55]:<55} | {before:>8} | {after:>8} | {check:<18} | {method} | {stored} files ({mb} MB)"
+            )
         except Exception as exc:
             session.rollback()
             print(f"{(row.title or '')[:55]:<55} | {before:>8} | ERROR    | {'ERROR':<18} | {exc}")

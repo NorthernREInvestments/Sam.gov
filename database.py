@@ -39,7 +39,15 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
-    from models import AppSetting, Contract, ContractSub, Proposal, Sub, SubcontractAgreement  # noqa: F401
+    from models import (  # noqa: F401
+        AppSetting,
+        Contract,
+        ContractAttachment,
+        ContractSub,
+        Proposal,
+        Sub,
+        SubcontractAgreement,
+    )
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_sam_raw()

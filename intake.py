@@ -81,37 +81,47 @@ def ensure_description_for_text_screen(row: Contract) -> bool:
     return True
 
 
-def enrich_contract_attachments(row: Contract) -> bool:
-    """Load full SAM.gov scrape (description + attachments + PIEE manifest) and extract PDF text."""
+def enrich_contract_attachments(row: Contract, session=None) -> bool:
+    """Load SAM scrape, download attachment bytes into PostgreSQL, extract text."""
     from attachment_pipeline import is_attachment_extraction_ready, run_attachment_pipeline
+    from database import SessionLocal
     from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_opportunity_complete
     from sam_client import normalize_opportunity
 
-    raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    if is_scrape_complete(raw) and is_attachment_extraction_ready(row):
-        return False
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
 
-    if is_sam_metadata_ready(raw) and not is_attachment_extraction_ready(row):
-        run_attachment_pipeline(row)
+    try:
+        raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+        if is_scrape_complete(raw) and is_attachment_extraction_ready(row, session):
+            return False
+
+        if is_sam_metadata_ready(raw) and not is_attachment_extraction_ready(row, session):
+            run_attachment_pipeline(row, session)
+            return True
+
+        if is_sam_metadata_ready(raw) and is_scrape_complete(raw):
+            return False
+
+        enriched, ok = scrape_opportunity_complete(raw)
+        if not ok:
+            return False
+
+        row.sam_raw = enriched
+        if enriched.get("descriptionText"):
+            row.description = enriched["descriptionText"][:8000]
+
+        refreshed = normalize_opportunity(enriched)
+        if refreshed.get("location"):
+            row.location = refreshed["location"]
+
+        run_attachment_pipeline(row, session)
         return True
-
-    if is_sam_metadata_ready(raw) and is_scrape_complete(raw):
-        return False
-
-    enriched, ok = scrape_opportunity_complete(raw)
-    if not ok:
-        return False
-
-    row.sam_raw = enriched
-    if enriched.get("descriptionText"):
-        row.description = enriched["descriptionText"][:8000]
-
-    refreshed = normalize_opportunity(enriched)
-    if refreshed.get("location"):
-        row.location = refreshed["location"]
-
-    run_attachment_pipeline(row)
-    return True
+    finally:
+        if own_session:
+            session.commit()
+            session.close()
 
 
 def enrich_contract_from_sam(row: Contract) -> bool:
@@ -222,8 +232,17 @@ def run_full_analysis(
     def _persist_scope_from_pdfs() -> None:
         nonlocal analysis
         from attachment_pipeline import run_attachment_pipeline
+        from database import SessionLocal
 
-        run_attachment_pipeline(row)
+        if session is not None:
+            run_attachment_pipeline(row, session)
+        else:
+            s = SessionLocal()
+            try:
+                run_attachment_pipeline(row, s)
+                s.commit()
+            finally:
+                s.close()
         full_text = contract_attachment_text(row, max_pdfs=12)
         supplement_pws_from_pdf_text(analysis, full_text)
         apply_pws_extraction(row, analysis)
@@ -547,7 +566,7 @@ def enrich_matching_attachments(
             errors.append("SAM.gov daily budget reached — full scrape pending.")
             break
         try:
-            if enrich_contract_attachments(row):
+            if enrich_contract_attachments(row, session=session):
                 session.commit()
                 enriched += 1
         except Exception as exc:

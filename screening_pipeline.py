@@ -85,10 +85,15 @@ def text_score_from_analysis(analysis: dict[str, Any] | None) -> int | None:
 
 def has_attachments_ready(row: Contract) -> bool:
     from attachment_pipeline import is_attachment_extraction_ready
+    from database import SessionLocal
     from sam_enrich import is_scrape_complete
 
     raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    return is_scrape_complete(raw) and is_attachment_extraction_ready(row)
+    session = SessionLocal()
+    try:
+        return is_scrape_complete(raw) and is_attachment_extraction_ready(row, session)
+    finally:
+        session.close()
 
 
 def qualifies_for_full_analysis(

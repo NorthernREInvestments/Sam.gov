@@ -247,6 +247,14 @@ def list_contracts(
     return results
 
 
+def _attachment_files_summary(row: Contract, session) -> dict[str, Any]:
+    from attachment_storage import attachment_storage_summary
+
+    if not row.id:
+        return {"count": 0, "pdf_count": 0, "total_bytes": 0, "files": []}
+    return attachment_storage_summary(session, row.id)
+
+
 def contract_to_dict(row: Contract) -> dict[str, Any]:
     from naics_labels import naics_display, naics_label, tier_label
 
@@ -372,6 +380,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "subcontracting_limitation_percentage": float(row.subcontracting_limitation_percentage)
         if row.subcontracting_limitation_percentage is not None
         else None,
+        "attachment_files": _attachment_files_summary(row, session),
         "workflow": workflow,
         "pipeline": pipeline,
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
