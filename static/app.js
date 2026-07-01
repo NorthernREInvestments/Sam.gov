@@ -1384,9 +1384,14 @@ function scheduleFilterRefresh(delay = 400) {
   filterRefreshTimer = setTimeout(() => loadContracts(), delay);
 }
 
+function setFiltersOpen(open) {
+  document.getElementById("filters-panel")?.classList.toggle("filters-open", open);
+  document.body.classList.toggle("filters-drawer-open", open);
+}
+
 function applyFiltersAndRefresh() {
   clearTimeout(filterRefreshTimer);
-  document.getElementById("filters-panel")?.classList.remove("filters-open");
+  setFiltersOpen(false);
   loadContracts();
 }
 
@@ -1448,9 +1453,8 @@ document.getElementById("modal-backdrop")?.addEventListener("click", closeModal)
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);
 document.getElementById("reset-prompt-btn").addEventListener("click", resetPrompt);
 document.getElementById("export-claude-btn")?.addEventListener("click", exportForClaude);
-document.getElementById("mobile-filter-btn")?.addEventListener("click", () => {
-  document.getElementById("filters-panel")?.classList.add("filters-open");
-});
+document.getElementById("mobile-filter-btn")?.addEventListener("click", () => setFiltersOpen(true));
+document.getElementById("filters-backdrop")?.addEventListener("click", applyFiltersAndRefresh);
 document.getElementById("close-filters-btn")?.addEventListener("click", applyFiltersAndRefresh);
 
 bindFilterControls();

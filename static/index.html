@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GovTracker</title>
-  <link rel="stylesheet" href="/style.css?v=20260701-mobile-filters">
+  <link rel="stylesheet" href="/style.css?v=20260701-filter-scroll">
 </head>
 <body>
   <header class="header">
@@ -36,11 +36,13 @@
       </div>
     </div>
     <div class="layout">
+      <button type="button" id="filters-backdrop" class="filters-backdrop" aria-label="Close filters" tabindex="-1"></button>
       <aside id="filters-panel" class="filters">
         <div class="filters-header">
           <h2>Filters</h2>
           <button id="close-filters-btn" class="btn btn-secondary-action mobile-only" type="button">Close</button>
         </div>
+        <div class="filters-body">
         <label class="filter-label">NAICS codes</label>
         <div id="naics-filters" class="checkbox-group"></div>
         <label class="filter-label" for="min-days">Minimum days until due</label>
@@ -73,7 +75,10 @@
           <option value="wosb">WOSB</option>
           <option value="sdvosb">SDVOSB</option>
         </select>
+        </div>
+        <div class="filters-footer">
         <button id="apply-filters" class="btn btn-secondary" type="button">Apply filters</button>
+        </div>
       </aside>
       <main class="main">
         <div id="filter-hint" class="filter-hint" hidden></div>
@@ -265,12 +270,12 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260701-mobile-filters"></script>
-  <script src="/contract-detail.js?v=20260701-mobile-filters"></script>
-  <script src="/subs.js?v=20260701-mobile-filters"></script>
-  <script src="/pricing.js?v=20260701-mobile-filters"></script>
-  <script src="/proposal.js?v=20260701-mobile-filters"></script>
-  <script src="/submission.js?v=20260701-mobile-filters"></script>
-  <script src="/performance.js?v=20260701-mobile-filters"></script>
+  <script src="/app.js?v=20260701-filter-scroll"></script>
+  <script src="/contract-detail.js?v=20260701-filter-scroll"></script>
+  <script src="/subs.js?v=20260701-filter-scroll"></script>
+  <script src="/pricing.js?v=20260701-filter-scroll"></script>
+  <script src="/proposal.js?v=20260701-filter-scroll"></script>
+  <script src="/submission.js?v=20260701-filter-scroll"></script>
+  <script src="/performance.js?v=20260701-filter-scroll"></script>
 </body>
 </html>
