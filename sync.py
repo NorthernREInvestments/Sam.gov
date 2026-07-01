@@ -311,11 +311,15 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         sub_summary["city"] = work.get("city") or work.get("label")
         from display_format import (
             format_agency_display,
+            format_department_display,
+            format_service_type_display,
             format_work_location_short,
             pricing_card_label,
         )
 
         agency_display = format_agency_display(row.agency)
+        department_display = format_department_display(row.agency)
+        service_type_display = format_service_type_display(row.naics_code, naics_label(row.naics_code))
         location_display = format_work_location_short(
             row.location,
             row.sam_raw if isinstance(row.sam_raw, dict) else None,
@@ -358,6 +362,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "title": row.title,
         "agency": row.agency,
         "agency_display": agency_display,
+        "department_display": department_display,
+        "service_type_display": service_type_display,
         "location": row.location,
         "location_display": location_display,
         "work_location": work,

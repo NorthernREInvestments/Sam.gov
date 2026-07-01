@@ -68,6 +68,50 @@ def _is_parent_department_segment(seg_upper: str) -> bool:
     return False
 
 
+def format_department_display(agency: str | None) -> str:
+    """Parent department for dashboard cards — e.g. Dept of Ag, US Army."""
+    if not agency:
+        return "Federal agency"
+    upper = str(agency).strip().upper()
+    if not upper or upper.startswith("{"):
+        return "Federal agency"
+
+    rules: tuple[tuple[str, ...], str] = (
+        (("AGRICULTURE", "FOREST SERVICE", "USDA"), "Dept of Ag"),
+        (("DEPT OF THE ARMY", "DEPARTMENT OF THE ARMY"), "US Army"),
+        (("DEPT OF THE NAVY", "DEPARTMENT OF THE NAVY"), "US Navy"),
+        (("DEPT OF THE AIR FORCE", "DEPARTMENT OF THE AIR FORCE"), "US Air Force"),
+        (("CORPS OF ENGINEERS",), "US Army"),
+        (("DEPT OF DEFENSE", "DEPARTMENT OF DEFENSE"), "Dept of Defense"),
+        (("INTERIOR", "FISH AND WILDLIFE", "NATIONAL PARK SERVICE", "BUREAU OF LAND MANAGEMENT"), "Dept of Interior"),
+        (("VETERANS AFFAIRS",), "VA"),
+        (("HOMELAND SECURITY",), "DHS"),
+        (("GENERAL SERVICES",), "GSA"),
+    )
+    for needles, label in rules:
+        if any(needle in upper for needle in needles):
+            return label
+
+    segments = [part.strip() for part in str(agency).split(".") if part.strip()]
+    if segments:
+        first = segments[0].split(",")[0].strip()
+        if first.upper() == "AGRICULTURE":
+            return "Dept of Ag"
+        return _title_agency(first) or "Federal agency"
+    return "Federal agency"
+
+
+def format_service_type_display(naics_code: str | None, naics_label: str | None = None) -> str:
+    """Short service label for cards — e.g. Janitorial, Landscaping."""
+    from naics_labels import naics_label as lookup_label
+
+    label = (naics_label or lookup_label(naics_code or "") or "").strip()
+    if not label:
+        return "Contract"
+    short = re.sub(r"\s+Services?$", "", label, flags=re.IGNORECASE).strip()
+    return short or label
+
+
 def format_work_location_short(
     location: str | None,
     sam_raw: dict[str, Any] | None = None,

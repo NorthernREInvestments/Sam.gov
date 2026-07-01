@@ -30,7 +30,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260701-card-v3"
+APP_BUILD_VERSION = "20260701-card-v4"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

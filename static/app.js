@@ -498,9 +498,47 @@ function compactLocationDisplay(c) {
   return "Location pending";
 }
 
+function formatDepartmentDisplay(agency) {
+  if (!agency) return "Federal agency";
+  const upper = String(agency).trim().toUpperCase();
+  if (!upper || upper.startsWith("{")) return "Federal agency";
+  const rules = [
+    [["AGRICULTURE", "FOREST SERVICE", "USDA"], "Dept of Ag"],
+    [["DEPT OF THE ARMY", "DEPARTMENT OF THE ARMY"], "US Army"],
+    [["DEPT OF THE NAVY", "DEPARTMENT OF THE NAVY"], "US Navy"],
+    [["DEPT OF THE AIR FORCE", "DEPARTMENT OF THE AIR FORCE"], "US Air Force"],
+    [["CORPS OF ENGINEERS"], "US Army"],
+    [["DEPT OF DEFENSE", "DEPARTMENT OF DEFENSE"], "Dept of Defense"],
+    [["INTERIOR", "FISH AND WILDLIFE", "NATIONAL PARK SERVICE"], "Dept of Interior"],
+    [["VETERANS AFFAIRS"], "VA"],
+    [["HOMELAND SECURITY"], "DHS"],
+    [["GENERAL SERVICES"], "GSA"],
+  ];
+  for (const [needles, label] of rules) {
+    if (needles.some((n) => upper.includes(n))) return label;
+  }
+  const first = String(agency).split(".")[0]?.split(",")[0]?.trim() || "";
+  if (first.toUpperCase() === "AGRICULTURE") return "Dept of Ag";
+  return first
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ") || "Federal agency";
+}
+
+function compactServiceType(c) {
+  if (c.service_type_display) return c.service_type_display;
+  const label = (c.naics_label || "").trim();
+  if (label) return label.replace(/\s+Services?$/i, "").trim();
+  const display = (c.naics_display || "").trim();
+  const match = display.match(/\d+\s+(.+)/);
+  if (match) return match[1].replace(/\s+Services?$/i, "").trim();
+  return "Contract";
+}
+
 function compactAgencyLine(c) {
-  const agency = c.agency_display || formatAgencyDisplay(c.agency);
-  return `${agency} · ${compactLocationDisplay(c)}`;
+  const service = compactServiceType(c);
+  const dept = c.department_display || formatDepartmentDisplay(c.agency);
+  return `${service} · ${dept} · ${compactLocationDisplay(c)}`;
 }
 
 function compactScopeLine(c) {
