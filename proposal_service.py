@@ -17,6 +17,12 @@ from settings_store import get_owner_settings
 QUOTED_STATUSES = ("Quote Received", "Selected")
 
 
+def _selected_sub_references(session: Session, contract_id: int) -> list[dict[str, Any]]:
+    from sub_contact_service import references_for_selected_sub
+
+    return references_for_selected_sub(session, contract_id)
+
+
 def _dec(value: Decimal | float | int | None) -> float | None:
     if value is None:
         return None
@@ -358,6 +364,7 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
     extracted = extract_solicitation_meta(contract)
     if extracted:
         pws = extracted.pop("pws_extraction", None)
+        pkg = extracted.pop("submission_package", None)
         sol.update({k: v for k, v in extracted.items() if v})
         analysis["solicitation_meta"] = sol
         for key in (
@@ -368,17 +375,23 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
             "base_year_end",
             "agency_address",
             "solicitation_number",
+            "questions_deadline",
         ):
             if sol.get(key) and not analysis.get(key):
                 analysis[key] = sol[key]
         if isinstance(pws, dict) and pws:
             analysis["pws_extraction"] = pws
+        if isinstance(pkg, dict):
+            analysis["submission_package"] = pkg
         contract.analysis = analysis
         from claude_client import contract_attachment_text
         from pws_fields import supplement_pws_from_pdf_text
 
         supplement_pws_from_pdf_text(analysis, contract_attachment_text(contract))
         apply_pws_extraction(contract, analysis)
+        from submission_package import apply_submission_package
+
+        apply_submission_package(contract, session, analysis=analysis)
         if not record_screen_usage():
             raise ScreenBudgetExceeded()
 
@@ -466,6 +479,7 @@ def build_proposal_config(
             "include_capability_statement": True,
             "writing_tone": "Professional",
             "technical_detail": "Detailed",
+            "sub_references": _selected_sub_references(session, contract.id),
         },
         "pws_extraction": analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {},
         "proposal_requirements": analysis.get("proposal_requirements")
@@ -480,6 +494,7 @@ def build_proposal_config(
             "quote_amount": _dec(link.quote_amount),
             "distance_miles": _dec(link.distance_miles),
             "notes": link.contact_notes,
+            "references": _selected_sub_references(session, contract.id),
         },
         "contract": {
             "notice_id": notice_id,
@@ -490,7 +505,16 @@ def build_proposal_config(
             else None,
             "special_requirements": contract.special_requirements,
             "plain_english_summary": analysis_plain(contract),
+            "multiple_pricing_encouraged": bool(contract.multiple_pricing_encouraged),
+            "pricing_schedule_required": bool(contract.pricing_schedule_required),
         },
+        "pricing_tiers_instruction": (
+            "Generate THREE pricing tiers in the price schedule: (1) base requirement meeting minimum PWS, "
+            "(2) enhanced option with additional services, (3) premium option — each with margin built into "
+            "the bid amounts shown in config."
+            if contract.multiple_pricing_encouraged
+            else "Generate a single price schedule only — multiple pricing options were not encouraged."
+        ),
     }
     config = sync_config_from_contract(config, contract)
     config["readiness"] = build_proposal_readiness(contract, config)

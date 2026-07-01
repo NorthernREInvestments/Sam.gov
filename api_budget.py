@@ -76,6 +76,41 @@ def attachment_enrich_on_list_limit() -> int:
     return _daily_limit("ATTACHMENT_ENRICH_ON_LIST_LIMIT", 3)
 
 
+def scheduled_sync_attachments_only() -> bool:
+    """True during the configured attachments-only window (inclusive on both ends)."""
+    until = scheduled_sync_attachments_only_until()
+    if until is not None:
+        today = date.today()
+        start = scheduled_sync_attachments_only_from()
+        if start is not None and today < start:
+            return False
+        return today <= until
+    raw = os.getenv("SCHEDULED_SYNC_ATTACHMENTS_ONLY", "false").strip().lower()
+    return raw in ("1", "true", "yes")
+
+
+def scheduled_sync_attachments_only_from() -> date | None:
+    """First calendar day (inclusive) for attachments-only 6am syncs."""
+    raw = os.getenv("SCHEDULED_SYNC_ATTACHMENTS_ONLY_FROM", "").strip()
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def scheduled_sync_attachments_only_until() -> date | None:
+    """Last calendar day (inclusive) for attachments-only 6am syncs."""
+    raw = os.getenv("SCHEDULED_SYNC_ATTACHMENTS_ONLY_UNTIL", "").strip()
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
 def auto_screen_on_startup() -> bool:
     """Legacy flag — intake on startup uses INTAKE_ON_SYNC instead."""
     if os.getenv("AUTO_SCREEN_ON_STARTUP", "").strip():
@@ -142,6 +177,17 @@ def get_usage_snapshot() -> dict[str, Any]:
         "scheduled_naics_per_sync": scheduled_naics_per_sync(),
         "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),
         "attachment_enrich_on_list_limit": attachment_enrich_on_list_limit(),
+        "scheduled_sync_attachments_only": scheduled_sync_attachments_only(),
+        "scheduled_sync_attachments_only_from": (
+            scheduled_sync_attachments_only_from().isoformat()
+            if scheduled_sync_attachments_only_from()
+            else None
+        ),
+        "scheduled_sync_attachments_only_until": (
+            scheduled_sync_attachments_only_until().isoformat()
+            if scheduled_sync_attachments_only_until()
+            else None
+        ),
     }
 
 

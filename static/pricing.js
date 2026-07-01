@@ -404,8 +404,8 @@ function renderFullPricingPanel(data) {
     </div>`;
 }
 
-async function loadPricingIntel(noticeId, refresh = false) {
-  const container = document.getElementById("pricing-panel");
+async function loadPricingIntel(noticeId, refresh = false, containerId = "pricing-panel") {
+  const container = document.getElementById(containerId);
   if (!container) return;
   container.className = "pricing-panel pricing-panel-loading";
   container.innerHTML = `<p class="pricing-loading">Loading pricing intelligence…</p>`;

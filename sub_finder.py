@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from claude_client import analyze_subcontractors
 from database import SessionLocal
 from geo import haversine_miles, resolve_coordinates
-from models import Contract, ContractSub, Sub
+from models import Contract, ContractSub, Sub, SubContact
 from places_client import PlacesApiError, search_text
 from settings_store import get_sub_search_settings
 from sub_constants import (
@@ -26,6 +26,7 @@ from sub_constants import (
     classify_sub_type,
     resolve_search_terms,
 )
+from sub_contact_service import create_sub_contact_from_link, list_sub_contacts_for_contract, update_sub_contact
 from sub_serializers import contract_sub_summary, contract_sub_to_dict, sub_to_dict
 from usaspending_client import extract_work_location
 
@@ -226,6 +227,7 @@ def link_sub_to_contract(
     if link:
         if distance_miles is not None:
             link.distance_miles = Decimal(str(round(distance_miles, 1)))
+        create_sub_contact_from_link(session, contract, link, sub)
         return link
     link = ContractSub(
         contract_id=contract.id,
@@ -235,6 +237,7 @@ def link_sub_to_contract(
     )
     session.add(link)
     session.flush()
+    create_sub_contact_from_link(session, contract, link, sub)
     return link
 
 
@@ -400,6 +403,10 @@ def maybe_auto_sub_search(contract: Contract) -> None:
 
 
 def list_contract_subs(session: Session, notice_id: str) -> dict[str, Any]:
+    return list_sub_contacts_for_contract(session, notice_id)
+
+
+def _list_contract_subs_legacy(session: Session, notice_id: str) -> dict[str, Any]:
     contract = session.query(Contract).filter_by(notice_id=notice_id).first()
     if not contract:
         raise ValueError("Contract not found")
@@ -446,6 +453,30 @@ def update_contract_sub(session: Session, link_id: int, payload: dict[str, Any])
     link = session.get(ContractSub, link_id)
     if not link:
         raise ValueError("Contract sub link not found")
+
+    contact = session.query(SubContact).filter_by(contract_sub_id=link_id).first()
+    if contact:
+        contact_payload: dict[str, Any] = {}
+        if "status" in payload:
+            from sub_constants import legacy_status_to_contact
+
+            contact_payload["status"] = legacy_status_to_contact(payload["status"])
+        if "contact_notes" in payload:
+            contact_payload["notes"] = payload["contact_notes"]
+        if "quote_amount" in payload:
+            contact_payload["quote_amount"] = payload["quote_amount"]
+            contact_payload["quote_received"] = payload["quote_amount"] not in (None, "")
+        if "quote_date" in payload:
+            contact_payload["quote_date"] = payload["quote_date"]
+        if contact_payload:
+            update_sub_contact(session, contact.id, contact_payload)
+        link = (
+            session.query(ContractSub)
+            .options(joinedload(ContractSub.sub))
+            .filter_by(id=link_id)
+            .first()
+        )
+        return link
 
     if "status" in payload:
         status = payload["status"]

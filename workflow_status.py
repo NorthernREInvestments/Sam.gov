@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from models import Contract, ContractSub, Proposal
+from models import Contract, ContractSub, Proposal, SubContact
 from proposal_service import QUOTED_STATUSES
 
 STAGE_LABELS: dict[str, str] = {
@@ -73,14 +73,24 @@ def compute_workflow_status(contract: Contract, session) -> dict[str, Any]:
     items.extend(_owner_gaps())
 
     quoted_count = (
-        session.query(ContractSub)
+        session.query(SubContact)
         .filter(
-            ContractSub.contract_id == contract.id,
-            ContractSub.status.in_(QUOTED_STATUSES),
-            ContractSub.quote_amount.isnot(None),
+            SubContact.contract_id == contract.id,
+            SubContact.quote_received.is_(True),
+            SubContact.quote_amount.isnot(None),
         )
         .count()
     )
+    if quoted_count == 0:
+        quoted_count = (
+            session.query(ContractSub)
+            .filter(
+                ContractSub.contract_id == contract.id,
+                ContractSub.status.in_(QUOTED_STATUSES),
+                ContractSub.quote_amount.isnot(None),
+            )
+            .count()
+        )
 
     proposal = (
         session.query(Proposal)
@@ -189,3 +199,161 @@ def compute_card_pipeline(contract: Contract, session) -> dict[str, Any]:
         "do_not_rebid": wf.get("do_not_rebid", False),
         "already_bid_label": wf.get("label") if wf.get("do_not_rebid") else "",
     }
+
+
+WORKFLOW_STAGE_KEYS = ("found", "analyzed", "subs", "proposal", "submitted")
+WORKFLOW_STAGE_LABELS = ("Found", "Analyzed", "Subs", "Proposal", "Submitted")
+PERFORMANCE_STATUSES = frozenset({"awarded", "active", "option_year", "stop_work", "completed"})
+
+
+def _contract_filter_category(contract: Contract, session) -> str:
+    """Dashboard status filter bucket."""
+    if contract.status in ("active", "option_year", "stop_work"):
+        return "active"
+    if contract.status in ("awarded", "won"):
+        return "awarded"
+    if contract.status == "submitted" or (contract.analysis or {}).get("status") == "submitted":
+        pass
+    wf = compute_workflow_status(contract, session)
+    stage = wf.get("stage") or "none"
+    if stage in ("submitted", "won") or contract.status == "submitted":
+        return "submitted"
+    if stage in ("needs_proposal", "proposal_incomplete", "draft_ready", "ready"):
+        return "ready_to_bid"
+    if stage == "needs_sub_quote" or wf.get("quoted_sub_count", 0) == 0:
+        analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+        if analysis.get("pursue") is True:
+            return "needs_subs"
+    if contract.status in PERFORMANCE_STATUSES:
+        return "awarded" if contract.status == "awarded" else "active"
+    return "other"
+
+
+def matches_status_filter(contract: Contract, session, status_filter: str | None) -> bool:
+    if not status_filter or status_filter.lower() in ("all", ""):
+        return True
+    cat = _contract_filter_category(contract, session)
+    key = status_filter.lower().replace(" ", "_")
+    mapping = {
+        "needs_subs": "needs_subs",
+        "ready_to_bid": "ready_to_bid",
+        "submitted": "submitted",
+        "awarded": "awarded",
+        "active": "active",
+    }
+    return cat == mapping.get(key, key)
+
+
+def matches_set_aside_filter(contract: Contract, set_aside_filter: str | None) -> bool:
+    if not set_aside_filter or set_aside_filter.lower() in ("all", ""):
+        return True
+    raw = (contract.set_aside or "").lower()
+    if not raw:
+        return set_aside_filter.lower() in ("all", "")
+    key = set_aside_filter.lower().replace("-", "").replace(" ", "")
+    patterns = {
+        "totalsmallbusiness": ("total small business", "small business set-aside", "small business"),
+        "8a": ("8(a)", "8a"),
+        "hubzone": ("hubzone", "hub zone"),
+        "wosb": ("wosb", "women-owned", "woman owned"),
+        "sdvosb": ("sdvosb", "service-disabled", "service disabled veteran"),
+    }
+    needles = patterns.get(key, (set_aside_filter.lower(),))
+    return any(n in raw for n in needles)
+
+
+def compute_workflow_progress(contract: Contract, session) -> dict[str, Any]:
+    """Five-stage progress for compact dashboard cards."""
+    from sam_enrich import is_scrape_complete
+
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    wf = compute_workflow_status(contract, session)
+    stage = wf.get("stage") or "none"
+
+    found_done = True
+    analyzed_done = bool(
+        analysis.get("screening_stage") == "full"
+        and (analysis.get("plain_english_summary") or analysis.get("executive_summary"))
+    ) or bool(analysis.get("score") is not None and is_scrape_complete(raw))
+    subs_done = wf.get("quoted_sub_count", 0) > 0 or stage not in ("needs_sub_quote", "none")
+    proposal_done = stage in (
+        "draft_ready",
+        "ready",
+        "submitted",
+        "won",
+        "lost",
+        "proposal_incomplete",
+    ) or bool(wf.get("proposal_id"))
+    submitted_done = (
+        stage in ("submitted", "won")
+        or contract.status in ("submitted", "awarded", "active", "option_year", "stop_work", "completed", "won")
+    )
+
+    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+        analyzed_done = subs_done = proposal_done = submitted_done = True
+
+    done_flags = [found_done, analyzed_done, subs_done, proposal_done, submitted_done]
+    current_index = 0
+    for i, done in enumerate(done_flags):
+        if not done:
+            current_index = i
+            break
+    else:
+        current_index = len(done_flags) - 1
+
+    stages: list[dict[str, str]] = []
+    for i, (key, label, done) in enumerate(zip(WORKFLOW_STAGE_KEYS, WORKFLOW_STAGE_LABELS, done_flags)):
+        if done:
+            state = "done"
+        elif i == current_index:
+            state = "current"
+        else:
+            state = "future"
+        stages.append({"key": key, "label": label, "state": state})
+
+    status_message = _dashboard_status_message(contract, wf)
+    primary_action = _dashboard_primary_action(contract, wf)
+
+    return {
+        "stages": stages,
+        "current_index": current_index,
+        "status_message": status_message,
+        "primary_action": primary_action,
+        "filter_category": _contract_filter_category(contract, session),
+    }
+
+
+def _dashboard_status_message(contract: Contract, wf: dict[str, Any]) -> str:
+    if contract.status in ("active", "option_year", "stop_work"):
+        return "Active"
+    if contract.status in ("awarded", "won"):
+        return "Awarded"
+    if contract.status == "completed":
+        return "Completed"
+    if contract.status == "not_awarded":
+        return "Not Awarded"
+    if contract.status == "submitted":
+        return "Submitted"
+    label = wf.get("label") or ""
+    if label:
+        return label
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    if analysis.get("pursue") is not True:
+        return "Reviewing"
+    return "Found"
+
+
+def _dashboard_primary_action(contract: Contract, wf: dict[str, Any]) -> dict[str, str]:
+    if contract.status in ("awarded", "active", "option_year", "stop_work"):
+        return {"label": "View Performance", "action": "performance"}
+    stage = wf.get("stage") or "none"
+    if stage == "needs_sub_quote" or wf.get("quoted_sub_count", 0) == 0:
+        return {"label": "Find Subs", "action": "find_subs"}
+    if stage in ("needs_proposal", "proposal_incomplete", "draft_ready"):
+        return {"label": "View Proposal", "action": "proposal"}
+    if stage == "ready":
+        return {"label": "Open Checklist", "action": "checklist"}
+    if stage in ("submitted", "won"):
+        return {"label": "View Contract", "action": "overview"}
+    return {"label": "View Proposal", "action": "proposal"}

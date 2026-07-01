@@ -116,6 +116,17 @@ Return JSON only with these exact fields:
   - base_year_end: string or null — base year end date
   - agency_address: string or null — mailing address for the agency or contracting office
   - solicitation_number: string or null — solicitation/RFP number if stated in the PDF (may differ from SAM notice ID)
+  - questions_deadline: string or null — deadline for questions to the CO if stated
+- submission_package: object — proposal submission requirements detected in attachments (use false/null when not found):
+  - pricing_schedule_required: boolean — true if any attachment filename or content indicates a required pricing schedule, CLIN table, cost schedule, or schedule of supplies/services with unit prices
+  - pricing_schedule_filename: string or null — filename of the pricing document if identified
+  - multiple_pricing_encouraged: boolean — true if solicitation encourages alternative proposals or multiple pricing options
+  - sf1449_required: boolean — true if SF-1449 or Standard Form 1449 is used
+  - submission_method: one of "Email", "PIEE", "SAM.gov", "Mail", "Unknown" — normalized submission channel
+  - submission_email: string or null — email address for proposal submission if method is Email
+  - evaluation_criteria: one of "LPTA", "Technical", "Unknown" — LPTA vs best-value/technical evaluation
+  - questions_deadline: string or null — ISO date or readable date for questions deadline
+- co_questions_suggested: array of strings — compliance questions the offeror should ask the CO based on ambiguities or missing info in the documents (max 6)
 - sub_type_needed: string — REQUIRED. Name the exact trade(s) a local subcontractor must perform to execute this contract (e.g. "licensed commercial HVAC maintenance contractor", "NAID-certified document shredding vendor"). Derive from PWS/solicitation PDFs and posting text — NOT from NAICS code alone. Never label janitorial/cleaning unless the scope is actually custodial cleaning. For 561210 Facilities Support, read the SOW first — it is often building/trades maintenance, not janitorial.
 - red_flags: array of strings
 - far_52_219_14: true or false
@@ -540,6 +551,17 @@ Read the attached solicitation, PWS, wage determination, and instruction documen
   "base_year_end": string or null,
   "agency_address": string or null,
   "solicitation_number": string or null,
+  "questions_deadline": string or null,
+  "submission_package": {
+    "pricing_schedule_required": boolean,
+    "pricing_schedule_filename": string or null,
+    "multiple_pricing_encouraged": boolean,
+    "sf1449_required": boolean,
+    "submission_method": "Email" | "PIEE" | "SAM.gov" | "Mail" | "Unknown",
+    "submission_email": string or null,
+    "evaluation_criteria": "LPTA" | "Technical" | "Unknown",
+    "questions_deadline": string or null
+  },
   "pws_extraction": {
     "square_footage": integer or null,
     "building_type": "office" | "medical" | "warehouse" | "military" | "courthouse" | "other" | null,

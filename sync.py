@@ -181,6 +181,8 @@ def list_contracts(
     agency: str | None = None,
     pursue_only: bool = False,
     tier: int | None = None,
+    status_filter: str | None = None,
+    set_aside_filter: str | None = None,
     require_scrape_complete: bool = False,
     require_dashboard_ready: bool = True,
     notice_ids: list[str] | None = None,
@@ -221,6 +223,12 @@ def list_contracts(
         if score is not None and int(score) < min_score:
             continue
         if pursue_only and analysis.get("pursue") is not True:
+            continue
+        from workflow_status import matches_set_aside_filter, matches_status_filter
+
+        if not matches_status_filter(row, session, status_filter):
+            continue
+        if not matches_set_aside_filter(row, set_aside_filter):
             continue
         if require_dashboard_ready:
             if not is_dashboard_ready(row):
@@ -306,10 +314,16 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             nearby_network_count = network.get("count", 0)
         except Exception:
             nearby_network_count = 0
-        from workflow_status import compute_card_pipeline, compute_workflow_status
+        from workflow_status import compute_card_pipeline, compute_workflow_progress, compute_workflow_status
+        from submission_package import submission_package_dict
+        from performance_service import card_performance_alerts
 
         workflow = compute_workflow_status(row, session)
         pipeline = compute_card_pipeline(row, session)
+        workflow_progress = compute_workflow_progress(row, session)
+        perf_alerts = card_performance_alerts(session, row)
+        submission_pkg = submission_package_dict(row, session)
+        attachment_files = _attachment_files_summary(row, session)
     finally:
         session.close()
 
@@ -380,9 +394,47 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "subcontracting_limitation_percentage": float(row.subcontracting_limitation_percentage)
         if row.subcontracting_limitation_percentage is not None
         else None,
-        "attachment_files": _attachment_files_summary(row, session),
+        "far_52219_14_present": row.far_52219_14_present,
+        "submission_method": row.submission_method,
+        "submission_email": row.submission_email,
+        "submission_method_confirmed": bool(row.submission_method_confirmed),
+        "submission_method_notes": row.submission_method_notes,
+        "pricing_schedule_required": bool(row.pricing_schedule_required),
+        "pricing_schedule_attachment_id": row.pricing_schedule_attachment_id,
+        "multiple_pricing_encouraged": bool(row.multiple_pricing_encouraged),
+        "sf1449_required": bool(row.sf1449_required),
+        "evaluation_criteria_type": row.evaluation_criteria_type,
+        "questions_deadline": row.questions_deadline.isoformat() if row.questions_deadline else None,
+        "co_questions": row.co_questions or [],
+        "submission_package": submission_pkg,
+        "attachment_files": attachment_files,
         "workflow": workflow,
         "pipeline": pipeline,
+        "workflow_progress": workflow_progress,
+        "award_date": row.award_date.isoformat() if row.award_date else None,
+        "period_of_performance_start": row.period_of_performance_start.isoformat()
+        if row.period_of_performance_start
+        else None,
+        "period_of_performance_end": row.period_of_performance_end.isoformat()
+        if row.period_of_performance_end
+        else None,
+        "option_years_remaining": row.option_years_remaining,
+        "government_contract_number": row.government_contract_number,
+        "invoicing_system": row.invoicing_system,
+        "invoicing_system_confirmed": bool(row.invoicing_system_confirmed),
+        "cor_name": row.cor_name,
+        "cor_email": row.cor_email,
+        "cor_phone": row.cor_phone,
+        "co_name": row.co_name,
+        "co_email": row.co_email,
+        "co_phone": row.co_phone,
+        "stop_work_issued": bool(row.stop_work_issued),
+        "stop_work_issued_date": row.stop_work_issued_date.isoformat() if row.stop_work_issued_date else None,
+        "cpars_rating": row.cpars_rating,
+        "amendment_alert_active": bool(row.amendment_alert_active),
+        "amendment_alert_data": row.amendment_alert_data or [],
+        "performance_alerts": perf_alerts.get("alerts") or [],
+        "payment_overdue_alert": perf_alerts.get("payment_overdue_alert"),
         "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
         "last_updated_at": row.last_updated_at.isoformat() if row.last_updated_at else None,
     }
@@ -781,9 +833,18 @@ def _sync_single_naics_scheduled(naics: str) -> dict[str, Any]:
         session.close()
 
 
-def sync_scheduled_naics() -> dict[str, Any]:
-    """Use the full daily SAM budget: finish current NAICS, then search/enrich the next."""
-    from api_budget import can_spend_sam, get_usage_snapshot
+def _count_pending_attachments(session: Session, naics_codes: list[str]) -> int:
+    return sum(len(_pending_scrape_notice_ids(session, code)) for code in naics_codes)
+
+
+def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
+    """Spend the full daily SAM budget on attachment pulls — no new contract searches."""
+    from api_budget import (
+        can_spend_sam,
+        get_usage_snapshot,
+        scheduled_sync_attachments_only,
+        scheduled_sync_attachments_only_until,
+    )
     from intake import (
         enrich_matching_attachments,
         intake_matching_contracts,
@@ -791,12 +852,99 @@ def sync_scheduled_naics() -> dict[str, Any]:
         start_background_intake,
     )
     from naics_labels import tiers_for_scheduled_sync
-    from settings_store import get_naics_codes_for_tiers
+
+    if not can_spend_sam(1):
+        raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
+
+    phases: list[dict[str, Any]] = []
+    attachments_enriched = 0
+
+    session = SessionLocal()
+    try:
+        pending_before = _count_pending_attachments(session, pool)
+    finally:
+        session.close()
+
+    while can_spend_sam(1):
+        session = SessionLocal()
+        try:
+            attach_result = enrich_matching_attachments(session, limit=None)
+            session.commit()
+        finally:
+            session.close()
+        enriched = attach_result.get("attachments_enriched", 0)
+        if enriched <= 0:
+            break
+        attachments_enriched += enriched
+        phases.append({
+            "mode": "enrich_only",
+            "attachments_enriched": enriched,
+            "attachments_pending": attach_result.get("attachments_pending", 0),
+        })
+
+    session = SessionLocal()
+    try:
+        pending_after = _count_pending_attachments(session, pool)
+        intake_matching_contracts(session, [])
+        session.commit()
+    finally:
+        session.close()
+
+    start_background_attachment_enrich()
+    start_background_intake()
+
+    budget = get_usage_snapshot()
+    tiers = tiers_for_scheduled_sync()
+    status_parts = [
+        "Attachments-only mode (no new searches)",
+        f"SAM.gov: {budget['sam_used_today']}/{budget['sam_daily_limit']} API calls used today",
+        f"{attachments_enriched} attachment pull(s)",
+        f"{pending_before} pending before · {pending_after} still pending",
+    ]
+    if pending_after > 0:
+        status_parts.append(f"normal NAICS rotation resumes after {scheduled_sync_attachments_only_until()}")
+
+    return {
+        "mode": "attachments_only",
+        "scheduled_tiers": tiers,
+        "scheduled_pool": pool,
+        "scheduled_pool_size": len(pool),
+        "scheduled_batch": [],
+        "scheduled_next_index": 0,
+        "focus_naics": None,
+        "attachments_enriched": attachments_enriched,
+        "attachments_pending": pending_after,
+        "attachments_pending_before": pending_before,
+        "phases": phases,
+        "searches_run": 0,
+        "api_calls": budget["sam_used_today"],
+        "fetch_status": ". ".join(status_parts) + ".",
+        "api_budget": budget,
+        "scheduled_sync_attachments_only": scheduled_sync_attachments_only(),
+    }
+
+
+def sync_scheduled_naics() -> dict[str, Any]:
+    """Use the full daily SAM budget: finish current NAICS, then search/enrich the next."""
+    from api_budget import can_spend_sam, get_usage_snapshot, scheduled_sync_attachments_only
+    from intake import (
+        enrich_matching_attachments,
+        intake_matching_contracts,
+        start_background_attachment_enrich,
+        start_background_intake,
+    )
+    from naics_labels import tiers_for_scheduled_sync
+    from settings_store import get_naics_codes, get_naics_codes_for_tiers
 
     tiers = tiers_for_scheduled_sync()
     pool = get_naics_codes_for_tiers(tiers)
     if not pool:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
+
+    if scheduled_sync_attachments_only():
+        # Pull attachments across every enabled NAICS, not just today's scheduled tier.
+        enrich_pool = get_naics_codes()
+        return _sync_scheduled_attachments_only(enrich_pool or pool)
 
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
@@ -921,7 +1069,7 @@ def sync_all_naics() -> dict[str, Any]:
 
 
 def get_naics_sync_status() -> dict[str, Any]:
-    from api_budget import scheduled_naics_per_sync, scheduled_sync_batch_size
+    from api_budget import scheduled_naics_per_sync, scheduled_sync_attachments_only, scheduled_sync_batch_size
     from naics_labels import tiers_for_scheduled_sync
     from settings_store import get_naics_codes_for_tiers
 
@@ -955,6 +1103,7 @@ def get_naics_sync_status() -> dict[str, Any]:
         "scheduled_rotation_index": sched_index,
         "focus_naics": focus_naics,
         "focus_pending_attachments": focus_pending,
+        "scheduled_sync_attachments_only": scheduled_sync_attachments_only(),
     }
 
 

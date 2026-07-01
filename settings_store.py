@@ -220,7 +220,14 @@ def get_all_settings() -> dict[str, Any]:
             "google_places": bool(os.getenv("GOOGLE_PLACES_API_KEY", "").strip()),
             "database": bool(os.getenv("DATABASE_URL", "").strip()),
         },
+        "performance": _performance_settings(),
     }
+
+
+def _performance_settings() -> dict[str, Any]:
+    from performance_settings import get_performance_settings
+
+    return get_performance_settings()
 
 
 def save_settings(

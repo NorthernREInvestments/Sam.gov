@@ -281,6 +281,9 @@ def run_full_analysis(
     else:
         finalize_full_analysis(row, analysis)
         full_done = True
+        from submission_package import apply_submission_package
+
+        apply_submission_package(row, session, analysis=analysis)
 
     if full_done:
         maybe_auto_sub_search(row)

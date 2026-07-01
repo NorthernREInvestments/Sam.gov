@@ -55,6 +55,42 @@ class SubcontractingCheckResult:
     context: str | None
     percentage: float | None
     matched_marker: str | None
+    far_52219_14_present: bool | None = None
+
+
+def _text_mentions_far_clause(text: str) -> bool:
+    """True when 52.219-14 or Limitations on Subcontracting appears anywhere in attachment text."""
+    haystack = _normalize_for_search(text).lower()
+    return "52.219-14" in haystack or "limitations on subcontracting" in haystack
+
+
+def _basic_far_check_by_text_length(text: str, *, char_count: int | None = None) -> SubcontractingCheckResult:
+    """Step-1 string presence + length gate (sets far_52219_14_present)."""
+    count = char_count if char_count is not None else len(text)
+    if count < MIN_TEXT_FOR_FAR_CHECK:
+        return SubcontractingCheckResult(
+            check="EXTRACTION_FAILED",
+            context=None,
+            percentage=None,
+            matched_marker=None,
+            far_52219_14_present=None,
+        )
+    present = _text_mentions_far_clause(text)
+    if present:
+        return SubcontractingCheckResult(
+            check="FOUND",
+            context=None,
+            percentage=None,
+            matched_marker="52.219-14",
+            far_52219_14_present=True,
+        )
+    return SubcontractingCheckResult(
+        check="NOT_FOUND",
+        context=None,
+        percentage=None,
+        matched_marker=None,
+        far_52219_14_present=False,
+    )
 
 
 def _normalize_for_search(text: str) -> str:
@@ -267,7 +303,11 @@ def check_subcontracting_limitation(
     *,
     char_count: int | None = None,
 ) -> SubcontractingCheckResult:
-    """Detect when FAR 52.219-14 is checked/applicable — not merely listed unchecked in a clause matrix."""
+    """
+    FAR 52.219-14 compliance:
+    - far_52219_14_present: clause text appears anywhere in attachment (string search).
+    - subcontracting_limitation_check: clause applies to contract (checked ☒ in matrix, not just listed ☐).
+    """
     text = attachment_text or ""
     count = char_count if char_count is not None else len(text)
     if count < MIN_TEXT_FOR_FAR_CHECK:
@@ -276,25 +316,38 @@ def check_subcontracting_limitation(
             context=None,
             percentage=None,
             matched_marker=None,
+            far_52219_14_present=None,
         )
 
-    match = _find_applicable_subcontracting_match(text)
-    if match is None:
+    present = _text_mentions_far_clause(text)
+    if not present:
         return SubcontractingCheckResult(
             check="NOT_FOUND",
             context=None,
             percentage=None,
             matched_marker=None,
+            far_52219_14_present=False,
+        )
+
+    match = _find_applicable_subcontracting_match(text)
+    if match is None:
+        # Clause text appears (e.g. unchecked ☐ in FAR matrix) but does not apply.
+        return SubcontractingCheckResult(
+            check="NOT_FOUND",
+            context="52.219-14 listed in solicitation but not checked/applicable.",
+            percentage=None,
+            matched_marker="52.219-14",
+            far_52219_14_present=True,
         )
 
     match_index, matched_line, reason = match
     if reason == "text_match_unverified":
-        # String appears but no checkbox context — manual review, not auto-FAIL pursue
         return SubcontractingCheckResult(
             check="EXTRACTION_FAILED",
             context=matched_line[:500],
             percentage=None,
             matched_marker="52.219-14",
+            far_52219_14_present=True,
         )
 
     start = max(0, match_index - 250)
@@ -309,6 +362,7 @@ def check_subcontracting_limitation(
         context=context,
         percentage=percentage,
         matched_marker="52.219-14",
+        far_52219_14_present=True,
     )
 
 
@@ -331,6 +385,7 @@ def _apply_subcontracting_compliance(row: Contract, check: SubcontractingCheckRe
     row.subcontracting_limitation_check = check.check
     row.subcontracting_limitation_context = check.context
     row.subcontracting_limitation_percentage = check.percentage
+    row.far_52219_14_present = check.far_52219_14_present
     if check.check != "FOUND":
         return
     from screening_pipeline import FAR_SUBCONTRACTING_SKIP_LABEL
@@ -359,6 +414,7 @@ def run_attachment_pipeline(
     extraction = extract_contract_attachment_text(row, session, max_pdfs=max_pdfs)
     check = persist_attachment_and_compliance(row, extraction)
     _sync_scrape_status_with_extraction(row, extraction)
+    session.flush()
     return {
         "attachment_text_chars": extraction.char_count,
         "attachment_extraction_method": extraction.method,
@@ -370,6 +426,7 @@ def run_attachment_pipeline(
         "skipped": extraction.skipped,
         "subcontracting_limitation_check": check.check,
         "subcontracting_limitation_percentage": check.percentage,
+        "far_52219_14_present": check.far_52219_14_present,
     }
 
 

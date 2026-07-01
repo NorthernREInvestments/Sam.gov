@@ -3,11 +3,30 @@
 let proposalNoticeId = null;
 let proposalConfig = null;
 let activeProposalId = null;
+let proposalEditorContainerId = "proposal-editor-content";
 
-function startProposalWorkflow(noticeId) {
+async function startProposalWorkflow(noticeId) {
+  if (typeof openContractDetail === "function") {
+    openContractDetail(noticeId, "proposal");
+    return;
+  }
   proposalNoticeId = noticeId;
   proposalConfig = null;
   activeProposalId = null;
+  try {
+    const checkRes = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/subs`);
+    const checkData = await checkRes.json();
+    const checklist = checkData.pre_bid_checklist;
+    if (checklist && !checklist.can_proceed) {
+      const bypass = confirm(
+        `${checklist.block_message || "Pre-bid checklist incomplete."}\n\nOpen Subs page to complete items, or OK to go there now.`
+      );
+      openContractSubs(noticeId);
+      return;
+    }
+  } catch (_) {
+    /* proceed if checklist endpoint unavailable */
+  }
   showView("proposal-subs");
   loadProposalSubStep(noticeId);
 }
@@ -17,22 +36,42 @@ async function loadProposalSubStep(noticeId) {
   if (!el) return;
   el.innerHTML = `<p class="pricing-loading">Loading subs…</p>`;
   try {
-    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/subs`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Failed to load subs");
-    el.innerHTML = renderProposalSubStep(data);
+    const [subRes, contractRes] = await Promise.all([
+      apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/subs`),
+      apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}`),
+    ]);
+    const data = await subRes.json();
+    const contract = await contractRes.json();
+    if (!subRes.ok) throw new Error(data.detail || "Failed to load subs");
+    el.innerHTML = renderProposalSubStep(data, contract);
     bindProposalSubStep(data);
   } catch (err) {
     el.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
   }
 }
 
-function renderProposalSubStep(data) {
+function renderProposalPackageWarnings(c) {
+  if (!c) return "";
+  const pkg = c.submission_package || {};
+  const parts = [];
+  if (typeof renderDeadlineBlock === "function") parts.push(renderDeadlineBlock(c));
+  if (pkg.pricing_schedule_warning) {
+    parts.push(`<div class="network-banner proposal-warning pricing-schedule-proposal-warning">${escapeHtml(pkg.pricing_schedule_warning)}</div>`);
+  }
+  if (pkg.multiple_pricing_encouraged) {
+    parts.push(`<div class="network-banner proposal-info">Multiple pricing options encouraged — proposal will generate base, enhanced, and premium tiers.</div>`);
+  }
+  return parts.join("");
+}
+
+function renderProposalSubStep(data, contract) {
+  const warnings = renderProposalPackageWarnings(contract);
   if (!data.has_quotes) {
     return `
       <div class="proposal-page">
         <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-dashboard">← Back</button>
         <h2>Select Subcontractor for ${escapeHtml(data.contract_title)}</h2>
+        ${warnings}
         <div class="network-banner proposal-warning">
           You haven't recorded any sub quotes for this contract yet. Go to the Subs page and update at least one sub to <strong>Quote Received</strong> before writing a proposal.
         </div>
@@ -43,6 +82,7 @@ function renderProposalSubStep(data) {
     <div class="proposal-page">
       <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-dashboard">← Back</button>
       <h2>Select Subcontractor for ${escapeHtml(data.contract_title)}</h2>
+      ${warnings}
       <p class="detail-note">Choose the sub whose quote will be used in your bid.</p>
       <div class="subs-cards">${data.subs.map(renderProposalSubCard).join("")}</div>
     </div>`;
@@ -74,8 +114,10 @@ function bindProposalSubStep(data) {
 }
 
 async function loadProposalConfigStep(noticeId, contractSubId) {
-  showView("proposal-config");
-  const el = document.getElementById("proposal-config-content");
+  const embedded = document.getElementById("proposal-tab-body");
+  const el = embedded || document.getElementById("proposal-config-content");
+  if (!el) return;
+  if (!embedded) showView("proposal-config");
   el.innerHTML = `<p class="pricing-loading">Building bid configuration…</p>`;
   try {
     const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/config`, {
@@ -129,12 +171,20 @@ function renderProposalConfigStep(config) {
     ? `<div class="network-banner proposal-warning">Action Required: ${missing.length} field(s) need attention in Settings or solicitation data before submitting.</div>`
     : "";
   const confirm = `<div class="network-banner proposal-confirm">Using <strong>${escapeHtml(sub.business_name)}</strong> — Quote: ${formatMoney(sub.quote_amount)}. This quote will be used to calculate your bid.</div>`;
+  const pkgWarn = config.contract?.pricing_schedule_required
+    ? `<div class="network-banner proposal-warning">This solicitation includes a required pricing schedule. You must download, complete, and attach this document. Do not substitute your own pricing format.</div>`
+    : "";
+  const multiWarn = config.contract?.multiple_pricing_encouraged
+    ? `<div class="network-banner proposal-info">Multiple pricing options encouraged — ${escapeHtml(config.pricing_tiers_instruction || "")}</div>`
+    : "";
 
   return `
     <div class="proposal-page">
       <button type="button" class="btn btn-secondary-action btn-small" id="proposal-back-subs">← Back to sub selection</button>
       <h2>Bid configuration</h2>
       ${confirm}
+      ${pkgWarn}
+      ${multiWarn}
       ${renderReadinessChecklist(readiness)}
       ${missingBanner}
       <section class="settings-section">
@@ -309,7 +359,7 @@ async function generateProposal(noticeId) {
 }
 
 function renderProposalEditor(data) {
-  const el = document.getElementById("proposal-editor-content");
+  const el = document.getElementById(proposalEditorContainerId || "proposal-editor-content");
   if (!el) return;
   const sections = data.sections || {};
   const titles = data.section_titles || {};
@@ -451,8 +501,18 @@ async function restoreProposalVersion(versionIndex) {
 async function openProposalEditor(proposalId, noticeId) {
   activeProposalId = proposalId;
   if (noticeId) proposalNoticeId = noticeId;
-  showView("proposal-editor");
-  const el = document.getElementById("proposal-editor-content");
+  proposalEditorContainerId = "proposal-editor-content";
+  if (document.getElementById("proposal-editor-content")) {
+    showView("proposal-editor");
+  }
+  await openProposalEditorInline(proposalId, noticeId);
+}
+
+async function openProposalEditorInline(proposalId, noticeId, containerId = "proposal-editor-content") {
+  activeProposalId = proposalId;
+  if (noticeId) proposalNoticeId = noticeId;
+  proposalEditorContainerId = containerId;
+  const el = document.getElementById(containerId);
   if (el) el.innerHTML = `<p class="pricing-loading">Loading proposal…</p>`;
   try {
     const res = await apiFetch(`/api/proposals/${proposalId}`);
@@ -461,6 +521,37 @@ async function openProposalEditor(proposalId, noticeId) {
     renderProposalEditor(data);
   } catch (err) {
     if (el) el.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadProposalTabInto(noticeId, containerId) {
+  const root = document.getElementById(containerId);
+  if (!root) return;
+  proposalNoticeId = noticeId;
+  root.innerHTML = `
+    <div id="proposal-tab-pricing" class="pricing-panel pricing-panel-loading"><p class="pricing-loading">Loading pricing…</p></div>
+    <div id="proposal-tab-body"></div>
+    <div id="proposal-tab-checklist" class="submission-checklist-embed"></div>`;
+  if (typeof loadPricingIntel === "function") {
+    await loadPricingIntel(noticeId, false, "proposal-tab-pricing");
+  }
+  const body = document.getElementById("proposal-tab-body");
+  try {
+    const latestRes = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/latest`);
+    const latest = latestRes.ok ? await latestRes.json() : null;
+    if (latest?.id) {
+      body.innerHTML = `<div id="proposal-editor-content" class="proposal-editor-embedded"></div>`;
+      await openProposalEditorInline(latest.id, noticeId, "proposal-editor-content");
+    } else {
+      body.innerHTML = `<div id="proposal-step-content"></div>`;
+      await loadProposalSubStep(noticeId);
+      document.getElementById("proposal-back-dashboard")?.remove();
+    }
+  } catch (err) {
+    body.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
+  if (typeof loadSubmissionChecklistInto === "function") {
+    loadSubmissionChecklistInto(noticeId, "proposal-tab-checklist");
   }
 }
 

@@ -1,3 +1,6 @@
+/** GovTracker dashboard — compact card layout v2 */
+window.GOVTRACKER_LAYOUT_V2 = true;
+
 let config = { naics_codes: [], naics_labels: {}, naics_tiers: [], naics_groups: [], all_naics_codes: [], default_min_days: 10, default_min_score: 1 };
 let contracts = [];
 let processingCount = 0;
@@ -16,17 +19,20 @@ async function apiFetch(url, options = {}) {
 function showView(name) {
   document.getElementById("view-dashboard").hidden = name !== "dashboard";
   document.getElementById("view-settings").hidden = name !== "settings";
-  document.getElementById("view-subs").hidden = name !== "subs";
-  document.getElementById("view-contract-subs").hidden = name !== "contract-subs";
-  document.getElementById("view-pricing").hidden = name !== "pricing";
-  document.getElementById("view-proposal-subs").hidden = name !== "proposal-subs";
-  document.getElementById("view-proposal-config").hidden = name !== "proposal-config";
-  document.getElementById("view-proposal-editor").hidden = name !== "proposal-editor";
-  document.getElementById("tab-dashboard").classList.toggle("active", name === "dashboard");
-  document.getElementById("tab-subs").classList.toggle("active", name === "subs");
-  document.getElementById("tab-pricing").classList.toggle("active", name === "pricing");
-  document.getElementById("tab-settings").classList.toggle("active", name === "settings");
+  const perfView = document.getElementById("view-performance");
+  if (perfView) perfView.hidden = name !== "performance";
+  const helpView = document.getElementById("view-help");
+  if (helpView) helpView.hidden = name !== "help";
+  const detailView = document.getElementById("view-contract-detail");
+  if (detailView) detailView.hidden = name !== "contract-detail";
+  document.getElementById("tab-contracts")?.classList.toggle("active", name === "dashboard" || name === "contract-detail");
+  const tabPerf = document.getElementById("tab-performance");
+  if (tabPerf) tabPerf.classList.toggle("active", name === "performance");
+  document.getElementById("tab-settings")?.classList.toggle("active", name === "settings");
+  document.getElementById("tab-help")?.classList.toggle("active", name === "help");
   if (name === "settings") loadSettingsPage();
+  if (name === "performance" && typeof loadPerformanceDashboard === "function") loadPerformanceDashboard();
+  document.body.classList.toggle("view-contract-detail-active", name === "contract-detail");
 }
 
 function renderNaicsFilters() {
@@ -105,22 +111,53 @@ async function loadConfig() {
   document.getElementById("min-score-value").textContent = config.default_min_score || 1;
 
   const sync = config.naics_sync || {};
-  const nextNaics = sync.next_naics ? ` · next: ${sync.next_naics}` : "";
-  const tierSchedule = config.naics_tier_schedule || "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday";
-  const batchSize = sync.scheduled_batch_size || sync.scheduled_per_sync || 1;
-  const nextBatch = (sync.scheduled_next_batch || []).join(", ");
-  const poolSize = sync.scheduled_pool_size || sync.total_count || config.naics_codes.length;
-  const focusLine = sync.focus_naics
-    ? ` · focus: ${sync.focus_naics}${sync.focus_pending_attachments ? ` (${sync.focus_pending_attachments} attachments pending)` : ""}`
-    : "";
-  const scheduledToday = sync.scheduled_tiers
-    ? ` · today: tiers ${sync.scheduled_tiers.join(", ")} (${poolSize} in pool, 1 NAICS/run${nextBatch ? ` · next search: ${nextBatch}` : ""})`
-    : "";
-    document.getElementById("naics-sync-status").textContent =
-    `${tierSchedule}. Uses all ${config.api_budget?.sam_daily_limit ?? 10} SAM API calls daily: finish current NAICS attachments, then search/enrich the next until budget is gone.${scheduledToday}${focusLine} Coverage: ${sync.synced_count || 0}/${sync.total_count || config.naics_codes.length} enabled codes synced${nextNaics ? ` · manual rotation: ${nextNaics}` : ""}`;
+  const nextNaics = sync.next_naics || "—";
+  updateStatusBar(contracts.length, processingCount, nextNaics);
 
   populateSyncNaicsSelect();
   renderNaicsFilters();
+}
+
+function updateStatusBar(count, processing, nextNaics, filterStats = {}) {
+  const el = document.getElementById("status-bar");
+  if (!el) return;
+  const lastSync = config.last_sync_at
+    ? new Date(config.last_sync_at).toLocaleString()
+    : "—";
+  const ready = filterStats.ready_eligible ?? count;
+  const hidden = filterStats.hidden_by_min_days ?? 0;
+  const hiddenPart = hidden > 0 ? ` · ${hidden} hidden by min-days filter` : "";
+  const layoutPart = window.GOVTRACKER_LAYOUT_V2 ? "" : " · OLD UI cached — hard refresh (Ctrl+Shift+R)";
+  el.textContent = `Last sync: ${lastSync} · Showing ${count} of ${ready} ready${hiddenPart} · ${processing} processing · Next NAICS: ${nextNaics}${layoutPart}`;
+}
+
+function updateFilterHint(filterStats) {
+  const el = document.getElementById("filter-hint");
+  if (!el) return;
+  const parts = [];
+  const hidden = filterStats?.hidden_by_min_days ?? 0;
+  const processing = processingCount ?? 0;
+  if (hidden > 0) {
+    const minDays = document.getElementById("min-days")?.value ?? 10;
+    parts.push(
+      `<strong>${hidden} contract${hidden === 1 ? "" : "s"} hidden</strong> because due date is within ${minDays} days. Lower the <em>Minimum days until due</em> slider to see them.`,
+    );
+  }
+  if (processing > 0) {
+    parts.push(
+      `<strong>${processing} contract${processing === 1 ? "" : "s"}</strong> still syncing (attachments + analysis) — they appear automatically when ready.`,
+    );
+  }
+  if (!window.GOVTRACKER_LAYOUT_V2) {
+    parts.push("Your browser is showing a cached old layout. Press <strong>Ctrl+Shift+R</strong> (or Cmd+Shift+R on Mac) to reload.");
+  }
+  if (!parts.length) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = parts.map((p) => `<p>${p}</p>`).join("");
 }
 
 function selectedSyncNaics() {
@@ -160,9 +197,10 @@ function buildQuery() {
   params.set("min_score", document.getElementById("min-score").value);
   const agency = document.getElementById("agency-filter").value.trim();
   if (agency) params.set("agency", agency);
-  if (document.getElementById("pursue-only").checked) params.set("pursue_only", "true");
-  const tier = document.getElementById("tier-filter")?.value;
-  if (tier) params.set("tier", tier);
+  const status = document.getElementById("status-filter")?.value;
+  if (status) params.set("status", status);
+  const setAside = document.getElementById("setaside-filter")?.value;
+  if (setAside) params.set("set_aside", setAside);
   return params.toString();
 }
 
@@ -250,9 +288,21 @@ function renderSolicitationMetaSection(c) {
   const start = sol.base_year_start || analysis.base_year_start || "—";
   const end = sol.base_year_end || analysis.base_year_end || "—";
   const co = sol.contracting_officer_name || analysis.contracting_officer_name || "—";
+  const deadlineHtml = typeof renderDeadlineBlock === "function" ? renderDeadlineBlock(c) : "";
+  const methodHtml = typeof renderSubmissionMethodDetail === "function" ? renderSubmissionMethodDetail(c) : "";
+  const pricingHtml = typeof renderPricingScheduleDetail === "function" ? renderPricingScheduleDetail(c) : "";
+  const coQHtml = typeof renderCoQuestionsPanel === "function" ? renderCoQuestionsPanel(c) : "";
+  const checklistBtn = `<button type="button" class="btn btn-primary-action btn-small" data-open-submission-checklist="${escapeHtml(c.notice_id)}">Open submission checklist</button>`;
   return `
+    ${deadlineHtml}
+    ${pricingHtml}
+    ${methodHtml}
     <p class="detail-item"><span class="detail-item-label">Performance period</span> ${escapeHtml(start)} – ${escapeHtml(end)}</p>
     <p class="detail-item"><span class="detail-item-label">Contracting Officer</span> ${escapeHtml(co)}</p>
+    ${c.evaluation_criteria_type && c.evaluation_criteria_type !== "Unknown" ? `<p class="detail-item"><span class="detail-item-label">Evaluation</span> ${escapeHtml(c.evaluation_criteria_type)}</p>` : ""}
+    ${checklistBtn}
+    <h4 class="detail-subhead">CO compliance questions</h4>
+    <div id="co-questions-mount">${coQHtml}</div>
     <button type="button" class="btn btn-secondary-action btn-small" id="extract-solicitation-btn" data-notice-id="${escapeHtml(c.notice_id)}">Extract scope &amp; solicitation from PDFs</button>
     <p class="detail-note">Reads attachments (including large PDFs) — fills PWS scope, dates, CO, proposals, and subcontract agreements.</p>`;
 }
@@ -277,14 +327,22 @@ async function forceFullAnalysis(noticeId) {
 }
 
 function formatDue(c) {
-  if (!c.due_date) return { main: "Due date unknown", sub: "", urgent: false };
-  const days = c.days_until_due;
+  const pkg = c.submission_package || {};
+  const dl = pkg.deadline || {};
+  if (!c.due_date) {
+    return { main: "Deadline unknown", sub: "Check solicitation", urgent: true, urgency: "unknown" };
+  }
+  const main = new Date(c.due_date + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+  const sub = dl.label || (c.days_until_due != null ? `${c.days_until_due} days left` : "");
+  const urgency = dl.urgency || (c.days_until_due != null && c.days_until_due <= 3 ? "red" : c.days_until_due <= 7 ? "yellow" : "green");
   return {
-    main: new Date(c.due_date + "T00:00:00").toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    }),
-    sub: days != null ? `${days} days left` : "",
-    urgent: days != null && days <= 21,
+    main,
+    sub,
+    urgent: urgency === "red" || urgency === "yellow",
+    urgency,
+    alert24h: dl.alert_24h,
   };
 }
 
@@ -337,102 +395,107 @@ function renderSubcontractingComplianceBanner(c) {
   </div>`;
 }
 
+function scoreBadgeClass(score) {
+  if (score == null) return "score-neutral";
+  if (score >= 8) return "score-green";
+  if (score >= 6) return "score-yellow";
+  return "score-red";
+}
+
+function compactFarBadge(c) {
+  const check = c.subcontracting_limitation_check;
+  if (check === "FOUND") return `<span class="compact-far-badge compact-far-limit">LIMIT PRESENT</span>`;
+  if (check === "EXTRACTION_FAILED") return `<span class="compact-far-badge compact-far-unknown">VERIFY</span>`;
+  return `<span class="compact-far-badge compact-far-ok">NO LIMIT FOUND</span>`;
+}
+
+function renderWorkflowDots(c) {
+  const stages = c.workflow_progress?.stages || [];
+  if (!stages.length) {
+    return `<div class="workflow-dots"><span class="workflow-dot workflow-dot-future"></span></div>`;
+  }
+  return `<div class="workflow-dots" aria-label="Workflow progress">
+    ${stages
+      .map(
+        (s, i) =>
+          `<span class="workflow-dot workflow-dot-${s.state}" title="${escapeHtml(s.label)}"></span>${i < stages.length - 1 ? '<span class="workflow-line"></span>' : ""}`,
+      )
+      .join("")}
+  </div>`;
+}
+
+function compactDueLine(c) {
+  if (!c.due_date) return { text: "Due unknown", cls: "due-unknown" };
+  const d = new Date(c.due_date + "T00:00:00");
+  const main = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const days = c.days_until_due;
+  const suffix = days != null ? ` · ${days} days left` : "";
+  let cls = "due-green";
+  if (days != null && days <= 3) cls = "due-red";
+  else if (days != null && days <= 7) cls = "due-yellow";
+  return { text: `${main}${suffix}`, cls };
+}
+
+function compactCityState(c) {
+  const loc = c.location || "";
+  const m = loc.match(/([^,]+),\s*([A-Z]{2})\b/);
+  if (m) return `${m[1].trim()}, ${m[2]}`;
+  if (c.sub_summary?.city) return c.sub_summary.city;
+  const parts = loc.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]}, ${parts[parts.length - 1].slice(0, 2)}`;
+  return loc || "—";
+}
+
 function renderCards() {
   const container = document.getElementById("cards");
-  const proc = processingCount > 0 ? ` · ${processingCount} processing (attachments + PDF read)` : "";
-  document.getElementById("results-count").textContent =
-    `${contracts.length} contract${contracts.length === 1 ? "" : "s"}${proc}`;
+  if (!container) return;
+  updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
+  updateFilterHint(filterStats);
+
+  const hasAnyContracts = (config.naics_sync?.total_count || 0) > 0 || contracts.length > 0 || processingCount > 0;
 
   if (!contracts.length) {
-    container.innerHTML =
-      processingCount > 0
-        ? `<div class="empty">${processingCount} contract${processingCount === 1 ? "" : "s"} downloading attachments and reading PDFs — they will appear here automatically when ready. Nothing to click.</div>`
-        : '<div class="empty">No contracts match your filters yet.</div>';
+    container.innerHTML = processingCount > 0
+      ? `<div class="empty-state">${processingCount} contract${processingCount === 1 ? "" : "s"} processing — they will appear when ready.</div>`
+      : hasAnyContracts
+        ? `<div class="empty-state">No contracts match your current filters. Try adjusting the minimum score or days until due.</div>`
+        : `<div class="empty-state">No contracts yet. SAM.gov syncs automatically. Check back shortly or adjust your NAICS codes in Settings.</div>`;
     return;
   }
 
   container.innerHTML = contracts.map((c) => {
-    const tone = cardTone(c);
-    const due = formatDue(c);
-    const subType = c.sub_type_needed || "Not screened yet";
-    const summary = c.plain_english_summary || c.executive_summary;
-    const headline = summary ? firstSentence(summary, 160) : null;
-    const annualBid = recommendedAnnualBid(c);
-    const bidLabel = c.selected_sub_quote ? "Your estimated bid" : "Recommended annual bid";
-    const bidPreview = annualBid
-      ? `<div class="card-section card-section-bid">
-           <span class="card-label">${bidLabel}</span>
-           <span class="card-bid-range">${formatMoney(annualBid)}</span>
-         </div>`
-      : "";
-    const titleBlock = headline
-      ? `<div class="card-section card-section-summary">
-           <span class="card-label">What it is</span>
-           <h3 class="card-title">${escapeHtml(headline)}</h3>
-           <p class="card-official-title">${escapeHtml(c.title)}</p>
-         </div>`
-      : `<div class="card-section card-section-summary">
-           <span class="card-label">What it is</span>
-           <h3 class="card-title">${escapeHtml(c.title)}</h3>
-           ${c.text_score != null && c.screening_stage === "text" && !c.plain_english_summary
-             ? `<p class="card-pending-note">Text score ${c.text_score}/10 — full PDF analysis pending</p>`
-             : `<p class="card-pending-note">Plain-English summary being generated…</p>`}
-         </div>`;
-    const naicsLine = c.naics_display || c.naics_code || "";
-    const attachmentsHtml = renderCardAttachments(c);
-    const networkBanner = typeof renderNetworkBanner === "function" ? renderNetworkBanner(c) : "";
-    const subSummaryCard = typeof renderCardSubSummary === "function" ? renderCardSubSummary(c) : "";
-    const wf = c.workflow || {};
-    const workflowClass = wf.stage && wf.stage !== "none" ? ` card-workflow-${wf.stage}` : "";
-    const workflowBanner = typeof renderWorkflowBanner === "function" ? renderWorkflowBanner(c) : "";
-    const pipelineStrip = renderPipelineStrip(c);
-    const cardActions = renderCardActions(c);
+    const score = c.score ?? c.text_score;
+    const due = compactDueLine(c);
+    const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
+    const statusMsg = c.workflow_progress?.status_message || c.workflow?.label || "Reviewing";
+    const agencyShort = (c.agency || "Unknown agency").split(",")[0].trim();
     return `
-    <article class="card card-${tone}${workflowClass}" data-id="${c.notice_id}">
-      <div class="card-top">
-        <div class="card-badges">${screeningBadge(c)} ${subcontractingLimitationBadge(c)} ${tierBadge(c)} ${wf.label ? `<span class="badge badge-workflow">${escapeHtml(wf.label)}</span>` : ""} ${c.security_clearance_required ? '<span class="badge badge-clearance">Clearance</span>' : ""}</div>
-        <div class="card-due${due.urgent ? " card-due-urgent" : ""}">
-          <span class="card-due-label">Due</span>
-          <span class="card-due-date">${escapeHtml(due.main)}</span>
-          ${due.sub ? `<span class="card-due-days">${escapeHtml(due.sub)}</span>` : ""}
-        </div>
+    <article class="compact-card" data-id="${c.notice_id}">
+      <div class="compact-card-row compact-card-row-1">
+        <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
+        <span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span>
       </div>
-      ${pipelineStrip}
-      ${workflowBanner}
-      <div class="card-body">
-        <div class="card-main">
-          ${titleBlock}
-          ${networkBanner}
-          ${subSummaryCard}
-        </div>
-        <aside class="card-side">
-          ${bidPreview}
-          ${formatScopePreview(c)}
-          <div class="card-section card-section-location card-section-compact">
-            <span class="card-label">Where</span>
-            <p class="card-meta">${escapeHtml(c.location || "Location unknown")}</p>
-            <p class="card-meta card-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
-            <p class="card-meta card-naics"><span class="card-label-inline">NAICS</span> ${escapeHtml(naicsLine)}</p>
-            <p class="card-subtype"><span class="card-label-inline">Sub type</span> ${escapeHtml(subType)}</p>
-          </div>
-        </aside>
+      <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
+      <div class="compact-card-row compact-card-meta">${escapeHtml(agencyShort)} · ${escapeHtml(compactCityState(c))}</div>
+      <div class="compact-card-row compact-card-row-4">
+        ${compactFarBadge(c)}
+        ${renderWorkflowDots(c)}
       </div>
-      ${attachmentsHtml}
-      ${cardActions}
+      <div class="compact-card-row compact-card-status">${escapeHtml(statusMsg)}</div>
+      <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
     </article>`;
   }).join("");
 
-  container.querySelectorAll(".card").forEach((el) => {
+  container.querySelectorAll(".compact-card").forEach((el) => {
     el.addEventListener("click", (e) => {
-      if (e.target.closest("button, a, input, select, textarea")) return;
-      openDetail(el.dataset.id);
+      if (e.target.closest(".compact-card-action")) return;
+      openContractDetail(el.dataset.id);
     });
   });
-  container.querySelectorAll("[data-force-full]").forEach((btn) => {
+  container.querySelectorAll(".compact-card-action").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      e.preventDefault();
       e.stopPropagation();
-      forceFullAnalysis(btn.dataset.forceFull);
+      handleCardPrimaryAction(btn.dataset.noticeId, btn.dataset.action);
     });
   });
 }
@@ -472,13 +535,19 @@ function manageCardPolling() {
   }
 }
 
+let filterStats = {};
+
 async function loadContracts() {
   const res = await apiFetch(`/api/contracts?${buildQuery()}`);
   const data = await res.json();
   contracts = data.contracts || [];
   processingCount = data.processing_count || 0;
+  filterStats = data.filter_stats || {};
   renderCards();
   manageCardPolling();
+  if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
+  updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
+  updateFilterHint(filterStats);
 }
 
 async function loadContractsQuiet() {
@@ -486,6 +555,7 @@ async function loadContractsQuiet() {
   const data = await res.json();
   contracts = data.contracts || [];
   processingCount = data.processing_count || 0;
+  filterStats = data.filter_stats || {};
   renderCards();
   manageCardPolling();
 }
@@ -604,12 +674,14 @@ function renderDetailModal(c, { analyzing = false } = {}) {
   const pursueSection = typeof renderPursueSection === "function" ? renderPursueSection(c) : "";
   const solSection = renderSolicitationMetaSection(c);
   const pipelineStrip = renderPipelineStrip(c);
+  const perfSection = typeof renderPerformanceTabMount === "function" ? renderPerformanceTabMount(c.notice_id) : "";
 
   document.getElementById("modal-content").innerHTML = `
     <div class="detail-header">
       <h2 class="detail-title">${escapeHtml(c.title)}</h2>
       <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
     </div>
+    ${typeof renderCardPerformanceBanners === "function" ? renderCardPerformanceBanners(c) : ""}
     ${renderSubcontractingComplianceBanner(c)}
     ${pipelineStrip}
     <div class="detail-workflow-grid">
@@ -618,11 +690,19 @@ function renderDetailModal(c, { analyzing = false } = {}) {
       ${wrapDetailSection("3 · Pricing", pricingInner, "detail-section-pricing")}
       ${wrapDetailSection("4 · Subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
       ${wrapDetailSection("5 · Pursue", pursueSection, "detail-section-pursue")}
+      ${wrapDetailSection("6 · Performance", perfSection, "detail-section-performance")}
     </div>
   `;
   document.getElementById("extract-solicitation-btn")?.addEventListener("click", () => {
     extractSolicitationMeta(c.notice_id).catch((err) => showSyncStatus(err.message, true));
   });
+  bindSubmissionMethodPanel(c.notice_id);
+  const coMount = document.getElementById("co-questions-mount");
+  if (coMount) bindCoQuestionsPanel(coMount.parentElement || document.getElementById("modal-content"), c.notice_id);
+  document.querySelector(`[data-open-submission-checklist="${c.notice_id}"]`)?.addEventListener("click", () => {
+    if (typeof openSubmissionChecklist === "function") openSubmissionChecklist(c.notice_id);
+  });
+  if (typeof loadContractPerformanceTab === "function") loadContractPerformanceTab(c.notice_id);
 }
 
 async function extractSolicitationMeta(noticeId) {
@@ -700,6 +780,10 @@ async function beginAutoAnalysis(noticeId) {
 }
 
 async function openDetail(noticeId) {
+  if (typeof openContractDetail === "function") {
+    openContractDetail(noticeId, "overview");
+    return;
+  }
   stopDetailPolling();
   activeDetailId = noticeId;
 
@@ -789,13 +873,9 @@ function formatApiBudget(budget) {
 }
 
 async function runSync({ allNaics = false, searchOnly = false } = {}) {
-  const buttonIds = ["search-all-btn", "refresh-btn", "search-only-btn"];
+  const buttonIds = ["refresh-btn"];
   const buttons = buttonIds.map((id) => document.getElementById(id)).filter(Boolean);
-  const activeBtn = allNaics
-    ? document.getElementById("search-all-btn")
-    : searchOnly
-      ? document.getElementById("search-only-btn")
-      : document.getElementById("refresh-btn");
+  const activeBtn = document.getElementById("refresh-btn");
   const savedLabels = Object.fromEntries(buttons.map((b) => [b.id, b.textContent]));
   buttons.forEach((b) => {
     b.disabled = true;
@@ -1025,10 +1105,22 @@ async function loadSettingsPage() {
   `;
 
   const budget = data.api_budget || {};
+  const attachFrom = budget.scheduled_sync_attachments_only_from;
+  const attachUntil = budget.scheduled_sync_attachments_only_until;
+  const attachWindow = attachFrom && attachUntil
+    ? `${escapeHtml(attachFrom)} through ${escapeHtml(attachUntil)}`
+    : attachUntil
+      ? `through ${escapeHtml(attachUntil)}`
+      : "?";
+  const syncMode = budget.scheduled_sync_attachments_only
+    ? `<li><strong>Attachments-only mode</strong> (${attachWindow}) — 6am sync pulls PDFs for existing contracts only. Normal NAICS rotation resumes after.</li>`
+    : attachUntil && attachFrom && new Date(attachFrom) > new Date()
+      ? `<li>Attachments-only scheduled syncs start <strong>${escapeHtml(attachFrom)}</strong> through <strong>${escapeHtml(attachUntil)}</strong>, then normal NAICS rotation resumes.</li>`
+      : "<li>Scheduled 6am sync: uses <strong>all SAM API calls each day</strong> — finish pending attachments, then search/enrich the next NAICS until the budget is exhausted</li>";
   document.getElementById("api-budget-status").innerHTML = `
     <li><strong>SAM.gov API</strong> (search + attachment metadata): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today — <strong>${budget.sam_remaining ?? "?"} remaining</strong></li>
     <li>Only SAM.gov API calls are capped daily. Claude, PDF reads, and other services are not limited by this app.</li>
-    <li>Scheduled 6am sync: uses <strong>all SAM API calls each day</strong> — finish pending attachments, then search/enrich the next NAICS until the budget is exhausted</li>
+    ${syncMode}
     <li>Pending attachment pulls resume on the next run until the SAM.gov daily cap is reached</li>
   `;
 
@@ -1037,6 +1129,8 @@ async function loadSettingsPage() {
   document.getElementById("scheduler-status").textContent = schedStatus.enabled
     ? `Next automatic sync: ${formatSchedulerStatus(schedStatus)}`
     : "Daily sync is turned off";
+
+  if (typeof loadPerformanceSettingsIntoPage === "function") loadPerformanceSettingsIntoPage(data);
 }
 
 function formatSchedulerStatus(sched) {
@@ -1111,6 +1205,9 @@ async function saveSettings() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(ownerBody),
     });
+    if (typeof savePerformanceSettingsFromPage === "function") {
+      await savePerformanceSettingsFromPage();
+    }
     showSyncStatus("Settings saved.");
     await loadConfig();
     await loadContracts();
@@ -1141,19 +1238,33 @@ function bindSlider(inputId, labelId) {
   });
 }
 
-document.getElementById("tab-dashboard").addEventListener("click", () => showView("dashboard"));
-document.getElementById("tab-settings").addEventListener("click", () => showView("settings"));
+document.getElementById("tab-contracts")?.addEventListener("click", () => {
+  if (activeContractId) {
+    stopContractDetailPolling?.();
+    activeContractId = null;
+  }
+  showView("dashboard");
+});
+document.getElementById("tab-performance")?.addEventListener("click", () => showView("performance"));
+document.getElementById("tab-settings")?.addEventListener("click", () => showView("settings"));
+document.getElementById("tab-help")?.addEventListener("click", () => showView("help"));
 document.getElementById("logout-btn").addEventListener("click", logout);
-document.getElementById("apply-filters").addEventListener("click", loadContracts);
-document.getElementById("search-only-btn").addEventListener("click", () => runSync({ searchOnly: true }));
-document.getElementById("refresh-btn").addEventListener("click", () => runSync({ searchOnly: false }));
-document.getElementById("search-all-btn").addEventListener("click", () => runSync({ allNaics: true }));
-document.getElementById("screen-btn").addEventListener("click", runScreen);
-document.getElementById("modal-close").addEventListener("click", closeModal);
-document.getElementById("modal-backdrop").addEventListener("click", closeModal);
+document.getElementById("apply-filters").addEventListener("click", () => {
+  document.getElementById("filters-panel")?.classList.remove("filters-open");
+  loadContracts();
+});
+document.getElementById("refresh-btn")?.addEventListener("click", () => runSync({ searchOnly: false }));
+document.getElementById("modal-close")?.addEventListener("click", closeModal);
+document.getElementById("modal-backdrop")?.addEventListener("click", closeModal);
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);
 document.getElementById("reset-prompt-btn").addEventListener("click", resetPrompt);
 document.getElementById("export-claude-btn")?.addEventListener("click", exportForClaude);
+document.getElementById("mobile-filter-btn")?.addEventListener("click", () => {
+  document.getElementById("filters-panel")?.classList.add("filters-open");
+});
+document.getElementById("close-filters-btn")?.addEventListener("click", () => {
+  document.getElementById("filters-panel")?.classList.remove("filters-open");
+});
 
 bindSlider("min-days", "min-days-value");
 bindSlider("min-score", "min-score-value");

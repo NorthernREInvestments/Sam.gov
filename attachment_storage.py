@@ -45,6 +45,7 @@ def attachment_storage_summary(session: Session, contract_id: int) -> dict[str, 
         "total_bytes": total_bytes,
         "files": [
             {
+                "id": r.id,
                 "filename": r.filename,
                 "source": r.source,
                 "content_type": r.content_type,

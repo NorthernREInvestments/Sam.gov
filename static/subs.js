@@ -1,24 +1,28 @@
 /** Sub Finder UI — contract subs, master database, outreach tracking. */
 
-const SUB_STATUSES = [
+const SUB_CONTACT_STATUSES = [
   "Not Contacted",
-  "Called — Left Voicemail",
-  "Spoke With — Interested",
-  "Spoke With — Not Interested",
+  "Contacted",
+  "Voicemail Left",
   "Quote Received",
   "Selected",
+  "Not Selected",
 ];
 
-const AGREEMENT_SIGNATURE_STATUSES = [
-  "Agreement Not Generated",
-  "Agreement Sent",
-  "Agreement Signed",
-  "Agreement Declined",
-];
+const STATUS_BADGE_CLASS = {
+  "Not Contacted": "sub-status-grey",
+  Contacted: "sub-status-blue",
+  "Voicemail Left": "sub-status-yellow",
+  "Quote Received": "sub-status-green",
+  Selected: "sub-status-selected",
+  "Not Selected": "sub-status-red",
+};
 
 let activeContractSubsId = null;
 let contractSubsPollTimer = null;
 let mySubsCache = [];
+let contractSubsData = null;
+let subsActiveTab = "list";
 
 function subSummaryLine(c) {
   const s = c.sub_summary || {};
@@ -146,9 +150,36 @@ function markContractSubSearchPending(noticeId) {
 }
 
 function openContractSubs(noticeId) {
+  if (typeof openContractDetail === "function") {
+    openContractDetail(noticeId, "subs");
+    return;
+  }
   activeContractSubsId = noticeId;
-  showView("contract-subs");
-  loadContractSubsPage(noticeId);
+  subsActiveTab = "list";
+  loadContractSubsInto(noticeId, "contract-subs-content");
+}
+
+async function loadContractSubsInto(noticeId, containerId, { quiet = false } = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  activeContractSubsId = noticeId;
+  if (!quiet) container.innerHTML = `<p class="pricing-loading">Loading subs…</p>`;
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/subs`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load subs");
+    contractSubsData = data;
+    if (data.summary?.status === "searching") startContractSubsPolling(noticeId, containerId);
+    else stopContractSubsPolling();
+    container.innerHTML = renderContractSubsPage(data);
+    bindContractSubsPage(container, noticeId);
+  } catch (err) {
+    if (!quiet) container.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadContractSubsPage(noticeId, { quiet = false } = {}) {
+  return loadContractSubsInto(noticeId, "contract-subs-content", { quiet });
 }
 
 function stopContractSubsPolling() {
@@ -158,128 +189,474 @@ function stopContractSubsPolling() {
   }
 }
 
-function startContractSubsPolling(noticeId) {
+function startContractSubsPolling(noticeId, containerId = "contract-subs-content") {
   stopContractSubsPolling();
   contractSubsPollTimer = setInterval(() => {
     if (activeContractSubsId !== noticeId) {
       stopContractSubsPolling();
       return;
     }
-    loadContractSubsPage(noticeId, { quiet: true });
+    loadContractSubsInto(noticeId, containerId, { quiet: true });
   }, 4000);
 }
 
-async function loadContractSubsPage(noticeId, { quiet = false } = {}) {
-  const container = document.getElementById("contract-subs-content");
-  if (!container) return;
-  if (!quiet) container.innerHTML = `<p class="pricing-loading">Loading subs…</p>`;
-  try {
-    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/subs`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Failed to load subs");
-    if (data.summary?.status === "searching") startContractSubsPolling(noticeId);
-    else stopContractSubsPolling();
-    container.innerHTML = renderContractSubsPage(data);
-    bindContractSubCards(container);
-  } catch (err) {
-    if (!quiet) container.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
-  }
+function copyTextToClipboard(text, message) {
+  navigator.clipboard.writeText(text).then(() => {
+    showSyncStatus(message || "Copied to clipboard.");
+  }).catch(() => showSyncStatus("Could not copy — select and copy manually.", true));
+}
+
+function renderWageBanner(wage) {
+  if (!wage) return "";
+  const rate = wage.hourly_rate != null ? `$${Number(wage.hourly_rate).toFixed(2)}` : "—";
+  const minMo = wage.minimum_monthly_quote != null ? formatMoney(wage.minimum_monthly_quote) : "—";
+  return `
+    <div class="wage-requirement-banner">
+      <h3>Wage requirement</h3>
+      <div class="wage-banner-grid">
+        <div><span class="card-label">WD number</span><p>${escapeHtml(wage.wage_determination_number || "Not extracted")}</p></div>
+        <div><span class="card-label">Min hourly rate</span><p>${rate}/hr</p></div>
+        <div><span class="card-label">Est. employees</span><p>${wage.estimated_employees ?? "—"}</p></div>
+        <div><span class="card-label">Min monthly quote</span><p>${minMo}</p></div>
+      </div>
+      <p class="wage-banner-warning">${escapeHtml(wage.warning_text || "")}</p>
+    </div>`;
+}
+
+function renderProgressTracker(progress) {
+  const p = progress || {};
+  const pct = p.quote_progress_pct ?? 0;
+  return `
+    <div class="sub-progress-tracker">
+      <div class="sub-progress-stats">
+        <span><strong>${p.total ?? 0}</strong> subs found</span>
+        <span><strong>${p.called ?? 0}</strong> called</span>
+        <span><strong>${p.reached ?? 0}</strong> reached</span>
+        <span><strong>${p.quoted ?? 0}</strong> quoted</span>
+        <span class="sub-progress-target">Target: ${p.quote_target ?? 3} quotes before bidding</span>
+      </div>
+      <div class="sub-progress-bar-wrap" aria-label="Quote progress">
+        <div class="sub-progress-bar" style="width:${Math.min(100, pct)}%"></div>
+      </div>
+      <p class="sub-progress-label">${p.quoted ?? 0} of ${p.quote_target ?? 3} quotes received</p>
+    </div>`;
+}
+
+function renderPreBidChecklist(checklist, noticeId) {
+  const c = checklist || {};
+  const items = c.items || [];
+  return `
+    <div class="pre-bid-checklist ${c.all_complete ? "checklist-complete" : ""}">
+      <h3>Pre-bid requirements</h3>
+      <ul class="pre-bid-items">
+        ${items.map((item) => `
+          <li class="${item.complete ? "check-ok" : "check-missing"}">
+            <span>${item.complete ? "✓" : "○"}</span>
+            <span>${escapeHtml(item.label)}</span>
+            <span class="pre-bid-detail">${escapeHtml(item.detail || "")}</span>
+          </li>`).join("")}
+      </ul>
+      ${!c.can_proceed ? `<p class="pre-bid-block-msg">${escapeHtml(c.block_message || "")}</p>` : ""}
+      ${!c.all_complete && !c.bypassed ? `
+        <button type="button" class="btn btn-secondary-action btn-small" data-bypass-checklist="${escapeHtml(noticeId)}">
+          Override checklist and proceed anyway
+        </button>` : ""}
+      ${c.bypassed ? `<p class="detail-note">Checklist bypassed ${c.bypassed_at ? new Date(c.bypassed_at).toLocaleString() : ""}</p>` : ""}
+    </div>`;
+}
+
+function renderStatusBadge(status) {
+  const cls = STATUS_BADGE_CLASS[status] || "sub-status-grey";
+  return `<span class="sub-status-badge ${cls}">${escapeHtml(status || "Not Contacted")}</span>`;
+}
+
+function renderContactCard(contact) {
+  const followup = contact.needs_followup
+    ? `<span class="followup-badge">Follow up needed — no quote received in 48 hours</span>`
+    : "";
+  const stars = contact.rating != null ? `${contact.rating} ★` : "No rating";
+  const dist = contact.distance_miles != null ? `${contact.distance_miles} mi` : "—";
+  const loc = [contact.city, contact.state].filter(Boolean).join(", ") || "—";
+  return `
+    <article class="sub-contact-card ${contact.is_selected ? "sub-contact-selected" : ""}" data-contact-id="${contact.id}">
+      ${followup}
+      <header class="sub-contact-header">
+        <div>
+          <h3>${escapeHtml(contact.company_name)}</h3>
+          <p class="sub-card-meta">${escapeHtml(stars)} · ${escapeHtml(loc)} · ${dist}</p>
+        </div>
+        ${renderStatusBadge(contact.status)}
+      </header>
+      <div class="sub-contact-actions-row">
+        <button type="button" class="btn btn-secondary-action btn-small sub-copy-phone" data-phone="${escapeHtml(contact.phone || "")}">
+          ${escapeHtml(contact.phone || "No phone")}
+        </button>
+        <button type="button" class="btn btn-secondary-action btn-small" data-call-contact="${contact.id}">Call</button>
+        <button type="button" class="btn btn-secondary-action btn-small" data-log-quote="${contact.id}">Log Quote</button>
+        <button type="button" class="btn btn-secondary-action btn-small" data-voicemail="${contact.id}">Voicemail Script</button>
+        <button type="button" class="btn btn-primary-action btn-small" data-view-contact="${contact.id}">View Details</button>
+      </div>
+    </article>`;
+}
+
+function renderQuoteComparisonTable(rows) {
+  if (!rows?.length) return `<p class="empty">No quotes received yet.</p>`;
+  return `
+    <table class="quote-comparison-table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Monthly</th>
+          <th>Annual</th>
+          <th>Wage</th>
+          <th>Bid @18%</th>
+          <th>Bid @20%</th>
+          <th>Hist. avg</th>
+          <th>Competitive</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r) => `
+          <tr class="${r.is_selected ? "quote-row-selected" : ""}">
+            <td>${escapeHtml(r.company_name)}</td>
+            <td>${formatMoney(r.monthly_quote)}</td>
+            <td>${formatMoney(r.annual_quote)}</td>
+            <td><span class="wage-dot wage-${r.wage_compliance?.level || "neutral"}"></span></td>
+            <td>${formatMoney(r.bid_at_18_margin)}</td>
+            <td>${formatMoney(r.bid_at_20_margin)}</td>
+            <td>${r.historical_avg_annual ? formatMoney(r.historical_avg_annual) : "—"}</td>
+            <td><span class="comp-${r.competitiveness?.level || "neutral"}">${escapeHtml(r.competitiveness?.message || "")}</span></td>
+            <td><button type="button" class="btn btn-small btn-secondary-action" data-select-contact="${r.id}">Select</button></td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
 }
 
 function renderContractSubsPage(data) {
-  const summary = data.summary || {};
-  const city = summary.city || "this area";
-  const radius = summary.radius_miles || 25;
-  const header = summary.recommended_count
-    ? `${summary.recommended_count} recommended subs within ${radius} miles of ${city}`
-    : data.subs?.length
-    ? `${data.subs.length} subs for this contract`
-    : "No subs found automatically. You can add subs manually from My Subs.";
-  const selectedNote = data.selected_sub_quote
-    ? `<p class="detail-note selected-quote-note">This sub's quote (${formatMoney(data.selected_sub_quote)}) will be used in your proposal.</p>`
+  const contacts = data.contacts || data.subs || [];
+  const tabList = subsActiveTab === "list" ? "active" : "";
+  const tabCompare = subsActiveTab === "compare" ? "active" : "";
+  const listPane = subsActiveTab === "list"
+    ? `<div class="subs-cards subs-workflow-grid">${contacts.map(renderContactCard).join("") || '<p class="empty">No subs linked yet. Run Google Places search or add from your network.</p>'}</div>`
+    : "";
+  const comparePane = subsActiveTab === "compare"
+    ? renderQuoteComparisonTable(data.quote_comparison)
     : "";
 
   return `
     <div class="subs-page-header">
       <button type="button" class="btn btn-secondary-action btn-small" id="subs-back-btn">← Back to contract</button>
-      <h2>${escapeHtml(data.contract_title || "Contract subs")}</h2>
+      <h2>${escapeHtml(data.contract_title || "Sub outreach")}</h2>
       <p class="detail-note">${escapeHtml(data.agency || "")}</p>
-      <p class="pricing-intro">${escapeHtml(header)}</p>
-      ${selectedNote}
       <button type="button" class="btn btn-secondary-action btn-small" data-find-subs="${escapeHtml(data.notice_id)}">Run Google Places search</button>
     </div>
-    <div class="subs-cards subs-workflow-grid">${(data.subs || []).map(renderSubCard).join("") || '<p class="empty">No subs linked yet.</p>'}</div>`;
+    ${renderWageBanner(data.wage_requirements)}
+    ${renderPreBidChecklist(data.pre_bid_checklist, data.notice_id)}
+    ${renderProgressTracker(data.progress)}
+    <div class="subs-tab-bar">
+      <button type="button" class="subs-tab ${tabList}" data-subs-tab="list">Sub list</button>
+      <button type="button" class="subs-tab ${tabCompare}" data-subs-tab="compare">Quote comparison</button>
+    </div>
+    <div class="subs-tab-pane" data-pane="list" ${subsActiveTab !== "list" ? "hidden" : ""}>${listPane}</div>
+    <div class="subs-tab-pane" data-pane="compare" ${subsActiveTab !== "compare" ? "hidden" : ""}>${comparePane}</div>
+    <div id="sub-detail-modal" class="sub-modal" hidden></div>
+    <div id="sub-voicemail-modal" class="sub-modal" hidden></div>
+    <div id="sub-email-confirm-modal" class="sub-modal" hidden></div>`;
 }
 
-function renderSubCard(sub) {
-  const phoneLink = sub.phone
-    ? `<a href="tel:${escapeHtml(String(sub.phone).replace(/[^\d+]/g, ""))}">${escapeHtml(sub.phone)}</a>`
-    : "—";
-  const stars = sub.rating != null ? `${sub.rating} ★ (${sub.review_count ?? 0} reviews)` : "No rating";
-  const agreementSection = sub.status === "Selected" ? renderAgreementSection(sub) : "";
-  const profileSection = sub.status === "Selected" ? renderSubProfileFields(sub) : "";
-  const selectedClass = sub.is_selected ? " sub-card-selected sub-card-workflow-active" : "";
+function bindContractSubsPage(container, noticeId) {
+  if (container.id === "contract-detail-subs-root") {
+    container.querySelector("#subs-back-btn")?.remove();
+  } else {
+    container.querySelector("#subs-back-btn")?.addEventListener("click", () => {
+      stopContractSubsPolling();
+      if (typeof openContractDetail === "function") openContractDetail(noticeId, "subs");
+      else showView("dashboard");
+    });
+  }
+  container.querySelectorAll("[data-subs-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      subsActiveTab = btn.dataset.subsTab;
+      loadContractSubsInto(noticeId, container.id, { quiet: true });
+    });
+  });
+    });
+  });
+  container.querySelectorAll(".sub-copy-phone").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const phone = btn.dataset.phone;
+      if (phone) copyTextToClipboard(phone, "Phone copied.");
+    });
+  });
+  container.querySelectorAll("[data-call-contact]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.callContact);
+      await patchSubContact(id, { called: true, call_date: new Date().toISOString() });
+      const phone = contractSubsData?.contacts?.find((c) => c.id === id)?.phone;
+      if (phone) window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
+    });
+  });
+  container.querySelectorAll("[data-log-quote]").forEach((btn) => {
+    btn.addEventListener("click", () => openSubDetailModal(Number(btn.dataset.logQuote), { focusQuote: true }));
+  });
+  container.querySelectorAll("[data-view-contact]").forEach((btn) => {
+    btn.addEventListener("click", () => openSubDetailModal(Number(btn.dataset.viewContact)));
+  });
+  container.querySelectorAll("[data-voicemail]").forEach((btn) => {
+    btn.addEventListener("click", () => openVoicemailModal(Number(btn.dataset.voicemail)));
+  });
+  container.querySelectorAll("[data-select-contact]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/sub-contacts/${btn.dataset.selectContact}/select`, { method: "POST" });
+      await loadContractSubsPage(noticeId, { quiet: true });
+      showSyncStatus("Sub selected for proposal.");
+    });
+  });
+  container.querySelector(`[data-bypass-checklist="${noticeId}"]`)?.addEventListener("click", async () => {
+    if (!confirm("Bypass the pre-bid checklist? This will be logged.")) return;
+    await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/sub-checklist/bypass`, { method: "POST" });
+    await loadContractSubsPage(noticeId, { quiet: true });
+    showSyncStatus("Checklist bypass logged.");
+  });
+}
 
-  const outreachBlock = `
-    <div class="sub-workflow-step">
-      <div class="sub-workflow-step-head"><span class="sub-workflow-num">1</span> Outreach</div>
-      <div class="sub-outreach-grid">
-        <div class="sub-outreach-field sub-outreach-field-full">
-          <label class="filter-label">Status</label>
-          <select class="settings-input sub-status-select" data-field="status">
-            ${SUB_STATUSES.map((s) => `<option value="${escapeHtml(s)}" ${s === sub.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
-          </select>
-        </div>
-        <div class="sub-outreach-field">
-          <label class="filter-label">Monthly quote</label>
-          <input type="number" class="settings-input sub-quote-amount" data-field="quote_amount" value="${sub.quote_amount ?? ""}" step="0.01" placeholder="Amount">
-        </div>
-        <div class="sub-outreach-field">
-          <label class="filter-label">Quote date</label>
-          <input type="date" class="settings-input sub-quote-date" data-field="quote_date" value="${sub.quote_date || ""}">
-        </div>
-        <div class="sub-outreach-field sub-outreach-field-full">
-          <label class="filter-label">Call notes</label>
-          <textarea class="settings-input sub-notes" data-field="contact_notes" rows="2" placeholder="Who you spoke with…">${escapeHtml(sub.contact_notes || "")}</textarea>
-        </div>
-      </div>
+async function patchSubContact(contactId, payload) {
+  const res = await apiFetch(`/api/sub-contacts/${contactId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Save failed");
+  if (activeContractSubsId) await loadContractSubsPage(activeContractSubsId, { quiet: true });
+  return data;
+}
+
+async function openVoicemailModal(contactId) {
+  const modal = document.getElementById("sub-voicemail-modal");
+  if (!modal) return;
+  const res = await apiFetch(`/api/sub-contacts/${contactId}/voicemail-script`);
+  const data = await res.json();
+  if (!res.ok) return;
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="sub-modal-backdrop" data-close-modal></div>
+    <div class="sub-modal-panel">
+      <h3>Voicemail script</h3>
+      <p class="voicemail-script-text">${escapeHtml(data.script)}</p>
+      <button type="button" class="btn btn-primary-action" data-copy-vm="${escapeHtml(data.script)}">Copy to Clipboard</button>
+      <button type="button" class="btn btn-secondary-action" data-close-modal>Close</button>
     </div>`;
-
-  const agreementBlock =
-    sub.status === "Selected"
-      ? `<div class="sub-workflow-columns">
-          <div class="sub-workflow-step">
-            <div class="sub-workflow-step-head"><span class="sub-workflow-num">2</span> Agreement info</div>
-            ${profileSection.replace('class="sub-agreement-profile"', 'class="sub-agreement-profile sub-workflow-panel"')}
-          </div>
-          <div class="sub-workflow-step">
-            <div class="sub-workflow-step-head"><span class="sub-workflow-num">3</span> Generate &amp; send</div>
-            ${agreementSection.replace('class="sub-agreement-section"', 'class="sub-agreement-section sub-workflow-panel"')}
-          </div>
-        </div>`
-      : "";
-
-  return `
-    <article class="sub-card${selectedClass}" data-link-id="${sub.id}" data-sub-id="${sub.sub_id}">
-      <header class="sub-card-header">
-        <div>
-          <h3 class="sub-card-title">${escapeHtml(sub.business_name || "Unknown")}</h3>
-          <p class="sub-card-meta">${escapeHtml(stars)} · ${sub.distance_miles != null ? `${sub.distance_miles} mi` : "—"} · ${phoneLink}</p>
-        </div>
-        <div class="sub-card-links">
-          ${sub.website ? `<a href="${escapeHtml(sub.website)}" target="_blank" rel="noopener">Website</a>` : ""}
-          ${sub.google_maps_url ? `<a href="${escapeHtml(sub.google_maps_url)}" target="_blank" rel="noopener">Maps</a>` : ""}
-        </div>
-      </header>
-      <p class="sub-card-claude"><strong>Claude ${sub.claude_score ?? "—"}/10</strong> — ${escapeHtml(sub.claude_reason || "Not analyzed")}</p>
-      <div class="sub-workflow-body">
-        ${outreachBlock}
-        ${agreementBlock}
-      </div>
-      ${sub.status === "Selected" ? `<p class="detail-note selected-quote-note sub-card-selected-note">Selected for proposal &amp; subcontract agreement.</p>` : ""}
-      <p class="sub-save-hint" data-save-hint hidden>Saved</p>
-    </article>`;
+  modal.querySelector("[data-copy-vm]")?.addEventListener("click", (e) => {
+    copyTextToClipboard(e.target.dataset.copyVm, "Voicemail script copied.");
+  });
+  modal.querySelectorAll("[data-close-modal]").forEach((el) => {
+    el.addEventListener("click", () => { modal.hidden = true; });
+  });
 }
+
+async function openSubDetailModal(contactId, { focusQuote = false } = {}) {
+  const modal = document.getElementById("sub-detail-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  modal.innerHTML = `<div class="sub-modal-backdrop" data-close-modal></div><div class="sub-modal-panel sub-detail-panel"><p class="pricing-loading">Loading…</p></div>`;
+  const res = await apiFetch(`/api/sub-contacts/${contactId}`);
+  const contact = await res.json();
+  if (!res.ok) {
+    modal.querySelector(".sub-detail-panel").innerHTML = `<p>${escapeHtml(contact.detail || "Error")}</p>`;
+    return;
+  }
+  modal.querySelector(".sub-detail-panel").innerHTML = renderSubDetailContent(contact, focusQuote);
+  bindSubDetailModal(modal, contact);
+  modal.querySelectorAll("[data-close-modal]").forEach((el) => {
+    el.addEventListener("click", () => { modal.hidden = true; });
+  });
+}
+
+function renderSubDetailContent(c, focusQuote) {
+  const refs = Array.isArray(c.references) ? c.references : [];
+  while (refs.length < 3) refs.push({ client_name: "", contact: "", service: "", dates: "" });
+  const wageCls = c.wage_compliance?.level || "neutral";
+  return `
+    <h2>${escapeHtml(c.company_name)}</h2>
+    ${renderStatusBadge(c.status)}
+    <section class="sub-detail-section">
+      <h3>Contact information</h3>
+      <div class="sub-detail-grid">
+        <label>Company<input class="settings-input" data-field="company_name" value="${escapeHtml(c.company_name || "")}"></label>
+        <label>Phone<div class="copy-field-row"><input class="settings-input" data-field="phone" value="${escapeHtml(c.phone || "")}"><button type="button" class="btn btn-small" data-copy-field="phone">Copy</button></div></label>
+        <label>Email<div class="copy-field-row"><input class="settings-input" data-field="email" value="${escapeHtml(c.email || "")}"><button type="button" class="btn btn-small" data-copy-field="email">Copy</button></div></label>
+        <label>Website<input class="settings-input" data-field="website" value="${escapeHtml(c.website || "")}"></label>
+        <label>Address<input class="settings-input" data-field="address" value="${escapeHtml(c.address || "")}"></label>
+        <label>City<input class="settings-input" data-field="city" value="${escapeHtml(c.city || "")}"></label>
+        <label>State<input class="settings-input" data-field="state" value="${escapeHtml(c.state || "")}" maxlength="8"></label>
+      </div>
+    </section>
+    <section class="sub-detail-section">
+      <h3>Call log</h3>
+      <label class="toggle-row"><input type="checkbox" data-field="called" ${c.called ? "checked" : ""}> Called</label>
+      <label class="toggle-row"><input type="checkbox" data-field="reached" ${c.reached ? "checked" : ""}> Reached</label>
+      <label class="toggle-row"><input type="checkbox" data-field="voicemail_left" ${c.voicemail_left ? "checked" : ""}> Voicemail left</label>
+      <label>Notes<textarea class="settings-input" data-field="notes" rows="3">${escapeHtml(c.notes || "")}</textarea></label>
+    </section>
+    <section class="sub-detail-section">
+      <h3>Email templates</h3>
+      <p class="settings-help">Copy and send from your own email client — nothing is sent automatically.</p>
+      <button type="button" class="btn btn-secondary-action btn-small" data-gen-scope="${c.id}">Generate Scope Email</button>
+      <button type="button" class="btn btn-secondary-action btn-small" data-gen-followup="${c.id}">Generate Follow Up Email</button>
+      <div id="email-template-box" hidden>
+        <button type="button" class="btn btn-primary-action btn-small" data-copy-email-top>Copy to Clipboard</button>
+        <textarea id="email-template-text" class="settings-input email-template-area" rows="16"></textarea>
+        <button type="button" class="btn btn-primary-action btn-small" data-copy-email-bottom>Copy to Clipboard</button>
+        <ol class="email-after-copy-checklist">
+          <li>Open your email client</li>
+          <li>Paste the email text</li>
+          <li>Add the sub's email in the To field</li>
+          <li>Review and edit as needed</li>
+          <li>Send</li>
+        </ol>
+      </div>
+    </section>
+    <section class="sub-detail-section" id="quote-section">
+      <h3>Quote</h3>
+      <label class="toggle-row"><input type="checkbox" data-field="quote_received" ${c.quote_received ? "checked" : ""}> Quote received</label>
+      <label>Monthly quote ($)<input type="number" class="settings-input ${focusQuote ? "focus-field" : ""}" data-field="quote_amount" step="0.01" value="${c.quote_amount ?? ""}"></label>
+      <p class="wage-compliance-indicator wage-${wageCls}" data-wage-indicator>${escapeHtml(c.wage_compliance?.message || "")}</p>
+      <p>Annual quote: <strong data-annual-quote>${c.annual_quote != null ? formatMoney(c.annual_quote) : "—"}</strong></p>
+      <label class="toggle-row"><input type="checkbox" data-field="payment_terms_confirmed" ${c.payment_terms_confirmed ? "checked" : ""}> Payment terms confirmed (Net 45)</label>
+    </section>
+    <section class="sub-detail-section">
+      <h3>References</h3>
+      <label class="toggle-row"><input type="checkbox" data-field="references_requested" ${c.references_requested ? "checked" : ""}> References requested</label>
+      <label class="toggle-row"><input type="checkbox" data-field="references_received" ${c.references_received ? "checked" : ""}> References received</label>
+      ${refs.map((r, i) => `
+        <div class="reference-block" data-ref-idx="${i}">
+          <label>Client name<input class="settings-input" data-ref="client_name" value="${escapeHtml(r.client_name || "")}"></label>
+          <label>Phone or email<input class="settings-input" data-ref="contact" value="${escapeHtml(r.contact || "")}"></label>
+          <label>Service performed<input class="settings-input" data-ref="service" value="${escapeHtml(r.service || "")}"></label>
+          <label>Dates<input class="settings-input" data-ref="dates" value="${escapeHtml(r.dates || "")}"></label>
+        </div>`).join("")}
+    </section>
+    <section class="sub-detail-section">
+      <h3>Insurance</h3>
+      <label class="toggle-row"><input type="checkbox" data-field="insurance_verified" ${c.insurance_verified ? "checked" : ""}> Insurance verified</label>
+      <label>Expiration date<input type="date" class="settings-input" data-field="insurance_expiration_date" value="${(c.insurance_expiration_date || "").slice(0, 10)}"></label>
+      <label>Coverage amount<input type="number" class="settings-input" data-field="insurance_coverage_amount" step="0.01" value="${c.insurance_coverage_amount ?? ""}"></label>
+    </section>
+    <section class="sub-detail-section">
+      <h3>Selection</h3>
+      ${c.is_selected
+        ? `<button type="button" class="btn btn-secondary-action" data-deselect="${c.id}">Deselect</button>`
+        : `<button type="button" class="btn btn-primary-action" data-select="${c.id}">Select This Sub</button>`}
+    </section>
+    <button type="button" class="btn btn-secondary-action" data-close-modal>Close</button>`;
+}
+
+function bindSubDetailModal(modal, contact) {
+  const panel = modal.querySelector(".sub-detail-panel");
+  const collectPayload = () => {
+    const payload = {};
+    panel.querySelectorAll("[data-field]").forEach((el) => {
+      const field = el.dataset.field;
+      if (el.type === "checkbox") payload[field] = el.checked;
+      else if (field === "quote_amount" || field === "insurance_coverage_amount") {
+        payload[field] = el.value ? Number(el.value) : null;
+      } else payload[field] = el.value || null;
+    });
+    const refs = [];
+    panel.querySelectorAll(".reference-block").forEach((block) => {
+      const ref = {};
+      block.querySelectorAll("[data-ref]").forEach((el) => { ref[el.dataset.ref] = el.value; });
+      refs.push(ref);
+    });
+    payload.references = refs;
+    return payload;
+  };
+  const save = debounce(() => {
+    patchSubContact(contact.id, collectPayload()).catch((err) => showSyncStatus(err.message, true));
+  }, 500);
+  panel.querySelectorAll("[data-field], [data-ref]").forEach((el) => {
+    el.addEventListener("change", save);
+    el.addEventListener("input", save);
+  });
+  panel.querySelector("[data-field=quote_amount]")?.addEventListener("input", (e) => {
+    const monthly = Number(e.target.value);
+    const annual = panel.querySelector("[data-annual-quote]");
+    if (annual && monthly) annual.textContent = formatMoney(monthly * 12);
+  });
+  panel.querySelectorAll("[data-copy-field]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const field = btn.dataset.copyField;
+      const val = panel.querySelector(`[data-field="${field}"]`)?.value;
+      if (val) copyTextToClipboard(val, "Copied.");
+    });
+  });
+  const showEmail = async (url, contactId) => {
+    const res = await apiFetch(url);
+    const data = await res.json();
+    if (!res.ok) return;
+    const box = panel.querySelector("#email-template-box");
+    const ta = panel.querySelector("#email-template-text");
+    if (!box || !ta) return;
+    box.hidden = false;
+    ta.value = data.body;
+    const copyHandler = () => {
+      copyTextToClipboard(ta.value, "Copied — paste into your email client and send.");
+      confirmEmailSent(contactId);
+    };
+    panel.querySelector("[data-copy-email-top]")?.addEventListener("click", copyHandler);
+    panel.querySelector("[data-copy-email-bottom]")?.addEventListener("click", copyHandler);
+  };
+  panel.querySelector("[data-gen-scope]")?.addEventListener("click", () => {
+    showEmail(`/api/sub-contacts/${contact.id}/scope-email`, contact.id);
+  });
+  panel.querySelector("[data-gen-followup]")?.addEventListener("click", () => {
+    showEmail(`/api/sub-contacts/${contact.id}/followup-email`, contact.id);
+  });
+  panel.querySelector("[data-select]")?.addEventListener("click", async () => {
+    await apiFetch(`/api/sub-contacts/${contact.id}/select`, { method: "POST" });
+    modal.hidden = true;
+    if (activeContractSubsId) await loadContractSubsPage(activeContractSubsId, { quiet: true });
+  });
+  panel.querySelector("[data-deselect]")?.addEventListener("click", async () => {
+    await apiFetch(`/api/sub-contacts/${contact.id}/deselect`, { method: "POST" });
+    modal.hidden = true;
+    if (activeContractSubsId) await loadContractSubsPage(activeContractSubsId, { quiet: true });
+  });
+}
+
+function confirmEmailSent(contactId) {
+  const modal = document.getElementById("sub-email-confirm-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="sub-modal-backdrop" data-close-email-confirm></div>
+    <div class="sub-modal-panel">
+      <p>Did you send this email? Mark as sent?</p>
+      <button type="button" class="btn btn-primary-action" data-email-yes>Yes</button>
+      <button type="button" class="btn btn-secondary-action" data-email-no>No</button>
+    </div>`;
+  modal.querySelector("[data-email-yes]")?.addEventListener("click", async () => {
+    await apiFetch(`/api/sub-contacts/${contactId}/mark-email-sent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sent: true }),
+    });
+    modal.hidden = true;
+    showSyncStatus("Email marked as sent.");
+  });
+  modal.querySelector("[data-email-no]")?.addEventListener("click", () => { modal.hidden = true; });
+  modal.querySelector("[data-close-email-confirm]")?.addEventListener("click", () => { modal.hidden = true; });
+}
+
+const AGREEMENT_SIGNATURE_STATUSES = [
+  "Agreement Not Generated",
+  "Agreement Sent",
+  "Agreement Signed",
+  "Agreement Declined",
+];
 
 function renderSubProfileFields(sub) {
   return `
@@ -412,6 +789,14 @@ function bindContractSubCards(container) {
 
 const _subSaveTimers = new Map();
 const _subProfileSaveTimers = new Map();
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
 
 function debounceSubProfileSave(subId, card) {
   return () => {
@@ -652,11 +1037,6 @@ async function createManualSub(event) {
 }
 
 function bindSubFinderEvents() {
-  document.getElementById("tab-subs")?.addEventListener("click", () => {
-    stopContractSubsPolling();
-    showView("subs");
-    loadMySubsPage();
-  });
   document.getElementById("subs-search-btn")?.addEventListener("click", loadMySubsPage);
   document.getElementById("manual-sub-form")?.addEventListener("submit", (e) => {
     createManualSub(e).catch((err) => showSyncStatus(err.message, true));

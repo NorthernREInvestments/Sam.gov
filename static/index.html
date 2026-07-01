@@ -4,184 +4,127 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GovTracker</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=20260627-layout-v2">
 </head>
 <body>
   <header class="header">
-    <div>
+    <div class="header-brand">
       <h1>GovTracker</h1>
-      <p class="subtitle">Federal contract opportunities</p>
     </div>
     <nav class="main-nav">
-      <button id="tab-dashboard" class="tab active" type="button">Dashboard</button>
-      <button id="tab-subs" class="tab" type="button">My Subs</button>
-      <button id="tab-pricing" class="tab" type="button">Pricing</button>
+      <button id="tab-contracts" class="tab active" type="button">Contracts</button>
+      <button id="tab-performance" class="tab" type="button">Performance</button>
       <button id="tab-settings" class="tab" type="button">Settings</button>
+      <button id="tab-help" class="tab" type="button">Help</button>
       <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
     </nav>
   </header>
 
+  <div id="status-bar" class="status-bar">Loading…</div>
   <div id="sync-status" class="sync-status" hidden></div>
+  <div id="dashboard-perf-alerts" class="dashboard-perf-alerts"></div>
 
+  <!-- Contracts dashboard -->
   <div id="view-dashboard">
-    <div class="toolbar">
-      <button id="screen-btn" class="btn btn-secondary-header" type="button">Screen all matching</button>
-      <button id="search-all-btn" class="btn btn-secondary-header" type="button" title="Search all enabled NAICS codes across every tier immediately">Search All</button>
-      <div class="sync-controls">
-        <label class="sync-label" for="sync-naics-select">NAICS</label>
+    <div class="dashboard-toolbar">
+      <button id="mobile-filter-btn" class="btn btn-secondary-header mobile-only" type="button">Filters</button>
+      <div class="sync-controls sync-controls-compact">
         <select id="sync-naics-select" class="sync-select" aria-label="NAICS code to search">
-          <option value="">Next in rotation</option>
+          <option value="">Next NAICS</option>
         </select>
-        <button id="search-only-btn" class="btn btn-secondary-header" type="button" title="List only — 1 SAM.gov API call, attachments not scraped">Search only</button>
-        <button id="refresh-btn" class="btn btn-primary" type="button" title="Search + scrape every attachment (SAM + PIEE) for each contract">Sync NAICS</button>
+        <button id="refresh-btn" class="btn btn-primary" type="button">Sync</button>
       </div>
     </div>
-
     <div class="layout">
-      <aside class="filters">
-        <h2>Filters</h2>
-
-        <label class="filter-label">Show on dashboard</label>
-        <p class="filter-help">Only codes enabled in Settings appear here. Uncheck to hide categories from this view — SAM.gov sync always follows Settings.</p>
+      <aside id="filters-panel" class="filters">
+        <div class="filters-header">
+          <h2>Filters</h2>
+          <button id="close-filters-btn" class="btn btn-secondary-action mobile-only" type="button">Close</button>
+        </div>
+        <label class="filter-label">NAICS codes</label>
         <div id="naics-filters" class="checkbox-group"></div>
-
         <label class="filter-label" for="min-days">Minimum days until due</label>
         <div class="slider-row">
-        <input type="range" id="min-days" min="0" max="120" value="10">
-        <span id="min-days-value">10</span>
+          <input type="range" id="min-days" min="0" max="120" value="10">
+          <span id="min-days-value">10</span>
         </div>
-
-        <label class="filter-label" for="min-score">Minimum fit score (1–10)</label>
-        <p class="filter-help">Claude rates how good a match each contract is for your business. Contracts below this score are hidden.</p>
+        <label class="filter-label" for="min-score">Minimum fit score</label>
         <div class="slider-row">
           <input type="range" id="min-score" min="1" max="10" value="1">
           <span id="min-score-value">1</span>
         </div>
-
         <label class="filter-label" for="agency-filter">Agency contains</label>
-        <input type="text" id="agency-filter" placeholder="e.g. Veterans, Army">
-
-        <label class="filter-label" for="tier-filter">Search tier</label>
-        <select id="tier-filter" class="settings-input">
-          <option value="">All tiers</option>
-          <option value="1">Tier 1 only</option>
-          <option value="2">Tier 2 only</option>
-          <option value="3">Tier 3 only</option>
+        <input type="text" id="agency-filter" class="settings-input" placeholder="e.g. Veterans, Army">
+        <label class="filter-label" for="status-filter">Status</label>
+        <select id="status-filter" class="settings-input">
+          <option value="">All</option>
+          <option value="needs_subs">Needs Subs</option>
+          <option value="ready_to_bid">Ready to Bid</option>
+          <option value="submitted">Submitted</option>
+          <option value="awarded">Awarded</option>
+          <option value="active">Active</option>
         </select>
-
-        <label class="checkbox-inline">
-          <input type="checkbox" id="pursue-only"> Pursue only
-        </label>
-
+        <label class="filter-label" for="setaside-filter">Set-Aside</label>
+        <select id="setaside-filter" class="settings-input">
+          <option value="">All</option>
+          <option value="total_small_business">Total Small Business</option>
+          <option value="8a">8A</option>
+          <option value="hubzone">HUBZone</option>
+          <option value="wosb">WOSB</option>
+          <option value="sdvosb">SDVOSB</option>
+        </select>
         <button id="apply-filters" class="btn btn-secondary" type="button">Apply filters</button>
       </aside>
-
       <main class="main">
-        <p id="naics-sync-status" class="naics-sync-status"></p>
-        <p id="results-count" class="results-count">Loading...</p>
-        <div id="cards" class="cards"></div>
+        <div id="filter-hint" class="filter-hint" hidden></div>
+        <div id="cards" class="cards cards-compact"></div>
       </main>
     </div>
   </div>
 
-  <div id="view-subs" hidden>
-    <div class="settings-page subs-page">
-      <h2>My Subs</h2>
-      <p class="settings-help">Every subcontractor found via Google Places or added manually. Call notes and bids are saved permanently.</p>
-      <div class="subs-toolbar">
-        <input type="text" id="subs-search" class="settings-input" placeholder="Search name, city, state, type">
-        <select id="subs-type-filter" class="settings-input">
-          <option value="">All types</option>
-          <option value="janitorial">Janitorial</option>
-          <option value="landscaping">Landscaping</option>
-          <option value="pest control">Pest control</option>
-          <option value="security">Security</option>
-          <option value="hvac">HVAC</option>
-        </select>
-        <input type="text" id="subs-state-filter" class="settings-input subs-state-input" placeholder="State" maxlength="2">
-        <button id="subs-search-btn" class="btn btn-secondary-action" type="button">Search</button>
+  <!-- Contract detail page -->
+  <div id="view-contract-detail" hidden>
+    <div class="contract-detail-page">
+      <div class="contract-detail-top">
+        <button id="contract-detail-back" class="btn btn-secondary-action" type="button">← Contracts</button>
+        <div id="contract-detail-header"></div>
       </div>
-      <table class="pricing-table my-subs-table">
-        <thead>
-          <tr><th>Business</th><th>Type</th><th>Location</th><th>Rating</th><th>Phone</th><th>Notes</th><th>Contacted</th><th>Selected</th><th>Last contact</th></tr>
-        </thead>
-        <tbody id="my-subs-body"></tbody>
-      </table>
-      <div id="sub-history-panel" class="sub-history-panel" hidden></div>
-      <section class="settings-section">
-        <h3>Add sub manually</h3>
-        <form id="manual-sub-form" class="manual-sub-form">
-          <input name="business_name" class="settings-input" placeholder="Business name" required>
-          <input name="phone" class="settings-input" placeholder="Phone">
-          <input name="city" class="settings-input" placeholder="City">
-          <input name="state" class="settings-input subs-state-input" placeholder="State" maxlength="2">
-          <input name="sub_type" class="settings-input" placeholder="Sub type (e.g. janitorial)">
-          <input name="website" class="settings-input" placeholder="Website URL">
-          <textarea name="notes" class="settings-input" rows="2" placeholder="General notes"></textarea>
-          <button class="btn btn-primary" type="submit">Add sub</button>
-        </form>
-      </section>
+      <nav id="contract-detail-tabs" class="contract-detail-tabs" role="tablist"></nav>
+      <div id="contract-detail-panels" class="contract-detail-panels"></div>
     </div>
   </div>
 
-  <div id="view-contract-subs" hidden>
-    <div class="settings-page">
-      <div id="contract-subs-content"></div>
-    </div>
-  </div>
-
-  <div id="view-proposal-subs" hidden>
-    <div class="settings-page"><div id="proposal-step-content"></div></div>
-  </div>
-  <div id="view-proposal-config" hidden>
-    <div class="settings-page"><div id="proposal-config-content"></div></div>
-  </div>
-  <div id="view-proposal-editor" hidden>
-    <div id="proposal-editor-content"></div>
-  </div>
-
-  <div id="view-pricing" hidden>
-    <div class="settings-page" id="pricing-dashboard-content"></div>
+  <div id="view-performance" hidden>
+    <div class="settings-page" id="performance-dashboard-content"></div>
   </div>
 
   <div id="view-settings" hidden>
     <div class="settings-page">
       <h2>Settings</h2>
       <p class="settings-help">Changes apply to sync, screening, and dashboard filters.</p>
-
       <section class="settings-section">
         <h3>Search</h3>
-        <p class="filter-help">Turn off a code to exclude it from all SAM.gov searches. Auto-sync rotates a few codes per day (see SCHEDULED_NAICS_PER_SYNC). At least one code must stay on.</p>
         <div id="settings-naics-toggles" class="naics-settings"></div>
-
         <label class="filter-label" for="settings-min-days">Minimum days until due (default)</label>
         <div class="slider-row">
-        <input type="range" id="settings-min-days" min="0" max="120" value="10">
-        <span id="settings-min-days-value">10</span>
+          <input type="range" id="settings-min-days" min="0" max="120" value="10">
+          <span id="settings-min-days-value">10</span>
         </div>
       </section>
-
       <section class="settings-section">
         <h3>Screening</h3>
         <label class="filter-label" for="settings-min-score">Minimum fit score (default 1–10)</label>
-        <p class="filter-help">1 = poor match, 10 = great match. Hide contracts Claude scores below this number.</p>
         <div class="slider-row">
           <input type="range" id="settings-min-score" min="1" max="10" value="1">
           <span id="settings-min-score-value">1</span>
         </div>
-
         <label class="filter-label" for="settings-prompt">Claude screening prompt</label>
         <p id="prompt-status" class="prompt-status"></p>
         <textarea id="settings-prompt" class="prompt-textarea" rows="14"></textarea>
-        <div class="settings-button-row">
-          <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
-        </div>
-        <p class="settings-help">After a prompt update, use Reset prompt to get the latest plain-English summary format.</p>
+        <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
       </section>
-
       <section class="settings-section">
         <h3>Proposal / business info</h3>
-        <p class="settings-help">Used when generating proposals and subcontract agreements for Northern RE Investments, LLC.</p>
         <div id="settings-owner-completion" class="settings-owner-completion"></div>
         <label class="filter-label">Legal business name</label>
         <input id="settings-owner-legal" class="settings-input" data-owner-required="legal_business_name" value="Northern RE Investments, LLC">
@@ -212,10 +155,8 @@
         <label class="filter-label">SAM expiration</label>
         <input id="settings-owner-sam-exp" class="settings-input" type="date" data-owner-required="sam_expiration">
       </section>
-
       <section class="settings-section">
         <h3>Sub Finder</h3>
-        <p class="settings-help">Set <code>GOOGLE_PLACES_API_KEY</code> in Railway or <code>.env</code> (Places API New must be enabled).</p>
         <label class="filter-label" for="settings-sub-radius">Default search radius (miles)</label>
         <select id="settings-sub-radius" class="settings-input">
           <option value="10">10 miles</option>
@@ -228,31 +169,36 @@
         <label class="filter-label" for="settings-sub-min-reviews">Minimum review count</label>
         <input type="number" id="settings-sub-min-reviews" class="settings-input" min="0" value="5">
       </section>
-
+      <section class="settings-section">
+        <h3>Performance / invoicing</h3>
+        <label class="filter-label" for="settings-wawf-password-date">WAWF last password change</label>
+        <input type="date" id="settings-wawf-password-date" class="settings-input">
+        <p id="settings-wawf-next-due" class="settings-help"></p>
+        <div id="settings-wawf-status"></div>
+        <label class="checkbox-inline settings-checkbox">
+          <input type="checkbox" id="settings-ipp-registered"> IPP registered at ipp.gov
+        </label>
+      </section>
+      <section class="settings-section">
+        <h3>Margin defaults</h3>
+        <label class="filter-label" for="settings-default-margin">Default margin %</label>
+        <input type="number" id="settings-default-margin" class="settings-input" min="10" max="35" step="1" value="20">
+      </section>
       <section class="settings-section">
         <h3>Export for Claude</h3>
-        <p class="settings-help">Downloads a complete snapshot of GovTracker — contracts, analysis, subs, proposals, pricing, and attachment text — ready to upload to a Claude Project.</p>
-        <div class="settings-button-row">
-          <button id="export-claude-btn" class="btn btn-secondary-action" type="button">Export for Claude…</button>
-        </div>
+        <button id="export-claude-btn" class="btn btn-secondary-action" type="button">Export for Claude…</button>
         <p id="export-claude-status" class="settings-help"></p>
       </section>
-
       <section class="settings-section">
         <h3>API usage today</h3>
-        <p class="settings-help">GovTracker tracks daily limits to protect your SAM.gov key and Claude credits. Limits reset at midnight (server time). Adjust caps in Railway / <code>.env</code>.</p>
         <ul id="api-budget-status" class="api-key-status"></ul>
       </section>
-
       <section class="settings-section">
         <h3>API keys</h3>
-        <p class="settings-help">Keys are set in Railway variables or your local <code>.env</code> file — not stored in the browser.</p>
         <ul id="api-key-status" class="api-key-status"></ul>
       </section>
-
       <section class="settings-section">
         <h3>Daily sync schedule</h3>
-        <p class="filter-help">Automatically pulls new contracts from SAM.gov each day, reads descriptions and attachments, and writes plain-English summaries for matching bids.</p>
         <label class="checkbox-inline settings-checkbox">
           <input type="checkbox" id="settings-scheduler-enabled" checked> Enable daily sync
         </label>
@@ -268,24 +214,63 @@
         </select>
         <p id="scheduler-status" class="settings-help">Loading...</p>
       </section>
-
       <div class="settings-actions">
         <button id="save-settings-btn" class="btn btn-primary" type="button">Save settings</button>
       </div>
     </div>
   </div>
 
+  <div id="view-help" hidden>
+    <div class="settings-page help-page">
+      <h2>Help &amp; Workflow Guide</h2>
+      <section class="help-section">
+        <h3>How GovTracker works</h3>
+        <ol class="help-steps">
+          <li><strong>Found</strong> — SAM.gov sync discovers matching opportunities.</li>
+          <li><strong>Analyzed</strong> — Claude screens each contract and writes a plain-English summary.</li>
+          <li><strong>Subs</strong> — Find subcontractors, collect quotes, complete the pre-bid checklist.</li>
+          <li><strong>Proposal</strong> — Configure margin, generate proposal, complete submission checklist.</li>
+          <li><strong>Submitted</strong> — Track submission and, after award, move to Performance.</li>
+        </ol>
+      </section>
+      <section class="help-section">
+        <h3>Dashboard cards</h3>
+        <p>Each card shows score, due date, workflow progress, and one primary action. Click the card to open full details. Use filters to focus on contracts that need attention.</p>
+      </section>
+      <section class="help-section">
+        <h3>After award</h3>
+        <p>When a contract is awarded, the Performance tab appears on the contract detail page. Track monthly invoices, sub payments, option years, and CPARS ratings from the Performance nav item.</p>
+      </section>
+      <section class="help-section">
+        <h3>Key links</h3>
+        <ul>
+          <li><a href="https://sam.gov" target="_blank" rel="noopener">SAM.gov</a></li>
+          <li><a href="https://piee.eb.mil" target="_blank" rel="noopener">WAWF / PIEE</a></li>
+          <li><a href="https://www.ipp.gov" target="_blank" rel="noopener">IPP (civilian invoicing)</a></li>
+          <li><a href="https://www.cpars.gov" target="_blank" rel="noopener">CPARS</a></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <!-- Legacy hidden views for embedded proposal steps -->
+  <div id="view-proposal-config" hidden><div class="settings-page"><div id="proposal-config-content"></div></div></div>
+  <div id="view-proposal-editor" hidden><div id="proposal-editor-content"></div></div>
+
   <div id="modal" class="modal" hidden>
     <div class="modal-backdrop" id="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-detail">
+    <div class="modal-panel">
       <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
       <div id="modal-content"></div>
     </div>
   </div>
 
-  <script src="/app.js"></script>
-  <script src="/subs.js"></script>
-  <script src="/pricing.js"></script>
-  <script src="/proposal.js"></script>
+  <script src="/app.js?v=20260627-layout-v2"></script>
+  <script src="/contract-detail.js?v=20260627-layout-v2"></script>
+  <script src="/subs.js?v=20260627-layout-v2"></script>
+  <script src="/pricing.js?v=20260627-layout-v2"></script>
+  <script src="/proposal.js?v=20260627-layout-v2"></script>
+  <script src="/submission.js?v=20260627-layout-v2"></script>
+  <script src="/performance.js?v=20260627-layout-v2"></script>
 </body>
 </html>

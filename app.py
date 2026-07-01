@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -30,6 +30,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+APP_BUILD_VERSION = "20260627-layout-v2"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -92,10 +93,149 @@ class ContractSubUpdate(BaseModel):
     agreement_signature_status: str | None = None
 
 
+class SubContactUpdate(BaseModel):
+    company_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    address: str | None = None
+    city: str | None = None
+    state: str | None = Field(None, max_length=8)
+    rating: float | None = Field(None, ge=0, le=5)
+    source: str | None = None
+    called: bool | None = None
+    call_date: str | None = None
+    reached: bool | None = None
+    voicemail_left: bool | None = None
+    email_sent: bool | None = None
+    email_sent_date: str | None = None
+    quote_received: bool | None = None
+    quote_amount: float | None = None
+    quote_date: str | None = None
+    payment_terms_confirmed: bool | None = None
+    insurance_verified: bool | None = None
+    insurance_expiration_date: str | None = None
+    insurance_coverage_amount: float | None = None
+    references_requested: bool | None = None
+    references_received: bool | None = None
+    references: list[dict[str, Any]] | None = None
+    is_selected: bool | None = None
+    select: bool | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
+class MarkEmailSentRequest(BaseModel):
+    sent: bool = True
+
+
+class ChecklistItemUpdate(BaseModel):
+    checked: bool | None = None
+    na: bool | None = None
+    na_reason: str | None = None
+    notes: str | None = None
+
+
+class CoQuestionUpdate(BaseModel):
+    text: str | None = None
+    asked: bool | None = None
+    response: str | None = None
+    resolved: bool | None = None
+
+
+class SubmissionMetaUpdate(BaseModel):
+    submission_method_confirmed: bool | None = None
+    submission_method_notes: str | None = None
+    submission_method: str | None = None
+    submission_email: str | None = None
+
+
 class ContractOutcomeUpdate(BaseModel):
-    status: Literal["won", "lost", "bidding", "reviewing", "new", "skipped"] | None = None
+    status: Literal[
+        "won",
+        "lost",
+        "bidding",
+        "reviewing",
+        "new",
+        "skipped",
+        "awarded",
+        "active",
+        "option_year",
+        "stop_work",
+        "completed",
+        "not_awarded",
+        "submitted",
+    ] | None = None
     awarded_amount: float | None = Field(None, ge=0)
     margin_percentage: float | None = Field(None, ge=10, le=35)
+
+
+class PerformanceUpdate(BaseModel):
+    award_date: str | None = None
+    period_of_performance_start: str | None = None
+    period_of_performance_end: str | None = None
+    option_years_remaining: int | None = Field(None, ge=0)
+    government_contract_number: str | None = None
+    invoicing_system: str | None = None
+    invoicing_system_confirmed: bool | None = None
+    cor_name: str | None = None
+    cor_email: str | None = None
+    cor_phone: str | None = None
+    co_name: str | None = None
+    co_email: str | None = None
+    co_phone: str | None = None
+    stop_work_issued: bool | None = None
+    stop_work_issued_date: str | None = None
+    cpars_rating: str | None = None
+    cpars_comments: str | None = None
+    cpars_expected_date: str | None = None
+    status: str | None = None
+    mark_awarded: bool | None = None
+
+
+class InvoiceCreate(BaseModel):
+    billing_period_start: str | None = None
+    billing_period_end: str | None = None
+    invoice_amount: float | None = None
+    invoice_submission_method: str | None = None
+    notes: str | None = None
+
+
+class InvoiceUpdate(BaseModel):
+    billing_period_start: str | None = None
+    billing_period_end: str | None = None
+    invoice_amount: float | None = None
+    invoice_submitted_date: str | None = None
+    invoice_submission_method: str | None = None
+    invoice_accepted_date: str | None = None
+    payment_received_date: str | None = None
+    payment_amount: float | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
+class SubPaymentCreate(BaseModel):
+    invoice_id: int | None = None
+    sub_contact_id: int | None = None
+    sub_invoice_received_date: str | None = None
+    sub_invoice_amount: float | None = None
+
+
+class SubPaymentUpdate(BaseModel):
+    sub_invoice_received_date: str | None = None
+    sub_invoice_amount: float | None = None
+    government_signoff_received: bool | None = None
+    government_signoff_date: str | None = None
+    government_signoff_notes: str | None = None
+    payment_released_date: str | None = None
+    payment_amount: float | None = None
+    payment_method: str | None = None
+    notes: str | None = None
+
+
+class PerformanceSettingsUpdate(BaseModel):
+    wawf_last_password_change: str | None = None
+    ipp_registered: bool | None = None
 
 
 class ManualSubCreate(BaseModel):
@@ -249,6 +389,7 @@ def config():
         "default_min_score": settings["min_score_threshold"],
         "naics_sync": sync_status,
         "auth_enabled": auth_enabled(),
+        "build_version": APP_BUILD_VERSION,
     }
 
 
@@ -260,6 +401,8 @@ def get_contracts(
     agency: str | None = Query(None),
     pursue_only: bool = Query(False),
     tier: int | None = Query(None, ge=1, le=3, description="Filter by search tier"),
+    status: str | None = Query(None, description="needs_subs, ready_to_bid, submitted, awarded, active"),
+    set_aside: str | None = Query(None, description="Set-aside type filter"),
 ):
     if naics == "__none__":
         naics_codes: list[str] | None = []
@@ -277,6 +420,8 @@ def get_contracts(
             agency=agency,
             pursue_only=pursue_only,
             tier=tier,
+            status_filter=status,
+            set_aside_filter=set_aside,
         )
         from api_budget import get_usage_snapshot
         from intake import enrich_matching_attachments, start_background_attachment_enrich
@@ -300,10 +445,25 @@ def get_contracts(
             agency=agency,
             pursue_only=pursue_only,
             tier=tier,
+            status_filter=status,
+            set_aside_filter=set_aside,
             require_dashboard_ready=False,
             require_scrape_complete=False,
         )
         processing_count = sum(1 for r in processing_rows if not is_dashboard_ready(r))
+
+        ready_pool = list_contracts(
+            session,
+            naics_codes=naics_codes,
+            min_days_until_due=0,
+            min_score=min_score,
+            agency=agency,
+            pursue_only=pursue_only,
+            tier=tier,
+            status_filter=status,
+            set_aside_filter=set_aside,
+        )
+        hidden_by_min_days = max(0, len(ready_pool) - len(rows)) if min_days else 0
 
         return {
             "count": len(rows),
@@ -311,6 +471,11 @@ def get_contracts(
             "contracts": [contract_to_dict(r) for r in rows],
             "api_budget": get_usage_snapshot(),
             "attachments_refreshed": attachment_refresh.get("attachments_enriched", 0),
+            "filter_stats": {
+                "ready_eligible": len(ready_pool),
+                "hidden_by_min_days": hidden_by_min_days,
+                "total_matching_naics": len(processing_rows),
+            },
         }
     finally:
         session.close()
@@ -637,6 +802,292 @@ def patch_contract_sub(link_id: int, body: ContractSubUpdate):
         return contract_sub_to_dict(link, agreement=agreement_info)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/sub-contacts/{contact_id}")
+def get_sub_contact(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import get_sub_contact_detail
+
+        return get_sub_contact_detail(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/sub-contacts/{contact_id}")
+def patch_sub_contact(contact_id: int, body: SubContactUpdate):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import get_sub_contact_detail, update_sub_contact
+
+        update_sub_contact(session, contact_id, body.model_dump(exclude_unset=True))
+        return get_sub_contact_detail(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/sub-contacts/{contact_id}/select")
+def select_sub_contact_route(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import get_sub_contact_detail, select_sub_contact
+
+        select_sub_contact(session, contact_id)
+        return get_sub_contact_detail(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/sub-contacts/{contact_id}/deselect")
+def deselect_sub_contact_route(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import deselect_sub_contact, get_sub_contact_detail
+
+        deselect_sub_contact(session, contact_id)
+        return get_sub_contact_detail(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/sub-contacts/{contact_id}/scope-email")
+def get_scope_email(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import generate_scope_email
+
+        return generate_scope_email(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/sub-contacts/{contact_id}/followup-email")
+def get_followup_email(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import generate_followup_email
+
+        return generate_followup_email(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/sub-contacts/{contact_id}/voicemail-script")
+def get_voicemail_script(contact_id: int):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import generate_voicemail_script
+
+        return generate_voicemail_script(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/sub-contacts/{contact_id}/mark-email-sent")
+def mark_sub_email_sent(contact_id: int, body: MarkEmailSentRequest):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import get_sub_contact_detail, mark_email_sent
+
+        mark_email_sent(session, contact_id, sent=body.sent)
+        return get_sub_contact_detail(session, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/sub-checklist/bypass")
+def bypass_sub_checklist(notice_id: str):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import bypass_pre_bid_checklist, list_sub_contacts_for_contract
+
+        bypass_pre_bid_checklist(session, notice_id)
+        return list_sub_contacts_for_contract(session, notice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/quote-comparison")
+def get_quote_comparison(notice_id: str):
+    session = SessionLocal()
+    try:
+        from sub_contact_service import list_sub_contacts_for_contract
+
+        data = list_sub_contacts_for_contract(session, notice_id)
+        return {"notice_id": notice_id, "rows": data.get("quote_comparison", [])}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/submission-checklist")
+def get_submission_checklist(notice_id: str):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import checklist_view, submission_package_dict
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        return {
+            "notice_id": notice_id,
+            "contract_title": row.title,
+            "checklist": checklist_view(row),
+            "package": submission_package_dict(row, session),
+        }
+    finally:
+        session.close()
+
+
+@app.patch("/api/contracts/{notice_id}/submission-checklist/{item_key}")
+def patch_submission_checklist_item(notice_id: str, item_key: str, body: ChecklistItemUpdate):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import checklist_view, update_checklist_item
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        update_checklist_item(row, item_key, body.model_dump(exclude_unset=True))
+        session.commit()
+        return {"checklist": checklist_view(row)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/co-questions")
+def get_co_questions(notice_id: str):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import deadline_display, submission_package_dict
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        return {
+            "notice_id": notice_id,
+            "questions": row.co_questions or [],
+            "questions_deadline": row.questions_deadline.isoformat() if row.questions_deadline else None,
+            "deadline": deadline_display(row),
+            "note": "Email questions to the CO listed in the solicitation before the questions deadline. "
+            "Only ask questions not clearly answered in the solicitation documents.",
+        }
+    finally:
+        session.close()
+
+
+@app.patch("/api/contracts/{notice_id}/co-questions/{question_id}")
+def patch_co_question(notice_id: str, question_id: str, body: CoQuestionUpdate):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import update_co_question
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        questions = update_co_question(row, question_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return {"questions": questions}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/co-questions/regenerate")
+def regenerate_co_questions(notice_id: str):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import apply_submission_package, generate_co_questions
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        analysis = row.analysis if isinstance(row.analysis, dict) else {}
+        row.co_questions = generate_co_questions(row, analysis)
+        apply_submission_package(row, session, analysis=analysis)
+        session.commit()
+        return {"questions": row.co_questions}
+    finally:
+        session.close()
+
+
+@app.patch("/api/contracts/{notice_id}/submission-meta")
+def patch_submission_meta(notice_id: str, body: SubmissionMetaUpdate):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import submission_package_dict
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        payload = body.model_dump(exclude_unset=True)
+        if "submission_method_confirmed" in payload:
+            row.submission_method_confirmed = bool(payload["submission_method_confirmed"])
+        if "submission_method_notes" in payload:
+            row.submission_method_notes = payload["submission_method_notes"]
+        if "submission_method" in payload:
+            row.submission_method = payload["submission_method"]
+        if "submission_email" in payload:
+            row.submission_email = payload["submission_email"]
+        session.commit()
+        return submission_package_dict(row, session)
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/attachments/{attachment_id}/download")
+def download_contract_attachment(notice_id: str, attachment_id: int):
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import get_attachment_bytes
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        att = get_attachment_bytes(session, row.id, attachment_id)
+        from fastapi.responses import Response
+
+        filename = att.filename or "attachment.pdf"
+        media = att.content_type or "application/pdf"
+        return Response(
+            content=bytes(att.file_bytes),
+            media_type=media,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
         session.close()
 
@@ -1072,6 +1523,202 @@ def export_capability_pdf(proposal_id: int, body: ProposalExportRequest | None =
         return data, "application/pdf", meta["filenames"]["capability"]
 
     return _proposal_export_response(proposal_id, body, _export)
+
+
+@app.get("/api/performance/alerts")
+def performance_alerts():
+    from performance_settings import ipp_reminder_active, wawf_password_status
+
+    return {
+        "wawf_warning": wawf_password_status(),
+        "ipp_reminder": ipp_reminder_active(),
+    }
+
+
+@app.get("/api/performance/dashboard")
+def get_performance_dashboard():
+    session = SessionLocal()
+    try:
+        from performance_service import performance_dashboard
+
+        return performance_dashboard(session)
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/performance")
+def read_contract_performance(notice_id: str):
+    session = SessionLocal()
+    try:
+        from performance_service import get_contract_performance
+
+        return get_contract_performance(session, notice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/contracts/{notice_id}/performance")
+def patch_contract_performance(notice_id: str, body: PerformanceUpdate):
+    session = SessionLocal()
+    try:
+        from performance_service import get_contract_performance, update_contract_performance
+
+        update_contract_performance(session, notice_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return get_contract_performance(session, notice_id)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/invoices")
+def post_contract_invoice(notice_id: str, body: InvoiceCreate):
+    session = SessionLocal()
+    try:
+        from performance_service import create_invoice, invoice_to_dict
+
+        row = create_invoice(session, notice_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return invoice_to_dict(row)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/invoices/{invoice_id}")
+def patch_invoice(invoice_id: int, body: InvoiceUpdate):
+    session = SessionLocal()
+    try:
+        from performance_service import invoice_to_dict, update_invoice
+
+        row = update_invoice(session, invoice_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return invoice_to_dict(row)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/sub-payments")
+def post_sub_payment(notice_id: str, body: SubPaymentCreate):
+    session = SessionLocal()
+    try:
+        from performance_service import create_sub_payment, sub_payment_to_dict
+
+        row = create_sub_payment(session, notice_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return sub_payment_to_dict(row)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.patch("/api/sub-payments/{payment_id}")
+def patch_sub_payment(payment_id: int, body: SubPaymentUpdate):
+    session = SessionLocal()
+    try:
+        from performance_service import sub_payment_to_dict, update_sub_payment
+
+        row = update_sub_payment(session, payment_id, body.model_dump(exclude_unset=True))
+        session.commit()
+        return sub_payment_to_dict(row)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/option-year/exercise")
+def exercise_option_year(notice_id: str):
+    session = SessionLocal()
+    try:
+        from performance_service import exercise_option_year, get_contract_performance
+
+        exercise_option_year(session, notice_id)
+        session.commit()
+        return get_contract_performance(session, notice_id)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/stop-work-notice")
+def stop_work_notice(notice_id: str, invoice_id: int | None = Query(None)):
+    session = SessionLocal()
+    try:
+        from performance_service import generate_stop_work_notice
+
+        return generate_stop_work_notice(session, notice_id, invoice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/{notice_id}/signoff-request/{payment_id}")
+def signoff_request(notice_id: str, payment_id: int):
+    session = SessionLocal()
+    try:
+        from performance_service import generate_signoff_request
+
+        return generate_signoff_request(session, notice_id, payment_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/amendments/dismiss")
+def dismiss_amendments(notice_id: str):
+    session = SessionLocal()
+    try:
+        from amendment_monitor import dismiss_amendment_alert
+        from sync import contract_to_dict
+
+        dismiss_amendment_alert(session, notice_id)
+        session.commit()
+        from models import Contract
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        return contract_to_dict(row) if row else {"notice_id": notice_id, "amendment_alert_active": False}
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/settings/performance")
+def read_performance_settings():
+    from performance_settings import get_performance_settings
+
+    return get_performance_settings()
+
+
+@app.put("/api/settings/performance")
+def update_performance_settings(body: PerformanceSettingsUpdate):
+    from performance_settings import save_performance_settings
+
+    return save_performance_settings(
+        wawf_last_password_change=body.wawf_last_password_change,
+        ipp_registered=body.ipp_registered,
+    )
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

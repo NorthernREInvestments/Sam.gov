@@ -27,14 +27,26 @@ def run_daily_sync() -> None:
     try:
         result = sync_scheduled_naics()
         logger.info(
-            "Scheduled sync done: tiers=%s, %s API calls, %s new, %s total in DB",
-            result.get("scheduled_tiers"),
-            result["api_calls"],
-            result["new"],
-            result["total_in_db"],
+            "Scheduled sync done: mode=%s, %s",
+            result.get("mode"),
+            result.get("fetch_status"),
         )
     except Exception:
         logger.exception("Scheduled daily sync failed")
+
+
+def run_amendment_check() -> None:
+    from database import SessionLocal
+    from amendment_monitor import check_all_amendments
+
+    session = SessionLocal()
+    try:
+        result = check_all_amendments(session)
+        logger.info("Amendment check: %s", result)
+    except Exception:
+        logger.exception("Amendment check failed")
+    finally:
+        session.close()
 
 
 def configure_scheduler() -> None:
@@ -43,9 +55,10 @@ def configure_scheduler() -> None:
     settings = get_scheduler_settings()
     if not settings["enabled"]:
         if scheduler.running:
-            job = scheduler.get_job("daily_sam_sync")
-            if job:
-                scheduler.remove_job("daily_sam_sync")
+            for job_id in ("daily_sam_sync", "amendment_monitor"):
+                job = scheduler.get_job(job_id)
+                if job:
+                    scheduler.remove_job(job_id)
         logger.info("Scheduler disabled in settings")
         return
 
@@ -65,11 +78,23 @@ def configure_scheduler() -> None:
                 id="daily_sam_sync",
                 replace_existing=True,
             )
+        scheduler.add_job(
+            run_amendment_check,
+            CronTrigger(hour="*/6", timezone=tz),
+            id="amendment_monitor",
+            replace_existing=True,
+        )
     else:
         scheduler.add_job(
             run_daily_sync,
             trigger,
             id="daily_sam_sync",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            run_amendment_check,
+            CronTrigger(hour="*/6", timezone=tz),
+            id="amendment_monitor",
             replace_existing=True,
         )
         scheduler.start()

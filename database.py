@@ -43,9 +43,12 @@ def init_db() -> None:
         AppSetting,
         Contract,
         ContractAttachment,
+        ContractInvoice,
         ContractSub,
         Proposal,
         Sub,
+        SubContact,
+        SubPayment,
         SubcontractAgreement,
     )
 
@@ -59,6 +62,9 @@ def init_db() -> None:
     _migrate_add_sub_agreements()
     _migrate_add_contract_margin()
     _migrate_add_attachment_compliance()
+    _migrate_add_sub_contacts()
+    _migrate_add_performance()
+    _migrate_add_submission_package()
 
 
 def _migrate_add_attachment_compliance() -> None:
@@ -70,6 +76,7 @@ def _migrate_add_attachment_compliance() -> None:
         ("subcontracting_limitation_check", "VARCHAR(32)"),
         ("subcontracting_limitation_context", "TEXT"),
         ("subcontracting_limitation_percentage", "NUMERIC(5, 2)"),
+        ("far_52219_14_present", "BOOLEAN"),
     ]
     with engine.connect() as conn:
         for name, col_type in columns:
@@ -78,6 +85,12 @@ def _migrate_add_attachment_compliance() -> None:
             text(
                 "CREATE INDEX IF NOT EXISTS ix_contracts_subcontracting_limitation_check "
                 "ON contracts (subcontracting_limitation_check)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_contracts_far_52219_14_present "
+                "ON contracts (far_52219_14_present)"
             )
         )
         conn.commit()
@@ -179,4 +192,99 @@ def _migrate_add_pricing_intel() -> None:
         conn.execute(
             text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
         )
+        conn.commit()
+
+
+def _migrate_add_submission_package() -> None:
+    columns = [
+        ("submission_method", "VARCHAR(32)"),
+        ("submission_email", "VARCHAR(256)"),
+        ("submission_method_confirmed", "BOOLEAN DEFAULT FALSE"),
+        ("submission_method_notes", "TEXT"),
+        ("pricing_schedule_required", "BOOLEAN DEFAULT FALSE"),
+        ("pricing_schedule_attachment_id", "INTEGER"),
+        ("multiple_pricing_encouraged", "BOOLEAN DEFAULT FALSE"),
+        ("sf1449_required", "BOOLEAN DEFAULT FALSE"),
+        ("evaluation_criteria_type", "VARCHAR(32)"),
+        ("questions_deadline", "DATE"),
+        ("submission_checklist", "JSONB"),
+        ("co_questions", "JSONB"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in columns:
+            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_contracts_submission_method "
+                "ON contracts (submission_method)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_contracts_pricing_schedule_required "
+                "ON contracts (pricing_schedule_required)"
+            )
+        )
+        conn.commit()
+
+    session = SessionLocal()
+    try:
+        from models import Contract
+        from submission_package import apply_submission_package
+
+        rows = (
+            session.query(Contract)
+            .filter(Contract.attachment_text.isnot(None), Contract.attachment_text != "")
+            .all()
+        )
+        for row in rows:
+            apply_submission_package(row, session)
+        session.commit()
+    finally:
+        session.close()
+
+
+def _migrate_add_sub_contacts() -> None:
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS "
+                "sub_checklist_bypassed_at TIMESTAMP WITH TIME ZONE"
+            )
+        )
+        conn.commit()
+    from sub_contact_service import migrate_contract_subs_to_sub_contacts
+
+    migrate_contract_subs_to_sub_contacts()
+
+
+def _migrate_add_performance() -> None:
+    columns = [
+        ("award_date", "DATE"),
+        ("period_of_performance_start", "DATE"),
+        ("period_of_performance_end", "DATE"),
+        ("option_years_remaining", "INTEGER"),
+        ("government_contract_number", "VARCHAR(64)"),
+        ("invoicing_system", "VARCHAR(32)"),
+        ("invoicing_system_confirmed", "BOOLEAN DEFAULT FALSE"),
+        ("cor_name", "VARCHAR(256)"),
+        ("cor_email", "VARCHAR(256)"),
+        ("cor_phone", "VARCHAR(64)"),
+        ("co_name", "VARCHAR(256)"),
+        ("co_email", "VARCHAR(256)"),
+        ("co_phone", "VARCHAR(64)"),
+        ("stop_work_issued", "BOOLEAN DEFAULT FALSE"),
+        ("stop_work_issued_date", "DATE"),
+        ("cpars_rating", "VARCHAR(32)"),
+        ("cpars_comments", "TEXT"),
+        ("cpars_expected_date", "DATE"),
+        ("amendments_last_checked_at", "TIMESTAMP WITH TIME ZONE"),
+        ("amendment_alert_active", "BOOLEAN DEFAULT FALSE"),
+        ("amendment_alert_data", "JSONB"),
+        ("amendments_reviewed_at", "TIMESTAMP WITH TIME ZONE"),
+        ("amendment_monitoring_active", "BOOLEAN DEFAULT TRUE"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in columns:
+            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.commit()

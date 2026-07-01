@@ -13,6 +13,47 @@ SUB_STATUSES: tuple[str, ...] = (
     "Selected",
 )
 
+SUB_CONTACT_STATUSES: tuple[str, ...] = (
+    "Not Contacted",
+    "Contacted",
+    "Voicemail Left",
+    "Quote Received",
+    "Selected",
+    "Not Selected",
+)
+
+DEFAULT_SUB_CONTACT_STATUS = SUB_CONTACT_STATUSES[0]
+
+_LEGACY_TO_CONTACT_STATUS: dict[str, str] = {
+    "Not Contacted": "Not Contacted",
+    "Called — Left Voicemail": "Voicemail Left",
+    "Spoke With — Interested": "Contacted",
+    "Spoke With — Not Interested": "Not Selected",
+    "Quote Received": "Quote Received",
+    "Selected": "Selected",
+}
+
+_CONTACT_TO_LEGACY_STATUS: dict[str, str] = {
+    "Not Contacted": "Not Contacted",
+    "Contacted": "Spoke With — Interested",
+    "Voicemail Left": "Called — Left Voicemail",
+    "Quote Received": "Quote Received",
+    "Selected": "Selected",
+    "Not Selected": "Spoke With — Not Interested",
+}
+
+
+def legacy_status_to_contact(status: str | None) -> str:
+    if not status:
+        return DEFAULT_SUB_CONTACT_STATUS
+    return _LEGACY_TO_CONTACT_STATUS.get(status, status)
+
+
+def contact_status_to_legacy(status: str | None) -> str:
+    if not status:
+        return DEFAULT_SUB_STATUS
+    return _CONTACT_TO_LEGACY_STATUS.get(status, status)
+
 AGREEMENT_SIGNATURE_STATUSES: tuple[str, ...] = (
     "Agreement Not Generated",
     "Agreement Sent",
