@@ -309,6 +309,22 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             row.sam_raw if isinstance(row.sam_raw, dict) else None,
         )
         sub_summary["city"] = work.get("city") or work.get("label")
+        from display_format import (
+            format_agency_display,
+            format_work_location_short,
+            pricing_card_label,
+        )
+
+        agency_display = format_agency_display(row.agency)
+        location_display = format_work_location_short(
+            row.location,
+            row.sam_raw if isinstance(row.sam_raw, dict) else None,
+            work,
+        )
+        pricing_display = pricing_card_label(
+            row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
+            has_work_state=bool(work.get("state_code")),
+        )
         try:
             network = nearby_network_subs(session, row.notice_id)
             nearby_network_count = network.get("count", 0)
@@ -341,7 +357,11 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "notice_id": row.notice_id,
         "title": row.title,
         "agency": row.agency,
+        "agency_display": agency_display,
         "location": row.location,
+        "location_display": location_display,
+        "work_location": work,
+        "pricing_display": pricing_display,
         "naics_code": row.naics_code,
         "naics_label": naics_label(row.naics_code),
         "naics_display": naics_display(row.naics_code),

@@ -2572,8 +2572,8 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 0.75rem;
-  height: 220px;
+  padding: 0.7rem 0.75rem;
+  height: 248px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
@@ -2583,8 +2583,7 @@ a {
 .compact-card:hover { border-color: #94a3b8; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
 .compact-card-row { display: flex; align-items: center; min-height: 0; }
-.compact-card-row-1 { justify-content: space-between; margin-bottom: 0.35rem; }
-.compact-card-row-4 { justify-content: space-between; gap: 0.5rem; margin: 0.35rem 0; }
+.compact-card-row-1 { justify-content: space-between; margin-bottom: 0.3rem; }
 
 .compact-card-title {
   font-weight: 700;
@@ -2592,7 +2591,43 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.18rem;
+}
+.compact-card-agency {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.22rem;
+}
+.compact-card-row-split {
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.22rem;
+  font-size: 0.74rem;
+  color: var(--text);
+}
+.compact-card-scope {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compact-card-history {
+  flex-shrink: 0;
+  max-width: 46%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  text-align: right;
+}
+.compact-card-row-far {
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.22rem;
 }
 .compact-card-meta {
   font-size: 0.8rem;
@@ -2603,12 +2638,12 @@ a {
   margin-bottom: 0.35rem;
 }
 .compact-card-status {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
   flex: 1;
 }
 

@@ -74,14 +74,22 @@ def _format_location(raw: dict[str, Any]) -> str | None:
         city = place.get("city")
         state = place.get("state")
         if isinstance(city, dict):
-            city = city.get("name")
+            city = city.get("name") or city.get("code")
         if isinstance(state, dict):
             state = state.get("code") or state.get("name")
         parts = [city, state, place.get("zip")]
         formatted = ", ".join(str(p) for p in parts if p)
         if formatted:
             return formatted
-    return str(place) if place else None
+        from usaspending_client import _parse_sam_location_block
+
+        city, state_code, zip_code = _parse_sam_location_block(place)
+        fallback_parts = [p for p in (city, state_code, zip_code) if p]
+        if fallback_parts:
+            return ", ".join(fallback_parts)
+    if place and not isinstance(place, dict):
+        return str(place)
+    return None
 
 
 def normalize_opportunity(raw: dict[str, Any]) -> dict[str, Any]:

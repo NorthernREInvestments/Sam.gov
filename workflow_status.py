@@ -326,22 +326,34 @@ def compute_workflow_progress(contract: Contract, session) -> dict[str, Any]:
 
 def _dashboard_status_message(contract: Contract, wf: dict[str, Any]) -> str:
     if contract.status in ("active", "option_year", "stop_work"):
-        return "Active"
+        return "Contract won — performance active"
     if contract.status in ("awarded", "won"):
-        return "Awarded"
+        return "Contract awarded"
     if contract.status == "completed":
-        return "Completed"
+        return "Contract completed"
     if contract.status == "not_awarded":
-        return "Not Awarded"
+        return "Bid was not selected"
     if contract.status == "submitted":
-        return "Submitted"
-    label = wf.get("label") or ""
-    if label:
-        return label
+        return "Bid submitted — waiting for decision"
+    stage = wf.get("stage") or ""
+    if stage == "needs_sub_quote" or wf.get("quoted_sub_count", 0) == 0:
+        return "Need to find subs and get quotes"
+    if stage in ("needs_proposal", "proposal_incomplete"):
+        return "Ready to write proposal"
+    if stage == "draft_ready":
+        return "Proposal draft ready for review"
+    if stage == "ready":
+        return "Ready to submit bid"
+    if stage == "submitted":
+        return "Bid submitted — waiting for decision"
+    if stage == "won":
+        return "Contract awarded"
+    if stage == "lost":
+        return "Bid was not selected"
     analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
     if analysis.get("pursue") is not True:
-        return "Reviewing"
-    return "Found"
+        return "Reviewing fit"
+    return "New opportunity found"
 
 
 def _dashboard_primary_action(contract: Contract, wf: dict[str, Any]) -> dict[str, str]:

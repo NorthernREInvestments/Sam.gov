@@ -425,15 +425,119 @@ function renderWorkflowDots(c) {
 }
 
 function compactDueLine(c) {
-  if (!c.due_date) return { text: "Due unknown", cls: "due-unknown" };
+  if (!c.due_date) return { text: "Due date unknown", cls: "due-unknown" };
   const d = new Date(c.due_date + "T00:00:00");
-  const main = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const main = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const days = c.days_until_due;
-  const suffix = days != null ? ` · ${days} days left` : "";
+  const suffix = days != null ? ` · ${days} day${days === 1 ? "" : "s"} left` : "";
   let cls = "due-green";
   if (days != null && days <= 3) cls = "due-red";
   else if (days != null && days <= 7) cls = "due-yellow";
   return { text: `${main}${suffix}`, cls };
+}
+
+function formatAgencyDisplay(agency) {
+  if (!agency) return "Federal agency";
+  const text = String(agency).trim();
+  if (!text || text.startsWith("{") || text.startsWith("[")) return "Federal agency";
+  const upper = text.toUpperCase();
+  const known = [
+    ["FISH AND WILDLIFE", "US Fish and Wildlife"],
+    ["FOREST SERVICE", "USDA Forest Service"],
+    ["DEPT OF THE ARMY", "US Army"],
+    ["DEPARTMENT OF THE ARMY", "US Army"],
+    ["DEPT OF THE NAVY", "US Navy"],
+    ["DEPT OF THE AIR FORCE", "US Air Force"],
+    ["CORPS OF ENGINEERS", "US Army Corps of Engineers"],
+    ["GENERAL SERVICES ADMINISTRATION", "GSA"],
+    ["VETERANS AFFAIRS", "VA"],
+    ["NATIONAL PARK SERVICE", "National Park Service"],
+  ];
+  for (const [needle, label] of known) {
+    if (upper.includes(needle)) return label;
+  }
+  const segments = text.split(".").map((s) => s.trim()).filter(Boolean);
+  for (const [needle, label] of known) {
+    for (const seg of segments) {
+      if (seg.toUpperCase().includes(needle)) return label;
+    }
+  }
+  const isParentDept = (seg) => {
+    const u = seg.toUpperCase();
+    return u.includes("DEPARTMENT OF") || u === "AGRICULTURE" || u.startsWith("AGRICULTURE,");
+  };
+  for (const seg of segments) {
+    if (!isParentDept(seg) && seg.length > 3 && !seg.toUpperCase().startsWith("USDA-")) {
+      return seg
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    }
+  }
+  const first = text.split(",")[0].trim();
+  if (first.toUpperCase() === "AGRICULTURE") return "USDA";
+  return first
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ") || "Federal agency";
+}
+
+function compactLocationDisplay(c) {
+  if (c.location_display) return c.location_display;
+  const work = c.work_location || {};
+  if (work.city && work.state_code) return `${work.city}, ${work.state_code}`;
+  if (work.state_code) return work.state_code;
+  if (work.label) return work.label;
+  const loc = c.location || "";
+  if (loc && !String(loc).trim().startsWith("{")) {
+    const m = String(loc).match(/([^,]+),\s*([A-Z]{2})\b/);
+    if (m) return `${m[1].trim()}, ${m[2]}`;
+    if (loc.length <= 80) return loc;
+  }
+  if (c.sub_summary?.city) return c.sub_summary.city;
+  return "Location pending";
+}
+
+function compactAgencyLine(c) {
+  const agency = c.agency_display || formatAgencyDisplay(c.agency);
+  return `${agency} · ${compactLocationDisplay(c)}`;
+}
+
+function compactScopeLine(c) {
+  const sqft = c.square_footage ?? c.pws?.square_footage;
+  const freq = c.cleaning_frequency_per_week ?? c.pws?.cleaning_frequency_per_week;
+  if (!sqft && freq == null) return "Scope pending review";
+  const parts = [];
+  if (sqft) parts.push(`${Number(sqft).toLocaleString()} sq ft`);
+  if (freq != null) {
+    const n = Number(freq);
+    if (n === 5) parts.push("Mon-Fri");
+    else if (n === 7) parts.push("Daily");
+    else if (n === 1) parts.push("1x per week");
+    else parts.push(`${n}x per week`);
+  }
+  return parts.join(" · ") || "Scope pending review";
+}
+
+function shortMoney(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (amount >= 1000) return `$${Math.round(amount / 1000)}k`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function compactHistoryLine(c) {
+  if (c.pricing_display) return c.pricing_display;
+  const intel = c.pricing_intel;
+  if (intel && !intel.error) {
+    const count = Number(intel.awards_count || 0);
+    const avg = intel.average_annual_award;
+    if (avg && count > 0) return `Hist: ${shortMoney(avg)} avg`;
+  }
+  const hasState = Boolean(c.work_location?.state_code);
+  if (hasState) return "First contract at this location";
+  return "No history found";
 }
 
 function compactCityState(c) {
@@ -467,8 +571,7 @@ function renderCards() {
     const score = c.score ?? c.text_score;
     const due = compactDueLine(c);
     const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
-    const statusMsg = c.workflow_progress?.status_message || c.workflow?.label || "Reviewing";
-    const agencyShort = (c.agency || "Unknown agency").split(",")[0].trim();
+    const statusMsg = c.workflow_progress?.status_message || "Reviewing fit";
     return `
     <article class="compact-card" data-id="${c.notice_id}">
       <div class="compact-card-row compact-card-row-1">
@@ -476,8 +579,12 @@ function renderCards() {
         <span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span>
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
-      <div class="compact-card-row compact-card-meta">${escapeHtml(agencyShort)} · ${escapeHtml(compactCityState(c))}</div>
-      <div class="compact-card-row compact-card-row-4">
+      <div class="compact-card-row compact-card-agency">${escapeHtml(compactAgencyLine(c))}</div>
+      <div class="compact-card-row compact-card-row-split">
+        <span class="compact-card-scope">${escapeHtml(compactScopeLine(c))}</span>
+        <span class="compact-card-history">${escapeHtml(compactHistoryLine(c))}</span>
+      </div>
+      <div class="compact-card-row compact-card-row-far">
         ${compactFarBadge(c)}
         ${renderWorkflowDots(c)}
       </div>
