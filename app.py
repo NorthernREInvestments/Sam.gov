@@ -30,7 +30,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260701-filter-scroll"
+APP_BUILD_VERSION = "20260701-no-ui-sam"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -54,10 +54,9 @@ async def lifespan(app: FastAPI):
     from api_budget import intake_on_sync_enabled
 
     if intake_on_sync_enabled():
-        from intake import start_background_attachment_enrich, start_background_intake
+        from intake import start_background_intake
 
         start_background_intake()
-        start_background_attachment_enrich()
     yield
     stop_scheduler()
 
@@ -424,17 +423,6 @@ def get_contracts(
             set_aside_filter=set_aside,
         )
         from api_budget import get_usage_snapshot
-        from intake import enrich_matching_attachments, start_background_attachment_enrich
-
-        notice_ids = [r.notice_id for r in rows]
-        from api_budget import attachment_enrich_on_list_limit
-
-        attachment_refresh = enrich_matching_attachments(
-            session, notice_ids, limit=attachment_enrich_on_list_limit()
-        )
-        if attachment_refresh.get("attachments_pending", 0) > 0:
-            start_background_attachment_enrich()
-
         from screening_pipeline import is_dashboard_ready
 
         processing_rows = list_contracts(
@@ -470,7 +458,6 @@ def get_contracts(
             "processing_count": processing_count,
             "contracts": [contract_to_dict(r) for r in rows],
             "api_budget": get_usage_snapshot(),
-            "attachments_refreshed": attachment_refresh.get("attachments_enriched", 0),
             "filter_stats": {
                 "ready_eligible": len(ready_pool),
                 "hidden_by_min_days": hidden_by_min_days,
@@ -490,19 +477,8 @@ def get_contract(notice_id: str):
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             raise HTTPException(status_code=404, detail="Contract not found")
-        from sam_enrich import ensure_enriched_sam_raw, needs_enrichment
-        from sam_client import normalize_opportunity
-
-        ensure_enriched_sam_raw(row, force=needs_enrichment(row.sam_raw if isinstance(row.sam_raw, dict) else None))
-        if isinstance(row.sam_raw, dict):
-            if row.sam_raw.get("descriptionText"):
-                row.description = row.sam_raw["descriptionText"][:8000]
-            refreshed = normalize_opportunity(row.sam_raw)
-            if refreshed.get("location"):
-                row.location = refreshed["location"]
-        session.commit()
         data = contract_to_dict(row)
-        data["sam_raw"] = row.sam_raw
+        data["sam_raw"] = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         return data
     finally:
         session.close()

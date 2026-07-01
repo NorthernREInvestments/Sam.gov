@@ -1264,6 +1264,7 @@ async function loadSettingsPage() {
       : "<li>Scheduled 6am sync: uses <strong>all SAM API calls each day</strong> — finish pending attachments, then search/enrich the next NAICS until the budget is exhausted</li>";
   document.getElementById("api-budget-status").innerHTML = `
     <li><strong>SAM.gov API</strong> (search + attachment metadata): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today — <strong>${budget.sam_remaining ?? "?"} remaining</strong></li>
+    <li>Browsing the dashboard and opening contracts uses <strong>only the database</strong> — SAM.gov is called by the <strong>Sync</strong> button and the scheduled 6am job only.</li>
     <li>Only SAM.gov API calls are capped daily. Claude, PDF reads, and other services are not limited by this app.</li>
     ${syncMode}
     <li>Pending attachment pulls resume on the next run until the SAM.gov daily cap is reached</li>
