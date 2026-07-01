@@ -2786,6 +2786,22 @@ a {
     box-shadow: 4px 0 24px rgba(0,0,0,0.15);
   }
   .filters.filters-open { transform: translateX(0); }
+  .filters .filters-header {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  #apply-filters {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    margin-top: 1rem;
+    min-height: 44px;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  }
   .layout { display: block; }
   .main { padding: 0 0.75rem; }
   .cards-compact { grid-template-columns: 1fr; }

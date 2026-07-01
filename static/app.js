@@ -1377,9 +1377,56 @@ async function logout() {
   window.location.href = "/login.html";
 }
 
+let filterRefreshTimer = null;
+
+function scheduleFilterRefresh(delay = 400) {
+  clearTimeout(filterRefreshTimer);
+  filterRefreshTimer = setTimeout(() => loadContracts(), delay);
+}
+
+function applyFiltersAndRefresh() {
+  clearTimeout(filterRefreshTimer);
+  document.getElementById("filters-panel")?.classList.remove("filters-open");
+  loadContracts();
+}
+
 function bindSlider(inputId, labelId) {
   document.getElementById(inputId).addEventListener("input", (e) => {
     document.getElementById(labelId).textContent = e.target.value;
+  });
+}
+
+function bindFilterSlider(inputId, labelId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener("input", (e) => {
+    document.getElementById(labelId).textContent = e.target.value;
+    scheduleFilterRefresh();
+  });
+  input.addEventListener("change", () => {
+    clearTimeout(filterRefreshTimer);
+    loadContracts();
+  });
+}
+
+function bindFilterControls() {
+  bindFilterSlider("min-days", "min-days-value");
+  bindFilterSlider("min-score", "min-score-value");
+
+  document.getElementById("status-filter")?.addEventListener("change", () => scheduleFilterRefresh(0));
+  document.getElementById("setaside-filter")?.addEventListener("change", () => scheduleFilterRefresh(0));
+
+  const agency = document.getElementById("agency-filter");
+  if (agency) {
+    agency.addEventListener("input", () => scheduleFilterRefresh(600));
+    agency.addEventListener("change", () => {
+      clearTimeout(filterRefreshTimer);
+      loadContracts();
+    });
+  }
+
+  document.getElementById("naics-filters")?.addEventListener("change", (e) => {
+    if (e.target.classList.contains("naics-check")) scheduleFilterRefresh(0);
   });
 }
 
@@ -1394,10 +1441,7 @@ document.getElementById("tab-performance")?.addEventListener("click", () => show
 document.getElementById("tab-settings")?.addEventListener("click", () => showView("settings"));
 document.getElementById("tab-help")?.addEventListener("click", () => showView("help"));
 document.getElementById("logout-btn").addEventListener("click", logout);
-document.getElementById("apply-filters").addEventListener("click", () => {
-  document.getElementById("filters-panel")?.classList.remove("filters-open");
-  loadContracts();
-});
+document.getElementById("apply-filters").addEventListener("click", applyFiltersAndRefresh);
 document.getElementById("refresh-btn")?.addEventListener("click", () => runSync({ searchOnly: false }));
 document.getElementById("modal-close")?.addEventListener("click", closeModal);
 document.getElementById("modal-backdrop")?.addEventListener("click", closeModal);
@@ -1407,12 +1451,9 @@ document.getElementById("export-claude-btn")?.addEventListener("click", exportFo
 document.getElementById("mobile-filter-btn")?.addEventListener("click", () => {
   document.getElementById("filters-panel")?.classList.add("filters-open");
 });
-document.getElementById("close-filters-btn")?.addEventListener("click", () => {
-  document.getElementById("filters-panel")?.classList.remove("filters-open");
-});
+document.getElementById("close-filters-btn")?.addEventListener("click", applyFiltersAndRefresh);
 
-bindSlider("min-days", "min-days-value");
-bindSlider("min-score", "min-score-value");
+bindFilterControls();
 bindSlider("settings-min-days", "settings-min-days-value");
 bindSlider("settings-min-score", "settings-min-score-value");
 
