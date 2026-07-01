@@ -547,11 +547,11 @@ def enrich_matching_attachments(
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
     from screening_pipeline import has_attachments_ready
-    from sync import list_contracts
+    from sync import list_attachment_backlog
 
     candidates = [
         row
-        for row in list_contracts(session, require_scrape_complete=False, notice_ids=notice_ids)
+        for row in list_attachment_backlog(session, notice_ids=notice_ids)
         if not has_attachments_ready(row)
     ]
     if naics_code:

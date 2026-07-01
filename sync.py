@@ -255,6 +255,24 @@ def list_contracts(
     return results
 
 
+def list_attachment_backlog(
+    session: Session,
+    *,
+    naics_codes: list[str] | None = None,
+    notice_ids: list[str] | None = None,
+) -> list[Contract]:
+    """Contracts eligible for SAM attachment pulls — not limited by dashboard due-date gates."""
+    return list_contracts(
+        session,
+        naics_codes=naics_codes,
+        min_days_until_due=0,
+        min_score=1,
+        require_dashboard_ready=False,
+        require_scrape_complete=False,
+        notice_ids=notice_ids,
+    )
+
+
 def _attachment_files_summary(row: Contract, session) -> dict[str, Any]:
     from attachment_storage import attachment_storage_summary
 
@@ -656,7 +674,7 @@ def _pending_scrape_notice_ids(session: Session, naics_code: str) -> list[str]:
     """Filter-matching contracts for this NAICS that still need SAM attachment scrape."""
     from sam_enrich import is_scrape_complete
 
-    rows = list_contracts(session, require_scrape_complete=False, naics_codes=[naics_code])
+    rows = list_attachment_backlog(session, naics_codes=[naics_code])
     return [
         row.notice_id
         for row in rows
