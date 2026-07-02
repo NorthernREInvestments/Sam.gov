@@ -49,6 +49,16 @@ def run_amendment_check() -> None:
         session.close()
 
 
+def run_autopilot_job() -> None:
+    from autopilot_service import run_scheduled_autopilot
+
+    logger.info("Starting scheduled autopilot pass")
+    try:
+        run_scheduled_autopilot()
+    except Exception:
+        logger.exception("Scheduled autopilot failed")
+
+
 def configure_scheduler() -> None:
     from settings_store import get_scheduler_settings
 
@@ -84,6 +94,12 @@ def configure_scheduler() -> None:
             id="amendment_monitor",
             replace_existing=True,
         )
+        scheduler.add_job(
+            run_autopilot_job,
+            CronTrigger(minute="*/30", timezone=tz),
+            id="autopilot_backlog",
+            replace_existing=True,
+        )
     else:
         scheduler.add_job(
             run_daily_sync,
@@ -95,6 +111,12 @@ def configure_scheduler() -> None:
             run_amendment_check,
             CronTrigger(hour="*/6", timezone=tz),
             id="amendment_monitor",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            run_autopilot_job,
+            CronTrigger(minute="*/30", timezone=tz),
+            id="autopilot_backlog",
             replace_existing=True,
         )
         scheduler.start()

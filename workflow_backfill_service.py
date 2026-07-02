@@ -134,7 +134,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
     contract_id = row.id
     session.close()
 
-    def _run_intake() -> dict[str, Any]:
+    def _run_intake_with_advice() -> dict[str, Any]:
         intake_session = SessionLocal()
         try:
             intake_row = load_contract_for_repair(intake_session, contract_id) if contract_id else None
@@ -143,12 +143,22 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             if not intake_row:
                 return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
 
-            return full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
+            result = full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
+            if result.get("full_analysis") or result.get("screened"):
+                try:
+                    from contract_advice import ensure_contract_advice
+
+                    ensure_contract_advice(intake_session, intake_row)
+                    intake_session.commit()
+                except Exception:
+                    intake_session.rollback()
+                    logger.exception("Contract advice generation failed for %s", notice_id)
+            return result
         finally:
             intake_session.close()
 
     try:
-        result = with_db_retry(_run_intake)
+        result = with_db_retry(_run_intake_with_advice)
         result["repair_reason"] = reason
         return result
     except ScreenBudgetExceeded:
@@ -251,8 +261,7 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
                 break
             if result.get("error"):
                 stats["errors"] += 1
-                stats["halt_reason"] = result.get("error")
-                break
+                continue
             elif result.get("reason") == "screen_budget":
                 stats["halt_reason"] = "screen_budget"
                 break
@@ -384,8 +393,12 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
                     stats["errors"] += 1
                     continue
                 stats["errors"] += 1
-                stats["halt_reason"] = result.get("error")
-                break
+                logger.error(
+                    "Repair error for %s (%s) — continuing with next contract",
+                    result.get("notice_id"),
+                    detail[:120],
+                )
+                continue
             if result.get("reason") in ("claude_api", "screen_budget"):
                 stats["halt_reason"] = result.get("reason")
                 break

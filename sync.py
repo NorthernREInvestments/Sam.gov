@@ -385,6 +385,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         from workflow_status import compute_card_pipeline, compute_workflow_progress, compute_workflow_status
         from submission_package import submission_package_dict
         from performance_service import card_performance_alerts
+        from screening_pipeline import is_dashboard_ready
 
         workflow = compute_workflow_status(row, session)
         pipeline = compute_card_pipeline(row, session)
@@ -490,6 +491,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "submission_package": submission_pkg,
         "attachment_files": attachment_files,
         "workflow": workflow,
+        "dashboard_ready": is_dashboard_ready(row),
         "pipeline": pipeline,
         "workflow_progress": workflow_progress,
         "award_date": row.award_date.isoformat() if row.award_date else None,

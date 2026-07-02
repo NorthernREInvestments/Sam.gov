@@ -707,6 +707,7 @@ function escapeHtml(text) {
 let cardPollTimer = null;
 
 function cardNeedsPolling(c) {
+  if (c.dashboard_ready === false) return true;
   const subsSearching =
     c.sub_search_status === "searching" || (c.sub_summary || {}).status === "searching";
   const attachmentsPending = !(c.sam_attachments || []).length && c.screening_stage === "full";
@@ -717,10 +718,16 @@ function cardNeedsPolling(c) {
 }
 
 function manageCardPolling() {
-  const shouldPoll = contracts.some(cardNeedsPolling);
+  const autopilotRunning = config?.autopilot?.running || config?.autopilot?.repair_running;
+  const shouldPoll = autopilotRunning || processingCount > 0 || contracts.some(cardNeedsPolling);
   if (shouldPoll && !cardPollTimer) {
     cardPollTimer = setInterval(async () => {
-      if (!contracts.some(cardNeedsPolling)) {
+      const stillBusy =
+        config?.autopilot?.running ||
+        config?.autopilot?.repair_running ||
+        processingCount > 0 ||
+        contracts.some(cardNeedsPolling);
+      if (!stillBusy) {
         clearInterval(cardPollTimer);
         cardPollTimer = null;
         return;
@@ -741,6 +748,7 @@ async function loadContracts() {
   contracts = data.contracts || [];
   processingCount = data.processing_count || 0;
   filterStats = data.filter_stats || {};
+  if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
   manageCardPolling();
   if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
@@ -754,6 +762,7 @@ async function loadContractsQuiet() {
   contracts = data.contracts || [];
   processingCount = data.processing_count || 0;
   filterStats = data.filter_stats || {};
+  if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
   manageCardPolling();
 }

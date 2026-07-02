@@ -32,10 +32,25 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-repair-fix"
+APP_BUILD_VERSION = "20260702-autopilot"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
+
+
+def _autopilot_summary() -> dict[str, Any]:
+    try:
+        from autopilot_service import get_autopilot_status
+
+        status = get_autopilot_status()
+        return {
+            "running": status.get("running"),
+            "round": status.get("round"),
+            "error": status.get("error"),
+            "repair_running": (status.get("repair") or {}).get("running"),
+        }
+    except Exception:
+        return {"running": False}
 
 
 def _run_background_startup() -> None:
@@ -46,16 +61,9 @@ def _run_background_startup() -> None:
 
         init_db()
         start_scheduler()
-        from api_budget import intake_on_sync_enabled
+        from autopilot_service import start_autopilot
 
-        if intake_on_sync_enabled():
-            from workflow_backfill_service import start_background_workflow_repair
-
-            start_background_workflow_repair()
-        else:
-            from pricing_backfill_service import start_background_pricing_backfill
-
-            start_background_pricing_backfill()
+        start_autopilot()
         with _startup_lock:
             _startup_state = {"ready": True, "error": None}
         log.info("Application startup complete (%s)", APP_BUILD_VERSION)
@@ -431,6 +439,7 @@ def config():
         "naics_sync": sync_status,
         "auth_enabled": auth_enabled(),
         "build_version": APP_BUILD_VERSION,
+        "autopilot": _autopilot_summary(),
     }
 
 
@@ -453,21 +462,10 @@ def get_contracts(
         naics_codes = None
     session = SessionLocal()
     try:
-        rows = list_contracts(
-            session,
-            naics_codes=naics_codes,
-            min_days_until_due=min_days,
-            min_score=min_score,
-            agency=agency,
-            pursue_only=pursue_only,
-            tier=tier,
-            status_filter=status,
-            set_aside_filter=set_aside,
-        )
         from api_budget import get_usage_snapshot
-        from screening_pipeline import is_dashboard_ready
+        from screening_pipeline import is_dashboard_ready, is_visible_on_dashboard
 
-        processing_rows = list_contracts(
+        all_rows = list_contracts(
             session,
             naics_codes=naics_codes,
             min_days_until_due=min_days,
@@ -480,7 +478,17 @@ def get_contracts(
             require_dashboard_ready=False,
             require_scrape_complete=False,
         )
-        processing_count = sum(1 for r in processing_rows if not is_dashboard_ready(r))
+        visible_rows = [r for r in all_rows if is_visible_on_dashboard(r, session)]
+        processing_count = sum(1 for r in visible_rows if not is_dashboard_ready(r))
+
+        rows = sorted(
+            visible_rows,
+            key=lambda r: (
+                0 if is_dashboard_ready(r) else 1,
+                -int((r.analysis or {}).get("score") or (r.analysis or {}).get("text_score") or 0),
+                r.due_date is None,
+            ),
+        )
 
         ready_pool = list_contracts(
             session,
@@ -503,8 +511,9 @@ def get_contracts(
             "filter_stats": {
                 "ready_eligible": len(ready_pool),
                 "hidden_by_min_days": hidden_by_min_days,
-                "total_matching_naics": len(processing_rows),
+                "total_matching_naics": len(all_rows),
             },
+            "autopilot": _autopilot_summary(),
         }
     finally:
         session.close()

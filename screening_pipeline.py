@@ -158,7 +158,6 @@ def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:
 
 
 def is_dashboard_ready(row: Contract) -> bool:
-    """Contract may appear on the dashboard only when attachments are read and scope is extracted."""
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False
     if not has_attachments_ready(row):
@@ -179,6 +178,30 @@ def is_dashboard_ready(row: Contract) -> bool:
     if not analysis.get("contract_advice"):
         return False
     return True
+
+
+def is_visible_on_dashboard(row: Contract, session=None) -> bool:
+    """Show on dashboard when ready OR actively being processed by autopilot."""
+    if is_dashboard_ready(row):
+        return True
+    if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
+        return False
+
+    from attachment_storage import has_stored_pdfs
+
+    if row.id and session is not None and has_stored_pdfs(session, row.id):
+        return True
+    if has_attachments_ready(row, session):
+        analysis = row.analysis if isinstance(row.analysis, dict) else {}
+        if not workflow_is_current(analysis):
+            return True
+        if not is_full_analysis_complete(analysis, row):
+            return True
+        if getattr(row, "sub_search_status", None) == "searching":
+            return True
+        if analysis.get("screening_stage") == "full" and not analysis.get("contract_advice"):
+            return True
+    return False
 
 
 def mark_pending_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
