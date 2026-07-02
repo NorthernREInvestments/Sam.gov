@@ -26,6 +26,7 @@ SUB_MIN_REVIEWS_KEY = "sub_min_review_count"
 OWNER_SETTINGS_KEY = "proposal_owner_settings"
 PRICING_BACKFILL_KEY = "one_time_pricing_backfill_20260701"
 PRICING_AGENCY_FIX_KEY = "pricing_agency_filter_fix_20260702"
+EXACT_MATCH_FIX_KEY = "pricing_exact_match_fix_20260702"
 
 
 def _get_setting(session, key: str) -> str | None:
@@ -308,6 +309,18 @@ def is_pricing_agency_fix_complete() -> bool:
 
 def mark_pricing_agency_fix_complete(session) -> None:
     _set_setting(session, PRICING_AGENCY_FIX_KEY, datetime.now(timezone.utc).isoformat())
+
+
+def is_exact_match_fix_complete() -> bool:
+    session = SessionLocal()
+    try:
+        return bool(_get_setting(session, EXACT_MATCH_FIX_KEY))
+    finally:
+        session.close()
+
+
+def mark_exact_match_fix_complete(session) -> None:
+    _set_setting(session, EXACT_MATCH_FIX_KEY, datetime.now(timezone.utc).isoformat())
 
 
 def mark_pricing_backfill_complete(session) -> None:

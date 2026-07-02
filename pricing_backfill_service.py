@@ -10,8 +10,10 @@ from models import Contract
 from pricing import contract_pricing_needs_refresh
 from prior_contract_extract import backfill_prior_contract_and_pricing
 from settings_store import (
+    is_exact_match_fix_complete,
     is_pricing_agency_fix_complete,
     is_pricing_backfill_complete,
+    mark_exact_match_fix_complete,
     mark_pricing_agency_fix_complete,
     mark_pricing_backfill_complete,
 )
@@ -108,13 +110,53 @@ def run_pricing_agency_fix_repair() -> dict[str, int]:
     return stats
 
 
+def run_exact_match_fix_repair() -> dict[str, int]:
+    """Re-run pricing with expanded exact-match lookup (contract # variants, site profiles)."""
+    if is_exact_match_fix_complete():
+        logger.info("Exact-match pricing repair already completed — skipping")
+        return {"skipped": 1}
+
+    session = SessionLocal()
+    stats = {"processed": 0, "exact_found": 0, "errors": 0}
+    try:
+        rows = session.query(Contract).order_by(Contract.id).all()
+        logger.info("Starting exact-match pricing repair for %s contract(s)", len(rows))
+        for row in rows:
+            try:
+                result = backfill_prior_contract_and_pricing(session, row)
+                session.commit()
+                stats["processed"] += 1
+                pred = (result.get("pricing_intel") or {}).get("predecessor_award") if isinstance(result.get("pricing_intel"), dict) else {}
+                if isinstance(pred, dict) and pred.get("is_prior_contract"):
+                    stats["exact_found"] += 1
+            except Exception:
+                session.rollback()
+                stats["errors"] += 1
+                logger.exception("Exact-match repair failed for %s", row.notice_id)
+
+        mark_exact_match_fix_complete(session)
+        session.commit()
+        logger.info(
+            "Exact-match pricing repair done: %s exact, %s errors",
+            stats["exact_found"],
+            stats["errors"],
+        )
+    finally:
+        session.close()
+    return stats
+
+
 def start_background_pricing_backfill() -> None:
     """Run pricing backfill/repair in a daemon thread so startup is not blocked."""
     global _running
     with _lock:
         if _running:
             return
-        if is_pricing_backfill_complete() and is_pricing_agency_fix_complete():
+        if (
+            is_pricing_backfill_complete()
+            and is_pricing_agency_fix_complete()
+            and is_exact_match_fix_complete()
+        ):
             return
         _running = True
 
@@ -125,6 +167,8 @@ def start_background_pricing_backfill() -> None:
                 run_one_time_pricing_backfill()
             if not is_pricing_agency_fix_complete():
                 run_pricing_agency_fix_repair()
+            if not is_exact_match_fix_complete():
+                run_exact_match_fix_repair()
         except Exception:
             logger.exception("Pricing backfill/repair failed")
         finally:

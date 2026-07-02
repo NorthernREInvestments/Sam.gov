@@ -443,9 +443,9 @@ PRIOR_CONTRACT_METHODS = frozenset({
     "manual_contract_number",
     "same_site_match",
     "facility_keyword",
+    "agency_facility_match",
     "recipient_search",
     "incumbent_name_match",
-    "same_city_match",
 })
 
 _FACILITY_NAME_RE = re.compile(
@@ -476,9 +476,12 @@ _PREVIOUS_CONTRACT_TEXT_RE = re.compile(
 
 _CONTRACT_NUMBER_RE = re.compile(
     r"\b(?:FA|W|N|GS|VA|HQ|SPE|HSHQ|70Z|36C|"
+    r"140[A-Z]{2}|ED|"
     r"[A-Z]{2,4})\s*[-]?\s*\d{2,4}\s*[-]?[A-Z]?\s*[-]?\s*[A-Z]?\s*[-]?\s*\d{3,6}\b",
     re.IGNORECASE,
 )
+_FWS_PIID_RE = re.compile(r"\b(140[A-Z]{2}\d{3}[A-Z]\d{4})\b", re.IGNORECASE)
+_DOI_ED_PIID_RE = re.compile(r"\b(ED\d{10})\b", re.IGNORECASE)
 
 
 def is_plausible_contract_number(value: str | None) -> bool:
@@ -536,24 +539,47 @@ def normalize_contract_number(value: str | None) -> str | None:
     return cleaned
 
 
+def contract_number_search_variants(value: str | None) -> list[str]:
+    """PIID variants to try against USAspending award_ids."""
+    normalized = normalize_contract_number(value)
+    if not normalized:
+        return []
+    variants: list[str] = []
+    for candidate in (
+        normalized,
+        re.sub(r"[^A-Z0-9]", "", normalized),
+        normalized.replace("-", ""),
+    ):
+        if candidate and candidate not in variants:
+            variants.append(candidate)
+    if normalized.startswith("ED") and len(normalized) > 10:
+        tail = normalized[2:]
+        if tail not in variants:
+            variants.append(tail)
+    return variants
+
+
 def extract_contract_numbers(text: str | None) -> list[str]:
     """Pull plausible contract numbers from solicitation text."""
     if not text:
         return []
     found: list[str] = []
     seen: set[str] = set()
+    body = str(text)
 
-    for match in _PREVIOUS_CONTRACT_TEXT_RE.findall(str(text)):
+    for match in _PREVIOUS_CONTRACT_TEXT_RE.findall(body):
         normalized = normalize_contract_number(match)
         if normalized and normalized not in seen:
             seen.add(normalized)
             found.append(normalized)
 
-    for match in _CONTRACT_NUMBER_RE.findall(str(text)):
-        normalized = normalize_contract_number(match)
-        if normalized and normalized not in seen:
-            seen.add(normalized)
-            found.append(normalized)
+    for pattern in (_FWS_PIID_RE, _DOI_ED_PIID_RE, _CONTRACT_NUMBER_RE):
+        for match in pattern.findall(body):
+            token = match if isinstance(match, str) else match[0]
+            normalized = normalize_contract_number(token)
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                found.append(normalized)
     return found
 
 
@@ -762,6 +788,19 @@ def agency_search_filters(agency: str | None) -> list[dict[str, str]] | None:
     return None
 
 
+def _agency_name_matches(agency: str | None, award_agency: str | None) -> bool:
+    """True when a USAspending award's awarding agency matches the SAM.gov agency text."""
+    if not agency:
+        return True
+    if not award_agency:
+        return True
+    mapped = agency_search_filters(agency)
+    if mapped:
+        expected = str(mapped[0].get("name") or "").upper()
+        return expected in str(award_agency).upper()
+    return str(agency).upper() in str(award_agency).upper()
+
+
 def build_search_payload(
     naics_code: str,
     state_codes: str | list[str],
@@ -799,31 +838,38 @@ def build_search_payload(
 
 def fetch_awards_by_contract_number(contract_number: str, *, limit: int = 5) -> list[dict[str, Any]]:
     """Look up a specific predecessor contract by PIID / award ID."""
-    normalized = normalize_contract_number(contract_number)
-    if not normalized:
+    variants = contract_number_search_variants(contract_number)
+    if not variants:
         return []
 
-    # Plain PIID only — quoted strings in award_ids trigger USAspending 503 errors.
-    variants: list[str] = []
-    for value in (normalized, re.sub(r"[^A-Z0-9]", "", normalized)):
-        if value and value not in variants:
-            variants.append(value)
-
     awards: list[dict[str, Any]] = []
-    try:
-        payload = _award_search_payload(
-            filters={
-                "award_ids": variants,
-                "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
-            },
-            limit=limit,
-        )
-        awards = _post_award_search(payload)
-    except Exception:
-        awards = []
+    seen_ids: set[str] = set()
+    for variant_batch in (variants,):
+        try:
+            payload = _award_search_payload(
+                filters={
+                    "award_ids": variant_batch,
+                    "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+                },
+                limit=limit,
+            )
+            for award in _post_award_search(payload):
+                award_id = str(award.get("award_id") or "")
+                if award_id and award_id not in seen_ids:
+                    seen_ids.add(award_id)
+                    awards.append(award)
+        except Exception:
+            pass
 
     if not awards:
-        awards = fetch_awards_by_keywords([normalized], limit=limit)
+        for variant in variants:
+            for award in fetch_awards_by_keywords([variant], limit=limit):
+                award_id = str(award.get("award_id") or "")
+                needle = re.sub(r"[^A-Z0-9]", "", variant.upper())
+                hay = re.sub(r"[^A-Z0-9]", "", award_id.upper())
+                if needle and needle in hay and award_id not in seen_ids:
+                    seen_ids.add(award_id)
+                    awards.append(award)
 
     awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
     return awards
@@ -1109,13 +1155,7 @@ def _lookup_by_facility_keywords(
             limit=25,
         )
         if agency:
-            agency_upper = agency.upper()
-            awards = [
-                a
-                for a in awards
-                if agency_upper in str(a.get("awarding_agency") or "").upper()
-                or not a.get("awarding_agency")
-            ]
+            awards = [a for a in awards if _agency_name_matches(agency, a.get("awarding_agency"))]
         if city:
             city_upper = city.upper()
             awards = [
@@ -1157,6 +1197,33 @@ def _lookup_by_facility_keywords(
 
 
 def _lookup_by_site(
+    origin_profile: dict[str, Any],
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+) -> dict[str, Any] | None:
+    """Prior award at the same street address + NAICS (best signal when PDF omits contract #)."""
+    profiles = origin_profile.get("_all_profiles")
+    if not isinstance(profiles, list):
+        profiles = [origin_profile]
+    for profile in profiles:
+        if not profile.get("address_key"):
+            continue
+        found = _lookup_single_site_profile(
+            profile,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+        )
+        if found:
+            return found
+    return None
+
+
+def _lookup_single_site_profile(
     origin_profile: dict[str, Any],
     *,
     naics_code: str,
@@ -1270,36 +1337,173 @@ def fetch_awards_by_keywords(
     return awards
 
 
+def _prior_award_relevance_score(
+    award: dict[str, Any],
+    *,
+    facility_terms: list[str] | None = None,
+    title: str | None = None,
+    naics_code: str | None = None,
+) -> int:
+    """Higher = better prior-contract candidate. Used to pick the right award at a site."""
+    score = 0
+    desc = " ".join(
+        str(award.get(field) or "") for field in ("description", "performance_location", "award_id")
+    ).lower()
+    title_lower = (title or "").lower()
+
+    if naics_code:
+        naics_raw = award.get("naics_code")
+        naics_val = naics_raw.get("code") if isinstance(naics_raw, dict) else str(naics_raw or "")
+        if naics_val == naics_code:
+            score += 15
+        elif naics_code in str(naics_raw or ""):
+            score += 10
+
+    service_words = ("janitorial", "custodial", "cleaning", "housekeeping", "jantorial", "janitor")
+    if naics_code == "561720" and any(word in desc for word in service_words):
+        score += 25
+    if any(word in title_lower for word in ("janitorial", "custodial", "cleaning", "jantorial")) and any(
+        word in desc for word in service_words
+    ):
+        score += 20
+
+    for term in facility_terms or []:
+        term_lower = term.lower()
+        if term_lower in desc:
+            score += 20
+        else:
+            for piece in re.findall(r"[a-z]{5,}", term_lower):
+                if piece in desc:
+                    score += 12
+                    break
+            if term_lower.split()[0] in desc:
+                score += 8
+
+    for token in re.findall(r"[a-z]{5,}", title_lower):
+        if token in desc and token not in service_words:
+            score += 8
+
+    noise = ("toilet", "vault", "pumping", "rodent", "pest", "abatement", "landscap", "septic")
+    title_is_janitorial = any(w in title_lower for w in ("janitorial", "custodial", "cleaning", "jantorial"))
+    if title_is_janitorial and any(word in desc for word in noise):
+        score -= 40
+    elif any(word in desc for word in noise) and not any(word in title_lower for word in noise):
+        score -= 20
+
+    return score
+
+
+def _pick_best_prior_award(
+    awards: list[dict[str, Any]],
+    *,
+    facility_terms: list[str] | None = None,
+    title: str | None = None,
+    naics_code: str | None = None,
+    min_amount: float | None = None,
+) -> dict[str, Any] | None:
+    from pricing_constants import MIN_PRIOR_CONTRACT_AMOUNT
+
+    floor = min_amount if min_amount is not None else MIN_PRIOR_CONTRACT_AMOUNT
+    candidates = [
+        a
+        for a in awards
+        if a.get("award_date")
+        and a.get("award_amount")
+        and a["award_amount"] >= floor
+    ]
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda a: (
+            _prior_award_relevance_score(
+                a,
+                facility_terms=facility_terms,
+                title=title,
+                naics_code=naics_code,
+            ),
+            a.get("award_date") or "",
+            a.get("award_amount") or 0,
+        ),
+        reverse=True,
+    )
+    best = candidates[0]
+    relevance = _prior_award_relevance_score(
+        best,
+        facility_terms=facility_terms,
+        title=title,
+        naics_code=naics_code,
+    )
+    if relevance < 15:
+        return None
+    return best
+
+
+def _lookup_by_agency_facility_site(
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+    facility_terms: list[str] | None = None,
+    title: str | None = None,
+) -> dict[str, Any] | None:
+    """Same agency subtier + city + NAICS + facility name in award text."""
+    if not facility_terms or not agency_search_filters(agency):
+        return None
+
+    awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=agency, limit=40)
+    if not awards:
+        awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=None, limit=40)
+
+    filtered = [a for a in awards if _agency_name_matches(agency, a.get("awarding_agency"))]
+    best_award = _pick_best_prior_award(
+        filtered,
+        facility_terms=facility_terms,
+        title=title,
+        naics_code=naics_code,
+    )
+    if best_award:
+        return _finalize_predecessor(
+            best_award,
+            lookup_method="agency_facility_match",
+            confidence="high",
+        )
+    return None
+
+
 def _lookup_most_recent_city_award(
     *,
     naics_code: str,
     state_code: str,
     city: str | None = None,
     agency: str | None = None,
+    facility_terms: list[str] | None = None,
+    title: str | None = None,
 ) -> dict[str, Any] | None:
-    """Most recent comparable award in the work city — used when contract # lookup fails."""
-    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
-
+    """Best prior award at the work city — relevance-scored, not just highest dollars."""
     awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=agency, limit=25)
     if not awards:
         awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=None, limit=25)
     if not awards and city:
         awards = fetch_filtered_awards(naics_code, state_code, city=None, agency=None, limit=25)
 
-    dated = [
-        a
-        for a in awards
-        if a.get("award_date")
-        and a.get("award_amount")
-        and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
-    ]
     if city:
-        city_matches = [a for a in dated if _city_matches(a.get("performance_city"), city)]
+        city_matches = [a for a in awards if _city_matches(a.get("performance_city"), city)]
         if city_matches:
-            dated = city_matches
-    dated.sort(key=lambda a: a.get("award_date") or "", reverse=True)
-    if dated:
-        return _finalize_predecessor(dated[0], lookup_method="same_city_match", confidence="medium")
+            awards = city_matches
+
+    best_award = _pick_best_prior_award(
+        awards,
+        facility_terms=facility_terms,
+        title=title,
+        naics_code=naics_code,
+    )
+    if best_award:
+        return _finalize_predecessor(
+            best_award,
+            lookup_method="agency_facility_match",
+            confidence="high",
+        )
     return None
 
 
@@ -1309,10 +1513,10 @@ def _lookup_by_contract_number(
     naics_code: str | None = None,
     state_code: str | None = None,
 ) -> dict[str, Any] | None:
-    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+    from pricing_constants import MIN_PRIOR_CONTRACT_AMOUNT
 
     for award in fetch_awards_by_contract_number(contract_number):
-        if award.get("award_amount") and award["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT:
+        if award.get("award_amount") and award["award_amount"] >= MIN_PRIOR_CONTRACT_AMOUNT:
             return _finalize_predecessor(award, lookup_method="contract_number", confidence="high")
 
     for award in fetch_awards_by_keywords(
@@ -1324,7 +1528,7 @@ def _lookup_by_contract_number(
         award_id = str(award.get("award_id") or "").upper()
         needle = normalize_contract_number(contract_number) or contract_number.upper()
         if needle in re.sub(r"[^A-Z0-9]", "", award_id) or contract_number.upper() in award_id:
-            if award.get("award_amount") and award["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT:
+            if award.get("award_amount") and award["award_amount"] >= MIN_PRIOR_CONTRACT_AMOUNT:
                 return _finalize_predecessor(award, lookup_method="contract_number_keyword", confidence="high")
     return None
 
@@ -1388,6 +1592,7 @@ def fetch_predecessor_pricing(
     origin_profile: dict[str, Any] | None = None,
     facility_terms: list[str] | None = None,
     manual_lookup: bool = False,
+    title: str | None = None,
 ) -> dict[str, Any] | None:
     """
     Resolve the prior contract at this site. Lookup order (best evidence first):
@@ -1399,10 +1604,14 @@ def fetch_predecessor_pricing(
     Each match is enriched with full modification/transaction history for real obligated dollars.
     """
     contract_numbers: list[str] = []
+    exclude: set[str] = set()
+    for value in origin_profile.get("_exclude_contract_numbers") or ():
+        for variant in contract_number_search_variants(value):
+            exclude.add(variant)
     for value in [previous_contract_number, *(extra_contract_numbers or [])]:
-        normalized = normalize_contract_number(value)
-        if normalized and normalized not in contract_numbers:
-            contract_numbers.append(normalized)
+        for variant in contract_number_search_variants(value):
+            if variant and variant not in exclude and variant not in contract_numbers:
+                contract_numbers.append(variant)
 
     lookup_method_override = "manual_contract_number" if manual_lookup else None
 
@@ -1418,12 +1627,28 @@ def fetch_predecessor_pricing(
             return found
 
     if naics_code and state_code and origin_profile:
+        profile = dict(origin_profile)
+        profiles = origin_profile.get("_all_profiles")
+        if isinstance(profiles, list):
+            profile["_all_profiles"] = profiles
         found = _lookup_by_site(
-            origin_profile,
+            profile,
             naics_code=naics_code,
             state_code=state_code,
             city=city,
             agency=agency,
+        )
+        if found:
+            return found
+
+    if naics_code and state_code and facility_terms:
+        found = _lookup_by_agency_facility_site(
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+            facility_terms=facility_terms,
+            title=title,
         )
         if found:
             return found
@@ -1464,6 +1689,8 @@ def fetch_predecessor_pricing(
             state_code=state_code,
             city=city,
             agency=agency,
+            facility_terms=facility_terms,
+            title=title,
         )
 
     return None

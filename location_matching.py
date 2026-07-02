@@ -53,12 +53,38 @@ def _normalize_address_key(value: str | None) -> str | None:
 
 def parse_street_from_text(text: str | None) -> str | None:
     """Pull the first plausible street address from free text."""
+    streets = parse_all_streets_from_text(text)
+    return streets[0] if streets else None
+
+
+def parse_all_streets_from_text(
+    text: str | None,
+    *,
+    work_state_code: str | None = None,
+) -> list[str]:
+    """All plausible work-site street addresses in free text."""
     if not text:
-        return None
-    match = _STREET_PATTERN.search(text)
-    if not match:
-        return None
-    return match.group(1).strip().rstrip(".,;")
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+    for match in _STREET_PATTERN.finditer(str(text)):
+        street = match.group(1).strip().rstrip(".,;")
+        if len(street) < 8:
+            continue
+        context = str(text)[max(0, match.start() - 40) : match.end() + 40]
+        if work_state_code:
+            state_upper = work_state_code.upper()
+            context_upper = context.upper()
+            other_states = re.findall(r"\b([A-Z]{2})\b", context_upper)
+            if other_states and state_upper not in other_states:
+                continue
+            if re.search(r"\b(VA|VIRGINIA|FALLS CHURCH|ARLINGTON)\b", context_upper) and state_upper != "VA":
+                continue
+        key = _normalize_address_key(street)
+        if key and key not in seen:
+            seen.add(key)
+            found.append(street)
+    return found
 
 
 def _street_from_sam_block(sam_raw: dict[str, Any] | None) -> str | None:
@@ -77,6 +103,12 @@ def _street_from_sam_block(sam_raw: dict[str, Any] | None) -> str | None:
 
 def extract_site_profile(contract: Any) -> dict[str, Any]:
     """Address + scope fields used to decide if two contracts are the same site & work."""
+    profiles = extract_site_profiles(contract)
+    return profiles[0] if profiles else {}
+
+
+def extract_site_profiles(contract: Any) -> list[dict[str, Any]]:
+    """All candidate work-site profiles — tries every parseable street in solicitation text."""
     sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
     analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
     loc = extract_work_location(
@@ -85,36 +117,53 @@ def extract_site_profile(contract: Any) -> dict[str, Any]:
         title=getattr(contract, "title", None),
         description=getattr(contract, "description", None),
     )
+    work_state = loc.get("state_code")
 
-    street = _street_from_sam_block(sam)
-    location_raw = getattr(contract, "location", None) or ""
-    if not street:
-        street = parse_street_from_text(location_raw)
-    if not street:
-        street = parse_street_from_text(sam.get("descriptionText"))
-    if not street:
-        street = parse_street_from_text(getattr(contract, "description", None))
-    if not street:
-        drawing = analysis.get("drawing_sqft_extraction")
-        if isinstance(drawing, dict):
-            street = parse_street_from_text(drawing.get("calculation_notes"))
+    street_candidates: list[str | None] = [
+        _street_from_sam_block(sam),
+        parse_street_from_text(getattr(contract, "location", None)),
+    ]
+    for blob in (
+        getattr(contract, "attachment_text", None),
+        getattr(contract, "description", None),
+        sam.get("descriptionText"),
+        analysis.get("plain_english_summary"),
+        analysis.get("executive_summary"),
+    ):
+        street_candidates.extend(parse_all_streets_from_text(blob, work_state_code=work_state))
 
+    drawing = analysis.get("drawing_sqft_extraction")
+    if isinstance(drawing, dict):
+        street_candidates.extend(
+            parse_all_streets_from_text(drawing.get("calculation_notes"), work_state_code=work_state)
+        )
+
+    profiles: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
     zip_code = loc.get("zip")
-    address_key = None
-    if street:
-        normalized_street = _normalize_address_key(street)
-        if normalized_street:
-            address_key = f"{normalized_street}|{zip_code[:5]}" if zip_code else normalized_street
-
-    return {
+    base = {
         **loc,
-        "street_address": street,
-        "address_key": address_key,
-        "location_raw": location_raw,
+        "location_raw": getattr(contract, "location", None) or "",
         "naics_code": str(getattr(contract, "naics_code", None) or "").strip() or None,
         "building_type": getattr(contract, "building_type", None),
         "sub_type_needed": analysis.get("sub_type_needed"),
     }
+
+    for street in street_candidates:
+        if not street:
+            continue
+        normalized_street = _normalize_address_key(street)
+        if not normalized_street:
+            continue
+        address_key = f"{normalized_street}|{zip_code[:5]}" if zip_code else normalized_street
+        if address_key in seen_keys:
+            continue
+        seen_keys.add(address_key)
+        profiles.append({**base, "street_address": street, "address_key": address_key})
+
+    if not profiles:
+        profiles.append({**base, "street_address": None, "address_key": None})
+    return profiles
 
 
 def build_address_key_from_parts(street: str | None, zip_code: str | None) -> str | None:

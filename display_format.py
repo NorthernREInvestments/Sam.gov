@@ -259,6 +259,8 @@ def pricing_card_display(
             label = "Prior (same address)"
         elif method == "facility_keyword":
             label = "Prior (facility)"
+        elif method == "agency_facility_match":
+            label = "Prior contract"
         elif method == "recipient_search":
             label = "Prior (incumbent)"
         elif method == "same_city_match":

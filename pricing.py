@@ -9,12 +9,14 @@ from internal_pricing import build_pricing_dashboard, query_internal_pricing
 from pws_fields import pws_snapshot
 from usaspending_client import (
     DEFAULT_LOOKBACK_YEARS,
+    contract_number_search_variants,
     extract_contract_numbers,
     extract_facility_search_terms,
     extract_pricing_hints_from_text,
     extract_work_location,
     fetch_predecessor_pricing,
     fetch_regional_benchmarks,
+    normalize_contract_number,
 )
 
 
@@ -25,6 +27,14 @@ def _solicitation_pricing_hints(contract: Any) -> dict[str, Any]:
     previous = manual or (sol.get("previous_contract_number") or "").strip() or None
     incumbent = (sol.get("incumbent_contractor") or "").strip() or None
     extra_numbers: list[str] = []
+    exclude_numbers: list[str] = []
+    for current in (
+        sol.get("solicitation_number"),
+        getattr(contract, "notice_id", None),
+    ):
+        for variant in contract_number_search_variants(current):
+            if variant and variant not in exclude_numbers:
+                exclude_numbers.append(variant)
     facility_terms = extract_facility_search_terms(
         getattr(contract, "title", None),
         contract.description or analysis.get("plain_english_summary"),
@@ -43,16 +53,25 @@ def _solicitation_pricing_hints(contract: Any) -> dict[str, Any]:
         if not previous and text_hints.get("previous_contract_number"):
             previous = text_hints["previous_contract_number"]
         for number in text_hints.get("extra_contract_numbers") or extract_contract_numbers(str(blob)):
-            if number not in extra_numbers:
-                extra_numbers.append(number)
+            normalized = normalize_contract_number(number)
+            if normalized and normalized not in extra_numbers:
+                extra_numbers.append(normalized)
 
-    if not previous and extra_numbers:
+    if previous:
+        primary = normalize_contract_number(previous)
+        ordered = [n for n in extra_numbers if n != primary]
+        extra_numbers = ([primary] if primary else []) + ordered
+    elif extra_numbers:
         previous = extra_numbers[0]
+
+    exclude_set = set(exclude_numbers)
+    extra_numbers = [n for n in extra_numbers if n not in exclude_set]
 
     return {
         "previous_contract_number": previous,
         "incumbent_contractor": incumbent,
         "extra_contract_numbers": extra_numbers,
+        "exclude_contract_numbers": exclude_numbers,
         "facility_terms": facility_terms,
         "manual_lookup": bool(manual),
     }
@@ -113,12 +132,18 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
         )
 
     try:
-        from location_matching import extract_site_profile
+        from location_matching import extract_site_profile, extract_site_profiles
+
+        site_profiles = extract_site_profiles(contract)
+        origin_profile = dict(site_profiles[0] if site_profiles else extract_site_profile(contract))
+        if site_profiles:
+            origin_profile["_all_profiles"] = site_profiles
+        origin_profile["_exclude_contract_numbers"] = hints.get("exclude_contract_numbers") or []
 
         intel = fetch_regional_benchmarks(
             naics_code,
             state_code,
-            origin_profile=extract_site_profile(contract),
+            origin_profile=origin_profile,
             agency=contract.agency,
             city=city,
         )
@@ -130,9 +155,10 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
             city=city,
             agency=contract.agency,
             extra_contract_numbers=hints.get("extra_contract_numbers"),
-            origin_profile=extract_site_profile(contract),
+            origin_profile=origin_profile,
             facility_terms=hints.get("facility_terms"),
             manual_lookup=bool(hints.get("manual_lookup")),
+            title=getattr(contract, "title", None),
         )
         intel = _merge_predecessor(intel, predecessor)
     except Exception as exc:
