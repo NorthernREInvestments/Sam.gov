@@ -1076,6 +1076,80 @@ def attachment_sync_status() -> dict[str, Any]:
         session.close()
 
 
+def burn_sam_budget_on_attachments(pool: list[str]) -> dict[str, Any]:
+    """Use every remaining SAM API call on attachment pulls. Per-contract errors skip to the next."""
+    from api_budget import can_spend_sam, get_usage_snapshot
+    from intake import enrich_contract_attachments
+    from screening_pipeline import has_attachments_ready
+
+    if not can_spend_sam(1):
+        raise ValueError("SAM.gov daily API budget exhausted — attachment sync skipped until tomorrow.")
+
+    sam_at_start = get_usage_snapshot()["sam_used_today"]
+    skip_notice_ids: set[str] = set()
+    attachments_enriched = 0
+    contracts_attempted = 0
+    errors: list[str] = []
+    phases: list[dict[str, Any]] = []
+
+    while can_spend_sam(1):
+        session = SessionLocal()
+        try:
+            backlog = [
+                row
+                for row in list_attachment_backlog(session, naics_codes=pool)
+                if row.notice_id not in skip_notice_ids
+                and not has_attachments_ready(row, session)
+            ]
+            if not backlog:
+                break
+
+            row = backlog[0]
+            sam_before = get_usage_snapshot()["sam_used_today"]
+            contracts_attempted += 1
+            enriched = False
+            try:
+                enriched = enrich_contract_attachments(row, session=session)
+                session.commit()
+            except Exception as exc:
+                session.rollback()
+                errors.append(f"{row.notice_id}: {exc}")
+
+            sam_after = get_usage_snapshot()["sam_used_today"]
+            if enriched:
+                attachments_enriched += 1
+
+            skip_notice_ids.add(row.notice_id)
+            phases.append({
+                "mode": "sam_pull",
+                "notice_id": row.notice_id,
+                "attachments_enriched": 1 if enriched else 0,
+                "sam_calls_used": sam_after - sam_before,
+                "errors": [e for e in errors if e.startswith(f"{row.notice_id}:")],
+            })
+
+            if sam_after == sam_before and can_spend_sam(1):
+                pending_left = [
+                    r
+                    for r in list_attachment_backlog(session, naics_codes=pool)
+                    if r.notice_id not in skip_notice_ids
+                    and not has_attachments_ready(r, session)
+                ]
+                if not pending_left:
+                    break
+        finally:
+            session.close()
+
+    sam_calls_burned = get_usage_snapshot()["sam_used_today"] - sam_at_start
+    return {
+        "attachments_enriched": attachments_enriched,
+        "contracts_attempted": contracts_attempted,
+        "sam_calls_burned": sam_calls_burned,
+        "errors": errors,
+        "phases": phases,
+    }
+
+
 def sync_attachments_only() -> dict[str, Any]:
     """Burn remaining SAM budget on attachment pulls across all enabled NAICS."""
     from settings_store import get_naics_codes
@@ -1093,23 +1167,11 @@ def sync_attachments_only() -> dict[str, Any]:
 def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     """SAM pulls (all daily credits) + Claude eval per contract. Errors skip to the next."""
     from api_budget import (
-        can_spend_sam,
         get_usage_snapshot,
         scheduled_sync_attachments_only,
         scheduled_sync_attachments_only_until,
     )
-    from intake import enrich_matching_attachments
     from naics_labels import tiers_for_scheduled_sync
-    from screening_pipeline import has_attachments_ready
-    from sync import list_attachment_backlog
-
-    if not can_spend_sam(1):
-        raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
-
-    phases: list[dict[str, Any]] = []
-    attachments_enriched = 0
-    claude_errors = 0
-    skip_notice_ids: set[str] = set()
 
     session = SessionLocal()
     try:
@@ -1117,44 +1179,12 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     finally:
         session.close()
 
-    while can_spend_sam(1):
-        session = SessionLocal()
-        try:
-            backlog = [
-                row
-                for row in list_attachment_backlog(session, naics_codes=pool)
-                if row.notice_id not in skip_notice_ids
-                and not has_attachments_ready(row, session)
-            ]
-            if not backlog:
-                break
-            attach_result = enrich_matching_attachments(
-                session,
-                max_attempts=1,
-                skip_notice_ids=skip_notice_ids,
-            )
-            session.commit()
-        finally:
-            session.close()
-
-        claude_errors += sum(1 for e in attach_result.get("errors", []) if "claude" in e.lower())
-        if any("SAM.gov daily budget" in e for e in attach_result.get("errors", [])):
-            break
-
-        last_attempted = attach_result.get("last_attempted_notice_id")
-        if last_attempted:
-            skip_notice_ids.add(last_attempted)
-
-        enriched = attach_result.get("attachments_enriched", 0)
-        if enriched > 0:
-            attachments_enriched += enriched
-        phases.append({
-            "mode": "enrich_and_eval",
-            "notice_id": last_attempted,
-            "attachments_enriched": enriched,
-            "attachments_pending": attach_result.get("attachments_pending", 0),
-            "errors": attach_result.get("errors", []),
-        })
+    burn = burn_sam_budget_on_attachments(pool)
+    attachments_enriched = burn["attachments_enriched"]
+    contracts_attempted = burn["contracts_attempted"]
+    sam_calls_burned = burn["sam_calls_burned"]
+    claude_errors = sum(1 for e in burn.get("errors", []) if "claude" in e.lower())
+    phases = burn.get("phases", [])
 
     session = SessionLocal()
     try:
@@ -1167,7 +1197,8 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     status_parts = [
         "Attachments-only mode (SAM download + Claude eval from stored PDFs)",
         f"SAM.gov: {budget['sam_used_today']}/{budget['sam_daily_limit']} API calls used today",
-        f"{attachments_enriched} attachment pull(s)",
+        f"{sam_calls_burned} SAM call(s) this run on {contracts_attempted} contract(s)",
+        f"{attachments_enriched} now have PDFs in the database",
         f"{pending_before} pending before · {pending_after} still pending",
     ]
     if claude_errors:
@@ -1186,9 +1217,12 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
         "scheduled_next_index": 0,
         "focus_naics": None,
         "attachments_enriched": attachments_enriched,
+        "contracts_attempted": contracts_attempted,
+        "sam_calls_burned": sam_calls_burned,
         "attachments_pending": pending_after,
         "attachments_pending_before": pending_before,
         "phases": phases,
+        "errors": burn.get("errors", []),
         "searches_run": 0,
         "api_calls": budget["sam_used_today"],
         "fetch_status": ". ".join(status_parts) + ".",

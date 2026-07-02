@@ -137,7 +137,7 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
     """Load SAM scrape, download attachment bytes into PostgreSQL, extract text."""
     from attachment_pipeline import ensure_attachments_from_database, is_attachment_extraction_ready, run_attachment_pipeline
     from database import SessionLocal
-    from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_opportunity_complete
+    from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_attachment_metadata
     from sam_client import normalize_opportunity
 
     own_session = session is None
@@ -161,7 +161,7 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
         if is_sam_metadata_ready(raw) and is_scrape_complete(raw):
             return False
 
-        enriched, ok = scrape_opportunity_complete(raw)
+        enriched, ok = scrape_attachment_metadata(raw)
         if not ok:
             row.sam_raw = enriched
             return False
@@ -849,33 +849,23 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
     def _run() -> None:
         global _attachment_running
         try:
-            from sync import FOCUS_NAICS_KEY, get_focus_naics
+            from settings_store import get_naics_codes
+            from sync import burn_sam_budget_on_attachments
 
-            focus_session = SessionLocal()
+            pool = get_naics_codes()
+            if not pool:
+                return
             try:
-                focus = get_focus_naics(focus_session)
-            finally:
-                focus_session.close()
-
-            total = 0
-            while can_spend_sam(1):
-                session = SessionLocal()
-                try:
-                    result = enrich_matching_attachments(
-                        session,
-                        limit=batch_size,
-                        naics_code=focus,
-                    )
-                    total += result.get("attachments_enriched", 0)
-                    if result.get("attachments_enriched", 0) == 0:
-                        break
-                    if any("SAM.gov daily budget" in e for e in result.get("errors", [])):
-                        break
-                finally:
-                    session.close()
+                result = burn_sam_budget_on_attachments(pool)
+            except ValueError:
+                return
+            total = result.get("attachments_enriched", 0)
             if total:
-                logger.info("Background full scrape finished: %s contract(s)", total)
-            if total:
+                logger.info(
+                    "Background attachment pull: %s contract(s) with PDFs, %s SAM call(s)",
+                    total,
+                    result.get("sam_calls_burned", 0),
+                )
                 start_background_intake()
         except Exception:
             logger.exception("Background attachment enrich failed")

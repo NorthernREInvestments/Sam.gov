@@ -423,6 +423,40 @@ def needs_enrichment(sam_raw: dict[str, Any] | None) -> bool:
     return not is_sam_metadata_ready(sam_raw)
 
 
+def scrape_attachment_metadata(raw: dict[str, Any], api_key: str | None = None) -> tuple[dict[str, Any], bool]:
+    """One SAM.gov API call: attachment list + PIEE manifest (skips description refetch)."""
+    from datetime import datetime, timezone
+
+    from piee_client import attach_piee_manifest
+
+    if is_sam_metadata_ready(raw):
+        refreshed = attach_piee_manifest(dict(raw))
+        return refreshed, True
+
+    notice_id = str(raw.get("noticeId") or "")
+    if not notice_id:
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "missing_notice_id"
+        return failed, False
+
+    if not can_spend_sam(1):
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "sam_budget_exhausted"
+        return failed, False
+
+    enriched = refresh_opportunity_attachments(raw, api_key)
+    if enriched.get("scrapeStatus") == "incomplete":
+        return enriched, False
+
+    enriched = attach_piee_manifest(enriched)
+    enriched["scrapeStatus"] = "metadata_ready"
+    enriched["scrapedAt"] = datetime.now(timezone.utc).isoformat()
+    enriched.pop("scrapeError", None)
+    return enriched, True
+
+
 def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None) -> tuple[dict[str, Any], bool]:
     """
     Full scrape for one opportunity: SAM description + all attachments/links + PIEE manifest.
