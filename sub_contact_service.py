@@ -529,12 +529,31 @@ def create_sub_contact_from_link(
     link: ContractSub,
     sub: Sub | None,
 ) -> SubContact:
-    existing = session.query(SubContact).filter_by(contract_sub_id=link.id).first()
-    if existing:
-        return existing
+    existing = (
+        session.query(SubContact)
+        .filter_by(contract_id=contract.id, sub_id=link.sub_id)
+        .first()
+    )
+    if not existing:
+        existing = session.query(SubContact).filter_by(contract_sub_id=link.id).first()
     if sub is None:
         sub = session.get(Sub, link.sub_id)
     flags = _flags_from_legacy_status(link.status)
+    if existing:
+        existing.contract_sub_id = link.id
+        existing.company_name = sub.business_name if sub else existing.company_name
+        existing.phone = sub.phone if sub else existing.phone
+        existing.website = sub.website if sub else existing.website
+        existing.address = sub.address if sub else existing.address
+        existing.city = sub.city if sub else existing.city
+        existing.state = sub.state if sub else existing.state
+        existing.rating = sub.rating if sub else existing.rating
+        existing.distance_miles = link.distance_miles
+        existing.claude_score = link.claude_score
+        existing.claude_reason = link.claude_reason
+        session.flush()
+        return existing
+
     row = SubContact(
         contract_id=contract.id,
         sub_id=link.sub_id,

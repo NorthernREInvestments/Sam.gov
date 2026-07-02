@@ -113,10 +113,15 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "reason": "screen_budget",
             "repair_reason": reason,
         }
-    except Exception:
+    except Exception as exc:
         session.rollback()
         logger.exception("Workflow repair failed for %s", row.notice_id)
-        return {"notice_id": row.notice_id, "error": "intake_failed", "repair_reason": reason}
+        return {
+            "notice_id": row.notice_id,
+            "error": "intake_failed",
+            "repair_reason": reason,
+            "detail": str(exc)[:200],
+        }
 
 
 def contracts_needing_repair(session) -> list[Contract]:
