@@ -485,6 +485,15 @@ def get_contracts(
             require_scrape_complete=False,
         )
 
+        from workflow_status import repair_open_opportunity_status
+
+        status_dirty = False
+        for row in all_rows:
+            if repair_open_opportunity_status(row):
+                status_dirty = True
+        if status_dirty:
+            session.commit()
+
         visible_rows: list = []
         for row in all_rows:
             if row.id in stored_pdf_ids:

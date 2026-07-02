@@ -211,6 +211,29 @@ def prior_hints_from_contract(contract: Any) -> dict[str, Any]:
     return hints
 
 
+def _recent_award_from_intel(intel: dict[str, Any]) -> tuple[float | None, str | None]:
+    """Best available dollar amount from cached USAspending awards."""
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    for award in intel.get("awards") or []:
+        if not isinstance(award, dict):
+            continue
+        amount = award.get("recent_annual_amount") or award.get("annual_amount") or award.get("award_amount")
+        try:
+            value = float(amount) if amount is not None else None
+        except (TypeError, ValueError):
+            value = None
+        if value and value >= MIN_REGIONAL_AWARD_AMOUNT:
+            return value, _short_company_name(award.get("recipient_name"))
+    avg = intel.get("average_annual_award")
+    if avg:
+        try:
+            return float(avg), _short_company_name(intel.get("likely_incumbent"))
+        except (TypeError, ValueError):
+            pass
+    return None, None
+
+
 def pricing_card_display(
     pricing_intel: dict[str, Any] | None,
     *,
@@ -297,22 +320,21 @@ def pricing_card_display(
         }
 
     if prev_number or incumbent:
-        label = "Prior contract"
-        parts: list[str] = []
-        if prev_number:
-            parts.append(prev_number)
-        if incumbent:
-            parts.append(incumbent)
-        line = f"{label}: {' · '.join(parts)} — amount pending"
-        return {
-            "kind": "prior_contract",
-            "label": label,
-            "amount": None,
-            "recipient": incumbent,
-            "line": line,
-            "confidence": "low",
-            "calc_note": None,
-        }
+        annual, recipient = _recent_award_from_intel(intel)
+        if annual:
+            label = "Prior (same area)"
+            line = f"{label}: {short_money(annual)}/yr recent"
+            if recipient:
+                line += f" · {recipient}"
+            return {
+                "kind": "prior_contract",
+                "label": label,
+                "amount": short_money(annual),
+                "recipient": recipient,
+                "line": line,
+                "confidence": intel.get("confidence") or "medium",
+                "calc_note": "Most recent comparable award in this area from USAspending.",
+            }
 
     if intel.get("error"):
         return {

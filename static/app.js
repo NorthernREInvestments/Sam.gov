@@ -660,16 +660,33 @@ function compactHistoryLine(c) {
         same_site_match: "Prior (same address)",
         recipient_search: "Prior (incumbent)",
         same_city_match: "Prior (same city)",
+        facility_keyword: "Prior (facility)",
       }[pred.lookup_method] || "Prior contract";
       if (annual && name) {
         return { kind: "prior_contract", label, line: `${label}: ${shortMoney(annual)}/yr · ${name}` };
       }
+      if (annual) {
+        return { kind: "prior_contract", label, line: `${label}: ${shortMoney(annual)}/yr` };
+      }
     }
-  }
-  const prevNum = sol.manual_previous_contract_number || sol.previous_contract_number;
-  if (prevNum || incumbent) {
-    const parts = [prevNum, incumbent].filter(Boolean);
-    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${parts.join(" · ")} — amount pending` };
+    const awards = Array.isArray(intel.awards) ? intel.awards : [];
+    for (const award of awards) {
+      const annual = award.recent_annual_amount || award.annual_amount || award.award_amount;
+      const name = shortCompanyName(award.recipient_name);
+      if (annual && name) {
+        return { kind: "prior_contract", label: "Prior (same area)", line: `Prior (same area): ${shortMoney(annual)}/yr recent · ${name}` };
+      }
+      if (annual) {
+        return { kind: "prior_contract", label: "Prior (same area)", line: `Prior (same area): ${shortMoney(annual)}/yr recent` };
+      }
+    }
+    if (intel.average_annual_award) {
+      const name = shortCompanyName(intel.likely_incumbent);
+      const line = name
+        ? `Prior (same area): ${shortMoney(intel.average_annual_award)}/yr · ${name}`
+        : `Prior (same area): ${shortMoney(intel.average_annual_award)}/yr`;
+      return { kind: "prior_contract", label: "Prior (same area)", line };
+    }
   }
   return { kind: "none", line: "No prior contract on file" };
 }

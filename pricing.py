@@ -248,3 +248,29 @@ def _error_payload(message: str, naics_code: str | None, state_code: str | None)
         "tier": "regional_benchmark",
         "source": "USAspending.gov",
     }
+
+
+def contract_pricing_needs_refresh(contract: Any) -> bool:
+    """True when we have prior-contract hints but no usable dollar amounts cached."""
+    hints = _solicitation_pricing_hints(contract)
+    has_hint = bool(hints.get("previous_contract_number") or hints.get("incumbent_contractor"))
+    intel = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else {}
+    pred = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else {}
+    has_amount = bool(
+        pred.get("recent_annual_amount")
+        or pred.get("annual_amount")
+        or pred.get("total_value")
+        or intel.get("average_annual_award")
+        or (isinstance(intel.get("awards"), list) and intel.get("awards"))
+    )
+    if has_hint and not has_amount:
+        return True
+    if hints.get("previous_contract_number") and intel.get("awards_count", 0) == 0:
+        work = extract_work_location(
+            contract.location,
+            contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
+            title=getattr(contract, "title", None),
+            description=getattr(contract, "description", None),
+        )
+        return bool(work.get("state_code"))
+    return False

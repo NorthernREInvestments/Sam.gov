@@ -589,7 +589,18 @@ def extract_facility_search_terms(title: str | None, description: str | None = N
     for text in (title, description):
         if not text:
             continue
-        for match in _FACILITY_NAME_RE.findall(str(text)):
+        expanded = re.sub(
+            r"\b(NWR|AFB|NPS|BRF)\b",
+            lambda m: {
+                "NWR": "National Wildlife Refuge",
+                "AFB": "Air Force Base",
+                "NPS": "National Park",
+                "BRF": "National Wildlife Refuge",
+            }.get(m.group(1).upper(), m.group(1)),
+            str(text),
+            flags=re.IGNORECASE,
+        )
+        for match in _FACILITY_NAME_RE.findall(expanded):
             cleaned = re.sub(r"\s+", " ", match).strip(" -–—,.")
             key = cleaned.lower()
             if len(cleaned) < 6 or key in seen:
@@ -598,7 +609,7 @@ def extract_facility_search_terms(title: str | None, description: str | None = N
                 continue
             seen.add(key)
             terms.append(cleaned)
-        for segment in re.split(r"[-–—:]", str(text)):
+        for segment in re.split(r"[-–—:]", expanded):
             segment = segment.strip()
             if len(segment) < 8 or len(segment) > 60:
                 continue
@@ -607,7 +618,10 @@ def extract_facility_search_terms(title: str | None, description: str | None = N
                 continue
             if any(stop == lower for stop in _FACILITY_STOP_WORDS):
                 continue
-            if re.search(r"\b(district|park|refuge|base|center|station|forest|headquarters)\b", lower):
+            if re.search(
+                r"\b(district|park|refuge|base|center|station|forest|headquarters|nwr|afb)\b",
+                lower,
+            ):
                 key = lower
                 if key not in seen:
                     seen.add(key)
@@ -1256,6 +1270,39 @@ def fetch_awards_by_keywords(
     return awards
 
 
+def _lookup_most_recent_city_award(
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+) -> dict[str, Any] | None:
+    """Most recent comparable award in the work city — used when contract # lookup fails."""
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=agency, limit=25)
+    if not awards:
+        awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=None, limit=25)
+    if not awards and city:
+        awards = fetch_filtered_awards(naics_code, state_code, city=None, agency=None, limit=25)
+
+    dated = [
+        a
+        for a in awards
+        if a.get("award_date")
+        and a.get("award_amount")
+        and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
+    ]
+    if city:
+        city_matches = [a for a in dated if _city_matches(a.get("performance_city"), city)]
+        if city_matches:
+            dated = city_matches
+    dated.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    if dated:
+        return _finalize_predecessor(dated[0], lookup_method="same_city_match", confidence="medium")
+    return None
+
+
 def _lookup_by_contract_number(
     contract_number: str,
     *,
@@ -1405,6 +1452,14 @@ def fetch_predecessor_pricing(
             return found
         return _lookup_by_incumbent(
             incumbent_contractor,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+        )
+
+    if naics_code and state_code:
+        return _lookup_most_recent_city_award(
             naics_code=naics_code,
             state_code=state_code,
             city=city,
@@ -1790,6 +1845,15 @@ def fetch_regional_benchmarks(
         lookback_years=DEFAULT_LOOKBACK_YEARS,
         limit=limit,
     )
+    if not raw_awards:
+        raw_awards = fetch_filtered_awards(
+            naics_code,
+            state_code,
+            city=city,
+            agency=None,
+            lookback_years=DEFAULT_LOOKBACK_YEARS,
+            limit=limit,
+        )
 
     dated_awards = [
         a

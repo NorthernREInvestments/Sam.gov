@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timezone
 
 from database import SessionLocal
 from models import Contract
+from pricing import contract_pricing_needs_refresh
 from prior_contract_extract import backfill_prior_contract_and_pricing
-from settings_store import is_pricing_backfill_complete, mark_pricing_backfill_complete
+from settings_store import (
+    is_pricing_agency_fix_complete,
+    is_pricing_backfill_complete,
+    mark_pricing_agency_fix_complete,
+    mark_pricing_backfill_complete,
+)
 
 logger = logging.getLogger("govtracker.pricing_backfill")
 _lock = threading.Lock()
@@ -63,20 +68,65 @@ def run_one_time_pricing_backfill() -> dict[str, int]:
     return stats
 
 
+def run_pricing_agency_fix_repair() -> dict[str, int]:
+    """Re-fetch USAspending pricing when agency filter left rows with contract # but no dollars."""
+    if is_pricing_agency_fix_complete():
+        logger.info("Pricing agency-filter repair already completed — skipping")
+        return {"skipped": 1}
+
+    session = SessionLocal()
+    stats = {"processed": 0, "refreshed": 0, "errors": 0}
+    try:
+        rows = session.query(Contract).order_by(Contract.id).all()
+        targets = [row for row in rows if contract_pricing_needs_refresh(row)]
+        logger.info(
+            "Starting pricing agency-filter repair for %s/%s contract(s)",
+            len(targets),
+            len(rows),
+        )
+        for row in targets:
+            try:
+                result = backfill_prior_contract_and_pricing(session, row)
+                session.commit()
+                stats["processed"] += 1
+                if result.get("is_prior_contract") or result.get("annual_amount"):
+                    stats["refreshed"] += 1
+            except Exception:
+                session.rollback()
+                stats["errors"] += 1
+                logger.exception("Pricing agency repair failed for %s", row.notice_id)
+
+        mark_pricing_agency_fix_complete(session)
+        session.commit()
+        logger.info(
+            "Pricing agency-filter repair done: %s refreshed, %s errors",
+            stats["refreshed"],
+            stats["errors"],
+        )
+    finally:
+        session.close()
+    return stats
+
+
 def start_background_pricing_backfill() -> None:
-    """Run one-time pricing backfill in a daemon thread so startup is not blocked."""
+    """Run pricing backfill/repair in a daemon thread so startup is not blocked."""
     global _running
     with _lock:
-        if _running or is_pricing_backfill_complete():
+        if _running:
+            return
+        if is_pricing_backfill_complete() and is_pricing_agency_fix_complete():
             return
         _running = True
 
     def _run() -> None:
         global _running
         try:
-            run_one_time_pricing_backfill()
+            if not is_pricing_backfill_complete():
+                run_one_time_pricing_backfill()
+            if not is_pricing_agency_fix_complete():
+                run_pricing_agency_fix_repair()
         except Exception:
-            logger.exception("One-time pricing backfill failed")
+            logger.exception("Pricing backfill/repair failed")
         finally:
             with _lock:
                 _running = False
