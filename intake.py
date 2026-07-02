@@ -107,7 +107,9 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
 
     if not has_attachments_ready(row, session):
         return None
-    if not intake_on_sync_enabled() or not can_screen():
+    from api_budget import claude_calls_allowed, can_screen
+
+    if not claude_calls_allowed(context="enrich") or not can_screen():
         return None
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     if is_full_analysis_complete(row.analysis, row) and workflow_is_current(analysis):
@@ -585,7 +587,11 @@ def intake_matching_contracts(
     force_full: bool = False,
 ) -> dict[str, Any]:
     """Run Claude full analysis for filter-matching contracts with attachments ready."""
+    from api_budget import claude_calls_allowed
     from sync import list_contracts
+
+    if not force and not force_full and not claude_calls_allowed(context="sync"):
+        return {"processed": 0, "screened": 0, "text_screened": 0, "enriched_only": 0, "skipped": 0, "errors": []}
 
     if not intake_on_sync_enabled() and not force and not force_full:
         from pws_fields import contract_pws_missing

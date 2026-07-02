@@ -55,6 +55,28 @@ def intake_on_sync_enabled() -> bool:
     return raw not in ("0", "false", "no")
 
 
+def claude_autopilot_enabled() -> bool:
+    """When false (default), deploy/sync autopilot never calls Claude — repair waits for explicit enable."""
+    raw = os.getenv("CLAUDE_AUTOPILOT_ENABLED", "false").strip().lower()
+    return raw in ("1", "true", "yes")
+
+
+def claude_calls_allowed(*, context: str = "default") -> bool:
+    """
+    Gate all automatic Claude usage.
+    Attachments-only sync days never call Claude.
+    Autopilot repair/intake requires CLAUDE_AUTOPILOT_ENABLED=true.
+    """
+    if scheduled_sync_attachments_only():
+        return False
+    if context in ("autopilot", "repair", "enrich", "sync"):
+        if not claude_autopilot_enabled():
+            return False
+    if context in ("enrich", "sync", "intake") and not intake_on_sync_enabled():
+        return False
+    return True
+
+
 def intake_per_sync_limit() -> int | None:
     """Max Claude intakes per sync. 0 = unlimited (process entire pending queue)."""
     raw = _daily_limit("INTAKE_PER_SYNC_LIMIT", 0)
@@ -173,6 +195,8 @@ def get_usage_snapshot() -> dict[str, Any]:
         "auto_screen_on_startup": auto_screen_on_startup(),
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
+        "claude_autopilot_enabled": claude_autopilot_enabled(),
+        "claude_calls_allowed": claude_calls_allowed(context="autopilot"),
         "intake_per_sync_limit": intake_per_sync_limit(),
         "scheduled_naics_per_sync": scheduled_naics_per_sync(),
         "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),

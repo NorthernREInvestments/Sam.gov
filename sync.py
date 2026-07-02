@@ -845,7 +845,7 @@ def _sync_naics_code_list(
 
     from autopilot_service import start_autopilot
 
-    start_autopilot()
+    start_autopilot(trigger="post_sync")
 
     return {
         "api_calls": api_calls,
@@ -915,24 +915,24 @@ def _count_pending_attachments(session: Session, naics_codes: list[str]) -> int:
 
 
 def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
-    """Spend the full daily SAM budget on attachment pulls — no new contract searches."""
+    """Spend the full daily SAM budget on attachment pulls — no new contract searches, no Claude."""
     from api_budget import (
         can_spend_sam,
         get_usage_snapshot,
         scheduled_sync_attachments_only,
         scheduled_sync_attachments_only_until,
     )
-    from intake import (
-        enrich_matching_attachments,
-        intake_matching_contracts,
-    )
+    from intake import enrich_matching_attachments
     from naics_labels import tiers_for_scheduled_sync
+    from screening_pipeline import has_attachments_ready
+    from sync import list_attachment_backlog
 
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
 
     phases: list[dict[str, Any]] = []
     attachments_enriched = 0
+    stall_rounds = 0
 
     session = SessionLocal()
     try:
@@ -943,13 +943,25 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     while can_spend_sam(1):
         session = SessionLocal()
         try:
-            attach_result = enrich_matching_attachments(session, limit=None)
+            backlog = [
+                row
+                for row in list_attachment_backlog(session, naics_codes=pool)
+                if not has_attachments_ready(row, session)
+            ]
+            if not backlog:
+                break
+            attach_result = enrich_matching_attachments(session, limit=1)
             session.commit()
         finally:
             session.close()
+
         enriched = attach_result.get("attachments_enriched", 0)
         if enriched <= 0:
-            break
+            stall_rounds += 1
+            if stall_rounds >= 3:
+                break
+            continue
+        stall_rounds = 0
         attachments_enriched += enriched
         phases.append({
             "mode": "enrich_only",
@@ -960,8 +972,6 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     session = SessionLocal()
     try:
         pending_after = _count_pending_attachments(session, pool)
-        intake_matching_contracts(session, [])
-        session.commit()
     finally:
         session.close()
 

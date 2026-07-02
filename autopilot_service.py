@@ -6,9 +6,15 @@ import logging
 import threading
 import time
 from datetime import date, datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
-from api_budget import can_screen, can_spend_sam, intake_on_sync_enabled
+from api_budget import (
+    can_screen,
+    can_spend_sam,
+    claude_autopilot_enabled,
+    claude_calls_allowed,
+    scheduled_sync_attachments_only,
+)
 from database import SessionLocal
 
 logger = logging.getLogger("govtracker.autopilot")
@@ -26,6 +32,8 @@ _status: dict[str, Any] = {
     "claude_blocked_until": None,
 }
 
+AutopilotTrigger = Literal["deploy", "post_sync"]
+
 
 def get_autopilot_status() -> dict[str, Any]:
     from workflow_backfill_service import get_repair_status
@@ -35,6 +43,8 @@ def get_autopilot_status() -> dict[str, Any]:
         out = dict(_status)
         out["claude_blocked_today"] = _claude_blocked_date == date.today().isoformat()
     out["repair"] = get_repair_status()
+    out["claude_autopilot_enabled"] = claude_autopilot_enabled()
+    out["attachments_only_today"] = scheduled_sync_attachments_only()
     return out
 
 
@@ -55,44 +65,48 @@ def _block_claude_for_today(reason: str) -> None:
     global _claude_blocked_date
     _claude_blocked_date = date.today().isoformat()
     _set_status(claude_blocked_until="tomorrow_6am_sync")
-    logger.info("Autopilot: Claude paused for today (%s) — will resume after next daily sync", reason)
+    logger.info("Autopilot: Claude paused for today (%s)", reason)
 
 
 def claude_work_allowed() -> bool:
-    """False after Claude credits/budget are exhausted until the next calendar day."""
+    if not claude_calls_allowed(context="autopilot"):
+        return False
     _clear_claude_block_if_new_day()
     return _claude_blocked_date is None
 
 
-def has_autopilot_work() -> bool:
-    """True when SAM pulls or Claude intake/repair remain."""
+def has_autopilot_work(*, trigger: AutopilotTrigger = "post_sync") -> bool:
+    """True when SAM pulls or (if enabled) Claude repair remain."""
     from attachment_storage import has_stored_pdfs
     from screening_pipeline import has_attachments_ready
     from sync import list_attachment_backlog
     from workflow_backfill_service import contract_repair_reason, contracts_needing_repair
 
+    if trigger == "deploy":
+        return False
+
     session = SessionLocal()
     try:
-        for row in contracts_needing_repair(session):
-            if has_stored_pdfs(session, row.id) and contract_repair_reason(row, session):
-                return True
+        if claude_work_allowed():
+            for row in contracts_needing_repair(session):
+                if has_stored_pdfs(session, row.id) and contract_repair_reason(row, session):
+                    return True
 
-        if can_spend_sam(1):
+        if can_spend_sam(1) and not scheduled_sync_attachments_only():
             backlog = list_attachment_backlog(session)
             if any(not has_attachments_ready(r, session) for r in backlog):
                 return True
-
-        if claude_work_allowed() and intake_on_sync_enabled() and can_screen():
-            for row in contracts_needing_repair(session):
-                if has_stored_pdfs(session, row.id):
-                    return True
     finally:
         session.close()
     return False
 
 
-def autopilot_cycle(*, batch_size: int = 2, full_stored_repair: bool = False) -> dict[str, Any]:
-    """One pass: repair stored PDFs → SAM attachment pulls → repair batch → intake."""
+def autopilot_cycle(
+    *,
+    batch_size: int = 2,
+    full_stored_repair: bool = False,
+    sam_enrich: bool = True,
+) -> dict[str, Any]:
     from intake import enrich_matching_attachments, intake_pending
     from workflow_backfill_service import repair_all_stored_attachment_contracts, run_workflow_repair_batch
 
@@ -104,6 +118,7 @@ def autopilot_cycle(*, batch_size: int = 2, full_stored_repair: bool = False) ->
         "halt_reason": None,
         "work_units": 0,
         "claude_skipped": not claude_work_allowed(),
+        "sam_skipped": not sam_enrich,
     }
 
     if claude_work_allowed():
@@ -124,7 +139,7 @@ def autopilot_cycle(*, batch_size: int = 2, full_stored_repair: bool = False) ->
                 _block_claude_for_today(batch["halt_reason"])
                 return cycle
 
-    if can_spend_sam(1):
+    if sam_enrich and can_spend_sam(1) and not scheduled_sync_attachments_only():
         session = SessionLocal()
         try:
             enrich = enrich_matching_attachments(session, limit=batch_size)
@@ -135,7 +150,7 @@ def autopilot_cycle(*, batch_size: int = 2, full_stored_repair: bool = False) ->
         finally:
             session.close()
 
-    if claude_work_allowed() and intake_on_sync_enabled() and can_screen():
+    if claude_work_allowed() and can_screen():
         intake = intake_pending(limit=batch_size, matching_only=True)
         cycle["intake_processed"] = intake.get("processed", 0)
         cycle["work_units"] += cycle["intake_processed"]
@@ -146,8 +161,12 @@ def autopilot_cycle(*, batch_size: int = 2, full_stored_repair: bool = False) ->
     return cycle
 
 
-def run_autopilot_until_idle(*, max_rounds: int = 10, batch_size: int = 2) -> dict[str, Any]:
-    """Process backlog in a few tight rounds, then stop. No periodic retries."""
+def run_autopilot_until_idle(
+    *,
+    max_rounds: int = 10,
+    batch_size: int = 2,
+    sam_enrich: bool = True,
+) -> dict[str, Any]:
     totals: dict[str, Any] = {"rounds": 0, "halt_reason": None}
     _set_status(
         running=True,
@@ -162,6 +181,7 @@ def run_autopilot_until_idle(*, max_rounds: int = 10, batch_size: int = 2) -> di
             cycle = autopilot_cycle(
                 batch_size=batch_size,
                 full_stored_repair=(round_num == 1),
+                sam_enrich=sam_enrich,
             )
             totals["rounds"] = round_num
             totals["last_cycle"] = cycle
@@ -188,8 +208,8 @@ def run_autopilot_until_idle(*, max_rounds: int = 10, batch_size: int = 2) -> di
         )
 
 
-def start_autopilot(*, batch_size: int = 2) -> bool:
-    """Start the pipeline once (deploy or post-sync). Returns immediately."""
+def start_autopilot(*, batch_size: int = 2, trigger: AutopilotTrigger = "deploy") -> bool:
+    """Start background work. Deploy = pricing backfill only unless Claude autopilot enabled."""
     global _running
     _clear_claude_block_if_new_day()
     with _lock:
@@ -203,15 +223,27 @@ def start_autopilot(*, batch_size: int = 2) -> bool:
             from pricing_backfill_service import is_pricing_backfill_complete, run_one_time_pricing_backfill
 
             if not is_pricing_backfill_complete():
-                logger.info("Autopilot: running one-time pricing backfill (no Claude)")
+                logger.info("Autopilot: pricing backfill (no Claude, no SAM)")
                 run_one_time_pricing_backfill()
 
-            if not has_autopilot_work():
-                logger.info("Autopilot: nothing to do — skipping")
+            if trigger == "deploy":
+                if claude_autopilot_enabled():
+                    logger.info("Autopilot deploy: Claude repair enabled")
+                    run_autopilot_until_idle(batch_size=batch_size, sam_enrich=False)
+                else:
+                    logger.info("Autopilot deploy: skipped (save SAM/Claude for scheduled sync)")
                 return
 
-            logger.info("Autopilot: starting repair + intake pass")
-            run_autopilot_until_idle(batch_size=batch_size)
+            if scheduled_sync_attachments_only():
+                logger.info("Autopilot post-sync: skipped — attachments-only day (no Claude)")
+                return
+
+            if not has_autopilot_work(trigger="post_sync"):
+                logger.info("Autopilot post-sync: nothing to do")
+                return
+
+            logger.info("Autopilot post-sync: starting pass")
+            run_autopilot_until_idle(batch_size=batch_size, sam_enrich=True)
         except Exception:
             logger.exception("Autopilot thread failed")
         finally:
@@ -223,10 +255,15 @@ def start_autopilot(*, batch_size: int = 2) -> bool:
 
 
 def run_scheduled_autopilot() -> None:
-    """Called after the 6am daily SAM sync — not on a timer."""
-    _clear_claude_block_if_new_day()
-    if not has_autopilot_work():
-        logger.info("Scheduled autopilot: backlog empty — skipping")
+    """After 6am sync on normal rotation days only — not attachments-only days."""
+    if scheduled_sync_attachments_only():
+        logger.info("Scheduled autopilot skipped — attachments-only day")
         return
-    if not start_autopilot():
+    if not claude_autopilot_enabled():
+        logger.info("Scheduled autopilot skipped — CLAUDE_AUTOPILOT_ENABLED=false")
+        return
+    if not has_autopilot_work(trigger="post_sync"):
+        logger.info("Scheduled autopilot: backlog empty")
+        return
+    if not start_autopilot(trigger="post_sync"):
         logger.info("Scheduled autopilot skipped — already running")

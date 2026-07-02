@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-autopilot-v2"
+APP_BUILD_VERSION = "20260702-sam-only"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -63,7 +63,7 @@ def _run_background_startup() -> None:
         start_scheduler()
         from autopilot_service import start_autopilot
 
-        start_autopilot()
+        start_autopilot(trigger="deploy")
         with _startup_lock:
             _startup_state = {"ready": True, "error": None}
         log.info("Application startup complete (%s)", APP_BUILD_VERSION)
