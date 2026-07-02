@@ -143,21 +143,118 @@ def format_work_location_short(
     return "Location pending"
 
 
+def pricing_card_display(
+    pricing_intel: dict[str, Any] | None,
+    *,
+    has_work_state: bool = False,
+) -> dict[str, str | int | None]:
+    """Structured price line for dashboard cards — separates prior contract from regional average."""
+    intel = pricing_intel if isinstance(pricing_intel, dict) else {}
+    predecessor = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else None
+
+    if predecessor and predecessor.get("is_prior_contract"):
+        annual = (
+            predecessor.get("recent_annual_amount")
+            or predecessor.get("annual_amount")
+            or predecessor.get("base_year_amount")
+            or predecessor.get("total_value")
+        )
+        recipient = _short_company_name(predecessor.get("recipient_name"))
+        method = predecessor.get("lookup_method") or ""
+        if method in ("contract_number", "contract_number_keyword", "manual_contract_number"):
+            label = "Prior contract"
+        elif method == "same_site_match":
+            label = "Prior (same address)"
+        elif method == "facility_keyword":
+            label = "Prior (facility)"
+        elif method == "recipient_search":
+            label = "Prior (incumbent)"
+        elif method == "same_city_match":
+            label = "Prior (same city)"
+        else:
+            label = "Prior (incumbent)"
+        amount_suffix = "/yr"
+        if predecessor.get("recent_annual_amount") and predecessor.get("award_amount_source") == "transaction_history":
+            amount_suffix = "/yr recent"
+        if annual and recipient:
+            return {
+                "kind": "prior_contract",
+                "label": label,
+                "amount": short_money(annual),
+                "recipient": recipient,
+                "line": f"{label}: {short_money(annual)}{amount_suffix} · {recipient}",
+                "confidence": predecessor.get("confidence") or "high",
+                "calc_note": predecessor.get("pricing_calc_note"),
+            }
+        if annual:
+            return {
+                "kind": "prior_contract",
+                "label": label,
+                "amount": short_money(annual),
+                "recipient": None,
+                "line": f"{label}: {short_money(annual)}{amount_suffix}",
+                "confidence": predecessor.get("confidence") or "high",
+                "calc_note": predecessor.get("pricing_calc_note"),
+            }
+
+    avg = intel.get("average_annual_award")
+    count = int(intel.get("awards_count") or 0)
+    state = intel.get("state_code") or intel.get("state_name")
+    if avg and count > 0:
+        scope = f"{count} in {state}" if state else f"{count} contracts"
+        return {
+            "kind": "regional_average",
+            "label": "Regional avg",
+            "amount": short_money(avg),
+            "recipient": None,
+            "line": f"Regional avg: {short_money(avg)}/yr ({scope})",
+            "confidence": intel.get("confidence"),
+        }
+
+    if intel.get("error") or count == 0:
+        if has_work_state:
+            return {
+                "kind": "first_at_location",
+                "label": None,
+                "amount": None,
+                "recipient": None,
+                "line": "First contract at this location",
+                "confidence": None,
+            }
+        return {
+            "kind": "none",
+            "label": None,
+            "amount": None,
+            "recipient": None,
+            "line": "No history found",
+            "confidence": None,
+        }
+
+    return {
+        "kind": "none",
+        "label": None,
+        "amount": None,
+        "recipient": None,
+        "line": "No history found",
+        "confidence": None,
+    }
+
+
 def pricing_card_label(
     pricing_intel: dict[str, Any] | None,
     *,
     has_work_state: bool = False,
 ) -> str:
-    intel = pricing_intel if isinstance(pricing_intel, dict) else {}
-    avg = intel.get("average_annual_award")
-    count = int(intel.get("awards_count") or 0)
-    if avg and count > 0:
-        return f"Hist: {short_money(avg)} avg"
-    if intel.get("error") or count == 0:
-        if has_work_state:
-            return "First contract at this location"
-        return "No history found"
-    return "No history found"
+    return str(pricing_card_display(pricing_intel, has_work_state=has_work_state).get("line") or "No history found")
+
+
+def _short_company_name(name: str | None, max_len: int = 22) -> str | None:
+    if not name:
+        return None
+    cleaned = re.sub(r"\s+", " ", str(name).strip())
+    if len(cleaned) <= max_len:
+        return cleaned
+    return cleaned[: max_len - 1].rstrip() + "…"
 
 
 def short_money(value: float | int | None) -> str:

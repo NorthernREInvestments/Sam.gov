@@ -38,6 +38,7 @@ async function openContractDetail(noticeId, tab = "overview") {
     activeContractData = c;
     renderContractDetailShell(c);
     await switchContractTab(tab, c);
+    if (getContractSummary(c)) loadContractAdvice(noticeId);
     if (!getContractSummary(c)) beginContractDetailAnalysis(noticeId);
     else startContractDetailPolling(noticeId);
   } catch (err) {
@@ -118,15 +119,44 @@ function renderOverviewTab(c) {
   const subMethod = c.submission_method || "Unknown";
   const subEmail = c.submission_email || sol.contracting_officer_email || "";
   const farBadge = renderFarBadge(c);
-  const intel = c.pricing_intel?.regional || c.analysis?.pricing_intelligence?.regional || {};
-  const incumbent = intel.likely_incumbent || intel.most_frequent_winner || "Not identified";
-  const incumbentValue = intel.average_annual_award ? formatMoney(intel.average_annual_award) : "—";
-  const incumbentSource = intel.source || "USAspending.gov";
+  const intel = c.pricing_intel || {};
+  const pred = intel.predecessor_award || {};
+  const incumbent = pred.recipient_name || intel.likely_incumbent || intel.most_frequent_winner || sol.incumbent_contractor || "Not identified";
+  const incumbentValue = pred.recent_annual_amount
+    ? formatMoney(pred.recent_annual_amount)
+    : pred.annual_amount
+      ? formatMoney(pred.annual_amount)
+      : intel.average_annual_award
+        ? formatMoney(intel.average_annual_award)
+        : "—";
+  const baseYearValue = pred.base_year_amount ? formatMoney(pred.base_year_amount) : "—";
+  const priorContract = pred.contract_number || sol.manual_previous_contract_number || sol.previous_contract_number || "—";
+  const totalValue = pred.total_value ? formatMoney(pred.total_value) : "—";
+  const optionYears = pred.option_years_exercised != null ? String(pred.option_years_exercised) : "—";
+  const calcNote = pred.pricing_calc_note || "";
+  const modCount = pred.modifications_count != null ? String(pred.modifications_count) : "—";
+  const methodLabels = {
+    contract_number: "Prior contract (exact #)",
+    contract_number_keyword: "Prior contract (exact #)",
+    manual_contract_number: "Prior contract (you entered)",
+    same_site_match: "Prior contract (same address)",
+    facility_keyword: "Prior contract (facility name)",
+    recipient_search: "Prior contract (incumbent search)",
+    same_city_match: "Prior contract (same city)",
+    incumbent_name_match: "Prior contract (incumbent match)",
+  };
+  const methodLabel = methodLabels[pred.lookup_method] || "Prior contract";
+  const incumbentSource = pred.lookup_method
+    ? `USAspending — ${methodLabel}`
+    : intel.lookup_method
+      ? `USAspending (${intel.lookup_method})`
+      : intel.source || "USAspending.gov";
 
   panel.innerHTML = `
     <section class="detail-overview-section">
       <h3>Summary</h3>
       <div class="executive-summary">${formatSummaryHtml(summary)}</div>
+      <div id="contract-advice-mount-overview" data-notice-id="${escapeHtml(c.notice_id)}">${renderContractAdviceBox(c)}</div>
     </section>
     <section class="detail-overview-section">
       <h3>Scope</h3>
@@ -157,10 +187,29 @@ function renderOverviewTab(c) {
     </section>
     <section class="detail-overview-section">
       <h3>Incumbent research</h3>
+      ${pred.is_prior_contract
+        ? `<p class="pricing-note pricing-incumbent-note"><strong>${escapeHtml(methodLabel)}</strong> — this is what the last contractor was paid, not a regional average.</p>`
+        : intel.average_annual_award
+          ? `<p class="pricing-note">Showing <strong>regional average</strong> — no prior contract number or incumbent match found in the solicitation yet.</p>`
+          : ""}
       <div class="overview-grid">
         <div><span class="card-label">Likely incumbent</span><p>${escapeHtml(incumbent)}</p></div>
-        <div><span class="card-label">Avg contract value</span><p>${incumbentValue}</p></div>
+        <div><span class="card-label">${pred.is_prior_contract ? "Recent annual pay" : intel.average_annual_award ? "Regional avg (annual)" : "Annual pay"}</span><p>${incumbentValue}</p></div>
+        <div><span class="card-label">Base year</span><p>${baseYearValue}</p></div>
+        <div><span class="card-label">Prior contract #</span><p>${escapeHtml(priorContract)}</p></div>
+        <div><span class="card-label">Total obligated</span><p>${totalValue}</p></div>
+        <div><span class="card-label">Option years</span><p>${escapeHtml(optionYears)}</p></div>
+        <div><span class="card-label">Modifications</span><p>${escapeHtml(modCount)}</p></div>
         <div><span class="card-label">Source</span><p>${escapeHtml(incumbentSource)}</p></div>
+      </div>
+      ${calcNote ? `<p class="pricing-note">${escapeHtml(calcNote)}</p>` : ""}
+      <div class="prior-contract-lookup">
+        <label class="card-label" for="prior-contract-input">Look up prior contract # (USAspending)</label>
+        <div class="prior-contract-lookup-row">
+          <input id="prior-contract-input" type="text" placeholder="e.g. FA8821-19-F-0123" value="${escapeHtml(sol.manual_previous_contract_number || sol.previous_contract_number || "")}">
+          <button type="button" class="btn btn-secondary-action btn-small" id="prior-contract-lookup-btn">Look up</button>
+        </div>
+        <p class="filter-help">Auto-extracted from solicitation PDFs when present. Paste here only to override or if extraction missed a number.</p>
       </div>
     </section>
     <section class="detail-overview-section">
@@ -171,6 +220,38 @@ function renderOverviewTab(c) {
   document.getElementById("copy-sub-email")?.addEventListener("click", () => {
     navigator.clipboard.writeText(subEmail);
     showSyncStatus("Email copied.");
+  });
+  document.getElementById("prior-contract-lookup-btn")?.addEventListener("click", async () => {
+    const input = document.getElementById("prior-contract-input");
+    const number = input?.value?.trim();
+    if (!number) {
+      showSyncStatus("Enter a contract number first.");
+      return;
+    }
+    const btn = document.getElementById("prior-contract-lookup-btn");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await apiFetch(`/api/contracts/${encodeURIComponent(c.notice_id)}/lookup-prior-contract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract_number: number }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Lookup failed");
+      }
+      const data = await res.json();
+      if (data.contract && typeof openContractDetail === "function") {
+        const idx = contracts.findIndex((row) => row.notice_id === c.notice_id);
+        if (idx >= 0) contracts[idx] = data.contract;
+        openContractDetail(c.notice_id, "overview");
+      }
+      showSyncStatus("Prior contract pricing updated from USAspending.");
+    } catch (err) {
+      showSyncStatus(err.message || "Prior contract lookup failed.");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   });
   const coMount = document.getElementById("co-questions-mount");
   if (coMount && typeof bindCoQuestionsPanel === "function") {

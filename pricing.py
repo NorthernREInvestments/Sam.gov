@@ -7,7 +7,70 @@ from typing import Any
 
 from internal_pricing import build_pricing_dashboard, query_internal_pricing
 from pws_fields import pws_snapshot
-from usaspending_client import extract_work_location, fetch_regional_benchmarks
+from usaspending_client import (
+    DEFAULT_LOOKBACK_YEARS,
+    extract_contract_numbers,
+    extract_facility_search_terms,
+    extract_pricing_hints_from_text,
+    extract_work_location,
+    fetch_predecessor_pricing,
+    fetch_regional_benchmarks,
+)
+
+
+def _solicitation_pricing_hints(contract: Any) -> dict[str, Any]:
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+    manual = (sol.get("manual_previous_contract_number") or "").strip() or None
+    previous = manual or (sol.get("previous_contract_number") or "").strip() or None
+    incumbent = (sol.get("incumbent_contractor") or "").strip() or None
+    extra_numbers: list[str] = []
+    facility_terms = extract_facility_search_terms(
+        getattr(contract, "title", None),
+        contract.description or analysis.get("plain_english_summary"),
+    )
+
+    for blob in (
+        getattr(contract, "attachment_text", None),
+        contract.description,
+        analysis.get("plain_english_summary"),
+    ):
+        if not blob:
+            continue
+        text_hints = extract_pricing_hints_from_text(str(blob))
+        if not incumbent and text_hints.get("incumbent_contractor"):
+            incumbent = text_hints["incumbent_contractor"]
+        if not previous and text_hints.get("previous_contract_number"):
+            previous = text_hints["previous_contract_number"]
+        for number in text_hints.get("extra_contract_numbers") or extract_contract_numbers(str(blob)):
+            if number not in extra_numbers:
+                extra_numbers.append(number)
+
+    if not previous and extra_numbers:
+        previous = extra_numbers[0]
+
+    return {
+        "previous_contract_number": previous,
+        "incumbent_contractor": incumbent,
+        "extra_contract_numbers": extra_numbers,
+        "facility_terms": facility_terms,
+        "manual_lookup": bool(manual),
+    }
+
+
+def _merge_predecessor(intel: dict[str, Any], predecessor: dict[str, Any] | None) -> dict[str, Any]:
+    if not predecessor or not predecessor.get("is_prior_contract"):
+        return intel
+    intel = dict(intel)
+    intel["predecessor_award"] = predecessor
+    intel["prior_contract_annual"] = predecessor.get("annual_amount")
+    intel["prior_contract_total"] = predecessor.get("total_value")
+    intel["likely_incumbent"] = predecessor.get("recipient_name") or intel.get("likely_incumbent")
+    intel["lookup_method"] = predecessor.get("lookup_method")
+    intel["previous_contract_number"] = predecessor.get("contract_number")
+    if predecessor.get("option_years_exercised") is not None:
+        intel["option_years_exercised"] = predecessor.get("option_years_exercised")
+    return intel
 
 
 def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dict[str, Any]:
@@ -18,9 +81,24 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
         contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
     )
     state_code = work_location.get("state_code")
+    city = work_location.get("city")
+    hints = _solicitation_pricing_hints(contract)
 
     cached = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else None
-    if cached and not force_refresh and _cache_fresh(cached) and cached.get("tier") == "regional_benchmark":
+    cache_key = (
+        hints.get("previous_contract_number"),
+        hints.get("incumbent_contractor"),
+        tuple(hints.get("extra_contract_numbers") or ()),
+        tuple(hints.get("facility_terms") or ()),
+        hints.get("manual_lookup"),
+    )
+    if (
+        cached
+        and not force_refresh
+        and _cache_fresh(cached)
+        and cached.get("tier") == "regional_benchmark"
+        and cached.get("pricing_hints") == cache_key
+    ):
         return cached
 
     if not naics_code:
@@ -39,12 +117,29 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
             naics_code,
             state_code,
             origin_profile=extract_site_profile(contract),
+            agency=contract.agency,
+            city=city,
         )
+        predecessor = fetch_predecessor_pricing(
+            previous_contract_number=hints.get("previous_contract_number"),
+            incumbent_contractor=hints.get("incumbent_contractor"),
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=contract.agency,
+            extra_contract_numbers=hints.get("extra_contract_numbers"),
+            origin_profile=extract_site_profile(contract),
+            facility_terms=hints.get("facility_terms"),
+            manual_lookup=bool(hints.get("manual_lookup")),
+        )
+        intel = _merge_predecessor(intel, predecessor)
     except Exception as exc:
         return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
 
     intel["cached_at"] = datetime.now(timezone.utc).isoformat()
     intel["tier"] = "regional_benchmark"
+    intel["pricing_hints"] = cache_key
+    intel["lookback_years"] = DEFAULT_LOOKBACK_YEARS
     contract.pricing_intel = intel
     return intel
 
@@ -98,6 +193,21 @@ def get_contract_pricing_intel(contract: Any, *, force_refresh: bool = False, se
     if session is not None:
         return get_full_pricing_intel(contract, session, force_refresh=force_refresh)
     return get_regional_benchmark(contract, force_refresh=force_refresh)
+
+
+def lookup_prior_contract_by_number(contract: Any, contract_number: str) -> dict[str, Any]:
+    """Manual prior-contract lookup — USAspending only, no SAM.gov calls."""
+    number = (contract_number or "").strip()
+    if not number:
+        raise ValueError("Contract number is required.")
+
+    analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
+    sol = dict(analysis.get("solicitation_meta") or {}) if isinstance(analysis.get("solicitation_meta"), dict) else {}
+    sol["manual_previous_contract_number"] = number
+    analysis["solicitation_meta"] = sol
+    contract.analysis = analysis
+    contract.pricing_intel = None
+    return get_regional_benchmark(contract, force_refresh=True)
 
 
 def get_pricing_dashboard(session) -> dict[str, Any]:

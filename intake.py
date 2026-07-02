@@ -256,12 +256,38 @@ def run_full_analysis(
 
     _persist_scope_from_pdfs()
 
+    from prior_contract_extract import (
+        ensure_prior_contract_from_pdfs,
+        merge_prior_contract_hints,
+        prior_contract_hints_complete,
+        refresh_pricing_after_pdf_extract,
+    )
+
+    merge_prior_contract_hints(row)
+    if not prior_contract_hints_complete(row.analysis if isinstance(row.analysis, dict) else {}):
+        try:
+            ensure_prior_contract_from_pdfs(row, session, force=False)
+        except Exception:
+            pass
+    else:
+        merge_prior_contract_hints(row)
+
+    try:
+        refresh_pricing_after_pdf_extract(row)
+    except Exception:
+        pass
+
     if session is not None and contract_pws_missing(row):
         from proposal_service import ensure_solicitation_meta
 
         ensure_solicitation_meta(session, row, force=True)
         analysis = row.analysis if isinstance(row.analysis, dict) else analysis
         _persist_scope_from_pdfs()
+        merge_prior_contract_hints(row)
+        try:
+            refresh_pricing_after_pdf_extract(row)
+        except Exception:
+            pass
 
     if analysis.get("estimated_value") and not row.estimated_value:
         row.estimated_value = str(analysis["estimated_value"])[:128]
@@ -302,8 +328,9 @@ def run_full_analysis(
 
 
 def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
-    """Backfill PWS scope + solicitation meta from PDFs into PostgreSQL (no full re-screen)."""
+    """Backfill PWS scope + solicitation meta + prior contract fields from PDFs."""
     from pws_fields import contract_pws_missing
+    from prior_contract_extract import merge_prior_contract_hints, prior_contract_hints_complete, refresh_pricing_after_pdf_extract
     from proposal_service import ensure_solicitation_meta
 
     if not has_attachments_ready(row):
@@ -312,7 +339,11 @@ def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
             "skipped": True,
             "reason": "pending_attachments",
         }
-    if not contract_pws_missing(row):
+
+    merge_prior_contract_hints(row)
+    needs_scope = contract_pws_missing(row)
+    needs_prior = not prior_contract_hints_complete(row.analysis if isinstance(row.analysis, dict) else {})
+    if not needs_scope and not needs_prior:
         return {"notice_id": row.notice_id, "skipped": True, "reason": "scope_complete"}
 
     if not can_screen():
@@ -324,6 +355,11 @@ def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
         }
 
     ensure_solicitation_meta(session, row, force=True)
+    merge_prior_contract_hints(row)
+    try:
+        refresh_pricing_after_pdf_extract(row)
+    except Exception:
+        pass
     row.last_updated_at = datetime.now(timezone.utc)
     return {
         "notice_id": row.notice_id,
@@ -333,6 +369,7 @@ def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
         "cleaning_frequency_per_week": float(row.cleaning_frequency_per_week)
         if row.cleaning_frequency_per_week is not None
         else None,
+        "prior_contract_extracted": prior_contract_hints_complete(row.analysis if isinstance(row.analysis, dict) else {}),
     }
 
 

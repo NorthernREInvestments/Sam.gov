@@ -535,26 +535,69 @@ function compactServiceType(c) {
   return "Contract";
 }
 
-function compactAgencyLine(c) {
+function compactTypeLocationLine(c) {
   const service = compactServiceType(c);
-  const dept = c.department_display || formatDepartmentDisplay(c.agency);
-  return `${service} · ${dept} · ${compactLocationDisplay(c)}`;
+  const loc = c.location_display || compactLocationDisplay(c);
+  return `${service} · ${loc}`;
 }
 
-function compactScopeLine(c) {
+function compactSizeLine(c) {
   const sqft = c.square_footage ?? c.pws?.square_footage;
-  const freq = c.cleaning_frequency_per_week ?? c.pws?.cleaning_frequency_per_week;
-  if (!sqft && freq == null) return "Scope pending review";
-  const parts = [];
-  if (sqft) parts.push(`${Number(sqft).toLocaleString()} sq ft`);
-  if (freq != null) {
-    const n = Number(freq);
-    if (n === 5) parts.push("Mon-Fri");
-    else if (n === 7) parts.push("Daily");
-    else if (n === 1) parts.push("1x per week");
-    else parts.push(`${n}x per week`);
+  if (!sqft) return "Size pending";
+  return `${Number(sqft).toLocaleString()} sq ft`;
+}
+
+function compactHistoryLine(c) {
+  const hist = c.pricing_history;
+  if (hist?.line) return hist;
+  if (c.pricing_display) {
+    return { kind: "unknown", label: null, line: c.pricing_display };
   }
-  return parts.join(" · ") || "Scope pending review";
+  const intel = c.pricing_intel;
+  if (intel && !intel.error) {
+    const pred = intel.predecessor_award;
+    if (pred?.is_prior_contract) {
+      const annual = pred.annual_amount || pred.total_value;
+      const name = shortCompanyName(pred.recipient_name);
+      const label = {
+        same_site_match: "Prior (same address)",
+        recipient_search: "Prior (incumbent)",
+        same_city_match: "Prior (same city)",
+      }[pred.lookup_method] || "Prior contract";
+      if (annual && name) {
+        return { kind: "prior_contract", label, line: `${label}: ${shortMoney(annual)}/yr · ${name}` };
+      }
+    }
+    const avg = intel.average_annual_award;
+    const count = Number(intel.awards_count || 0);
+    const state = intel.state_code || intel.state_name;
+    if (avg && count > 0) {
+      const scope = state ? `${count} in ${state}` : `${count} contracts`;
+      return { kind: "regional_average", label: "Regional avg", line: `Regional avg: ${shortMoney(avg)}/yr (${scope})` };
+    }
+  }
+  const hasState = Boolean(c.work_location?.state_code);
+  if (hasState) return { kind: "first_at_location", line: "First contract at this location" };
+  return { kind: "none", line: "No history found" };
+}
+
+function renderHistoryLine(c) {
+  const hist = compactHistoryLine(c);
+  const kind = hist.kind || "unknown";
+  const label = hist.label;
+  const rest = hist.line || "";
+  if (label && rest.startsWith(`${label}:`)) {
+    const body = rest.slice(label.length + 1).trim();
+    return `<span class="pricing-kind pricing-kind-${kind}">${escapeHtml(label)}:</span> ${escapeHtml(body)}`;
+  }
+  return `<span class="pricing-kind pricing-kind-${kind}">${escapeHtml(rest)}</span>`;
+}
+
+function shortCompanyName(name, maxLen = 22) {
+  if (!name) return "";
+  const cleaned = String(name).trim().replace(/\s+/g, " ");
+  if (cleaned.length <= maxLen) return cleaned;
+  return `${cleaned.slice(0, maxLen - 1)}…`;
 }
 
 function shortMoney(value) {
@@ -565,17 +608,8 @@ function shortMoney(value) {
   return `$${amount.toLocaleString()}`;
 }
 
-function compactHistoryLine(c) {
-  if (c.pricing_display) return c.pricing_display;
-  const intel = c.pricing_intel;
-  if (intel && !intel.error) {
-    const count = Number(intel.awards_count || 0);
-    const avg = intel.average_annual_award;
-    if (avg && count > 0) return `Hist: ${shortMoney(avg)} avg`;
-  }
-  const hasState = Boolean(c.work_location?.state_code);
-  if (hasState) return "First contract at this location";
-  return "No history found";
+function displayScore(c) {
+  return c.effective_score ?? c.score ?? c.text_score;
 }
 
 function compactCityState(c) {
@@ -606,10 +640,10 @@ function renderCards() {
   }
 
   container.innerHTML = contracts.map((c) => {
-    const score = c.score ?? c.text_score;
+    const score = displayScore(c);
     const due = compactDueLine(c);
     const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
-    const statusMsg = c.workflow_progress?.status_message || "Reviewing fit";
+    const statusMsg = c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit";
     return `
     <article class="compact-card" data-id="${c.notice_id}">
       <div class="compact-card-row compact-card-row-1">
@@ -617,16 +651,14 @@ function renderCards() {
         <span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span>
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
-      <div class="compact-card-row compact-card-agency">${escapeHtml(compactAgencyLine(c))}</div>
-      <div class="compact-card-row compact-card-row-split">
-        <span class="compact-card-scope">${escapeHtml(compactScopeLine(c))}</span>
-        <span class="compact-card-history">${escapeHtml(compactHistoryLine(c))}</span>
-      </div>
+      <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
+      <div class="compact-card-row compact-card-size">${escapeHtml(compactSizeLine(c))}</div>
+      <div class="compact-card-row compact-card-history-line">${renderHistoryLine(c)}</div>
       <div class="compact-card-row compact-card-row-far">
         ${compactFarBadge(c)}
         ${renderWorkflowDots(c)}
       </div>
-      <div class="compact-card-row compact-card-status">${escapeHtml(statusMsg)}</div>
+      <div class="compact-card-row compact-card-status${c.proximity_note ? " compact-card-status-warn" : ""}">${escapeHtml(statusMsg)}</div>
       <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
     </article>`;
   }).join("");
@@ -793,11 +825,95 @@ function renderCardAttachments(c) {
   </div>`;
 }
 
+function getContractAdvice(c) {
+  return c?.contract_advice || c?.analysis?.contract_advice || null;
+}
+
+function renderContractAdviceBox(c, { loading = false } = {}) {
+  const advice = getContractAdvice(c);
+  if (loading && !advice) {
+    return `<div class="contract-advice-box contract-advice-loading">
+      <p class="contract-advice-heading">Bid coaching</p>
+      <p class="detail-note">Analyzing margin potential, sub market, and risks…</p>
+    </div>`;
+  }
+  if (!advice) return "";
+
+  const pursue = (advice.reasons_to_pursue || []).filter(Boolean);
+  const avoid = (advice.reasons_to_avoid || []).filter(Boolean);
+  if (!pursue.length && !avoid.length) return "";
+
+  const pursueHtml = pursue.length
+    ? `<div class="contract-advice-column contract-advice-pros">
+        <h4>Why pursue</h4>
+        <ul>${pursue.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>`
+    : "";
+  const avoidHtml = avoid.length
+    ? `<div class="contract-advice-column contract-advice-cons">
+        <h4>Why be cautious</h4>
+        <ul>${avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>`
+    : "";
+
+  return `<div class="contract-advice-box">
+    <p class="contract-advice-heading">Bid coaching</p>
+    <div class="contract-advice-columns">${pursueHtml}${avoidHtml}</div>
+  </div>`;
+}
+
+async function loadContractAdvice(noticeId) {
+  const mount =
+    document.querySelector(`#contract-advice-mount[data-notice-id="${CSS.escape(noticeId)}"]`) ||
+    document.getElementById("contract-advice-mount-overview");
+  if (!mount) return;
+
+  let c =
+    contracts.find((row) => row.notice_id === noticeId) ||
+    (typeof activeContractData !== "undefined" && activeContractData?.notice_id === noticeId
+      ? activeContractData
+      : null);
+  if (!c) c = await fetchContract(noticeId);
+  if (!c || !getContractSummary(c)) return;
+
+  if (getContractAdvice(c)) {
+    mount.innerHTML = renderContractAdviceBox(c);
+    return;
+  }
+
+  mount.innerHTML = renderContractAdviceBox(c, { loading: true });
+  try {
+    const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/contract-advice`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Could not generate bid coaching");
+
+    if (data.contract) {
+      const idx = contracts.findIndex((row) => row.notice_id === noticeId);
+      if (idx >= 0) contracts[idx] = data.contract;
+      if (typeof activeContractData !== "undefined" && activeContractData?.notice_id === noticeId) {
+        activeContractData = data.contract;
+      }
+      c = data.contract;
+    }
+    mount.innerHTML = renderContractAdviceBox(c);
+  } catch (err) {
+    mount.innerHTML = `<div class="contract-advice-box contract-advice-error">
+      <p class="contract-advice-heading">Bid coaching</p>
+      <p class="detail-note">${escapeHtml(err.message)}</p>
+    </div>`;
+  }
+}
+
 function buildSummaryInner(c, analyzing = false) {
   const summary = getContractSummary(c);
   const documentBanner = renderDocumentAccessBanner(c);
+  const adviceMount = summary
+    ? `<div id="contract-advice-mount" data-notice-id="${escapeHtml(c.notice_id)}">${renderContractAdviceBox(c)}</div>`
+    : "";
   if (summary) {
-    return `${documentBanner}<div class="executive-summary">${formatSummaryHtml(summary)}</div>`;
+    return `${documentBanner}<div class="executive-summary">${formatSummaryHtml(summary)}</div>${adviceMount}`;
   }
   if (analyzing) {
     return `${documentBanner}<div class="executive-summary-placeholder analyzing">
@@ -939,6 +1055,7 @@ async function openDetail(noticeId) {
   renderDetailModal(c, { analyzing: !summary });
   document.getElementById("modal").hidden = false;
   loadPricingIntel(noticeId);
+  if (summary) loadContractAdvice(noticeId);
 
   if (!summary) {
     beginAutoAnalysis(noticeId);

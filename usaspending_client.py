@@ -30,6 +30,8 @@ AWARD_FIELDS = [
     "Place of Performance State Code",
     "Place of Performance City Name",
     "Place of Performance Zip5",
+    "generated_internal_id",
+    "NAICS",
 ]
 
 # Pull extra candidates, then keep only scope-similar awards.
@@ -323,6 +325,8 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
 
     return {
         "award_id": row.get("Award ID"),
+        "internal_id": row.get("internal_id"),
+        "generated_internal_id": row.get("generated_internal_id"),
         "recipient_name": row.get("Recipient Name"),
         "award_amount": amount_value,
         "award_date": award_date.isoformat() if award_date else None,
@@ -332,6 +336,7 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
         "recency_weight": recency_weight,
         "awarding_agency": row.get("Awarding Agency"),
         "contract_award_type": row.get("Contract Award Type"),
+        "naics_code": row.get("NAICS"),
         "description": str(row.get("Description") or "").strip() or None,
         "performance_state": pop_state,
         "performance_city": pop_city,
@@ -340,40 +345,952 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
     }
 
 
+DEFAULT_LOOKBACK_YEARS = 5
+REGIONAL_LOOKBACK_YEARS = 3
+
+PRIOR_CONTRACT_METHODS = frozenset({
+    "contract_number",
+    "contract_number_keyword",
+    "manual_contract_number",
+    "same_site_match",
+    "facility_keyword",
+    "recipient_search",
+    "incumbent_name_match",
+    "same_city_match",
+})
+
+_FACILITY_NAME_RE = re.compile(
+    r"([\w][\w\s\-']{2,50}?\b(?:"
+    r"Ranger District|National Park|Wildlife Refuge|Fish Hatchery|"
+    r"Air Force Base|Army Base|Naval Station|Medical Center|"
+    r"Veterans Affairs|Forest|Recreation Area|Historic Site|"
+    r"Visitor Center|Headquarters|Annex|Complex"
+    r"))\b",
+    re.IGNORECASE,
+)
+_FACILITY_STOP_WORDS = frozenset({
+    "janitorial", "cleaning", "services", "service", "maintenance", "landscaping",
+    "landscape", "grounds", "custodial", "contract", "solicitation", "notice",
+    "base year", "option", "pest", "control", "waste", "removal", "support",
+    "facilities", "building", "annual", "recurring", "performance",
+})
+
+_INCUMBENT_TEXT_RE = re.compile(
+    r"(?:incumbent|current|existing)\s+contractor\s*(?:is|:)?\s*([A-Z0-9][^\n;]{2,80}?)(?:\.|;|\n|$)",
+    re.IGNORECASE,
+)
+_PREVIOUS_CONTRACT_TEXT_RE = re.compile(
+    r"(?:previous|prior|predecessor|expiring|current)\s+contract(?:\s+number|\s+no\.?)?\s*(?:is|:)?\s*"
+    r"([A-Z0-9][A-Z0-9\-/]{5,40})",
+    re.IGNORECASE,
+)
+
+_CONTRACT_NUMBER_RE = re.compile(
+    r"\b(?:FA|W|N|GS|VA|HQ|SPE|HSHQ|70Z|36C|"
+    r"[A-Z]{2,4})\s*[-]?\s*\d{2,4}\s*[-]?[A-Z]?\s*[-]?\s*[A-Z]?\s*[-]?\s*\d{3,6}\b",
+    re.IGNORECASE,
+)
+
+
+def is_plausible_contract_number(value: str | None) -> bool:
+    """Reject zip codes, time ranges, and other PDF false positives."""
+    if not value:
+        return False
+    upper = re.sub(r"[^A-Z0-9]", "", str(value).strip().upper())
+    if len(upper) < 8:
+        return False
+    if re.match(r"^[A-Z]{2}\d{5}$", upper):
+        return False
+    if re.match(r"^FROM\d+", upper):
+        return False
+    if re.match(r"^RATE\d+", upper):
+        return False
+    if re.match(r"^AREA\d+", upper):
+        return False
+    if re.match(r"^STE\d+", upper):
+        return False
+    if re.match(r"^OF\d+TO\d+", upper):
+        return False
+    if re.match(r"^IS\d{6}$", upper):
+        return False
+    if re.match(r"^CODE\d{6}$", upper):
+        return False
+    if re.match(r"^PAGE\d+$", upper):
+        return False
+    if re.match(r"^WD\d{4}\d+$", upper) and len(upper) <= 12:
+        return False
+    if not re.search(r"\d", upper):
+        return False
+    if upper.count("F") >= 6 and len(upper) > 20:
+        return False
+    if re.match(r"^ITEM\d+$", upper):
+        return False
+    if re.match(r"^JOB\d+$", upper):
+        return False
+    if re.match(r"^OF\d+$", upper):
+        return False
+    if re.match(r"^PERIOD", upper):
+        return False
+    if re.match(r"^FY\d{4}", upper):
+        return False
+    return True
+
+
+def normalize_contract_number(value: str | None) -> str | None:
+    """Normalize a federal PIID / contract number for USAspending lookup."""
+    if not value:
+        return None
+    cleaned = re.sub(r"\s+", "", str(value).strip().upper())
+    cleaned = re.sub(r"SECTION\d+$", "", cleaned, flags=re.IGNORECASE)
+    if not cleaned or not is_plausible_contract_number(cleaned):
+        return None
+    return cleaned
+
+
+def extract_contract_numbers(text: str | None) -> list[str]:
+    """Pull plausible contract numbers from solicitation text."""
+    if not text:
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+
+    for match in _PREVIOUS_CONTRACT_TEXT_RE.findall(str(text)):
+        normalized = normalize_contract_number(match)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            found.append(normalized)
+
+    for match in _CONTRACT_NUMBER_RE.findall(str(text)):
+        normalized = normalize_contract_number(match)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            found.append(normalized)
+    return found
+
+
+def extract_pricing_hints_from_text(text: str | None) -> dict[str, str | list[str]]:
+    """Regex extraction for incumbent name and predecessor contract numbers in PDF text."""
+    hints: dict[str, str | list[str]] = {
+        "incumbent_contractor": None,
+        "previous_contract_number": None,
+        "extra_contract_numbers": [],
+    }
+    if not text:
+        return hints
+
+    body = str(text)
+    incumbent_match = _INCUMBENT_TEXT_RE.search(body)
+    if incumbent_match:
+        name = re.sub(r"\s+", " ", incumbent_match.group(1)).strip(" .,;")
+        if len(name) >= 3:
+            hints["incumbent_contractor"] = name[:120]
+
+    numbers = extract_contract_numbers(body)
+    if numbers:
+        hints["previous_contract_number"] = numbers[0]
+        hints["extra_contract_numbers"] = numbers
+
+    return hints
+
+
+def extract_facility_search_terms(title: str | None, description: str | None = None) -> list[str]:
+    """Facility / site names from title and description for USAspending keyword search."""
+    terms: list[str] = []
+    seen: set[str] = set()
+    for text in (title, description):
+        if not text:
+            continue
+        for match in _FACILITY_NAME_RE.findall(str(text)):
+            cleaned = re.sub(r"\s+", " ", match).strip(" -–—,.")
+            key = cleaned.lower()
+            if len(cleaned) < 6 or key in seen:
+                continue
+            if any(stop in key for stop in _FACILITY_STOP_WORDS):
+                continue
+            seen.add(key)
+            terms.append(cleaned)
+        for segment in re.split(r"[-–—:]", str(text)):
+            segment = segment.strip()
+            if len(segment) < 8 or len(segment) > 60:
+                continue
+            lower = segment.lower()
+            if any(lower.startswith(w) for w in ("janitorial", "cleaning", "landscape", "maintenance", "pest")):
+                continue
+            if any(stop == lower for stop in _FACILITY_STOP_WORDS):
+                continue
+            if re.search(r"\b(district|park|refuge|base|center|station|forest|headquarters)\b", lower):
+                key = lower
+                if key not in seen:
+                    seen.add(key)
+                    terms.append(segment)
+    return terms[:4]
+
+
+def _award_search_payload(
+    *,
+    filters: dict[str, Any],
+    limit: int = 20,
+    sort: str = "Start Date",
+) -> dict[str, Any]:
+    return {
+        "filters": filters,
+        "fields": AWARD_FIELDS,
+        "sort": sort,
+        "order": "desc",
+        "page": 1,
+        "limit": limit,
+    }
+
+
+def _post_award_search(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    url = f"{BASE_URL}{SEARCH_PATH}"
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    today = date.today()
+    return [_normalize_award(row, today) for row in (data.get("results") or [])]
+
+
+def _contract_period_years(start_raw: str | None, end_raw: str | None) -> float | None:
+    start = _parse_award_date(start_raw)
+    end = _parse_award_date(end_raw)
+    if not start or not end or end <= start:
+        return None
+    days = (end - start).days
+    if days < 30:
+        return None
+    return max(1.0, round(days / 365.25, 2))
+
+
+def estimate_annual_award_amount(award: dict[str, Any]) -> float | None:
+    """Estimate annual payment from total award amount and contract period."""
+    amount = award.get("award_amount")
+    if not amount or amount <= 0:
+        return None
+    years = _contract_period_years(award.get("start_date"), award.get("end_date"))
+    if years and years >= 1:
+        return round(float(amount) / years, 2)
+    return round(float(amount), 2)
+
+
+def estimate_option_years(award: dict[str, Any]) -> int | None:
+    """Rough option-year count from contract duration (base + options)."""
+    years = _contract_period_years(award.get("start_date"), award.get("end_date"))
+    if years is None:
+        return None
+    if years <= 1.25:
+        return 0
+    return max(0, int(round(years - 1)))
+
+
+def _predecessor_summary(
+    award: dict[str, Any],
+    *,
+    lookup_method: str,
+    confidence: str = "high",
+) -> dict[str, Any]:
+    annual = estimate_annual_award_amount(award)
+    options = estimate_option_years(award)
+    return {
+        "lookup_method": lookup_method,
+        "confidence": confidence,
+        "is_prior_contract": lookup_method in PRIOR_CONTRACT_METHODS,
+        "contract_number": award.get("award_id"),
+        "recipient_name": award.get("recipient_name"),
+        "total_value": award.get("award_amount"),
+        "annual_amount": annual,
+        "option_years_exercised": options,
+        "start_date": award.get("start_date") or award.get("award_date"),
+        "end_date": award.get("end_date"),
+        "awarding_agency": award.get("awarding_agency"),
+        "performance_location": award.get("performance_location"),
+        "performance_city": award.get("performance_city"),
+        "performance_state": award.get("performance_state"),
+        "description": award.get("description"),
+    }
+
+
+def agency_search_filters(agency: str | None) -> list[dict[str, str]] | None:
+    """Map SAM.gov agency text to USAspending awarding-agency filters."""
+    if not agency:
+        return None
+    upper = str(agency).upper()
+    rules: tuple[tuple[str, ...], str, str] = (
+        (("DEPT OF THE AIR FORCE", "DEPARTMENT OF THE AIR FORCE", "AIR FORCE"), "subtier", "Department of the Air Force"),
+        (("DEPT OF THE ARMY", "DEPARTMENT OF THE ARMY", "CORPS OF ENGINEERS"), "subtier", "Department of the Army"),
+        (("DEPT OF THE NAVY", "DEPARTMENT OF THE NAVY"), "subtier", "Department of the Navy"),
+        (("FOREST SERVICE", "USDA FOREST"), "subtier", "Forest Service"),
+        (("FISH AND WILDLIFE", "FISH & WILDLIFE"), "subtier", "Fish and Wildlife Service"),
+        (("NATIONAL PARK SERVICE",), "subtier", "National Park Service"),
+        (("BUREAU OF LAND MANAGEMENT",), "subtier", "Bureau of Land Management"),
+        (("GENERAL SERVICES", "GSA"), "toptier", "General Services Administration"),
+        (("VETERANS AFFAIRS",), "toptier", "Department of Veterans Affairs"),
+        (("HOMELAND SECURITY",), "toptier", "Department of Homeland Security"),
+        (("AGRICULTURE", "USDA"), "toptier", "Department of Agriculture"),
+        (("INTERIOR",), "toptier", "Department of the Interior"),
+        (("DEFENSE", "DEPT OF DEFENSE"), "toptier", "Department of Defense"),
+    )
+    for needles, tier, name in rules:
+        if any(needle in upper for needle in needles):
+            return [{"type": "awarding", "tier": tier, "name": name}]
+    return None
+
+
 def build_search_payload(
     naics_code: str,
     state_codes: str | list[str],
     *,
     city: str | None = None,
     limit: int = 20,
+    lookback_years: int = REGIONAL_LOOKBACK_YEARS,
+    agency: str | None = None,
 ) -> dict[str, Any]:
     end_date = date.today()
-    start_date = end_date - timedelta(days=365 * 3)
+    start_date = end_date - timedelta(days=365 * lookback_years)
     if isinstance(state_codes, str):
         state_codes = [state_codes]
     if city and len(state_codes) == 1:
         locations: list[dict[str, str]] = [{"country": "USA", "state": state_codes[0], "city": city}]
     else:
         locations = [{"country": "USA", "state": code} for code in state_codes]
-    return {
-        "filters": {
-            "naics_codes": {"require": [naics_code]},
-            "place_of_performance_scope": "domestic",
-            "place_of_performance_locations": locations,
-            "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
-            "time_period": [
-                {
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                }
-            ],
-        },
-        "fields": AWARD_FIELDS,
-        "sort": "Start Date",
-        "order": "desc",
-        "page": 1,
-        "limit": limit,
+    filters: dict[str, Any] = {
+        "naics_codes": {"require": [naics_code]},
+        "place_of_performance_scope": "domestic",
+        "place_of_performance_locations": locations,
+        "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+        "time_period": [
+            {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+            }
+        ],
     }
+    agency_filters = agency_search_filters(agency)
+    if agency_filters:
+        filters["agencies"] = agency_filters
+    return _award_search_payload(filters=filters, limit=limit)
+
+
+def fetch_awards_by_contract_number(contract_number: str, *, limit: int = 5) -> list[dict[str, Any]]:
+    """Look up a specific predecessor contract by PIID / award ID."""
+    normalized = normalize_contract_number(contract_number)
+    if not normalized:
+        return []
+    variants = [f'"{normalized}"', normalized]
+    compact = re.sub(r"[^A-Z0-9]", "", normalized)
+    if compact and compact not in variants:
+        variants.append(compact)
+        variants.append(f'"{compact}"')
+    payload = _award_search_payload(
+        filters={
+            "award_ids": variants,
+            "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+        },
+        limit=limit,
+    )
+    awards = _post_award_search(payload)
+    awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    return awards
+
+
+def fetch_filtered_awards(
+    naics_code: str,
+    state_code: str,
+    *,
+    city: str | None = None,
+    agency: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """NAICS + location + optional agency search over a multi-year lookback."""
+    payload = build_search_payload(
+        naics_code,
+        state_code,
+        city=city,
+        limit=limit,
+        lookback_years=lookback_years,
+        agency=agency,
+    )
+    awards = _post_award_search(payload)
+    allowed = {state_code}
+    awards = _filter_awards_by_states(awards, allowed)
+    awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    return awards
+
+
+
+def fetch_award_detail(generated_internal_id: str | None) -> dict[str, Any] | None:
+    """Full award record — total obligation, PoP, option values."""
+    if not generated_internal_id:
+        return None
+    url = f"{BASE_URL}/api/v2/awards/{generated_internal_id}/"
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            response = client.get(url)
+            response.raise_for_status()
+            return response.json()
+    except Exception:
+        return None
+
+
+def fetch_all_award_transactions(generated_internal_id: str | None, *, page_limit: int = 100) -> list[dict[str, Any]]:
+    """Every modification on an award — source of truth for obligated dollars."""
+    if not generated_internal_id:
+        return []
+    url = f"{BASE_URL}/api/v2/transactions/"
+    transactions: list[dict[str, Any]] = []
+    page = 1
+    try:
+        with httpx.Client(timeout=90.0) as client:
+            while page <= page_limit:
+                response = client.post(
+                    url,
+                    json={
+                        "award_id": generated_internal_id,
+                        "page": page,
+                        "limit": 100,
+                        "sort": "action_date",
+                        "order": "asc",
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                batch = data.get("results") or []
+                transactions.extend(batch)
+                meta = data.get("page_metadata") or {}
+                if not meta.get("hasNext") or not batch:
+                    break
+                page += 1
+    except Exception:
+        return transactions
+    return transactions
+
+
+def summarize_award_transactions(transactions: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Derive bid-ready pricing from federal modification history:
+    - total obligated (sum of all mods)
+    - base year (first positive obligation, usually mod 0)
+    - recent annual (most recent calendar year with net positive obligation)
+    - option years exercised
+    """
+    if not transactions:
+        return {}
+
+    from collections import defaultdict
+
+    yearly_net: dict[int, float] = defaultdict(float)
+    base_year_amount: float | None = None
+    mod_count = 0
+    total = 0.0
+
+    ordered = sorted(transactions, key=lambda row: str(row.get("action_date") or ""))
+    for txn in ordered:
+        try:
+            obligation = float(txn.get("federal_action_obligation") or 0)
+        except (TypeError, ValueError):
+            obligation = 0.0
+        total += obligation
+        mod = str(txn.get("modification_number") or "").strip()
+        if mod and mod not in ("0", "00"):
+            mod_count += 1
+        if base_year_amount is None and obligation > 0 and mod in ("0", "00", ""):
+            base_year_amount = obligation
+        action_date = _parse_award_date(txn.get("action_date"))
+        if action_date:
+            yearly_net[action_date.year] += obligation
+
+    if base_year_amount is None:
+        for txn in ordered:
+            try:
+                obligation = float(txn.get("federal_action_obligation") or 0)
+            except (TypeError, ValueError):
+                obligation = 0.0
+            if obligation > 0:
+                base_year_amount = obligation
+                break
+
+    positive_years = sorted(year for year, amount in yearly_net.items() if amount >= 10_000)
+    recent_annual: float | None = None
+    if positive_years:
+        recent_annual = round(yearly_net[positive_years[-1]], 2)
+
+    option_years_exercised = max(0, len(positive_years) - 1) if positive_years else None
+
+    annual_amount = recent_annual or base_year_amount
+    if annual_amount is None and positive_years:
+        annual_amount = round(sum(yearly_net[y] for y in positive_years) / len(positive_years), 2)
+    elif annual_amount is None and total > 0:
+        annual_amount = round(total, 2)
+
+    calc_note = "From USAspending modification history."
+    if recent_annual and base_year_amount:
+        calc_note = (
+            f"Recent year obligation ${recent_annual:,.0f}; "
+            f"base award ${base_year_amount:,.0f}; "
+            f"{mod_count} modification(s)."
+        )
+    elif base_year_amount:
+        calc_note = f"Base award obligation ${base_year_amount:,.0f}; {mod_count} modification(s)."
+
+    return {
+        "total_obligated": round(total, 2) if total else None,
+        "base_year_amount": round(base_year_amount, 2) if base_year_amount else None,
+        "recent_annual_amount": recent_annual,
+        "annual_amount": round(annual_amount, 2) if annual_amount else None,
+        "option_years_exercised": option_years_exercised,
+        "modifications_count": mod_count,
+        "obligation_years": positive_years,
+        "yearly_obligations": {str(y): round(yearly_net[y], 2) for y in positive_years},
+        "pricing_calc_note": calc_note,
+        "award_amount_source": "transaction_history",
+    }
+
+
+def enrich_predecessor_with_award_detail(summary: dict[str, Any], award: dict[str, Any]) -> dict[str, Any]:
+    """Enrich predecessor pricing with award detail + full transaction modification history."""
+    summary = dict(summary)
+    gid = award.get("generated_internal_id")
+    detail = fetch_award_detail(gid)
+    transactions = fetch_all_award_transactions(gid)
+    txn_summary = summarize_award_transactions(transactions)
+
+    if txn_summary.get("total_obligated"):
+        summary["total_value"] = txn_summary["total_obligated"]
+        summary["award_amount_source"] = txn_summary.get("award_amount_source", "transaction_history")
+    elif detail:
+        obligated = detail.get("total_obligation")
+        try:
+            obligated_value = float(obligated) if obligated is not None else None
+        except (TypeError, ValueError):
+            obligated_value = None
+        if obligated_value and obligated_value > 0:
+            summary["total_value"] = round(obligated_value, 2)
+            summary["award_amount_source"] = "total_obligation"
+
+    if txn_summary.get("annual_amount"):
+        summary["annual_amount"] = txn_summary["annual_amount"]
+    if txn_summary.get("base_year_amount"):
+        summary["base_year_amount"] = txn_summary["base_year_amount"]
+    if txn_summary.get("recent_annual_amount"):
+        summary["recent_annual_amount"] = txn_summary["recent_annual_amount"]
+    if txn_summary.get("option_years_exercised") is not None:
+        summary["option_years_exercised"] = txn_summary["option_years_exercised"]
+    if txn_summary.get("modifications_count") is not None:
+        summary["modifications_count"] = txn_summary["modifications_count"]
+    if txn_summary.get("pricing_calc_note"):
+        summary["pricing_calc_note"] = txn_summary["pricing_calc_note"]
+    if txn_summary.get("yearly_obligations"):
+        summary["yearly_obligations"] = txn_summary["yearly_obligations"]
+
+    if detail:
+        pop_start = detail.get("period_of_performance_start_date") or detail.get("date_signed")
+        pop_end = detail.get("period_of_performance_current_end_date") or detail.get("ordering_period_end_date")
+        if pop_start:
+            summary["start_date"] = pop_start
+        if pop_end:
+            summary["end_date"] = pop_end
+        base_value = detail.get("base_exercised_options_val") or detail.get("base_and_all_options_value")
+        if base_value:
+            try:
+                summary["base_and_options_value"] = float(base_value)
+            except (TypeError, ValueError):
+                pass
+
+    if summary.get("annual_amount") is None and summary.get("total_value"):
+        award_for_annual = dict(award)
+        award_for_annual["award_amount"] = summary["total_value"]
+        annual = estimate_annual_award_amount(award_for_annual)
+        if annual:
+            summary["annual_amount"] = annual
+            summary.setdefault("pricing_calc_note", "Estimated annual from total ÷ contract period.")
+
+    return summary
+
+
+def fetch_awards_by_recipient(
+    recipient_name: str,
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
+    limit: int = 25,
+) -> list[dict[str, Any]]:
+    """Search awards by recipient name (UEI/DUNS/name) with NAICS + location filters."""
+    end_date = date.today()
+    start_date = end_date - timedelta(days=365 * lookback_years)
+    locations: list[dict[str, str]] = [{"country": "USA", "state": state_code}]
+    if city:
+        locations = [{"country": "USA", "state": state_code, "city": city}]
+    filters: dict[str, Any] = {
+        "recipient_search_text": [recipient_name.strip()],
+        "naics_codes": {"require": [naics_code]},
+        "place_of_performance_scope": "domestic",
+        "place_of_performance_locations": locations,
+        "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+        "time_period": [{"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}],
+    }
+    agency_filters = agency_search_filters(agency)
+    if agency_filters:
+        filters["agencies"] = agency_filters
+    awards = _post_award_search(_award_search_payload(filters=filters, limit=limit))
+    awards = _filter_awards_by_states(awards, {state_code})
+    awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    return awards
+
+
+def _finalize_predecessor(award: dict[str, Any], *, lookup_method: str, confidence: str) -> dict[str, Any]:
+    summary = _predecessor_summary(award, lookup_method=lookup_method, confidence=confidence)
+    return enrich_predecessor_with_award_detail(summary, award)
+
+
+def _lookup_by_facility_keywords(
+    facility_terms: list[str],
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+    origin_profile: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Match prior awards by facility name in title/description (ranger districts, bases, etc.)."""
+    from location_matching import annotate_and_prioritize_location_awards
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    if not facility_terms:
+        return None
+
+    best_award: dict[str, Any] | None = None
+    best_score = -1
+
+    for term in facility_terms[:3]:
+        awards = fetch_awards_by_keywords(
+            [term],
+            naics_code=naics_code,
+            state_code=state_code,
+            limit=25,
+        )
+        if agency:
+            agency_upper = agency.upper()
+            awards = [
+                a
+                for a in awards
+                if agency_upper in str(a.get("awarding_agency") or "").upper()
+                or not a.get("awarding_agency")
+            ]
+        if city:
+            city_upper = city.upper()
+            awards = [
+                a
+                for a in awards
+                if city_upper in str(a.get("performance_city") or "").upper()
+                or city_upper in str(a.get("performance_location") or "").upper()
+                or not a.get("performance_city")
+            ]
+
+        if origin_profile:
+            awards = annotate_and_prioritize_location_awards(awards, origin_profile)
+
+        term_lower = term.lower()
+        for award in awards:
+            if not award.get("award_amount") or award["award_amount"] < MIN_REGIONAL_AWARD_AMOUNT:
+                continue
+            desc = " ".join(
+                str(award.get(field) or "")
+                for field in ("description", "performance_location", "award_id")
+            ).lower()
+            if term_lower not in desc and term_lower.split()[0] not in desc:
+                continue
+            score = 10
+            if award.get("location_priority"):
+                score += 30
+            elif award.get("same_location"):
+                score += 20
+            if city and _city_matches(award.get("performance_city"), city):
+                score += 15
+            if score > best_score:
+                best_score = score
+                best_award = award
+
+    if best_award:
+        confidence = "high" if best_score >= 30 else "medium"
+        return _finalize_predecessor(best_award, lookup_method="facility_keyword", confidence=confidence)
+    return None
+
+
+def _lookup_by_site(
+    origin_profile: dict[str, Any],
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+) -> dict[str, Any] | None:
+    """Prior award at the same street address + NAICS (best signal when PDF omits contract #)."""
+    from location_matching import annotate_and_prioritize_location_awards
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    if not origin_profile.get("address_key"):
+        return None
+
+    awards = fetch_filtered_awards(
+        naics_code,
+        state_code,
+        city=city or origin_profile.get("city"),
+        agency=agency,
+        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        limit=75,
+    )
+    annotated = annotate_and_prioritize_location_awards(awards, origin_profile)
+    for award in annotated:
+        if not award.get("same_location"):
+            continue
+        if not award.get("award_amount") or award["award_amount"] < MIN_REGIONAL_AWARD_AMOUNT:
+            continue
+        confidence = "high" if award.get("location_priority") else "medium"
+        return _finalize_predecessor(award, lookup_method="same_site_match", confidence=confidence)
+    return None
+
+
+def _lookup_by_recipient_search(
+    incumbent_contractor: str,
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+) -> dict[str, Any] | None:
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    for use_city in ([city] if city else [None]):
+        awards = fetch_awards_by_recipient(
+            incumbent_contractor,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=use_city,
+            agency=agency,
+            limit=25,
+        )
+        dated = [
+            a
+            for a in awards
+            if a.get("award_date")
+            and a.get("award_amount")
+            and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
+            and _recipient_matches_incumbent(a.get("recipient_name"), incumbent_contractor)
+        ]
+        if dated:
+            return _finalize_predecessor(dated[0], lookup_method="recipient_search", confidence="medium")
+    return None
+
+
+def _recipient_matches_incumbent(recipient: str | None, incumbent: str) -> bool:
+    if not recipient or not incumbent:
+        return False
+    needle = incumbent.strip().upper()
+    hay = recipient.strip().upper()
+    if not needle or not hay:
+        return False
+    if needle in hay or hay in needle:
+        return True
+    needle_tokens = {t for t in re.split(r"[^A-Z0-9]+", needle) if len(t) > 2}
+    hay_tokens = {t for t in re.split(r"[^A-Z0-9]+", hay) if len(t) > 2}
+    if needle_tokens and needle_tokens.issubset(hay_tokens):
+        return True
+    return False
+
+
+def _city_matches(award_city: str | None, target_city: str | None) -> bool:
+    if not award_city or not target_city:
+        return False
+    return award_city.strip().upper() == target_city.strip().upper()
+
+
+def fetch_awards_by_keywords(
+    keywords: list[str],
+    *,
+    naics_code: str | None = None,
+    state_code: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Keyword search — useful when award_ids lookup misses a PIID variant."""
+    cleaned = [str(k).strip() for k in keywords if str(k).strip()]
+    if not cleaned:
+        return []
+    filters: dict[str, Any] = {
+        "keywords": cleaned,
+        "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+    }
+    if naics_code:
+        filters["naics_codes"] = {"require": [naics_code]}
+    if state_code:
+        filters["place_of_performance_scope"] = "domestic"
+        filters["place_of_performance_locations"] = [{"country": "USA", "state": state_code}]
+    payload = _award_search_payload(filters=filters, limit=limit)
+    awards = _post_award_search(payload)
+    awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+    return awards
+
+
+def _lookup_by_contract_number(
+    contract_number: str,
+    *,
+    naics_code: str | None = None,
+    state_code: str | None = None,
+) -> dict[str, Any] | None:
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    for award in fetch_awards_by_contract_number(contract_number):
+        if award.get("award_amount") and award["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT:
+            return _finalize_predecessor(award, lookup_method="contract_number", confidence="high")
+
+    for award in fetch_awards_by_keywords(
+        [contract_number, normalize_contract_number(contract_number) or contract_number],
+        naics_code=naics_code,
+        state_code=state_code,
+        limit=10,
+    ):
+        award_id = str(award.get("award_id") or "").upper()
+        needle = normalize_contract_number(contract_number) or contract_number.upper()
+        if needle in re.sub(r"[^A-Z0-9]", "", award_id) or contract_number.upper() in award_id:
+            if award.get("award_amount") and award["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT:
+                return _finalize_predecessor(award, lookup_method="contract_number_keyword", confidence="high")
+    return None
+
+
+def _lookup_by_incumbent(
+    incumbent_contractor: str,
+    *,
+    naics_code: str,
+    state_code: str,
+    city: str | None = None,
+    agency: str | None = None,
+) -> dict[str, Any] | None:
+    from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
+
+    city_awards = fetch_filtered_awards(
+        naics_code,
+        state_code,
+        city=city,
+        agency=agency,
+        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        limit=50,
+    ) if city else []
+
+    state_awards = fetch_filtered_awards(
+        naics_code,
+        state_code,
+        agency=agency,
+        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        limit=50,
+    )
+
+    for pool, method, confidence in (
+        (city_awards, "same_city_match", "medium"),
+        (state_awards, "incumbent_name_match", "medium"),
+    ):
+        dated = [
+            a
+            for a in pool
+            if a.get("award_date")
+            and a.get("award_amount")
+            and a["award_amount"] >= MIN_REGIONAL_AWARD_AMOUNT
+            and _recipient_matches_incumbent(a.get("recipient_name"), incumbent_contractor)
+        ]
+        if method == "same_city_match":
+            dated = [a for a in dated if _city_matches(a.get("performance_city"), city)]
+        dated.sort(key=lambda a: a.get("award_date") or "", reverse=True)
+        if dated:
+            return _finalize_predecessor(dated[0], lookup_method=method, confidence=confidence)
+    return None
+
+
+def fetch_predecessor_pricing(
+    *,
+    previous_contract_number: str | None = None,
+    incumbent_contractor: str | None = None,
+    naics_code: str | None = None,
+    state_code: str | None = None,
+    city: str | None = None,
+    agency: str | None = None,
+    extra_contract_numbers: list[str] | None = None,
+    origin_profile: dict[str, Any] | None = None,
+    facility_terms: list[str] | None = None,
+    manual_lookup: bool = False,
+) -> dict[str, Any] | None:
+    """
+    Resolve the prior contract at this site. Lookup order (best evidence first):
+    1) Contract number (PDF, attachment text, or manual entry)
+    2) Same street address + NAICS
+    3) Facility name keywords (ranger district, base, park, etc.)
+    4) Incumbent via USAspending recipient search
+    5) Incumbent matched in regional awards
+    Each match is enriched with full modification/transaction history for real obligated dollars.
+    """
+    contract_numbers: list[str] = []
+    for value in [previous_contract_number, *(extra_contract_numbers or [])]:
+        normalized = normalize_contract_number(value)
+        if normalized and normalized not in contract_numbers:
+            contract_numbers.append(normalized)
+
+    lookup_method_override = "manual_contract_number" if manual_lookup else None
+
+    for contract_number in contract_numbers:
+        found = _lookup_by_contract_number(
+            contract_number,
+            naics_code=naics_code,
+            state_code=state_code,
+        )
+        if found:
+            if lookup_method_override:
+                found["lookup_method"] = lookup_method_override
+            return found
+
+    if naics_code and state_code and origin_profile:
+        found = _lookup_by_site(
+            origin_profile,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+        )
+        if found:
+            return found
+
+    if naics_code and state_code and facility_terms:
+        found = _lookup_by_facility_keywords(
+            facility_terms,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+            origin_profile=origin_profile,
+        )
+        if found:
+            return found
+
+    if incumbent_contractor and naics_code and state_code:
+        found = _lookup_by_recipient_search(
+            incumbent_contractor,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+        )
+        if found:
+            return found
+        return _lookup_by_incumbent(
+            incumbent_contractor,
+            naics_code=naics_code,
+            state_code=state_code,
+            city=city,
+            agency=agency,
+        )
+
+    return None
 
 
 def _count_dated_awards(awards: list[dict[str, Any]]) -> int:
@@ -481,7 +1398,7 @@ def summarize_awards(
         "location_scope_type": location_scope_type or "state",
         "location_scope_note": location_scope_note,
         "surrounding_states": surrounding_states or [],
-        "lookback_years": 3,
+        "lookback_years": DEFAULT_LOOKBACK_YEARS,
         "awards_count": len(awards),
         "awards_with_dates": len(dated_awards),
         "awards_missing_dates": len(awards) - len([a for a in awards if a.get("award_date")]),
@@ -734,6 +1651,8 @@ def fetch_regional_benchmarks(
     origin_profile: dict[str, Any] | None = None,
     origin_location: dict[str, Any] | None = None,
     limit: int = 50,
+    agency: str | None = None,
+    city: str | None = None,
 ) -> dict[str, Any]:
     """
     Tier 1 — state-level USAspending contract awards for regional annual benchmarks.
@@ -742,7 +1661,14 @@ def fetch_regional_benchmarks(
     from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT, regional_confidence
 
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
-    raw_awards = _query_awards_in_states(naics_code, [state_code], limit=limit)
+    raw_awards = fetch_filtered_awards(
+        naics_code,
+        state_code,
+        city=city,
+        agency=agency,
+        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        limit=limit,
+    )
 
     dated_awards = [
         a
@@ -777,7 +1703,7 @@ def fetch_regional_benchmarks(
         "naics_code": naics_code,
         "state_code": state_code,
         "state_name": state_name,
-        "lookback_years": 3,
+        "lookback_years": DEFAULT_LOOKBACK_YEARS,
         "min_award_amount": MIN_REGIONAL_AWARD_AMOUNT,
         "awards_count": len(dated_awards),
         "awards_with_dates": len(dated_awards),
@@ -791,7 +1717,7 @@ def fetch_regional_benchmarks(
         "confidence_label": conf_label,
         "benchmark_note": (
             f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
-            f"over the last 3 years. Award amounts vary by building size and cleaning frequency."
+            f"over the last {DEFAULT_LOOKBACK_YEARS} years. Award amounts vary by building size and cleaning frequency."
             + (
                 f" {same_site_expired} prior award(s) at this same address & scope (expired) are listed first."
                 if same_site_expired

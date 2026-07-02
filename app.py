@@ -25,12 +25,12 @@ from database import SessionLocal
 from sam_client import min_days_from_env, naics_from_env
 from scheduler import configure_scheduler, scheduler_status, start_scheduler, stop_scheduler
 from settings_store import get_all_settings, reset_screening_prompt, save_settings
-from pricing import get_full_pricing_intel, get_pricing_dashboard
+from pricing import get_full_pricing_intel, get_pricing_dashboard, lookup_prior_contract_by_number
 from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_all_naics, sync_from_sam
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260701-desktop-layout"
+APP_BUILD_VERSION = "20260701-advice"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -57,6 +57,9 @@ async def lifespan(app: FastAPI):
         from intake import start_background_intake
 
         start_background_intake()
+    from pricing_backfill_service import start_background_pricing_backfill
+
+    start_background_pricing_backfill()
     yield
     stop_scheduler()
 
@@ -147,6 +150,10 @@ class SubmissionMetaUpdate(BaseModel):
     submission_method_notes: str | None = None
     submission_method: str | None = None
     submission_email: str | None = None
+
+
+class PriorContractLookup(BaseModel):
+    contract_number: str = Field(..., min_length=4, max_length=64)
 
 
 class ContractOutcomeUpdate(BaseModel):
@@ -540,6 +547,65 @@ def get_contract_pricing(notice_id: str, refresh: bool = Query(False)):
     except Exception as exc:
         session.rollback()
         raise HTTPException(status_code=502, detail=f"Pricing lookup failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/lookup-prior-contract")
+def lookup_prior_contract(notice_id: str, body: PriorContractLookup):
+    """Look up prior contract pricing on USAspending by PIID — no SAM.gov API calls."""
+    session = SessionLocal()
+    try:
+        from models import Contract
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        intel = lookup_prior_contract_by_number(row, body.contract_number)
+        session.commit()
+        payload = get_full_pricing_intel(row, session, force_refresh=False)
+        payload["pricing_intel"] = intel
+        payload["contract"] = contract_to_dict(row)
+        return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=f"Prior contract lookup failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/contract-advice")
+def generate_contract_advice_endpoint(notice_id: str, refresh: bool = Query(False)):
+    """Generate pursue/avoid coaching from stored summary + pricing — no SAM.gov calls."""
+    session = SessionLocal()
+    try:
+        from api_budget import ScreenBudgetExceeded
+        from contract_advice import ensure_contract_advice, get_contract_advice
+        from models import Contract
+
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+
+        existing = get_contract_advice(row)
+        if existing and not refresh:
+            return {"contract_advice": existing, "contract": contract_to_dict(row)}
+
+        advice = ensure_contract_advice(session, row, force=refresh)
+        return {"contract_advice": advice, "contract": contract_to_dict(row)}
+    except ScreenBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=f"Contract advice failed: {exc}") from exc
     finally:
         session.close()
 

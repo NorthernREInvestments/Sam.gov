@@ -220,6 +220,14 @@ def list_contracts(
             continue
         analysis = row.analysis or {}
         score = analysis.get("score")
+        from proximity_scoring import proximity_context
+
+        prox = proximity_context(session, row)
+        effective = prox.get("effective_score")
+        if effective is not None:
+            score = effective
+        elif score is None:
+            score = analysis.get("text_score")
         if score is not None and int(score) < min_score:
             continue
         if pursue_only and analysis.get("pursue") is not True:
@@ -317,6 +325,11 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
     from sub_serializers import contract_sub_summary
 
     session = SessionLocal()
+    prox: dict[str, Any] = {}
+    effective_score = None
+    nearby_network_count = 0
+    pricing_history: dict[str, Any] = {"kind": "none", "line": "No history found"}
+    pricing_display = pricing_history["line"]
     try:
         sub_summary = contract_sub_summary(row, session)
         from sub_finder import nearby_network_subs
@@ -332,6 +345,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             format_department_display,
             format_service_type_display,
             format_work_location_short,
+            pricing_card_display,
             pricing_card_label,
         )
 
@@ -343,10 +357,18 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             row.sam_raw if isinstance(row.sam_raw, dict) else None,
             work,
         )
-        pricing_display = pricing_card_label(
+        pricing_history = pricing_card_display(
             row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
             has_work_state=bool(work.get("state_code")),
         )
+        pricing_display = pricing_history.get("line") or pricing_card_label(
+            row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
+            has_work_state=bool(work.get("state_code")),
+        )
+        from proximity_scoring import proximity_context
+
+        prox = proximity_context(session, row)
+        effective_score = prox.get("effective_score")
         try:
             network = nearby_network_subs(session, row.notice_id)
             nearby_network_count = network.get("count", 0)
@@ -386,6 +408,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "location_display": location_display,
         "work_location": work,
         "pricing_display": pricing_display,
+        "pricing_history": pricing_history,
         "naics_code": row.naics_code,
         "naics_label": naics_label(row.naics_code),
         "naics_display": naics_display(row.naics_code),
@@ -401,12 +424,17 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "analysis": analysis,
         "pursue": analysis.get("pursue"),
         "score": analysis.get("score"),
+        "effective_score": effective_score,
+        "proximity_penalty": prox.get("proximity_penalty"),
+        "proximity_note": prox.get("proximity_note"),
+        "nearest_sub_miles": prox.get("nearest_sub_miles"),
         "text_score": analysis.get("text_score") or analysis.get("score"),
         "screening_stage": analysis.get("screening_stage") or ("full" if analysis.get("plain_english_summary") else None),
         "skip_reason": analysis.get("skip_reason"),
         "reason": analysis.get("reason"),
         "plain_english_summary": analysis.get("plain_english_summary") or analysis.get("executive_summary"),
         "executive_summary": analysis.get("executive_summary"),
+        "contract_advice": analysis.get("contract_advice"),
         "pricing_intelligence": analysis.get("pricing_intelligence"),
         "pricing_intel": row.pricing_intel,
         "pws": pws,

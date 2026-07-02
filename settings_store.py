@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 from claude_client import DEFAULT_SCREENING_PROMPT
@@ -23,6 +24,7 @@ SUB_SEARCH_RADIUS_KEY = "sub_search_radius_miles"
 SUB_MIN_RATING_KEY = "sub_min_rating"
 SUB_MIN_REVIEWS_KEY = "sub_min_review_count"
 OWNER_SETTINGS_KEY = "proposal_owner_settings"
+PRICING_BACKFILL_KEY = "one_time_pricing_backfill_20260701"
 
 
 def _get_setting(session, key: str) -> str | None:
@@ -285,3 +287,15 @@ def reset_screening_prompt() -> str:
         return DEFAULT_SCREENING_PROMPT
     finally:
         session.close()
+
+
+def is_pricing_backfill_complete() -> bool:
+    session = SessionLocal()
+    try:
+        return bool(_get_setting(session, PRICING_BACKFILL_KEY))
+    finally:
+        session.close()
+
+
+def mark_pricing_backfill_complete(session) -> None:
+    _set_setting(session, PRICING_BACKFILL_KEY, datetime.now(timezone.utc).isoformat())

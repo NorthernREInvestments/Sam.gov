@@ -1121,6 +1121,63 @@ a {
   margin-bottom: 0;
 }
 
+.contract-advice-box {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border, #d8dee6);
+  border-radius: 10px;
+  background: var(--surface-elevated, #f8fafc);
+}
+
+.contract-advice-heading {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #5b6673);
+}
+
+.contract-advice-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.contract-advice-column h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.contract-advice-pros h4 {
+  color: #166534;
+}
+
+.contract-advice-cons h4 {
+  color: #9a3412;
+}
+
+.contract-advice-column ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.contract-advice-column li {
+  margin-bottom: 0.45rem;
+  line-height: 1.45;
+}
+
+.contract-advice-loading,
+.contract-advice-error {
+  border-style: dashed;
+}
+
+@media (max-width: 720px) {
+  .contract-advice-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 .executive-summary-placeholder {
   border: 1px dashed #fbbf24;
   border-radius: 8px;
@@ -2646,7 +2703,53 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
+}
+.compact-card-size {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.18rem;
+}
+.compact-card-history-line {
+  font-size: 0.76rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.22rem;
+}
+.pricing-kind-prior_contract,
+.pricing-kind-prior_contract .pricing-kind {
+  color: #047857;
+  font-weight: 700;
+}
+.pricing-kind-regional_average,
+.pricing-kind-regional_average .pricing-kind {
+  color: #6b7280;
+  font-style: italic;
+}
+.prior-contract-lookup {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+}
+.prior-contract-lookup-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.prior-contract-lookup-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.compact-card-status-warn {
+  color: #b45309;
+  font-weight: 600;
 }
 .compact-card-status {
   font-size: 0.78rem;

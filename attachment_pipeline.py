@@ -414,6 +414,9 @@ def run_attachment_pipeline(
     extraction = extract_contract_attachment_text(row, session, max_pdfs=max_pdfs)
     check = persist_attachment_and_compliance(row, extraction)
     _sync_scrape_status_with_extraction(row, extraction)
+    from prior_contract_extract import merge_prior_contract_hints
+
+    merge_prior_contract_hints(row)
     session.flush()
     return {
         "attachment_text_chars": extraction.char_count,

@@ -376,6 +376,8 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
             "agency_address",
             "solicitation_number",
             "questions_deadline",
+            "incumbent_contractor",
+            "previous_contract_number",
         ):
             if sol.get(key) and not analysis.get(key):
                 analysis[key] = sol[key]

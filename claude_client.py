@@ -68,6 +68,13 @@ Cover these points in simple conversational language:
 7. Any gotchas — security requirements, specialized equipment, tight deadline, unusual requirements
 8. END with one sentence summarizing pricing — e.g. "Similar contracts in this area have awarded between $X and $Y. I recommend bidding around $Z to be competitive." Use the historical pricing data provided.
 
+CONTRACT ADVICE (contract_advice field — honest bid coaching):
+Give practical pursue/avoid guidance using the pricing data, location, and scope you read.
+- reasons_to_pursue: array of 2-4 short bullet strings — real upsides (margin potential using prior/regional annual dollars, manageable scope, incumbent displacement opportunity, low competition, good fit score)
+- reasons_to_avoid: array of 2-4 short bullet strings — real risks (remote site / subs hard to find, tight deadline, wage determination pressure, security or compliance burden, low score, red flags)
+When prior contract or regional annual pricing is available, cite dollar amounts (e.g. "Prior contract paid ~$124K/yr — at 20% margin that's ~$2,000/mo profit if you match").
+Be direct and specific to this contract — not generic filler.
+
 PRICING INTELLIGENCE (pricing_intelligence field):
 Use the USAspending.gov regional benchmark data in the user message for context only.
 USAspending does NOT include square footage or cleaning frequency — do not invent $/sq ft per visit from public awards alone.
@@ -91,6 +98,9 @@ Return JSON only with these exact fields:
   - competition_level: "low", "medium", or "high"
   - pricing_confidence: "high", "medium", or "low"
   - pricing_summary: string (2-3 sentences)
+- contract_advice: object with:
+  - reasons_to_pursue: array of strings (2-4 bullets)
+  - reasons_to_avoid: array of strings (2-4 bullets)
 - pursue: true or false
 - score: 1-10 (how good a fit for the subcontracting middleman model)
 - reason: one sentence
@@ -116,6 +126,8 @@ Return JSON only with these exact fields:
   - base_year_end: string or null — base year end date
   - agency_address: string or null — mailing address for the agency or contracting office
   - solicitation_number: string or null — solicitation/RFP number if stated in the PDF (may differ from SAM notice ID)
+  - incumbent_contractor: string or null — company name listed as "Incumbent contractor", "Current contractor", or "Existing contractor" in background/history sections
+  - previous_contract_number: string or null — prior contract number / PIID / "Previous contract number" from background section (e.g. FA8821-19-F-0123)
   - questions_deadline: string or null — deadline for questions to the CO if stated
 - submission_package: object — proposal submission requirements detected in attachments (use false/null when not found):
   - pricing_schedule_required: boolean — true if any attachment filename or content indicates a required pricing schedule, CLIN table, cost schedule, or schedule of supplies/services with unit prices
@@ -551,6 +563,8 @@ Read the attached solicitation, PWS, wage determination, and instruction documen
   "base_year_end": string or null,
   "agency_address": string or null,
   "solicitation_number": string or null,
+  "incumbent_contractor": string or null,
+  "previous_contract_number": string or null,
   "questions_deadline": string or null,
   "submission_package": {
     "pricing_schedule_required": boolean,
@@ -573,7 +587,9 @@ Read the attached solicitation, PWS, wage determination, and instruction documen
 }
 
 Rules:
-- submission_method should state HOW to submit (email address, SAM.gov, PIEE, FedConnect, etc.)
+- solicitation_number should be the current RFP/solicitation number from the PDF
+- incumbent_contractor: MANDATORY when stated — search background, history, SF-1449 block 20, cover page, and amendment text for "Incumbent contractor", "Current contractor", "Awarded to", or similar. Extract the company name exactly. Never null if any document names the incumbent.
+- previous_contract_number: MANDATORY when stated — search for "Previous contract number", "Prior contract", "Predecessor contract", "Contract number", PIID, or award number in background/history. Extract the federal contract number exactly (e.g. FA8821-19-F-0123, W9128F-24-C-0001). Never null if any document lists a predecessor award number.
 - square_footage: exact sq ft — search every attached document (PWS, PRS, drawings, floor plans). Never null if any document states area or square footage.
 - cleaning_frequency_per_week: convert "daily", "Monday through Friday", "five days per week", etc. to a number
 - Use exact names, emails, and numbers from the document — do not invent values
@@ -892,7 +908,8 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
         f"SAM notice ID: {contract.notice_id}",
         f"Due date: {contract.due_date}",
         "",
-        "Extract contracting officer, submission details, and PWS scope (square footage, cleaning frequency, wage determination) from the solicitation documents.",
+        "Extract contracting officer, submission details, PWS scope, incumbent contractor name, and previous contract number from the solicitation documents.",
+        "If the incumbent or prior contract number appears anywhere in the PDFs, you MUST return those fields — never omit them.",
         "SAM posting excerpt:",
         (contract.description or sam.get("descriptionText") or "")[:4000],
     ]
@@ -1090,6 +1107,7 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
     if analysis.get("text_score") is None and analysis.get("score") is not None:
         analysis["text_score"] = analysis.get("score")
 
+    analysis = merge_contract_advice_from_screen(analysis)
     return analysis
 
 
@@ -1434,4 +1452,172 @@ def reduce_proposal_ai_score(html: str) -> str:
     )
     text = response.content[0].text if response.content else html
     return text.strip()
+
+
+CONTRACT_ADVICE_PROMPT = """You are a government contracting advisor for a small business prime using the subcontracting middleman model (find local subs, bid as prime, keep margin).
+
+You will receive a contract summary, pricing intelligence, subcontractor market signals, and scoring data. Give honest, practical bid coaching — not a sales pitch.
+
+Return JSON only:
+{
+  "reasons_to_pursue": ["2-4 specific bullet strings"],
+  "reasons_to_avoid": ["2-4 specific bullet strings"]
+}
+
+Rules:
+- Use real dollar amounts when annual contract values are provided (prior contract, regional average). Estimate monthly prime profit at ~20% margin when helpful (annual × 0.20 ÷ 12).
+- Mention subcontractor difficulty when location is remote, proximity score was penalized, or sub search found few candidates.
+- Reference red flags, security clearance, FAR 52.219-14, tight deadlines, or wage determinations when relevant.
+- Be direct and specific to this contract. No markdown fences."""
+
+
+def _normalize_advice_list(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    items: list[str] = []
+    for item in value:
+        text = re.sub(r"\s+", " ", str(item)).strip(" -•")
+        if len(text) >= 8 and text not in items:
+            items.append(text[:280])
+    return items[:4]
+
+
+def normalize_contract_advice(raw: Any) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+    pursue = _normalize_advice_list(raw.get("reasons_to_pursue"))
+    avoid = _normalize_advice_list(raw.get("reasons_to_avoid"))
+    if not pursue and not avoid:
+        return None
+    return {
+        "reasons_to_pursue": pursue,
+        "reasons_to_avoid": avoid,
+    }
+
+
+def build_contract_advice_context(contract: Any, session) -> str:
+    from datetime import date
+
+    from display_format import pricing_card_display
+    from proximity_scoring import proximity_context
+    from proposal_defaults import resolve_contract_margin
+
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    intel = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else {}
+    pred = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else {}
+    prox = proximity_context(session, contract)
+    margin = resolve_contract_margin(contract)
+
+    lines = [
+        f"Title: {contract.title or 'Unknown'}",
+        f"Agency: {contract.agency or 'Unknown'}",
+        f"Location: {contract.location or 'Unknown'}",
+        f"NAICS: {contract.naics_code or '—'}",
+        f"Due date: {contract.due_date.isoformat() if contract.due_date else '—'}",
+        f"Score: {analysis.get('score')}/10 (distance-adjusted effective: {prox.get('effective_score')})",
+        f"Pursue flag: {analysis.get('pursue')}",
+        f"Target prime margin: {margin}%",
+    ]
+    if prox.get("proximity_note"):
+        lines.append(f"Proximity: {prox['proximity_note']}")
+    if prox.get("nearest_sub_miles") is not None:
+        lines.append(f"Nearest sub in network: {prox['nearest_sub_miles']} miles")
+
+    summary = analysis.get("plain_english_summary") or analysis.get("executive_summary")
+    if summary:
+        lines.extend(["", "PLAIN ENGLISH SUMMARY:", str(summary).strip()])
+
+    sub_type = analysis.get("sub_type_needed")
+    if sub_type:
+        lines.append(f"Sub type needed: {sub_type}")
+
+    red_flags = analysis.get("red_flags") or []
+    if red_flags:
+        lines.append("Red flags: " + "; ".join(str(f) for f in red_flags[:6]))
+
+    pricing_line = pricing_card_display(intel, has_work_state=True).get("line")
+    if pricing_line:
+        lines.extend(["", f"Pricing card: {pricing_line}"])
+
+    if pred.get("is_prior_contract"):
+        lines.extend([
+            "",
+            "PRIOR CONTRACT (USAspending):",
+            f"  Contract #: {pred.get('contract_number') or '—'}",
+            f"  Incumbent: {pred.get('recipient_name') or '—'}",
+            f"  Recent annual: {pred.get('recent_annual_amount') or pred.get('annual_amount') or '—'}",
+            f"  Base year: {pred.get('base_year_amount') or '—'}",
+            f"  Total obligated: {pred.get('total_obligated') or pred.get('total_value') or '—'}",
+            f"  Note: {pred.get('pricing_calc_note') or '—'}",
+        ])
+    elif intel.get("average_annual_award"):
+        lines.extend([
+            "",
+            "REGIONAL BENCHMARK (USAspending):",
+            f"  Average annual: {intel.get('average_annual_award')}",
+            f"  Range: {intel.get('lowest_award')} – {intel.get('highest_award')}",
+            f"  Awards in sample: {intel.get('awards_count')}",
+            f"  Likely incumbent: {intel.get('likely_incumbent') or intel.get('most_frequent_winner') or '—'}",
+        ])
+
+    try:
+        from sub_finder import nearby_network_subs
+
+        network = nearby_network_subs(session, contract.notice_id)
+        lines.append(f"Nearby subs in network (Google Places radius): {network.get('count', 0)}")
+    except Exception:
+        pass
+
+    if contract.due_date:
+        days_left = (contract.due_date - date.today()).days
+        lines.append(f"Days until due: {days_left}")
+
+    return "\n".join(lines)
+
+
+def generate_contract_advice(contract: Any, session) -> dict[str, Any]:
+    """Generate pursue/avoid coaching from stored contract data — no SAM.gov, no PDFs."""
+    from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
+
+    if not can_screen():
+        raise ScreenBudgetExceeded()
+
+    context = build_contract_advice_context(contract, session)
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=CONTRACT_ADVICE_PROMPT,
+        messages=[{"role": "user", "content": context}],
+    )
+    if not record_screen_usage():
+        raise ScreenBudgetExceeded()
+
+    response_text = "".join(block.text for block in response.content if hasattr(block, "text"))
+    parsed = _extract_json(response_text)
+    advice = normalize_contract_advice(parsed)
+    if not advice:
+        raise ValueError("Claude returned empty contract advice.")
+
+    from datetime import datetime, timezone
+
+    advice["generated_at"] = datetime.now(timezone.utc).isoformat()
+    advice["source"] = "claude_advice"
+    return advice
+
+
+def merge_contract_advice_from_screen(analysis: dict[str, Any]) -> dict[str, Any]:
+    """Normalize contract_advice from full screening JSON."""
+    advice = normalize_contract_advice(analysis.get("contract_advice"))
+    if advice:
+        from datetime import datetime, timezone
+
+        advice["generated_at"] = datetime.now(timezone.utc).isoformat()
+        advice["source"] = "claude_screen"
+        analysis["contract_advice"] = advice
+    return analysis
 
