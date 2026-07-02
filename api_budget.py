@@ -55,26 +55,30 @@ def intake_on_sync_enabled() -> bool:
     return raw not in ("0", "false", "no")
 
 
-def claude_autopilot_enabled() -> bool:
-    """When false (default), deploy/sync autopilot never calls Claude — repair waits for explicit enable."""
-    raw = os.getenv("CLAUDE_AUTOPILOT_ENABLED", "false").strip().lower()
-    return raw in ("1", "true", "yes")
+def is_anthropic_api_blocked(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    if "credit balance" in msg:
+        return True
+    if "authentication" in msg and "api" in msg:
+        return True
+    return False
 
 
-def claude_calls_allowed(*, context: str = "default") -> bool:
-    """
-    Gate all automatic Claude usage.
-    Attachments-only sync days never call Claude.
-    Autopilot repair/intake requires CLAUDE_AUTOPILOT_ENABLED=true.
-    """
-    if scheduled_sync_attachments_only():
+class ClaudePipelineHalt(Exception):
+    """Raised when Claude cannot continue — caller must stop, not retry."""
+
+    def __init__(self, reason: str, *, notice_id: str | None = None, detail: str | None = None):
+        self.reason = reason
+        self.notice_id = notice_id
+        self.detail = detail
+        super().__init__(detail or reason)
+
+
+def claude_intake_allowed() -> bool:
+    """Automatic Claude intake/repair (from stored PDFs) when sync intake is on."""
+    if not intake_on_sync_enabled():
         return False
-    if context in ("autopilot", "repair", "enrich", "sync"):
-        if not claude_autopilot_enabled():
-            return False
-    if context in ("enrich", "sync", "intake") and not intake_on_sync_enabled():
-        return False
-    return True
+    return can_screen()
 
 
 def intake_per_sync_limit() -> int | None:
@@ -195,8 +199,7 @@ def get_usage_snapshot() -> dict[str, Any]:
         "auto_screen_on_startup": auto_screen_on_startup(),
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
-        "claude_autopilot_enabled": claude_autopilot_enabled(),
-        "claude_calls_allowed": claude_calls_allowed(context="autopilot"),
+        "claude_intake_allowed": claude_intake_allowed(),
         "intake_per_sync_limit": intake_per_sync_limit(),
         "scheduled_naics_per_sync": scheduled_naics_per_sync(),
         "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),

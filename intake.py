@@ -107,9 +107,9 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
 
     if not has_attachments_ready(row, session):
         return None
-    from api_budget import claude_calls_allowed, can_screen
+    from api_budget import ClaudePipelineHalt, ScreenBudgetExceeded, can_screen, claude_intake_allowed, is_anthropic_api_blocked
 
-    if not claude_calls_allowed(context="enrich") or not can_screen():
+    if not claude_intake_allowed() or not can_screen():
         return None
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     if is_full_analysis_complete(row.analysis, row) and workflow_is_current(analysis):
@@ -117,7 +117,11 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
     try:
         return full_intake_contract(row, session=session, force=True, db_only=True)
     except ScreenBudgetExceeded:
-        return {"notice_id": row.notice_id, "skipped": True, "reason": "screen_budget"}
+        raise ClaudePipelineHalt("screen_budget", notice_id=row.notice_id)
+    except Exception as exc:
+        if is_anthropic_api_blocked(exc):
+            raise ClaudePipelineHalt("claude_api", notice_id=row.notice_id, detail=str(exc)[:200]) from exc
+        raise
 
 
 def enrich_contract_attachments(row: Contract, session=None) -> bool:
@@ -587,10 +591,10 @@ def intake_matching_contracts(
     force_full: bool = False,
 ) -> dict[str, Any]:
     """Run Claude full analysis for filter-matching contracts with attachments ready."""
-    from api_budget import claude_calls_allowed
+    from api_budget import claude_intake_allowed
     from sync import list_contracts
 
-    if not force and not force_full and not claude_calls_allowed(context="sync"):
+    if not force and not force_full and not claude_intake_allowed():
         return {"processed": 0, "screened": 0, "text_screened": 0, "enriched_only": 0, "skipped": 0, "errors": []}
 
     if not intake_on_sync_enabled() and not force and not force_full:
@@ -756,6 +760,7 @@ def enrich_matching_attachments(
     naics_code: str | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
+    from api_budget import ClaudePipelineHalt, claude_intake_allowed
     from screening_pipeline import has_attachments_ready
     from sync import list_attachment_backlog
 
@@ -769,6 +774,7 @@ def enrich_matching_attachments(
 
     enriched = 0
     errors: list[str] = []
+    halt_reason: str | None = None
     for row in candidates:
         if limit is not None and enriched >= limit:
             break
@@ -776,10 +782,20 @@ def enrich_matching_attachments(
             continue
         try:
             from attachment_pipeline import ensure_attachments_from_database
+            from api_budget import ClaudePipelineHalt
 
             if ensure_attachments_from_database(session, row):
                 session.commit()
                 enriched += 1
+                if claude_intake_allowed():
+                    try:
+                        run_post_attachment_intake(row, session)
+                        session.commit()
+                    except ClaudePipelineHalt as exc:
+                        session.rollback()
+                        halt_reason = exc.reason
+                        errors.append(f"{row.notice_id}: Claude halted ({exc.reason})")
+                        break
                 continue
             if not can_spend_sam(1):
                 errors.append("SAM.gov daily budget reached — full scrape pending.")
@@ -787,6 +803,11 @@ def enrich_matching_attachments(
             if enrich_contract_attachments(row, session=session):
                 session.commit()
                 enriched += 1
+        except ClaudePipelineHalt as exc:
+            session.rollback()
+            halt_reason = exc.reason
+            errors.append(f"{row.notice_id}: Claude halted ({exc.reason})")
+            break
         except Exception as exc:
             session.rollback()
             errors.append(f"{row.notice_id}: {exc}")
@@ -797,6 +818,7 @@ def enrich_matching_attachments(
         "attachments_enriched": enriched,
         "attachments_pending": pending,
         "errors": errors,
+        "halt_reason": halt_reason,
     }
 
 

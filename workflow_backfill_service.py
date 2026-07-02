@@ -41,12 +41,9 @@ def _set_repair_status(**kwargs: Any) -> None:
 
 
 def _is_anthropic_api_blocked(exc: BaseException) -> bool:
-    msg = str(exc).lower()
-    if "credit balance" in msg:
-        return True
-    if "authentication" in msg and "api" in msg:
-        return True
-    return False
+    from api_budget import is_anthropic_api_blocked
+
+    return is_anthropic_api_blocked(exc)
 
 
 def contract_repair_reason(row: Contract, session=None) -> str | None:
@@ -258,6 +255,9 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
 
             if result.get("reason") in ("claude_api", "claude_credits"):
                 stats["halt_reason"] = result.get("reason")
+                from autopilot_service import record_claude_halt
+
+                record_claude_halt(result.get("reason"))
                 break
             if result.get("error"):
                 stats["errors"] += 1
@@ -399,8 +399,11 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
                     detail[:120],
                 )
                 continue
-            if result.get("reason") in ("claude_api", "screen_budget"):
+            if result.get("reason") in ("claude_api", "screen_budget", "claude_credits"):
                 stats["halt_reason"] = result.get("reason")
+                from autopilot_service import record_claude_halt
+
+                record_claude_halt(result.get("reason"))
                 break
             if result.get("skipped") and result.get("reason") == "current":
                 stats["skipped"] += 1
