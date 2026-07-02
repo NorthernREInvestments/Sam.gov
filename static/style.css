@@ -1633,6 +1633,7 @@ a {
 
 .sub-card-meta,
 .sub-card-phone,
+.sub-card-address,
 .sub-card-links,
 .sub-card-claude {
   font-size: 0.88rem;
@@ -2329,6 +2330,13 @@ a {
 .pre-bid-detail { color: #64748b; font-size: 0.82rem; }
 .pre-bid-block-msg { color: #b45309; font-weight: 600; margin: 0.5rem 0 0; }
 
+.sub-card-address {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
 .sub-contact-card {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -2704,6 +2712,15 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 0.2rem;
+}
+.compact-card-address {
+  font-size: 0.76rem;
+  color: #64748b;
+  line-height: 1.35;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .compact-card-size {
   font-size: 0.82rem;

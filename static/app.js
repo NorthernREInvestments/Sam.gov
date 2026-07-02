@@ -547,6 +547,11 @@ function compactSizeLine(c) {
   return `${Number(sqft).toLocaleString()} sq ft`;
 }
 
+function compactAddressLine(c) {
+  const line = (c.work_address_display || "").trim();
+  return line || "";
+}
+
 function compactHistoryLine(c) {
   const hist = c.pricing_history;
   if (hist?.line) return hist;
@@ -644,6 +649,7 @@ function renderCards() {
     const due = compactDueLine(c);
     const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
     const statusMsg = c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit";
+    const addressLine = compactAddressLine(c);
     return `
     <article class="compact-card" data-id="${c.notice_id}">
       <div class="compact-card-row compact-card-row-1">
@@ -652,6 +658,7 @@ function renderCards() {
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
       <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
+      ${addressLine ? `<div class="compact-card-row compact-card-address">${escapeHtml(addressLine)}</div>` : ""}
       <div class="compact-card-row compact-card-size">${escapeHtml(compactSizeLine(c))}</div>
       <div class="compact-card-row compact-card-history-line">${renderHistoryLine(c)}</div>
       <div class="compact-card-row compact-card-row-far">

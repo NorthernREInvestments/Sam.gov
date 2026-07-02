@@ -27,5 +27,8 @@ aptPkgs = [
 [phases.install]
 cmds = [
   "pip install -r requirements.txt",
-  "python -m playwright install --with-deps chromium",
+  "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers python -m playwright install --with-deps chromium",
 ]
+
+[phases.start]
+cmds = ["sh scripts/start_railway.sh"]

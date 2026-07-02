@@ -143,6 +143,27 @@ def format_work_location_short(
     return "Location pending"
 
 
+def format_work_address_display(contract: Any) -> str | None:
+    """Street address line for dashboard cards — from SAM place of performance or text."""
+    from location_matching import extract_site_profile
+
+    site = extract_site_profile(contract)
+    street = (site.get("street_address") or "").strip()
+    if not street:
+        return None
+    city = site.get("city")
+    state = site.get("state_code")
+    zip_code = site.get("zip")
+    locality = ", ".join(part for part in (city, state) if part)
+    if locality and zip_code:
+        locality = f"{locality} {zip_code}"
+    elif zip_code:
+        locality = zip_code
+    if locality:
+        return f"{street} · {locality}"
+    return street
+
+
 def pricing_card_display(
     pricing_intel: dict[str, Any] | None,
     *,

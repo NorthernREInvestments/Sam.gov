@@ -277,6 +277,7 @@ function renderContactCard(contact) {
   const stars = contact.rating != null ? `${contact.rating} ★` : "No rating";
   const dist = contact.distance_miles != null ? `${contact.distance_miles} mi` : "—";
   const loc = [contact.city, contact.state].filter(Boolean).join(", ") || "—";
+  const address = (contact.address || "").trim();
   return `
     <article class="sub-contact-card ${contact.is_selected ? "sub-contact-selected" : ""}" data-contact-id="${contact.id}">
       ${followup}
@@ -284,6 +285,7 @@ function renderContactCard(contact) {
         <div>
           <h3>${escapeHtml(contact.company_name)}</h3>
           <p class="sub-card-meta">${escapeHtml(stars)} · ${escapeHtml(loc)} · ${dist}</p>
+          ${address ? `<p class="sub-card-address">${escapeHtml(address)}</p>` : ""}
         </div>
         ${renderStatusBadge(contact.status)}
       </header>

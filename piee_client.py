@@ -98,6 +98,9 @@ def download_piee_zip(notice_url: str) -> bytes | None:
     """Use headless Chromium to click PIEE 'Download All Attachments'."""
     from playwright.sync_api import sync_playwright
 
+    from playwright_bootstrap import ensure_playwright_chromium
+
+    ensure_playwright_chromium()
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             headless=True,

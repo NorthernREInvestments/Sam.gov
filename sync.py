@@ -344,6 +344,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             format_agency_display,
             format_department_display,
             format_service_type_display,
+            format_work_address_display,
             format_work_location_short,
             pricing_card_display,
             pricing_card_label,
@@ -357,6 +358,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             row.sam_raw if isinstance(row.sam_raw, dict) else None,
             work,
         )
+        work_address_display = format_work_address_display(row)
         pricing_history = pricing_card_display(
             row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
             has_work_state=bool(work.get("state_code")),
@@ -406,6 +408,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "service_type_display": service_type_display,
         "location": row.location,
         "location_display": location_display,
+        "work_address_display": work_address_display,
         "work_location": work,
         "pricing_display": pricing_display,
         "pricing_history": pricing_history,
