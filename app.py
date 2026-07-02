@@ -30,7 +30,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-location"
+APP_BUILD_VERSION = "20260702-stored-pdf-repair"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -669,6 +669,17 @@ def export_claude_portfolio():
         raise HTTPException(status_code=500, detail=f"Export failed: {exc}") from exc
     finally:
         session.close()
+
+
+@app.post("/api/repair/stored")
+def run_stored_pdf_repair():
+    """Repair only contracts that already have PDF bytes in PostgreSQL (no SAM.gov)."""
+    try:
+        from workflow_backfill_service import repair_all_stored_attachment_contracts
+
+        return repair_all_stored_attachment_contracts()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Stored-PDF repair failed: {exc}") from exc
 
 
 @app.post("/api/sync")

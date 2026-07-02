@@ -315,12 +315,31 @@ def run_full_analysis(
             "text_score": text_score,
         }
 
-    if session is not None:
+    notice_id = row.notice_id
+    contract_id = row.id
+    closed_session_for_claude = False
+
+    if db_only and session is not None:
+        session.commit()
+        session.close()
+        session = None
+        closed_session_for_claude = True
+    elif session is not None:
         session.commit()
 
     analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=None)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
+
+    if session is None and closed_session_for_claude:
+        from attachment_storage import load_contract_for_repair
+
+        session = SessionLocal()
+        reloaded = load_contract_for_repair(session, contract_id) if contract_id else None
+        if reloaded is None:
+            reloaded = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if reloaded is not None:
+            row = reloaded
 
     if text_score is not None:
         analysis["text_score"] = text_score
@@ -425,6 +444,10 @@ def run_full_analysis(
 
         apply_submission_package(row, session, analysis=analysis)
 
+    if closed_session_for_claude and session is not None:
+        session.commit()
+        session.close()
+
     return {
         "notice_id": row.notice_id,
         "skipped": False,
@@ -508,7 +531,7 @@ def full_intake_contract(
         return {"notice_id": row.notice_id, "in_progress": True}
 
     try:
-        if not has_attachments_ready(row):
+        if not has_attachments_ready(row, session):
             return {
                 "notice_id": row.notice_id,
                 "skipped": True,

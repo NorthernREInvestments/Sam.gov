@@ -111,20 +111,20 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
 
-    # Release DB connection before long Claude calls — Railway drops idle sessions.
+    # Release DB connection before long Claude calls — run_full_analysis closes session when db_only.
     session.commit()
     notice_id = row.notice_id
+    contract_id = row.id
 
     intake_session = SessionLocal()
     try:
-        intake_row = load_contract_for_repair(intake_session, row.id) if row.id else None
+        intake_row = load_contract_for_repair(intake_session, contract_id) if contract_id else None
         if not intake_row:
             intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
         if not intake_row:
             return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
 
         result = full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
-        intake_session.commit()
         result["repair_reason"] = reason
         return result
     except ScreenBudgetExceeded:
