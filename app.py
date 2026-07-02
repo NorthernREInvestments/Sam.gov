@@ -30,7 +30,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-stored-pdf-repair"
+APP_BUILD_VERSION = "20260702-startup-fix"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -61,6 +61,9 @@ async def lifespan(app: FastAPI):
         from pricing_backfill_service import start_background_pricing_backfill
 
         start_background_pricing_backfill()
+    import logging
+
+    logging.getLogger("govtracker").info("Application startup complete (%s)", APP_BUILD_VERSION)
     yield
     stop_scheduler()
 

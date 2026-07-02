@@ -43,6 +43,9 @@ def test_connection() -> bool:
 
 
 def init_db() -> None:
+    import logging
+
+    log = logging.getLogger("govtracker.db")
     from models import (  # noqa: F401
         AppSetting,
         Contract,
@@ -56,7 +59,9 @@ def init_db() -> None:
         SubcontractAgreement,
     )
 
+    log.info("init_db: schema")
     Base.metadata.create_all(bind=engine)
+    log.info("init_db: migrations")
     _migrate_add_sam_raw()
     _migrate_add_pricing_intel()
     _migrate_add_sub_finder()
@@ -69,6 +74,7 @@ def init_db() -> None:
     _migrate_add_sub_contacts()
     _migrate_add_performance()
     _migrate_add_submission_package()
+    log.info("init_db: done")
 
 
 def _migrate_add_attachment_compliance() -> None:
@@ -230,22 +236,6 @@ def _migrate_add_submission_package() -> None:
             )
         )
         conn.commit()
-
-    session = SessionLocal()
-    try:
-        from models import Contract
-        from submission_package import apply_submission_package
-
-        rows = (
-            session.query(Contract)
-            .filter(Contract.attachment_text.isnot(None), Contract.attachment_text != "")
-            .all()
-        )
-        for row in rows:
-            apply_submission_package(row, session)
-        session.commit()
-    finally:
-        session.close()
 
 
 def _migrate_add_sub_contacts() -> None:
