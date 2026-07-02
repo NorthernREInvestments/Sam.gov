@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-pin-pdf-contracts"
+APP_BUILD_VERSION = "20260702-fast-dashboard"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -464,8 +464,8 @@ def get_contracts(
     try:
         from api_budget import get_usage_snapshot
         from attachment_storage import contract_ids_with_stored_pdfs
-        from screening_pipeline import is_dashboard_ready, is_visible_on_dashboard
-        from sync import list_contracts, merge_stored_pdf_dashboard_contracts
+        from screening_pipeline import is_dashboard_ready_fast, is_visible_on_dashboard
+        from sync import contract_to_card_dict, list_contracts, merge_stored_pdf_dashboard_contracts
 
         stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
 
@@ -497,12 +497,18 @@ def get_contracts(
             for r in all_rows
             if is_visible_on_dashboard(r, session, stored_pdf_ids=stored_pdf_ids)
         ]
-        processing_count = sum(1 for r in visible_rows if not is_dashboard_ready(r))
+        processing_count = sum(
+            1
+            for r in visible_rows
+            if not is_dashboard_ready_fast(r, session, stored_pdf_ids=stored_pdf_ids)
+        )
 
         rows = sorted(
             visible_rows,
             key=lambda r: (
-                0 if is_dashboard_ready(r) else 1,
+                0
+                if is_dashboard_ready_fast(r, session, stored_pdf_ids=stored_pdf_ids)
+                else 1,
                 -int((r.analysis or {}).get("score") or (r.analysis or {}).get("text_score") or 0),
                 r.due_date is None,
             ),
@@ -524,7 +530,9 @@ def get_contracts(
         return {
             "count": len(rows),
             "processing_count": processing_count,
-            "contracts": [contract_to_dict(r) for r in rows],
+            "contracts": [
+                contract_to_card_dict(r, session, stored_pdf_ids=stored_pdf_ids) for r in rows
+            ],
             "api_budget": get_usage_snapshot(),
             "filter_stats": {
                 "ready_eligible": len(ready_pool),

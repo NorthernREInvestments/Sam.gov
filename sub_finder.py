@@ -487,6 +487,9 @@ def _run_places_search(
         if not candidates:
             contract.sub_search_status = "complete"
             contract.sub_search_radius_miles = used_radius
+            from proximity_scoring import persist_proximity_snapshot
+
+            persist_proximity_snapshot(session, contract)
             session.commit()
             return {
                 "notice_id": contract.notice_id,
@@ -524,6 +527,9 @@ def _run_places_search(
 
         contract.sub_search_status = "complete"
         contract.sub_search_radius_miles = used_radius
+        from proximity_scoring import persist_proximity_snapshot
+
+        persist_proximity_snapshot(session, contract)
         session.commit()
 
         return {

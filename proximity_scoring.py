@@ -128,3 +128,28 @@ def proximity_context(session, contract: Contract) -> dict[str, Any]:
         result["effective_score"] = int(round(float(base_score))) if base_score is not None else None
         result["proximity_note"] = "Run Find Subs to check local market"
     return result
+
+
+def persist_proximity_snapshot(session, contract: Contract) -> None:
+    """Save proximity-adjusted score on the contract row — dashboard reads this, no live recompute."""
+    analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
+    prox = proximity_context(session, contract)
+    if prox.get("effective_score") is not None:
+        analysis["effective_score"] = prox["effective_score"]
+    if prox.get("proximity_penalty") is not None:
+        analysis["proximity_penalty"] = prox["proximity_penalty"]
+    if prox.get("proximity_note"):
+        analysis["proximity_note"] = prox["proximity_note"]
+    if prox.get("nearest_sub_miles") is not None:
+        analysis["nearest_sub_miles"] = prox["nearest_sub_miles"]
+    contract.analysis = analysis
+
+
+def stored_proximity_snapshot(analysis: dict[str, Any] | None) -> dict[str, Any]:
+    data = analysis if isinstance(analysis, dict) else {}
+    return {
+        "effective_score": data.get("effective_score"),
+        "proximity_penalty": data.get("proximity_penalty"),
+        "proximity_note": data.get("proximity_note"),
+        "nearest_sub_miles": data.get("nearest_sub_miles"),
+    }

@@ -166,6 +166,45 @@ def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:
     row.last_updated_at = datetime.now(timezone.utc)
 
 
+def has_attachments_ready_fast(
+    row: Contract,
+    session=None,
+    *,
+    stored_pdf_ids: set[int] | None = None,
+) -> bool:
+    if row.id and stored_pdf_ids is not None and row.id in stored_pdf_ids:
+        return True
+    return has_attachments_ready(row, session)
+
+
+def is_dashboard_ready_fast(
+    row: Contract,
+    session=None,
+    *,
+    stored_pdf_ids: set[int] | None = None,
+) -> bool:
+    if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
+        return False
+    if not has_attachments_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids):
+        return False
+    from pws_fields import contract_pws_missing
+
+    if contract_pws_missing(row):
+        return False
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    if not workflow_is_current(analysis):
+        return False
+    if not is_full_analysis_complete(analysis, row):
+        return False
+    if pdfs_expected_on_contract(row) and not pdfs_read_in_analysis(analysis):
+        return False
+    if getattr(row, "sub_search_status", None) not in ("complete", "error"):
+        return False
+    if not analysis.get("contract_advice"):
+        return False
+    return True
+
+
 def is_dashboard_ready(row: Contract) -> bool:
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False
@@ -204,7 +243,7 @@ def is_visible_on_dashboard(
     stored_pdf_ids: set[int] | None = None,
 ) -> bool:
     """Show on dashboard when ready OR actively being processed by autopilot."""
-    if is_dashboard_ready(row):
+    if is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids):
         return True
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False

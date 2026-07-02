@@ -733,7 +733,7 @@ function manageCardPolling() {
         return;
       }
       await loadContractsQuiet();
-    }, 4000);
+    }, 8000);
   } else if (!shouldPoll && cardPollTimer) {
     clearInterval(cardPollTimer);
     cardPollTimer = null;

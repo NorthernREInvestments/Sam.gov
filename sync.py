@@ -207,7 +207,7 @@ def list_contracts(
 
     rows = (
         session.query(Contract)
-        .options(defer(Contract.attachment_text))
+        .options(defer(Contract.attachment_text), defer(Contract.sam_raw))
         .filter(Contract.naics_code.in_(naics_set))
         .all()
     )
@@ -224,14 +224,10 @@ def list_contracts(
         if agency_query and (not row.agency or agency_query not in row.agency.lower()):
             continue
         analysis = row.analysis or {}
-        score = analysis.get("score")
-        from proximity_scoring import proximity_context
-
-        prox = proximity_context(session, row)
-        effective = prox.get("effective_score")
-        if effective is not None:
-            score = effective
-        elif score is None:
+        score = analysis.get("effective_score")
+        if score is None:
+            score = analysis.get("score")
+        if score is None:
             score = analysis.get("text_score")
         if score is not None and int(score) < min_score:
             continue
@@ -295,7 +291,7 @@ def merge_stored_pdf_dashboard_contracts(
 
     query = (
         session.query(Contract)
-        .options(defer(Contract.attachment_text))
+        .options(defer(Contract.attachment_text), defer(Contract.sam_raw))
         .filter(Contract.id.in_(stored_ids))
     )
     if naics_codes is not None:
@@ -333,6 +329,95 @@ def _attachment_files_summary(row: Contract, session) -> dict[str, Any]:
     if not row.id:
         return {"count": 0, "pdf_count": 0, "total_bytes": 0, "files": []}
     return attachment_storage_summary(session, row.id)
+
+
+def contract_to_card_dict(
+    row: Contract,
+    session: Session,
+    *,
+    stored_pdf_ids: set[int] | None = None,
+) -> dict[str, Any]:
+    """Fast dashboard card payload — reads persisted DB fields only, no live pipeline work."""
+    from naics_labels import naics_label
+    from display_format import (
+        format_service_type_display,
+        format_work_address_display,
+        format_work_location_short,
+        prior_hints_from_contract,
+        pricing_card_display,
+    )
+    from proximity_scoring import stored_proximity_snapshot
+    from screening_pipeline import is_dashboard_ready_fast
+    from usaspending_client import extract_work_location
+    from workflow_status import compute_workflow_progress_fast
+
+    today = date.today()
+    days_left = (row.due_date - today).days if row.due_date else None
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    work = extract_work_location(
+        row.location,
+        sam_raw,
+        title=row.title,
+        description=row.description,
+    )
+    prior_hints = prior_hints_from_contract(row)
+    pricing_history = pricing_card_display(
+        row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
+        has_work_state=bool(work.get("state_code")),
+        prior_hints=prior_hints,
+    )
+    prox = stored_proximity_snapshot(analysis)
+    effective_score = prox.get("effective_score")
+    if effective_score is None:
+        effective_score = analysis.get("score") or analysis.get("text_score")
+
+    sam_attachments = analysis.get("sam_attachments") or []
+    if not sam_attachments and sam_raw:
+        sam_attachments = sam_raw.get("opportunityAttachments") or []
+
+    pws: dict[str, Any] = {}
+    if row.square_footage is not None:
+        pws["square_footage"] = row.square_footage
+    if row.cleaning_frequency_per_week is not None:
+        pws["cleaning_frequency_per_week"] = float(row.cleaning_frequency_per_week)
+
+    sub_summary = {"status": row.sub_search_status or "pending"}
+    if work.get("city"):
+        sub_summary["city"] = work.get("city")
+
+    return {
+        "notice_id": row.notice_id,
+        "title": row.title,
+        "naics_code": row.naics_code,
+        "due_date": row.due_date.isoformat() if row.due_date else None,
+        "days_until_due": days_left,
+        "score": analysis.get("score"),
+        "text_score": analysis.get("text_score") or analysis.get("score"),
+        "effective_score": effective_score,
+        "proximity_note": prox.get("proximity_note"),
+        "proximity_penalty": prox.get("proximity_penalty"),
+        "nearest_sub_miles": prox.get("nearest_sub_miles"),
+        "screening_stage": analysis.get("screening_stage")
+        or ("full" if analysis.get("plain_english_summary") else None),
+        "plain_english_summary": analysis.get("plain_english_summary") or analysis.get("executive_summary"),
+        "pursue": analysis.get("pursue"),
+        "analysis": analysis,
+        "pricing_intel": row.pricing_intel,
+        "pricing_display": pricing_history.get("line"),
+        "pricing_history": pricing_history,
+        "location_display": format_work_location_short(row.location, sam_raw, work),
+        "service_type_display": format_service_type_display(row.naics_code, naics_label(row.naics_code)),
+        "work_address_display": format_work_address_display(row),
+        "square_footage": row.square_footage,
+        "pws": pws,
+        "subcontracting_limitation_check": row.subcontracting_limitation_check,
+        "sub_search_status": row.sub_search_status,
+        "sub_summary": sub_summary,
+        "sam_attachments": sam_attachments,
+        "workflow_progress": compute_workflow_progress_fast(row),
+        "dashboard_ready": is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids),
+    }
 
 
 def contract_to_dict(row: Contract) -> dict[str, Any]:

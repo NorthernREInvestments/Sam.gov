@@ -270,6 +270,81 @@ def matches_set_aside_filter(contract: Contract, set_aside_filter: str | None) -
     return any(n in raw for n in needles)
 
 
+def _workflow_snapshot_fast(contract: Contract) -> dict[str, Any]:
+    """Infer workflow stage from persisted row fields — no extra DB queries."""
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    if analysis.get("pursue") is not True:
+        return {"stage": "none", "quoted_sub_count": 0}
+    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+        return {"stage": "won", "quoted_sub_count": 1}
+    if contract.status == "submitted":
+        return {"stage": "submitted", "quoted_sub_count": 1}
+    if contract.selected_sub_quote is not None:
+        return {"stage": "needs_proposal", "quoted_sub_count": 1}
+    if contract.sub_search_status in ("complete", "error"):
+        return {"stage": "needs_sub_quote", "quoted_sub_count": 0}
+    return {"stage": "needs_sub_quote", "quoted_sub_count": 0}
+
+
+def compute_workflow_progress_fast(contract: Contract) -> dict[str, Any]:
+    """Dashboard card progress from stored fields only."""
+    from sam_enrich import is_scrape_complete
+
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+    wf = _workflow_snapshot_fast(contract)
+    stage = wf.get("stage") or "none"
+
+    found_done = True
+    analyzed_done = bool(
+        analysis.get("screening_stage") == "full"
+        and (analysis.get("plain_english_summary") or analysis.get("executive_summary"))
+    ) or bool(analysis.get("score") is not None and is_scrape_complete(raw))
+    subs_done = wf.get("quoted_sub_count", 0) > 0 or contract.sub_search_status in ("complete", "error")
+    proposal_done = stage in (
+        "draft_ready",
+        "ready",
+        "submitted",
+        "won",
+        "lost",
+        "proposal_incomplete",
+        "needs_proposal",
+    )
+    submitted_done = (
+        stage in ("submitted", "won")
+        or contract.status in ("submitted", "awarded", "active", "option_year", "stop_work", "completed", "won")
+    )
+
+    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+        analyzed_done = subs_done = proposal_done = submitted_done = True
+
+    done_flags = [found_done, analyzed_done, subs_done, proposal_done, submitted_done]
+    current_index = 0
+    for i, done in enumerate(done_flags):
+        if not done:
+            current_index = i
+            break
+    else:
+        current_index = len(done_flags) - 1
+
+    stages: list[dict[str, str]] = []
+    for i, (key, label, done) in enumerate(zip(WORKFLOW_STAGE_KEYS, WORKFLOW_STAGE_LABELS, done_flags)):
+        if done:
+            state = "done"
+        elif i == current_index:
+            state = "current"
+        else:
+            state = "future"
+        stages.append({"key": key, "label": label, "state": state})
+
+    return {
+        "stages": stages,
+        "current_index": current_index,
+        "status_message": _dashboard_status_message(contract, wf),
+        "primary_action": _dashboard_primary_action(contract, wf),
+    }
+
+
 def compute_workflow_progress(contract: Contract, session) -> dict[str, Any]:
     """Five-stage progress for compact dashboard cards."""
     from sam_enrich import is_scrape_complete
