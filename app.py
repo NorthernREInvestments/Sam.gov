@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -30,7 +32,39 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-startup-fix"
+APP_BUILD_VERSION = "20260702-startup-fix2"
+
+_startup_lock = threading.Lock()
+_startup_state = {"ready": False, "error": None}
+
+
+def _run_background_startup() -> None:
+    global _startup_state
+    log = logging.getLogger("govtracker")
+    try:
+        from database import init_db
+
+        init_db()
+        start_scheduler()
+        from api_budget import intake_on_sync_enabled
+
+        if intake_on_sync_enabled():
+            from workflow_backfill_service import start_background_workflow_repair
+
+            start_background_workflow_repair()
+        else:
+            from pricing_backfill_service import start_background_pricing_backfill
+
+            start_background_pricing_backfill()
+        with _startup_lock:
+            _startup_state = {"ready": True, "error": None}
+        log.info("Application startup complete (%s)", APP_BUILD_VERSION)
+        print(f"govtracker: startup complete ({APP_BUILD_VERSION})", flush=True)
+    except Exception as exc:
+        log.exception("Background startup failed")
+        with _startup_lock:
+            _startup_state = {"ready": False, "error": str(exc)}
+        print(f"govtracker: startup failed: {exc}", flush=True)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -47,23 +81,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from database import init_db
-
-    init_db()
-    start_scheduler()
-    from api_budget import intake_on_sync_enabled
-
-    if intake_on_sync_enabled():
-        from workflow_backfill_service import start_background_workflow_repair
-
-        start_background_workflow_repair()
-    else:
-        from pricing_backfill_service import start_background_pricing_backfill
-
-        start_background_pricing_backfill()
-    import logging
-
-    logging.getLogger("govtracker").info("Application startup complete (%s)", APP_BUILD_VERSION)
+    print(f"govtracker: accepting traffic ({APP_BUILD_VERSION})", flush=True)
+    threading.Thread(target=_run_background_startup, name="govtracker-startup", daemon=True).start()
     yield
     stop_scheduler()
 
@@ -351,7 +370,19 @@ class ProposalExportRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "GovTracker", "auth_enabled": auth_enabled()}
+    with _startup_lock:
+        state = dict(_startup_state)
+    status = "ok" if state.get("ready") else "starting"
+    payload = {
+        "status": status,
+        "service": "GovTracker",
+        "auth_enabled": auth_enabled(),
+        "build_version": APP_BUILD_VERSION,
+        "startup_ready": state.get("ready", False),
+    }
+    if state.get("error"):
+        payload["startup_error"] = state["error"]
+    return payload
 
 
 @app.get("/api/auth/status")

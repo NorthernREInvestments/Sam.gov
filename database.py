@@ -20,6 +20,8 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
+    connect_args={"connect_timeout": 15},
+    pool_timeout=15,
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -60,8 +62,10 @@ def init_db() -> None:
     )
 
     log.info("init_db: schema")
+    print("govtracker: init_db schema", flush=True)
     Base.metadata.create_all(bind=engine)
     log.info("init_db: migrations")
+    print("govtracker: init_db migrations", flush=True)
     _migrate_add_sam_raw()
     _migrate_add_pricing_intel()
     _migrate_add_sub_finder()
@@ -75,6 +79,7 @@ def init_db() -> None:
     _migrate_add_performance()
     _migrate_add_submission_package()
     log.info("init_db: done")
+    print("govtracker: init_db done", flush=True)
 
 
 def _migrate_add_attachment_compliance() -> None:
