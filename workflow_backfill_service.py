@@ -8,7 +8,7 @@ import time
 from typing import Any
 
 from api_budget import ScreenBudgetExceeded, can_screen
-from database import SessionLocal
+from database import SessionLocal, with_db_retry
 from models import Contract
 from screening_pipeline import (
     WORKFLOW_VERSION,
@@ -21,6 +21,23 @@ from screening_pipeline import (
 logger = logging.getLogger("govtracker.workflow_backfill")
 _lock = threading.Lock()
 _running = False
+_repair_status: dict[str, Any] = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "stats": None,
+    "error": None,
+}
+
+
+def get_repair_status() -> dict[str, Any]:
+    with _lock:
+        return dict(_repair_status)
+
+
+def _set_repair_status(**kwargs: Any) -> None:
+    with _lock:
+        _repair_status.update(kwargs)
 
 
 def _is_anthropic_api_blocked(exc: BaseException) -> bool:
@@ -111,24 +128,30 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
 
-    # Release DB connection before long Claude calls — run_full_analysis closes session when db_only.
+    # Release all DB connections before long Claude calls.
     session.commit()
     notice_id = row.notice_id
     contract_id = row.id
+    session.close()
 
-    intake_session = SessionLocal()
+    def _run_intake() -> dict[str, Any]:
+        intake_session = SessionLocal()
+        try:
+            intake_row = load_contract_for_repair(intake_session, contract_id) if contract_id else None
+            if not intake_row:
+                intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
+            if not intake_row:
+                return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
+
+            return full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
+        finally:
+            intake_session.close()
+
     try:
-        intake_row = load_contract_for_repair(intake_session, contract_id) if contract_id else None
-        if not intake_row:
-            intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
-        if not intake_row:
-            return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
-
-        result = full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
+        result = with_db_retry(_run_intake)
         result["repair_reason"] = reason
         return result
     except ScreenBudgetExceeded:
-        intake_session.rollback()
         return {
             "notice_id": notice_id,
             "skipped": True,
@@ -136,7 +159,6 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
     except Exception as exc:
-        intake_session.rollback()
         if _is_anthropic_api_blocked(exc):
             logger.error("Workflow repair halted — Anthropic API unavailable: %s", exc)
             return {
@@ -153,8 +175,6 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
             "detail": str(exc)[:200],
         }
-    finally:
-        intake_session.close()
 
 
 def contracts_needing_repair(session) -> list[Contract]:
@@ -301,7 +321,11 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
     Repair ONLY contracts that already have PDF bytes in PostgreSQL.
     Skips everything else — no SAM, no wasted queue scans.
     """
+    from datetime import datetime, timezone
+
     from attachment_storage import contract_ids_with_stored_pdfs, load_contract_for_repair
+
+    from database import is_transient_db_error
 
     contract_ids = contract_ids_with_stored_pdfs()
     stats: dict[str, Any] = {
@@ -315,58 +339,85 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
         "workflow_version": WORKFLOW_VERSION,
     }
 
-    for contract_id in contract_ids:
-        if not can_screen():
-            stats["halt_reason"] = "screen_budget"
-            break
+    _set_repair_status(
+        running=True,
+        started_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=None,
+        stats=stats,
+        error=None,
+    )
 
-        prep = SessionLocal()
-        try:
-            row = load_contract_for_repair(prep, contract_id)
-            if not row:
-                continue
-            result = repair_contract(prep, row)
-        finally:
-            prep.close()
-
-        stats["processed"] += 1
-        stats["results"].append(
-            {
-                "notice_id": result.get("notice_id"),
-                "skipped": result.get("skipped"),
-                "error": result.get("error"),
-                "reason": result.get("reason"),
-                "full_analysis": result.get("full_analysis"),
-            }
-        )
-
-        if result.get("error"):
-            stats["errors"] += 1
-            stats["halt_reason"] = result.get("error")
-            break
-        if result.get("reason") in ("claude_api", "screen_budget"):
-            stats["halt_reason"] = result.get("reason")
-            break
-        if result.get("skipped") and result.get("reason") == "current":
-            stats["skipped"] += 1
-        elif result.get("full_analysis") or result.get("screened"):
-            stats["repaired"] += 1
-        elif not result.get("skipped"):
-            stats["repaired"] += 1
-
-    session = SessionLocal()
     try:
-        stored_ids = set(contract_ids)
-        stats["remaining_stored"] = sum(
-            1 for row in contracts_needing_repair(session) if row.id in stored_ids
-        )
+        for contract_id in contract_ids:
+            if not can_screen():
+                stats["halt_reason"] = "screen_budget"
+                break
+
+            prep = SessionLocal()
+            try:
+                row = load_contract_for_repair(prep, contract_id)
+                if not row:
+                    continue
+                result = repair_contract(prep, row)
+            finally:
+                prep.close()
+
+            stats["processed"] += 1
+            stats["results"].append(
+                {
+                    "notice_id": result.get("notice_id"),
+                    "skipped": result.get("skipped"),
+                    "error": result.get("error"),
+                    "reason": result.get("reason"),
+                    "full_analysis": result.get("full_analysis"),
+                }
+            )
+
+            if result.get("error"):
+                detail = str(result.get("detail") or result.get("error") or "")
+                if is_transient_db_error(Exception(detail)):
+                    logger.warning(
+                        "Transient DB error repairing %s — will retry on next pass: %s",
+                        result.get("notice_id"),
+                        detail[:120],
+                    )
+                    stats["errors"] += 1
+                    continue
+                stats["errors"] += 1
+                stats["halt_reason"] = result.get("error")
+                break
+            if result.get("reason") in ("claude_api", "screen_budget"):
+                stats["halt_reason"] = result.get("reason")
+                break
+            if result.get("skipped") and result.get("reason") == "current":
+                stats["skipped"] += 1
+            elif result.get("full_analysis") or result.get("screened"):
+                stats["repaired"] += 1
+            elif not result.get("skipped"):
+                stats["repaired"] += 1
+
+        session = SessionLocal()
+        try:
+            stored_ids = set(contract_ids)
+            stats["remaining_stored"] = sum(
+                1 for row in contracts_needing_repair(session) if row.id in stored_ids
+            )
+        finally:
+            session.close()
+        logger.info("Stored-PDF repair finished: %s", stats)
+        return stats
+    except Exception as exc:
+        _set_repair_status(error=str(exc)[:500])
+        raise
     finally:
-        session.close()
-    logger.info("Stored-PDF repair finished: %s", stats)
-    return stats
+        _set_repair_status(
+            running=False,
+            finished_at=datetime.now(timezone.utc).isoformat(),
+            stats=stats,
+        )
 
 
-def start_background_workflow_repair(*, batch_size: int = 5) -> None:
+def start_background_workflow_repair(*, batch_size: int = 5) -> bool:
     """
     On deploy: repair all stale contracts automatically, then hand off to normal intake.
     Replaces one-off manual Force Full Analysis / Find Subs for backlog contracts.
@@ -374,7 +425,7 @@ def start_background_workflow_repair(*, batch_size: int = 5) -> None:
     global _running
     with _lock:
         if _running:
-            return
+            return False
         _running = True
 
     def _run() -> None:
@@ -394,3 +445,26 @@ def start_background_workflow_repair(*, batch_size: int = 5) -> None:
                 _running = False
 
     threading.Thread(target=_run, daemon=True, name="govtracker-workflow-repair").start()
+    return True
+
+
+def start_stored_pdf_repair_background() -> dict[str, Any]:
+    """Kick off stored-PDF repair in the background (safe for HTTP — returns immediately)."""
+    global _running
+    with _lock:
+        if _running or _repair_status.get("running"):
+            return {"started": False, "reason": "already_running", "status": get_repair_status()}
+        _running = True
+
+    def _run() -> None:
+        global _running
+        try:
+            repair_all_stored_attachment_contracts()
+        except Exception:
+            logger.exception("Background stored-PDF repair failed")
+        finally:
+            with _lock:
+                _running = False
+
+    threading.Thread(target=_run, daemon=True, name="govtracker-stored-repair").start()
+    return {"started": True, "status": get_repair_status()}

@@ -44,6 +44,47 @@ def test_connection() -> bool:
     return True
 
 
+def is_transient_db_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return any(
+        phrase in msg
+        for phrase in (
+            "server closed the connection",
+            "connection reset",
+            "connection timed out",
+            "could not connect",
+            "ssl syscall error",
+            "connection already closed",
+        )
+    )
+
+
+def reset_connection_pool() -> None:
+    """Drop stale pooled connections after idle timeouts (common on Railway Postgres)."""
+    engine.dispose()
+
+
+def with_db_retry(fn, *, attempts: int = 3, base_delay: float = 1.0):
+    """Retry DB work after transient connection drops (e.g. during long Claude calls)."""
+    import time
+
+    from sqlalchemy.exc import OperationalError, SQLAlchemyError
+
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except (OperationalError, SQLAlchemyError) as exc:
+            last_exc = exc
+            if attempt >= attempts - 1 or not is_transient_db_error(exc):
+                raise
+            reset_connection_pool()
+            time.sleep(base_delay * (attempt + 1))
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("with_db_retry exhausted without result")
+
+
 def init_db() -> None:
     import logging
 

@@ -333,13 +333,24 @@ def run_full_analysis(
 
     if session is None and closed_session_for_claude:
         from attachment_storage import load_contract_for_repair
+        from database import with_db_retry
 
+        def _reload_row() -> Contract | None:
+            s = SessionLocal()
+            try:
+                reloaded = load_contract_for_repair(s, contract_id) if contract_id else None
+                if reloaded is None:
+                    reloaded = s.query(Contract).filter_by(notice_id=notice_id).first()
+                if reloaded is not None:
+                    s.expunge(reloaded)
+                return reloaded
+            finally:
+                s.close()
+
+        reloaded = with_db_retry(_reload_row)
         session = SessionLocal()
-        reloaded = load_contract_for_repair(session, contract_id) if contract_id else None
-        if reloaded is None:
-            reloaded = session.query(Contract).filter_by(notice_id=notice_id).first()
         if reloaded is not None:
-            row = reloaded
+            row = session.merge(reloaded)
 
     if text_score is not None:
         analysis["text_score"] = text_score

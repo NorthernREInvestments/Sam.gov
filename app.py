@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-startup-fix2"
+APP_BUILD_VERSION = "20260702-repair-fix"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -709,11 +709,18 @@ def export_claude_portfolio():
 def run_stored_pdf_repair():
     """Repair only contracts that already have PDF bytes in PostgreSQL (no SAM.gov)."""
     try:
-        from workflow_backfill_service import repair_all_stored_attachment_contracts
+        from workflow_backfill_service import start_stored_pdf_repair_background
 
-        return repair_all_stored_attachment_contracts()
+        return start_stored_pdf_repair_background()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Stored-PDF repair failed: {exc}") from exc
+
+
+@app.get("/api/repair/status")
+def stored_pdf_repair_status():
+    from workflow_backfill_service import get_repair_status
+
+    return get_repair_status()
 
 
 @app.post("/api/sync")
