@@ -2781,6 +2781,9 @@ a {
 .help-steps li { margin-bottom: 0.5rem; }
 
 .mobile-only { display: none; }
+.filters-backdrop {
+  display: none;
+}
 .submission-checklist-embed { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid var(--border); }
 .proposal-editor-embedded .proposal-editor-layout { grid-template-columns: 220px 1fr; }
 
@@ -2799,6 +2802,7 @@ a {
     border: none;
     padding: 0;
     margin: 0;
+    cursor: pointer;
   }
   body.filters-drawer-open .filters-backdrop {
     display: block;
