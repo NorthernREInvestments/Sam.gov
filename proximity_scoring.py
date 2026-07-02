@@ -27,7 +27,10 @@ def _nearest_sub_distance(session, contract: Contract) -> tuple[float | None, in
             within = sum(1 for d in distances if d <= radius)
             return nearest, within, len(distances)
 
-    lat, lng, _work = _contract_coords(contract)
+    try:
+        lat, lng, _work = _contract_coords(contract)
+    except ValueError:
+        return None, 0, 0
     if lat is None or lng is None:
         return None, 0, 0
 
