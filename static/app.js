@@ -568,6 +568,12 @@ function compactLocationDisplay(c) {
   return "Location pending";
 }
 
+function contractAgencyDisplay(c) {
+  if (c.agency_display) return c.agency_display;
+  if (c.department_display) return c.department_display;
+  return formatDepartmentDisplay(c.agency) || "Federal agency";
+}
+
 function formatDepartmentDisplay(agency) {
   if (!agency) return "Federal agency";
   const upper = String(agency).trim().toUpperCase();
@@ -1038,7 +1044,7 @@ function renderDetailModal(c, { analyzing = false } = {}) {
   document.getElementById("modal-content").innerHTML = `
     <div class="detail-header">
       <h2 class="detail-title">${escapeHtml(c.title)}</h2>
-      <p class="detail-agency">${escapeHtml(c.agency || "Unknown agency")}</p>
+      <p class="detail-agency">${escapeHtml(contractAgencyDisplay(c))}</p>
     </div>
     ${typeof renderCardPerformanceBanners === "function" ? renderCardPerformanceBanners(c) : ""}
     ${renderSubcontractingComplianceBanner(c)}

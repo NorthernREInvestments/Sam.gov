@@ -379,7 +379,12 @@ def contract_to_card_dict(
     }
 
 
-def contract_to_dict(row: Contract) -> dict[str, Any]:
+def contract_to_dict(
+    row: Contract,
+    session: Session | None = None,
+    *,
+    attachment_text_chars: int | None = None,
+) -> dict[str, Any]:
     from naics_labels import naics_display, naics_label, tier_label
 
     today = date.today()
@@ -414,15 +419,30 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
 
     from sub_serializers import contract_sub_summary
 
-    session = SessionLocal()
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
     prox: dict[str, Any] = {}
     effective_score = None
     nearby_network_count = 0
     pricing_history: dict[str, Any] = {"kind": "none", "line": "No history found"}
     pricing_display = pricing_history["line"]
+    workflow: dict[str, Any] = {}
+    pipeline: dict[str, Any] = {}
+    workflow_progress: dict[str, Any] = {}
+    perf_alerts: dict[str, Any] = {"alerts": [], "payment_overdue_alert": None}
+    submission_pkg: dict[str, Any] = {}
+    attachment_files: dict[str, Any] = {"count": 0, "pdf_count": 0, "total_bytes": 0, "files": []}
+    dashboard_ready = False
+    agency_display = ""
+    department_display = ""
+    service_type_display = ""
+    location_display = ""
+    work_address_display = ""
+    work: dict[str, Any] = {}
+    sub_summary: dict[str, Any] = {}
     try:
         sub_summary = contract_sub_summary(row, session)
-        from sub_finder import nearby_network_subs
         from usaspending_client import extract_work_location
 
         work = extract_work_location(
@@ -463,28 +483,35 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             has_work_state=bool(work.get("state_code")),
             prior_hints=prior_hints,
         )
-        from proximity_scoring import proximity_context
-
-        prox = proximity_context(session, row)
-        effective_score = prox.get("effective_score")
-        try:
-            network = nearby_network_subs(session, row.notice_id)
-            nearby_network_count = network.get("count", 0)
-        except Exception:
-            nearby_network_count = 0
-        from workflow_status import compute_card_pipeline, compute_workflow_progress, compute_workflow_status
+        from proximity_scoring import stored_proximity_snapshot
+        from workflow_status import (
+            compute_card_pipeline,
+            compute_workflow_progress,
+            compute_workflow_status,
+            is_performance_contract,
+        )
+        from screening_pipeline import is_dashboard_ready_fast
         from submission_package import submission_package_dict
-        from performance_service import card_performance_alerts
-        from screening_pipeline import is_dashboard_ready
+
+        prox = stored_proximity_snapshot(analysis)
+        effective_score = prox.get("effective_score")
+        if effective_score is None:
+            effective_score = analysis.get("score") or analysis.get("text_score")
+        nearby_network_count = int(analysis.get("nearby_network_count") or 0)
 
         workflow = compute_workflow_status(row, session)
         pipeline = compute_card_pipeline(row, session)
         workflow_progress = compute_workflow_progress(row, session)
-        perf_alerts = card_performance_alerts(session, row)
+        if is_performance_contract(row):
+            from performance_service import card_performance_alerts
+
+            perf_alerts = card_performance_alerts(session, row)
         submission_pkg = submission_package_dict(row, session)
         attachment_files = _attachment_files_summary(row, session)
+        dashboard_ready = is_dashboard_ready_fast(row, session)
     finally:
-        session.close()
+        if own_session:
+            session.close()
 
     selected_quote = float(row.selected_sub_quote) if row.selected_sub_quote is not None else None
     from proposal_defaults import resolve_contract_margin
@@ -558,7 +585,9 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "external_links": external_links,
         "sam_attachments": sam_attachments,
         "scrape_complete": is_scrape_complete(sam_raw),
-        "attachment_text_chars": len(row.attachment_text or ""),
+        "attachment_text_chars": attachment_text_chars
+        if attachment_text_chars is not None
+        else len(row.attachment_text or ""),
         "attachment_extraction_method": row.attachment_extraction_method,
         "attachment_extraction_note": row.attachment_extraction_note,
         "subcontracting_limitation_check": row.subcontracting_limitation_check,
@@ -581,7 +610,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         "submission_package": submission_pkg,
         "attachment_files": attachment_files,
         "workflow": workflow,
-        "dashboard_ready": is_dashboard_ready(row),
+        "dashboard_ready": dashboard_ready,
         "pipeline": pipeline,
         "workflow_progress": workflow_progress,
         "award_date": row.award_date.isoformat() if row.award_date else None,

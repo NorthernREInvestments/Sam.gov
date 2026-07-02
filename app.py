@@ -562,14 +562,30 @@ def get_contracts(
 
 @app.get("/api/contracts/{notice_id}")
 def get_contract(notice_id: str):
+    from sqlalchemy import func
+    from sqlalchemy.orm import defer
+
     session = SessionLocal()
     try:
         from models import Contract
+        from workflow_status import repair_open_opportunity_status
 
-        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        row = (
+            session.query(Contract)
+            .options(defer(Contract.attachment_text))
+            .filter_by(notice_id=notice_id)
+            .first()
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Contract not found")
-        data = contract_to_dict(row)
+        if repair_open_opportunity_status(row):
+            session.commit()
+        text_chars = (
+            session.query(func.coalesce(func.length(Contract.attachment_text), 0))
+            .filter(Contract.id == row.id)
+            .scalar()
+        )
+        data = contract_to_dict(row, session, attachment_text_chars=int(text_chars or 0))
         data["sam_raw"] = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         return data
     finally:
@@ -594,7 +610,7 @@ def extract_contract_solicitation(notice_id: str, force: bool = Query(False)):
         except ScreenBudgetExceeded as exc:
             raise HTTPException(status_code=429, detail=str(exc)) from exc
         session.refresh(row)
-        data = contract_to_dict(row)
+        data = contract_to_dict(row, session)
         analysis = row.analysis if isinstance(row.analysis, dict) else {}
         sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
         pws = analysis.get("pws_extraction") if isinstance(analysis.get("pws_extraction"), dict) else {}
@@ -650,7 +666,7 @@ def lookup_prior_contract(notice_id: str, body: PriorContractLookup):
         session.commit()
         payload = get_full_pricing_intel(row, session, force_refresh=False)
         payload["pricing_intel"] = intel
-        payload["contract"] = contract_to_dict(row)
+        payload["contract"] = contract_to_dict(row, session)
         return payload
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -678,10 +694,10 @@ def generate_contract_advice_endpoint(notice_id: str, refresh: bool = Query(Fals
 
         existing = get_contract_advice(row)
         if existing and not refresh:
-            return {"contract_advice": existing, "contract": contract_to_dict(row)}
+            return {"contract_advice": existing, "contract": contract_to_dict(row, session)}
 
         advice = ensure_contract_advice(session, row, force=refresh)
-        return {"contract_advice": advice, "contract": contract_to_dict(row)}
+        return {"contract_advice": advice, "contract": contract_to_dict(row, session)}
     except ScreenBudgetExceeded as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     except ValueError as exc:
@@ -717,7 +733,7 @@ def patch_contract(notice_id: str, body: ContractOutcomeUpdate):
 
             row.margin_percentage = Decimal(str(body.margin_percentage))
         session.commit()
-        return contract_to_dict(row)
+        return contract_to_dict(row, session)
     except HTTPException:
         raise
     except Exception as exc:
@@ -1841,7 +1857,7 @@ def dismiss_amendments(notice_id: str):
         from models import Contract
 
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
-        return contract_to_dict(row) if row else {"notice_id": notice_id, "amendment_alert_active": False}
+        return contract_to_dict(row, session) if row else {"notice_id": notice_id, "amendment_alert_active": False}
     except ValueError as exc:
         session.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc

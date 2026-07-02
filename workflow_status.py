@@ -214,12 +214,39 @@ WORKFLOW_STAGE_LABELS = ("Found", "Analyzed", "Subs", "Proposal", "Submitted")
 PERFORMANCE_STATUSES = frozenset({"awarded", "active", "option_year", "stop_work", "completed"})
 
 
+def is_performance_contract(contract: Contract) -> bool:
+    """True only for contracts actually in performance — not open solicitations with a bad status."""
+    from datetime import date
+
+    status = contract.status or ""
+    if status not in PERFORMANCE_STATUSES and status != "won":
+        return False
+    if contract.award_date or contract.period_of_performance_start:
+        return True
+    today = date.today()
+    if contract.due_date and contract.due_date >= today:
+        return False
+    return status in PERFORMANCE_STATUSES
+
+
+def repair_open_opportunity_status(contract: Contract) -> bool:
+    """Fix rows marked active/awarded while still an open bid. Returns True if corrected."""
+    if is_performance_contract(contract):
+        return False
+    if contract.status not in PERFORMANCE_STATUSES and contract.status != "won":
+        return False
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    contract.status = "reviewing" if analysis.get("pursue") is True else "new"
+    return True
+
+
 def _contract_filter_category(contract: Contract, session) -> str:
     """Dashboard status filter bucket."""
-    if contract.status in ("active", "option_year", "stop_work"):
-        return "active"
-    if contract.status in ("awarded", "won"):
-        return "awarded"
+    if is_performance_contract(contract):
+        if contract.status in ("active", "option_year", "stop_work"):
+            return "active"
+        if contract.status in ("awarded", "won"):
+            return "awarded"
     if contract.status == "submitted" or (contract.analysis or {}).get("status") == "submitted":
         pass
     wf = compute_workflow_status(contract, session)
@@ -232,8 +259,6 @@ def _contract_filter_category(contract: Contract, session) -> str:
         analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
         if analysis.get("pursue") is True:
             return "needs_subs"
-    if contract.status in PERFORMANCE_STATUSES:
-        return "awarded" if contract.status == "awarded" else "active"
     return "other"
 
 
@@ -275,7 +300,7 @@ def _workflow_snapshot_fast(contract: Contract) -> dict[str, Any]:
     analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
     if analysis.get("pursue") is not True:
         return {"stage": "none", "quoted_sub_count": 0}
-    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+    if is_performance_contract(contract):
         return {"stage": "won", "quoted_sub_count": 1}
     if contract.status == "submitted":
         return {"stage": "submitted", "quoted_sub_count": 1}
@@ -312,10 +337,10 @@ def compute_workflow_progress_fast(contract: Contract) -> dict[str, Any]:
     )
     submitted_done = (
         stage in ("submitted", "won")
-        or contract.status in ("submitted", "awarded", "active", "option_year", "stop_work", "completed", "won")
+        or (is_performance_contract(contract) and contract.status in ("submitted", "won"))
     )
 
-    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+    if is_performance_contract(contract):
         analyzed_done = subs_done = proposal_done = submitted_done = True
 
     done_flags = [found_done, analyzed_done, subs_done, proposal_done, submitted_done]
@@ -370,10 +395,10 @@ def compute_workflow_progress(contract: Contract, session) -> dict[str, Any]:
     ) or bool(wf.get("proposal_id"))
     submitted_done = (
         stage in ("submitted", "won")
-        or contract.status in ("submitted", "awarded", "active", "option_year", "stop_work", "completed", "won")
+        or (is_performance_contract(contract) and contract.status in ("submitted", "won"))
     )
 
-    if contract.status in PERFORMANCE_STATUSES or contract.status == "won":
+    if is_performance_contract(contract):
         analyzed_done = subs_done = proposal_done = submitted_done = True
 
     done_flags = [found_done, analyzed_done, subs_done, proposal_done, submitted_done]
@@ -408,12 +433,13 @@ def compute_workflow_progress(contract: Contract, session) -> dict[str, Any]:
 
 
 def _dashboard_status_message(contract: Contract, wf: dict[str, Any]) -> str:
-    if contract.status in ("active", "option_year", "stop_work"):
-        return "Contract won — performance active"
-    if contract.status in ("awarded", "won"):
-        return "Contract awarded"
-    if contract.status == "completed":
-        return "Contract completed"
+    if is_performance_contract(contract):
+        if contract.status in ("active", "option_year", "stop_work"):
+            return "Contract won — performance active"
+        if contract.status in ("awarded", "won"):
+            return "Contract awarded"
+        if contract.status == "completed":
+            return "Contract completed"
     if contract.status == "not_awarded":
         return "Bid was not selected"
     if contract.status == "submitted":
@@ -440,7 +466,7 @@ def _dashboard_status_message(contract: Contract, wf: dict[str, Any]) -> str:
 
 
 def _dashboard_primary_action(contract: Contract, wf: dict[str, Any]) -> dict[str, str]:
-    if contract.status in ("awarded", "active", "option_year", "stop_work"):
+    if is_performance_contract(contract) and contract.status in ("awarded", "active", "option_year", "stop_work"):
         return {"label": "View Performance", "action": "performance"}
     stage = wf.get("stage") or "none"
     if stage == "needs_sub_quote" or wf.get("quoted_sub_count", 0) == 0:

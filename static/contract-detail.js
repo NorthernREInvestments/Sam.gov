@@ -8,7 +8,16 @@ let contractDetailPollTimer = null;
 const PERF_STATUSES = new Set(["awarded", "active", "option_year", "stop_work", "completed", "won"]);
 
 function isPerformanceContract(c) {
-  return PERF_STATUSES.has((c?.status || "").toLowerCase());
+  const status = (c?.status || "").toLowerCase();
+  if (!PERF_STATUSES.has(status)) return false;
+  if (c?.award_date || c?.period_of_performance_start) return true;
+  if (c?.due_date) {
+    const due = new Date(`${c.due_date}T12:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (due >= today) return false;
+  }
+  return PERF_STATUSES.has(status);
 }
 
 function contractDetailTabs(c) {
@@ -61,7 +70,7 @@ function renderContractDetailShell(c) {
   const solNum = sol.solicitation_number || c.notice_id;
   document.getElementById("contract-detail-header").innerHTML = `
     <h2 class="contract-detail-title">${escapeHtml(c.title)}</h2>
-    <p class="contract-detail-meta">${escapeHtml(c.agency || "")} · ${escapeHtml(cityStateDisplay(c))} · ${escapeHtml(solNum)}</p>`;
+    <p class="contract-detail-meta">${escapeHtml(contractAgencyDisplay(c))} · ${escapeHtml(compactLocationDisplay(c))} · ${escapeHtml(solNum)}</p>`;
 
   const tabs = contractDetailTabs(c);
   document.getElementById("contract-detail-tabs").innerHTML = tabs
@@ -90,16 +99,6 @@ async function switchContractTab(tabId, c) {
   else if (tabId === "subs") renderSubsTab(c.notice_id);
   else if (tabId === "proposal") renderProposalTab(c);
   else if (tabId === "performance") renderPerformanceTab(c.notice_id);
-}
-
-function cityStateDisplay(c) {
-  const loc = c.location || "";
-  const m = loc.match(/([^,]+),\s*([A-Z]{2})\b/);
-  if (m) return `${m[1].trim()}, ${m[2]}`;
-  if (c.sub_summary?.city) return c.sub_summary.city;
-  const parts = loc.split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0]}, ${parts[parts.length - 1].slice(0, 2)}`;
-  return loc || "—";
 }
 
 function renderOverviewTab(c) {
