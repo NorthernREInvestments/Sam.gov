@@ -264,47 +264,6 @@ def list_contracts(
     return results
 
 
-def merge_stored_pdf_dashboard_contracts(
-    session: Session,
-    rows: list[Contract],
-    *,
-    naics_codes: list[str] | None = None,
-    agency: str | None = None,
-    pursue_only: bool = False,
-    tier: int | None = None,
-    status_filter: str | None = None,
-    set_aside_filter: str | None = None,
-) -> list[Contract]:
-    """Pin in-progress contracts with PDFs in DB — bypass due-date/score filters so they always show."""
-    from attachment_storage import contract_ids_with_stored_pdfs
-    from screening_pipeline import is_visible_on_dashboard
-
-    stored_ids = contract_ids_with_stored_pdfs(session)
-    if not stored_ids:
-        return rows
-
-    stored_pdf_ids = set(stored_ids)
-    by_notice = {r.notice_id: r for r in rows}
-
-    if naics_codes is not None and not naics_codes:
-        return list(by_notice.values())
-
-    query = (
-        session.query(Contract)
-        .options(defer(Contract.attachment_text), defer(Contract.sam_raw))
-        .filter(Contract.id.in_(stored_ids))
-    )
-    if naics_codes is not None:
-        query = query.filter(Contract.naics_code.in_(naics_codes))
-
-    for row in query.all():
-        if not is_visible_on_dashboard(row, session, stored_pdf_ids=stored_pdf_ids):
-            continue
-        by_notice.setdefault(row.notice_id, row)
-
-    return list(by_notice.values())
-
-
 def list_attachment_backlog(
     session: Session,
     *,

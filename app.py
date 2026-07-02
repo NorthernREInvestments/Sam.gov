@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-fast-dashboard"
+APP_BUILD_VERSION = "20260702-filter-respects-due-date"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -465,7 +465,7 @@ def get_contracts(
         from api_budget import get_usage_snapshot
         from attachment_storage import contract_ids_with_stored_pdfs
         from screening_pipeline import is_dashboard_ready_fast, is_visible_on_dashboard
-        from sync import contract_to_card_dict, list_contracts, merge_stored_pdf_dashboard_contracts
+        from sync import contract_to_card_dict, list_contracts
 
         stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
 
@@ -481,16 +481,6 @@ def get_contracts(
             set_aside_filter=set_aside,
             require_dashboard_ready=False,
             require_scrape_complete=False,
-        )
-        all_rows = merge_stored_pdf_dashboard_contracts(
-            session,
-            all_rows,
-            naics_codes=naics_codes,
-            agency=agency,
-            pursue_only=pursue_only,
-            tier=tier,
-            status_filter=status,
-            set_aside_filter=set_aside,
         )
         visible_rows = [
             r
@@ -524,8 +514,13 @@ def get_contracts(
             tier=tier,
             status_filter=status,
             set_aside_filter=set_aside,
+            require_dashboard_ready=False,
+            require_scrape_complete=False,
         )
-        hidden_by_min_days = max(0, len(ready_pool) - len(rows)) if min_days else 0
+        ready_visible_at_zero = [
+            r for r in ready_pool if is_visible_on_dashboard(r, session, stored_pdf_ids=stored_pdf_ids)
+        ]
+        hidden_by_min_days = max(0, len(ready_visible_at_zero) - len(visible_rows)) if min_days else 0
 
         return {
             "count": len(rows),
@@ -535,7 +530,7 @@ def get_contracts(
             ],
             "api_budget": get_usage_snapshot(),
             "filter_stats": {
-                "ready_eligible": len(ready_pool),
+                "ready_eligible": len(ready_visible_at_zero),
                 "hidden_by_min_days": hidden_by_min_days,
                 "total_matching_naics": len(all_rows),
             },
