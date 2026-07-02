@@ -102,13 +102,80 @@ function selectedSettingsNaics() {
   return [...document.querySelectorAll(".settings-naics-toggle:checked")].map((el) => el.value);
 }
 
+const FILTER_STORAGE_KEY = "govtracker.dashboardFilters";
+
+function readStoredFilters() {
+  try {
+    const raw = sessionStorage.getItem(FILTER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredFilters() {
+  const minDaysEl = document.getElementById("min-days");
+  const minScoreEl = document.getElementById("min-score");
+  if (!minDaysEl || !minScoreEl) return;
+  sessionStorage.setItem(
+    FILTER_STORAGE_KEY,
+    JSON.stringify({
+      min_days: minDaysEl.value,
+      min_score: minScoreEl.value,
+      agency: document.getElementById("agency-filter")?.value || "",
+      status: document.getElementById("status-filter")?.value || "",
+      set_aside: document.getElementById("setaside-filter")?.value || "",
+      naics: selectedNaics(),
+    }),
+  );
+}
+
+function applyStoredFilters(stored) {
+  if (!stored) return;
+  const minDaysEl = document.getElementById("min-days");
+  const minScoreEl = document.getElementById("min-score");
+  if (stored.min_days != null && minDaysEl) {
+    minDaysEl.value = stored.min_days;
+    document.getElementById("min-days-value").textContent = stored.min_days;
+  }
+  if (stored.min_score != null && minScoreEl) {
+    minScoreEl.value = stored.min_score;
+    document.getElementById("min-score-value").textContent = stored.min_score;
+  }
+  if (stored.agency != null) {
+    const agencyEl = document.getElementById("agency-filter");
+    if (agencyEl) agencyEl.value = stored.agency;
+  }
+  if (stored.status != null) {
+    const statusEl = document.getElementById("status-filter");
+    if (statusEl) statusEl.value = stored.status;
+  }
+  if (stored.set_aside != null) {
+    const setAsideEl = document.getElementById("setaside-filter");
+    if (setAsideEl) setAsideEl.value = stored.set_aside;
+  }
+}
+
+function restoreNaicsChecks(codes) {
+  if (!Array.isArray(codes) || !codes.length) return;
+  const wanted = new Set(codes);
+  document.querySelectorAll(".naics-check").forEach((el) => {
+    el.checked = wanted.has(el.value);
+  });
+}
+
 async function loadConfig() {
   const res = await apiFetch("/api/config");
   config = await res.json();
-  document.getElementById("min-days").value = config.default_min_days;
-  document.getElementById("min-days-value").textContent = config.default_min_days;
-  document.getElementById("min-score").value = config.default_min_score || 1;
-  document.getElementById("min-score-value").textContent = config.default_min_score || 1;
+  const stored = readStoredFilters();
+  if (stored) {
+    applyStoredFilters(stored);
+  } else {
+    document.getElementById("min-days").value = config.default_min_days;
+    document.getElementById("min-days-value").textContent = config.default_min_days;
+    document.getElementById("min-score").value = config.default_min_score || 1;
+    document.getElementById("min-score-value").textContent = config.default_min_score || 1;
+  }
 
   const sync = config.naics_sync || {};
   const nextNaics = sync.next_naics || "—";
@@ -116,6 +183,7 @@ async function loadConfig() {
 
   populateSyncNaicsSelect();
   renderNaicsFilters();
+  if (stored?.naics?.length) restoreNaicsChecks(stored.naics);
 }
 
 function updateStatusBar(count, processing, nextNaics, filterStats = {}) {
@@ -733,7 +801,7 @@ function manageCardPolling() {
         return;
       }
       await loadContractsQuiet();
-    }, 8000);
+    }, 15000);
   } else if (!shouldPoll && cardPollTimer) {
     clearInterval(cardPollTimer);
     cardPollTimer = null;
@@ -1539,6 +1607,7 @@ function setFiltersOpen(open) {
 
 function applyFiltersAndRefresh() {
   clearTimeout(filterRefreshTimer);
+  saveStoredFilters();
   setFiltersOpen(false);
   loadContracts();
 }
@@ -1558,6 +1627,7 @@ function bindFilterSlider(inputId, labelId) {
   });
   input.addEventListener("change", () => {
     clearTimeout(filterRefreshTimer);
+    saveStoredFilters();
     loadContracts();
   });
 }

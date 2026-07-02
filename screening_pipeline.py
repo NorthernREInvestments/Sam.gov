@@ -248,21 +248,20 @@ def is_visible_on_dashboard(
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False
 
-    if row.id and (
-        (stored_pdf_ids is not None and row.id in stored_pdf_ids)
-        or (session is not None and _has_stored_pdfs(session, row.id, stored_pdf_ids))
-    ):
+    if row.id and stored_pdf_ids is not None and row.id in stored_pdf_ids:
         return True
-    if has_attachments_ready(row, session):
-        analysis = row.analysis if isinstance(row.analysis, dict) else {}
-        if not workflow_is_current(analysis):
-            return True
-        if not is_full_analysis_complete(analysis, row):
-            return True
-        if getattr(row, "sub_search_status", None) == "searching":
-            return True
-        if analysis.get("screening_stage") == "full" and not analysis.get("contract_advice"):
-            return True
+    if row.id and session is not None and _has_stored_pdfs(session, row.id, stored_pdf_ids):
+        return True
+
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    if getattr(row, "sub_search_status", None) == "searching":
+        return True
+    if analysis.get("screening_stage") == "full" and not analysis.get("contract_advice"):
+        return has_attachments_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids)
+    if not workflow_is_current(analysis):
+        return has_attachments_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids)
+    if not is_full_analysis_complete(analysis, row):
+        return has_attachments_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids)
     return False
 
 

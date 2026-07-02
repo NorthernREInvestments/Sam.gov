@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-filter-respects-due-date"
+APP_BUILD_VERSION = "20260702-fast-filters"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -465,14 +465,16 @@ def get_contracts(
         from api_budget import get_usage_snapshot
         from attachment_storage import contract_ids_with_stored_pdfs
         from screening_pipeline import is_dashboard_ready_fast, is_visible_on_dashboard
+        from sam_client import min_days_from_env
         from sync import contract_to_card_dict, list_contracts
 
+        effective_min_days = min_days if min_days is not None else min_days_from_env()
         stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
 
         all_rows = list_contracts(
             session,
             naics_codes=naics_codes,
-            min_days_until_due=min_days,
+            min_days_until_due=effective_min_days,
             min_score=min_score,
             agency=agency,
             pursue_only=pursue_only,
@@ -482,57 +484,75 @@ def get_contracts(
             require_dashboard_ready=False,
             require_scrape_complete=False,
         )
-        visible_rows = [
-            r
-            for r in all_rows
-            if is_visible_on_dashboard(r, session, stored_pdf_ids=stored_pdf_ids)
-        ]
-        processing_count = sum(
-            1
-            for r in visible_rows
-            if not is_dashboard_ready_fast(r, session, stored_pdf_ids=stored_pdf_ids)
-        )
 
+        visible_rows: list = []
+        for row in all_rows:
+            if row.id in stored_pdf_ids:
+                if getattr(row, "subcontracting_limitation_check", None) != "FOUND":
+                    visible_rows.append(row)
+                continue
+            if is_visible_on_dashboard(row, session, stored_pdf_ids=stored_pdf_ids):
+                visible_rows.append(row)
+
+        row_flags: list[tuple] = []
+        for row in visible_rows:
+            ready = is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids)
+            row_flags.append((row, ready))
+
+        processing_count = sum(1 for _, ready in row_flags if not ready)
         rows = sorted(
-            visible_rows,
-            key=lambda r: (
-                0
-                if is_dashboard_ready_fast(r, session, stored_pdf_ids=stored_pdf_ids)
-                else 1,
-                -int((r.analysis or {}).get("score") or (r.analysis or {}).get("text_score") or 0),
-                r.due_date is None,
+            row_flags,
+            key=lambda item: (
+                0 if item[1] else 1,
+                -int(
+                    (item[0].analysis or {}).get("score")
+                    or (item[0].analysis or {}).get("text_score")
+                    or 0
+                ),
+                item[0].due_date is None,
             ),
         )
 
-        ready_pool = list_contracts(
-            session,
-            naics_codes=naics_codes,
-            min_days_until_due=0,
-            min_score=min_score,
-            agency=agency,
-            pursue_only=pursue_only,
-            tier=tier,
-            status_filter=status,
-            set_aside_filter=set_aside,
-            require_dashboard_ready=False,
-            require_scrape_complete=False,
-        )
-        ready_visible_at_zero = [
-            r for r in ready_pool if is_visible_on_dashboard(r, session, stored_pdf_ids=stored_pdf_ids)
-        ]
-        hidden_by_min_days = max(0, len(ready_visible_at_zero) - len(visible_rows)) if min_days else 0
+        hidden_by_min_days = 0
+        ready_eligible = len(visible_rows)
+        if effective_min_days > 0:
+            at_zero = list_contracts(
+                session,
+                naics_codes=naics_codes,
+                min_days_until_due=0,
+                min_score=min_score,
+                agency=agency,
+                pursue_only=pursue_only,
+                tier=tier,
+                status_filter=status,
+                set_aside_filter=set_aside,
+                require_dashboard_ready=False,
+                require_scrape_complete=False,
+            )
+            visible_at_zero = 0
+            for row in at_zero:
+                if row.id in stored_pdf_ids:
+                    if getattr(row, "subcontracting_limitation_check", None) != "FOUND":
+                        visible_at_zero += 1
+                    continue
+                if is_visible_on_dashboard(row, session, stored_pdf_ids=stored_pdf_ids):
+                    visible_at_zero += 1
+            ready_eligible = visible_at_zero
+            hidden_by_min_days = max(0, visible_at_zero - len(visible_rows))
 
         return {
             "count": len(rows),
             "processing_count": processing_count,
             "contracts": [
-                contract_to_card_dict(r, session, stored_pdf_ids=stored_pdf_ids) for r in rows
+                contract_to_card_dict(row, session, stored_pdf_ids=stored_pdf_ids)
+                for row, _ in rows
             ],
             "api_budget": get_usage_snapshot(),
             "filter_stats": {
-                "ready_eligible": len(ready_visible_at_zero),
+                "ready_eligible": ready_eligible,
                 "hidden_by_min_days": hidden_by_min_days,
                 "total_matching_naics": len(all_rows),
+                "min_days_applied": effective_min_days,
             },
             "autopilot": _autopilot_summary(),
         }
