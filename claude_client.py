@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 MODEL = "claude-sonnet-4-6"
+ANTHROPIC_REQUEST_TIMEOUT = float(os.getenv("ANTHROPIC_REQUEST_TIMEOUT", "120"))
 MAX_PDF_BYTES = 8_000_000  # send native PDF to Claude when under this size
 MAX_PDF_DOWNLOAD_BYTES = 40_000_000  # download and text-extract up to 40 MB
 MAX_PDFS = 12  # read every solicitation attachment (PWS, drawings, WD, etc.)
@@ -220,6 +221,10 @@ def _api_key() -> str:
     if not key:
         raise ValueError("ANTHROPIC_API_KEY is missing from .env")
     return key
+
+
+def _anthropic_client() -> Anthropic:
+    return Anthropic(api_key=_api_key(), timeout=ANTHROPIC_REQUEST_TIMEOUT)
 
 
 def _extract_json(text: str) -> dict[str, Any]:
@@ -716,16 +721,35 @@ def _contract_pdf_blocks(
     return pdf_blocks, fetched_labels
 
 
-def contract_attachment_text(contract: Any, *, max_pdfs: int | None = None) -> str:
+def contract_attachment_text(
+    contract: Any,
+    *,
+    max_pdfs: int | None = None,
+    session: Any = None,
+    db_only: bool = True,
+) -> str:
     """Plain text from every contract PDF attachment (stored in DB when available)."""
     stored = getattr(contract, "attachment_text", None)
     if stored and str(stored).strip():
         return str(stored).strip()
 
     from attachment_pipeline import extract_contract_attachment_text
+    from database import SessionLocal
 
-    result = extract_contract_attachment_text(contract, max_pdfs=max_pdfs or MAX_PDFS)
-    return result.text
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
+    try:
+        result = extract_contract_attachment_text(
+            contract,
+            session,
+            max_pdfs=max_pdfs or MAX_PDFS,
+            db_only=db_only,
+        )
+        return result.text
+    finally:
+        if own_session and session is not None:
+            session.close()
 
 
 _DRAWING_NAME_HINTS: tuple[str, ...] = (
@@ -924,7 +948,7 @@ def extract_sqft_from_drawings(contract: Any, *, db_only: bool = False, session:
     if len(content) <= 1:
         return {}
 
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -1039,7 +1063,7 @@ def extract_sub_type_for_sub_search(
         lines.append("\nNo PDFs attached — use posting text only.")
 
     content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
@@ -1076,7 +1100,7 @@ def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
         lines.append(f"\nPDFs attached: {', '.join(labels[:8])}")
 
     content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -1134,7 +1158,7 @@ def screen_contract_text(contract: Any) -> dict[str, Any]:
     from datetime import datetime, timezone
 
     text = build_text_screening_text(contract)
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=TEXT_SCREEN_MAX_TOKENS,
@@ -1247,7 +1271,7 @@ def screen_contract(
         *pdf_blocks,
     ]
 
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
@@ -1355,7 +1379,7 @@ def analyze_subcontractors(
     if scope_bits:
         summary_lines.append(f"PWS special requirements: {scope_bits}")
     summary_lines.extend(["", "Candidates:", json.dumps(candidates, indent=2, default=str)])
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -1503,7 +1527,7 @@ def extract_proposal_requirements(contract: Any) -> dict[str, Any]:
         lines.extend(["", "Attachment text excerpt:", attachment_text[:60_000]])
 
     content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=4096,
@@ -1546,7 +1570,7 @@ def generate_proposal_content(contract: Any, config: dict[str, Any]) -> tuple[st
     from proposal_service import parse_sections_from_html
 
     content, _labels = _proposal_message_content(contract, config)
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
@@ -1582,7 +1606,7 @@ def generate_subcontract_agreement(contract: Any, config: dict[str, Any]) -> str
             f"Location: {contract.location}",
         ]
     )
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
@@ -1604,7 +1628,7 @@ def regenerate_proposal_section(contract: Any, config: dict[str, Any], section_k
     title = SECTION_TITLES.get(section_key, section_key)
     preamble = f"Regenerate SECTION: {title} ({section_key})\n\n"
     content, _labels = _proposal_message_content(contract, config, preamble=preamble)
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=4096,
@@ -1618,7 +1642,7 @@ def regenerate_proposal_section(contract: Any, config: dict[str, Any], section_k
 def humanize_proposal_text(fragment: str) -> str:
     from proposal_prompt import HUMANIZE_PROMPT
 
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -1631,7 +1655,7 @@ def humanize_proposal_text(fragment: str) -> str:
 def reduce_proposal_ai_score(html: str) -> str:
     from proposal_prompt import REDUCE_AI_PROMPT
 
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
@@ -1779,7 +1803,7 @@ def generate_contract_advice(contract: Any, session) -> dict[str, Any]:
         raise ScreenBudgetExceeded()
 
     context = build_contract_advice_context(contract, session)
-    client = Anthropic(api_key=_api_key())
+    client = _anthropic_client()
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,

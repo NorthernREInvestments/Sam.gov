@@ -23,25 +23,29 @@ _lock = threading.Lock()
 _running = False
 
 
-def _is_anthropic_credits_exhausted(exc: BaseException) -> bool:
+def _is_anthropic_api_blocked(exc: BaseException) -> bool:
     msg = str(exc).lower()
-    return "credit balance" in msg and "anthropic" in msg
+    if "credit balance" in msg:
+        return True
+    if "authentication" in msg and "api" in msg:
+        return True
+    return False
 
 
-def contract_repair_reason(row: Contract) -> str | None:
+def contract_repair_reason(row: Contract, session=None) -> str | None:
     """Why this contract still needs automated repair, or None if current."""
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
 
     if not workflow_is_current(analysis):
         return "stale_workflow"
 
-    if not has_attachments_ready(row):
+    if not has_attachments_ready(row, session):
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if raw and (pdfs_expected_on_contract(row) or raw.get("descriptionText")):
             return "pending_attachments"
         return None
 
-    if needs_intake(row):
+    if needs_intake(row, session=session):
         return "needs_intake"
 
     if getattr(row, "sub_search_status", None) not in ("complete", "error"):
@@ -63,14 +67,19 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
     from intake import full_intake_contract
     from prior_contract_extract import merge_prior_contract_hints, refresh_pricing_after_pdf_extract
 
-    reason = contract_repair_reason(row)
+    reason = contract_repair_reason(row, session)
     if not reason:
         return {"notice_id": row.notice_id, "skipped": True, "reason": "current"}
+
+    if row.id:
+        fresh = session.get(Contract, row.id)
+        if fresh is not None:
+            row = fresh
 
     merge_prior_contract_hints(row)
     session.flush()
 
-    if not has_attachments_ready(row):
+    if not has_attachments_ready(row, session):
         try:
             ensure_attachments_from_database(session, row)
             session.commit()
@@ -79,7 +88,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             logger.exception("DB attachment extraction failed for %s", row.notice_id)
             return {"notice_id": row.notice_id, "error": "attachment_extract_failed"}
 
-        if not has_attachments_ready(row):
+        if not has_attachments_ready(row, session):
             return {
                 "notice_id": row.notice_id,
                 "skipped": True,
@@ -101,37 +110,48 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
 
+    # Release DB connection before long Claude calls — Railway drops idle sessions.
+    session.commit()
+    notice_id = row.notice_id
+
+    intake_session = SessionLocal()
     try:
-        result = full_intake_contract(row, session=session, force=True, db_only=True)
-        session.commit()
+        intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not intake_row:
+            return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
+
+        result = full_intake_contract(intake_row, session=intake_session, force=True, db_only=True)
+        intake_session.commit()
         result["repair_reason"] = reason
         return result
     except ScreenBudgetExceeded:
-        session.rollback()
+        intake_session.rollback()
         return {
-            "notice_id": row.notice_id,
+            "notice_id": notice_id,
             "skipped": True,
             "reason": "screen_budget",
             "repair_reason": reason,
         }
     except Exception as exc:
-        session.rollback()
-        if _is_anthropic_credits_exhausted(exc):
-            logger.error("Workflow repair halted — Anthropic API credits exhausted")
+        intake_session.rollback()
+        if _is_anthropic_api_blocked(exc):
+            logger.error("Workflow repair halted — Anthropic API unavailable: %s", exc)
             return {
-                "notice_id": row.notice_id,
+                "notice_id": notice_id,
                 "skipped": True,
-                "reason": "claude_credits",
+                "reason": "claude_api",
                 "repair_reason": reason,
                 "detail": str(exc)[:200],
             }
-        logger.exception("Workflow repair failed for %s", row.notice_id)
+        logger.exception("Workflow repair failed for %s", notice_id)
         return {
-            "notice_id": row.notice_id,
+            "notice_id": notice_id,
             "error": "intake_failed",
             "repair_reason": reason,
             "detail": str(exc)[:200],
         }
+    finally:
+        intake_session.close()
 
 
 def contracts_needing_repair(session) -> list[Contract]:
@@ -140,20 +160,35 @@ def contracts_needing_repair(session) -> list[Contract]:
 
     from sam_client import min_days_from_env, naics_from_env
 
+    from attachment_storage import has_stored_pdfs
+    from sqlalchemy.orm import defer
+
     naics_codes = naics_from_env()
     if not naics_codes:
         return []
 
     min_days = min_days_from_env()
     today = date.today()
-    rows = session.query(Contract).filter(Contract.naics_code.in_(naics_codes)).all()
+    rows = (
+        session.query(Contract)
+        .options(defer(Contract.attachment_text))
+        .filter(Contract.naics_code.in_(naics_codes))
+        .all()
+    )
     out: list[Contract] = []
     for row in rows:
         if row.due_date is not None and (row.due_date - today).days < min_days:
             continue
-        if contract_repair_reason(row):
+        if contract_repair_reason(row, session):
             out.append(row)
-    out.sort(key=lambda r: (r.due_date is None, r.due_date or date.max, r.id or 0))
+    out.sort(
+        key=lambda r: (
+            0 if has_stored_pdfs(session, r.id) else 1,
+            r.due_date is None,
+            r.due_date or date.max,
+            r.id or 0,
+        )
+    )
     return out
 
 
@@ -172,25 +207,29 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
     try:
         candidates = contracts_needing_repair(session)
         stats["queue_size"] = len(candidates)
+        repairable = [row for row in candidates if has_stored_pdfs(session, row.id)]
+        stats["attachments_pending"] = len(candidates) - len(repairable)
 
-        for row in candidates[:limit]:
-            if not can_screen() and has_attachments_ready(row):
+        for row in repairable[:limit]:
+            if not can_screen() and has_attachments_ready(row, session):
                 stats["halt_reason"] = "screen_budget"
                 break
 
-            row_session = SessionLocal()
+            prep_session = SessionLocal()
             try:
-                result = repair_contract(row_session, row)
+                result = repair_contract(prep_session, row)
             finally:
-                row_session.close()
+                prep_session.close()
 
             stats["processed"] += 1
 
-            if result.get("reason") == "claude_credits":
-                stats["halt_reason"] = "claude_credits"
+            if result.get("reason") in ("claude_api", "claude_credits"):
+                stats["halt_reason"] = result.get("reason")
                 break
             if result.get("error"):
                 stats["errors"] += 1
+                stats["halt_reason"] = result.get("error")
+                break
             elif result.get("reason") == "screen_budget":
                 stats["halt_reason"] = "screen_budget"
                 break
@@ -209,7 +248,7 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
     return stats
 
 
-def run_workflow_repair_until_idle(*, batch_size: int = 5, max_rounds: int = 200) -> dict[str, Any]:
+def run_workflow_repair_until_idle(*, batch_size: int = 5, max_rounds: int = 20) -> dict[str, Any]:
     """Keep repairing until the queue is empty or API budgets block progress."""
     totals: dict[str, Any] = {
         "rounds": 0,
@@ -234,6 +273,8 @@ def run_workflow_repair_until_idle(*, batch_size: int = 5, max_rounds: int = 200
             totals["halt_reason"] = halt
             break
         if batch.get("processed", 0) == 0 or remaining == 0:
+            break
+        if batch.get("repaired", 0) == 0 and batch.get("errors", 0) == 0 and batch.get("attachments_pending", 0) == 0:
             break
         time.sleep(0.5)
 
@@ -271,9 +312,6 @@ def start_background_workflow_repair(*, batch_size: int = 5) -> None:
             logger.info("Workflow repair pass finished: %s", totals)
 
             from intake import start_background_intake
-
-            if totals.get("remaining", 0) > 0 or totals.get("halt_reason"):
-                run_workflow_repair_until_idle(batch_size=batch_size)
 
             start_background_intake(batch_size=batch_size)
         except Exception:

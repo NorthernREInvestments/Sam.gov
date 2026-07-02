@@ -473,32 +473,50 @@ def _sync_scrape_status_with_extraction(row: Contract, extraction: AttachmentExt
     row.sam_raw = raw
 
 
+def attachment_text_length(session: Session, contract_id: int | None) -> int:
+    if not contract_id:
+        return 0
+    from sqlalchemy import func
+
+    return (
+        session.query(func.coalesce(func.length(Contract.attachment_text), 0))
+        .filter(Contract.id == contract_id)
+        .scalar()
+        or 0
+    )
+
+
 def is_attachment_extraction_ready(row: Contract, session: Session | None = None) -> bool:
     from screening_pipeline import pdfs_expected_on_contract
 
-    text = str(getattr(row, "attachment_text", None) or "").strip()
     method = getattr(row, "attachment_extraction_method", None)
+    text_len = 0
+    if row.id and session is not None:
+        text_len = attachment_text_length(session, row.id)
+    else:
+        text_len = len(str(getattr(row, "attachment_text", None) or ""))
+
     if method in ("text", "stored_pdf_reextract", "ocr_needed", "no_pdfs_expected"):
         if method == "no_pdfs_expected":
             return True
         if method == "ocr_needed":
             return True
-        return bool(text)
+        return text_len > 0
 
-    if text and method in (None, "failed"):
+    if text_len > 0 and method in (None, "failed"):
         if not pdfs_expected_on_contract(row):
             return True
         if session is not None and row.id:
-            from attachment_storage import attachment_storage_summary
+            from attachment_storage import has_stored_pdfs
 
-            if attachment_storage_summary(session, row.id)["pdf_count"] >= 1:
+            if has_stored_pdfs(session, row.id):
                 return True
-        return len(text) >= MIN_TEXT_FOR_FAR_CHECK
+        return text_len >= MIN_TEXT_FOR_FAR_CHECK
 
     if pdfs_expected_on_contract(row) and session is not None and row.id:
-        from attachment_storage import attachment_storage_summary
+        from attachment_storage import has_stored_pdfs
 
-        if attachment_storage_summary(session, row.id)["pdf_count"] < 1:
+        if not has_stored_pdfs(session, row.id):
             return False
 
     return False

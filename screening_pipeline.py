@@ -98,15 +98,18 @@ def text_score_from_analysis(analysis: dict[str, Any] | None) -> int | None:
     return None
 
 
-def has_attachments_ready(row: Contract) -> bool:
+def has_attachments_ready(row: Contract, session=None) -> bool:
     from attachment_pipeline import is_attachment_extraction_ready
     from database import SessionLocal
 
-    session = SessionLocal()
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
     try:
         return is_attachment_extraction_ready(row, session)
     finally:
-        session.close()
+        if own_session:
+            session.close()
 
 
 def qualifies_for_full_analysis(
@@ -126,10 +129,10 @@ def needs_text_screening(analysis: dict[str, Any] | None) -> bool:
     return analysis_stage(analysis) not in ("text", "full")
 
 
-def needs_intake(row: Contract, *, force: bool = False) -> bool:
+def needs_intake(row: Contract, *, force: bool = False, session=None) -> bool:
     if force:
         return True
-    if not has_attachments_ready(row):
+    if not has_attachments_ready(row, session):
         return False
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     if not workflow_is_current(analysis):

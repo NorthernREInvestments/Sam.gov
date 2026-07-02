@@ -215,7 +215,21 @@ def run_full_analysis(
     prior = prior or (row.analysis if isinstance(row.analysis, dict) else {})
     text_score = text_score_from_analysis(prior)
 
-    if session is not None:
+    if db_only:
+        if session is not None:
+            from attachment_pipeline import ensure_attachments_from_database
+
+            attachments_ok = ensure_attachments_from_database(session, row) or has_attachments_ready(row, session)
+        else:
+            s = SessionLocal()
+            try:
+                from attachment_pipeline import ensure_attachments_from_database
+
+                attachments_ok = ensure_attachments_from_database(s, row) or has_attachments_ready(row, s)
+                s.commit()
+            finally:
+                s.close()
+    elif session is not None:
         attachments_ok = ensure_contract_attachments_ready(row, session)
     else:
         s = SessionLocal()
@@ -279,7 +293,10 @@ def run_full_analysis(
             "text_score": text_score,
         }
 
-    analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=session)
+    if session is not None:
+        session.commit()
+
+    analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=None)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 
@@ -295,24 +312,31 @@ def run_full_analysis(
     from claude_client import contract_attachment_text
     from pws_fields import supplement_pws_from_pdf_text
 
+    apply_pws_extraction(row, analysis)
+
     def _persist_scope_from_pdfs() -> None:
         nonlocal analysis
         from attachment_pipeline import run_attachment_pipeline
         from database import SessionLocal
 
-        if session is not None:
-            run_attachment_pipeline(row, session, db_only=db_only)
+        stored_text = str(getattr(row, "attachment_text", None) or "").strip()
+        if stored_text:
+            full_text = stored_text
         else:
-            s = SessionLocal()
-            try:
-                run_attachment_pipeline(row, s, db_only=db_only)
-                s.commit()
-            finally:
-                s.close()
-        full_text = contract_attachment_text(row, max_pdfs=12)
+            if session is not None:
+                run_attachment_pipeline(row, session, db_only=db_only)
+            else:
+                s = SessionLocal()
+                try:
+                    run_attachment_pipeline(row, s, db_only=db_only)
+                    s.commit()
+                finally:
+                    s.close()
+            full_text = contract_attachment_text(row, max_pdfs=12, session=session, db_only=db_only)
+
         supplement_pws_from_pdf_text(analysis, full_text)
         apply_pws_extraction(row, analysis)
-        if row.square_footage is None and can_screen():
+        if row.square_footage is None and can_screen() and not db_only:
             from claude_client import try_extract_sqft_from_drawings
 
             if try_extract_sqft_from_drawings(row, analysis, db_only=db_only, session=session):
@@ -320,7 +344,8 @@ def run_full_analysis(
             record_screen_usage()
         row.analysis = analysis
 
-    _persist_scope_from_pdfs()
+    if contract_pws_missing(row):
+        _persist_scope_from_pdfs()
 
     from prior_contract_extract import (
         ensure_prior_contract_from_pdfs,
@@ -332,7 +357,8 @@ def run_full_analysis(
     merge_prior_contract_hints(row)
     if not prior_contract_hints_complete(row.analysis if isinstance(row.analysis, dict) else {}):
         try:
-            ensure_prior_contract_from_pdfs(row, session, force=False)
+            if not db_only:
+                ensure_prior_contract_from_pdfs(row, session, force=False)
         except Exception:
             pass
     else:
@@ -343,7 +369,7 @@ def run_full_analysis(
     except Exception:
         pass
 
-    if session is not None and contract_pws_missing(row):
+    if session is not None and contract_pws_missing(row) and not db_only:
         from proposal_service import ensure_solicitation_meta
 
         ensure_solicitation_meta(session, row, force=True)

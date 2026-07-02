@@ -27,6 +27,24 @@ def list_stored_attachments(session: Session, contract_id: int) -> list[Contract
     )
 
 
+def has_stored_pdfs(session: Session, contract_id: int | None) -> bool:
+    """True when PDF bytes exist in PostgreSQL — metadata only, no byte load."""
+    if not contract_id:
+        return False
+    from models import ContractAttachment
+
+    row = (
+        session.query(ContractAttachment.id)
+        .filter(
+            ContractAttachment.contract_id == contract_id,
+            ContractAttachment.file_bytes.isnot(None),
+        )
+        .limit(1)
+        .first()
+    )
+    return row is not None
+
+
 def stored_pdf_items(session: Session, contract_id: int) -> list[tuple[str, bytes]]:
     rows = list_stored_attachments(session, contract_id)
     items: list[tuple[str, bytes]] = []
