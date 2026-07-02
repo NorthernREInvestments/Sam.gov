@@ -674,13 +674,10 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
     finally:
         session.close()
 
-    from api_budget import get_usage_snapshot, intake_on_sync_enabled
-    from intake import start_background_attachment_enrich, start_background_intake
+    from autopilot_service import start_autopilot
 
     if not search_only:
-        if intake_on_sync_enabled():
-            start_background_intake()
-        start_background_attachment_enrich()
+        start_autopilot()
 
     return {
         "api_calls": 1,
@@ -846,12 +843,9 @@ def _sync_naics_code_list(
         f"Claude full analysis runs on every contract once attachments are ready (ranking score)."
     )
 
-    from api_budget import get_usage_snapshot, intake_on_sync_enabled
-    from intake import start_background_attachment_enrich, start_background_intake
+    from autopilot_service import start_autopilot
 
-    if intake_on_sync_enabled():
-        start_background_intake()
-    start_background_attachment_enrich()
+    start_autopilot()
 
     return {
         "api_calls": api_calls,
@@ -931,8 +925,6 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     from intake import (
         enrich_matching_attachments,
         intake_matching_contracts,
-        start_background_attachment_enrich,
-        start_background_intake,
     )
     from naics_labels import tiers_for_scheduled_sync
 
@@ -973,9 +965,6 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     finally:
         session.close()
 
-    start_background_attachment_enrich()
-    start_background_intake()
-
     budget = get_usage_snapshot()
     tiers = tiers_for_scheduled_sync()
     status_parts = [
@@ -1013,8 +1002,6 @@ def sync_scheduled_naics() -> dict[str, Any]:
     from intake import (
         enrich_matching_attachments,
         intake_matching_contracts,
-        start_background_attachment_enrich,
-        start_background_intake,
     )
     from naics_labels import tiers_for_scheduled_sync
     from settings_store import get_naics_codes, get_naics_codes_for_tiers
@@ -1112,9 +1099,6 @@ def sync_scheduled_naics() -> dict[str, Any]:
         pending_focus = len(_pending_scrape_notice_ids(session, focus_code)) if focus_code else 0
     finally:
         session.close()
-
-    start_background_attachment_enrich()
-    start_background_intake()
 
     budget = get_usage_snapshot()
     searched_naics = [p["naics"] for p in phases if p.get("mode") == "search"]
