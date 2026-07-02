@@ -1255,6 +1255,38 @@ function formatApiBudget(budget) {
   return `SAM.gov API: ${budget.sam_used_today}/${budget.sam_daily_limit} used (${budget.sam_remaining} left today)`;
 }
 
+async function runAttachmentSync() {
+  const btn = document.getElementById("attachments-btn");
+  if (!btn) return;
+  const saved = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Pulling PDFs…";
+  showSyncStatus("Pulling SAM.gov attachments for contracts in the database (uses remaining SAM API budget)…");
+  try {
+    const statusRes = await apiFetch("/api/sync/attachments/status");
+    const status = await statusRes.json();
+    if (status.attachments_pending === 0) {
+      showSyncStatus("All matching contracts already have attachments in the database.");
+      return;
+    }
+    const res = await apiFetch("/api/sync/attachments", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Attachment sync failed");
+    const budgetLine = data.api_budget ? ` ${formatApiBudget(data.api_budget)}` : "";
+    const pending = data.attachments_pending ?? status.attachments_pending;
+    showSyncStatus(
+      `${data.fetch_status || "Attachment pull complete."} ${pending} still pending.${budgetLine}`
+    );
+    await loadConfig();
+    await loadContracts();
+  } catch (err) {
+    if (err.message !== "Login required") showSyncStatus(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = saved;
+  }
+}
+
 async function runSync({ allNaics = false, searchOnly = false } = {}) {
   const buttonIds = ["refresh-btn"];
   const buttons = buttonIds.map((id) => document.getElementById(id)).filter(Boolean);
@@ -1496,10 +1528,10 @@ async function loadSettingsPage() {
       ? `through ${escapeHtml(attachUntil)}`
       : "?";
   const syncMode = budget.scheduled_sync_attachments_only
-    ? `<li><strong>Attachments-only mode</strong> (${attachWindow}) — 6am sync pulls PDFs for existing contracts only. Normal NAICS rotation resumes after.</li>`
+    ? `<li><strong>Attachments-only mode</strong> (${attachWindow}) — 6am sync pulls PDFs for existing contracts only.</li>`
     : attachUntil && attachFrom && new Date(attachFrom) > new Date()
-      ? `<li>Attachments-only scheduled syncs start <strong>${escapeHtml(attachFrom)}</strong> through <strong>${escapeHtml(attachUntil)}</strong>, then normal NAICS rotation resumes.</li>`
-      : "<li>Scheduled 6am sync: uses <strong>all SAM API calls each day</strong> — finish pending attachments, then search/enrich the next NAICS until the budget is exhausted</li>";
+      ? `<li>Attachments-only scheduled syncs start <strong>${escapeHtml(attachFrom)}</strong> through <strong>${escapeHtml(attachUntil)}</strong>.</li>`
+      : "<li>Scheduled 6am sync: while attachments are pending, <strong>all SAM API calls go to PDF pulls</strong> (soonest due date first). After backlog clears, normal NAICS rotation resumes.</li>";
   document.getElementById("api-budget-status").innerHTML = `
     <li><strong>SAM.gov API</strong> (search + attachment metadata): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today — <strong>${budget.sam_remaining ?? "?"} remaining</strong></li>
     <li>Browsing the dashboard and opening contracts uses <strong>only the database</strong> — SAM.gov is called by the <strong>Sync</strong> button and the scheduled 6am job only.</li>
@@ -1689,6 +1721,7 @@ document.getElementById("tab-help")?.addEventListener("click", () => showView("h
 document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("apply-filters").addEventListener("click", applyFiltersAndRefresh);
 document.getElementById("refresh-btn")?.addEventListener("click", () => runSync({ searchOnly: false }));
+document.getElementById("attachments-btn")?.addEventListener("click", () => runAttachmentSync());
 document.getElementById("modal-close")?.addEventListener("click", closeModal);
 document.getElementById("modal-backdrop")?.addEventListener("click", closeModal);
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);

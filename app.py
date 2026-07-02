@@ -64,6 +64,11 @@ def _run_background_startup() -> None:
         from autopilot_service import start_autopilot
 
         start_autopilot(trigger="deploy")
+        from api_budget import can_spend_sam
+        from intake import start_background_attachment_enrich
+
+        if can_spend_sam(1):
+            start_background_attachment_enrich()
         with _startup_lock:
             _startup_state = {"ready": True, "error": None}
         log.info("Application startup complete (%s)", APP_BUILD_VERSION)
@@ -796,6 +801,25 @@ def stored_pdf_repair_status():
     from workflow_backfill_service import get_repair_status
 
     return get_repair_status()
+
+
+@app.get("/api/sync/attachments/status")
+def attachment_sync_status_endpoint():
+    from sync import attachment_sync_status
+
+    return attachment_sync_status()
+
+
+@app.post("/api/sync/attachments")
+def run_attachment_sync():
+    try:
+        from sync import sync_attachments_only
+
+        return sync_attachments_only()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Attachment sync failed: {exc}") from exc
 
 
 @app.post("/api/sync")

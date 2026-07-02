@@ -271,7 +271,7 @@ def list_attachment_backlog(
     notice_ids: list[str] | None = None,
 ) -> list[Contract]:
     """Contracts eligible for SAM attachment pulls — not limited by dashboard due-date gates."""
-    return list_contracts(
+    rows = list_contracts(
         session,
         naics_codes=naics_codes,
         min_days_until_due=0,
@@ -280,6 +280,15 @@ def list_attachment_backlog(
         require_scrape_complete=False,
         notice_ids=notice_ids,
     )
+    today = date.today()
+    rows.sort(
+        key=lambda r: (
+            r.due_date is None,
+            (r.due_date - today).days if r.due_date else 9999,
+            -int((r.analysis or {}).get("score") or 0),
+        )
+    )
+    return rows
 
 
 def _attachment_files_summary(row: Contract, session) -> dict[str, Any]:
@@ -1030,7 +1039,55 @@ def _sync_single_naics_scheduled(naics: str) -> dict[str, Any]:
 
 
 def _count_pending_attachments(session: Session, naics_codes: list[str]) -> int:
-    return sum(len(_pending_scrape_notice_ids(session, code)) for code in naics_codes)
+    from screening_pipeline import has_attachments_ready
+
+    return sum(
+        1
+        for row in list_attachment_backlog(session, naics_codes=naics_codes)
+        if not has_attachments_ready(row, session)
+    )
+
+
+def attachment_sync_status() -> dict[str, Any]:
+    """Backlog snapshot for attachment pulls (dashboard + manual sync UI)."""
+    from api_budget import get_usage_snapshot
+    from attachment_storage import contract_ids_with_stored_pdfs
+    from screening_pipeline import has_attachments_ready
+    from settings_store import get_naics_codes
+
+    pool = get_naics_codes()
+    session = SessionLocal()
+    try:
+        total = session.query(Contract).count()
+        pdf_ids = contract_ids_with_stored_pdfs(session)
+        backlog = list_attachment_backlog(session, naics_codes=pool or None)
+        pending = [row for row in backlog if not has_attachments_ready(row, session)]
+        ready = len(backlog) - len(pending)
+        next_due = pending[0].due_date.isoformat() if pending and pending[0].due_date else None
+        return {
+            "contracts_total": total,
+            "contracts_with_stored_pdfs": len(pdf_ids),
+            "attachments_ready": ready,
+            "attachments_pending": len(pending),
+            "next_due_date": next_due,
+            "api_budget": get_usage_snapshot(),
+        }
+    finally:
+        session.close()
+
+
+def sync_attachments_only() -> dict[str, Any]:
+    """Burn remaining SAM budget on attachment pulls across all enabled NAICS."""
+    from settings_store import get_naics_codes
+
+    pool = get_naics_codes()
+    if not pool:
+        raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
+    result = _sync_scheduled_attachments_only(pool)
+    from autopilot_service import start_autopilot
+
+    start_autopilot(trigger="post-sync")
+    return result
 
 
 def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
@@ -1052,7 +1109,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     phases: list[dict[str, Any]] = []
     attachments_enriched = 0
     claude_errors = 0
-    stall_rounds = 0
+    skip_notice_ids: set[str] = set()
 
     session = SessionLocal()
     try:
@@ -1066,27 +1123,34 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
             backlog = [
                 row
                 for row in list_attachment_backlog(session, naics_codes=pool)
-                if not has_attachments_ready(row, session)
+                if row.notice_id not in skip_notice_ids
+                and not has_attachments_ready(row, session)
             ]
             if not backlog:
                 break
-            attach_result = enrich_matching_attachments(session, limit=1)
+            attach_result = enrich_matching_attachments(
+                session,
+                max_attempts=1,
+                skip_notice_ids=skip_notice_ids,
+            )
             session.commit()
         finally:
             session.close()
 
         claude_errors += sum(1 for e in attach_result.get("errors", []) if "claude" in e.lower())
+        if any("SAM.gov daily budget" in e for e in attach_result.get("errors", [])):
+            break
+
+        last_attempted = attach_result.get("last_attempted_notice_id")
+        if last_attempted:
+            skip_notice_ids.add(last_attempted)
 
         enriched = attach_result.get("attachments_enriched", 0)
-        if enriched <= 0:
-            stall_rounds += 1
-            if stall_rounds >= 3:
-                break
-            continue
-        stall_rounds = 0
-        attachments_enriched += enriched
+        if enriched > 0:
+            attachments_enriched += enriched
         phases.append({
             "mode": "enrich_and_eval",
+            "notice_id": last_attempted,
             "attachments_enriched": enriched,
             "attachments_pending": attach_result.get("attachments_pending", 0),
             "errors": attach_result.get("errors", []),
@@ -1108,8 +1172,10 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     ]
     if claude_errors:
         status_parts.append(f"{claude_errors} Claude eval error(s) — skipped those, continued queue")
-    if pending_after > 0:
+    if pending_after > 0 and scheduled_sync_attachments_only_until():
         status_parts.append(f"normal NAICS rotation resumes after {scheduled_sync_attachments_only_until()}")
+    elif pending_after > 0:
+        status_parts.append("attachments-only continues until backlog is cleared")
 
     return {
         "mode": "attachments_only",
@@ -1147,10 +1213,16 @@ def sync_scheduled_naics() -> dict[str, Any]:
     if not pool:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
 
-    if scheduled_sync_attachments_only():
-        # Pull attachments across every enabled NAICS, not just today's scheduled tier.
-        enrich_pool = get_naics_codes()
-        return _sync_scheduled_attachments_only(enrich_pool or pool)
+    enrich_pool = get_naics_codes() or pool
+    session = SessionLocal()
+    try:
+        backlog_pending = _count_pending_attachments(session, enrich_pool)
+    finally:
+        session.close()
+
+    if scheduled_sync_attachments_only() or backlog_pending > 0:
+        # Pull attachments across every enabled NAICS until backlog is cleared.
+        return _sync_scheduled_attachments_only(enrich_pool)
 
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")

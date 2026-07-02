@@ -163,6 +163,7 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
 
         enriched, ok = scrape_opportunity_complete(raw)
         if not ok:
+            row.sam_raw = enriched
             return False
 
         row.sam_raw = enriched
@@ -763,27 +764,36 @@ def enrich_matching_attachments(
     *,
     limit: int | None = None,
     naics_code: str | None = None,
+    skip_notice_ids: set[str] | frozenset[str] | None = None,
+    max_attempts: int | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
     from api_budget import claude_intake_allowed
     from screening_pipeline import has_attachments_ready
     from sync import list_attachment_backlog
 
+    skip = skip_notice_ids or set()
     candidates = [
         row
         for row in list_attachment_backlog(session, notice_ids=notice_ids)
-        if not has_attachments_ready(row)
+        if row.notice_id not in skip and not has_attachments_ready(row)
     ]
     if naics_code:
         candidates.sort(key=lambda row: 0 if row.naics_code == naics_code else 1)
 
     enriched = 0
+    attempts = 0
+    last_attempted_notice_id: str | None = None
     errors: list[str] = []
     for row in candidates:
         if limit is not None and enriched >= limit:
             break
+        if max_attempts is not None and attempts >= max_attempts:
+            break
         if has_attachments_ready(row):
             continue
+        attempts += 1
+        last_attempted_notice_id = row.notice_id
         try:
             from attachment_pipeline import ensure_attachments_from_database
 
@@ -811,6 +821,8 @@ def enrich_matching_attachments(
                         errors.append(f"{row.notice_id}: {intake_result.get('error')}")
                     else:
                         session.commit()
+            else:
+                session.commit()
         except Exception as exc:
             session.rollback()
             errors.append(f"{row.notice_id}: {exc}")
@@ -820,6 +832,8 @@ def enrich_matching_attachments(
     return {
         "attachments_enriched": enriched,
         "attachments_pending": pending,
+        "attempts": attempts,
+        "last_attempted_notice_id": last_attempted_notice_id,
         "errors": errors,
     }
 
