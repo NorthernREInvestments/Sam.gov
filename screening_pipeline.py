@@ -145,7 +145,16 @@ def needs_intake(row: Contract, *, force: bool = False, session=None) -> bool:
         return True
     if getattr(row, "sub_search_status", None) not in ("complete", "error"):
         return True
-    return qualifies_for_full_analysis(analysis, row)
+    return True
+
+
+def needs_claude_work(row: Contract, session=None) -> bool:
+    """True only when Claude can still accomplish something (contract not dashboard-ready)."""
+    if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
+        return False
+    if not has_attachments_ready(row, session):
+        return False
+    return not is_dashboard_ready(row)
 
 
 def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:

@@ -65,7 +65,7 @@ def is_anthropic_api_blocked(exc: BaseException) -> bool:
 
 
 class ClaudePipelineHalt(Exception):
-    """Raised when Claude cannot continue — caller must stop, not retry."""
+    """Legacy — errors return per-contract results; queue always continues."""
 
     def __init__(self, reason: str, *, notice_id: str | None = None, detail: str | None = None):
         self.reason = reason

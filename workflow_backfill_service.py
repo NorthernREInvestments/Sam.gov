@@ -241,10 +241,6 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
         stats["attachments_pending"] = len(candidates) - len(repairable)
 
         for row in repairable[:limit]:
-            if not can_screen() and has_attachments_ready(row, session):
-                stats["halt_reason"] = "screen_budget"
-                break
-
             prep_session = SessionLocal()
             try:
                 result = repair_contract(prep_session, row)
@@ -253,18 +249,17 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
 
             stats["processed"] += 1
 
-            if result.get("reason") in ("claude_api", "claude_credits"):
-                stats["halt_reason"] = result.get("reason")
-                from autopilot_service import record_claude_halt
-
-                record_claude_halt(result.get("reason"))
-                break
+            if result.get("reason") in ("claude_api", "claude_credits", "screen_budget"):
+                stats["errors"] += 1
+                logger.warning(
+                    "Repair skipped for %s (%s) — continuing queue",
+                    result.get("notice_id"),
+                    result.get("reason"),
+                )
+                continue
             if result.get("error"):
                 stats["errors"] += 1
                 continue
-            elif result.get("reason") == "screen_budget":
-                stats["halt_reason"] = "screen_budget"
-                break
             elif result.get("reason") == "pending_attachments":
                 stats["attachments_pending"] += 1
             elif result.get("skipped") and result.get("reason") == "current":
@@ -300,10 +295,6 @@ def run_workflow_repair_until_idle(*, batch_size: int = 5, max_rounds: int = 20)
         totals["errors"] += batch.get("errors", 0)
 
         remaining = batch.get("remaining", 0)
-        halt = batch.get("halt_reason")
-        if halt:
-            totals["halt_reason"] = halt
-            break
         if batch.get("processed", 0) == 0 or remaining == 0:
             break
         if batch.get("repaired", 0) == 0 and batch.get("errors", 0) == 0 and batch.get("attachments_pending", 0) == 0:
@@ -358,14 +349,13 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
 
     try:
         for contract_id in contract_ids:
-            if not can_screen():
-                stats["halt_reason"] = "screen_budget"
-                break
-
             prep = SessionLocal()
             try:
                 row = load_contract_for_repair(prep, contract_id)
                 if not row:
+                    continue
+                if not contract_repair_reason(row, prep):
+                    stats["skipped"] += 1
                     continue
                 result = repair_contract(prep, row)
             finally:
@@ -400,11 +390,13 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
                 )
                 continue
             if result.get("reason") in ("claude_api", "screen_budget", "claude_credits"):
-                stats["halt_reason"] = result.get("reason")
-                from autopilot_service import record_claude_halt
-
-                record_claude_halt(result.get("reason"))
-                break
+                stats["errors"] += 1
+                logger.warning(
+                    "Claude unavailable for %s (%s) — continuing with next contract",
+                    result.get("notice_id"),
+                    result.get("reason"),
+                )
+                continue
             if result.get("skipped") and result.get("reason") == "current":
                 stats["skipped"] += 1
             elif result.get("full_analysis") or result.get("screened"):

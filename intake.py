@@ -103,13 +103,17 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
     After PDFs are saved in PostgreSQL, run the full v2 pipeline from stored data only.
     Called immediately on new downloads so we never need a separate repair pass.
     """
-    from screening_pipeline import workflow_is_current
+    from api_budget import ScreenBudgetExceeded, can_screen, claude_intake_allowed, is_anthropic_api_blocked
+    from screening_pipeline import has_attachments_ready, is_full_analysis_complete, workflow_is_current
 
     if not has_attachments_ready(row, session):
         return None
-    from api_budget import ClaudePipelineHalt, ScreenBudgetExceeded, can_screen, claude_intake_allowed, is_anthropic_api_blocked
-
     if not claude_intake_allowed() or not can_screen():
+        return None
+    from workflow_backfill_service import contract_repair_reason
+
+    reason = contract_repair_reason(row, session)
+    if not reason:
         return None
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     if is_full_analysis_complete(row.analysis, row) and workflow_is_current(analysis):
@@ -117,10 +121,15 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
     try:
         return full_intake_contract(row, session=session, force=True, db_only=True)
     except ScreenBudgetExceeded:
-        raise ClaudePipelineHalt("screen_budget", notice_id=row.notice_id)
+        return {"notice_id": row.notice_id, "skipped": True, "reason": "screen_budget"}
     except Exception as exc:
         if is_anthropic_api_blocked(exc):
-            raise ClaudePipelineHalt("claude_api", notice_id=row.notice_id, detail=str(exc)[:200]) from exc
+            logger.warning("Claude eval failed for %s — continuing queue: %s", row.notice_id, str(exc)[:120])
+            return {
+                "notice_id": row.notice_id,
+                "error": "claude_api",
+                "detail": str(exc)[:200],
+            }
         raise
 
 
@@ -655,12 +664,12 @@ def intake_matching_contracts(
                 errors.append("SAM.gov daily budget reached — remaining contracts queued for later.")
                 break
             if result.get("reason") == "screen_budget":
-                errors.append("Claude budget reached — text/full analysis pending.")
-                break
+                errors.append(f"{notice_id}: Claude budget reached — skipped, continuing queue.")
+                continue
         except ScreenBudgetExceeded:
             session.rollback()
-            errors.append("Claude budget reached — remaining analysis pending.")
-            break
+            errors.append(f"{notice_id}: Claude budget reached — skipped, continuing queue.")
+            continue
         except Exception as exc:
             session.rollback()
             errors.append(f"{notice_id}: {exc}")
@@ -735,11 +744,7 @@ def start_background_intake(batch_size: int = 8) -> None:
 
                 if repair.get("processed", 0) == 0 and result.get("processed", 0) == 0:
                     break
-                if repair.get("halt_reason") == "screen_budget":
-                    break
                 if any("SAM.gov daily budget" in e for e in result.get("errors", [])):
-                    break
-                if any("Claude budget" in e for e in result.get("errors", [])):
                     break
             if total:
                 logger.info("Background intake finished: %s contract(s) processed", total)
@@ -760,7 +765,7 @@ def enrich_matching_attachments(
     naics_code: str | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
-    from api_budget import ClaudePipelineHalt, claude_intake_allowed
+    from api_budget import claude_intake_allowed
     from screening_pipeline import has_attachments_ready
     from sync import list_attachment_backlog
 
@@ -774,7 +779,6 @@ def enrich_matching_attachments(
 
     enriched = 0
     errors: list[str] = []
-    halt_reason: str | None = None
     for row in candidates:
         if limit is not None and enriched >= limit:
             break
@@ -782,20 +786,17 @@ def enrich_matching_attachments(
             continue
         try:
             from attachment_pipeline import ensure_attachments_from_database
-            from api_budget import ClaudePipelineHalt
 
             if ensure_attachments_from_database(session, row):
                 session.commit()
                 enriched += 1
                 if claude_intake_allowed():
-                    try:
-                        run_post_attachment_intake(row, session)
-                        session.commit()
-                    except ClaudePipelineHalt as exc:
+                    intake_result = run_post_attachment_intake(row, session)
+                    if intake_result and intake_result.get("error"):
                         session.rollback()
-                        halt_reason = exc.reason
-                        errors.append(f"{row.notice_id}: Claude halted ({exc.reason})")
-                        break
+                        errors.append(f"{row.notice_id}: {intake_result.get('error')}")
+                    else:
+                        session.commit()
                 continue
             if not can_spend_sam(1):
                 errors.append("SAM.gov daily budget reached — full scrape pending.")
@@ -803,11 +804,13 @@ def enrich_matching_attachments(
             if enrich_contract_attachments(row, session=session):
                 session.commit()
                 enriched += 1
-        except ClaudePipelineHalt as exc:
-            session.rollback()
-            halt_reason = exc.reason
-            errors.append(f"{row.notice_id}: Claude halted ({exc.reason})")
-            break
+                if claude_intake_allowed():
+                    intake_result = run_post_attachment_intake(row, session)
+                    if intake_result and intake_result.get("error"):
+                        session.rollback()
+                        errors.append(f"{row.notice_id}: {intake_result.get('error')}")
+                    else:
+                        session.commit()
         except Exception as exc:
             session.rollback()
             errors.append(f"{row.notice_id}: {exc}")
@@ -818,7 +821,6 @@ def enrich_matching_attachments(
         "attachments_enriched": enriched,
         "attachments_pending": pending,
         "errors": errors,
-        "halt_reason": halt_reason,
     }
 
 

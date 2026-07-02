@@ -915,14 +915,13 @@ def _count_pending_attachments(session: Session, naics_codes: list[str]) -> int:
 
 
 def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
-    """SAM attachment pulls (all daily credits) then Claude eval from stored PDFs — halt on API failure."""
+    """SAM pulls (all daily credits) + Claude eval per contract. Errors skip to the next."""
     from api_budget import (
         can_spend_sam,
         get_usage_snapshot,
         scheduled_sync_attachments_only,
         scheduled_sync_attachments_only_until,
     )
-    from autopilot_service import record_claude_halt
     from intake import enrich_matching_attachments
     from naics_labels import tiers_for_scheduled_sync
     from screening_pipeline import has_attachments_ready
@@ -933,8 +932,8 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
 
     phases: list[dict[str, Any]] = []
     attachments_enriched = 0
+    claude_errors = 0
     stall_rounds = 0
-    claude_halt: str | None = None
 
     session = SessionLocal()
     try:
@@ -942,7 +941,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     finally:
         session.close()
 
-    while can_spend_sam(1) and claude_halt is None:
+    while can_spend_sam(1):
         session = SessionLocal()
         try:
             backlog = [
@@ -957,10 +956,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
         finally:
             session.close()
 
-        if attach_result.get("halt_reason") in ("claude_api", "screen_budget"):
-            claude_halt = attach_result["halt_reason"]
-            record_claude_halt(claude_halt)
-            break
+        claude_errors += sum(1 for e in attach_result.get("errors", []) if "claude" in e.lower())
 
         enriched = attach_result.get("attachments_enriched", 0)
         if enriched <= 0:
@@ -974,6 +970,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
             "mode": "enrich_and_eval",
             "attachments_enriched": enriched,
             "attachments_pending": attach_result.get("attachments_pending", 0),
+            "errors": attach_result.get("errors", []),
         })
 
     session = SessionLocal()
@@ -990,8 +987,8 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
         f"{attachments_enriched} attachment pull(s)",
         f"{pending_before} pending before · {pending_after} still pending",
     ]
-    if claude_halt:
-        status_parts.append(f"Claude halted ({claude_halt}) — no retries until tomorrow")
+    if claude_errors:
+        status_parts.append(f"{claude_errors} Claude eval error(s) — skipped those, continued queue")
     if pending_after > 0:
         status_parts.append(f"normal NAICS rotation resumes after {scheduled_sync_attachments_only_until()}")
 
@@ -1012,7 +1009,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
         "fetch_status": ". ".join(status_parts) + ".",
         "api_budget": budget,
         "scheduled_sync_attachments_only": scheduled_sync_attachments_only(),
-        "claude_halt": claude_halt,
+        "claude_errors": claude_errors,
     }
 
 
