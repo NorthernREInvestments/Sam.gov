@@ -479,7 +479,7 @@ def reextract_attachment_text_from_db(session, contract: Any, *, max_pdfs: int =
 
     merged = "\n\n".join(parts)
     contract.attachment_text = merged
-    contract.attachment_extraction_method = "stored_pdf_reextract"
+    contract.attachment_extraction_method = "text"
     contract.attachment_text_extracted_at = datetime.now(timezone.utc)
     return True
 

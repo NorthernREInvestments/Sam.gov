@@ -182,6 +182,7 @@ def extract_contract_attachment_text(
     session: Session,
     *,
     max_pdfs: int = 12,
+    db_only: bool = False,
 ) -> AttachmentExtractionResult:
     """Download PDFs, persist bytes to PostgreSQL, extract and merge plain text."""
     from attachment_storage import (
@@ -216,8 +217,8 @@ def extract_contract_attachment_text(
     pdfs_with_text = 0
 
     try:
-        pdf_items = get_contract_pdf_bytes(session, contract, max_pdfs=max_pdfs)
-        if not pdf_items:
+        pdf_items = get_contract_pdf_bytes(session, contract, max_pdfs=max_pdfs, db_only=db_only)
+        if not pdf_items and not db_only:
             pdf_items = download_and_persist_attachments(session, contract, max_pdfs=max_pdfs)
     except Exception as exc:
         return AttachmentExtractionResult(
@@ -234,11 +235,16 @@ def extract_contract_attachment_text(
         )
 
     if not pdf_items:
+        note = (
+            "PDFs were expected but none are stored in the database."
+            if db_only
+            else "PDFs were expected but none could be downloaded or stored."
+        )
         return AttachmentExtractionResult(
             text="",
             char_count=0,
             method="failed",
-            note="PDFs were expected but none could be downloaded or stored.",
+            note=note,
             pdfs_attempted=0,
             pdfs_with_text=0,
             pdf_labels=[],
@@ -409,9 +415,10 @@ def run_attachment_pipeline(
     session: Session,
     *,
     max_pdfs: int = 12,
+    db_only: bool = False,
 ) -> dict[str, Any]:
     """Download, persist file bytes, extract text, run FAR 52.219-14 check."""
-    extraction = extract_contract_attachment_text(row, session, max_pdfs=max_pdfs)
+    extraction = extract_contract_attachment_text(row, session, max_pdfs=max_pdfs, db_only=db_only)
     check = persist_attachment_and_compliance(row, extraction)
     _sync_scrape_status_with_extraction(row, extraction)
     from prior_contract_extract import merge_prior_contract_hints
@@ -437,8 +444,12 @@ def _sync_scrape_status_with_extraction(row: Contract, extraction: AttachmentExt
     raw = dict(row.sam_raw) if isinstance(row.sam_raw, dict) else {}
     from screening_pipeline import pdfs_expected_on_contract
 
-    files_ok = extraction.files_stored > 0 or not pdfs_expected_on_contract(row)
-    if extraction.method in ("text", "ocr_needed", "no_pdfs_expected") and files_ok:
+    files_ok = (
+        extraction.files_stored > 0
+        or extraction.pdfs_attempted > 0
+        or not pdfs_expected_on_contract(row)
+    )
+    if extraction.method in ("text", "stored_pdf_reextract", "ocr_needed", "no_pdfs_expected") and files_ok:
         raw["scrapeStatus"] = "complete"
         raw.pop("scrapeError", None)
         raw["attachmentExtraction"] = {
@@ -465,15 +476,50 @@ def _sync_scrape_status_with_extraction(row: Contract, extraction: AttachmentExt
 def is_attachment_extraction_ready(row: Contract, session: Session | None = None) -> bool:
     from screening_pipeline import pdfs_expected_on_contract
 
+    text = str(getattr(row, "attachment_text", None) or "").strip()
+    method = getattr(row, "attachment_extraction_method", None)
+    if method in ("text", "stored_pdf_reextract", "ocr_needed", "no_pdfs_expected"):
+        if method == "no_pdfs_expected":
+            return True
+        if method == "ocr_needed":
+            return True
+        return bool(text)
+
+    if text and method in (None, "failed"):
+        if not pdfs_expected_on_contract(row):
+            return True
+        if session is not None and row.id:
+            from attachment_storage import attachment_storage_summary
+
+            if attachment_storage_summary(session, row.id)["pdf_count"] >= 1:
+                return True
+        return len(text) >= MIN_TEXT_FOR_FAR_CHECK
+
     if pdfs_expected_on_contract(row) and session is not None and row.id:
         from attachment_storage import attachment_storage_summary
 
         if attachment_storage_summary(session, row.id)["pdf_count"] < 1:
             return False
 
-    method = getattr(row, "attachment_extraction_method", None)
-    if method == "text":
-        return bool(row.attachment_text and len(row.attachment_text.strip()) > 0)
-    if method in ("ocr_needed", "no_pdfs_expected"):
+    return False
+
+
+def ensure_attachments_from_database(session: Session, row: Contract) -> bool:
+    """Rebuild attachment text from PostgreSQL PDF bytes — never calls SAM.gov."""
+    if is_attachment_extraction_ready(row, session):
         return True
+
+    from attachment_storage import stored_pdf_items
+
+    if row.id and stored_pdf_items(session, row.id):
+        run_attachment_pipeline(row, session, db_only=True)
+        return is_attachment_extraction_ready(row, session)
+
+    text = str(getattr(row, "attachment_text", None) or "").strip()
+    if text:
+        if not getattr(row, "attachment_extraction_method", None):
+            row.attachment_extraction_method = "text"
+        rerun_subcontracting_check(row)
+        return is_attachment_extraction_ready(row, session)
+
     return False

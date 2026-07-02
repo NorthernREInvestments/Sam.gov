@@ -174,12 +174,20 @@ def download_and_persist_attachments(
     return pdfs
 
 
-def get_contract_pdf_bytes(session: Session, contract: Contract, *, max_pdfs: int = 12) -> list[tuple[str, bytes]]:
+def get_contract_pdf_bytes(
+    session: Session,
+    contract: Contract,
+    *,
+    max_pdfs: int = 12,
+    db_only: bool = False,
+) -> list[tuple[str, bytes]]:
     """PDF bytes from DB when stored; otherwise download, persist, and return."""
     if contract.id:
         stored = stored_pdf_items(session, contract.id)
         if stored:
             return stored[:max_pdfs]
+    if db_only:
+        return []
     downloaded = download_and_persist_attachments(session, contract, max_pdfs=max_pdfs)
     if contract.id and downloaded:
         session.flush()

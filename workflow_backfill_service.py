@@ -7,7 +7,7 @@ import threading
 import time
 from typing import Any
 
-from api_budget import ScreenBudgetExceeded, can_screen, can_spend_sam
+from api_budget import ScreenBudgetExceeded, can_screen
 from database import SessionLocal
 from models import Contract
 from screening_pipeline import (
@@ -21,6 +21,11 @@ from screening_pipeline import (
 logger = logging.getLogger("govtracker.workflow_backfill")
 _lock = threading.Lock()
 _running = False
+
+
+def _is_anthropic_credits_exhausted(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return "credit balance" in msg and "anthropic" in msg
 
 
 def contract_repair_reason(row: Contract) -> str | None:
@@ -50,10 +55,12 @@ def contract_repair_reason(row: Contract) -> str | None:
 
 def repair_contract(session, row: Contract) -> dict[str, Any]:
     """
-    Run the full correct order for one contract:
-    attachments → prior pricing hints → PDF sub type → find subs → Claude rank.
+    Run the full correct order for one contract using only stored database data:
+    attachments (from PostgreSQL PDF bytes) → prior pricing hints → PDF sub type → find subs → Claude rank.
+    Never calls SAM.gov.
     """
-    from intake import enrich_contract_attachments, full_intake_contract
+    from attachment_pipeline import ensure_attachments_from_database
+    from intake import full_intake_contract
     from prior_contract_extract import merge_prior_contract_hints, refresh_pricing_after_pdf_extract
 
     reason = contract_repair_reason(row)
@@ -64,20 +71,13 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
     session.flush()
 
     if not has_attachments_ready(row):
-        if not can_spend_sam(1):
-            return {
-                "notice_id": row.notice_id,
-                "skipped": True,
-                "reason": "sam_budget",
-                "repair_reason": reason,
-            }
         try:
-            enrich_contract_attachments(row, session=session)
+            ensure_attachments_from_database(session, row)
             session.commit()
         except Exception:
             session.rollback()
-            logger.exception("Attachment enrich failed for %s", row.notice_id)
-            return {"notice_id": row.notice_id, "error": "attachment_enrich_failed"}
+            logger.exception("DB attachment extraction failed for %s", row.notice_id)
+            return {"notice_id": row.notice_id, "error": "attachment_extract_failed"}
 
         if not has_attachments_ready(row):
             return {
@@ -85,6 +85,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
                 "skipped": True,
                 "reason": "pending_attachments",
                 "repair_reason": reason,
+                "message": "No PDF bytes or attachment text stored in the database for this contract.",
             }
 
     try:
@@ -101,7 +102,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
         }
 
     try:
-        result = full_intake_contract(row, session=session, force=True)
+        result = full_intake_contract(row, session=session, force=True, db_only=True)
         session.commit()
         result["repair_reason"] = reason
         return result
@@ -115,6 +116,15 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
         }
     except Exception as exc:
         session.rollback()
+        if _is_anthropic_credits_exhausted(exc):
+            logger.error("Workflow repair halted — Anthropic API credits exhausted")
+            return {
+                "notice_id": row.notice_id,
+                "skipped": True,
+                "reason": "claude_credits",
+                "repair_reason": reason,
+                "detail": str(exc)[:200],
+            }
         logger.exception("Workflow repair failed for %s", row.notice_id)
         return {
             "notice_id": row.notice_id,
@@ -168,14 +178,19 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
                 stats["halt_reason"] = "screen_budget"
                 break
 
-            result = repair_contract(session, row)
+            row_session = SessionLocal()
+            try:
+                result = repair_contract(row_session, row)
+            finally:
+                row_session.close()
+
             stats["processed"] += 1
 
+            if result.get("reason") == "claude_credits":
+                stats["halt_reason"] = "claude_credits"
+                break
             if result.get("error"):
                 stats["errors"] += 1
-            elif result.get("reason") == "sam_budget":
-                stats["halt_reason"] = "sam_budget"
-                break
             elif result.get("reason") == "screen_budget":
                 stats["halt_reason"] = "screen_budget"
                 break
@@ -255,14 +270,7 @@ def start_background_workflow_repair(*, batch_size: int = 5) -> None:
             totals = run_workflow_repair_until_idle(batch_size=batch_size)
             logger.info("Workflow repair pass finished: %s", totals)
 
-            from intake import enrich_matching_attachments, start_background_intake
-
-            if can_spend_sam(1):
-                session = SessionLocal()
-                try:
-                    enrich_matching_attachments(session, limit=batch_size)
-                finally:
-                    session.close()
+            from intake import start_background_intake
 
             if totals.get("remaining", 0) > 0 or totals.get("halt_reason"):
                 run_workflow_repair_until_idle(batch_size=batch_size)

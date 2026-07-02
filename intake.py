@@ -81,9 +81,26 @@ def ensure_description_for_text_screen(row: Contract) -> bool:
     return True
 
 
+def ensure_contract_attachments_ready(row: Contract, session) -> bool:
+    """
+    DB-first attachment prep for every contract (new or existing).
+    Uses stored PDF bytes / attachment_text when present; SAM.gov only for first-time download.
+    """
+    from attachment_pipeline import ensure_attachments_from_database
+
+    if has_attachments_ready(row):
+        return True
+    if ensure_attachments_from_database(session, row):
+        return True
+    if not can_spend_sam(1):
+        return False
+    enrich_contract_attachments(row, session=session)
+    return has_attachments_ready(row)
+
+
 def enrich_contract_attachments(row: Contract, session=None) -> bool:
     """Load SAM scrape, download attachment bytes into PostgreSQL, extract text."""
-    from attachment_pipeline import is_attachment_extraction_ready, run_attachment_pipeline
+    from attachment_pipeline import ensure_attachments_from_database, is_attachment_extraction_ready, run_attachment_pipeline
     from database import SessionLocal
     from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_opportunity_complete
     from sam_client import normalize_opportunity
@@ -93,6 +110,10 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
         session = SessionLocal()
 
     try:
+        already_ready = is_attachment_extraction_ready(row, session)
+        if ensure_attachments_from_database(session, row):
+            return not already_ready
+
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if is_scrape_complete(raw) and is_attachment_extraction_ready(row, session):
             return False
@@ -180,6 +201,7 @@ def run_full_analysis(
     *,
     prior: dict[str, Any] | None = None,
     session=None,
+    db_only: bool = False,
 ) -> dict[str, Any]:
     """Step 2 — PIEE/attachments + PDFs + full Claude analysis."""
     from pws_fields import apply_pws_extraction, contract_pws_missing
@@ -193,19 +215,35 @@ def run_full_analysis(
     prior = prior or (row.analysis if isinstance(row.analysis, dict) else {})
     text_score = text_score_from_analysis(prior)
 
-    enriched = enrich_contract_from_sam(row)
-    if not enriched:
-        from sam_enrich import is_scrape_complete
+    if session is not None:
+        attachments_ok = ensure_contract_attachments_ready(row, session)
+    else:
+        s = SessionLocal()
+        try:
+            attachments_ok = ensure_contract_attachments_ready(row, s)
+            s.commit()
+        finally:
+            s.close()
 
-        raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-        if not is_scrape_complete(raw):
+    if not attachments_ok:
+        if not can_spend_sam(1):
             return {
                 "notice_id": row.notice_id,
                 "skipped": True,
                 "reason": "sam_budget",
-                "message": "SAM.gov daily budget reached before attachments/PIEE could be loaded.",
+                "message": "SAM.gov daily budget reached before attachments could be loaded.",
                 "text_score": text_score,
             }
+        return {
+            "notice_id": row.notice_id,
+            "skipped": True,
+            "reason": "pending_attachments",
+            "message": "No stored PDFs in the database and SAM download did not complete.",
+            "text_score": text_score,
+        }
+
+    # Attachments are in PostgreSQL — never re-fetch from SAM for Claude / scope / subs.
+    db_only = True
 
     from screening_pipeline import workflow_is_current
 
@@ -213,7 +251,7 @@ def run_full_analysis(
     subs_context: dict[str, Any] | None = None
     if session is not None:
         try:
-            ensure_sub_type_from_pdfs(row, session)
+            ensure_sub_type_from_pdfs(row, session, db_only=db_only)
             ensure_sub_search_before_screening(session, row, force=force_sub_pipeline)
             subs_context = subs_context_for_screening(session, row)
         except Exception:
@@ -221,7 +259,7 @@ def run_full_analysis(
     else:
         sub_session = SessionLocal()
         try:
-            ensure_sub_type_from_pdfs(row, sub_session)
+            ensure_sub_type_from_pdfs(row, sub_session, db_only=db_only)
             ensure_sub_search_before_screening(sub_session, row, force=force_sub_pipeline)
             subs_context = subs_context_for_screening(sub_session, row)
             sub_session.commit()
@@ -241,7 +279,7 @@ def run_full_analysis(
             "text_score": text_score,
         }
 
-    analysis = screen_contract(row, subs_context=subs_context)
+    analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=session)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 
@@ -263,11 +301,11 @@ def run_full_analysis(
         from database import SessionLocal
 
         if session is not None:
-            run_attachment_pipeline(row, session)
+            run_attachment_pipeline(row, session, db_only=db_only)
         else:
             s = SessionLocal()
             try:
-                run_attachment_pipeline(row, s)
+                run_attachment_pipeline(row, s, db_only=db_only)
                 s.commit()
             finally:
                 s.close()
@@ -277,7 +315,7 @@ def run_full_analysis(
         if row.square_footage is None and can_screen():
             from claude_client import try_extract_sqft_from_drawings
 
-            if try_extract_sqft_from_drawings(row, analysis):
+            if try_extract_sqft_from_drawings(row, analysis, db_only=db_only, session=session):
                 apply_pws_extraction(row, analysis)
             record_screen_usage()
         row.analysis = analysis
@@ -404,6 +442,7 @@ def full_intake_contract(
     session=None,
     force: bool = False,
     force_full: bool = False,
+    db_only: bool = False,
 ) -> dict[str, Any]:
     """Run full Claude analysis once SAM attachments are complete (drives dashboard ranking)."""
     from pws_fields import contract_pws_missing
@@ -426,11 +465,11 @@ def full_intake_contract(
                 "notice_id": row.notice_id,
                 "skipped": True,
                 "reason": "pending_attachments",
-                "message": "Waiting for SAM.gov attachments before Claude analysis.",
+                "message": "Waiting for attachment PDFs in the database (or first-time SAM download).",
             }
 
         analysis = row.analysis if isinstance(row.analysis, dict) else {}
-        return run_full_analysis(row, prior=analysis, session=session)
+        return run_full_analysis(row, prior=analysis, session=session, db_only=db_only)
     finally:
         _end_intake(row.notice_id)
 
@@ -450,7 +489,7 @@ def force_full_analysis_contract(row: Contract) -> dict[str, Any]:
                 analysis["text_score"] = text_score_from_analysis(text_analysis)
                 analysis["score"] = analysis["text_score"]
                 row.analysis = analysis
-        return run_full_analysis(row, prior=analysis)
+        return run_full_analysis(row, prior=analysis, session=session)
     finally:
         _end_intake(row.notice_id)
 
@@ -588,17 +627,16 @@ def start_background_intake(batch_size: int = 8) -> None:
 
             total = 0
             while intake_on_sync_enabled():
-                if can_spend_sam(1):
-                    enrich_session = SessionLocal()
-                    try:
-                        from intake import enrich_matching_attachments
-
-                        enrich_matching_attachments(enrich_session, limit=batch_size)
-                    finally:
-                        enrich_session.close()
-
                 repair = run_workflow_repair_batch(limit=batch_size)
                 total += repair.get("repaired", 0)
+
+                enrich_session = SessionLocal()
+                try:
+                    from intake import enrich_matching_attachments
+
+                    enrich_matching_attachments(enrich_session, limit=batch_size)
+                finally:
+                    enrich_session.close()
 
                 result = intake_pending(limit=batch_size, matching_only=True)
                 total += result.get("screened", 0) + result.get("text_screened", 0)
@@ -646,13 +684,18 @@ def enrich_matching_attachments(
     for row in candidates:
         if limit is not None and enriched >= limit:
             break
-        raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if has_attachments_ready(row):
             continue
-        if not can_spend_sam(1):
-            errors.append("SAM.gov daily budget reached — full scrape pending.")
-            break
         try:
+            from attachment_pipeline import ensure_attachments_from_database
+
+            if ensure_attachments_from_database(session, row):
+                session.commit()
+                enriched += 1
+                continue
+            if not can_spend_sam(1):
+                errors.append("SAM.gov daily budget reached — full scrape pending.")
+                break
             if enrich_contract_attachments(row, session=session):
                 session.commit()
                 enriched += 1

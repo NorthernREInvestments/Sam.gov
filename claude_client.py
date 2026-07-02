@@ -637,15 +637,65 @@ Rules:
 No markdown fences."""
 
 
+def _stored_db_pdf_blocks(
+    contract: Any,
+    session: Any,
+    *,
+    max_pdfs: int | None = None,
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Build Claude PDF blocks from bytes already stored in PostgreSQL — no SAM.gov calls."""
+    from attachment_storage import stored_pdf_items
+
+    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
+    if not getattr(contract, "id", None):
+        return [], [], ["No contract id — cannot load stored PDFs."]
+    items = stored_pdf_items(session, contract.id)
+    if not items:
+        return [], [], ["No PDF bytes stored in the database for this contract."]
+    return _pdf_blocks_from_bytes(items, max_pdfs=cap)
+
+
 def _contract_pdf_blocks(
     contract: Any,
     *,
     max_pdfs: int | None = None,
+    db_only: bool = False,
+    session: Any = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load PDF blocks for Claude (PIEE + SAM attachments)."""
+    """Load PDF blocks for Claude — prefer PostgreSQL bytes when stored."""
+    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
+
+    load_session = session
+    own_session = False
+    if load_session is None and getattr(contract, "id", None):
+        from database import SessionLocal
+
+        load_session = SessionLocal()
+        own_session = True
+
+    try:
+        if load_session is not None and getattr(contract, "id", None):
+            from attachment_storage import stored_pdf_items
+
+            if stored_pdf_items(load_session, contract.id):
+                blocks, labels, _ = _stored_db_pdf_blocks(contract, load_session, max_pdfs=cap)
+                return blocks, labels
+    finally:
+        if own_session and load_session is not None:
+            load_session.close()
+
+    if db_only:
+        from database import SessionLocal
+
+        fallback = SessionLocal()
+        try:
+            blocks, labels, _ = _stored_db_pdf_blocks(contract, fallback, max_pdfs=cap)
+            return blocks, labels
+        finally:
+            fallback.close()
+
     from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
 
-    cap = max_pdfs if max_pdfs is not None else MAX_PDFS
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     ensure_enriched_sam_raw(
         contract,
@@ -722,7 +772,7 @@ def is_drawing_pdf(name: str, data: bytes) -> bool:
     return False
 
 
-def iter_contract_pdf_bytes(contract: Any, *, session=None) -> list[tuple[str, bytes]]:
+def iter_contract_pdf_bytes(contract: Any, *, session=None, db_only: bool = False) -> list[tuple[str, bytes]]:
     """PDF bytes from PostgreSQL when stored; otherwise download and persist."""
     from database import SessionLocal
 
@@ -734,10 +784,13 @@ def iter_contract_pdf_bytes(contract: Any, *, session=None) -> list[tuple[str, b
         if session is not None and getattr(contract, "id", None):
             from attachment_storage import get_contract_pdf_bytes
 
-            return get_contract_pdf_bytes(session, contract)
+            return get_contract_pdf_bytes(session, contract, db_only=db_only)
     finally:
         if own_session:
             own_session.close()
+
+    if db_only:
+        return []
 
     from piee_client import fetch_piee_pdfs
 
@@ -836,12 +889,12 @@ Rules:
 - calculation_notes: one sentence on how the number was derived."""
 
 
-def extract_sqft_from_drawings(contract: Any) -> dict[str, Any]:
+def extract_sqft_from_drawings(contract: Any, *, db_only: bool = False, session: Any = None) -> dict[str, Any]:
     """
     Vision pass on floor-plan / drawing PDFs when square footage is not in text documents.
     Renders pages as images so Claude can read graphic-only plans.
     """
-    pdfs = iter_contract_pdf_bytes(contract)
+    pdfs = iter_contract_pdf_bytes(contract, session=session, db_only=db_only)
     drawing_pdfs = [(name, data) for name, data in pdfs if is_drawing_pdf(name, data)]
     if not drawing_pdfs:
         return {}
@@ -923,7 +976,13 @@ def apply_drawing_sqft_to_analysis(contract: Any, analysis: dict[str, Any], draw
     apply_pws_extraction(contract, analysis)
 
 
-def try_extract_sqft_from_drawings(contract: Any, analysis: dict[str, Any]) -> bool:
+def try_extract_sqft_from_drawings(
+    contract: Any,
+    analysis: dict[str, Any],
+    *,
+    db_only: bool = False,
+    session: Any = None,
+) -> bool:
     """Run drawing vision pass if square footage still missing. Returns True if found."""
     if getattr(contract, "square_footage", None):
         return False
@@ -931,7 +990,7 @@ def try_extract_sqft_from_drawings(contract: Any, analysis: dict[str, Any]) -> b
     if pws.get("square_footage"):
         return False
 
-    drawing = extract_sqft_from_drawings(contract)
+    drawing = extract_sqft_from_drawings(contract, db_only=db_only, session=session)
     if not drawing.get("square_footage"):
         return False
     apply_drawing_sqft_to_analysis(contract, analysis, drawing)
@@ -954,10 +1013,15 @@ Rules:
 No markdown fences."""
 
 
-def extract_sub_type_for_sub_search(contract: Any) -> dict[str, Any]:
+def extract_sub_type_for_sub_search(
+    contract: Any,
+    *,
+    db_only: bool = False,
+    session: Any = None,
+) -> dict[str, Any]:
     """Read solicitation PDFs to determine subcontractor trade before Places search."""
     sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
-    pdf_blocks, labels = _contract_pdf_blocks(contract, max_pdfs=8)
+    pdf_blocks, labels = _contract_pdf_blocks(contract, max_pdfs=8, db_only=db_only, session=session)
     lines = [
         f"Contract: {contract.title}",
         f"Agency: {contract.agency}",
@@ -1099,6 +1163,8 @@ def screen_contract(
     system_prompt: str | None = None,
     *,
     subs_context: dict[str, Any] | None = None,
+    db_only: bool = False,
+    session: Any = None,
 ) -> dict[str, Any]:
     """Step 2: full screening with PDFs, pricing intel, and complete analysis fields."""
     if system_prompt is None:
@@ -1107,47 +1173,65 @@ def screen_contract(
         system_prompt = resolve_screening_prompt()
 
     from pricing import get_contract_pricing_intel
-    from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
 
-    raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
-    ensure_enriched_sam_raw(
-        contract,
-        force=needs_attachment_refresh(raw) or not raw.get("descriptionText"),
-    )
-    if contract.sam_raw and isinstance(contract.sam_raw, dict):
-        if contract.sam_raw.get("descriptionText") and not contract.description:
-            contract.description = contract.sam_raw["descriptionText"][:8000]
-        from sam_client import normalize_opportunity
+    if not db_only:
+        from sam_enrich import ensure_enriched_sam_raw, needs_attachment_refresh
 
-        refreshed = normalize_opportunity(contract.sam_raw)
-        if refreshed.get("location"):
-            contract.location = refreshed["location"]
+        raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
+        ensure_enriched_sam_raw(
+            contract,
+            force=needs_attachment_refresh(raw) or not raw.get("descriptionText"),
+        )
+        if contract.sam_raw and isinstance(contract.sam_raw, dict):
+            if contract.sam_raw.get("descriptionText") and not contract.description:
+                contract.description = contract.sam_raw["descriptionText"][:8000]
+            from sam_client import normalize_opportunity
+
+            refreshed = normalize_opportunity(contract.sam_raw)
+            if refreshed.get("location"):
+                contract.location = refreshed["location"]
 
     pricing_intel = get_contract_pricing_intel(contract, force_refresh=False)
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
-    urls = _collect_attachment_urls(raw)
-    piee_blocks, piee_labels, piee_skipped = _piee_pdf_blocks(raw)
-    sam_blocks, sam_labels, sam_skipped = _attachment_blocks(urls)
 
-    pdf_blocks: list[dict[str, Any]] = []
-    fetched_labels: list[str] = []
-    for block, label in zip(piee_blocks + sam_blocks, piee_labels + sam_labels):
-        if len(pdf_blocks) >= MAX_PDFS:
-            break
-        pdf_blocks.append(block)
-        fetched_labels.append(label)
+    if db_only:
+        from database import SessionLocal
 
-    skipped_labels = piee_skipped + sam_skipped
-    if len(piee_blocks) + len(sam_blocks) > len(pdf_blocks):
-        skipped_labels.append(
-            f"Sent {len(pdf_blocks)} of {len(piee_blocks) + len(sam_blocks)} PDFs to Claude (SOW/solicitation prioritized)."
-        )
+        load_session = SessionLocal()
+        try:
+            pdf_blocks, fetched_labels, skipped_labels = _stored_db_pdf_blocks(
+                contract,
+                load_session,
+                max_pdfs=MAX_PDFS,
+            )
+        finally:
+            load_session.close()
+        urls: list[str] = []
+        piee_labels: list[str] = []
+    else:
+        urls = _collect_attachment_urls(raw)
+        piee_blocks, piee_labels, piee_skipped = _piee_pdf_blocks(raw)
+        sam_blocks, sam_labels, sam_skipped = _attachment_blocks(urls)
 
-    if piee_labels:
-        raw = dict(raw)
-        raw["pieeDownloaded"] = piee_labels
-        contract.sam_raw = raw
+        pdf_blocks: list[dict[str, Any]] = []
+        fetched_labels: list[str] = []
+        for block, label in zip(piee_blocks + sam_blocks, piee_labels + sam_labels):
+            if len(pdf_blocks) >= MAX_PDFS:
+                break
+            pdf_blocks.append(block)
+            fetched_labels.append(label)
+
+        skipped_labels = piee_skipped + sam_skipped
+        if len(piee_blocks) + len(sam_blocks) > len(pdf_blocks):
+            skipped_labels.append(
+                f"Sent {len(pdf_blocks)} of {len(piee_blocks) + len(sam_blocks)} PDFs to Claude (SOW/solicitation prioritized)."
+            )
+
+        if piee_labels:
+            raw = dict(raw)
+            raw["pieeDownloaded"] = piee_labels
+            contract.sam_raw = raw
 
     text = build_screening_text(
         contract,

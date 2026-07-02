@@ -278,7 +278,12 @@ def _scope_hint_for_sub_scoring(contract: Contract) -> str:
     return " ".join(part for part in parts if part).strip()[:1200] or "n/a"
 
 
-def ensure_sub_type_from_pdfs(contract: Contract, session: Session | None = None) -> str | None:
+def ensure_sub_type_from_pdfs(
+    contract: Contract,
+    session: Session | None = None,
+    *,
+    db_only: bool = False,
+) -> str | None:
     """Claude reads PDFs to set sub_type_needed before Google Places search."""
     analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
     existing = analysis.get("sub_type_needed")
@@ -302,7 +307,7 @@ def ensure_sub_type_from_pdfs(contract: Contract, session: Session | None = None
                 session.flush()
         return hint
 
-    extracted = extract_sub_type_for_sub_search(contract)
+    extracted = extract_sub_type_for_sub_search(contract, db_only=db_only, session=session)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 

@@ -416,7 +416,7 @@ def is_scrape_complete(sam_raw: dict[str, Any] | None) -> bool:
     extraction = sam_raw.get("attachmentExtraction")
     if not isinstance(extraction, dict):
         return False
-    return extraction.get("method") in ("text", "ocr_needed", "no_pdfs_expected")
+    return extraction.get("method") in ("text", "stored_pdf_reextract", "ocr_needed", "no_pdfs_expected")
 
 
 def needs_enrichment(sam_raw: dict[str, Any] | None) -> bool:
