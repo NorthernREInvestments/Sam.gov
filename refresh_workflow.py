@@ -1,52 +1,53 @@
-"""Repair all contracts through the correct workflow order (no manual force)."""
+"""Repair contracts that already have PDF bytes stored in PostgreSQL."""
 
 from __future__ import annotations
 
 import json
 import sys
+import time
 
 from dotenv import load_dotenv
 from pathlib import Path
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from workflow_backfill_service import run_workflow_repair_until_idle
+from workflow_backfill_service import repair_all_stored_attachment_contracts, repair_contract
 
 
 def main() -> None:
-    batch_size = 5
-    if "--batch" in sys.argv:
-        idx = sys.argv.index("--batch")
-        batch_size = int(sys.argv[idx + 1])
-    if "--one" in sys.argv:
-        from database import SessionLocal
-        from models import Contract, ContractAttachment
-        from workflow_backfill_service import repair_contract
-
-        session = SessionLocal()
-        try:
-            row = (
-                session.query(Contract)
-                .join(ContractAttachment, ContractAttachment.contract_id == Contract.id)
-                .filter(ContractAttachment.file_bytes.isnot(None))
-                .order_by(Contract.id)
-                .first()
-            )
-            if not row:
-                print(json.dumps({"error": "no_contract_with_stored_pdfs"}))
-                return
-            prep = SessionLocal()
-            try:
-                result = repair_contract(prep, row)
-            finally:
-                prep.close()
-            print(json.dumps(result, indent=2, default=str))
-        finally:
-            session.close()
+    if "--stored-only" in sys.argv or "--all-stored" in sys.argv:
+        print("Repairing ONLY contracts with PDF bytes already in PostgreSQL (no SAM.gov).")
+        t0 = time.time()
+        stats = repair_all_stored_attachment_contracts()
+        stats["elapsed_sec"] = round(time.time() - t0, 1)
+        print(json.dumps(stats, indent=2, default=str))
         return
 
-    totals = run_workflow_repair_until_idle(batch_size=batch_size)
-    print(json.dumps(totals, indent=2))
+    if "--one" in sys.argv:
+        from database import SessionLocal
+        from attachment_storage import contract_ids_with_stored_pdfs, load_contract_for_repair
+
+        ids = contract_ids_with_stored_pdfs()
+        if not ids:
+            print(json.dumps({"error": "no_contract_with_stored_pdfs"}))
+            return
+        prep = SessionLocal()
+        try:
+            row = load_contract_for_repair(prep, ids[0])
+            if not row:
+                print(json.dumps({"error": "contract_not_found"}))
+                return
+            print(f"Repairing {row.notice_id} (1 of {len(ids)} with stored PDFs)...")
+            t0 = time.time()
+            result = repair_contract(prep, row)
+            result["elapsed_sec"] = round(time.time() - t0, 1)
+            print(json.dumps(result, indent=2, default=str))
+        finally:
+            prep.close()
+        return
+
+    print("Usage: python refresh_workflow.py --stored-only")
+    print("       python refresh_workflow.py --one")
 
 
 if __name__ == "__main__":

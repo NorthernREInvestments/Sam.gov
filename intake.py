@@ -88,14 +88,34 @@ def ensure_contract_attachments_ready(row: Contract, session) -> bool:
     """
     from attachment_pipeline import ensure_attachments_from_database
 
-    if has_attachments_ready(row):
+    if has_attachments_ready(row, session):
         return True
     if ensure_attachments_from_database(session, row):
         return True
     if not can_spend_sam(1):
         return False
     enrich_contract_attachments(row, session=session)
-    return has_attachments_ready(row)
+    return has_attachments_ready(row, session)
+
+
+def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
+    """
+    After PDFs are saved in PostgreSQL, run the full v2 pipeline from stored data only.
+    Called immediately on new downloads so we never need a separate repair pass.
+    """
+    from screening_pipeline import workflow_is_current
+
+    if not has_attachments_ready(row, session):
+        return None
+    if not intake_on_sync_enabled() or not can_screen():
+        return None
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    if is_full_analysis_complete(row.analysis, row) and workflow_is_current(analysis):
+        return None
+    try:
+        return full_intake_contract(row, session=session, force=True, db_only=True)
+    except ScreenBudgetExceeded:
+        return {"notice_id": row.notice_id, "skipped": True, "reason": "screen_budget"}
 
 
 def enrich_contract_attachments(row: Contract, session=None) -> bool:
@@ -120,6 +140,7 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
 
         if is_sam_metadata_ready(raw) and not is_attachment_extraction_ready(row, session):
             run_attachment_pipeline(row, session)
+            run_post_attachment_intake(row, session)
             return True
 
         if is_sam_metadata_ready(raw) and is_scrape_complete(raw):
@@ -138,6 +159,7 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
             row.location = refreshed["location"]
 
         run_attachment_pipeline(row, session)
+        run_post_attachment_intake(row, session)
         return True
     finally:
         if own_session:

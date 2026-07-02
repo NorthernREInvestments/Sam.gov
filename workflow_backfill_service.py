@@ -64,6 +64,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
     Never calls SAM.gov.
     """
     from attachment_pipeline import ensure_attachments_from_database
+    from attachment_storage import load_contract_for_repair
     from intake import full_intake_contract
     from prior_contract_extract import merge_prior_contract_hints, refresh_pricing_after_pdf_extract
 
@@ -72,7 +73,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
         return {"notice_id": row.notice_id, "skipped": True, "reason": "current"}
 
     if row.id:
-        fresh = session.get(Contract, row.id)
+        fresh = load_contract_for_repair(session, row.id)
         if fresh is not None:
             row = fresh
 
@@ -116,7 +117,9 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
 
     intake_session = SessionLocal()
     try:
-        intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
+        intake_row = load_contract_for_repair(intake_session, row.id) if row.id else None
+        if not intake_row:
+            intake_row = intake_session.query(Contract).filter_by(notice_id=notice_id).first()
         if not intake_row:
             return {"notice_id": notice_id, "error": "not_found", "repair_reason": reason}
 
@@ -293,6 +296,76 @@ def run_workflow_repair_until_idle(*, batch_size: int = 5, max_rounds: int = 20)
     return totals
 
 
+def repair_all_stored_attachment_contracts() -> dict[str, Any]:
+    """
+    Repair ONLY contracts that already have PDF bytes in PostgreSQL.
+    Skips everything else — no SAM, no wasted queue scans.
+    """
+    from attachment_storage import contract_ids_with_stored_pdfs, load_contract_for_repair
+
+    contract_ids = contract_ids_with_stored_pdfs()
+    stats: dict[str, Any] = {
+        "targets": len(contract_ids),
+        "processed": 0,
+        "repaired": 0,
+        "skipped": 0,
+        "errors": 0,
+        "halt_reason": None,
+        "results": [],
+        "workflow_version": WORKFLOW_VERSION,
+    }
+
+    for contract_id in contract_ids:
+        if not can_screen():
+            stats["halt_reason"] = "screen_budget"
+            break
+
+        prep = SessionLocal()
+        try:
+            row = load_contract_for_repair(prep, contract_id)
+            if not row:
+                continue
+            result = repair_contract(prep, row)
+        finally:
+            prep.close()
+
+        stats["processed"] += 1
+        stats["results"].append(
+            {
+                "notice_id": result.get("notice_id"),
+                "skipped": result.get("skipped"),
+                "error": result.get("error"),
+                "reason": result.get("reason"),
+                "full_analysis": result.get("full_analysis"),
+            }
+        )
+
+        if result.get("error"):
+            stats["errors"] += 1
+            stats["halt_reason"] = result.get("error")
+            break
+        if result.get("reason") in ("claude_api", "screen_budget"):
+            stats["halt_reason"] = result.get("reason")
+            break
+        if result.get("skipped") and result.get("reason") == "current":
+            stats["skipped"] += 1
+        elif result.get("full_analysis") or result.get("screened"):
+            stats["repaired"] += 1
+        elif not result.get("skipped"):
+            stats["repaired"] += 1
+
+    session = SessionLocal()
+    try:
+        stored_ids = set(contract_ids)
+        stats["remaining_stored"] = sum(
+            1 for row in contracts_needing_repair(session) if row.id in stored_ids
+        )
+    finally:
+        session.close()
+    logger.info("Stored-PDF repair finished: %s", stats)
+    return stats
+
+
 def start_background_workflow_repair(*, batch_size: int = 5) -> None:
     """
     On deploy: repair all stale contracts automatically, then hand off to normal intake.
@@ -308,7 +381,7 @@ def start_background_workflow_repair(*, batch_size: int = 5) -> None:
         global _running
         try:
             logger.info("Starting automatic workflow repair (target workflow v%s)", WORKFLOW_VERSION)
-            totals = run_workflow_repair_until_idle(batch_size=batch_size)
+            totals = repair_all_stored_attachment_contracts()
             logger.info("Workflow repair pass finished: %s", totals)
 
             from intake import start_background_intake

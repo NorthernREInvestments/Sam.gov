@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from models import Contract, ContractAttachment
 
@@ -27,11 +27,41 @@ def list_stored_attachments(session: Session, contract_id: int) -> list[Contract
     )
 
 
+def load_contract_for_repair(session: Session, contract_id: int) -> Contract | None:
+    """Load contract row without pulling multi-MB attachment_text until needed."""
+    return (
+        session.query(Contract)
+        .options(defer(Contract.attachment_text))
+        .filter(Contract.id == contract_id)
+        .first()
+    )
+
+
+def contract_ids_with_stored_pdfs(session: Session | None = None) -> list[int]:
+    """Contract IDs that already have PDF bytes in PostgreSQL."""
+    from database import SessionLocal
+
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
+    try:
+        rows = (
+            session.query(ContractAttachment.contract_id)
+            .filter(ContractAttachment.file_bytes.isnot(None))
+            .distinct()
+            .order_by(ContractAttachment.contract_id)
+            .all()
+        )
+        return [row[0] for row in rows]
+    finally:
+        if own_session and session is not None:
+            session.close()
+
+
 def has_stored_pdfs(session: Session, contract_id: int | None) -> bool:
     """True when PDF bytes exist in PostgreSQL — metadata only, no byte load."""
     if not contract_id:
         return False
-    from models import ContractAttachment
 
     row = (
         session.query(ContractAttachment.id)
