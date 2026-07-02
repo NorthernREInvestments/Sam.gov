@@ -189,16 +189,30 @@ def is_dashboard_ready(row: Contract) -> bool:
     return True
 
 
-def is_visible_on_dashboard(row: Contract, session=None) -> bool:
+def _has_stored_pdfs(session, contract_id: int, cached_ids: set[int] | None = None) -> bool:
+    if cached_ids is not None:
+        return contract_id in cached_ids
+    from attachment_storage import has_stored_pdfs
+
+    return has_stored_pdfs(session, contract_id)
+
+
+def is_visible_on_dashboard(
+    row: Contract,
+    session=None,
+    *,
+    stored_pdf_ids: set[int] | None = None,
+) -> bool:
     """Show on dashboard when ready OR actively being processed by autopilot."""
     if is_dashboard_ready(row):
         return True
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False
 
-    from attachment_storage import has_stored_pdfs
-
-    if row.id and session is not None and has_stored_pdfs(session, row.id):
+    if row.id and (
+        (stored_pdf_ids is not None and row.id in stored_pdf_ids)
+        or (session is not None and _has_stored_pdfs(session, row.id, stored_pdf_ids))
+    ):
         return True
     if has_attachments_ready(row, session):
         analysis = row.analysis if isinstance(row.analysis, dict) else {}

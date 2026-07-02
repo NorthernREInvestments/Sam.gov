@@ -6,7 +6,7 @@ import json
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from database import SessionLocal
 from models import AppSetting, Contract
@@ -205,7 +205,12 @@ def list_contracts(
     today = date.today()
     agency_query = agency.strip().lower() if agency else None
 
-    rows = session.query(Contract).filter(Contract.naics_code.in_(naics_set)).all()
+    rows = (
+        session.query(Contract)
+        .options(defer(Contract.attachment_text))
+        .filter(Contract.naics_code.in_(naics_set))
+        .all()
+    )
     results: list[Contract] = []
     for row in rows:
         if id_set is not None and row.notice_id not in id_set:
@@ -278,30 +283,29 @@ def merge_stored_pdf_dashboard_contracts(
     from attachment_storage import contract_ids_with_stored_pdfs
     from screening_pipeline import is_visible_on_dashboard
 
-    stored_ids = set(contract_ids_with_stored_pdfs(session))
+    stored_ids = contract_ids_with_stored_pdfs(session)
     if not stored_ids:
         return rows
 
+    stored_pdf_ids = set(stored_ids)
     by_notice = {r.notice_id: r for r in rows}
-    pinned = list_contracts(
-        session,
-        naics_codes=naics_codes,
-        min_days_until_due=0,
-        min_score=1,
-        agency=agency,
-        pursue_only=pursue_only,
-        tier=tier,
-        status_filter=status_filter,
-        set_aside_filter=set_aside_filter,
-        require_dashboard_ready=False,
-        require_scrape_complete=False,
+
+    if naics_codes is not None and not naics_codes:
+        return list(by_notice.values())
+
+    query = (
+        session.query(Contract)
+        .options(defer(Contract.attachment_text))
+        .filter(Contract.id.in_(stored_ids))
     )
-    for row in pinned:
-        if row.id not in stored_ids:
-            continue
-        if not is_visible_on_dashboard(row, session):
+    if naics_codes is not None:
+        query = query.filter(Contract.naics_code.in_(naics_codes))
+
+    for row in query.all():
+        if not is_visible_on_dashboard(row, session, stored_pdf_ids=stored_pdf_ids):
             continue
         by_notice.setdefault(row.notice_id, row)
+
     return list(by_notice.values())
 
 

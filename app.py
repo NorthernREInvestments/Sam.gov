@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-show-pdf-contracts"
+APP_BUILD_VERSION = "20260702-pin-pdf-contracts"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -463,8 +463,11 @@ def get_contracts(
     session = SessionLocal()
     try:
         from api_budget import get_usage_snapshot
+        from attachment_storage import contract_ids_with_stored_pdfs
         from screening_pipeline import is_dashboard_ready, is_visible_on_dashboard
         from sync import list_contracts, merge_stored_pdf_dashboard_contracts
+
+        stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
 
         all_rows = list_contracts(
             session,
@@ -489,7 +492,11 @@ def get_contracts(
             status_filter=status,
             set_aside_filter=set_aside,
         )
-        visible_rows = [r for r in all_rows if is_visible_on_dashboard(r, session)]
+        visible_rows = [
+            r
+            for r in all_rows
+            if is_visible_on_dashboard(r, session, stored_pdf_ids=stored_pdf_ids)
+        ]
         processing_count = sum(1 for r in visible_rows if not is_dashboard_ready(r))
 
         rows = sorted(
