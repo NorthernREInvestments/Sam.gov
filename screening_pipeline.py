@@ -1,4 +1,4 @@
-"""Contract screening: attachments first, then full Claude analysis for ranking."""
+"""Contract screening: attachments → PDF scope/sub type → sub search → Claude ranking."""
 
 from __future__ import annotations
 
@@ -10,6 +10,20 @@ from models import Contract
 
 SKIP_LOW_SCORE_LABEL = "Skipped — Low Score"
 FAR_SUBCONTRACTING_SKIP_LABEL = "Skipped — FAR 52.219-14 Limitations on Subcontracting applies"
+WORKFLOW_VERSION = 2
+
+
+def contract_workflow_version(analysis: dict[str, Any] | None) -> int:
+    if not isinstance(analysis, dict):
+        return 0
+    try:
+        return int(analysis.get("workflow_version") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def workflow_is_current(analysis: dict[str, Any] | None) -> bool:
+    return contract_workflow_version(analysis) >= WORKFLOW_VERSION
 
 
 def full_analysis_min_score() -> int:
@@ -119,11 +133,17 @@ def needs_intake(row: Contract, *, force: bool = False) -> bool:
         return True
     if not has_attachments_ready(row):
         return False
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    if not workflow_is_current(analysis):
+        return True
     from pws_fields import contract_pws_missing
 
     if contract_pws_missing(row):
         return True
-    analysis = row.analysis if isinstance(row.analysis, dict) else None
+    if analysis.get("screening_stage") == "full" and not analysis.get("contract_advice"):
+        return True
+    if getattr(row, "sub_search_status", None) not in ("complete", "error"):
+        return True
     return qualifies_for_full_analysis(analysis, row)
 
 
@@ -147,9 +167,15 @@ def is_dashboard_ready(row: Contract) -> bool:
     if contract_pws_missing(row):
         return False
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    if not workflow_is_current(analysis):
+        return False
     if not is_full_analysis_complete(analysis, row):
         return False
     if pdfs_expected_on_contract(row) and not pdfs_read_in_analysis(analysis):
+        return False
+    if getattr(row, "sub_search_status", None) not in ("complete", "error"):
+        return False
+    if not analysis.get("contract_advice"):
         return False
     return True
 
@@ -165,6 +191,7 @@ def mark_pending_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
 
 def finalize_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
     analysis["screening_stage"] = "full"
+    analysis["workflow_version"] = WORKFLOW_VERSION
     analysis.pop("skip_reason", None)
     if analysis.get("text_score") is None and analysis.get("score") is not None:
         analysis["text_score"] = analysis.get("score")

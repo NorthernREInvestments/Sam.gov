@@ -13,6 +13,25 @@ from usaspending_client import (
 )
 
 _PRIOR_META_KEYS = ("incumbent_contractor", "previous_contract_number")
+_PRIOR_PRICING_META_KEYS = (
+    "prior_contract_tcv",
+    "prior_contract_annual",
+    "prior_contract_amount_source",
+)
+
+_TCV_RE = re.compile(
+    r"(?:Total\s+Contract\s+Value(?:\s*\(TCV\))?|TCV)\s*[:\s]*\$?\s*([\d,]+(?:\.\d{2})?)",
+    re.IGNORECASE,
+)
+_ESTIMATED_PRIOR_VALUE_RE = re.compile(
+    r"\$([\d,]+(?:\.\d{2})?).{0,80}?\bprior\s+contract\b",
+    re.IGNORECASE,
+)
+_OPTION_YEARS_RE = re.compile(r"(\d+)\s*(?:\(\d+\)\s*)?option\s*years?", re.IGNORECASE)
+_MONTH_EXTENSION_RE = re.compile(
+    r"(\d+)\s*(?:\(\d+\)\s*)?months?\s+(?:option|extension)",
+    re.IGNORECASE,
+)
 
 # Labeled fields common in federal solicitation background sections.
 _INCUMBENT_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -89,6 +108,114 @@ def _looks_like_fake_contract_number(value: str) -> bool:
     return not is_plausible_contract_number(value)
 
 
+def _parse_money_amount(value: str | None) -> float | None:
+    if not value:
+        return None
+    cleaned = re.sub(r"[^\d.]", "", str(value))
+    if not cleaned:
+        return None
+    try:
+        amount = float(cleaned)
+    except ValueError:
+        return None
+    return amount if amount > 0 else None
+
+
+def _prior_contract_pricing_section(text: str) -> str:
+    match = re.search(
+        r"(?i)(?:prior|previous|expiring|incumbent)\s+contract(?:\s+information)?",
+        text,
+    )
+    if match:
+        return text[match.start() : match.start() + 3000]
+    return text[:12000]
+
+
+def _estimate_contract_years(text: str) -> float | None:
+    section = _prior_contract_pricing_section(text)
+    years = 0.0
+    if re.search(r"\bbase\s*\+\s*", section, re.IGNORECASE) or re.search(
+        r"\bbase\s*\+\s*", text, re.IGNORECASE
+    ):
+        years += 1.0
+    elif re.search(r"\bbase\s+year\b", section, re.IGNORECASE) or re.search(
+        r"\bbase\s+year\b", text, re.IGNORECASE
+    ):
+        years += 1.0
+    option_years = [int(match) for match in _OPTION_YEARS_RE.findall(section)]
+    if not option_years:
+        option_years = [int(match) for match in _OPTION_YEARS_RE.findall(text)]
+    if option_years:
+        years += max(option_years)
+    months = sum(int(match) for match in _MONTH_EXTENSION_RE.findall(section))
+    if not months:
+        months = sum(int(match) for match in _MONTH_EXTENSION_RE.findall(text))
+    years += months / 12.0
+    if years >= 0.5:
+        return years
+    period_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*years?\s+(?:contract|period|performance)",
+        section,
+        re.IGNORECASE,
+    )
+    if period_match:
+        return float(period_match.group(1))
+    return None
+
+
+def extract_prior_pricing_from_text(text: str | None) -> dict[str, Any]:
+    """Pull predecessor TCV / estimated annual pay from solicitation PDF text."""
+    result: dict[str, Any] = {
+        "prior_contract_tcv": None,
+        "prior_contract_annual": None,
+        "prior_contract_amount_source": None,
+    }
+    if not text or not str(text).strip():
+        return result
+
+    section = _prior_contract_pricing_section(str(text))
+    tcv_match = _TCV_RE.search(section) or _TCV_RE.search(str(text))
+    if not tcv_match:
+        return result
+
+    tcv = _parse_money_amount(tcv_match.group(1))
+    if not tcv:
+        return result
+
+    result["prior_contract_tcv"] = round(tcv, 2)
+    result["prior_contract_amount_source"] = "pdf"
+    years = _estimate_contract_years(section) or _estimate_contract_years(str(text))
+    if years and years > 0:
+        result["prior_contract_annual"] = round(tcv / years, 2)
+    return result
+
+
+def parse_prior_amount_from_estimated_value(value: str | None) -> dict[str, Any]:
+    """Use Claude screening estimated_value when it cites prior-contract dollars."""
+    if not value or not str(value).strip():
+        return {}
+    text = str(value).strip()
+    if "prior contract" not in text.lower():
+        return {}
+
+    match = _ESTIMATED_PRIOR_VALUE_RE.search(text)
+    if not match:
+        return {}
+
+    tcv = _parse_money_amount(match.group(1))
+    if not tcv:
+        return {}
+
+    out: dict[str, Any] = {
+        "prior_contract_tcv": round(tcv, 2),
+        "prior_contract_amount_source": "estimated_value",
+    }
+    years = _estimate_contract_years(text)
+    if years and years > 0:
+        out["prior_contract_annual"] = round(tcv / years, 2)
+    return out
+
+
 def _clean_contract_number(value: str) -> str | None:
     raw = str(value).strip()
     normalized = normalize_contract_number(raw)
@@ -107,6 +234,9 @@ def extract_prior_contract_from_text(text: str | None) -> dict[str, Any]:
         "previous_contract_number": None,
         "extra_contract_numbers": [],
         "extraction_source": None,
+        "prior_contract_tcv": None,
+        "prior_contract_annual": None,
+        "prior_contract_amount_source": None,
     }
     if not text or not str(text).strip():
         return result
@@ -152,6 +282,11 @@ def extract_prior_contract_from_text(text: str | None) -> dict[str, Any]:
     result["extra_contract_numbers"] = numbers
     if not result["previous_contract_number"] and numbers:
         result["previous_contract_number"] = numbers[0]
+
+    pricing = extract_prior_pricing_from_text(body)
+    for key in _PRIOR_PRICING_META_KEYS:
+        if pricing.get(key) and not result.get(key):
+            result[key] = pricing[key]
 
     if result["previous_contract_number"] or result["incumbent_contractor"]:
         result["extraction_source"] = "attachment_text"
@@ -231,6 +366,10 @@ def merge_prior_contract_hints(contract: Any) -> bool:
         if not sol.get("incumbent_contractor") and extracted.get("incumbent_contractor"):
             sol["incumbent_contractor"] = extracted["incumbent_contractor"]
             changed = True
+        for key in _PRIOR_PRICING_META_KEYS:
+            if extracted.get(key) and not sol.get(key):
+                sol[key] = extracted[key]
+                changed = True
         for number in extracted.get("extra_contract_numbers") or []:
             cleaned = _clean_contract_number(str(number))
             if cleaned and cleaned not in seen_numbers:
@@ -244,6 +383,26 @@ def merge_prior_contract_hints(contract: Any) -> bool:
         sol["extra_contract_numbers"] = merged_numbers
         if not sol.get("previous_contract_number"):
             sol["previous_contract_number"] = merged_numbers[0]
+            changed = True
+
+    if not sol.get("prior_contract_tcv"):
+        estimated = parse_prior_amount_from_estimated_value(
+            getattr(contract, "estimated_value", None) or analysis.get("estimated_value")
+        )
+        if estimated:
+            for key, value in estimated.items():
+                if value and not sol.get(key):
+                    sol[key] = value
+                    changed = True
+
+    if sol.get("prior_contract_tcv") and not sol.get("prior_contract_annual"):
+        years = _estimate_contract_years(
+            f"{getattr(contract, 'estimated_value', '') or ''} {analysis.get('estimated_value') or ''}"
+        )
+        if not years and getattr(contract, "attachment_text", None):
+            years = _estimate_contract_years(str(contract.attachment_text))
+        if years:
+            sol["prior_contract_annual"] = round(float(sol["prior_contract_tcv"]) / years, 2)
             changed = True
 
     if changed:

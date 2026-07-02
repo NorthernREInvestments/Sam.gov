@@ -109,7 +109,7 @@ def search_text(
     max_results: int = 20,
 ) -> list[dict[str, Any]]:
     """Run Places Text Search (New) biased to a circle around lat/lng."""
-    radius_m = max(500.0, radius_miles * 1609.34)
+    radius_m = min(50000.0, max(500.0, radius_miles * 1609.34))
     payload = {
         "textQuery": text_query,
         "maxResultCount": max(1, min(20, max_results)),

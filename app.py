@@ -54,12 +54,13 @@ async def lifespan(app: FastAPI):
     from api_budget import intake_on_sync_enabled
 
     if intake_on_sync_enabled():
-        from intake import start_background_intake
+        from workflow_backfill_service import start_background_workflow_repair
 
-        start_background_intake()
-    from pricing_backfill_service import start_background_pricing_backfill
+        start_background_workflow_repair()
+    else:
+        from pricing_backfill_service import start_background_pricing_backfill
 
-    start_background_pricing_backfill()
+        start_background_pricing_backfill()
     yield
     stop_scheduler()
 

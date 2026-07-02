@@ -117,6 +117,10 @@ def _sub_type_is_specific(sub_type: str | None) -> bool:
     return str(sub_type).strip().lower() not in generic
 
 
+def is_specific_sub_type(sub_type: str | None) -> bool:
+    return _sub_type_is_specific(sub_type)
+
+
 def search_terms_for_sub_type(sub_type: str | None) -> list[str]:
     """Return Google Places text queries inferred from Claude sub_type text."""
     text = (sub_type or "").lower()
@@ -232,3 +236,24 @@ def classify_sub_type(sub_type_needed: str | None = None, naics_code: str | None
     if code in _NAICS_CATEGORY:
         return _NAICS_CATEGORY[code]
     return normalize_sub_type(sub_type_needed)[:64]
+
+
+def infer_sub_type_hint(
+    *,
+    title: str | None = None,
+    description: str | None = None,
+    naics_code: str | None = None,
+) -> str | None:
+    """Best-effort trade label before Claude has screened the contract."""
+    blob = f"{title or ''} {(description or '')[:1200]}".strip()
+    if blob:
+        terms = search_terms_for_sub_type(blob)
+        if terms and terms[0] != "commercial service company":
+            return terms[0]
+    naics_terms = search_terms_for_naics(naics_code)
+    if naics_terms:
+        return naics_terms[0]
+    cat = _NAICS_CATEGORY.get(str(naics_code or "").strip())
+    if cat:
+        return f"commercial {cat} contractor"
+    return None

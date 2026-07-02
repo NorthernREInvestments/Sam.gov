@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import statistics
+import time
 from collections import Counter
 from datetime import date, timedelta
 from typing import Any
@@ -630,14 +631,36 @@ def _award_search_payload(
     }
 
 
-def _post_award_search(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _post_award_search(payload: dict[str, Any], *, max_attempts: int = 4) -> list[dict[str, Any]]:
+    """POST /api/v2/search/spending_by_award/ — retries on USAspending 502/503/429."""
     url = f"{BASE_URL}{SEARCH_PATH}"
-    with httpx.Client(timeout=60.0) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
-    today = date.today()
-    return [_normalize_award(row, today) for row in (data.get("results") or [])]
+    last_error: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                response = client.post(url, json=payload)
+                if response.status_code in (502, 503, 429) and attempt < max_attempts - 1:
+                    time.sleep(min(8.0, 1.5 ** attempt))
+                    continue
+                response.raise_for_status()
+                data = response.json()
+            today = date.today()
+            return [_normalize_award(row, today) for row in (data.get("results") or [])]
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if exc.response.status_code in (502, 503, 429) and attempt < max_attempts - 1:
+                time.sleep(min(8.0, 1.5 ** attempt))
+                continue
+            raise
+        except httpx.RequestError as exc:
+            last_error = exc
+            if attempt < max_attempts - 1:
+                time.sleep(min(8.0, 1.5 ** attempt))
+                continue
+            raise
+    if last_error:
+        raise last_error
+    return []
 
 
 def _contract_period_years(start_raw: str | None, end_raw: str | None) -> float | None:
@@ -765,19 +788,29 @@ def fetch_awards_by_contract_number(contract_number: str, *, limit: int = 5) -> 
     normalized = normalize_contract_number(contract_number)
     if not normalized:
         return []
-    variants = [f'"{normalized}"', normalized]
-    compact = re.sub(r"[^A-Z0-9]", "", normalized)
-    if compact and compact not in variants:
-        variants.append(compact)
-        variants.append(f'"{compact}"')
-    payload = _award_search_payload(
-        filters={
-            "award_ids": variants,
-            "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
-        },
-        limit=limit,
-    )
-    awards = _post_award_search(payload)
+
+    # Plain PIID only — quoted strings in award_ids trigger USAspending 503 errors.
+    variants: list[str] = []
+    for value in (normalized, re.sub(r"[^A-Z0-9]", "", normalized)):
+        if value and value not in variants:
+            variants.append(value)
+
+    awards: list[dict[str, Any]] = []
+    try:
+        payload = _award_search_payload(
+            filters={
+                "award_ids": variants,
+                "award_type_codes": CONTRACT_AWARD_TYPE_CODES,
+            },
+            limit=limit,
+        )
+        awards = _post_award_search(payload)
+    except Exception:
+        awards = []
+
+    if not awards:
+        awards = fetch_awards_by_keywords([normalized], limit=limit)
+
     awards.sort(key=lambda a: a.get("award_date") or "", reverse=True)
     return awards
 

@@ -24,6 +24,8 @@ from sub_constants import (
     DEFAULT_SUB_STATUS,
     SUB_STATUSES,
     classify_sub_type,
+    infer_sub_type_hint,
+    is_specific_sub_type,
     resolve_search_terms,
 )
 from sub_contact_service import create_sub_contact_from_link, list_sub_contacts_for_contract, update_sub_contact
@@ -91,9 +93,11 @@ def _google_search_candidates(
 ) -> tuple[list[dict[str, Any]], int]:
     terms = resolve_search_terms(sub_type_needed, naics_code)
     primary_radius = settings["search_radius_miles"]
+    # Google Places caps circle radius at 50,000 meters (~31 miles).
+    max_places_radius = 31
     radii = [primary_radius]
-    if primary_radius < 50:
-        radii.append(50)
+    if primary_radius < max_places_radius:
+        radii.append(max_places_radius)
 
     merged: dict[str, dict[str, Any]] = {}
     used_radius = primary_radius
@@ -247,6 +251,160 @@ def link_sub_to_contract(
     return link
 
 
+def _resolve_sub_type_for_search(contract: Contract, *, override: str | None = None) -> str | None:
+    if override and str(override).strip():
+        return str(override).strip()
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    sub_type = analysis.get("sub_type_needed")
+    if sub_type and str(sub_type).strip():
+        return str(sub_type).strip()
+    return infer_sub_type_hint(
+        title=contract.title,
+        description=contract.description,
+        naics_code=contract.naics_code,
+    )
+
+
+def _scope_hint_for_sub_scoring(contract: Contract) -> str:
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    scope_line = analysis.get("scope_one_liner")
+    if scope_line and str(scope_line).strip():
+        return str(scope_line).strip()[:1200]
+    for key in ("plain_english_summary", "executive_summary"):
+        value = analysis.get(key)
+        if value and str(value).strip():
+            return str(value).strip()[:1200]
+    parts = [contract.title or "", (contract.description or "")[:800]]
+    return " ".join(part for part in parts if part).strip()[:1200] or "n/a"
+
+
+def ensure_sub_type_from_pdfs(contract: Contract, session: Session | None = None) -> str | None:
+    """Claude reads PDFs to set sub_type_needed before Google Places search."""
+    analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
+    existing = analysis.get("sub_type_needed")
+    if is_specific_sub_type(existing) and analysis.get("sub_type_source") == "pdf":
+        return str(existing).strip()
+
+    from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
+    from claude_client import extract_sub_type_for_sub_search
+
+    if not can_screen():
+        hint = infer_sub_type_hint(
+            title=contract.title,
+            description=contract.description,
+            naics_code=contract.naics_code,
+        )
+        if hint:
+            analysis["sub_type_needed"] = hint
+            analysis["sub_type_source"] = "naics_guess"
+            contract.analysis = analysis
+            if session is not None:
+                session.flush()
+        return hint
+
+    extracted = extract_sub_type_for_sub_search(contract)
+    if not record_screen_usage():
+        raise ScreenBudgetExceeded()
+
+    sub_type = str(extracted.get("sub_type_needed") or "").strip() or None
+    if is_specific_sub_type(sub_type):
+        analysis["sub_type_needed"] = sub_type
+        analysis["sub_type_source"] = "pdf"
+        if extracted.get("scope_one_liner"):
+            analysis["scope_one_liner"] = str(extracted["scope_one_liner"]).strip()[:500]
+        contract.analysis = analysis
+        if session is not None:
+            session.flush()
+        return sub_type
+
+    hint = infer_sub_type_hint(
+        title=contract.title,
+        description=contract.description,
+        naics_code=contract.naics_code,
+    )
+    if hint:
+        analysis["sub_type_needed"] = hint
+        analysis["sub_type_source"] = "naics_guess"
+        contract.analysis = analysis
+        if session is not None:
+            session.flush()
+    return hint or sub_type
+
+
+def subs_context_for_screening(session: Session, contract: Contract) -> dict[str, Any]:
+    """Summarize linked subs for Claude contract screening."""
+    links = (
+        session.query(ContractSub)
+        .options(joinedload(ContractSub.sub))
+        .filter_by(contract_id=contract.id)
+        .order_by(
+            ContractSub.distance_miles.asc().nulls_last(),
+            ContractSub.claude_score.desc().nulls_last(),
+        )
+        .all()
+    )
+    subs: list[dict[str, Any]] = []
+    nearest: float | None = None
+    for link in links:
+        sub = link.sub
+        if not sub:
+            continue
+        dist = float(link.distance_miles) if link.distance_miles is not None else None
+        if dist is not None and (nearest is None or dist < nearest):
+            nearest = dist
+        subs.append(
+            {
+                "business_name": sub.business_name,
+                "distance_miles": dist,
+                "rating": float(sub.rating) if sub.rating is not None else None,
+                "review_count": sub.review_count,
+                "claude_score": link.claude_score,
+                "claude_reason": link.claude_reason,
+                "sub_type": sub.sub_type,
+            }
+        )
+    settings = get_sub_search_settings()
+    radius = contract.sub_search_radius_miles or settings["search_radius_miles"]
+    within = sum(1 for row in subs if row.get("distance_miles") is not None and row["distance_miles"] <= radius)
+    return {
+        "count": len(subs),
+        "within_radius": within,
+        "nearest_miles": round(nearest, 1) if nearest is not None else None,
+        "radius_miles": radius,
+        "search_status": contract.sub_search_status,
+        "subs": subs[:12],
+    }
+
+
+def ensure_sub_search_before_screening(
+    session: Session,
+    contract: Contract,
+    *,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Run Google Places sub search synchronously before Claude ranks the contract."""
+    if not force:
+        if contract.sub_search_status == "complete":
+            existing = session.query(ContractSub).filter_by(contract_id=contract.id).count()
+            if existing > 0:
+                return {
+                    "notice_id": contract.notice_id,
+                    "skipped": True,
+                    "results_count": existing,
+                    "summary": contract_sub_summary(contract, session),
+                }
+        if contract.sub_search_status == "searching":
+            return {
+                "notice_id": contract.notice_id,
+                "skipped": True,
+                "in_progress": True,
+                "summary": contract_sub_summary(contract, session),
+            }
+
+    sub_type = _resolve_sub_type_for_search(contract)
+    return _run_places_search(session, contract, force=force, sub_type_override=sub_type)
+
+
 def find_subs_for_contract(
     notice_id: str,
     *,
@@ -285,7 +443,13 @@ def _add_existing_subs(session: Session, contract: Contract, sub_ids: list[int])
     }
 
 
-def _run_places_search(session: Session, contract: Contract, *, force: bool) -> dict[str, Any]:
+def _run_places_search(
+    session: Session,
+    contract: Contract,
+    *,
+    force: bool,
+    sub_type_override: str | None = None,
+) -> dict[str, Any]:
     if not _try_begin_search(contract.id):
         return {
             "notice_id": contract.notice_id,
@@ -304,8 +468,7 @@ def _run_places_search(session: Session, contract: Contract, *, force: bool) -> 
             ).delete(synchronize_session=False)
             session.flush()
 
-        analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
-        sub_type_needed = analysis.get("sub_type_needed")
+        sub_type_needed = _resolve_sub_type_for_search(contract, override=sub_type_override)
         settings = get_sub_search_settings()
         lat, lng, work = _contract_coords(contract)
         candidates, used_radius = _google_search_candidates(
@@ -340,7 +503,12 @@ def _run_places_search(session: Session, contract: Contract, *, force: bool) -> 
             links.append(link)
         session.flush()
 
-        claude_rows = analyze_subcontractors(contract, candidates)
+        claude_rows = analyze_subcontractors(
+            contract,
+            candidates,
+            sub_type_hint=sub_type_needed,
+            scope_hint=_scope_hint_for_sub_scoring(contract),
+        )
         claude_by_place = {row["place_id"]: row for row in claude_rows}
         for link in links:
             sub = link.sub
@@ -382,15 +550,8 @@ def start_background_sub_search(notice_id: str, *, force: bool = False) -> None:
 
 
 def maybe_auto_sub_search(contract: Contract) -> None:
-    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
-    score = analysis.get("score")
-    try:
-        score_int = int(score)
-    except (TypeError, ValueError):
-        return
-    if score_int < AUTO_SUB_SEARCH_MIN_SCORE:
-        return
-    if contract.sub_search_status == "searching":
+    """Legacy hook — subs are now searched before Claude screening in intake."""
+    if contract.sub_search_status in ("complete", "searching"):
         return
 
     session = SessionLocal()
@@ -400,10 +561,19 @@ def maybe_auto_sub_search(contract: Contract) -> None:
             .filter_by(contract_id=contract.id)
             .count()
         )
-        if existing > 0 or contract.sub_search_status == "complete":
+        if existing > 0:
             return
     finally:
         session.close()
+
+    analysis = contract.analysis if isinstance(contract.analysis, dict) else {}
+    score = analysis.get("score")
+    try:
+        score_int = int(score)
+    except (TypeError, ValueError):
+        return
+    if score_int < AUTO_SUB_SEARCH_MIN_SCORE:
+        return
 
     start_background_sub_search(contract.notice_id)
 

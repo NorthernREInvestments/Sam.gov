@@ -36,6 +36,7 @@ SCREENING RULES (for pursue/skip):
 - Security clearances or unescorted access to restricted areas required → pursue false, flag SKIP
 - Not standard service work a local subcontractor could do with basic business licensing → pursue false
 - Location must have a realistic market of subcontractors
+- The user message includes a NEARBY SUBCONTRACTORS section from a Google Places search already run for this site. Use it when scoring: no subs within 50 miles should lower the score; several strong local subs is a positive signal.
 
 SERVICE-TYPE AWARENESS — tailor sub_type_needed, red flags, and bid reasoning to the NAICS/service type:
 - Janitorial / carpet (561720, 561790, 561740): licensed commercial cleaning/janitorial subs; watch for sq ft, frequency, floor wax/carpet/window scope, wage determinations, bonded crews, after-hours access.
@@ -449,6 +450,42 @@ def _format_document_access_block(raw: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _format_subs_block(subs_context: dict[str, Any] | None) -> str:
+    ctx = subs_context if isinstance(subs_context, dict) else {}
+    count = int(ctx.get("count") or 0)
+    radius = ctx.get("radius_miles")
+    nearest = ctx.get("nearest_miles")
+    within = int(ctx.get("within_radius") or 0)
+    if count <= 0:
+        return (
+            "NEARBY SUBCONTRACTORS (Google Places pre-search):\n"
+            f"No qualifying businesses found within {radius or 'the configured'} miles. "
+            "Treat staffing as difficult when scoring."
+        )
+    lines = [
+        "NEARBY SUBCONTRACTORS (Google Places pre-search — already run before this screening):",
+        f"Found {count} candidate(s); {within} within {radius} miles.",
+    ]
+    if nearest is not None:
+        lines.append(f"Nearest sub: {nearest} miles away.")
+    lines.append("Candidates:")
+    for row in ctx.get("subs") or []:
+        name = row.get("business_name") or "Unknown"
+        dist = row.get("distance_miles")
+        rating = row.get("rating")
+        reviews = row.get("review_count")
+        score = row.get("claude_score")
+        reason = row.get("claude_reason")
+        dist_part = f"{dist} mi" if dist is not None else "distance unknown"
+        rating_part = f"{rating}★ ({reviews or 0} reviews)" if rating is not None else "no rating"
+        fit_part = f"fit score {score}/10" if score is not None else "fit not scored"
+        line = f"- {name}: {dist_part}, {rating_part}, {fit_part}"
+        if reason:
+            line += f" — {reason}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def build_screening_text(
     contract: Any,
     attachment_count: int,
@@ -456,6 +493,7 @@ def build_screening_text(
     *,
     attachment_urls: list[str] | None = None,
     pdfs_skipped: list[str] | None = None,
+    subs_context: dict[str, Any] | None = None,
 ) -> str:
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}
     description = (
@@ -500,6 +538,8 @@ def build_screening_text(
         str(description)[:15000],
         "",
         _format_pricing_block(pricing_intel),
+        "",
+        _format_subs_block(subs_context),
     ])
     if urls:
         lines.extend(["", "All linked URLs from posting:"])
@@ -898,6 +938,61 @@ def try_extract_sqft_from_drawings(contract: Any, analysis: dict[str, Any]) -> b
     return True
 
 
+SUB_TYPE_SCOPE_PROMPT = """You read federal solicitation PDFs to determine what local subcontractor trade is required to perform this contract.
+
+Return JSON only:
+{
+  "sub_type_needed": "string — exact trade, e.g. licensed commercial janitorial contractor, commercial landscaping crew, licensed HVAC maintenance contractor",
+  "scope_one_liner": "string — one plain-English sentence describing the work"
+}
+
+Rules:
+- Derive from PWS / solicitation scope — NOT from NAICS code alone
+- NAICS 561210 Facilities Support is often building/trades maintenance — read the SOW; do NOT default to janitorial unless custodial cleaning is the actual scope
+- Never label janitorial/cleaning unless the documents describe custodial cleaning work
+- Be specific enough to search Google Places for the right trade
+No markdown fences."""
+
+
+def extract_sub_type_for_sub_search(contract: Any) -> dict[str, Any]:
+    """Read solicitation PDFs to determine subcontractor trade before Places search."""
+    sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
+    pdf_blocks, labels = _contract_pdf_blocks(contract, max_pdfs=8)
+    lines = [
+        f"Contract: {contract.title}",
+        f"Agency: {contract.agency}",
+        f"Location: {contract.location}",
+        f"NAICS: {contract.naics_code}",
+        f"SAM notice ID: {contract.notice_id}",
+        "",
+        "Determine the exact subcontractor trade needed to perform this contract.",
+        "SAM posting excerpt:",
+        (contract.description or sam.get("descriptionText") or "")[:4000],
+    ]
+    if labels:
+        lines.append(f"\nPDFs attached: {', '.join(labels[:8])}")
+    elif not pdf_blocks:
+        lines.append("\nNo PDFs attached — use posting text only.")
+
+    content: list[dict[str, Any]] = [{"type": "text", "text": "\n".join(lines)}, *pdf_blocks]
+    client = Anthropic(api_key=_api_key())
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=SUB_TYPE_SCOPE_PROMPT,
+        messages=[{"role": "user", "content": content}],
+    )
+    text = response.content[0].text if response.content else "{}"
+    data = _extract_json(text)
+    if not isinstance(data, dict):
+        return {}
+    return {
+        k: v
+        for k, v in data.items()
+        if k in ("sub_type_needed", "scope_one_liner") and v is not None and str(v).strip()
+    }
+
+
 def extract_solicitation_meta(contract: Any) -> dict[str, Any]:
     """Extract CO and submission fields from solicitation PDFs when not already in analysis."""
     sam = contract.sam_raw if isinstance(getattr(contract, "sam_raw", None), dict) else {}
@@ -999,7 +1094,12 @@ def screen_contract_text(contract: Any) -> dict[str, Any]:
     return analysis
 
 
-def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str, Any]:
+def screen_contract(
+    contract: Any,
+    system_prompt: str | None = None,
+    *,
+    subs_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Step 2: full screening with PDFs, pricing intel, and complete analysis fields."""
     if system_prompt is None:
         from settings_store import resolve_screening_prompt
@@ -1055,6 +1155,7 @@ def screen_contract(contract: Any, system_prompt: str | None = None) -> dict[str
         pricing_intel,
         attachment_urls=urls,
         pdfs_skipped=skipped_labels,
+        subs_context=subs_context,
     )
 
     content: list[dict[str, Any]] = [
@@ -1139,6 +1240,9 @@ Include every place_id from the input list. No markdown."""
 def analyze_subcontractors(
     contract: Any,
     candidates: list[dict[str, Any]],
+    *,
+    sub_type_hint: str | None = None,
+    scope_hint: str | None = None,
 ) -> list[dict[str, Any]]:
     """Claude scores each Google Places subcontractor candidate."""
     if not candidates:
@@ -1161,8 +1265,8 @@ def analyze_subcontractors(
         f"Contract: {contract.title}",
         f"NAICS: {contract.naics_code}",
         f"Location: {work.get('label') or contract.location}",
-        f"Sub type needed: {analysis.get('sub_type_needed') or 'unknown'}",
-        f"Scope summary: {analysis.get('plain_english_summary') or analysis.get('executive_summary') or 'n/a'}",
+        f"Sub type needed: {sub_type_hint or analysis.get('sub_type_needed') or 'unknown'}",
+        f"Scope summary: {scope_hint or analysis.get('plain_english_summary') or analysis.get('executive_summary') or 'n/a'}",
     ]
     if scope_bits:
         summary_lines.append(f"PWS special requirements: {scope_bits}")
@@ -1502,7 +1606,7 @@ def normalize_contract_advice(raw: Any) -> dict[str, Any] | None:
 def build_contract_advice_context(contract: Any, session) -> str:
     from datetime import date
 
-    from display_format import pricing_card_display
+    from display_format import prior_hints_from_contract, pricing_card_display
     from proximity_scoring import proximity_context
     from proposal_defaults import resolve_contract_margin
 
@@ -1539,7 +1643,11 @@ def build_contract_advice_context(contract: Any, session) -> str:
     if red_flags:
         lines.append("Red flags: " + "; ".join(str(f) for f in red_flags[:6]))
 
-    pricing_line = pricing_card_display(intel, has_work_state=True).get("line")
+    pricing_line = pricing_card_display(
+        intel,
+        has_work_state=True,
+        prior_hints=prior_hints_from_contract(contract),
+    ).get("line")
     if pricing_line:
         lines.extend(["", f"Pricing card: {pricing_line}"])
 

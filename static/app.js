@@ -561,10 +561,26 @@ function compactHistoryLine(c) {
     return { kind: "unknown", label: null, line: c.pricing_display };
   }
   const intel = c.pricing_intel;
+  const sol = c.analysis?.solicitation_meta || {};
+  const pdfAnnual = sol.prior_contract_annual;
+  const pdfTcv = sol.prior_contract_tcv;
+  const incumbent = shortCompanyName(sol.incumbent_contractor);
+  if (pdfAnnual && incumbent) {
+    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${shortMoney(pdfAnnual)}/yr · ${incumbent}` };
+  }
+  if (pdfAnnual) {
+    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${shortMoney(pdfAnnual)}/yr` };
+  }
+  if (pdfTcv && incumbent) {
+    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${shortMoney(pdfTcv)} total · ${incumbent}` };
+  }
+  if (pdfTcv) {
+    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${shortMoney(pdfTcv)} total` };
+  }
   if (intel && !intel.error) {
     const pred = intel.predecessor_award;
     if (pred?.is_prior_contract) {
-      const annual = pred.annual_amount || pred.total_value;
+      const annual = pred.annual_amount || pred.recent_annual_amount || pred.total_value;
       const name = shortCompanyName(pred.recipient_name);
       const label = {
         same_site_match: "Prior (same address)",
@@ -575,17 +591,13 @@ function compactHistoryLine(c) {
         return { kind: "prior_contract", label, line: `${label}: ${shortMoney(annual)}/yr · ${name}` };
       }
     }
-    const avg = intel.average_annual_award;
-    const count = Number(intel.awards_count || 0);
-    const state = intel.state_code || intel.state_name;
-    if (avg && count > 0) {
-      const scope = state ? `${count} in ${state}` : `${count} contracts`;
-      return { kind: "regional_average", label: "Regional avg", line: `Regional avg: ${shortMoney(avg)}/yr (${scope})` };
-    }
   }
-  const hasState = Boolean(c.work_location?.state_code);
-  if (hasState) return { kind: "first_at_location", line: "First contract at this location" };
-  return { kind: "none", line: "No history found" };
+  const prevNum = sol.manual_previous_contract_number || sol.previous_contract_number;
+  if (prevNum || incumbent) {
+    const parts = [prevNum, incumbent].filter(Boolean);
+    return { kind: "prior_contract", label: "Prior contract", line: `Prior contract: ${parts.join(" · ")} — amount pending` };
+  }
+  return { kind: "none", line: "No prior contract on file" };
 }
 
 function renderHistoryLine(c) {

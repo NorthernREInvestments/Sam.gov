@@ -184,7 +184,11 @@ def run_full_analysis(
     """Step 2 — PIEE/attachments + PDFs + full Claude analysis."""
     from pws_fields import apply_pws_extraction, contract_pws_missing
     from screening_pipeline import pdfs_expected_on_contract, pdfs_read_in_analysis
-    from sub_finder import maybe_auto_sub_search
+    from sub_finder import (
+        ensure_sub_search_before_screening,
+        ensure_sub_type_from_pdfs,
+        subs_context_for_screening,
+    )
 
     prior = prior or (row.analysis if isinstance(row.analysis, dict) else {})
     text_score = text_score_from_analysis(prior)
@@ -203,6 +207,30 @@ def run_full_analysis(
                 "text_score": text_score,
             }
 
+    from screening_pipeline import workflow_is_current
+
+    force_sub_pipeline = not workflow_is_current(prior)
+    subs_context: dict[str, Any] | None = None
+    if session is not None:
+        try:
+            ensure_sub_type_from_pdfs(row, session)
+            ensure_sub_search_before_screening(session, row, force=force_sub_pipeline)
+            subs_context = subs_context_for_screening(session, row)
+        except Exception:
+            logger.exception("Sub pipeline before screening failed for %s", row.notice_id)
+    else:
+        sub_session = SessionLocal()
+        try:
+            ensure_sub_type_from_pdfs(row, sub_session)
+            ensure_sub_search_before_screening(sub_session, row, force=force_sub_pipeline)
+            subs_context = subs_context_for_screening(sub_session, row)
+            sub_session.commit()
+        except Exception:
+            logger.exception("Sub pipeline before screening failed for %s", row.notice_id)
+            sub_session.rollback()
+        finally:
+            sub_session.close()
+
     if not can_screen():
         return {
             "notice_id": row.notice_id,
@@ -213,7 +241,7 @@ def run_full_analysis(
             "text_score": text_score,
         }
 
-    analysis = screen_contract(row)
+    analysis = screen_contract(row, subs_context=subs_context)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 
@@ -311,9 +339,6 @@ def run_full_analysis(
 
         apply_submission_package(row, session, analysis=analysis)
 
-    if full_done:
-        maybe_auto_sub_search(row)
-
     return {
         "notice_id": row.notice_id,
         "skipped": False,
@@ -383,7 +408,11 @@ def full_intake_contract(
     """Run full Claude analysis once SAM attachments are complete (drives dashboard ranking)."""
     from pws_fields import contract_pws_missing
 
-    if is_full_analysis_complete(row.analysis, row) and not force and not force_full:
+    from screening_pipeline import workflow_is_current
+
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    stale_workflow = not workflow_is_current(analysis)
+    if is_full_analysis_complete(row.analysis, row) and not force and not force_full and not stale_workflow:
         if session is not None and contract_pws_missing(row):
             return run_scope_extraction(row, session)
         return {"notice_id": row.notice_id, "skipped": True, "reason": "already_analyzed"}
@@ -554,11 +583,29 @@ def start_background_intake(batch_size: int = 8) -> None:
     def _run() -> None:
         global _background_running
         try:
+            from api_budget import can_spend_sam
+            from workflow_backfill_service import run_workflow_repair_batch
+
             total = 0
             while intake_on_sync_enabled():
+                if can_spend_sam(1):
+                    enrich_session = SessionLocal()
+                    try:
+                        from intake import enrich_matching_attachments
+
+                        enrich_matching_attachments(enrich_session, limit=batch_size)
+                    finally:
+                        enrich_session.close()
+
+                repair = run_workflow_repair_batch(limit=batch_size)
+                total += repair.get("repaired", 0)
+
                 result = intake_pending(limit=batch_size, matching_only=True)
                 total += result.get("screened", 0) + result.get("text_screened", 0)
-                if result.get("processed", 0) == 0:
+
+                if repair.get("processed", 0) == 0 and result.get("processed", 0) == 0:
+                    break
+                if repair.get("halt_reason") == "screen_budget":
                     break
                 if any("SAM.gov daily budget" in e for e in result.get("errors", [])):
                     break

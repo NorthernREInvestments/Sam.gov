@@ -164,6 +164,14 @@ def compute_card_pipeline(contract: Contract, session) -> dict[str, Any]:
             "state": "done" if is_scrape_complete(raw) else "pending",
         },
         {
+            "key": "subs",
+            "label": "Find subs",
+            "state": "done"
+            if contract.sub_search_status in ("complete", "error")
+            or analysis.get("screening_stage") == "full"
+            else "pending",
+        },
+        {
             "key": "analysis",
             "label": "Claude analysis",
             "state": "done" if analysis.get("screening_stage") == "full" else "pending",

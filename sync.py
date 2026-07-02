@@ -348,6 +348,7 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             format_service_type_display,
             format_work_address_display,
             format_work_location_short,
+            prior_hints_from_contract,
             pricing_card_display,
             pricing_card_label,
         )
@@ -361,13 +362,16 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
             work,
         )
         work_address_display = format_work_address_display(row)
+        prior_hints = prior_hints_from_contract(row)
         pricing_history = pricing_card_display(
             row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
             has_work_state=bool(work.get("state_code")),
+            prior_hints=prior_hints,
         )
         pricing_display = pricing_history.get("line") or pricing_card_label(
             row.pricing_intel if isinstance(row.pricing_intel, dict) else None,
             has_work_state=bool(work.get("state_code")),
+            prior_hints=prior_hints,
         )
         from proximity_scoring import proximity_context
 

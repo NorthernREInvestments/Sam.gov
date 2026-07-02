@@ -164,11 +164,59 @@ def format_work_address_display(contract: Any) -> str | None:
     return street
 
 
+def prior_hints_from_contract(contract: Any) -> dict[str, Any]:
+    """Prior-contract dollars and names from PDF extraction / solicitation meta."""
+    from prior_contract_extract import _clean_contract_number, _clean_incumbent_name
+
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
+    hints: dict[str, Any] = {
+        "previous_contract_number": _clean_contract_number(
+            str(
+                sol.get("manual_previous_contract_number")
+                or sol.get("previous_contract_number")
+                or analysis.get("previous_contract_number")
+                or ""
+            )
+        ),
+        "incumbent_contractor": _clean_incumbent_name(
+            str(sol.get("incumbent_contractor") or analysis.get("incumbent_contractor") or "")
+        ),
+        "tcv": sol.get("prior_contract_tcv"),
+        "annual": sol.get("prior_contract_annual"),
+        "amount_source": sol.get("prior_contract_amount_source"),
+    }
+    if hints["tcv"] or hints["annual"]:
+        if not hints["annual"] and hints["tcv"]:
+            from prior_contract_extract import _estimate_contract_years
+
+            years = _estimate_contract_years(
+                f"{getattr(contract, 'estimated_value', '') or ''} {analysis.get('estimated_value') or ''}"
+            )
+            if not years:
+                years = _estimate_contract_years(getattr(contract, "attachment_text", None) or "")
+            if years:
+                hints["annual"] = round(float(hints["tcv"]) / years, 2)
+        return hints
+
+    from prior_contract_extract import parse_prior_amount_from_estimated_value
+
+    estimated = parse_prior_amount_from_estimated_value(
+        getattr(contract, "estimated_value", None) or analysis.get("estimated_value")
+    )
+    if estimated.get("prior_contract_tcv"):
+        hints["tcv"] = estimated["prior_contract_tcv"]
+        hints["annual"] = estimated.get("prior_contract_annual")
+        hints["amount_source"] = estimated.get("prior_contract_amount_source")
+    return hints
+
+
 def pricing_card_display(
     pricing_intel: dict[str, Any] | None,
     *,
     has_work_state: bool = False,
-) -> dict[str, str | int | None]:
+    prior_hints: dict[str, Any] | None = None,
+) -> dict[str, str | int | float | None]:
     """Structured price line for dashboard cards — separates prior contract from regional average."""
     intel = pricing_intel if isinstance(pricing_intel, dict) else {}
     predecessor = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else None
@@ -218,46 +266,99 @@ def pricing_card_display(
                 "calc_note": predecessor.get("pricing_calc_note"),
             }
 
-    avg = intel.get("average_annual_award")
-    count = int(intel.get("awards_count") or 0)
-    state = intel.get("state_code") or intel.get("state_name")
-    if avg and count > 0:
-        scope = f"{count} in {state}" if state else f"{count} contracts"
+    hints = prior_hints if isinstance(prior_hints, dict) else {}
+    pdf_annual = hints.get("annual")
+    pdf_tcv = hints.get("tcv")
+    incumbent = _short_company_name(hints.get("incumbent_contractor"))
+    prev_number = str(hints.get("previous_contract_number") or "").strip() or None
+
+    if pdf_annual or pdf_tcv:
+        label = "Prior contract"
+        if pdf_annual and incumbent:
+            line = f"{label}: {short_money(pdf_annual)}/yr · {incumbent}"
+            amount = short_money(pdf_annual)
+        elif pdf_annual:
+            line = f"{label}: {short_money(pdf_annual)}/yr"
+            amount = short_money(pdf_annual)
+        elif pdf_tcv and incumbent:
+            line = f"{label}: {short_money(pdf_tcv)} total · {incumbent}"
+            amount = short_money(pdf_tcv)
+        else:
+            line = f"{label}: {short_money(pdf_tcv)} total"
+            amount = short_money(pdf_tcv)
         return {
-            "kind": "regional_average",
-            "label": "Regional avg",
-            "amount": short_money(avg),
-            "recipient": None,
-            "line": f"Regional avg: {short_money(avg)}/yr ({scope})",
-            "confidence": intel.get("confidence"),
+            "kind": "prior_contract",
+            "label": label,
+            "amount": amount,
+            "recipient": incumbent,
+            "line": line,
+            "confidence": "medium" if hints.get("amount_source") == "pdf" else "low",
+            "calc_note": "From solicitation PDF prior-contract section",
         }
 
-    if intel.get("error") or count == 0:
-        if has_work_state:
-            return {
-                "kind": "first_at_location",
-                "label": None,
-                "amount": None,
-                "recipient": None,
-                "line": "First contract at this location",
-                "confidence": None,
-            }
+    if prev_number or incumbent:
+        label = "Prior contract"
+        parts: list[str] = []
+        if prev_number:
+            parts.append(prev_number)
+        if incumbent:
+            parts.append(incumbent)
+        line = f"{label}: {' · '.join(parts)} — amount pending"
+        return {
+            "kind": "prior_contract",
+            "label": label,
+            "amount": None,
+            "recipient": incumbent,
+            "line": line,
+            "confidence": "low",
+            "calc_note": None,
+        }
+
+    if intel.get("error"):
         return {
             "kind": "none",
             "label": None,
             "amount": None,
             "recipient": None,
-            "line": "No history found",
+            "line": "Prior contract amount not on file",
             "confidence": None,
         }
 
+    if has_work_state:
+        return {
+            "kind": "first_at_location",
+            "label": None,
+            "amount": None,
+            "recipient": None,
+            "line": "No prior contract on file",
+            "confidence": None,
+        }
     return {
         "kind": "none",
         "label": None,
         "amount": None,
         "recipient": None,
-        "line": "No history found",
+        "line": "No prior contract on file",
         "confidence": None,
+    }
+
+
+def pricing_regional_display(pricing_intel: dict[str, Any] | None) -> dict[str, str | int | None] | None:
+    """Regional benchmark line for contract detail — not used on dashboard cards."""
+    intel = pricing_intel if isinstance(pricing_intel, dict) else {}
+    avg = intel.get("average_annual_award")
+    count = int(intel.get("awards_count") or 0)
+    state = intel.get("state_code") or intel.get("state_name")
+    if not avg or count <= 0:
+        return None
+    scope = f"{count} in {state}" if state else f"{count} contracts"
+    return {
+        "kind": "regional_average",
+        "label": "Regional avg",
+        "amount": short_money(avg),
+        "recipient": None,
+        "line": f"Regional avg: {short_money(avg)}/yr ({scope})",
+        "confidence": intel.get("confidence"),
     }
 
 
@@ -265,8 +366,16 @@ def pricing_card_label(
     pricing_intel: dict[str, Any] | None,
     *,
     has_work_state: bool = False,
+    prior_hints: dict[str, Any] | None = None,
 ) -> str:
-    return str(pricing_card_display(pricing_intel, has_work_state=has_work_state).get("line") or "No history found")
+    return str(
+        pricing_card_display(
+            pricing_intel,
+            has_work_state=has_work_state,
+            prior_hints=prior_hints,
+        ).get("line")
+        or "No prior contract on file"
+    )
 
 
 def _short_company_name(name: str | None, max_len: int = 22) -> str | None:
