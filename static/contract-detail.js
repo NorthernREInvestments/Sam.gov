@@ -261,14 +261,18 @@ function renderOverviewTab(c) {
 
 function renderFarBadge(c) {
   const check = c.subcontracting_limitation_check;
+  if (!check) return "";
   if (check === "FOUND") {
     const pct = c.subcontracting_limitation_percentage != null ? ` (${c.subcontracting_limitation_percentage}%)` : "";
-    return `<span class="compact-far-badge compact-far-limit">LIMIT PRESENT${escapeHtml(pct)}</span>`;
+    return `<span class="compact-far-badge compact-far-limit" title="FAR 52.219-14 subcontracting limit may apply">SUB LIMIT${escapeHtml(pct)}</span>`;
   }
   if (check === "EXTRACTION_FAILED") {
-    return `<span class="compact-far-badge compact-far-unknown">COULD NOT VERIFY</span>`;
+    return `<span class="compact-far-badge compact-far-unknown" title="Could not verify subcontracting limits from PDFs">VERIFY SUB</span>`;
   }
-  return `<span class="compact-far-badge compact-far-ok">NO LIMIT FOUND</span>`;
+  if (check === "NOT_FOUND") {
+    return `<span class="compact-far-badge compact-far-ok" title="No FAR 52.219-14 self-performance limit found in PDFs">SUB OK</span>`;
+  }
+  return "";
 }
 
 function classifyDocument(att) {

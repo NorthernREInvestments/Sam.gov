@@ -194,9 +194,51 @@ def _parse_sam_location_block(block: dict[str, Any]) -> tuple[str | None, str | 
     return city_name or None, state_code, zip_text
 
 
+def _infer_city_from_title(title: str | None, state_code: str | None) -> str | None:
+    """Pull a city name from titles like 'WA-RIDGEFIELD NWR' or 'Janitorial Services, Boise ID'."""
+    if not title:
+        return None
+    text = str(title).strip()
+    if state_code:
+        match = re.search(
+            rf"\b{re.escape(state_code)}[-\s]+([A-Za-z][A-Za-z\s'-]{{2,40}}?)(?:\s+NWR|\s+AFB|\s+REFUGE|\s+RANGER|\s+DISTRICT|\s+HQ|\s+HEADQUARTERS|\s+SERVICES|\s+JANITORIAL|\s+CUSTODIAL|\b)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return match.group(1).strip(" -").title()
+    match = re.search(r"\b([A-Za-z][A-Za-z\s'.-]+),\s*([A-Z]{2})\b", text)
+    if match:
+        return match.group(1).strip().title()
+    return None
+
+
+def _parse_city_state_zip_from_text(text: str | None) -> tuple[str | None, str | None, str | None]:
+    if not text or str(text).strip().startswith("{"):
+        return None, None, None
+    body = str(text).strip()
+    match = re.search(
+        r"([A-Za-z][A-Za-z\s'.-]{1,40}),\s*([A-Z]{2})\s*,?\s*(\d{5})?",
+        body,
+    )
+    if not match:
+        return None, None, None
+    city = match.group(1).strip().title()
+    state_code = normalize_state(match.group(2))
+    zip_code = match.group(3)[:5] if match.group(3) else None
+    if city and re.search(r"\d", city) and " " in city:
+        tokens = [t for t in re.split(r"\s+", city) if t]
+        if tokens:
+            city = tokens[-1]
+    return city, state_code, zip_code
+
+
 def extract_work_location(
     location: str | None,
     sam_raw: dict[str, Any] | None = None,
+    *,
+    title: str | None = None,
+    description: str | None = None,
 ) -> dict[str, Any]:
     """Where the work is performed — place of performance only, not contracting office."""
     city: str | None = None
@@ -215,12 +257,39 @@ def extract_work_location(
         for key in ("placeOfPerformance", "placeOfPerformanceLocation"):
             block = sam_raw.get(key)
             if isinstance(block, dict):
-                city, state_code, zip_code = _parse_sam_location_block(block)
-                if state_code:
+                pop_city, pop_state, pop_zip = _parse_sam_location_block(block)
+                if pop_state:
+                    state_code = pop_state
+                if pop_city:
+                    city = pop_city
+                if pop_zip:
+                    zip_code = pop_zip
+                if pop_state or pop_city:
                     break
 
+    if location and str(location).strip().startswith("{"):
+        blob_text = str(location).strip()
+        try:
+            import ast
+            import json
+
+            try:
+                block = json.loads(blob_text.replace("'", '"'))
+            except (json.JSONDecodeError, TypeError):
+                block = ast.literal_eval(blob_text)
+            if isinstance(block, dict):
+                pop_city, pop_state, pop_zip = _parse_sam_location_block(block)
+                if pop_state:
+                    state_code = pop_state
+                if pop_city:
+                    city = pop_city
+                if pop_zip:
+                    zip_code = pop_zip
+        except (SyntaxError, ValueError, TypeError):
+            pass
+
     if not state_code and location:
-        parts = [part.strip() for part in location.split(",") if part.strip()]
+        parts = [part.strip() for part in str(location).split(",") if part.strip()]
         state_idx: int | None = None
         for idx in range(len(parts) - 1, -1, -1):
             part = parts[idx]
@@ -233,14 +302,33 @@ def extract_work_location(
                 state_idx = idx
                 break
         if state_code and state_idx is not None and state_idx > 0:
-            city = ", ".join(parts[:state_idx]) or None
-        elif state_code and len(parts) == 1:
-            city = None
+            candidate = parts[state_idx - 1]
+            if candidate and not re.search(r"\d", candidate):
+                city = candidate
+            else:
+                parsed_city, _, parsed_zip = _parse_city_state_zip_from_text(location)
+                city = parsed_city or city
+                zip_code = zip_code or parsed_zip
+
+    if not state_code or not city:
+        for blob in (location, description, title):
+            parsed_city, parsed_state, parsed_zip = _parse_city_state_zip_from_text(
+                blob if isinstance(blob, str) else None
+            )
+            if parsed_state and not state_code:
+                state_code = parsed_state
+            if parsed_city and not city:
+                city = parsed_city
+            if parsed_zip and not zip_code:
+                zip_code = parsed_zip
 
     if not state_code and location:
-        match = re.search(r"\b([A-Z]{2})\b", location.upper())
+        match = re.search(r"\b([A-Z]{2})\b", str(location).upper())
         if match:
             state_code = normalize_state(match.group(1))
+
+    if not city and state_code:
+        city = _infer_city_from_title(title, state_code) or _infer_city_from_title(description, state_code)
 
     label = format_location_scope(state_code, city)
     work_states = sam_raw.get("workStates") if isinstance(sam_raw, dict) else None

@@ -52,12 +52,18 @@ def _contract_coords(contract: Contract) -> tuple[float, float, dict[str, Any]]:
     work = extract_work_location(
         contract.location,
         contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
+        title=contract.title,
+        description=contract.description,
     )
     coords = resolve_coordinates(
         city=work.get("city"),
         state_code=work.get("state_code"),
         zip_code=work.get("zip"),
     )
+    if not coords and work.get("state_code"):
+        from geo import STATE_CENTROIDS
+
+        coords = STATE_CENTROIDS.get(work["state_code"])
     if not coords:
         raise ValueError(
             f"Could not geocode contract location ({work.get('label') or contract.location})."

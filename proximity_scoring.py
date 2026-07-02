@@ -116,9 +116,15 @@ def proximity_context(session, contract: Contract) -> dict[str, Any]:
 
     settings = get_sub_search_settings()
     nearest, within, _linked = _nearest_sub_distance(session, contract)
-    return adjust_score_for_proximity(
+    searched = getattr(contract, "sub_search_status", None) in ("complete", "searching")
+    result = adjust_score_for_proximity(
         base_score,
         nearest_miles=nearest,
         subs_within_radius=within,
         search_radius_miles=float(settings["search_radius_miles"]),
     )
+    if not searched and within == 0 and nearest is None:
+        result["proximity_penalty"] = 0
+        result["effective_score"] = int(round(float(base_score))) if base_score is not None else None
+        result["proximity_note"] = "Run Find Subs to check local market"
+    return result

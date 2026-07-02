@@ -404,9 +404,11 @@ function scoreBadgeClass(score) {
 
 function compactFarBadge(c) {
   const check = c.subcontracting_limitation_check;
-  if (check === "FOUND") return `<span class="compact-far-badge compact-far-limit">LIMIT PRESENT</span>`;
-  if (check === "EXTRACTION_FAILED") return `<span class="compact-far-badge compact-far-unknown">VERIFY</span>`;
-  return `<span class="compact-far-badge compact-far-ok">NO LIMIT FOUND</span>`;
+  if (!check) return "";
+  if (check === "FOUND") return `<span class="compact-far-badge compact-far-limit" title="FAR 52.219-14 subcontracting limit may apply">SUB LIMIT</span>`;
+  if (check === "EXTRACTION_FAILED") return `<span class="compact-far-badge compact-far-unknown" title="Could not verify subcontracting limits from PDFs">VERIFY SUB</span>`;
+  if (check === "NOT_FOUND") return `<span class="compact-far-badge compact-far-ok" title="No FAR 52.219-14 self-performance limit found in PDFs">SUB OK</span>`;
+  return "";
 }
 
 function renderWorkflowDots(c) {
@@ -483,11 +485,11 @@ function formatAgencyDisplay(agency) {
 }
 
 function compactLocationDisplay(c) {
-  if (c.location_display) return c.location_display;
+  if (c.location_display && c.location_display !== "Location pending") return c.location_display;
   const work = c.work_location || {};
   if (work.city && work.state_code) return `${work.city}, ${work.state_code}`;
+  if (work.label && work.label !== "Location pending") return work.label;
   if (work.state_code) return work.state_code;
-  if (work.label) return work.label;
   const loc = c.location || "";
   if (loc && !String(loc).trim().startsWith("{")) {
     const m = String(loc).match(/([^,]+),\s*([A-Z]{2})\b/);

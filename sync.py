@@ -338,6 +338,8 @@ def contract_to_dict(row: Contract) -> dict[str, Any]:
         work = extract_work_location(
             row.location,
             row.sam_raw if isinstance(row.sam_raw, dict) else None,
+            title=row.title,
+            description=row.description,
         )
         sub_summary["city"] = work.get("city") or work.get("label")
         from display_format import (

@@ -82,6 +82,8 @@ def extract_site_profile(contract: Any) -> dict[str, Any]:
     loc = extract_work_location(
         getattr(contract, "location", None),
         sam,
+        title=getattr(contract, "title", None),
+        description=getattr(contract, "description", None),
     )
 
     street = _street_from_sam_block(sam)

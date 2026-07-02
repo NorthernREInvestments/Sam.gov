@@ -79,6 +79,8 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
     work_location = extract_work_location(
         contract.location,
         contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
+        title=getattr(contract, "title", None),
+        description=getattr(contract, "description", None),
     )
     state_code = work_location.get("state_code")
     city = work_location.get("city")
@@ -134,7 +136,17 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
         )
         intel = _merge_predecessor(intel, predecessor)
     except Exception as exc:
-        return _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
+        payload = _error_payload(f"USAspending lookup failed: {exc}", naics_code, state_code)
+        if cached and cached.get("average_annual_award") and not force_refresh:
+            return cached
+        if cached and cached.get("average_annual_award"):
+            payload["stale_cache"] = True
+            payload["average_annual_award"] = cached.get("average_annual_award")
+            payload["awards_count"] = cached.get("awards_count")
+            payload["state_code"] = cached.get("state_code") or state_code
+            payload["naics_code"] = cached.get("naics_code") or naics_code
+        contract.pricing_intel = payload
+        return payload
 
     intel["cached_at"] = datetime.now(timezone.utc).isoformat()
     intel["tier"] = "regional_benchmark"
