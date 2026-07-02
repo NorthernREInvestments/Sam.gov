@@ -22,14 +22,72 @@ def piee_fetch_enabled() -> bool:
     return os.getenv("PIEE_FETCH_ENABLED", "true").strip().lower() not in ("0", "false", "no")
 
 
+def collect_link_urls(raw: dict[str, Any]) -> list[str]:
+    urls: list[str] = []
+    for key in ("resourceLinks", "links", "additionalInfoLink"):
+        val = raw.get(key)
+        if isinstance(val, str) and val.strip():
+            urls.append(val.strip())
+        elif isinstance(val, list):
+            for item in val:
+                if isinstance(item, str) and item.strip():
+                    urls.append(item.strip())
+                elif isinstance(item, dict):
+                    link = item.get("url") or item.get("href") or item.get("uri")
+                    if link:
+                        urls.append(str(link).strip())
+    for item in raw.get("opportunityLinks") or []:
+        if isinstance(item, dict) and item.get("url"):
+            urls.append(str(item["url"]).strip())
+    for item in raw.get("opportunityAttachments") or []:
+        if isinstance(item, dict):
+            for link_key in ("url", "download_url"):
+                if item.get(link_key):
+                    urls.append(str(item[link_key]).strip())
+    return urls
+
+
+def is_piee_related_url(url: str) -> bool:
+    lower = (url or "").lower()
+    if not lower:
+        return False
+    if "piee.eb.mil" in lower:
+        return True
+    if "/piee/" in lower or "piee_solicitation" in lower or "piee%2f" in lower:
+        return True
+    return False
+
+
 def find_piee_notice_url(raw: dict[str, Any]) -> str | None:
     """Return the public PIEE notice URL from SAM attachment links or solicitation metadata."""
+    for url in collect_link_urls(raw):
+        lower = url.lower()
+        if is_piee_related_url(url) and (
+            "oppmgmtlink" in lower or "viewpublicnotice" in lower or "/sol/" in lower
+        ):
+            return url
+
     for item in raw.get("opportunityAttachments") or []:
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
         if "piee.eb.mil" in url.lower() and ("oppmgmtlink" in url.lower() or "viewpublicnotice" in url.lower()):
             return url
+
+    from sam_enrich import detect_external_portals
+
+    portals = detect_external_portals(
+        raw.get("descriptionText"),
+        raw.get("title"),
+        raw.get("description"),
+        " ".join(collect_link_urls(raw)),
+    )
+    if "PIEE" not in portals and not _piee_mentioned_in_text(
+        raw.get("descriptionText"),
+        raw.get("title"),
+        raw.get("description"),
+    ):
+        return None
 
     sol_number = (
         raw.get("solicitationNumber")
@@ -94,6 +152,11 @@ def _extract_pdfs_from_zip(zip_bytes: bytes) -> list[tuple[str, bytes]]:
     return pdfs[:MAX_PIE_PDFS]
 
 
+def _piee_mentioned_in_text(*parts: str | None) -> bool:
+    blob = " ".join(p for p in parts if p).lower()
+    return "piee" in blob or "piee.eb.mil" in blob
+
+
 def download_piee_zip(notice_url: str) -> bytes | None:
     """Use headless Chromium to click PIEE 'Download All Attachments'."""
     from playwright.sync_api import sync_playwright
@@ -143,6 +206,44 @@ def list_piee_attachment_names(notice_url: str) -> list[str]:
     return cleaned
 
 
+def stamp_piee_hints(raw: dict[str, Any]) -> dict[str, Any]:
+    """Mark PIEE postings in sam_raw from search metadata — no network calls."""
+    from sam_enrich import detect_external_portals
+
+    notice_url = find_piee_notice_url(raw)
+    portals = detect_external_portals(
+        raw.get("descriptionText"),
+        raw.get("title"),
+        raw.get("description"),
+        " ".join(collect_link_urls(raw)),
+    )
+    is_piee = bool(notice_url) or "PIEE" in portals or _piee_mentioned_in_text(
+        raw.get("descriptionText"),
+        raw.get("title"),
+        raw.get("description"),
+    )
+    if not is_piee:
+        return raw
+
+    updated = dict(raw)
+    access = dict(updated.get("documentAccess") or {})
+    access["external_portals"] = list(dict.fromkeys([*(access.get("external_portals") or []), "PIEE"]))
+    access["requires_piee_action"] = True
+    if notice_url:
+        updated["pieeNoticeUrl"] = notice_url
+        access["piee_notice_url"] = notice_url
+    if not access.get("summary"):
+        if notice_url:
+            access["summary"] = (
+                "Documents on PIEE — open the PIEE solicitation to download attachments before bidding."
+            )
+        else:
+            access["summary"] = "This posting references PIEE — check the PIEE portal for solicitation documents."
+    access["requires_external_portal"] = not bool(updated.get("pieeAttachments"))
+    updated["documentAccess"] = access
+    return updated
+
+
 def attach_piee_manifest(raw: dict[str, Any]) -> dict[str, Any]:
     """Add PIEE attachment filenames and notice URL to sam_raw for cards and screening."""
     notice_url = find_piee_notice_url(raw)
@@ -152,6 +253,10 @@ def attach_piee_manifest(raw: dict[str, Any]) -> dict[str, Any]:
     updated = dict(raw)
     updated["pieeNoticeUrl"] = notice_url
     names = list_piee_attachment_names(notice_url)
+    access = dict(updated.get("documentAccess") or {})
+    access["external_portals"] = list(dict.fromkeys([*(access.get("external_portals") or []), "PIEE"]))
+    access["piee_notice_url"] = notice_url
+    access["requires_piee_action"] = True
     if names:
         updated["pieeAttachments"] = [
             {
@@ -162,15 +267,18 @@ def attach_piee_manifest(raw: dict[str, Any]) -> dict[str, Any]:
             }
             for name in names
         ]
-        access = dict(updated.get("documentAccess") or {})
         access["piee_attachment_count"] = len(names)
-        access["piee_notice_url"] = notice_url
         access["requires_external_portal"] = False
         access["summary"] = (
             f"{len(names)} solicitation document(s) on PIEE "
             f"(Statement of Work, wage determinations, etc.)."
         )
-        updated["documentAccess"] = access
+    else:
+        access["requires_external_portal"] = True
+        access["summary"] = (
+            "Documents on PIEE — open the PIEE solicitation to download attachments before bidding."
+        )
+    updated["documentAccess"] = access
     return updated
 
 

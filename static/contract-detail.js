@@ -288,6 +288,16 @@ function renderDocumentsTab(c) {
   const panel = document.getElementById("tab-panel-documents");
   const files = c.attachment_files?.files || [];
   const samAtts = c.sam_attachments || [];
+  const piee = c.piee_intel;
+  const pieeBanner = piee?.is_piee
+    ? `<div class="perf-banner perf-banner-yellow document-piee-banner">
+        <div>
+          <strong>PIEE solicitation</strong>
+          <p>${escapeHtml(piee.summary || "Documents are on PIEE, not SAM.gov.")}</p>
+        </div>
+        ${piee.notice_url ? `<a class="btn btn-primary btn-small" href="${escapeHtml(piee.notice_url)}" target="_blank" rel="noopener">Open PIEE</a>` : ""}
+      </div>`
+    : "";
   const amendmentBanner = c.amendment_alert_active
     ? `<div class="perf-banner perf-banner-red">AMENDMENT POSTED — review new documents before submitting.
         <button type="button" class="btn btn-secondary-action btn-sm" data-dismiss-amendments>Mark reviewed</button></div>`
@@ -321,6 +331,7 @@ function renderDocumentsTab(c) {
       });
 
   panel.innerHTML = `
+    ${pieeBanner}
     ${amendmentBanner}
     <table class="pricing-table doc-table">
       <thead><tr><th>Type</th><th>File</th><th>Size</th><th></th></tr></thead>
@@ -398,6 +409,12 @@ async function beginContractDetailAnalysis(noticeId) {
 
 function handleCardPrimaryAction(noticeId, action) {
   const map = {
+    piee: () => {
+      const c = contracts.find((row) => row.notice_id === noticeId);
+      const url = c?.piee_intel?.notice_url;
+      if (url) window.open(url, "_blank", "noopener");
+      else openContractDetail(noticeId, "documents");
+    },
     find_subs: () => openContractDetail(noticeId, "subs"),
     proposal: () => openContractDetail(noticeId, "proposal"),
     checklist: () => openContractDetail(noticeId, "proposal"),

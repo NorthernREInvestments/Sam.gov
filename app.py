@@ -65,8 +65,15 @@ def _run_background_startup() -> None:
 
         start_autopilot(trigger="deploy")
         from api_budget import can_spend_sam
+        from document_intel import repair_stored_piee_hints
         from intake import start_background_attachment_enrich
 
+        try:
+            repaired = repair_stored_piee_hints()
+            if repaired:
+                log.info("Stamped PIEE hints on %s existing contract(s)", repaired)
+        except Exception:
+            log.exception("PIEE hint repair failed")
         if can_spend_sam(1):
             start_background_attachment_enrich()
         with _startup_lock:
@@ -554,6 +561,14 @@ def get_contracts(
             ready_eligible = visible_at_zero
             hidden_by_min_days = max(0, visible_at_zero - len(visible_rows))
 
+        from document_intel import contract_piee_intel
+
+        piee_action_count = sum(
+            1
+            for row in all_rows
+            if contract_piee_intel(row, session).get("action_required")
+        )
+
         return {
             "count": len(rows),
             "processing_count": processing_count,
@@ -567,6 +582,7 @@ def get_contracts(
                 "hidden_by_min_days": hidden_by_min_days,
                 "total_matching_naics": len(all_rows),
                 "min_days_applied": effective_min_days,
+                "piee_action_count": piee_action_count,
             },
             "autopilot": _autopilot_summary(),
         }

@@ -77,6 +77,11 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
 
         fields = _fields_from_opportunity(opp)
         sam_raw = opp.get("sam_raw")
+        if isinstance(sam_raw, dict):
+            from piee_client import stamp_piee_hints
+
+            sam_raw = stamp_piee_hints(sam_raw)
+            opp = {**opp, "sam_raw": sam_raw}
         existing = session.query(Contract).filter_by(notice_id=notice_id).first()
 
         if existing:
@@ -354,6 +359,19 @@ def contract_to_card_dict(
     if work.get("city"):
         sub_summary["city"] = work.get("city")
 
+    from document_intel import contract_piee_intel
+
+    piee_intel = contract_piee_intel(row, session)
+    doc_access = sam_raw.get("documentAccess") if isinstance(sam_raw.get("documentAccess"), dict) else {}
+    workflow_progress = compute_workflow_progress_fast(row)
+    if piee_intel.get("action_required") and piee_intel.get("notice_url"):
+        workflow_progress = dict(workflow_progress)
+        workflow_progress["primary_action"] = {"label": "Open PIEE", "action": "piee"}
+        workflow_progress["status_message"] = piee_intel["summary"]
+    elif piee_intel.get("action_required"):
+        workflow_progress = dict(workflow_progress)
+        workflow_progress["status_message"] = piee_intel["summary"]
+
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -383,7 +401,9 @@ def contract_to_card_dict(
         "sub_search_status": row.sub_search_status,
         "sub_summary": sub_summary,
         "sam_attachments": sam_attachments,
-        "workflow_progress": compute_workflow_progress_fast(row),
+        "document_access": doc_access,
+        "piee_intel": piee_intel,
+        "workflow_progress": workflow_progress,
         "dashboard_ready": is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids),
     }
 
@@ -532,6 +552,9 @@ def contract_to_dict(
     from pws_fields import pws_snapshot
 
     pws = pws_snapshot(row)
+    from document_intel import contract_piee_intel
+
+    piee_intel = contract_piee_intel(row, session if not own_session else session)
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -592,6 +615,7 @@ def contract_to_dict(
         "security_clearance_required": security_clearance_required,
         "document_access": doc_access,
         "external_links": external_links,
+        "piee_intel": piee_intel,
         "sam_attachments": sam_attachments,
         "scrape_complete": is_scrape_complete(sam_raw),
         "attachment_text_chars": attachment_text_chars

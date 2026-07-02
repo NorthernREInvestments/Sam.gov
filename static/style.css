@@ -2659,6 +2659,45 @@ a {
 .compact-card:hover { border-color: #94a3b8; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
 .compact-card-row { display: flex; align-items: center; min-height: 0; }
+.compact-due-wrap { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.compact-piee-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+.compact-card-piee { border-color: #fdba74; }
+
+.card-section-piee .card-attachments-piee { color: #c2410c; font-weight: 500; }
+.card-piee-link { color: #c2410c; font-weight: 600; }
+
+.document-access-piee {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.document-access-piee .document-access-title { color: #c2410c; font-weight: 700; margin: 0 0 0.35rem; }
+.document-access-piee .document-access-summary { margin: 0; color: #9a3412; }
+
+.document-piee-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
 .compact-card-row-1 { justify-content: space-between; margin-bottom: 0.3rem; }
 
 .compact-card-title {

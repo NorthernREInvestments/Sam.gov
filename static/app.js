@@ -216,6 +216,12 @@ function updateFilterHint(filterStats) {
       `<strong>${processing} contract${processing === 1 ? "" : "s"}</strong> still syncing (attachments + analysis) — they appear automatically when ready.`,
     );
   }
+  const pieeCount = filterStats?.piee_action_count ?? 0;
+  if (pieeCount > 0) {
+    parts.push(
+      `<strong>${pieeCount} PIEE contract${pieeCount === 1 ? "" : "s"}</strong> — documents are on PIEE, not SAM.gov. Use <strong>Open PIEE</strong> on the card to pull the solicitation.`,
+    );
+  }
   if (!window.GOVTRACKER_LAYOUT_V2) {
     parts.push("Your browser is showing a cached old layout. Press <strong>Ctrl+Shift+R</strong> (or Cmd+Shift+R on Mac) to reload.");
   }
@@ -755,11 +761,14 @@ function renderCards() {
     const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
     const statusMsg = c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit";
     const addressLine = compactAddressLine(c);
+    const pieeBadge = c.piee_intel?.action_required
+      ? `<span class="compact-piee-badge" title="${escapeHtml(c.piee_intel.summary || "Documents on PIEE")}">PIEE</span>`
+      : "";
     return `
-    <article class="compact-card" data-id="${c.notice_id}">
+    <article class="compact-card${c.piee_intel?.action_required ? " compact-card-piee" : ""}" data-id="${c.notice_id}">
       <div class="compact-card-row compact-card-row-1">
         <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
-        <span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span>
+        <span class="compact-due-wrap">${pieeBadge}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
       <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
@@ -879,8 +888,20 @@ function stopDetailPolling() {
 
 function renderDocumentAccessBanner(c) {
   const access = c.sam_raw?.documentAccess || c.document_access || c.analysis?.document_access;
+  const piee = c.piee_intel;
   const attachments = c.sam_raw?.opportunityAttachments || c.sam_attachments || c.analysis?.sam_attachments || [];
   const links = c.external_links || c.analysis?.external_links || c.sam_raw?.opportunityLinks || [];
+  if (piee?.action_required) {
+    const pieeLink = piee.notice_url
+      ? `<p class="document-access-cta"><a class="btn btn-secondary-action btn-small" href="${escapeHtml(piee.notice_url)}" target="_blank" rel="noopener">Open PIEE solicitation</a></p>`
+      : "";
+    return `
+    <div class="document-access-banner document-access-piee">
+      <p class="document-access-title">PIEE — documents not on SAM.gov</p>
+      <p class="document-access-summary">${escapeHtml(piee.summary || "Solicitation documents are on PIEE.")}</p>
+      ${pieeLink}
+    </div>`;
+  }
   if (!access && !attachments.length) return "";
 
   const samLink = access?.sam_gov_link || c.link;
@@ -915,6 +936,17 @@ function renderDocumentAccessBanner(c) {
 function renderCardAttachments(c) {
   const attachments = c.sam_attachments || c.analysis?.sam_attachments || [];
   const access = c.document_access || c.analysis?.document_access;
+  const piee = c.piee_intel;
+  if (piee?.action_required) {
+    const link = piee.notice_url
+      ? `<a class="card-piee-link" href="${escapeHtml(piee.notice_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open PIEE solicitation</a>`
+      : "";
+    return `<div class="card-section card-section-attachments card-section-piee">
+      <span class="card-label">PIEE required</span>
+      <p class="card-meta card-attachments-piee">${escapeHtml(piee.summary || "Documents on PIEE — not on SAM.gov.")}</p>
+      ${link}
+    </div>`;
+  }
   if (!attachments.length) {
     if (access?.summary) {
       return `<div class="card-section card-section-attachments">
