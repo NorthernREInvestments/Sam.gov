@@ -269,10 +269,10 @@ def stamp_govspend_watchlist_hit(
         "naics_code": target.naics_code,
         "matched_at": datetime.now(timezone.utc).isoformat(),
         "sam_found": True,
-        "govspend_status_note": (
-            "Matched on SAM.gov — GovSpend can mark gs_watchlist status to 'Found on SAM'."
-        ),
         "pipeline_status": analysis.get("govspend_watchlist", {}).get("pipeline_status", "queued"),
+        "govspend_notified_at": (analysis.get("govspend_watchlist") or {}).get("govspend_notified_at"),
+        "govspend_notify_ok": (analysis.get("govspend_watchlist") or {}).get("govspend_notify_ok"),
+        "govspend_notify_error": (analysis.get("govspend_watchlist") or {}).get("govspend_notify_error"),
     }
     analysis["govspend_watchlist"] = meta
     contract.analysis = analysis

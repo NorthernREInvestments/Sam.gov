@@ -15,15 +15,42 @@ _pipeline_lock = threading.Lock()
 _pipeline_running = False
 
 
+def _record_watchlist_hit(
+    row: Contract,
+    target,
+    *,
+    match_fields: list[str],
+    match_count: int,
+) -> str | None:
+    """Stamp local match, apply pricing, notify GovSpend API."""
+    from gs_watchlist_service import stamp_govspend_watchlist_hit
+    from govspend_client import notify_govspend_watchlist_hit
+    from watchlist_pricing import apply_watchlist_pricing
+
+    stamp_govspend_watchlist_hit(
+        row,
+        target,
+        match_fields=match_fields,
+        match_count=match_count,
+    )
+    apply_watchlist_pricing(row)
+    notify_govspend_watchlist_hit(
+        row,
+        target,
+        match_fields=match_fields,
+        match_count=match_count,
+    )
+    return row.notice_id
+
+
 def rematch_existing_contracts(session) -> list[str]:
     """Daily pass: mark in-DB contracts that match GovSpend watchlist targets."""
     from gs_watchlist_service import (
+        is_govspend_watchlist_hit,
         is_watchlist_field_match,
         load_watching_targets,
         score_contract_against_target,
-        stamp_govspend_watchlist_hit,
     )
-    from watchlist_pricing import apply_watchlist_pricing
 
     targets = load_watching_targets()
     if not targets:
@@ -32,6 +59,8 @@ def rematch_existing_contracts(session) -> list[str]:
     hits: list[str] = []
     rows = session.query(Contract).all()
     for row in rows:
+        if is_govspend_watchlist_hit(row):
+            continue
         best_target = None
         best_count = 0
         best_fields: list[str] = []
@@ -43,14 +72,14 @@ def rematch_existing_contracts(session) -> list[str]:
                 best_fields = fields
         if not best_target or not is_watchlist_field_match(best_count):
             continue
-        stamp_govspend_watchlist_hit(
+        notice_id = _record_watchlist_hit(
             row,
             best_target,
             match_fields=best_fields,
             match_count=best_count,
         )
-        apply_watchlist_pricing(row)
-        hits.append(row.notice_id)
+        if notice_id:
+            hits.append(notice_id)
     return hits
 
 
@@ -59,13 +88,8 @@ def _process_sam_batch_for_target(
     target,
     opportunities: list[dict[str, Any]],
 ) -> list[str]:
-    from gs_watchlist_service import (
-        is_watchlist_field_match,
-        score_opportunity_against_target,
-        stamp_govspend_watchlist_hit,
-    )
+    from gs_watchlist_service import is_watchlist_field_match, score_opportunity_against_target
     from sync import filter_search_results, upsert_contracts
-    from watchlist_pricing import apply_watchlist_pricing
 
     batch, _ = filter_search_results(opportunities, session, min_days_until_due=0, min_score=1)
     if not batch:
@@ -85,9 +109,14 @@ def _process_sam_batch_for_target(
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             continue
-        stamp_govspend_watchlist_hit(row, target, match_fields=fields, match_count=count)
-        apply_watchlist_pricing(row)
-        notice_ids.append(notice_id)
+        recorded = _record_watchlist_hit(
+            row,
+            target,
+            match_fields=fields,
+            match_count=count,
+        )
+        if recorded:
+            notice_ids.append(recorded)
     return notice_ids
 
 
@@ -108,6 +137,7 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
         "sam_searches": 0,
         "sam_hits": 0,
         "rematched_existing": 0,
+        "govspend_notifications": {"attempted": 0, "sent": 0, "failed": 0, "skipped": 0},
         "priority_notice_ids": [],
         "errors": [],
     }
@@ -117,6 +147,9 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
         rematched = rematch_existing_contracts(session)
         result["rematched_existing"] = len(rematched)
         priority_ids = list(dict.fromkeys(rematched))
+        from govspend_client import retry_pending_govspend_notifications
+
+        result["govspend_notifications"] = retry_pending_govspend_notifications(session)
         session.commit()
     except Exception as exc:
         session.rollback()
@@ -139,6 +172,11 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
         session = SessionLocal()
         try:
             hit_ids = _process_sam_batch_for_target(session, target, opportunities)
+            from govspend_client import retry_pending_govspend_notifications
+
+            notify_stats = retry_pending_govspend_notifications(session)
+            for key in ("attempted", "sent", "failed", "skipped"):
+                result["govspend_notifications"][key] += notify_stats.get(key, 0)
             session.commit()
             priority_ids.extend(hit_ids)
             result["sam_hits"] += len(hit_ids)
