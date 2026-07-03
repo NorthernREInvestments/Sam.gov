@@ -608,11 +608,17 @@ def extract_pricing_hints_from_text(text: str | None) -> dict[str, str | list[st
     return hints
 
 
-def extract_facility_search_terms(title: str | None, description: str | None = None) -> list[str]:
-    """Facility / site names from title and description for USAspending keyword search."""
+def extract_facility_search_terms(
+    title: str | None,
+    description: str | None = None,
+    *,
+    location: str | None = None,
+    agency: str | None = None,
+) -> list[str]:
+    """Facility / site names from title, description, location, and agency for USAspending keyword search."""
     terms: list[str] = []
     seen: set[str] = set()
-    for text in (title, description):
+    for text in (title, description, location, agency):
         if not text:
             continue
         expanded = re.sub(

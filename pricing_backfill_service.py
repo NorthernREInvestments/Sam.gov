@@ -146,17 +146,52 @@ def run_exact_match_fix_repair() -> dict[str, int]:
     return stats
 
 
+def run_missing_dollar_backfill() -> dict[str, int]:
+    """Re-query USAspending for scored contracts that still show no prior-contract dollars."""
+    from display_format import pricing_card_display, prior_hints_from_contract
+    from pricing import contract_missing_prior_dollars
+
+    session = SessionLocal()
+    stats = {"processed": 0, "found": 0, "errors": 0, "targets": 0}
+    try:
+        rows = session.query(Contract).order_by(Contract.due_date).all()
+        targets = [row for row in rows if contract_missing_prior_dollars(row)]
+        stats["targets"] = len(targets)
+        logger.info(
+            "Missing-dollar pricing refresh for %s/%s scored contract(s) — no SAM.gov calls",
+            len(targets),
+            len(rows),
+        )
+        for row in targets:
+            try:
+                result = backfill_prior_contract_and_pricing(session, row)
+                session.commit()
+                stats["processed"] += 1
+                intel = result.get("pricing_intel") if isinstance(result.get("pricing_intel"), dict) else {}
+                hints = prior_hints_from_contract(row)
+                card = pricing_card_display(intel, has_work_state=True, prior_hints=hints)
+                if card.get("kind") == "prior_contract" or result.get("is_prior_contract"):
+                    stats["found"] += 1
+            except Exception:
+                session.rollback()
+                stats["errors"] += 1
+                logger.exception("Missing-dollar pricing refresh failed for %s", row.notice_id)
+    finally:
+        session.close()
+    logger.info(
+        "Missing-dollar pricing refresh done: %s found, %s errors (of %s targets)",
+        stats["found"],
+        stats["errors"],
+        stats["targets"],
+    )
+    return stats
+
+
 def start_background_pricing_backfill() -> None:
     """Run pricing backfill/repair in a daemon thread so startup is not blocked."""
     global _running
     with _lock:
         if _running:
-            return
-        if (
-            is_pricing_backfill_complete()
-            and is_pricing_agency_fix_complete()
-            and is_exact_match_fix_complete()
-        ):
             return
         _running = True
 
@@ -169,6 +204,7 @@ def start_background_pricing_backfill() -> None:
                 run_pricing_agency_fix_repair()
             if not is_exact_match_fix_complete():
                 run_exact_match_fix_repair()
+            run_missing_dollar_backfill()
         except Exception:
             logger.exception("Pricing backfill/repair failed")
         finally:

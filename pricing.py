@@ -38,6 +38,8 @@ def _solicitation_pricing_hints(contract: Any) -> dict[str, Any]:
     facility_terms = extract_facility_search_terms(
         getattr(contract, "title", None),
         contract.description or analysis.get("plain_english_summary"),
+        location=getattr(contract, "location", None),
+        agency=getattr(contract, "agency", None),
     )
 
     for blob in (
@@ -276,8 +278,31 @@ def _error_payload(message: str, naics_code: str | None, state_code: str | None)
     }
 
 
+def contract_missing_prior_dollars(contract: Any) -> bool:
+    """True when a scored contract has a work state but no dollar line for the dashboard card."""
+    from display_format import pricing_card_display, prior_hints_from_contract
+
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    if analysis.get("score") is None and analysis.get("text_score") is None:
+        return False
+    work = extract_work_location(
+        contract.location,
+        contract.sam_raw if isinstance(contract.sam_raw, dict) else None,
+        title=getattr(contract, "title", None),
+        description=getattr(contract, "description", None),
+    )
+    if not work.get("state_code"):
+        return False
+    hints = prior_hints_from_contract(contract)
+    intel = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else {}
+    card = pricing_card_display(intel, has_work_state=True, prior_hints=hints)
+    return card.get("kind") != "prior_contract"
+
+
 def contract_pricing_needs_refresh(contract: Any) -> bool:
-    """True when we have prior-contract hints but no usable dollar amounts cached."""
+    """True when we should re-query USAspending for prior-contract dollars."""
+    if contract_missing_prior_dollars(contract):
+        return True
     hints = _solicitation_pricing_hints(contract)
     has_hint = bool(hints.get("previous_contract_number") or hints.get("incumbent_contractor"))
     intel = contract.pricing_intel if isinstance(getattr(contract, "pricing_intel", None), dict) else {}

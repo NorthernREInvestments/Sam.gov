@@ -76,6 +76,9 @@ def _run_background_startup() -> None:
             log.exception("PIEE hint repair failed")
         if can_spend_sam(1):
             start_background_attachment_enrich()
+        from pricing_backfill_service import start_background_pricing_backfill
+
+        start_background_pricing_backfill()
         with _startup_lock:
             _startup_state = {"ready": True, "error": None}
         log.info("Application startup complete (%s)", APP_BUILD_VERSION)
