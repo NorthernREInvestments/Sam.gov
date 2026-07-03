@@ -222,11 +222,15 @@ function updateFilterHint(filterStats) {
       `<strong>${manualFetch} contract${manualFetch === 1 ? "" : "s"}</strong> need you to fetch files manually (PIEE, external links, or failed download). Look for the badge on the card.`,
     );
   }
-  const watchlistMatches = filterStats?.watchlist_match_count ?? 0;
+  const watchlistHits = filterStats?.watchlist_hit_count ?? 0;
   const watchlistTargets = filterStats?.watchlist_target_count ?? 0;
-  if (watchlistTargets > 0) {
+  if (watchlistHits > 0) {
     parts.push(
-      `<strong>${watchlistMatches} contract${watchlistMatches === 1 ? "" : "s"}</strong> match your shared watchlist (${watchlistTargets} high-priority target${watchlistTargets === 1 ? "" : "s"}) — marked <strong>Priority</strong> on the card.`,
+      `<strong>${watchlistHits} Watchlist Hit${watchlistHits === 1 ? "" : "s"}</strong> from GovSpend — see the section above, sorted by bid deadline.`,
+    );
+  } else if (watchlistTargets > 0) {
+    parts.push(
+      `<strong>${watchlistTargets} GovSpend watchlist target${watchlistTargets === 1 ? "" : "s"}</strong> (High/Medium) — SAM search runs daily before normal sync.`,
     );
   }
   if (!window.GOVTRACKER_LAYOUT_V2) {
@@ -746,6 +750,11 @@ function compactCityState(c) {
 }
 
 function compactPriorityBadge(c) {
+  if (c.govspend_watchlist?.sam_found) {
+    const priority = c.govspend_watchlist.priority || "High";
+    const fields = (c.govspend_watchlist.match_fields || []).join(", ");
+    return `<span class="compact-priority-badge compact-priority-govspend" title="GovSpend watchlist hit (${escapeHtml(priority)}${fields ? `: ${fields}` : ""})">Watchlist</span>`;
+  }
   if (!c.watchlist_priority) return "";
   const niche = c.watchlist_niche ? ` (${c.watchlist_niche})` : "";
   const score = c.watchlist_score != null ? ` score ${c.watchlist_score}` : "";
@@ -762,6 +771,82 @@ function compactFetchBadge(c) {
     return `<span class="compact-fetch-badge compact-fetch-piee" title="${escapeHtml(c.piee_intel.summary || "Documents on PIEE")}">PIEE</span>`;
   }
   return "";
+}
+
+function wireCompactCards(container) {
+  if (!container) return;
+  container.querySelectorAll(".compact-card").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".compact-card-action")) return;
+      openContractDetail(el.dataset.id);
+    });
+  });
+  container.querySelectorAll(".compact-card-action").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleCardPrimaryAction(btn.dataset.noticeId, btn.dataset.action);
+    });
+  });
+}
+
+function buildCompactCardHtml(c) {
+  const score = displayScore(c);
+  const due = compactDueLine(c);
+  const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
+  const addressLine = compactAddressLine(c);
+  const fetchBadge = compactFetchBadge(c);
+  const priorityBadge = compactPriorityBadge(c);
+  const fetchBlocked = c.attachment_fetch_alert?.blocked || c.piee_intel?.action_required;
+  const statusMsg = fetchBlocked && c.attachment_fetch_alert?.summary
+    ? c.attachment_fetch_alert.summary
+    : (c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit");
+  const cardBadges = `${priorityBadge}${fetchBadge}`;
+  const govspendClass = c.govspend_watchlist?.sam_found ? " compact-card-govspend-hit" : "";
+  return `
+    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}${govspendClass}" data-id="${c.notice_id}">
+      <div class="compact-card-row compact-card-row-1">
+        <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
+        <span class="compact-due-wrap">${cardBadges}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
+      </div>
+      <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
+      <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
+      ${addressLine ? `<div class="compact-card-row compact-card-address">${escapeHtml(addressLine)}</div>` : ""}
+      <div class="compact-card-row compact-card-size">${escapeHtml(compactSizeLine(c))}</div>
+      <div class="compact-card-row compact-card-history-line">${renderHistoryLine(c)}</div>
+      <div class="compact-card-row compact-card-row-far">
+        ${compactFarBadge(c)}
+        ${renderWorkflowDots(c)}
+      </div>
+      <div class="compact-card-row compact-card-status${c.proximity_note && !fetchBlocked ? " compact-card-status-warn" : ""}${fetchBlocked ? " compact-card-status-fetch" : ""}">${escapeHtml(statusMsg)}</div>
+      <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
+    </article>`;
+}
+
+function renderWatchlistHitsCards(hitContracts) {
+  const section = document.getElementById("watchlist-hits-section");
+  const container = document.getElementById("watchlist-hits-cards");
+  if (!section || !container) return;
+  if (!hitContracts.length) {
+    section.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+  section.hidden = false;
+  container.innerHTML = hitContracts.map((c) => buildCompactCardHtml(c)).join("");
+  wireCompactCards(container);
+}
+
+async function loadWatchlistHits() {
+  try {
+    const res = await apiFetch("/api/contracts/watchlist-hits");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load watchlist hits");
+    renderWatchlistHitsCards(data.contracts || []);
+  } catch (err) {
+    if (err.message !== "Login required") {
+      console.warn("Watchlist hits:", err.message);
+    }
+  }
 }
 
 function renderCards() {
@@ -781,50 +866,9 @@ function renderCards() {
     return;
   }
 
-  container.innerHTML = contracts.map((c) => {
-    const score = displayScore(c);
-    const due = compactDueLine(c);
-    const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
-    const addressLine = compactAddressLine(c);
-    const fetchBadge = compactFetchBadge(c);
-    const priorityBadge = compactPriorityBadge(c);
-    const fetchBlocked = c.attachment_fetch_alert?.blocked || c.piee_intel?.action_required;
-    const statusMsg = fetchBlocked && c.attachment_fetch_alert?.summary
-      ? c.attachment_fetch_alert.summary
-      : (c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit");
-    const cardBadges = `${priorityBadge}${fetchBadge}`;
-    return `
-    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}" data-id="${c.notice_id}">
-      <div class="compact-card-row compact-card-row-1">
-        <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
-        <span class="compact-due-wrap">${cardBadges}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
-      </div>
-      <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
-      <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
-      ${addressLine ? `<div class="compact-card-row compact-card-address">${escapeHtml(addressLine)}</div>` : ""}
-      <div class="compact-card-row compact-card-size">${escapeHtml(compactSizeLine(c))}</div>
-      <div class="compact-card-row compact-card-history-line">${renderHistoryLine(c)}</div>
-      <div class="compact-card-row compact-card-row-far">
-        ${compactFarBadge(c)}
-        ${renderWorkflowDots(c)}
-      </div>
-      <div class="compact-card-row compact-card-status${c.proximity_note && !fetchBlocked ? " compact-card-status-warn" : ""}${fetchBlocked ? " compact-card-status-fetch" : ""}">${escapeHtml(statusMsg)}</div>
-      <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
-    </article>`;
-  }).join("");
+  container.innerHTML = contracts.map((c) => buildCompactCardHtml(c)).join("");
 
-  container.querySelectorAll(".compact-card").forEach((el) => {
-    el.addEventListener("click", (e) => {
-      if (e.target.closest(".compact-card-action")) return;
-      openContractDetail(el.dataset.id);
-    });
-  });
-  container.querySelectorAll(".compact-card-action").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      handleCardPrimaryAction(btn.dataset.noticeId, btn.dataset.action);
-    });
-  });
+  wireCompactCards(container);
 }
 
 function escapeHtml(text) {
@@ -887,6 +931,7 @@ async function loadContracts() {
     filterStats = data.filter_stats || {};
     if (data.autopilot) config.autopilot = data.autopilot;
     renderCards();
+    await loadWatchlistHits();
     manageCardPolling();
     if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
     updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
@@ -909,6 +954,7 @@ async function loadContractsQuiet() {
   filterStats = data.filter_stats || {};
   if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
+  await loadWatchlistHits();
   manageCardPolling();
 }
 

@@ -2694,6 +2694,35 @@ a {
   border: 1px solid #93c5fd;
 }
 
+.compact-priority-govspend {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1e40af;
+}
+
+.compact-card-govspend-hit {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.15);
+}
+
+.watchlist-hits-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #bfdbfe;
+}
+
+.watchlist-hits-section .section-heading h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  color: #1d4ed8;
+}
+
+.watchlist-hits-section .section-help {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+}
+
 .compact-card-priority { border-color: #93c5fd; }
 
 .compact-card-piee,

@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-gt-tables"
+APP_BUILD_VERSION = "20260703-govspend-watchlist"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -552,17 +552,36 @@ def get_contracts(
 
         processing_count = sum(1 for _, ready in row_flags if not ready)
 
-        from gs_watchlist_service import load_priority_targets, match_contract_to_targets
+        from gs_watchlist_service import (
+            govspend_watchlist_meta,
+            is_govspend_watchlist_hit,
+            load_watching_targets,
+            match_contract_to_targets,
+        )
 
-        watchlist_targets = load_priority_targets()
+        watchlist_targets = load_watching_targets()
 
         def _watchlist_sort_key(item: tuple) -> tuple:
+            from datetime import date
+
             row, ready = item
+            meta = govspend_watchlist_meta(row)
+            if meta or is_govspend_watchlist_hit(row):
+                priority = (meta or {}).get("priority") or ""
+                rank = 0 if str(priority).lower() == "high" else 1
+                return (
+                    0,
+                    rank,
+                    0 if ready else 1,
+                    row.due_date is None,
+                    (row.due_date - date.today()).days if row.due_date else 9999,
+                )
             matched, priority, _ = match_contract_to_targets(row, watchlist_targets)
-            rank = {"critical": 0, "urgent": 1, "high": 2}.get((priority or "").lower(), 3)
+            if matched:
+                rank = 0 if str(priority or "").lower() == "high" else 1
+                return (1, rank, 0 if ready else 1, row.due_date is None)
             return (
-                0 if matched else 1,
-                rank,
+                2,
                 0 if ready else 1,
                 -int(
                     (row.analysis or {}).get("score")
@@ -616,8 +635,10 @@ def get_contracts(
         watchlist_match_count = sum(
             1
             for row, _ in rows
-            if match_contract_to_targets(row, watchlist_targets)[0]
+            if is_govspend_watchlist_hit(row)
+            or match_contract_to_targets(row, watchlist_targets)[0]
         )
+        watchlist_hit_count = sum(1 for row, _ in rows if is_govspend_watchlist_hit(row))
 
         return {
             "count": len(rows),
@@ -640,9 +661,40 @@ def get_contracts(
                 "piee_action_count": piee_action_count,
                 "manual_fetch_count": manual_fetch_count,
                 "watchlist_match_count": watchlist_match_count,
+                "watchlist_hit_count": watchlist_hit_count,
                 "watchlist_target_count": len(watchlist_targets),
             },
             "autopilot": _autopilot_summary(),
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/watchlist-hits")
+def get_watchlist_hits():
+    """Contracts matched from GovSpend gs_watchlist — sorted by bid deadline."""
+    from attachment_storage import contract_ids_with_stored_pdfs
+    from sync import contract_to_card_dict
+    from watchlist_sync import list_watchlist_hit_contracts
+
+    session = SessionLocal()
+    try:
+        from gs_watchlist_service import load_watching_targets
+
+        stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
+        targets = load_watching_targets()
+        hits = list_watchlist_hit_contracts(session)
+        return {
+            "count": len(hits),
+            "contracts": [
+                contract_to_card_dict(
+                    row,
+                    session,
+                    stored_pdf_ids=stored_pdf_ids,
+                    watchlist_targets=targets,
+                )
+                for row in hits
+            ],
         }
     finally:
         session.close()

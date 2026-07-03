@@ -378,9 +378,14 @@ def contract_to_card_dict(
 
     watchlist_priority = False
     watchlist_label = None
-    if watchlist_targets:
-        from gs_watchlist_service import match_contract_to_targets
+    govspend_meta = None
+    from gs_watchlist_service import govspend_watchlist_meta, is_govspend_watchlist_hit, match_contract_to_targets
 
+    govspend_meta = govspend_watchlist_meta(row)
+    if govspend_meta:
+        watchlist_priority = True
+        watchlist_label = govspend_meta.get("priority")
+    elif watchlist_targets:
         watchlist_priority, watchlist_label, _matched_field = match_contract_to_targets(
             row, watchlist_targets
         )
@@ -417,9 +422,10 @@ def contract_to_card_dict(
         "document_access": doc_access,
         "piee_intel": piee_intel,
         "attachment_fetch_alert": fetch_alert,
-        "watchlist_priority": watchlist_priority,
+        "watchlist_priority": watchlist_priority or is_govspend_watchlist_hit(row),
         "watchlist_score": watchlist_label,
         "watchlist_niche": watchlist_label,
+        "govspend_watchlist": govspend_meta,
         "link": row.link,
         "workflow_progress": workflow_progress,
         "dashboard_ready": is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids),
@@ -757,6 +763,9 @@ def get_focus_naics(session: Session) -> str | None:
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
     """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
+    from watchlist_sync import run_govspend_watchlist_sync
+
+    watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     naics_codes = naics_from_env()
     if not naics_codes:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
@@ -864,6 +873,7 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
         "naics_synced": loaded,
         "naics_total": len(naics_codes),
         "api_budget": get_usage_snapshot(),
+        "govspend_watchlist": watchlist_result,
     }
 
 
@@ -1278,6 +1288,9 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
 
 def sync_scheduled_naics() -> dict[str, Any]:
     """Use the full daily SAM budget: finish current NAICS, then search/enrich the next."""
+    from watchlist_sync import run_govspend_watchlist_sync
+
+    watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     from api_budget import can_spend_sam, get_usage_snapshot, scheduled_sync_attachments_only
     from intake import (
         enrich_matching_attachments,
@@ -1412,13 +1425,19 @@ def sync_scheduled_naics() -> dict[str, Any]:
         "api_calls": budget["sam_used_today"],
         "fetch_status": ". ".join(status_parts) + ".",
         "api_budget": budget,
+        "govspend_watchlist": watchlist_result,
     }
 
 
 def sync_all_naics() -> dict[str, Any]:
     """Manual full search — all enabled NAICS codes across every tier."""
+    from watchlist_sync import run_govspend_watchlist_sync
+
+    watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     naics_codes = naics_from_env()
-    return _sync_naics_code_list(naics_codes, manual_all_tiers=True)
+    sync_result = _sync_naics_code_list(naics_codes, manual_all_tiers=True)
+    sync_result["govspend_watchlist"] = watchlist_result
+    return sync_result
 
 
 def get_naics_sync_status() -> dict[str, Any]:

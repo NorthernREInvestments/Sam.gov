@@ -172,3 +172,59 @@ def fetch_naics_from_sam(
         results.append({**opp, "sam_raw": dict(raw)})
 
     return results
+
+
+def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
+    """One SAM.gov search tailored to a GovSpend gs_watchlist row."""
+    from api_budget import can_spend_sam, record_sam_usage
+
+    api_key = (os.getenv("SAM_GOV_API_KEY", "") or "").strip()
+    if not api_key:
+        raise ValueError("SAM_GOV_API_KEY is required.")
+    if not can_spend_sam(1):
+        raise ValueError("SAM.gov daily API budget reached.")
+
+    posted_to = date.today()
+    posted_from = posted_to - timedelta(days=45)
+
+    params: dict[str, Any] = {
+        "api_key": api_key,
+        "postedFrom": posted_from.strftime("%m/%d/%Y"),
+        "postedTo": posted_to.strftime("%m/%d/%Y"),
+        "limit": 200,
+        "offset": 0,
+        "active": "yes",
+    }
+    if getattr(target, "naics_code", None):
+        params["ncode"] = str(target.naics_code).strip()
+    if getattr(target, "location_state", None):
+        params["state"] = str(target.location_state).strip()[:2].upper()
+    if getattr(target, "agency", None):
+        params["organizationName"] = str(target.agency).strip()[:100]
+    if getattr(target, "contract_name", None):
+        params["title"] = str(target.contract_name).strip()[:100]
+    elif getattr(target, "incumbent_name", None):
+        params["title"] = str(target.incumbent_name).strip()[:100]
+
+    with httpx.Client(timeout=60.0) as client:
+        resp = client.get(SAM_SEARCH_URL, params=params)
+        resp.raise_for_status()
+        batch = resp.json().get("opportunitiesData") or []
+
+    record_sam_usage(1)
+
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw in batch:
+        if not _set_aside_matches(raw):
+            continue
+        opp = normalize_opportunity(raw)
+        description = raw.get("description")
+        if isinstance(description, str) and description.strip() and not description.startswith("http"):
+            opp["description"] = description[:8000]
+        nid = str(opp.get("notice_id") or "")
+        if not nid or nid in seen:
+            continue
+        seen.add(nid)
+        results.append({**opp, "sam_raw": dict(raw)})
+    return results

@@ -280,6 +280,10 @@ def _error_payload(message: str, naics_code: str | None, state_code: str | None)
 
 def contract_missing_prior_dollars(contract: Any) -> bool:
     """True when a scored contract has a work state but no dollar line for the dashboard card."""
+    from watchlist_pricing import contract_has_watchlist_pricing
+
+    if contract_has_watchlist_pricing(contract):
+        return False
     from display_format import pricing_card_display, prior_hints_from_contract
 
     analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
@@ -301,6 +305,10 @@ def contract_missing_prior_dollars(contract: Any) -> bool:
 
 def contract_pricing_needs_refresh(contract: Any) -> bool:
     """True when we should re-query USAspending for prior-contract dollars."""
+    from watchlist_pricing import contract_has_watchlist_pricing
+
+    if contract_has_watchlist_pricing(contract):
+        return False
     if contract_missing_prior_dollars(contract):
         return True
     hints = _solicitation_pricing_hints(contract)
