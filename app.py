@@ -61,33 +61,43 @@ def _run_background_startup() -> None:
 
         init_db()
         start_scheduler()
-        from autopilot_service import start_autopilot
-
-        start_autopilot(trigger="deploy")
-        from api_budget import can_spend_sam
-        from document_intel import repair_stored_piee_hints
-        from intake import start_background_attachment_enrich
-
-        try:
-            repaired = repair_stored_piee_hints()
-            if repaired:
-                log.info("Stamped PIEE hints on %s existing contract(s)", repaired)
-        except Exception:
-            log.exception("PIEE hint repair failed")
-        if can_spend_sam(1):
-            start_background_attachment_enrich()
-        from pricing_backfill_service import start_background_pricing_backfill
-
-        start_background_pricing_backfill()
         with _startup_lock:
             _startup_state = {"ready": True, "error": None}
         log.info("Application startup complete (%s)", APP_BUILD_VERSION)
         print(f"govtracker: startup complete ({APP_BUILD_VERSION})", flush=True)
+
+        from pricing_backfill_service import start_background_pricing_backfill
+
+        start_background_pricing_backfill()
+        threading.Thread(target=_deferred_background_startup, name="govtracker-startup-deferred", daemon=True).start()
     except Exception as exc:
         log.exception("Background startup failed")
         with _startup_lock:
             _startup_state = {"ready": False, "error": str(exc)}
         print(f"govtracker: startup failed: {exc}", flush=True)
+
+
+def _deferred_background_startup() -> None:
+    """Heavy deploy work — must not block health checks or mark startup ready."""
+    log = logging.getLogger("govtracker")
+    try:
+        from autopilot_service import start_autopilot
+
+        start_autopilot(trigger="deploy")
+    except Exception:
+        log.exception("Deferred autopilot startup failed")
+    try:
+        from api_budget import can_spend_sam
+        from document_intel import repair_stored_piee_hints
+        from intake import start_background_attachment_enrich
+
+        repaired = repair_stored_piee_hints()
+        if repaired:
+            log.info("Stamped PIEE hints on %s existing contract(s)", repaired)
+        if can_spend_sam(1):
+            start_background_attachment_enrich()
+    except Exception:
+        log.exception("Deferred attachment/PIEE startup failed")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

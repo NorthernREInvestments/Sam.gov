@@ -1,4 +1,4 @@
-"""One-time pricing backfill on app startup — USAspending + stored PDFs only, no SAM.gov."""
+"""Pricing backfill on deploy and after sync — USAspending + stored PDFs only, no SAM.gov."""
 
 from __future__ import annotations
 
@@ -6,18 +6,10 @@ import logging
 import threading
 from typing import Any
 
-from database import SessionLocal
+from database import SessionLocal, with_db_retry
 from models import Contract
-from pricing import contract_pricing_needs_refresh
+from pricing import contract_missing_prior_dollars
 from prior_contract_extract import backfill_prior_contract_and_pricing
-from settings_store import (
-    is_exact_match_fix_complete,
-    is_pricing_agency_fix_complete,
-    is_pricing_backfill_complete,
-    mark_exact_match_fix_complete,
-    mark_pricing_agency_fix_complete,
-    mark_pricing_backfill_complete,
-)
 
 logger = logging.getLogger("govtracker.pricing_backfill")
 _lock = threading.Lock()
@@ -25,165 +17,78 @@ _running = False
 _last_result: dict[str, int] | None = None
 
 
-def run_one_time_pricing_backfill() -> dict[str, int]:
-    """
-    Refresh prior-contract hints + USAspending pricing for every contract once per deploy.
-    Skips if already completed (flag in app_settings).
-    """
-    if is_pricing_backfill_complete():
-        logger.info("One-time pricing backfill already completed — skipping")
-        return {"skipped": 1}
-
+def _scored_contract_ids() -> list[int]:
+    """IDs for contracts with a score — light query, no attachment_text."""
     session = SessionLocal()
-    stats = {
-        "processed": 0,
-        "prior_found": 0,
-        "hints_in_pdf": 0,
-        "errors": 0,
-    }
     try:
-        rows = session.query(Contract).order_by(Contract.id).all()
-        logger.info("Starting one-time pricing backfill for %s contract(s) — no SAM.gov calls", len(rows))
-
-        for row in rows:
-            try:
-                result = backfill_prior_contract_and_pricing(session, row)
-                session.commit()
-                stats["processed"] += 1
-                if result.get("previous_contract_number") or result.get("incumbent_contractor"):
-                    stats["hints_in_pdf"] += 1
-                if result.get("is_prior_contract"):
-                    stats["prior_found"] += 1
-            except Exception:
-                session.rollback()
-                stats["errors"] += 1
-                logger.exception("Pricing backfill failed for %s", row.notice_id)
-
-        mark_pricing_backfill_complete(session)
-        session.commit()
-        logger.info(
-            "One-time pricing backfill done: %s processed, %s prior matches, %s errors",
-            stats["processed"],
-            stats["prior_found"],
-            stats["errors"],
-        )
+        rows = session.query(Contract.id, Contract.analysis).order_by(Contract.due_date).all()
+        ids: list[int] = []
+        for cid, analysis in rows:
+            a = analysis if isinstance(analysis, dict) else {}
+            if a.get("score") is not None or a.get("text_score") is not None:
+                ids.append(cid)
+        return ids
     finally:
         session.close()
-    return stats
 
 
-def run_pricing_agency_fix_repair() -> dict[str, int]:
-    """Re-fetch USAspending pricing when agency filter left rows with contract # but no dollars."""
-    if is_pricing_agency_fix_complete():
-        logger.info("Pricing agency-filter repair already completed — skipping")
-        return {"skipped": 1}
+def _backfill_contract_pricing(contract_id: int) -> dict[str, Any]:
+    def work() -> dict[str, Any]:
+        session = SessionLocal()
+        try:
+            row = session.query(Contract).filter(Contract.id == contract_id).first()
+            if not row:
+                return {"skipped": True, "reason": "not_found"}
+            if not contract_missing_prior_dollars(row):
+                return {"skipped": True, "reason": "has_dollars"}
+            result = backfill_prior_contract_and_pricing(session, row)
+            session.commit()
+            return result
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
-    session = SessionLocal()
-    stats = {"processed": 0, "refreshed": 0, "errors": 0}
-    try:
-        rows = session.query(Contract).order_by(Contract.id).all()
-        targets = [row for row in rows if contract_pricing_needs_refresh(row)]
-        logger.info(
-            "Starting pricing agency-filter repair for %s/%s contract(s)",
-            len(targets),
-            len(rows),
-        )
-        for row in targets:
-            try:
-                result = backfill_prior_contract_and_pricing(session, row)
-                session.commit()
-                stats["processed"] += 1
-                if result.get("is_prior_contract") or result.get("annual_amount"):
-                    stats["refreshed"] += 1
-            except Exception:
-                session.rollback()
-                stats["errors"] += 1
-                logger.exception("Pricing agency repair failed for %s", row.notice_id)
-
-        mark_pricing_agency_fix_complete(session)
-        session.commit()
-        logger.info(
-            "Pricing agency-filter repair done: %s refreshed, %s errors",
-            stats["refreshed"],
-            stats["errors"],
-        )
-    finally:
-        session.close()
-    return stats
-
-
-def run_exact_match_fix_repair() -> dict[str, int]:
-    """Re-run pricing with expanded exact-match lookup (contract # variants, site profiles)."""
-    if is_exact_match_fix_complete():
-        logger.info("Exact-match pricing repair already completed — skipping")
-        return {"skipped": 1}
-
-    session = SessionLocal()
-    stats = {"processed": 0, "exact_found": 0, "errors": 0}
-    try:
-        rows = session.query(Contract).order_by(Contract.id).all()
-        logger.info("Starting exact-match pricing repair for %s contract(s)", len(rows))
-        for row in rows:
-            try:
-                result = backfill_prior_contract_and_pricing(session, row)
-                session.commit()
-                stats["processed"] += 1
-                pred = (result.get("pricing_intel") or {}).get("predecessor_award") if isinstance(result.get("pricing_intel"), dict) else {}
-                if isinstance(pred, dict) and pred.get("is_prior_contract"):
-                    stats["exact_found"] += 1
-            except Exception:
-                session.rollback()
-                stats["errors"] += 1
-                logger.exception("Exact-match repair failed for %s", row.notice_id)
-
-        mark_exact_match_fix_complete(session)
-        session.commit()
-        logger.info(
-            "Exact-match pricing repair done: %s exact, %s errors",
-            stats["exact_found"],
-            stats["errors"],
-        )
-    finally:
-        session.close()
-    return stats
+    return with_db_retry(work)
 
 
 def run_missing_dollar_backfill() -> dict[str, int]:
     """Re-query USAspending for scored contracts that still show no prior-contract dollars."""
-    from display_format import pricing_card_display, prior_hints_from_contract
-    from pricing import contract_missing_prior_dollars
+    ids = _scored_contract_ids()
+    stats = {"processed": 0, "found": 0, "errors": 0, "targets": 0, "skipped": 0}
 
-    session = SessionLocal()
-    stats = {"processed": 0, "found": 0, "errors": 0, "targets": 0}
-    try:
-        rows = session.query(Contract).order_by(Contract.due_date).all()
-        targets = [row for row in rows if contract_missing_prior_dollars(row)]
-        stats["targets"] = len(targets)
-        logger.info(
-            "Missing-dollar pricing refresh for %s/%s scored contract(s) — no SAM.gov calls",
-            len(targets),
-            len(rows),
-        )
-        for row in targets:
-            try:
-                result = backfill_prior_contract_and_pricing(session, row)
-                session.commit()
-                stats["processed"] += 1
-                intel = result.get("pricing_intel") if isinstance(result.get("pricing_intel"), dict) else {}
-                hints = prior_hints_from_contract(row)
-                card = pricing_card_display(intel, has_work_state=True, prior_hints=hints)
-                if card.get("kind") == "prior_contract" or result.get("is_prior_contract"):
-                    stats["found"] += 1
-            except Exception:
-                session.rollback()
-                stats["errors"] += 1
-                logger.exception("Missing-dollar pricing refresh failed for %s", row.notice_id)
-    finally:
-        session.close()
+    logger.info("Missing-dollar pricing refresh for %s scored contract(s)", len(ids))
+
+    for contract_id in ids:
+        session = SessionLocal()
+        try:
+            row = session.query(Contract).filter(Contract.id == contract_id).first()
+            if not row or not contract_missing_prior_dollars(row):
+                continue
+            notice_id = row.notice_id
+        finally:
+            session.close()
+
+        stats["targets"] += 1
+        try:
+            result = _backfill_contract_pricing(contract_id)
+            if result.get("skipped"):
+                stats["skipped"] += 1
+                continue
+            stats["processed"] += 1
+            if result.get("is_prior_contract"):
+                stats["found"] += 1
+                logger.info("Pricing found for %s", notice_id)
+        except Exception:
+            stats["errors"] += 1
+            logger.exception("Missing-dollar pricing refresh failed for %s", notice_id)
+
     logger.info(
-        "Missing-dollar pricing refresh done: %s found, %s errors (of %s targets)",
+        "Missing-dollar pricing refresh done: %s found, %s errors, %s skipped (of %s targets)",
         stats["found"],
         stats["errors"],
+        stats["skipped"],
         stats["targets"],
     )
     return stats
@@ -194,14 +99,11 @@ def get_pricing_backfill_status() -> dict[str, Any]:
         return {
             "running": _running,
             "last_result": _last_result,
-            "pricing_backfill_complete": is_pricing_backfill_complete(),
-            "agency_fix_complete": is_pricing_agency_fix_complete(),
-            "exact_match_fix_complete": is_exact_match_fix_complete(),
         }
 
 
 def start_background_pricing_backfill() -> dict[str, Any]:
-    """Run pricing backfill/repair in a daemon thread so startup is not blocked."""
+    """Run missing-dollar USAspending refresh in a daemon thread."""
     global _running, _last_result
     with _lock:
         if _running:
@@ -211,18 +113,13 @@ def start_background_pricing_backfill() -> dict[str, Any]:
     def _run() -> None:
         global _running, _last_result
         try:
-            if not is_pricing_backfill_complete():
-                run_one_time_pricing_backfill()
-            if not is_pricing_agency_fix_complete():
-                run_pricing_agency_fix_repair()
-            if not is_exact_match_fix_complete():
-                run_exact_match_fix_repair()
             _last_result = run_missing_dollar_backfill()
         except Exception:
-            logger.exception("Pricing backfill/repair failed")
+            logger.exception("Pricing backfill failed")
         finally:
             with _lock:
                 _running = False
 
     threading.Thread(target=_run, daemon=True, name="govtracker-pricing-backfill").start()
+    logger.info("Background pricing backfill started")
     return {"started": True, "status": get_pricing_backfill_status()}

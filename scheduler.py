@@ -36,8 +36,10 @@ def run_daily_sync() -> None:
         return
 
     from autopilot_service import run_scheduled_autopilot
+    from pricing_backfill_service import start_background_pricing_backfill
 
     run_scheduled_autopilot()
+    start_background_pricing_backfill()
 
 
 def run_amendment_check() -> None:

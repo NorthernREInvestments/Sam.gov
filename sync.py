@@ -1183,8 +1183,10 @@ def sync_attachments_only() -> dict[str, Any]:
         raise ValueError("No NAICS codes enabled — turn on at least one code in Settings.")
     result = _sync_scheduled_attachments_only(pool)
     from autopilot_service import start_autopilot
+    from pricing_backfill_service import start_background_pricing_backfill
 
     start_autopilot(trigger="post-sync")
+    start_background_pricing_backfill()
     return result
 
 

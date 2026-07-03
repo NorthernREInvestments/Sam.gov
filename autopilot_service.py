@@ -72,12 +72,6 @@ def start_autopilot(*, trigger: AutopilotTrigger = "deploy") -> bool:
     def _run() -> None:
         global _running
         try:
-            from pricing_backfill_service import is_pricing_backfill_complete, run_one_time_pricing_backfill
-
-            if not is_pricing_backfill_complete():
-                logger.info("Autopilot: pricing backfill (no Claude)")
-                run_one_time_pricing_backfill()
-
             if trigger == "deploy" and not claude_intake_allowed():
                 logger.info("Autopilot deploy: intake disabled — skipping Claude repair")
                 return
@@ -90,6 +84,9 @@ def start_autopilot(*, trigger: AutopilotTrigger = "deploy") -> bool:
                 logger.info("Autopilot post-sync: repair remaining stored PDFs")
 
             run_stored_pdf_repair_pass()
+            from pricing_backfill_service import start_background_pricing_backfill
+
+            start_background_pricing_backfill()
         except Exception:
             logger.exception("Autopilot thread failed")
         finally:
