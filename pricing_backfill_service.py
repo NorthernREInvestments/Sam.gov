@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from typing import Any
 
 from database import SessionLocal
 from models import Contract
@@ -21,6 +22,7 @@ from settings_store import (
 logger = logging.getLogger("govtracker.pricing_backfill")
 _lock = threading.Lock()
 _running = False
+_last_result: dict[str, int] | None = None
 
 
 def run_one_time_pricing_backfill() -> dict[str, int]:
@@ -187,16 +189,27 @@ def run_missing_dollar_backfill() -> dict[str, int]:
     return stats
 
 
-def start_background_pricing_backfill() -> None:
+def get_pricing_backfill_status() -> dict[str, Any]:
+    with _lock:
+        return {
+            "running": _running,
+            "last_result": _last_result,
+            "pricing_backfill_complete": is_pricing_backfill_complete(),
+            "agency_fix_complete": is_pricing_agency_fix_complete(),
+            "exact_match_fix_complete": is_exact_match_fix_complete(),
+        }
+
+
+def start_background_pricing_backfill() -> dict[str, Any]:
     """Run pricing backfill/repair in a daemon thread so startup is not blocked."""
-    global _running
+    global _running, _last_result
     with _lock:
         if _running:
-            return
+            return {"started": False, "reason": "already_running", "status": get_pricing_backfill_status()}
         _running = True
 
     def _run() -> None:
-        global _running
+        global _running, _last_result
         try:
             if not is_pricing_backfill_complete():
                 run_one_time_pricing_backfill()
@@ -204,7 +217,7 @@ def start_background_pricing_backfill() -> None:
                 run_pricing_agency_fix_repair()
             if not is_exact_match_fix_complete():
                 run_exact_match_fix_repair()
-            run_missing_dollar_backfill()
+            _last_result = run_missing_dollar_backfill()
         except Exception:
             logger.exception("Pricing backfill/repair failed")
         finally:
@@ -212,3 +225,4 @@ def start_background_pricing_backfill() -> None:
                 _running = False
 
     threading.Thread(target=_run, daemon=True, name="govtracker-pricing-backfill").start()
+    return {"started": True, "status": get_pricing_backfill_status()}

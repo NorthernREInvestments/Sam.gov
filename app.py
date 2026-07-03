@@ -804,6 +804,24 @@ def export_claude_portfolio():
         session.close()
 
 
+@app.post("/api/pricing/refresh")
+def run_pricing_refresh():
+    """USAspending prior-contract lookup for cards missing dollar amounts (no SAM.gov)."""
+    try:
+        from pricing_backfill_service import start_background_pricing_backfill
+
+        return start_background_pricing_backfill()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Pricing refresh failed: {exc}") from exc
+
+
+@app.get("/api/pricing/refresh/status")
+def pricing_refresh_status():
+    from pricing_backfill_service import get_pricing_backfill_status
+
+    return get_pricing_backfill_status()
+
+
 @app.post("/api/repair/stored")
 def run_stored_pdf_repair():
     """Repair only contracts that already have PDF bytes in PostgreSQL (no SAM.gov)."""
