@@ -199,8 +199,10 @@ def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
         params["ncode"] = str(target.naics_code).strip()
     if getattr(target, "location_state", None):
         params["state"] = str(target.location_state).strip()[:2].upper()
-    if getattr(target, "agency", None):
-        params["organizationName"] = str(target.agency).strip()[:100]
+    if getattr(target, "agency", None) or getattr(target, "contracting_office", None):
+        params["organizationName"] = str(
+            getattr(target, "contracting_office", None) or target.agency
+        ).strip()[:100]
     if getattr(target, "contract_name", None):
         params["title"] = str(target.contract_name).strip()[:100]
     elif getattr(target, "incumbent_name", None):

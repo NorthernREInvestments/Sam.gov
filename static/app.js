@@ -223,12 +223,19 @@ function updateFilterHint(filterStats) {
     );
   }
   const watchlistHits = filterStats?.watchlist_hit_count ?? 0;
+  const possibleMatches = filterStats?.possible_match_count ?? 0;
   const watchlistTargets = filterStats?.watchlist_target_count ?? 0;
   if (watchlistHits > 0) {
     parts.push(
-      `<strong>${watchlistHits} Watchlist Hit${watchlistHits === 1 ? "" : "s"}</strong> from GovSpend — see the section above, sorted by bid deadline.`,
+      `<strong>${watchlistHits} high-confidence Watchlist Match${watchlistHits === 1 ? "" : "es"}</strong> — see the section above, sorted by bid deadline.`,
     );
-  } else if (watchlistTargets > 0) {
+  }
+  if (possibleMatches > 0) {
+    parts.push(
+      `<strong>${possibleMatches} possible watchlist match${possibleMatches === 1 ? "" : "es"}</strong> need manual review — compare GovSpend vs SAM side by side.`,
+    );
+  }
+  if (watchlistHits === 0 && possibleMatches === 0 && watchlistTargets > 0) {
     parts.push(
       `<strong>${watchlistTargets} GovSpend watchlist target${watchlistTargets === 1 ? "" : "s"}</strong> (High/Medium) — SAM search runs daily before normal sync.`,
     );
@@ -750,10 +757,15 @@ function compactCityState(c) {
 }
 
 function compactPriorityBadge(c) {
-  if (c.govspend_watchlist?.sam_found) {
-    const priority = c.govspend_watchlist.priority || "High";
-    const fields = (c.govspend_watchlist.match_fields || []).join(", ");
-    return `<span class="compact-priority-badge compact-priority-govspend" title="GovSpend watchlist hit (${escapeHtml(priority)}${fields ? `: ${fields}` : ""})">Watchlist</span>`;
+  const wl = c.govspend_watchlist;
+  if (wl?.match_confidence === "High" || (wl?.sam_found && wl?.match_confidence !== "Possible")) {
+    const score = wl.match_score != null ? `${wl.match_score}/11` : "";
+    const fields = (wl.match_fields || wl.match_signals?.filter((s) => s.matched).map((s) => s.signal) || []).join(", ");
+    return `<span class="compact-priority-badge compact-priority-govspend" title="Watchlist Match${score ? ` (${score})` : ""}${fields ? `: ${fields}` : ""}">Watchlist Match${score ? ` ${score}` : ""}</span>`;
+  }
+  if (wl?.match_confidence === "Possible" && wl?.needs_review) {
+    const score = wl.match_score != null ? `${wl.match_score}/11` : "";
+    return `<span class="compact-priority-badge compact-priority-possible" title="Possible watchlist match (${score})">Possible${score ? ` ${score}` : ""}</span>`;
   }
   if (!c.watchlist_priority) return "";
   const niche = c.watchlist_niche ? ` (${c.watchlist_niche})` : "";
@@ -849,6 +861,136 @@ async function loadWatchlistHits() {
   }
 }
 
+function watchlistSignalLabel(signal) {
+  const labels = {
+    contracting_office: "Contracting office",
+    location: "Location",
+    naics_code: "NAICS",
+    incumbent_name: "Incumbent",
+    estimated_annual_value: "Annual value",
+    title_keywords: "Title keywords",
+  };
+  return labels[signal] || signal;
+}
+
+function watchlistFormatValue(val) {
+  if (val == null || val === "") return "—";
+  const num = Number(val);
+  if (Number.isFinite(num)) return `$${num.toLocaleString()}`;
+  return String(val);
+}
+
+function buildWatchlistCompareField(label, left, right, matched) {
+  const cls = matched ? " watchlist-compare-field-matched" : "";
+  return `
+    <div class="watchlist-compare-field${cls}">
+      <div class="watchlist-compare-field-label">${escapeHtml(label)}</div>
+      <div class="watchlist-compare-col watchlist-compare-col-target">${escapeHtml(left || "—")}</div>
+      <div class="watchlist-compare-col watchlist-compare-col-posting">${escapeHtml(right || "—")}</div>
+    </div>`;
+}
+
+function buildPossibleMatchCard(c) {
+  const wl = c.govspend_watchlist || {};
+  const target = wl.watchlist_target_display || {};
+  const posting = wl.sam_posting_display || {};
+  const signals = wl.match_signals || [];
+  const matchedSet = new Set(signals.filter((s) => s.matched).map((s) => s.signal));
+  const score = wl.match_score != null ? `${wl.match_score}/11` : "?/11";
+  const fields = [
+    ["Contracting office", target.contracting_office || target.agency, posting.contracting_office || posting.agency, "contracting_office"],
+    ["Location", target.location, posting.location, "location"],
+    ["NAICS", target.naics_code, posting.naics_code, "naics_code"],
+    ["Incumbent", target.incumbent_name, "—", "incumbent_name"],
+    ["Annual value", watchlistFormatValue(target.estimated_annual_value || target.award_amount), watchlistFormatValue(posting.estimated_annual_value || posting.estimated_value), "estimated_annual_value"],
+    ["Title keywords", (target.title_keywords || []).join(", "), posting.title, "title_keywords"],
+  ];
+  return `
+    <article class="watchlist-compare-card" data-id="${escapeHtml(c.notice_id)}">
+      <div class="watchlist-compare-header">
+        <div class="watchlist-compare-title-wrap">
+          <span class="watchlist-compare-badge">Possible Match · ${escapeHtml(score)}</span>
+          <h3 class="watchlist-compare-title">${escapeHtml(c.title || posting.title || "SAM posting")}</h3>
+          <p class="watchlist-compare-sub">${escapeHtml(target.contract_name || "GovSpend watchlist target")}</p>
+        </div>
+        <div class="watchlist-compare-actions">
+          <button type="button" class="btn btn-primary watchlist-confirm-btn" data-notice-id="${escapeHtml(c.notice_id)}">Confirm Match</button>
+          <button type="button" class="btn btn-secondary watchlist-reject-btn" data-notice-id="${escapeHtml(c.notice_id)}">Not a Match</button>
+        </div>
+      </div>
+      <div class="watchlist-compare-grid-head">
+        <span></span><span>GovSpend watchlist</span><span>SAM.gov posting</span>
+      </div>
+      ${fields.map(([label, left, right, signal]) => buildWatchlistCompareField(label, left, right, matchedSet.has(signal))).join("")}
+      <div class="watchlist-compare-signals">
+        ${signals.filter((s) => s.matched).map((s) => `<span class="watchlist-signal-chip">${escapeHtml(watchlistSignalLabel(s.signal))} +${s.points || 0}</span>`).join("")}
+      </div>
+    </article>`;
+}
+
+function wireWatchlistCompareActions(container) {
+  if (!container) return;
+  container.querySelectorAll(".watchlist-confirm-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const noticeId = btn.dataset.noticeId;
+      btn.disabled = true;
+      try {
+        const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/watchlist-match/confirm`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Confirm failed");
+        await loadContracts();
+      } catch (err) {
+        btn.disabled = false;
+        alert(err.message || "Could not confirm match");
+      }
+    });
+  });
+  container.querySelectorAll(".watchlist-reject-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const noticeId = btn.dataset.noticeId;
+      btn.disabled = true;
+      try {
+        const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/watchlist-match/reject`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Reject failed");
+        await loadContracts();
+      } catch (err) {
+        btn.disabled = false;
+        alert(err.message || "Could not reject match");
+      }
+    });
+  });
+}
+
+function renderWatchlistPossibleCards(possibleContracts) {
+  const section = document.getElementById("watchlist-possible-section");
+  const container = document.getElementById("watchlist-possible-cards");
+  if (!section || !container) return;
+  if (!possibleContracts.length) {
+    section.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+  section.hidden = false;
+  container.innerHTML = possibleContracts.map((c) => buildPossibleMatchCard(c)).join("");
+  wireWatchlistCompareActions(container);
+}
+
+async function loadWatchlistPossible() {
+  try {
+    const res = await apiFetch("/api/contracts/watchlist-possible");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load possible watchlist matches");
+    renderWatchlistPossibleCards(data.contracts || []);
+  } catch (err) {
+    if (err.message !== "Login required") {
+      console.warn("Possible watchlist matches:", err.message);
+    }
+  }
+}
+
 function renderCards() {
   const container = document.getElementById("cards");
   if (!container) return;
@@ -931,7 +1073,7 @@ async function loadContracts() {
     filterStats = data.filter_stats || {};
     if (data.autopilot) config.autopilot = data.autopilot;
     renderCards();
-    await loadWatchlistHits();
+    await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);
     manageCardPolling();
     if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
     updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
@@ -954,7 +1096,7 @@ async function loadContractsQuiet() {
   filterStats = data.filter_stats || {};
   if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
-  await loadWatchlistHits();
+  await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);
   manageCardPolling();
 }
 

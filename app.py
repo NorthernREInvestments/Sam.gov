@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-govspend-notify"
+APP_BUILD_VERSION = "20260703-watchlist-fingerprint"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -555,6 +555,7 @@ def get_contracts(
         from gs_watchlist_service import (
             govspend_watchlist_meta,
             is_govspend_watchlist_hit,
+            is_possible_watchlist_match,
             load_watching_targets,
             match_contract_to_targets,
         )
@@ -569,13 +570,17 @@ def get_contracts(
             if meta or is_govspend_watchlist_hit(row):
                 priority = (meta or {}).get("priority") or ""
                 rank = 0 if str(priority).lower() == "high" else 1
+                conf_rank = 0 if (meta or {}).get("match_confidence") == "High" else 1
                 return (
                     0,
+                    conf_rank,
                     rank,
                     0 if ready else 1,
                     row.due_date is None,
                     (row.due_date - date.today()).days if row.due_date else 9999,
                 )
+            if is_possible_watchlist_match(row):
+                return (1, 0, 0 if ready else 1, row.due_date is None)
             matched, priority, _ = match_contract_to_targets(row, watchlist_targets)
             if matched:
                 rank = 0 if str(priority or "").lower() == "high" else 1
@@ -639,6 +644,7 @@ def get_contracts(
             or match_contract_to_targets(row, watchlist_targets)[0]
         )
         watchlist_hit_count = sum(1 for row, _ in rows if is_govspend_watchlist_hit(row))
+        possible_match_count = sum(1 for row, _ in rows if is_possible_watchlist_match(row))
 
         return {
             "count": len(rows),
@@ -662,6 +668,7 @@ def get_contracts(
                 "manual_fetch_count": manual_fetch_count,
                 "watchlist_match_count": watchlist_match_count,
                 "watchlist_hit_count": watchlist_hit_count,
+                "possible_match_count": possible_match_count,
                 "watchlist_target_count": len(watchlist_targets),
             },
             "autopilot": _autopilot_summary(),
@@ -696,6 +703,66 @@ def get_watchlist_hits():
                 for row in hits
             ],
         }
+    finally:
+        session.close()
+
+
+@app.get("/api/contracts/watchlist-possible")
+def get_watchlist_possible_matches():
+    """Possible fingerprint matches awaiting manual review."""
+    from attachment_storage import contract_ids_with_stored_pdfs
+    from sync import contract_to_card_dict
+    from watchlist_sync import list_possible_watchlist_matches
+
+    session = SessionLocal()
+    try:
+        from gs_watchlist_service import load_watching_targets
+
+        stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
+        targets = load_watching_targets()
+        matches = list_possible_watchlist_matches(session)
+        return {
+            "count": len(matches),
+            "contracts": [
+                contract_to_card_dict(
+                    row,
+                    session,
+                    stored_pdf_ids=stored_pdf_ids,
+                    watchlist_targets=targets,
+                )
+                for row in matches
+            ],
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/watchlist-match/confirm")
+def confirm_watchlist_match_endpoint(notice_id: str):
+    from watchlist_sync import confirm_watchlist_match
+
+    session = SessionLocal()
+    try:
+        result = confirm_watchlist_match(session, notice_id)
+        if not result.get("ok"):
+            code = 404 if result.get("error") == "not_found" else 400
+            raise HTTPException(status_code=code, detail=result.get("error"))
+        return result
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/watchlist-match/reject")
+def reject_watchlist_match_endpoint(notice_id: str):
+    from watchlist_sync import reject_watchlist_match
+
+    session = SessionLocal()
+    try:
+        result = reject_watchlist_match(session, notice_id)
+        if not result.get("ok"):
+            code = 404 if result.get("error") == "not_found" else 400
+            raise HTTPException(status_code=code, detail=result.get("error"))
+        return result
     finally:
         session.close()
 

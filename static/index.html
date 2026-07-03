@@ -86,9 +86,16 @@
         <section id="watchlist-hits-section" class="watchlist-hits-section" hidden>
           <div class="section-heading">
             <h2>Watchlist Hits</h2>
-            <p class="section-help">SAM.gov contracts matching GovSpend watchlist targets (High/Medium priority).</p>
+            <p class="section-help">High-confidence fingerprint matches (8+ points) from GovSpend watchlist targets.</p>
           </div>
           <div id="watchlist-hits-cards" class="cards cards-compact"></div>
+        </section>
+        <section id="watchlist-possible-section" class="watchlist-possible-section" hidden>
+          <div class="section-heading">
+            <h2>Possible Watchlist Matches</h2>
+            <p class="section-help">Review side-by-side comparisons (5–7 points). Confirm to run the full pipeline or reject to dismiss.</p>
+          </div>
+          <div id="watchlist-possible-cards" class="watchlist-compare-list"></div>
         </section>
         <div id="cards" class="cards cards-compact"></div>
       </main>

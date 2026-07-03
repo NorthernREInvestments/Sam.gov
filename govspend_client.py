@@ -40,25 +40,39 @@ def build_watchlist_hit_payload(
     *,
     match_fields: list[str],
     match_count: int,
+    match_score: int | None = None,
+    match_confidence: str | None = None,
+    match_signals: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     due = getattr(contract, "due_date", None)
+    analysis = contract.analysis if isinstance(getattr(contract, "analysis", None), dict) else {}
+    meta = analysis.get("govspend_watchlist") if isinstance(analysis.get("govspend_watchlist"), dict) else {}
     return {
         "event": "watchlist_sam_match",
         "suggested_status": GOVSPEND_FOUND_STATUS,
         "watchlist_id": target.id,
+        "matched_watchlist_id": target.id,
         "match_count": match_count,
         "match_fields": match_fields,
+        "match_score": match_score if match_score is not None else meta.get("match_score"),
+        "match_confidence": match_confidence or meta.get("match_confidence"),
+        "match_signals": match_signals if match_signals is not None else meta.get("match_signals"),
+        "match_confirmed": bool(meta.get("match_confirmed")),
         "matched_at": datetime.now(timezone.utc).isoformat(),
         "watchlist_target": {
             "id": target.id,
             "award_id": target.award_id,
             "contract_name": target.contract_name,
+            "contracting_office": target.contracting_office or target.agency,
             "agency": target.agency,
             "location_city": target.location_city,
             "location_state": target.location_state,
+            "location_zip": target.location_zip,
             "naics_code": target.naics_code,
             "incumbent_name": target.incumbent_name,
             "award_amount": target.award_amount,
+            "estimated_annual_value": target.estimated_annual_value or target.award_amount,
+            "title_keywords": list(target.title_keywords),
             "priority": target.priority,
             "status": target.status,
         },
@@ -81,6 +95,9 @@ def notify_govspend_watchlist_hit(
     *,
     match_fields: list[str],
     match_count: int,
+    match_score: int | None = None,
+    match_confidence: str | None = None,
+    match_signals: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     POST match details to GovSpend so it can update gs_watchlist status.
@@ -99,6 +116,9 @@ def notify_govspend_watchlist_hit(
         target,
         match_fields=match_fields,
         match_count=match_count,
+        match_score=match_score,
+        match_confidence=match_confidence,
+        match_signals=match_signals,
     )
 
     try:
@@ -174,6 +194,11 @@ def retry_pending_govspend_notifications(session) -> dict[str, int]:
         if meta.get("govspend_notified_at"):
             stats["skipped"] += 1
             continue
+        from gs_watchlist_service import should_notify_for_contract
+
+        if not should_notify_for_contract(row):
+            stats["skipped"] += 1
+            continue
         watchlist_id = meta.get("watchlist_id")
         if not watchlist_id:
             continue
@@ -182,11 +207,15 @@ def retry_pending_govspend_notifications(session) -> dict[str, int]:
             award_id=meta.get("award_id"),
             contract_name=meta.get("contract_name"),
             agency=meta.get("agency"),
+            contracting_office=meta.get("contracting_office") or meta.get("agency"),
             location_city=meta.get("location_city"),
             location_state=meta.get("location_state"),
+            location_zip=meta.get("location_zip"),
             naics_code=meta.get("naics_code"),
             incumbent_name=meta.get("incumbent_name"),
             award_amount=meta.get("award_amount"),
+            estimated_annual_value=meta.get("estimated_annual_value") or meta.get("award_amount"),
+            title_keywords=tuple(meta.get("title_keywords") or []),
             priority=meta.get("priority"),
             status=meta.get("status_on_watchlist"),
         )
@@ -196,6 +225,9 @@ def retry_pending_govspend_notifications(session) -> dict[str, int]:
             target,
             match_fields=list(meta.get("match_fields") or []),
             match_count=int(meta.get("match_count") or 0),
+            match_score=int(meta.get("match_score") or 0) if meta.get("match_score") is not None else None,
+            match_confidence=meta.get("match_confidence"),
+            match_signals=list(meta.get("match_signals") or []),
         )
         if result.get("ok"):
             stats["sent"] += 1

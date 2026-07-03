@@ -8,6 +8,7 @@ from typing import Any
 
 from database import SessionLocal
 from models import Contract
+from watchlist_fingerprint import FingerprintMatchResult, log_weak_match, posting_fingerprint_from_contract
 
 logger = logging.getLogger("govtracker.watchlist")
 
@@ -15,80 +16,149 @@ _pipeline_lock = threading.Lock()
 _pipeline_running = False
 
 
-def _record_watchlist_hit(
+def _resolve_target(targets, watchlist_id: int):
+    for target in targets:
+        if target.id == watchlist_id:
+            return target
+    from gs_watchlist_service import target_by_id
+
+    return target_by_id(watchlist_id)
+
+
+def _record_fingerprint_match(
     row: Contract,
     target,
+    result: FingerprintMatchResult,
     *,
-    match_fields: list[str],
-    match_count: int,
+    notify: bool,
+    apply_pricing: bool,
 ) -> str | None:
-    """Stamp local match, apply pricing, notify GovSpend API."""
-    from gs_watchlist_service import stamp_govspend_watchlist_hit
+    from gs_watchlist_service import (
+        should_notify_for_contract,
+        should_run_pipeline_for_contract,
+        stamp_fingerprint_match,
+    )
     from govspend_client import notify_govspend_watchlist_hit
     from watchlist_pricing import apply_watchlist_pricing
 
-    stamp_govspend_watchlist_hit(
-        row,
-        target,
-        match_fields=match_fields,
-        match_count=match_count,
-    )
-    apply_watchlist_pricing(row)
-    notify_govspend_watchlist_hit(
-        row,
-        target,
-        match_fields=match_fields,
-        match_count=match_count,
-    )
+    posting = posting_fingerprint_from_contract(row)
+    stamp_fingerprint_match(row, target, result, posting=posting)
+
+    if apply_pricing and should_run_pipeline_for_contract(row):
+        apply_watchlist_pricing(row)
+
+    if notify and should_notify_for_contract(row):
+        notify_govspend_watchlist_hit(
+            row,
+            target,
+            match_fields=result.matched_signals,
+            match_count=len(result.matched_signals),
+            match_score=result.score,
+            match_confidence=result.confidence,
+            match_signals=result.to_match_signals_json(),
+        )
     return row.notice_id
 
 
+def _apply_best_fingerprint(
+    row: Contract,
+    targets,
+    result: FingerprintMatchResult,
+    *,
+    pipeline_ids: list[str],
+) -> None:
+    from gs_watchlist_service import is_watchlist_rejected, should_run_pipeline_for_contract
+
+    if is_watchlist_rejected(row):
+        return
+
+    target = _resolve_target(targets, result.watchlist_id)
+    if not target:
+        return
+
+    if result.confidence == "Weak":
+        log_weak_match(row.notice_id, result)
+        _record_fingerprint_match(
+            row,
+            target,
+            result,
+            notify=False,
+            apply_pricing=False,
+        )
+        return
+
+    if result.confidence == "Possible":
+        notice_id = _record_fingerprint_match(
+            row,
+            target,
+            result,
+            notify=False,
+            apply_pricing=False,
+        )
+        if notice_id:
+            logger.info(
+                "Possible watchlist match notice_id=%s watchlist_id=%s score=%s",
+                notice_id,
+                target.id,
+                result.score,
+            )
+        return
+
+    if result.confidence == "High":
+        notice_id = _record_fingerprint_match(
+            row,
+            target,
+            result,
+            notify=True,
+            apply_pricing=True,
+        )
+        if notice_id and should_run_pipeline_for_contract(row):
+            pipeline_ids.append(notice_id)
+
+
 def rematch_existing_contracts(session) -> list[str]:
-    """Daily pass: mark in-DB contracts that match GovSpend watchlist targets."""
+    """Daily pass: fingerprint-match in-DB contracts against GovSpend watchlist targets."""
     from gs_watchlist_service import (
+        best_contract_fingerprint,
+        fingerprint_meta,
         is_govspend_watchlist_hit,
-        is_watchlist_field_match,
+        is_possible_watchlist_match,
+        is_watchlist_rejected,
         load_watching_targets,
-        score_contract_against_target,
     )
 
     targets = load_watching_targets()
     if not targets:
         return []
 
-    hits: list[str] = []
+    pipeline_ids: list[str] = []
     rows = session.query(Contract).all()
     for row in rows:
-        if is_govspend_watchlist_hit(row):
+        if is_watchlist_rejected(row):
             continue
-        best_target = None
-        best_count = 0
-        best_fields: list[str] = []
-        for target in targets:
-            count, fields = score_contract_against_target(row, target)
-            if count > best_count:
-                best_count = count
-                best_target = target
-                best_fields = fields
-        if not best_target or not is_watchlist_field_match(best_count):
+        if is_govspend_watchlist_hit(row) or is_possible_watchlist_match(row):
             continue
-        notice_id = _record_watchlist_hit(
-            row,
-            best_target,
-            match_fields=best_fields,
-            match_count=best_count,
-        )
-        if notice_id:
-            hits.append(notice_id)
-    return hits
+        result = best_contract_fingerprint(row, targets)
+        if not result:
+            continue
+        _apply_best_fingerprint(row, targets, result, pipeline_ids=pipeline_ids)
+    return list(dict.fromkeys(pipeline_ids))
 
 
 def _process_sam_batch_for_target(
     session,
     target,
     opportunities: list[dict[str, Any]],
+    *,
+    all_targets,
+    pipeline_ids: list[str],
 ) -> list[str]:
-    from gs_watchlist_service import is_watchlist_field_match, score_opportunity_against_target
+    from gs_watchlist_service import (
+        best_opportunity_fingerprint,
+        is_govspend_watchlist_hit,
+        is_possible_watchlist_match,
+        is_watchlist_rejected,
+    )
     from sync import filter_search_results, upsert_contracts
 
     batch, _ = filter_search_results(opportunities, session, min_days_until_due=0, min_score=1)
@@ -100,31 +170,103 @@ def _process_sam_batch_for_target(
 
     notice_ids: list[str] = []
     for opp in batch:
-        count, fields = score_opportunity_against_target(opp, target)
-        if not is_watchlist_field_match(count):
-            continue
         notice_id = str(opp.get("notice_id") or "")
         if not notice_id:
             continue
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             continue
-        recorded = _record_watchlist_hit(
+        if is_watchlist_rejected(row) or is_govspend_watchlist_hit(row) or is_possible_watchlist_match(row):
+            continue
+
+        _, result = best_opportunity_fingerprint(opp, all_targets)
+        if not result:
+            continue
+        before = len(pipeline_ids)
+        _apply_best_fingerprint(row, all_targets, result, pipeline_ids=pipeline_ids)
+        meta = fingerprint_meta(row)
+        if meta and meta.get("match_confidence") in ("High", "Possible"):
+            notice_ids.append(notice_id)
+        if len(pipeline_ids) > before and notice_id not in pipeline_ids:
+            pipeline_ids.append(notice_id)
+    return notice_ids
+
+
+def confirm_watchlist_match(session, notice_id: str) -> dict[str, Any]:
+    from gs_watchlist_service import (
+        confirm_fingerprint_match,
+        fingerprint_meta,
+        should_notify_for_contract,
+        should_run_pipeline_for_contract,
+        target_from_meta,
+    )
+    from govspend_client import notify_govspend_watchlist_hit
+    from watchlist_pricing import apply_watchlist_pricing
+
+    row = session.query(Contract).filter_by(notice_id=notice_id).first()
+    if not row:
+        return {"ok": False, "error": "not_found"}
+    prev = fingerprint_meta(row) or {}
+    if prev.get("match_confidence") != "Possible":
+        return {"ok": False, "error": "not_possible_match"}
+    if prev.get("match_confirmed"):
+        return {"ok": True, "notice_id": notice_id, "already_confirmed": True}
+
+    meta = confirm_fingerprint_match(row)
+    if not meta:
+        return {"ok": False, "error": "confirm_failed"}
+
+    target = target_from_meta(meta)
+    apply_watchlist_pricing(row)
+    if target and should_notify_for_contract(row):
+        notify_govspend_watchlist_hit(
             row,
             target,
-            match_fields=fields,
-            match_count=count,
+            match_fields=list(meta.get("match_fields") or []),
+            match_count=int(meta.get("match_count") or 0),
+            match_score=int(meta.get("match_score") or 0),
+            match_confidence=str(meta.get("match_confidence") or "Possible"),
+            match_signals=list(meta.get("match_signals") or []),
         )
-        if recorded:
-            notice_ids.append(recorded)
-    return notice_ids
+
+    pipeline_started = False
+    if should_run_pipeline_for_contract(row):
+        start_watchlist_priority_pipeline([notice_id])
+        pipeline_started = True
+
+    session.commit()
+    return {
+        "ok": True,
+        "notice_id": notice_id,
+        "match_confirmed": True,
+        "pipeline_started": pipeline_started,
+    }
+
+
+def reject_watchlist_match(session, notice_id: str) -> dict[str, Any]:
+    from gs_watchlist_service import fingerprint_meta, reject_fingerprint_match
+
+    row = session.query(Contract).filter_by(notice_id=notice_id).first()
+    if not row:
+        return {"ok": False, "error": "not_found"}
+    prev = fingerprint_meta(row) or {}
+    if prev.get("match_confidence") not in ("Possible", "Weak"):
+        return {"ok": False, "error": "not_reviewable"}
+    if prev.get("match_rejected"):
+        return {"ok": True, "notice_id": notice_id, "already_rejected": True}
+
+    meta = reject_fingerprint_match(row)
+    if not meta:
+        return {"ok": False, "error": "reject_failed"}
+    session.commit()
+    return {"ok": True, "notice_id": notice_id, "match_rejected": True}
 
 
 def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, Any]:
     """
     1) Read gs_watchlist (High/Medium + Watching)
     2) SAM search per target (uses API budget first)
-    3) Mark 3+ field matches, apply watchlist pricing, run priority pipeline
+    3) Fingerprint match with tiered confidence, pricing, and priority pipeline
     """
     from api_budget import can_spend_sam, get_usage_snapshot
     from gs_watchlist_service import clear_watchlist_cache, load_watching_targets
@@ -137,16 +279,20 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
         "sam_searches": 0,
         "sam_hits": 0,
         "rematched_existing": 0,
+        "possible_matches": 0,
+        "weak_logged": 0,
         "govspend_notifications": {"attempted": 0, "sent": 0, "failed": 0, "skipped": 0},
         "priority_notice_ids": [],
         "errors": [],
     }
 
+    pipeline_ids: list[str] = []
+
     session = SessionLocal()
     try:
         rematched = rematch_existing_contracts(session)
         result["rematched_existing"] = len(rematched)
-        priority_ids = list(dict.fromkeys(rematched))
+        pipeline_ids.extend(rematched)
         from govspend_client import retry_pending_govspend_notifications
 
         result["govspend_notifications"] = retry_pending_govspend_notifications(session)
@@ -154,7 +300,6 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
     except Exception as exc:
         session.rollback()
         result["errors"].append(f"rematch: {exc}")
-        priority_ids = []
     finally:
         session.close()
 
@@ -171,14 +316,19 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
 
         session = SessionLocal()
         try:
-            hit_ids = _process_sam_batch_for_target(session, target, opportunities)
+            hit_ids = _process_sam_batch_for_target(
+                session,
+                target,
+                opportunities,
+                all_targets=targets,
+                pipeline_ids=pipeline_ids,
+            )
             from govspend_client import retry_pending_govspend_notifications
 
             notify_stats = retry_pending_govspend_notifications(session)
             for key in ("attempted", "sent", "failed", "skipped"):
                 result["govspend_notifications"][key] += notify_stats.get(key, 0)
             session.commit()
-            priority_ids.extend(hit_ids)
             result["sam_hits"] += len(hit_ids)
         except Exception as exc:
             session.rollback()
@@ -186,19 +336,38 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
         finally:
             session.close()
 
-    priority_ids = list(dict.fromkeys(priority_ids))
-    result["priority_notice_ids"] = priority_ids
+    pipeline_ids = list(dict.fromkeys(pipeline_ids))
+    result["priority_notice_ids"] = pipeline_ids
+
+    session = SessionLocal()
+    try:
+        from gs_watchlist_service import fingerprint_meta, is_govspend_watchlist_hit, is_possible_watchlist_match
+
+        rows = session.query(Contract).all()
+        result["possible_matches"] = sum(1 for row in rows if is_possible_watchlist_match(row))
+        result["weak_logged"] = sum(
+            1
+            for row in rows
+            if (meta := fingerprint_meta(row))
+            and meta.get("match_confidence") == "Weak"
+            and not meta.get("match_rejected")
+        )
+        result["sam_hits"] = sum(1 for row in rows if is_govspend_watchlist_hit(row))
+    finally:
+        session.close()
+
     result["api_budget"] = get_usage_snapshot()
 
-    if trigger_pipeline and priority_ids:
-        start_watchlist_priority_pipeline(priority_ids)
+    if trigger_pipeline and pipeline_ids:
+        start_watchlist_priority_pipeline(pipeline_ids)
 
     logger.info(
-        "GovSpend watchlist sync: targets=%s searches=%s hits=%s pipeline=%s",
+        "GovSpend watchlist sync: targets=%s searches=%s high_hits=%s possible=%s pipeline=%s",
         len(targets),
         result["sam_searches"],
         result["sam_hits"],
-        len(priority_ids),
+        result["possible_matches"],
+        len(pipeline_ids),
     )
     return result
 
@@ -267,15 +436,32 @@ def start_watchlist_priority_pipeline(notice_ids: list[str]) -> dict[str, Any]:
 
 
 def list_watchlist_hit_contracts(session) -> list[Contract]:
-    rows = session.query(Contract).order_by(Contract.due_date.asc().nullslast(), Contract.id.asc()).all()
     from gs_watchlist_service import is_govspend_watchlist_hit
 
+    rows = session.query(Contract).order_by(Contract.due_date.asc().nullslast(), Contract.id.asc()).all()
     hits = [row for row in rows if is_govspend_watchlist_hit(row)]
     today = __import__("datetime").date.today()
     hits.sort(
         key=lambda r: (
             r.due_date is None,
             (r.due_date - today).days if r.due_date else 9999,
+            -int((r.analysis or {}).get("govspend_watchlist", {}).get("match_score") or 0),
         )
     )
     return hits
+
+
+def list_possible_watchlist_matches(session) -> list[Contract]:
+    from gs_watchlist_service import is_possible_watchlist_match
+
+    rows = session.query(Contract).order_by(Contract.due_date.asc().nullslast(), Contract.id.asc()).all()
+    matches = [row for row in rows if is_possible_watchlist_match(row)]
+    today = __import__("datetime").date.today()
+    matches.sort(
+        key=lambda r: (
+            r.due_date is None,
+            (r.due_date - today).days if r.due_date else 9999,
+            -int((r.analysis or {}).get("govspend_watchlist", {}).get("match_score") or 0),
+        )
+    )
+    return matches

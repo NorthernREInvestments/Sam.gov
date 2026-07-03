@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from gs_watchlist_service import govspend_watchlist_meta
-
 
 def pricing_from_watchlist(contract: Any) -> dict[str, Any] | None:
-    meta = govspend_watchlist_meta(contract)
-    if not meta:
+    from gs_watchlist_service import fingerprint_meta, should_run_pipeline_for_contract
+
+    meta = fingerprint_meta(contract)
+    if not meta or not should_run_pipeline_for_contract(contract):
         return None
     amount = meta.get("award_amount")
     if amount is None:
