@@ -216,10 +216,17 @@ function updateFilterHint(filterStats) {
       `<strong>${processing} contract${processing === 1 ? "" : "s"}</strong> still syncing (attachments + analysis) — they appear automatically when ready.`,
     );
   }
-  const pieeCount = filterStats?.piee_action_count ?? 0;
-  if (pieeCount > 0) {
+  const manualFetch = filterStats?.manual_fetch_count ?? filterStats?.piee_action_count ?? 0;
+  if (manualFetch > 0) {
     parts.push(
-      `<strong>${pieeCount} PIEE contract${pieeCount === 1 ? "" : "s"}</strong> — documents are on PIEE, not SAM.gov. Use <strong>Open PIEE</strong> on the card to pull the solicitation.`,
+      `<strong>${manualFetch} contract${manualFetch === 1 ? "" : "s"}</strong> need you to fetch files manually (PIEE, external links, or failed download). Look for the badge on the card.`,
+    );
+  }
+  const watchlistMatches = filterStats?.watchlist_match_count ?? 0;
+  const watchlistTargets = filterStats?.watchlist_target_count ?? 0;
+  if (watchlistTargets > 0) {
+    parts.push(
+      `<strong>${watchlistMatches} contract${watchlistMatches === 1 ? "" : "s"}</strong> match your shared watchlist (${watchlistTargets} high-priority target${watchlistTargets === 1 ? "" : "s"}) — marked <strong>Priority</strong> on the card.`,
     );
   }
   if (!window.GOVTRACKER_LAYOUT_V2) {
@@ -738,6 +745,25 @@ function compactCityState(c) {
   return loc || "—";
 }
 
+function compactPriorityBadge(c) {
+  if (!c.watchlist_priority) return "";
+  const niche = c.watchlist_niche ? ` (${c.watchlist_niche})` : "";
+  const score = c.watchlist_score != null ? ` score ${c.watchlist_score}` : "";
+  return `<span class="compact-priority-badge" title="High-priority watchlist target${niche}${score}">Priority</span>`;
+}
+
+function compactFetchBadge(c) {
+  const alert = c.attachment_fetch_alert;
+  if (alert?.blocked && alert.badge) {
+    const kind = alert.kind || "blocked";
+    return `<span class="compact-fetch-badge compact-fetch-${escapeHtml(kind)}" title="${escapeHtml(alert.summary || alert.badge)}">${escapeHtml(alert.badge)}</span>`;
+  }
+  if (c.piee_intel?.action_required) {
+    return `<span class="compact-fetch-badge compact-fetch-piee" title="${escapeHtml(c.piee_intel.summary || "Documents on PIEE")}">PIEE</span>`;
+  }
+  return "";
+}
+
 function renderCards() {
   const container = document.getElementById("cards");
   if (!container) return;
@@ -759,16 +785,19 @@ function renderCards() {
     const score = displayScore(c);
     const due = compactDueLine(c);
     const action = c.workflow_progress?.primary_action || { label: "View", action: "overview" };
-    const statusMsg = c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit";
     const addressLine = compactAddressLine(c);
-    const pieeBadge = c.piee_intel?.action_required
-      ? `<span class="compact-piee-badge" title="${escapeHtml(c.piee_intel.summary || "Documents on PIEE")}">PIEE</span>`
-      : "";
+    const fetchBadge = compactFetchBadge(c);
+    const priorityBadge = compactPriorityBadge(c);
+    const fetchBlocked = c.attachment_fetch_alert?.blocked || c.piee_intel?.action_required;
+    const statusMsg = fetchBlocked && c.attachment_fetch_alert?.summary
+      ? c.attachment_fetch_alert.summary
+      : (c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit");
+    const cardBadges = `${priorityBadge}${fetchBadge}`;
     return `
-    <article class="compact-card${c.piee_intel?.action_required ? " compact-card-piee" : ""}" data-id="${c.notice_id}">
+    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}" data-id="${c.notice_id}">
       <div class="compact-card-row compact-card-row-1">
         <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
-        <span class="compact-due-wrap">${pieeBadge}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
+        <span class="compact-due-wrap">${cardBadges}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
       <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
@@ -779,7 +808,7 @@ function renderCards() {
         ${compactFarBadge(c)}
         ${renderWorkflowDots(c)}
       </div>
-      <div class="compact-card-row compact-card-status${c.proximity_note ? " compact-card-status-warn" : ""}">${escapeHtml(statusMsg)}</div>
+      <div class="compact-card-row compact-card-status${c.proximity_note && !fetchBlocked ? " compact-card-status-warn" : ""}${fetchBlocked ? " compact-card-status-fetch" : ""}">${escapeHtml(statusMsg)}</div>
       <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
     </article>`;
   }).join("");

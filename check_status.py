@@ -6,13 +6,18 @@ load_dotenv()
 from sqlalchemy import create_engine, text
 import os
 
+from db_tables import GT_APP_SETTINGS, GT_CONTRACTS
+
 engine = create_engine(os.getenv("DATABASE_URL", ""))
 with engine.connect() as conn:
-    count = conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+    count = conn.execute(text(f"SELECT COUNT(*) FROM {GT_CONTRACTS}")).scalar()
     print(f"contracts in db: {count}")
 
     usage = conn.execute(
-        text("SELECT key, value FROM app_settings WHERE key LIKE 'sam_api_usage_%' ORDER BY key DESC LIMIT 5")
+        text(
+            f"SELECT key, value FROM {GT_APP_SETTINGS} "
+            "WHERE key LIKE 'sam_api_usage_%' ORDER BY key DESC LIMIT 5"
+        )
     ).fetchall()
     print("sam_api usage (recent days):")
     for key, value in usage:
@@ -20,12 +25,12 @@ with engine.connect() as conn:
 
     rows = conn.execute(
         text(
-            """
+            f"""
             SELECT notice_id, title,
                    sam_raw->>'scrapeStatus' AS scrape_status,
                    pricing_intel->>'recommended_annual_bid' AS recommended_bid,
                    pricing_intel->'unit_rate_summary'->>'rated_awards_count' AS rated_awards
-            FROM contracts
+            FROM {GT_CONTRACTS}
             ORDER BY id
             LIMIT 10
             """

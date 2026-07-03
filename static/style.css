@@ -2661,7 +2661,8 @@ a {
 .compact-card-row { display: flex; align-items: center; min-height: 0; }
 .compact-due-wrap { display: inline-flex; align-items: center; gap: 0.35rem; }
 
-.compact-piee-badge {
+.compact-piee-badge,
+.compact-fetch-badge {
   display: inline-block;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
@@ -2674,7 +2675,31 @@ a {
   border: 1px solid #fdba74;
 }
 
-.compact-card-piee { border-color: #fdba74; }
+.compact-fetch-piee { background: #ffedd5; color: #c2410c; border-color: #fdba74; }
+.compact-fetch-failed { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+.compact-fetch-external,
+.compact-fetch-links { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+.compact-fetch-scan { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+
+.compact-priority-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.compact-card-priority { border-color: #93c5fd; }
+
+.compact-card-piee,
+.compact-card-fetch-blocked { border-color: #fdba74; }
+.compact-card-fetch-blocked:has(.compact-fetch-failed) { border-color: #fca5a5; }
+.compact-card-fetch-blocked:has(.compact-fetch-scan) { border-color: #c4b5fd; }
 
 .card-section-piee .card-attachments-piee { color: #c2410c; font-weight: 500; }
 .card-piee-link { color: #c2410c; font-weight: 600; }
@@ -2806,6 +2831,12 @@ a {
 .compact-card-status-warn {
   color: #b45309;
   font-weight: 600;
+}
+.compact-card-status-fetch {
+  color: #b45309;
+  font-weight: 500;
+  white-space: normal;
+  line-height: 1.35;
 }
 .compact-card-status {
   font-size: 0.78rem;

@@ -309,6 +309,7 @@ def contract_to_card_dict(
     session: Session,
     *,
     stored_pdf_ids: set[int] | None = None,
+    watchlist_targets: tuple | list | None = None,
 ) -> dict[str, Any]:
     """Fast dashboard card payload — reads persisted DB fields only, no live pipeline work."""
     from naics_labels import naics_label
@@ -359,18 +360,30 @@ def contract_to_card_dict(
     if work.get("city"):
         sub_summary["city"] = work.get("city")
 
-    from document_intel import piee_intel_for_card
+    from document_intel import _doc_access_for_card, attachment_fetch_alert_for_card, piee_intel_for_card
 
     piee_intel = piee_intel_for_card(row, session)
-    doc_access = sam_raw.get("documentAccess") if isinstance(sam_raw.get("documentAccess"), dict) else {}
+    fetch_alert = attachment_fetch_alert_for_card(row, session)
+    doc_access = _doc_access_for_card(row)
+    if not doc_access and isinstance(sam_raw.get("documentAccess"), dict):
+        doc_access = sam_raw["documentAccess"]
     workflow_progress = compute_workflow_progress_fast(row)
-    if piee_intel.get("action_required") and piee_intel.get("notice_url"):
+    if fetch_alert.get("blocked"):
         workflow_progress = dict(workflow_progress)
-        workflow_progress["primary_action"] = {"label": "Open PIEE", "action": "piee"}
-        workflow_progress["status_message"] = piee_intel["summary"]
-    elif piee_intel.get("action_required"):
-        workflow_progress = dict(workflow_progress)
-        workflow_progress["status_message"] = piee_intel["summary"]
+        workflow_progress["primary_action"] = {
+            "label": fetch_alert["action_label"],
+            "action": fetch_alert["action"],
+        }
+        workflow_progress["status_message"] = fetch_alert["summary"]
+
+    watchlist_priority = False
+    watchlist_label = None
+    if watchlist_targets:
+        from gs_watchlist_service import match_contract_to_targets
+
+        watchlist_priority, watchlist_label, _matched_field = match_contract_to_targets(
+            row, watchlist_targets
+        )
 
     return {
         "notice_id": row.notice_id,
@@ -403,6 +416,11 @@ def contract_to_card_dict(
         "sam_attachments": sam_attachments,
         "document_access": doc_access,
         "piee_intel": piee_intel,
+        "attachment_fetch_alert": fetch_alert,
+        "watchlist_priority": watchlist_priority,
+        "watchlist_score": watchlist_label,
+        "watchlist_niche": watchlist_label,
+        "link": row.link,
         "workflow_progress": workflow_progress,
         "dashboard_ready": is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids),
     }

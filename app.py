@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260702-fast-dashboard"
+APP_BUILD_VERSION = "20260703-gt-tables"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -415,7 +415,24 @@ def health():
     }
     if state.get("error"):
         payload["startup_error"] = state["error"]
+    try:
+        from gs_watchlist_service import watchlist_status
+
+        wl = watchlist_status()
+        payload["watchlist"] = {
+            "table": wl.get("table"),
+            "priority_target_count": wl.get("priority_target_count"),
+        }
+    except Exception:
+        payload["watchlist"] = {"table": None, "priority_target_count": 0}
     return payload
+
+
+@app.get("/api/watchlist/priority-targets")
+def watchlist_priority_targets():
+    from gs_watchlist_service import watchlist_status
+
+    return watchlist_status()
 
 
 @app.get("/api/auth/status")
@@ -534,18 +551,28 @@ def get_contracts(
             row_flags.append((row, ready))
 
         processing_count = sum(1 for _, ready in row_flags if not ready)
-        rows = sorted(
-            row_flags,
-            key=lambda item: (
-                0 if item[1] else 1,
+
+        from gs_watchlist_service import load_priority_targets, match_contract_to_targets
+
+        watchlist_targets = load_priority_targets()
+
+        def _watchlist_sort_key(item: tuple) -> tuple:
+            row, ready = item
+            matched, priority, _ = match_contract_to_targets(row, watchlist_targets)
+            rank = {"critical": 0, "urgent": 1, "high": 2}.get((priority or "").lower(), 3)
+            return (
+                0 if matched else 1,
+                rank,
+                0 if ready else 1,
                 -int(
-                    (item[0].analysis or {}).get("score")
-                    or (item[0].analysis or {}).get("text_score")
+                    (row.analysis or {}).get("score")
+                    or (row.analysis or {}).get("text_score")
                     or 0
                 ),
-                item[0].due_date is None,
-            ),
-        )
+                row.due_date is None,
+            )
+
+        rows = sorted(row_flags, key=_watchlist_sort_key)
 
         hidden_by_min_days = 0
         ready_eligible = len(visible_rows)
@@ -574,19 +601,34 @@ def get_contracts(
             ready_eligible = visible_at_zero
             hidden_by_min_days = max(0, visible_at_zero - len(visible_rows))
 
-        from document_intel import piee_intel_for_card
+        from document_intel import attachment_fetch_alert_for_card, piee_intel_for_card
 
         piee_action_count = sum(
             1
             for row, _ in rows
             if piee_intel_for_card(row, session).get("action_required")
         )
+        manual_fetch_count = sum(
+            1
+            for row, _ in rows
+            if attachment_fetch_alert_for_card(row, session).get("blocked")
+        )
+        watchlist_match_count = sum(
+            1
+            for row, _ in rows
+            if match_contract_to_targets(row, watchlist_targets)[0]
+        )
 
         return {
             "count": len(rows),
             "processing_count": processing_count,
             "contracts": [
-                contract_to_card_dict(row, session, stored_pdf_ids=stored_pdf_ids)
+                contract_to_card_dict(
+                    row,
+                    session,
+                    stored_pdf_ids=stored_pdf_ids,
+                    watchlist_targets=watchlist_targets,
+                )
                 for row, _ in rows
             ],
             "api_budget": get_usage_snapshot(),
@@ -596,6 +638,9 @@ def get_contracts(
                 "total_matching_naics": len(all_rows),
                 "min_days_applied": effective_min_days,
                 "piee_action_count": piee_action_count,
+                "manual_fetch_count": manual_fetch_count,
+                "watchlist_match_count": watchlist_match_count,
+                "watchlist_target_count": len(watchlist_targets),
             },
             "autopilot": _autopilot_summary(),
         }

@@ -13,6 +13,148 @@ def piee_mentioned_in_text(*parts: str | None) -> bool:
     return _piee_mentioned_in_text(*parts)
 
 
+def _doc_access_for_card(row: Contract) -> dict[str, Any]:
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    doc = analysis.get("document_access")
+    if isinstance(doc, dict) and doc:
+        return doc
+    sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    da = sam_raw.get("documentAccess")
+    return da if isinstance(da, dict) else {}
+
+
+def _sam_attachments_for_card(row: Contract) -> list[dict[str, Any]]:
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    atts = [a for a in (analysis.get("sam_attachments") or []) if isinstance(a, dict)]
+    if atts:
+        return atts
+    sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    return [a for a in (sam_raw.get("opportunityAttachments") or []) if isinstance(a, dict)]
+
+
+def _sam_gov_url(row: Contract, doc_access: dict[str, Any]) -> str | None:
+    link = getattr(row, "link", None) or doc_access.get("sam_gov_link")
+    if link:
+        return str(link)
+    if row.notice_id:
+        return f"https://sam.gov/opp/{row.notice_id}/view"
+    return None
+
+
+def _first_attachment_link(row: Contract) -> str | None:
+    for item in _sam_attachments_for_card(row):
+        url = item.get("url") or item.get("download_url")
+        if url:
+            return str(url)
+    return None
+
+
+def _empty_fetch_alert() -> dict[str, Any]:
+    return {
+        "blocked": False,
+        "kind": None,
+        "badge": None,
+        "summary": "",
+        "action": "overview",
+        "action_label": "View",
+        "action_url": None,
+    }
+
+
+def attachment_fetch_alert_for_card(row: Contract, session=None) -> dict[str, Any]:
+    """When auto attachment pull cannot finish — tell the user to fetch files manually."""
+    pdfs_in_db = False
+    if row.id and session is not None:
+        from attachment_storage import has_stored_pdfs
+
+        pdfs_in_db = has_stored_pdfs(session, row.id)
+
+    method = str(getattr(row, "attachment_extraction_method", None) or "")
+    note = str(getattr(row, "attachment_extraction_note", None) or "")
+    doc_access = _doc_access_for_card(row)
+    piee = piee_intel_for_card(row, session)
+    sam_url = _sam_gov_url(row, doc_access)
+
+    if pdfs_in_db and method in ("text", "stored_pdf_reextract"):
+        return _empty_fetch_alert()
+
+    if pdfs_in_db and method == "ocr_needed":
+        return {
+            "blocked": True,
+            "kind": "scan",
+            "badge": "Scan PDF",
+            "summary": note or "PDFs are image-only scans — open the contract to view or upload readable copies.",
+            "action": "documents",
+            "action_label": "View PDFs",
+            "action_url": None,
+        }
+
+    if piee.get("action_required"):
+        return {
+            "blocked": True,
+            "kind": "piee",
+            "badge": "PIEE",
+            "summary": piee.get("summary") or "Documents are on PIEE, not SAM.gov.",
+            "action": "piee",
+            "action_label": "Open PIEE",
+            "action_url": piee.get("notice_url"),
+        }
+
+    portals = [p for p in (doc_access.get("external_portals") or piee.get("external_portals") or []) if p != "PIEE"]
+    if (doc_access.get("requires_external_portal") or portals) and not pdfs_in_db:
+        portal_names = ", ".join(portals) if portals else "external portal"
+        ext_url = _first_attachment_link(row)
+        return {
+            "blocked": True,
+            "kind": "external",
+            "badge": "Get files",
+            "summary": doc_access.get("summary") or f"Documents are on {portal_names} — download manually.",
+            "action": "sam",
+            "action_label": "Open portal" if ext_url else "Open SAM.gov",
+            "action_url": ext_url or sam_url,
+        }
+
+    status = str(doc_access.get("status") or "")
+    link_count = int(doc_access.get("link_count") or 0)
+    file_count = int(doc_access.get("file_attachment_count") or 0)
+    if not pdfs_in_db and status == "sam_links" and link_count > 0 and file_count == 0:
+        link_url = _first_attachment_link(row)
+        return {
+            "blocked": True,
+            "kind": "links",
+            "badge": "Get PDF",
+            "summary": doc_access.get("summary")
+            or "SAM.gov only lists external link(s) — open the link to download solicitation PDFs.",
+            "action": "sam",
+            "action_label": "Open link",
+            "action_url": link_url or sam_url,
+        }
+
+    if method == "failed" and not pdfs_in_db:
+        return {
+            "blocked": True,
+            "kind": "failed",
+            "badge": "Fetch failed",
+            "summary": note or "Auto-download failed — open SAM.gov and pull PDFs manually.",
+            "action": "sam",
+            "action_label": "Open SAM.gov",
+            "action_url": sam_url,
+        }
+
+    if method == "no_pdfs_expected" and status == "external_portal" and not pdfs_in_db:
+        return {
+            "blocked": True,
+            "kind": "external",
+            "badge": "Get files",
+            "summary": doc_access.get("summary") or "Documents are on an external portal — fetch manually.",
+            "action": "sam",
+            "action_label": "Open SAM.gov",
+            "action_url": sam_url,
+        }
+
+    return _empty_fetch_alert()
+
+
 def piee_intel_for_card(row: Contract, session=None) -> dict[str, Any]:
     """Fast PIEE flags for list cards — never loads deferred sam_raw blobs."""
     from sqlalchemy import inspect as sa_inspect

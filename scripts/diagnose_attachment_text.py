@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from database import SessionLocal
+from db_tables import GT_CONTRACTS
 from models import Contract
 from sam_enrich import is_scrape_complete
 from claude_client import contract_attachment_text
@@ -26,7 +27,7 @@ def main() -> None:
         from sqlalchemy import inspect
 
         insp = inspect(session.bind)
-        cols = [c["name"] for c in insp.get_columns("contracts")]
+        cols = [c["name"] for c in insp.get_columns(GT_CONTRACTS)]
         print("Contract columns with attachment/subcontract:", [c for c in cols if "attachment" in c or "subcontract" in c])
         print()
 

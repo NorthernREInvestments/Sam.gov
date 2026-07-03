@@ -15,14 +15,14 @@ from database import Base
 class AppSetting(Base):
     """Key-value store for sync rotation and other app state."""
 
-    __tablename__ = "app_settings"
+    __tablename__ = "gt_app_settings"
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
 
 
 class Contract(Base):
-    __tablename__ = "contracts"
+    __tablename__ = "gt_contracts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     notice_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
@@ -78,7 +78,7 @@ class Contract(Base):
     submission_method_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     pricing_schedule_required: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     pricing_schedule_attachment_id: Mapped[int | None] = mapped_column(
-        ForeignKey("contract_attachments.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("gt_contract_attachments.id", ondelete="SET NULL"), nullable=True
     )
     multiple_pricing_encouraged: Mapped[bool] = mapped_column(Boolean, default=False)
     sf1449_required: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -140,10 +140,10 @@ class Contract(Base):
 
 
 class ContractInvoice(Base):
-    __tablename__ = "contract_invoices"
+    __tablename__ = "gt_contract_invoices"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
     invoice_number: Mapped[str] = mapped_column(String(64), index=True)
     billing_period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
     billing_period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -163,15 +163,15 @@ class ContractInvoice(Base):
 
 
 class SubPayment(Base):
-    __tablename__ = "sub_payments"
+    __tablename__ = "gt_sub_payments"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
     invoice_id: Mapped[int | None] = mapped_column(
-        ForeignKey("contract_invoices.id", ondelete="SET NULL"), nullable=True, index=True
+        ForeignKey("gt_contract_invoices.id", ondelete="SET NULL"), nullable=True, index=True
     )
     sub_contact_id: Mapped[int | None] = mapped_column(
-        ForeignKey("sub_contacts.id", ondelete="SET NULL"), nullable=True, index=True
+        ForeignKey("gt_sub_contacts.id", ondelete="SET NULL"), nullable=True, index=True
     )
     sub_invoice_received_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     sub_invoice_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
@@ -194,11 +194,11 @@ class SubPayment(Base):
 class ContractAttachment(Base):
     """Persisted solicitation file bytes (PDF and other downloads) — not just URLs."""
 
-    __tablename__ = "contract_attachments"
+    __tablename__ = "gt_contract_attachments"
     __table_args__ = (UniqueConstraint("contract_id", "filename_key", name="uq_contract_attachment_file"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
     filename: Mapped[str] = mapped_column(String(512))
     filename_key: Mapped[str] = mapped_column(String(512))
     source: Mapped[str] = mapped_column(String(32), default="sam")  # sam | piee
@@ -215,7 +215,7 @@ class ContractAttachment(Base):
 
 
 class Sub(Base):
-    __tablename__ = "subs"
+    __tablename__ = "gt_subs"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     place_id: Mapped[str] = mapped_column(String(256), unique=True, index=True)
@@ -252,14 +252,14 @@ class Sub(Base):
 class SubContact(Base):
     """Per-contract subcontractor outreach, quotes, and selection workflow."""
 
-    __tablename__ = "sub_contacts"
+    __tablename__ = "gt_sub_contacts"
     __table_args__ = (UniqueConstraint("contract_id", "sub_id", name="uq_sub_contact_contract_sub"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
-    sub_id: Mapped[int | None] = mapped_column(ForeignKey("subs.id", ondelete="SET NULL"), nullable=True, index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int | None] = mapped_column(ForeignKey("gt_subs.id", ondelete="SET NULL"), nullable=True, index=True)
     contract_sub_id: Mapped[int | None] = mapped_column(
-        ForeignKey("contract_subs.id", ondelete="SET NULL"), nullable=True, unique=True, index=True
+        ForeignKey("gt_contract_subs.id", ondelete="SET NULL"), nullable=True, unique=True, index=True
     )
 
     company_name: Mapped[str] = mapped_column(String(512))
@@ -311,12 +311,12 @@ class SubContact(Base):
 
 
 class ContractSub(Base):
-    __tablename__ = "contract_subs"
+    __tablename__ = "gt_contract_subs"
     __table_args__ = (UniqueConstraint("contract_id", "sub_id", name="uq_contract_sub"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
-    sub_id: Mapped[int] = mapped_column(ForeignKey("subs.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int] = mapped_column(ForeignKey("gt_subs.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(64), default="Not Contacted")
     quote_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     quote_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -341,14 +341,14 @@ class ContractSub(Base):
 
 
 class SubcontractAgreement(Base):
-    __tablename__ = "subcontract_agreements"
+    __tablename__ = "gt_subcontract_agreements"
     __table_args__ = (UniqueConstraint("contract_sub_id", name="uq_subcontract_agreement_link"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
-    sub_id: Mapped[int] = mapped_column(ForeignKey("subs.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int] = mapped_column(ForeignKey("gt_subs.id", ondelete="CASCADE"), index=True)
     contract_sub_id: Mapped[int] = mapped_column(
-        ForeignKey("contract_subs.id", ondelete="CASCADE"), index=True
+        ForeignKey("gt_contract_subs.id", ondelete="CASCADE"), index=True
     )
     agreement_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     config_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -365,13 +365,13 @@ class SubcontractAgreement(Base):
 
 
 class Proposal(Base):
-    __tablename__ = "proposals"
+    __tablename__ = "gt_proposals"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
-    sub_id: Mapped[int | None] = mapped_column(ForeignKey("subs.id", ondelete="SET NULL"), nullable=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("gt_contracts.id", ondelete="CASCADE"), index=True)
+    sub_id: Mapped[int | None] = mapped_column(ForeignKey("gt_subs.id", ondelete="SET NULL"), nullable=True)
     contract_sub_id: Mapped[int | None] = mapped_column(
-        ForeignKey("contract_subs.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("gt_contract_subs.id", ondelete="SET NULL"), nullable=True
     )
 
     sub_name: Mapped[str | None] = mapped_column(String(512), nullable=True)

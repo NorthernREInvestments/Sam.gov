@@ -411,10 +411,17 @@ function handleCardPrimaryAction(noticeId, action) {
   const map = {
     piee: () => {
       const c = contracts.find((row) => row.notice_id === noticeId);
-      const url = c?.piee_intel?.notice_url;
+      const url = c?.attachment_fetch_alert?.action_url || c?.piee_intel?.notice_url;
       if (url) window.open(url, "_blank", "noopener");
       else openContractDetail(noticeId, "documents");
     },
+    sam: () => {
+      const c = contracts.find((row) => row.notice_id === noticeId);
+      const url = c?.attachment_fetch_alert?.action_url || c?.link;
+      if (url) window.open(url, "_blank", "noopener");
+      else openContractDetail(noticeId, "documents");
+    },
+    documents: () => openContractDetail(noticeId, "documents"),
     find_subs: () => openContractDetail(noticeId, "subs"),
     proposal: () => openContractDetail(noticeId, "proposal"),
     checklist: () => openContractDetail(noticeId, "proposal"),

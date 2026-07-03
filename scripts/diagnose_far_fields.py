@@ -9,6 +9,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from sqlalchemy import text
 
 from database import SessionLocal, init_db, engine
+from db_tables import GT_CONTRACTS
 
 init_db()
 
@@ -18,14 +19,15 @@ with engine.connect() as c:
             """
             SELECT column_name, data_type, character_maximum_length
             FROM information_schema.columns
-            WHERE table_name = 'contracts'
+            WHERE table_name = :table_name
               AND column_name IN (
                 'attachment_text', 'subcontracting_limitation_check',
                 'subcontracting_limitation_context', 'far_52219_14_present'
               )
             ORDER BY column_name
             """
-        )
+        ),
+        {"table_name": GT_CONTRACTS},
     ).fetchall()
     print("=== Schema columns ===")
     for r in rows:

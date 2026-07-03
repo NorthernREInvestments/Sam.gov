@@ -104,6 +104,9 @@ def init_db() -> None:
         SubcontractAgreement,
     )
 
+    log.info("init_db: rename legacy tables")
+    print("govtracker: init_db rename legacy tables", flush=True)
+    _migrate_rename_tables_to_gt_prefix()
     log.info("init_db: schema")
     print("govtracker: init_db schema", flush=True)
     Base.metadata.create_all(bind=engine)
@@ -125,7 +128,36 @@ def init_db() -> None:
     print("govtracker: init_db done", flush=True)
 
 
+def _migrate_rename_tables_to_gt_prefix() -> None:
+    """One-time rename of GovTracker tables when sharing Postgres with other apps."""
+    from db_tables import GT_TABLE_RENAMES
+
+    with engine.connect() as conn:
+        existing = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            )
+        }
+        renamed = 0
+        for old_name, new_name in GT_TABLE_RENAMES:
+            if old_name in existing and new_name not in existing:
+                conn.execute(text(f'ALTER TABLE "{old_name}" RENAME TO "{new_name}"'))
+                existing.discard(old_name)
+                existing.add(new_name)
+                renamed += 1
+        conn.commit()
+        if renamed:
+            import logging
+
+            logging.getLogger("govtracker.db").info(
+                "Renamed %s legacy table(s) to gt_ prefix", renamed
+            )
+
+
 def _migrate_add_attachment_compliance() -> None:
+    from db_tables import GT_CONTRACTS
+
     columns = [
         ("attachment_text", "TEXT"),
         ("attachment_extraction_method", "VARCHAR(32)"),
@@ -138,31 +170,34 @@ def _migrate_add_attachment_compliance() -> None:
     ]
     with engine.connect() as conn:
         for name, col_type in columns:
-            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+            conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.execute(
             text(
-                "CREATE INDEX IF NOT EXISTS ix_contracts_subcontracting_limitation_check "
-                "ON contracts (subcontracting_limitation_check)"
+                f"CREATE INDEX IF NOT EXISTS ix_gt_contracts_subcontracting_limitation_check "
+                f"ON {GT_CONTRACTS} (subcontracting_limitation_check)"
             )
         )
         conn.execute(
             text(
-                "CREATE INDEX IF NOT EXISTS ix_contracts_far_52219_14_present "
-                "ON contracts (far_52219_14_present)"
+                f"CREATE INDEX IF NOT EXISTS ix_gt_contracts_far_52219_14_present "
+                f"ON {GT_CONTRACTS} (far_52219_14_present)"
             )
         )
         conn.commit()
 
 
 def _migrate_add_contract_margin() -> None:
+    from db_tables import GT_CONTRACTS
+
     with engine.connect() as conn:
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS margin_percentage NUMERIC(5, 2)")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS margin_percentage NUMERIC(5, 2)")
         )
         conn.commit()
 
 
 def _migrate_add_sub_agreements() -> None:
+    from db_tables import GT_CONTRACT_SUBS, GT_SUBS
     sub_columns = [
         ("owner_name", "VARCHAR(256)"),
         ("owner_title", "VARCHAR(128)"),
@@ -172,28 +207,29 @@ def _migrate_add_sub_agreements() -> None:
     ]
     with engine.connect() as conn:
         for name, col_type in sub_columns:
-            conn.execute(text(f"ALTER TABLE subs ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+            conn.execute(text(f"ALTER TABLE {GT_SUBS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.execute(
             text(
-                "ALTER TABLE contract_subs ADD COLUMN IF NOT EXISTS "
+                f"ALTER TABLE {GT_CONTRACT_SUBS} ADD COLUMN IF NOT EXISTS "
                 "agreement_signature_status VARCHAR(64) DEFAULT 'Agreement Not Generated'"
             )
         )
         conn.execute(
-            text("ALTER TABLE contract_subs ADD COLUMN IF NOT EXISTS agreement_status_log JSONB")
+            text(f"ALTER TABLE {GT_CONTRACT_SUBS} ADD COLUMN IF NOT EXISTS agreement_status_log JSONB")
         )
         conn.commit()
 
 
 def _migrate_add_contract_tier() -> None:
+    from db_tables import GT_CONTRACTS
     from naics_labels import NAICS_TIER_BY_CODE
 
     with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS tier INTEGER"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_contracts_tier ON contracts (tier)"))
+        conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS tier INTEGER"))
+        conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_gt_contracts_tier ON {GT_CONTRACTS} (tier)"))
         for code, tier in NAICS_TIER_BY_CODE.items():
             conn.execute(
-                text("UPDATE contracts SET tier = :tier WHERE naics_code = :code AND tier IS NULL"),
+                text(f"UPDATE {GT_CONTRACTS} SET tier = :tier WHERE naics_code = :code AND tier IS NULL"),
                 {"tier": tier, "code": code},
             )
         conn.commit()
@@ -205,6 +241,8 @@ def _migrate_add_proposals() -> None:
 
 
 def _migrate_add_internal_pricing() -> None:
+    from db_tables import GT_CONTRACTS
+
     columns = [
         ("square_footage", "INTEGER"),
         ("building_type", "VARCHAR(32)"),
@@ -219,41 +257,49 @@ def _migrate_add_internal_pricing() -> None:
     ]
     with engine.connect() as conn:
         for name, col_type in columns:
-            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+            conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.commit()
 
 
 def _migrate_add_sub_finder() -> None:
+    from db_tables import GT_CONTRACTS
+
     with engine.connect() as conn:
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS selected_sub_quote NUMERIC(14, 2)")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS selected_sub_quote NUMERIC(14, 2)")
         )
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sub_search_status VARCHAR(32)")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS sub_search_status VARCHAR(32)")
         )
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sub_search_radius_miles INTEGER")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS sub_search_radius_miles INTEGER")
         )
         conn.commit()
 
 
 def _migrate_add_sam_raw() -> None:
+    from db_tables import GT_CONTRACTS
+
     with engine.connect() as conn:
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sam_raw JSONB")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS sam_raw JSONB")
         )
         conn.commit()
 
 
 def _migrate_add_pricing_intel() -> None:
+    from db_tables import GT_CONTRACTS
+
     with engine.connect() as conn:
         conn.execute(
-            text("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
+            text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
         )
         conn.commit()
 
 
 def _migrate_add_submission_package() -> None:
+    from db_tables import GT_CONTRACTS
+
     columns = [
         ("submission_method", "VARCHAR(32)"),
         ("submission_email", "VARCHAR(256)"),
@@ -270,27 +316,29 @@ def _migrate_add_submission_package() -> None:
     ]
     with engine.connect() as conn:
         for name, col_type in columns:
-            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+            conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.execute(
             text(
-                "CREATE INDEX IF NOT EXISTS ix_contracts_submission_method "
-                "ON contracts (submission_method)"
+                f"CREATE INDEX IF NOT EXISTS ix_gt_contracts_submission_method "
+                f"ON {GT_CONTRACTS} (submission_method)"
             )
         )
         conn.execute(
             text(
-                "CREATE INDEX IF NOT EXISTS ix_contracts_pricing_schedule_required "
-                "ON contracts (pricing_schedule_required)"
+                f"CREATE INDEX IF NOT EXISTS ix_gt_contracts_pricing_schedule_required "
+                f"ON {GT_CONTRACTS} (pricing_schedule_required)"
             )
         )
         conn.commit()
 
 
 def _migrate_add_sub_contacts() -> None:
+    from db_tables import GT_CONTRACTS
+
     with engine.connect() as conn:
         conn.execute(
             text(
-                "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS "
+                f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS "
                 "sub_checklist_bypassed_at TIMESTAMP WITH TIME ZONE"
             )
         )
@@ -301,6 +349,8 @@ def _migrate_add_sub_contacts() -> None:
 
 
 def _migrate_add_performance() -> None:
+    from db_tables import GT_CONTRACTS
+
     columns = [
         ("award_date", "DATE"),
         ("period_of_performance_start", "DATE"),
@@ -328,5 +378,5 @@ def _migrate_add_performance() -> None:
     ]
     with engine.connect() as conn:
         for name, col_type in columns:
-            conn.execute(text(f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+            conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
         conn.commit()
