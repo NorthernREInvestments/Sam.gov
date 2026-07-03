@@ -254,6 +254,12 @@ def is_visible_on_dashboard(
         return True
 
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    score = analysis.get("score")
+    if score is None:
+        score = analysis.get("text_score")
+    if score is not None:
+        return True
+
     if getattr(row, "sub_search_status", None) == "searching":
         return True
     if analysis.get("screening_stage") == "full" and not analysis.get("contract_advice"):

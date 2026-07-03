@@ -359,9 +359,9 @@ def contract_to_card_dict(
     if work.get("city"):
         sub_summary["city"] = work.get("city")
 
-    from document_intel import contract_piee_intel
+    from document_intel import piee_intel_for_card
 
-    piee_intel = contract_piee_intel(row, session)
+    piee_intel = piee_intel_for_card(row, session)
     doc_access = sam_raw.get("documentAccess") if isinstance(sam_raw.get("documentAccess"), dict) else {}
     workflow_progress = compute_workflow_progress_fast(row)
     if piee_intel.get("action_required") and piee_intel.get("notice_url"):

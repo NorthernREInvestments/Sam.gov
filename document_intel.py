@@ -13,6 +13,40 @@ def piee_mentioned_in_text(*parts: str | None) -> bool:
     return _piee_mentioned_in_text(*parts)
 
 
+def piee_intel_for_card(row: Contract, session=None) -> dict[str, Any]:
+    """Fast PIEE flags for list cards — never loads deferred sam_raw blobs."""
+    from sqlalchemy import inspect as sa_inspect
+
+    unloaded = sa_inspect(row).unloaded
+    if "sam_raw" not in unloaded:
+        return contract_piee_intel(row, session)
+
+    analysis = row.analysis if isinstance(row.analysis, dict) else {}
+    doc_access = analysis.get("document_access") if isinstance(analysis.get("document_access"), dict) else {}
+    portals = list(doc_access.get("external_portals") or [])
+    is_piee = "PIEE" in portals or bool(doc_access.get("requires_piee_action"))
+    notice_url = doc_access.get("piee_notice_url")
+    pdfs_in_db = False
+    if row.id and session is not None:
+        from attachment_storage import has_stored_pdfs
+
+        pdfs_in_db = has_stored_pdfs(session, row.id)
+    action_required = is_piee and not pdfs_in_db
+    summary = ""
+    if is_piee:
+        summary = str(doc_access.get("summary") or "Documents may be on PIEE — open PIEE for solicitation PDFs.")
+    return {
+        "is_piee": is_piee,
+        "action_required": action_required,
+        "notice_url": notice_url,
+        "piee_attachment_count": int(doc_access.get("piee_attachment_count") or 0),
+        "pdfs_in_db": pdfs_in_db,
+        "external_portals": portals,
+        "summary": summary,
+        "submission_method": row.submission_method or analysis.get("submission_method"),
+    }
+
+
 def contract_piee_intel(row: Contract, session=None) -> dict[str, Any]:
     """PIEE status for one contract — reads DB only, no live SAM/PIEE calls."""
     from attachment_storage import has_stored_pdfs

@@ -102,7 +102,7 @@ def get_pricing_backfill_status() -> dict[str, Any]:
         }
 
 
-def start_background_pricing_backfill() -> dict[str, Any]:
+def start_background_pricing_backfill(*, delay_seconds: float = 20) -> dict[str, Any]:
     """Run missing-dollar USAspending refresh in a daemon thread."""
     global _running, _last_result
     with _lock:
@@ -112,6 +112,10 @@ def start_background_pricing_backfill() -> dict[str, Any]:
 
     def _run() -> None:
         global _running, _last_result
+        import time
+
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
         try:
             _last_result = run_missing_dollar_backfill()
         except Exception:
@@ -121,5 +125,5 @@ def start_background_pricing_backfill() -> dict[str, Any]:
                 _running = False
 
     threading.Thread(target=_run, daemon=True, name="govtracker-pricing-backfill").start()
-    logger.info("Background pricing backfill started")
+    logger.info("Background pricing backfill scheduled (starts in %ss)", delay_seconds)
     return {"started": True, "status": get_pricing_backfill_status()}

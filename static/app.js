@@ -843,17 +843,33 @@ function manageCardPolling() {
 let filterStats = {};
 
 async function loadContracts() {
-  const res = await apiFetch(`/api/contracts?${buildQuery()}`);
-  const data = await res.json();
-  contracts = data.contracts || [];
-  processingCount = data.processing_count || 0;
-  filterStats = data.filter_stats || {};
-  if (data.autopilot) config.autopilot = data.autopilot;
-  renderCards();
-  manageCardPolling();
-  if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
-  updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
-  updateFilterHint(filterStats);
+  const statusEl = document.getElementById("status-bar");
+  const cardsEl = document.getElementById("cards");
+  if (statusEl) statusEl.textContent = "Loading contracts…";
+  if (cardsEl && !contracts.length) {
+    cardsEl.innerHTML = `<div class="empty-state">Loading contracts…</div>`;
+  }
+  try {
+    const res = await apiFetch(`/api/contracts?${buildQuery()}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load contracts");
+    contracts = data.contracts || [];
+    processingCount = data.processing_count || 0;
+    filterStats = data.filter_stats || {};
+    if (data.autopilot) config.autopilot = data.autopilot;
+    renderCards();
+    manageCardPolling();
+    if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
+    updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
+    updateFilterHint(filterStats);
+  } catch (err) {
+    if (statusEl && err.message !== "Login required") {
+      statusEl.textContent = `Could not load contracts: ${err.message}`;
+    }
+    if (cardsEl && err.message !== "Login required") {
+      cardsEl.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
 }
 
 async function loadContractsQuiet() {

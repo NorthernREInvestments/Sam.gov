@@ -574,12 +574,12 @@ def get_contracts(
             ready_eligible = visible_at_zero
             hidden_by_min_days = max(0, visible_at_zero - len(visible_rows))
 
-        from document_intel import contract_piee_intel
+        from document_intel import piee_intel_for_card
 
         piee_action_count = sum(
             1
-            for row in all_rows
-            if contract_piee_intel(row, session).get("action_required")
+            for row, _ in rows
+            if piee_intel_for_card(row, session).get("action_required")
         )
 
         return {
