@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-csv-queue-budget"
+APP_BUILD_VERSION = "20260703-csv-upload-modal"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2155,22 +2155,18 @@ def update_performance_settings(body: PerformanceSettingsUpdate):
     )
 
 
-@app.get("/upload/sam-csv")
-def upload_sam_csv_page():
-    """Upload page for SAM.gov ContractOpportunitiesFullCSV."""
-    return FileResponse(STATIC_DIR / "upload-sam-csv.html")
-
-
 @app.post("/api/upload/sam-csv")
 async def upload_sam_csv(
+    request: Request,
     file: UploadFile = File(...),
-    password: str = Form(...),
+    password: str = Form(""),
 ):
     """Import SAM full CSV into gt_csv_opportunities with attachment queue + watchlist matching."""
     from csv_import_service import verify_csv_upload_password
     from csv_watchlist_service import run_full_csv_upload_pipeline
 
-    if not verify_csv_upload_password(password):
+    token = request.cookies.get(COOKIE_NAME)
+    if not verify_auth_token(token) and not verify_csv_upload_password(password):
         raise HTTPException(status_code=403, detail="Invalid upload password")
 
     if not file.filename or not str(file.filename).lower().endswith(".csv"):

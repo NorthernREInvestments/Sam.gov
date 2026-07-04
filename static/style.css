@@ -1086,6 +1086,44 @@ a {
   max-width: min(1100px, 92vw);
 }
 
+.csv-upload-modal h2 {
+  margin: 0 0 0.5rem;
+}
+
+.csv-upload-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.csv-upload-progress {
+  margin-top: 1rem;
+}
+
+.csv-upload-summary {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.csv-upload-summary h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.csv-upload-summary-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.csv-upload-error {
+  color: #b91c1c;
+  margin-top: 1rem;
+}
+
 .card-official-title {
   font-size: 0.82rem;
   color: var(--muted);

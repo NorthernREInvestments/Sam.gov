@@ -1523,6 +1523,95 @@ function closeModal() {
   document.getElementById("modal").hidden = true;
 }
 
+function renderCsvUploadSummary(data) {
+  return `
+    <h3>Import complete</h3>
+    <ul class="csv-upload-summary-list">
+      <li><strong>${data.records_imported ?? 0}</strong> records imported</li>
+      <li><strong>${data.records_updated ?? 0}</strong> records updated</li>
+      <li><strong>${data.records_skipped_filters ?? 0}</strong> skipped (didn't meet filters)</li>
+      <li><strong>${data.records_protected ?? 0}</strong> protected (kept from previous session)</li>
+      <li><strong>${data.watchlist_matches_found ?? 0}</strong> watchlist matches (${data.high_confidence_matches ?? 0} high confidence)</li>
+      <li><strong>${data.attachments_queued ?? 0}</strong> attachments queued</li>
+      <li><strong>${data.attachments_completed ?? 0}</strong> attachments complete</li>
+      <li><strong>${data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0}</strong> waiting for API budget</li>
+      <li><strong>${data.attachments_failed ?? 0}</strong> failed (retry tomorrow)</li>
+      <li><strong>${data.sam_api_calls_used_this_session ?? 0}</strong> SAM API calls this session</li>
+      <li><strong>${data.estimated_api_calls_remaining_queue ?? 0}</strong> estimated API calls left in queue</li>
+    </ul>
+    ${data.attachment_queue ? `<p class="detail-note">Queue now: ${data.attachment_queue.downloading ?? 0} downloading · ${data.attachment_queue.queued ?? 0} queued · ${data.attachment_queue.complete ?? 0} complete · ${data.attachment_queue.failed ?? 0} failed</p>` : ""}`;
+}
+
+function openCsvUploadModal() {
+  stopDetailPolling();
+  activeDetailId = null;
+  const panel = document.querySelector("#modal .modal-panel");
+  panel?.classList.remove("modal-panel-detail", "modal-panel-wide");
+
+  document.getElementById("modal-content").innerHTML = `
+    <div class="csv-upload-modal">
+      <h2>SAM.gov CSV upload</h2>
+      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong>. GovTracker imports matching small-business opportunities, queues attachment downloads, and runs watchlist fingerprint matching.</p>
+      <form id="csv-upload-form">
+        <label class="filter-label" for="csv-file-input">CSV file</label>
+        <input type="file" id="csv-file-input" class="settings-input" accept=".csv,text/csv" required>
+        <div class="csv-upload-actions">
+          <button type="submit" class="btn btn-primary" id="csv-upload-submit">Upload and import</button>
+          <button type="button" class="btn btn-secondary-action" id="csv-upload-cancel">Cancel</button>
+        </div>
+      </form>
+      <div id="csv-upload-progress" class="csv-upload-progress" hidden>
+        <p class="pricing-loading">Importing CSV and processing attachments… this may take several minutes.</p>
+      </div>
+      <div id="csv-upload-summary" class="csv-upload-summary" hidden></div>
+      <p id="csv-upload-error" class="csv-upload-error" hidden></p>
+    </div>`;
+  document.getElementById("modal").hidden = false;
+
+  document.getElementById("csv-upload-cancel")?.addEventListener("click", closeModal);
+  document.getElementById("csv-upload-form")?.addEventListener("submit", submitCsvUpload);
+}
+
+async function submitCsvUpload(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById("csv-file-input");
+  const progressEl = document.getElementById("csv-upload-progress");
+  const summaryEl = document.getElementById("csv-upload-summary");
+  const errEl = document.getElementById("csv-upload-error");
+  const submitBtn = document.getElementById("csv-upload-submit");
+  if (!fileInput?.files?.length) return;
+
+  errEl.hidden = true;
+  summaryEl.hidden = true;
+  progressEl.hidden = false;
+  submitBtn.disabled = true;
+  fileInput.disabled = true;
+
+  const body = new FormData();
+  body.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch("/api/upload/sam-csv", { method: "POST", body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+    progressEl.hidden = true;
+    summaryEl.innerHTML = renderCsvUploadSummary(data);
+    summaryEl.hidden = false;
+    showSyncStatus(
+      `CSV import complete — ${data.records_imported ?? 0} imported, ${data.attachments_queued ?? 0} attachments queued.`
+    );
+    await loadContracts();
+  } catch (err) {
+    progressEl.hidden = true;
+    errEl.textContent = err.message || "Upload failed";
+    errEl.hidden = false;
+    showSyncStatus(err.message || "CSV upload failed", true);
+    submitBtn.disabled = false;
+    fileInput.disabled = false;
+  }
+}
+
 function showSyncStatus(message, isError = false) {
   const el = document.getElementById("sync-status");
   el.textContent = message;
@@ -2002,6 +2091,7 @@ document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("apply-filters").addEventListener("click", applyFiltersAndRefresh);
 document.getElementById("refresh-btn")?.addEventListener("click", () => runSync({ searchOnly: false }));
 document.getElementById("attachments-btn")?.addEventListener("click", () => runAttachmentSync());
+document.getElementById("upload-csv-btn")?.addEventListener("click", openCsvUploadModal);
 document.getElementById("modal-close")?.addEventListener("click", closeModal);
 document.getElementById("modal-backdrop")?.addEventListener("click", closeModal);
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);
