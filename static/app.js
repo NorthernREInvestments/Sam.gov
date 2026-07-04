@@ -1600,9 +1600,34 @@ async function pollCsvUploadStatus(progressEl) {
     }
     if (data.status === "complete" && data.result) return data.result;
     if (data.status === "failed") throw new Error(data.error || "Import failed");
-    if (data.status === "idle" && i > 2) throw new Error("Import status lost — refresh and check dashboard.");
+    if (data.status === "idle") {
+      if (i < 8) continue;
+      await loadContracts();
+      throw new Error(
+        "Import status unavailable — the server may have restarted. Check watchlist sections below or upload again."
+      );
+    }
   }
-  throw new Error("Import still running — refresh the page in a few minutes to see results.");
+  await loadContracts();
+  throw new Error("Import still running — leave this tab open or check back in a few minutes.");
+}
+
+async function resumeCsvUploadIfProcessing() {
+  try {
+    const res = await apiFetch("/api/upload/sam-csv/status");
+    const data = await res.json().catch(() => ({}));
+    if (data.status !== "processing") return;
+    showSyncStatus("CSV import still running — resuming progress…");
+    const result = await pollCsvUploadStatus(null);
+    showSyncStatus(
+      `CSV import complete — ${result.records_imported ?? 0} imported, ${result.attachments_queued ?? 0} attachments queued.`
+    );
+    await loadContracts();
+  } catch (err) {
+    if (err.message !== "Login required") {
+      showSyncStatus(err.message, true);
+    }
+  }
 }
 
 async function submitCsvUpload(e) {
@@ -2161,4 +2186,7 @@ bindFilterControls();
 bindSlider("settings-min-days", "settings-min-days-value");
 bindSlider("settings-min-score", "settings-min-score-value");
 
-loadConfig().then(loadContracts);
+loadConfig().then(async () => {
+  await loadContracts();
+  resumeCsvUploadIfProcessing();
+});
