@@ -237,7 +237,7 @@ function updateFilterHint(filterStats) {
   }
   if (watchlistHits === 0 && possibleMatches === 0 && watchlistTargets > 0) {
     parts.push(
-      `<strong>${watchlistTargets} GovSpend watchlist target${watchlistTargets === 1 ? "" : "s"}</strong> (High/Medium) — SAM search runs daily before normal sync.`,
+      `<strong>${watchlistTargets} GovSpend watchlist target${watchlistTargets === 1 ? "" : "s"}</strong> — SAM search runs daily before normal sync.`,
     );
   }
   if (!window.GOVTRACKER_LAYOUT_V2) {

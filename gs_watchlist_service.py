@@ -46,13 +46,33 @@ class WatchlistTarget:
 
 
 def watchlist_status_watching() -> str:
+    """Deprecated — GovTracker loads all gs_watchlist rows; GovSpend UI filters are ignored."""
     return os.getenv("GS_WATCHLIST_STATUS", "Watching").strip() or "Watching"
 
 
 def watchlist_priority_values() -> tuple[str, ...]:
+    """Deprecated — GovTracker loads all gs_watchlist rows; GovSpend UI filters are ignored."""
     raw = os.getenv("GS_WATCHLIST_PRIORITIES", "High,Medium")
     values = tuple(v.strip() for v in raw.split(",") if v.strip())
     return values or ("High", "Medium")
+
+
+def _watchlist_order_by(columns: frozenset[str]) -> str:
+    parts: list[str] = []
+    if "priority" in columns:
+        parts.append(
+            """CASE LOWER(TRIM(priority))
+                    WHEN 'high' THEN 0
+                    WHEN 'medium' THEN 1
+                    ELSE 2
+                  END"""
+        )
+    if "expected_repost_start" in columns:
+        parts.append("expected_repost_start NULLS LAST")
+    if "expiration_date" in columns:
+        parts.append("expiration_date NULLS LAST")
+    parts.append("id ASC")
+    return ", ".join(parts)
 
 
 @lru_cache(maxsize=1)
@@ -92,9 +112,9 @@ def clear_watchlist_cache() -> None:
 
 
 def load_watching_targets() -> tuple[WatchlistTarget, ...]:
-    """GovSpend rows: priority High/Medium and status Watching."""
-    key = f"{watchlist_status_watching()}|{','.join(watchlist_priority_values())}"
-    return _load_watching_targets_cached(key)
+    """All GovSpend gs_watchlist rows — no status, priority, or option-year filtering."""
+    table = _resolved_table_cached() or ""
+    return _load_watching_targets_cached(table)
 
 
 def _select_columns() -> list[str]:
@@ -126,9 +146,9 @@ def _load_watching_targets_cached(cache_key: str) -> tuple[WatchlistTarget, ...]
     if not table:
         return ()
 
-    priorities = watchlist_priority_values()
-    status = watchlist_status_watching()
+    columns = _watchlist_table_columns()
     selected = _select_columns()
+    order_by = _watchlist_order_by(columns)
     session = SharedReadSession()
     try:
         rows = session.execute(
@@ -136,20 +156,9 @@ def _load_watching_targets_cached(cache_key: str) -> tuple[WatchlistTarget, ...]
                 f"""
                 SELECT {", ".join(selected)}
                 FROM {table}
-                WHERE TRIM(COALESCE(status, '')) = :status
-                  AND TRIM(COALESCE(priority, '')) = ANY(:priorities)
-                ORDER BY
-                  CASE LOWER(TRIM(priority))
-                    WHEN 'high' THEN 0
-                    WHEN 'medium' THEN 1
-                    ELSE 2
-                  END,
-                  expected_repost_start NULLS LAST,
-                  expiration_date NULLS LAST,
-                  id ASC
+                ORDER BY {order_by}
                 """
             ),
-            {"status": status, "priorities": list(priorities)},
         ).mappings().all()
     except Exception:
         return ()
@@ -481,8 +490,8 @@ def watchlist_status() -> dict[str, Any]:
     targets = load_watching_targets()
     return {
         "table": table,
-        "status_filter": watchlist_status_watching(),
-        "priorities": list(watchlist_priority_values()),
+        "monitors_all_rows": True,
+        "note": "GovTracker reads every gs_watchlist row. GovSpend UI filters are display-only.",
         "fingerprint_max_score": 11,
         "confidence_tiers": {
             "high": "8+ points — auto pipeline + GovSpend notify",
