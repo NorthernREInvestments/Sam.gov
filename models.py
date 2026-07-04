@@ -432,6 +432,7 @@ class CsvOpportunity(Base):
     watchlist_match_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
     watchlist_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     sam_raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pricing_intel: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     contract_id: Mapped[int | None] = mapped_column(
         ForeignKey("gt_contracts.id", ondelete="SET NULL"), nullable=True, index=True
     )

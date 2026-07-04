@@ -127,6 +127,7 @@ def init_db() -> None:
     _migrate_add_performance()
     _migrate_add_submission_package()
     _migrate_add_csv_attachment_queue()
+    _migrate_add_csv_opportunity_pricing()
     log.info("init_db: done")
     print("govtracker: init_db done", flush=True)
 
@@ -402,5 +403,15 @@ def _migrate_add_csv_attachment_queue() -> None:
             text(
                 f"UPDATE {GT_ATTACHMENT_QUEUE} SET status = 'downloading' WHERE status = 'processing'"
             )
+        )
+        conn.commit()
+
+
+def _migrate_add_csv_opportunity_pricing() -> None:
+    from db_tables import GT_CSV_OPPORTUNITIES
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(f"ALTER TABLE {GT_CSV_OPPORTUNITIES} ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
         )
         conn.commit()

@@ -58,6 +58,11 @@ def csv_opportunity_to_card_dict(
     if not sam_url and row.notice_id:
         sam_url = f"https://sam.gov/opp/{row.notice_id}/view"
 
+    from csv_pricing_service import csv_pricing_card_display
+
+    pricing_intel = row.pricing_intel if isinstance(row.pricing_intel, dict) else None
+    pricing_display = csv_pricing_card_display(pricing_intel)
+
     return {
         "notice_id": row.notice_id,
         "title": row.title,
@@ -87,6 +92,8 @@ def csv_opportunity_to_card_dict(
         "link": sam_url,
         "pursued_at": pursued_at,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "pricing_intel": pricing_intel,
+        "pricing_display": pricing_display,
         "workflow_progress": {"primary_action": primary_action},
     }
 

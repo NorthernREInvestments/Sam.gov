@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260704-csv-opportunities-v2"
+APP_BUILD_VERSION = "20260704-csv-pricing-batch"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2232,6 +2232,34 @@ def list_csv_opportunities(
         )
     finally:
         session.close()
+
+
+@app.post("/api/csv-opportunities/refresh-pricing")
+def refresh_csv_opportunities_pricing(
+    state: str | None = Query(None),
+    days: str | None = Query(None),
+    naics: str | None = Query(None),
+    q: str | None = Query(None),
+):
+    """Background USAspending pricing for filtered CSV opportunities."""
+    from csv_pricing_job import start_csv_pricing_job
+
+    started = start_csv_pricing_job(
+        state=state,
+        days_bucket=days,
+        naics_code=naics,
+        keyword=q,
+    )
+    if not started.get("ok"):
+        raise HTTPException(status_code=409, detail=started.get("error", "Pricing refresh failed"))
+    return JSONResponse(status_code=202, content=started)
+
+
+@app.get("/api/csv-opportunities/refresh-pricing/status")
+def csv_pricing_refresh_status():
+    from csv_pricing_job import csv_pricing_job_status
+
+    return csv_pricing_job_status()
 
 
 @app.post("/api/csv-opportunities/{notice_id}/pursue")

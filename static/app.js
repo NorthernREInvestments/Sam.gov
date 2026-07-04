@@ -889,6 +889,7 @@ async function loadWatchlistHits() {
 let csvOpportunities = [];
 let csvOpportunityFilterOptions = { states: [], naics_codes: [] };
 let csvFilterDebounce = null;
+let csvPricingPollTimer = null;
 
 function csvDaysRemainingClass(days) {
   if (days == null) return "due-unknown";
@@ -930,6 +931,23 @@ function csvWatchlistBadge(c) {
   return "";
 }
 
+function csvPricingBlock(c) {
+  const pd = c.pricing_display || {};
+  const main = pd.main_line || pd.line || "No prior pricing on file";
+  const source = pd.source_label ? `<span class="csv-opp-pricing-source">${escapeHtml(pd.source_label)}</span>` : "";
+  const bidders =
+    pd.unique_bidders != null && Number(pd.unique_bidders) > 0
+      ? `<span class="csv-opp-pricing-bidders">${Number(pd.unique_bidders).toLocaleString()} prior bidder${Number(pd.unique_bidders) === 1 ? "" : "s"}</span>`
+      : "";
+  const kindClass =
+    pd.kind === "prior" ? " csv-opp-pricing-prior" : pd.kind === "regional" ? " csv-opp-pricing-regional" : "";
+  return `
+    <div class="csv-opp-pricing${kindClass}">
+      <div class="csv-opp-pricing-main">${escapeHtml(main)}</div>
+      <div class="csv-opp-pricing-meta">${source}${bidders}</div>
+    </div>`;
+}
+
 function buildCsvOpportunityCardHtml(c) {
   const status = c.csv_status || "New";
   const pursuing = String(status).toLowerCase() === "pursuing";
@@ -955,6 +973,7 @@ function buildCsvOpportunityCardHtml(c) {
         <dt>NAICS</dt><dd>${escapeHtml(c.naics_code || "—")}${c.naics_label ? ` · ${escapeHtml(c.naics_label)}` : ""}</dd>
         <dt>CO</dt><dd>${escapeHtml(coLine)}</dd>
       </dl>
+      ${csvPricingBlock(c)}
       <div class="csv-opp-actions">
         ${samUrl ? `<a class="csv-opp-sam-link" href="${escapeHtml(samUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">SAM.gov ↗</a>` : ""}
         <button type="button" class="btn btn-primary compact-card-action csv-opp-pursue-btn" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
@@ -1094,11 +1113,95 @@ async function loadCsvOpportunities() {
       total_count: data.total_count,
       count: data.count,
     });
+    updateCsvPricingProgressFromStatus();
   } catch (err) {
     if (err.message !== "Login required") {
       console.warn("CSV opportunities:", err.message);
     }
   }
+}
+
+function updateCsvPricingProgressFromStatus(data) {
+  const el = document.getElementById("csv-pricing-progress");
+  const btn = document.getElementById("csv-refresh-pricing-btn");
+  if (!el) return;
+  const status = data || {};
+  if (status.status === "processing") {
+    el.hidden = false;
+    el.textContent = status.message || `Pricing ${status.processed || 0} of ${status.total || "…"}…`;
+    if (btn) btn.disabled = true;
+    return;
+  }
+  if (btn) btn.disabled = false;
+  if (status.status === "complete" && status.result) {
+    el.hidden = false;
+    el.textContent = status.message || "CSV pricing complete.";
+    return;
+  }
+  if (status.status === "failed") {
+    el.hidden = false;
+    el.textContent = status.error || "CSV pricing failed.";
+    return;
+  }
+  el.hidden = true;
+  el.textContent = "";
+}
+
+async function refreshCsvPricingStatus() {
+  try {
+    const res = await apiFetch("/api/csv-opportunities/refresh-pricing/status");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Failed to load pricing status");
+    updateCsvPricingProgressFromStatus(data);
+    return data;
+  } catch (err) {
+    if (err.message !== "Login required") console.warn("CSV pricing status:", err.message);
+    return null;
+  }
+}
+
+function startCsvPricingPolling() {
+  if (csvPricingPollTimer) return;
+  csvPricingPollTimer = setInterval(async () => {
+    const status = await refreshCsvPricingStatus();
+    if (status?.status === "processing") {
+      await loadCsvOpportunities();
+      return;
+    }
+    clearInterval(csvPricingPollTimer);
+    csvPricingPollTimer = null;
+    await loadCsvOpportunities();
+  }, 2000);
+}
+
+async function startCsvPricingRefresh() {
+  const btn = document.getElementById("csv-refresh-pricing-btn");
+  const progressEl = document.getElementById("csv-pricing-progress");
+  if (btn) btn.disabled = true;
+  if (progressEl) {
+    progressEl.hidden = false;
+    progressEl.textContent = "Starting CSV pricing refresh…";
+  }
+  try {
+    const params = getCsvFilterParams();
+    const qs = params.toString();
+    const res = await apiFetch(`/api/csv-opportunities/refresh-pricing${qs ? `?${qs}` : ""}`, {
+      method: "POST",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(formatApiError(data, res));
+    updateCsvPricingProgressFromStatus({ status: "processing", ...data });
+    showSyncStatus(data.message || "CSV pricing refresh started.");
+    startCsvPricingPolling();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    if (err.message !== "Login required") showSyncStatus(err.message, true);
+  }
+}
+
+async function resumeCsvPricingIfProcessing() {
+  const status = await refreshCsvPricingStatus();
+  if (status?.status === "processing") startCsvPricingPolling();
 }
 
 function initCsvOpportunityFilters() {
@@ -1114,6 +1217,7 @@ function initCsvOpportunityFilters() {
   state?.addEventListener("change", reload);
   days?.addEventListener("change", reload);
   naics?.addEventListener("change", reload);
+  document.getElementById("csv-refresh-pricing-btn")?.addEventListener("click", startCsvPricingRefresh);
 }
 
 function watchlistSignalLabel(signal) {
@@ -2501,4 +2605,5 @@ bindSlider("settings-min-score", "settings-min-score-value");
 loadConfig().then(async () => {
   await loadContracts();
   resumeCsvUploadIfProcessing();
+  resumeCsvPricingIfProcessing();
 });

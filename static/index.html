@@ -105,6 +105,12 @@
               Raw SAM.gov CSV import — not GovSpend watchlist matches. These rows passed your import filters (active, NAICS, small-business set-aside, future deadline).
             </p>
           </div>
+          <div class="csv-opp-section-toolbar">
+            <button type="button" class="btn btn-secondary-header" id="csv-refresh-pricing-btn">
+              Refresh CSV Pricing
+            </button>
+            <p id="csv-pricing-progress" class="csv-pricing-progress" hidden></p>
+          </div>
           <div id="csv-opportunities-filters" class="csv-opp-filters">
             <label class="csv-opp-filter">
               <span class="csv-opp-filter-label">Search title</span>
@@ -325,7 +331,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260704-csv-opportunities-v2"></script>
+  <script src="/app.js?v=20260704-csv-pricing-batch"></script>
   <script src="/contract-detail.js?v=20260703-manual-attachment-upload"></script>
   <script src="/subs.js?v=20260702-playwright"></script>
   <script src="/pricing.js?v=20260701-desktop-layout"></script>

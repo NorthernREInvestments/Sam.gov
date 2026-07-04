@@ -435,6 +435,7 @@ def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str
 
 
 DEFAULT_LOOKBACK_YEARS = 5
+CSV_PRICING_LOOKBACK_YEARS = 6
 REGIONAL_LOOKBACK_YEARS = 3
 
 PRIOR_CONTRACT_METHODS = frozenset({
@@ -1209,6 +1210,7 @@ def _lookup_by_site(
     state_code: str,
     city: str | None = None,
     agency: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     """Prior award at the same street address + NAICS (best signal when PDF omits contract #)."""
     profiles = origin_profile.get("_all_profiles")
@@ -1223,6 +1225,7 @@ def _lookup_by_site(
             state_code=state_code,
             city=city,
             agency=agency,
+            lookback_years=lookback_years,
         )
         if found:
             return found
@@ -1236,6 +1239,7 @@ def _lookup_single_site_profile(
     state_code: str,
     city: str | None = None,
     agency: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     """Prior award at the same street address + NAICS (best signal when PDF omits contract #)."""
     from location_matching import annotate_and_prioritize_location_awards
@@ -1249,7 +1253,7 @@ def _lookup_single_site_profile(
         state_code,
         city=city or origin_profile.get("city"),
         agency=agency,
-        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        lookback_years=lookback_years,
         limit=75,
     )
     annotated = annotate_and_prioritize_location_awards(awards, origin_profile)
@@ -1452,14 +1456,19 @@ def _lookup_by_agency_facility_site(
     agency: str | None = None,
     facility_terms: list[str] | None = None,
     title: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     """Same agency subtier + city + NAICS + facility name in award text."""
     if not facility_terms or not agency_search_filters(agency):
         return None
 
-    awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=agency, limit=40)
+    awards = fetch_filtered_awards(
+        naics_code, state_code, city=city, agency=agency, lookback_years=lookback_years, limit=40
+    )
     if not awards:
-        awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=None, limit=40)
+        awards = fetch_filtered_awards(
+            naics_code, state_code, city=city, agency=None, lookback_years=lookback_years, limit=40
+        )
 
     filtered = [a for a in awards if _agency_name_matches(agency, a.get("awarding_agency"))]
     best_award = _pick_best_prior_award(
@@ -1485,13 +1494,20 @@ def _lookup_most_recent_city_award(
     agency: str | None = None,
     facility_terms: list[str] | None = None,
     title: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     """Best prior award at the work city — relevance-scored, not just highest dollars."""
-    awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=agency, limit=25)
+    awards = fetch_filtered_awards(
+        naics_code, state_code, city=city, agency=agency, lookback_years=lookback_years, limit=25
+    )
     if not awards:
-        awards = fetch_filtered_awards(naics_code, state_code, city=city, agency=None, limit=25)
+        awards = fetch_filtered_awards(
+            naics_code, state_code, city=city, agency=None, lookback_years=lookback_years, limit=25
+        )
     if not awards and city:
-        awards = fetch_filtered_awards(naics_code, state_code, city=None, agency=None, limit=25)
+        awards = fetch_filtered_awards(
+            naics_code, state_code, city=None, agency=None, lookback_years=lookback_years, limit=25
+        )
 
     if city:
         city_matches = [a for a in awards if _city_matches(a.get("performance_city"), city)]
@@ -1546,6 +1562,7 @@ def _lookup_by_incumbent(
     state_code: str,
     city: str | None = None,
     agency: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     from pricing_constants import MIN_REGIONAL_AWARD_AMOUNT
 
@@ -1554,7 +1571,7 @@ def _lookup_by_incumbent(
         state_code,
         city=city,
         agency=agency,
-        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        lookback_years=lookback_years,
         limit=50,
     ) if city else []
 
@@ -1562,7 +1579,7 @@ def _lookup_by_incumbent(
         naics_code,
         state_code,
         agency=agency,
-        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        lookback_years=lookback_years,
         limit=50,
     )
 
@@ -1599,6 +1616,7 @@ def fetch_predecessor_pricing(
     facility_terms: list[str] | None = None,
     manual_lookup: bool = False,
     title: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any] | None:
     """
     Resolve the prior contract at this site. Lookup order (best evidence first):
@@ -1643,6 +1661,7 @@ def fetch_predecessor_pricing(
             state_code=state_code,
             city=city,
             agency=agency,
+            lookback_years=lookback_years,
         )
         if found:
             return found
@@ -1655,6 +1674,7 @@ def fetch_predecessor_pricing(
             agency=agency,
             facility_terms=facility_terms,
             title=title,
+            lookback_years=lookback_years,
         )
         if found:
             return found
@@ -1687,6 +1707,7 @@ def fetch_predecessor_pricing(
             state_code=state_code,
             city=city,
             agency=agency,
+            lookback_years=lookback_years,
         )
 
     if naics_code and state_code:
@@ -1697,6 +1718,7 @@ def fetch_predecessor_pricing(
             agency=agency,
             facility_terms=facility_terms,
             title=title,
+            lookback_years=lookback_years,
         )
 
     return None
@@ -1807,7 +1829,7 @@ def summarize_awards(
         "location_scope_type": location_scope_type or "state",
         "location_scope_note": location_scope_note,
         "surrounding_states": surrounding_states or [],
-        "lookback_years": DEFAULT_LOOKBACK_YEARS,
+        "lookback_years": lookback_years,
         "awards_count": len(awards),
         "awards_with_dates": len(dated_awards),
         "awards_missing_dates": len(awards) - len([a for a in awards if a.get("award_date")]),
@@ -2062,6 +2084,7 @@ def fetch_regional_benchmarks(
     limit: int = 50,
     agency: str | None = None,
     city: str | None = None,
+    lookback_years: int = DEFAULT_LOOKBACK_YEARS,
 ) -> dict[str, Any]:
     """
     Tier 1 — state-level USAspending contract awards for regional annual benchmarks.
@@ -2075,7 +2098,7 @@ def fetch_regional_benchmarks(
         state_code,
         city=city,
         agency=agency,
-        lookback_years=DEFAULT_LOOKBACK_YEARS,
+        lookback_years=lookback_years,
         limit=limit,
     )
     if not raw_awards:
@@ -2084,7 +2107,7 @@ def fetch_regional_benchmarks(
             state_code,
             city=city,
             agency=None,
-            lookback_years=DEFAULT_LOOKBACK_YEARS,
+            lookback_years=lookback_years,
             limit=limit,
         )
 
@@ -2121,7 +2144,7 @@ def fetch_regional_benchmarks(
         "naics_code": naics_code,
         "state_code": state_code,
         "state_name": state_name,
-        "lookback_years": DEFAULT_LOOKBACK_YEARS,
+        "lookback_years": lookback_years,
         "min_award_amount": MIN_REGIONAL_AWARD_AMOUNT,
         "awards_count": len(dated_awards),
         "awards_with_dates": len(dated_awards),
@@ -2130,12 +2153,13 @@ def fetch_regional_benchmarks(
         "lowest_award": round(min(amounts), 2) if amounts else None,
         "most_frequent_winner": top_winner,
         "most_frequent_winner_count": round(top_winner_score, 1) if top_winner_score else 0,
+        "unique_bidders": len(recipient_weights),
         "likely_incumbent": incumbent,
         "confidence": conf_key,
         "confidence_label": conf_label,
         "benchmark_note": (
             f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
-            f"over the last {DEFAULT_LOOKBACK_YEARS} years. Award amounts vary by building size and cleaning frequency."
+            f"over the last {lookback_years} years. Award amounts vary by building size and cleaning frequency."
             + (
                 f" {same_site_expired} prior award(s) at this same address & scope (expired) are listed first."
                 if same_site_expired
