@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-csv-import-speed"
+APP_BUILD_VERSION = "20260704-csv-import-prep"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2214,6 +2214,17 @@ def csv_upload_status():
     from csv_upload_job import csv_upload_status as job_status
 
     return job_status()
+
+
+@app.post("/api/upload/sam-csv/reset")
+def reset_sam_csv_upload(request: Request):
+    """Clear a stuck or failed background CSV import."""
+    from csv_upload_job import reset_csv_upload_job
+
+    token = request.cookies.get(COOKIE_NAME)
+    if not verify_auth_token(token):
+        raise HTTPException(status_code=403, detail="Login required")
+    return reset_csv_upload_job()
 
 
 @app.post("/api/upload/sam-csv")

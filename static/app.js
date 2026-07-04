@@ -1585,7 +1585,13 @@ function formatCsvImportStatusText(data) {
       `${r.possible_matches ?? 0} possible matches.`
     );
   }
-  if (data.status === "failed") return data.error || "CSV import failed";
+  if (data.status === "failed") {
+    const err = data.error || "CSV import failed";
+    if (/stalled|restart|upload the file again/i.test(err)) {
+      return `${err} Use Upload SAM CSV to try again.`;
+    }
+    return err;
+  }
   if (data.status === "processing") {
     const parts = [data.message || "CSV import running…"];
     if (data.phase) parts.push(String(data.phase));

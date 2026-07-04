@@ -82,12 +82,10 @@ def compute_queue_priority(row: CsvOpportunity) -> tuple[int, str | None]:
 
 def clear_pending_queue_for_deleted_csv(session: Session) -> int:
     """Remove orphan queued rows (csv row was cleared on re-import)."""
-    removed = 0
-    for item in _queued_items_query(session).all():
-        if session.get(CsvOpportunity, item.csv_opportunity_id) is None:
-            session.delete(item)
-            removed += 1
-    return removed
+    orphan = ~session.query(CsvOpportunity.id).filter(
+        CsvOpportunity.id == AttachmentQueueItem.csv_opportunity_id
+    ).correlate(AttachmentQueueItem).exists()
+    return _queued_items_query(session).filter(orphan).delete(synchronize_session=False)
 
 
 def _queued_items_query(session: Session):

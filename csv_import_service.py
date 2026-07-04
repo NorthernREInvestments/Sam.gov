@@ -9,10 +9,11 @@ import os
 from datetime import date, datetime
 from typing import Any
 
+from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 
 from csv_upload_constants import CSV_COLUMN_MAP, PROTECTED_CSV_STATUSES
-from models import CsvOpportunity
+from models import Contract, CsvOpportunity
 from settings_store import get_naics_codes
 
 logger = logging.getLogger("govtracker.csv_import")
@@ -141,23 +142,51 @@ def _map_csv_row(row: dict[str, str]) -> dict[str, Any]:
     }
 
 
+def _csv_dict_reader(content: bytes | str) -> csv.DictReader:
+    """Stream CSV rows without decoding the entire file into a second string."""
+    if isinstance(content, bytes):
+        stream = io.TextIOWrapper(io.BytesIO(content), encoding="utf-8-sig", errors="replace")
+    else:
+        stream = io.StringIO(content)
+    return csv.DictReader(stream)
+
+
 def parse_sam_csv(content: bytes | str) -> list[dict[str, str]]:
-    text = content.decode("utf-8-sig", errors="replace") if isinstance(content, bytes) else content
-    reader = csv.DictReader(io.StringIO(text))
+    reader = _csv_dict_reader(content)
     if not reader.fieldnames:
         return []
     return [dict(row) for row in reader]
 
 
+class _ExistingOpportunityCache:
+    """Look up protected/prior CSV rows on demand instead of preloading the whole table."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+        self._cache: dict[str, CsvOpportunity | None] = {}
+
+    def get(self, notice_id: str) -> CsvOpportunity | None:
+        if notice_id in self._cache:
+            return self._cache[notice_id]
+        row = self._session.query(CsvOpportunity).filter_by(notice_id=notice_id).first()
+        self._cache[notice_id] = row
+        return row
+
+    def remember(self, notice_id: str, row: CsvOpportunity) -> None:
+        self._cache[notice_id] = row
+
+
 def clear_non_protected_csv_rows(session: Session) -> int:
-    """Delete gt_csv_opportunities rows whose status is not actively protected."""
-    protected = {s.lower() for s in PROTECTED_CSV_STATUSES}
-    deleted = 0
-    for row in session.query(CsvOpportunity).yield_per(500):
-        if (row.status or "").strip().lower() in protected:
-            continue
-        session.delete(row)
-        deleted += 1
+    """Delete staging CSV rows that are not protected and not linked to dashboard contracts."""
+    protected_lower = [status.lower() for status in PROTECTED_CSV_STATUSES]
+    linked_to_dashboard = exists().where(Contract.notice_id == CsvOpportunity.notice_id)
+    deleted = (
+        session.query(CsvOpportunity)
+        .filter(func.lower(func.coalesce(CsvOpportunity.status, "")).notin_(protected_lower))
+        .filter(CsvOpportunity.contract_id.is_(None))
+        .filter(~linked_to_dashboard)
+        .delete(synchronize_session=False)
+    )
     if deleted:
         session.flush()
     return deleted
@@ -184,12 +213,18 @@ def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -
     clear_pending_queue_for_deleted_csv(session)
     summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
 
-    existing_by_notice: dict[str, CsvOpportunity] = {
-        row.notice_id: row for row in session.query(CsvOpportunity).all()
-    }
+    existing_cache = _ExistingOpportunityCache(session)
+    naics_set = set(get_naics_codes())
 
     for raw in csv_rows:
-        _import_one_csv_row(session, raw, today=today, summary=summary, existing_by_notice=existing_by_notice)
+        _import_one_csv_row(
+            session,
+            raw,
+            today=today,
+            summary=summary,
+            existing_cache=existing_cache,
+            naics_set=naics_set,
+        )
 
     session.flush()
     return summary
@@ -201,7 +236,7 @@ def _import_one_csv_row(
     *,
     today: date,
     summary: dict[str, Any],
-    existing_by_notice: dict[str, CsvOpportunity],
+    existing_cache: _ExistingOpportunityCache,
     naics_set: set[str] | None = None,
 ) -> None:
     if not _passes_import_filters(raw, today=today, naics_set=naics_set):
@@ -210,7 +245,7 @@ def _import_one_csv_row(
 
     mapped = _map_csv_row(raw)
     notice_id = mapped["notice_id"]
-    existing = existing_by_notice.get(notice_id)
+    existing = existing_cache.get(notice_id)
     if existing and _is_protected_status(existing.status):
         summary["records_protected_skipped"] += 1
         return
@@ -226,7 +261,7 @@ def _import_one_csv_row(
     else:
         row = CsvOpportunity(**mapped)
         session.add(row)
-        existing_by_notice[notice_id] = row
+        existing_cache.remember(notice_id, row)
         summary["records_imported"] += 1
         summary["new_notice_ids"].append(notice_id)
         summary["imported_notice_ids"].append(notice_id)
@@ -239,11 +274,12 @@ def import_csv_opportunities_from_content(
     progress: Any | None = None,
 ) -> dict[str, Any]:
     """Stream-parse CSV content row-by-row (lower memory than loading all rows)."""
-    text = content.decode("utf-8-sig", errors="replace") if isinstance(content, bytes) else content
-    if not text.strip():
+    if isinstance(content, bytes) and not content.strip():
+        return {"ok": False, "error": "empty_or_invalid_csv"}
+    if isinstance(content, str) and not content.strip():
         return {"ok": False, "error": "empty_or_invalid_csv"}
 
-    reader = csv.DictReader(io.StringIO(text))
+    reader = _csv_dict_reader(content)
     if not reader.fieldnames:
         return {"ok": False, "error": "empty_or_invalid_csv"}
 
@@ -266,13 +302,7 @@ def import_csv_opportunities_from_content(
     clear_pending_queue_for_deleted_csv(session)
     summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
 
-    if progress:
-        progress("prepare", "Loading existing opportunities for dedupe…", rows_scanned=0, rows_imported=0)
-
-    existing_by_notice: dict[str, CsvOpportunity] = {}
-    for row in session.query(CsvOpportunity).yield_per(500):
-        existing_by_notice[row.notice_id] = row
-
+    existing_cache = _ExistingOpportunityCache(session)
     naics_set = set(get_naics_codes())
 
     if progress:
@@ -286,7 +316,7 @@ def import_csv_opportunities_from_content(
             dict(raw),
             today=today,
             summary=summary,
-            existing_by_notice=existing_by_notice,
+            existing_cache=existing_cache,
             naics_set=naics_set,
         )
         if rows_scanned % 250 == 0:

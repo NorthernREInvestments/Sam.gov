@@ -15,6 +15,8 @@ logger = logging.getLogger("govtracker.csv_upload")
 
 CSV_UPLOAD_JOB_KEY = "csv_upload_job_state"
 _STALE_PROCESSING_HOURS = 3
+_STALE_ZERO_ROWS_SECONDS = 10 * 60
+_STALE_NO_HEARTBEAT_SECONDS = 15 * 60
 
 _lock = threading.Lock()
 
@@ -25,6 +27,7 @@ def _default_state() -> dict[str, Any]:
         "error": None,
         "result": None,
         "started_at": None,
+        "updated_at": None,
         "finished_at": None,
         "phase": None,
         "message": None,
@@ -35,7 +38,7 @@ def _default_state() -> dict[str, Any]:
 
 def _serialize_state(state: dict[str, Any]) -> dict[str, Any]:
     out = dict(state)
-    for key in ("started_at", "finished_at"):
+    for key in ("started_at", "updated_at", "finished_at"):
         val = out.get(key)
         if isinstance(val, datetime):
             out[key] = val.isoformat()
@@ -46,6 +49,15 @@ def _parse_state(raw: dict[str, Any]) -> dict[str, Any]:
     state = _default_state()
     state.update({k: v for k, v in raw.items() if k in state})
     return state
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def _load_state_from_db() -> dict[str, Any]:
@@ -82,18 +94,36 @@ def _save_state_to_db(state: dict[str, Any]) -> None:
         session.close()
 
 
+def _stale_error_message(state: dict[str, Any]) -> str:
+    rows = int(state.get("rows_scanned") or 0)
+    if rows == 0:
+        return (
+            "CSV import stalled before scanning started — likely interrupted by a server restart. "
+            "Upload the file again."
+        )
+    return "Import interrupted by server restart — check watchlist sections or upload again."
+
+
 def _processing_is_stale(state: dict[str, Any]) -> bool:
     if state.get("status") != "processing":
         return False
-    started_raw = state.get("started_at")
-    if not started_raw:
+
+    started = _parse_timestamp(state.get("started_at"))
+    if not started:
         return True
-    try:
-        started = datetime.fromisoformat(str(started_raw).replace("Z", "+00:00"))
-    except ValueError:
+
+    now = datetime.now(timezone.utc)
+    age_seconds = (now - started).total_seconds()
+    rows = int(state.get("rows_scanned") or 0)
+
+    if rows == 0 and age_seconds > _STALE_ZERO_ROWS_SECONDS:
         return True
-    age = datetime.now(timezone.utc) - started.astimezone(timezone.utc)
-    return age.total_seconds() > _STALE_PROCESSING_HOURS * 3600
+
+    updated = _parse_timestamp(state.get("updated_at")) or started
+    if (now - updated).total_seconds() > _STALE_NO_HEARTBEAT_SECONDS:
+        return True
+
+    return age_seconds > _STALE_PROCESSING_HOURS * 3600
 
 
 def _get_state() -> dict[str, Any]:
@@ -101,7 +131,7 @@ def _get_state() -> dict[str, Any]:
     if _processing_is_stale(state):
         state.update(
             status="failed",
-            error="Import interrupted by server restart — check watchlist sections or upload again.",
+            error=_stale_error_message(state),
             result=None,
             finished_at=datetime.now(timezone.utc).isoformat(),
         )
@@ -111,6 +141,8 @@ def _get_state() -> dict[str, Any]:
 
 def _set_state(**updates: Any) -> dict[str, Any]:
     state = _get_state()
+    updates = dict(updates)
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     state.update(updates)
     _save_state_to_db(state)
     return state
@@ -119,6 +151,13 @@ def _set_state(**updates: Any) -> dict[str, Any]:
 def csv_upload_status() -> dict[str, Any]:
     with _lock:
         return _serialize_state(_get_state())
+
+
+def reset_csv_upload_job() -> dict[str, Any]:
+    """Clear a stuck or failed import so a new upload can start."""
+    with _lock:
+        _save_state_to_db(_default_state())
+        return {"ok": True, "status": "idle"}
 
 
 def update_csv_upload_progress(
@@ -130,11 +169,12 @@ def update_csv_upload_progress(
 ) -> None:
     """Update live progress while status=processing."""
     with _lock:
-        state = _get_state()
+        state = _load_state_from_db()
         if state.get("status") != "processing":
             return
         state["phase"] = phase
         state["message"] = message
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
         if rows_scanned is not None:
             state["rows_scanned"] = rows_scanned
         if rows_imported is not None:
@@ -146,18 +186,20 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
     """Parse and import CSV in a background thread; return immediately."""
     with _lock:
         current = _get_state()
-        if current.get("status") == "processing" and not _processing_is_stale(current):
+        if current.get("status") == "processing":
             return {"ok": False, "error": "CSV import already running — wait for it to finish."}
-        _set_state(
-            status="processing",
-            error=None,
-            result=None,
-            started_at=datetime.now(timezone.utc).isoformat(),
-            finished_at=None,
-            phase="import",
-            message="Scanning CSV and applying filters…",
-            rows_scanned=0,
-            rows_imported=0,
+        now = datetime.now(timezone.utc).isoformat()
+        _save_state_to_db(
+            {
+                **_default_state(),
+                "status": "processing",
+                "started_at": now,
+                "updated_at": now,
+                "phase": "prepare",
+                "message": "Preparing CSV import…",
+                "rows_scanned": 0,
+                "rows_imported": 0,
+            }
         )
 
     def _run() -> None:
@@ -205,5 +247,5 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
     return {
         "ok": True,
         "status": "processing",
-        "message": "Import running in the background — this may take several minutes for large files.",
+        "message": "Import running in the background — row counts update every few thousand rows.",
     }
