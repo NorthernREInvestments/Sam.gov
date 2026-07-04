@@ -404,3 +404,67 @@ class Proposal(Base):
     )
 
     contract: Mapped["Contract"] = relationship("Contract", backref="proposals")
+
+
+class CsvOpportunity(Base):
+    """SAM.gov ContractOpportunitiesFullCSV import rows (GovTracker-owned gt_ table)."""
+
+    __tablename__ = "gt_csv_opportunities"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    notice_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(512))
+    solicitation_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    agency: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    contracting_office: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    naics_code: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    set_aside: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    location_city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    location_state: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    co_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    co_email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    co_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sam_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="New", index=True)
+    watchlist_match_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    watchlist_match_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    watchlist_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    sam_raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    contract_id: Mapped[int | None] = mapped_column(
+        ForeignKey("gt_contracts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    contract: Mapped["Contract | None"] = relationship("Contract", foreign_keys=[contract_id])
+    queue_items: Mapped[list["AttachmentQueueItem"]] = relationship(
+        "AttachmentQueueItem", back_populates="csv_opportunity", cascade="all, delete-orphan"
+    )
+
+
+class AttachmentQueueItem(Base):
+    """Pending SAM.gov attachment fetches for CSV-imported opportunities."""
+
+    __tablename__ = "gt_attachment_queue"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    csv_opportunity_id: Mapped[int] = mapped_column(
+        ForeignKey("gt_csv_opportunities.id", ondelete="CASCADE"), index=True
+    )
+    notice_id: Mapped[str] = mapped_column(String(128), index=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100, index=True)
+    watchlist_match: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    watchlist_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    sam_api_calls_used: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    csv_opportunity: Mapped["CsvOpportunity"] = relationship(
+        "CsvOpportunity", back_populates="queue_items"
+    )

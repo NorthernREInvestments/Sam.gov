@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GovTracker — SAM CSV Upload</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .upload-page { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    .upload-card { background: var(--card-bg, #fff); border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+    .upload-card h1 { margin: 0 0 0.5rem; font-size: 1.35rem; }
+    .upload-card p { color: #64748b; margin: 0 0 1rem; }
+    .upload-card label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
+    .upload-card input[type="file"],
+    .upload-card input[type="password"] { width: 100%; box-sizing: border-box; }
+    .upload-actions { margin-top: 1.25rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .upload-summary { margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; font-size: 0.92rem; }
+    .upload-summary h2 { margin: 0 0 0.5rem; font-size: 1rem; }
+    .upload-summary ul { margin: 0; padding-left: 1.25rem; }
+    .upload-error { color: #b91c1c; margin-top: 1rem; }
+    .upload-busy { opacity: 0.6; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <main class="upload-page">
+    <div class="upload-card" id="upload-card">
+      <h1>SAM.gov CSV Upload</h1>
+      <p>Upload <strong>ContractOpportunitiesFullCSV.csv</strong>. GovTracker imports matching small-business opportunities into <code>gt_csv_opportunities</code>, queues attachment downloads, and runs watchlist fingerprint matching.</p>
+      <form id="upload-form">
+        <label for="csv-file">CSV file</label>
+        <input type="file" id="csv-file" name="file" accept=".csv,text/csv" required>
+
+        <label for="upload-password">Upload password</label>
+        <input type="password" id="upload-password" name="password" autocomplete="current-password" required>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="upload-btn">Upload and import</button>
+          <a href="/" class="btn btn-secondary">Back to dashboard</a>
+        </div>
+      </form>
+      <p id="upload-error" class="upload-error" hidden></p>
+      <div id="upload-summary" class="upload-summary" hidden></div>
+    </div>
+  </main>
+  <script>
+    const form = document.getElementById("upload-form");
+    const card = document.getElementById("upload-card");
+    const errEl = document.getElementById("upload-error");
+    const summaryEl = document.getElementById("upload-summary");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.hidden = true;
+      summaryEl.hidden = true;
+      const fileInput = document.getElementById("csv-file");
+      const password = document.getElementById("upload-password").value;
+      if (!fileInput.files?.length) return;
+
+      const body = new FormData();
+      body.append("file", fileInput.files[0]);
+      body.append("password", password);
+
+      card.classList.add("upload-busy");
+      try {
+        const res = await fetch("/api/upload/sam-csv", { method: "POST", body });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+        summaryEl.innerHTML = `
+          <h2>Import complete</h2>
+          <ul>
+            <li><strong>${data.records_imported ?? 0}</strong> records imported</li>
+            <li><strong>${data.records_updated ?? 0}</strong> records updated</li>
+            <li><strong>${data.records_skipped_filters ?? 0}</strong> skipped (didn't meet filters)</li>
+            <li><strong>${data.records_protected ?? 0}</strong> protected (kept from previous session)</li>
+            <li><strong>${data.watchlist_matches_found ?? 0}</strong> watchlist matches (${data.high_confidence_matches ?? 0} high confidence)</li>
+            <li><strong>${data.attachments_queued ?? 0}</strong> attachments queued</li>
+            <li><strong>${data.attachments_completed ?? 0}</strong> attachments complete</li>
+            <li><strong>${data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0}</strong> waiting for API budget</li>
+            <li><strong>${data.attachments_failed ?? 0}</strong> failed (retry tomorrow)</li>
+            <li><strong>${data.sam_api_calls_used_this_session ?? 0}</strong> SAM API calls this session</li>
+            <li><strong>${data.estimated_api_calls_remaining_queue ?? 0}</strong> estimated API calls left in queue</li>
+          </ul>
+          ${data.attachment_queue ? `<p>Queue now: ${data.attachment_queue.downloading ?? 0} downloading · ${data.attachment_queue.queued ?? 0} queued · ${data.attachment_queue.complete ?? 0} complete · ${data.attachment_queue.failed ?? 0} failed</p>` : ""}`;
+        summaryEl.hidden = false;
+      } catch (err) {
+        errEl.textContent = err.message || "Upload failed";
+        errEl.hidden = false;
+      } finally {
+        card.classList.remove("upload-busy");
+      }
+    });
+  </script>
+</body>
+</html>

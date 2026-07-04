@@ -15,6 +15,8 @@ GT_SUB_CONTACTS = "gt_sub_contacts"
 GT_CONTRACT_SUBS = "gt_contract_subs"
 GT_SUBCONTRACT_AGREEMENTS = "gt_subcontract_agreements"
 GT_PROPOSALS = "gt_proposals"
+GT_CSV_OPPORTUNITIES = "gt_csv_opportunities"
+GT_ATTACHMENT_QUEUE = "gt_attachment_queue"
 
 GT_TABLE_RENAMES: list[tuple[str, str]] = [
     ("app_settings", GT_APP_SETTINGS),

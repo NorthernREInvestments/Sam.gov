@@ -240,6 +240,19 @@ function updateFilterHint(filterStats) {
       `<strong>${watchlistTargets} GovSpend watchlist target${watchlistTargets === 1 ? "" : "s"}</strong> — SAM search runs daily before normal sync.`,
     );
   }
+  const aq = filterStats?.attachment_queue;
+  if (aq && (aq.queued > 0 || aq.downloading > 0 || aq.failed > 0 || aq.complete > 0)) {
+    const budgetNote = aq.waiting_for_budget > 0
+      ? ` <strong>${aq.waiting_for_budget}</strong> waiting for SAM API budget (resumes after daily reset).`
+      : "";
+    parts.push(
+      `CSV attachment queue — ` +
+      `<strong>${aq.downloading ?? 0}</strong> downloading · ` +
+      `<strong>${aq.queued ?? 0}</strong> queued · ` +
+      `<strong>${aq.complete ?? 0}</strong> complete · ` +
+      `<strong>${aq.failed ?? 0}</strong> failed (retry tomorrow).${budgetNote}`,
+    );
+  }
   if (!window.GOVTRACKER_LAYOUT_V2) {
     parts.push("Your browser is showing a cached old layout. Press <strong>Ctrl+Shift+R</strong> (or Cmd+Shift+R on Mac) to reload.");
   }
@@ -1071,6 +1084,7 @@ async function loadContracts() {
     contracts = data.contracts || [];
     processingCount = data.processing_count || 0;
     filterStats = data.filter_stats || {};
+    if (data.attachment_queue) filterStats.attachment_queue = data.attachment_queue;
     if (data.autopilot) config.autopilot = data.autopilot;
     renderCards();
     await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);
@@ -1094,6 +1108,7 @@ async function loadContractsQuiet() {
   contracts = data.contracts || [];
   processingCount = data.processing_count || 0;
   filterStats = data.filter_stats || {};
+  if (data.attachment_queue) filterStats.attachment_queue = data.attachment_queue;
   if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
   await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);

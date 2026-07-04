@@ -42,6 +42,20 @@ def run_daily_sync() -> None:
     run_scheduled_autopilot()
     start_background_pricing_backfill()
 
+    try:
+        from csv_attachment_queue_service import run_scheduled_csv_attachment_queue
+
+        queue_result = run_scheduled_csv_attachment_queue()
+        if not queue_result.get("skipped"):
+            logger.info(
+                "CSV attachment queue: completed=%s failed=%s waiting_for_budget=%s",
+                queue_result.get("completed"),
+                queue_result.get("failed"),
+                queue_result.get("waiting_for_budget"),
+            )
+    except Exception:
+        logger.exception("Scheduled CSV attachment queue failed")
+
 
 def run_amendment_check() -> None:
     from database import SessionLocal

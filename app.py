@@ -7,8 +7,8 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Any, Literal
 
@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-watchlist-all-rows"
+APP_BUILD_VERSION = "20260703-csv-queue-budget"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -485,6 +485,18 @@ def config():
     }
 
 
+@app.get("/api/csv-attachment-queue")
+def csv_attachment_queue_status():
+    """CSV import attachment queue counts for dashboard."""
+    from csv_attachment_queue_service import get_attachment_queue_dashboard_stats
+
+    session = SessionLocal()
+    try:
+        return get_attachment_queue_dashboard_stats(session)
+    finally:
+        session.close()
+
+
 @app.get("/api/contracts")
 def get_contracts(
     naics: str | None = Query(None, description="Comma-separated NAICS codes"),
@@ -670,11 +682,28 @@ def get_contracts(
                 "watchlist_hit_count": watchlist_hit_count,
                 "possible_match_count": possible_match_count,
                 "watchlist_target_count": len(watchlist_targets),
+                "attachment_queue": _attachment_queue_stats(session),
             },
+            "attachment_queue": _attachment_queue_stats(session),
             "autopilot": _autopilot_summary(),
         }
     finally:
         session.close()
+
+
+def _attachment_queue_stats(session) -> dict[str, Any]:
+    try:
+        from csv_attachment_queue_service import get_attachment_queue_dashboard_stats
+
+        return get_attachment_queue_dashboard_stats(session)
+    except Exception:
+        return {
+            "queued": 0,
+            "downloading": 0,
+            "complete": 0,
+            "failed": 0,
+            "waiting_for_budget": 0,
+        }
 
 
 @app.get("/api/contracts/watchlist-hits")
@@ -2124,6 +2153,50 @@ def update_performance_settings(body: PerformanceSettingsUpdate):
         wawf_last_password_change=body.wawf_last_password_change,
         ipp_registered=body.ipp_registered,
     )
+
+
+@app.get("/upload/sam-csv")
+def upload_sam_csv_page():
+    """Upload page for SAM.gov ContractOpportunitiesFullCSV."""
+    return FileResponse(STATIC_DIR / "upload-sam-csv.html")
+
+
+@app.post("/api/upload/sam-csv")
+async def upload_sam_csv(
+    file: UploadFile = File(...),
+    password: str = Form(...),
+):
+    """Import SAM full CSV into gt_csv_opportunities with attachment queue + watchlist matching."""
+    from csv_import_service import verify_csv_upload_password
+    from csv_watchlist_service import run_full_csv_upload_pipeline
+
+    if not verify_csv_upload_password(password):
+        raise HTTPException(status_code=403, detail="Invalid upload password")
+
+    if not file.filename or not str(file.filename).lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Upload a .csv file")
+
+    content = await file.read()
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="CSV file is empty")
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="CSV file too large (max 50MB)")
+
+    session = SessionLocal()
+    try:
+        result = run_full_csv_upload_pipeline(session, content)
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Import failed"))
+        return result
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logging.getLogger("govtracker.csv_upload").exception("CSV upload failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        session.close()
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

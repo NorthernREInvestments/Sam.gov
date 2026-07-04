@@ -93,10 +93,12 @@ def init_db() -> None:
     log = logging.getLogger("govtracker.db")
     from models import (  # noqa: F401
         AppSetting,
+        AttachmentQueueItem,
         Contract,
         ContractAttachment,
         ContractInvoice,
         ContractSub,
+        CsvOpportunity,
         Proposal,
         Sub,
         SubContact,
@@ -124,6 +126,7 @@ def init_db() -> None:
     _migrate_add_sub_contacts()
     _migrate_add_performance()
     _migrate_add_submission_package()
+    _migrate_add_csv_attachment_queue()
     log.info("init_db: done")
     print("govtracker: init_db done", flush=True)
 
@@ -379,4 +382,25 @@ def _migrate_add_performance() -> None:
     with engine.connect() as conn:
         for name, col_type in columns:
             conn.execute(text(f"ALTER TABLE {GT_CONTRACTS} ADD COLUMN IF NOT EXISTS {name} {col_type}"))
+        conn.commit()
+
+
+def _migrate_add_csv_attachment_queue() -> None:
+    from db_tables import GT_ATTACHMENT_QUEUE
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                f"ALTER TABLE {GT_ATTACHMENT_QUEUE} "
+                "ADD COLUMN IF NOT EXISTS watchlist_confidence VARCHAR(16)"
+            )
+        )
+        conn.execute(
+            text(f"UPDATE {GT_ATTACHMENT_QUEUE} SET status = 'queued' WHERE status = 'pending'")
+        )
+        conn.execute(
+            text(
+                f"UPDATE {GT_ATTACHMENT_QUEUE} SET status = 'downloading' WHERE status = 'processing'"
+            )
+        )
         conn.commit()
