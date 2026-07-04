@@ -163,6 +163,37 @@ def persist_attachment_files(
     return written
 
 
+MANUAL_ATTACHMENT_MAX_BYTES = 40_000_000
+
+
+def upload_manual_contract_attachments(
+    session: Session,
+    contract: Contract,
+    files: list[tuple[str, bytes]],
+) -> dict[str, Any]:
+    """
+    Save user-uploaded PDFs to gt_contract_attachments and extract text locally.
+    Does not call SAM.gov or download anything from the web.
+    """
+    from attachment_pipeline import run_attachment_pipeline
+
+    if not files:
+        return {"ok": False, "error": "no_files"}
+
+    batch: list[tuple[str, bytes, str, str | None]] = []
+    for filename, data in files:
+        batch.append((filename, data, "manual", None))
+
+    written = persist_attachment_files(session, contract, batch)
+    pipeline = run_attachment_pipeline(contract, session, db_only=True)
+    return {
+        "ok": True,
+        "files_uploaded": written,
+        "sam_api_calls_used": 0,
+        **pipeline,
+    }
+
+
 def download_and_persist_attachments(
     session: Session,
     contract: Contract,

@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-csv-upload-250mb"
+APP_BUILD_VERSION = "20260703-manual-attachment-upload"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1496,6 +1496,59 @@ def patch_submission_meta(notice_id: str, body: SubmissionMetaUpdate):
             row.submission_email = payload["submission_email"]
         session.commit()
         return submission_package_dict(row, session)
+    finally:
+        session.close()
+
+
+@app.post("/api/contracts/{notice_id}/attachments")
+async def upload_contract_attachments(
+    notice_id: str,
+    files: list[UploadFile] = File(...),
+):
+    """Upload solicitation PDFs for a contract — stored in DB, no SAM.gov API calls."""
+    from attachment_storage import MANUAL_ATTACHMENT_MAX_BYTES, upload_manual_contract_attachments
+    from models import Contract
+
+    if not files:
+        raise HTTPException(status_code=400, detail="Upload at least one PDF")
+
+    session = SessionLocal()
+    try:
+        row = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Contract not found")
+
+        batch: list[tuple[str, bytes]] = []
+        for upload in files:
+            filename = (upload.filename or "document.pdf").strip()
+            if not filename.lower().endswith(".pdf"):
+                raise HTTPException(status_code=400, detail=f"PDF only: {filename}")
+            content = await upload.read()
+            if not content:
+                raise HTTPException(status_code=400, detail=f"Empty file: {filename}")
+            if len(content) > MANUAL_ATTACHMENT_MAX_BYTES:
+                max_mb = MANUAL_ATTACHMENT_MAX_BYTES // (1024 * 1024)
+                raise HTTPException(status_code=400, detail=f"{filename} too large (max {max_mb}MB)")
+            if not content.startswith(b"%PDF"):
+                raise HTTPException(status_code=400, detail=f"Not a valid PDF: {filename}")
+            batch.append((filename, content))
+
+        result = upload_manual_contract_attachments(session, row, batch)
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Upload failed"))
+        session.commit()
+        return {
+            **result,
+            "notice_id": notice_id,
+            "attachment_files": contract_to_dict(row, session).get("attachment_files"),
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logging.getLogger("govtracker.attachments").exception("Manual attachment upload failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:
         session.close()
 

@@ -333,9 +333,16 @@ function renderDocumentsTab(c) {
   panel.innerHTML = `
     ${pieeBanner}
     ${amendmentBanner}
+    <div class="doc-upload-row">
+      <label class="btn btn-secondary-action btn-small doc-upload-label">
+        Upload PDFs
+        <input type="file" id="manual-attachment-input" accept=".pdf,application/pdf" multiple hidden>
+      </label>
+      <span class="detail-note doc-upload-note">Saved to database — no SAM.gov API calls. Extract scope or run analysis when ready.</span>
+    </div>
     <table class="pricing-table doc-table">
       <thead><tr><th>Type</th><th>File</th><th>Size</th><th></th></tr></thead>
-      <tbody>${rows.join("") || '<tr><td colspan="4">No documents downloaded yet. Run sync to fetch attachments.</td></tr>'}</tbody>
+      <tbody>${rows.join("") || '<tr><td colspan="4">No documents yet. Upload PDFs here or run sync to fetch from SAM.gov.</td></tr>'}</tbody>
     </table>
     <button type="button" class="btn btn-secondary-action" id="extract-solicitation-btn">Extract scope from PDFs</button>`;
 
@@ -343,6 +350,32 @@ function renderDocumentsTab(c) {
     await apiFetch(`/api/contracts/${encodeURIComponent(c.notice_id)}/amendments/dismiss`, { method: "POST" });
     const fresh = await fetchContract(c.notice_id);
     if (fresh) renderDocumentsTab(fresh);
+  });
+  document.getElementById("manual-attachment-input")?.addEventListener("change", async (e) => {
+    const input = e.target;
+    if (!input.files?.length) return;
+    const btn = panel.querySelector(".doc-upload-label");
+    btn?.classList.add("upload-busy");
+    try {
+      const body = new FormData();
+      for (const file of input.files) body.append("files", file);
+      const res = await apiFetch(`/api/contracts/${encodeURIComponent(c.notice_id)}/attachments`, {
+        method: "POST",
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Upload failed");
+      showSyncStatus(
+        `Uploaded ${data.files_uploaded ?? input.files.length} PDF(s) — ${data.attachment_text_chars ?? 0} chars extracted.`
+      );
+      const fresh = await fetchContract(c.notice_id);
+      if (fresh) renderDocumentsTab(fresh);
+    } catch (err) {
+      showSyncStatus(err.message || "Upload failed", true);
+    } finally {
+      input.value = "";
+      btn?.classList.remove("upload-busy");
+    }
   });
   document.getElementById("extract-solicitation-btn")?.addEventListener("click", () => {
     extractSolicitationMeta(c.notice_id).catch((err) => showSyncStatus(err.message, true));

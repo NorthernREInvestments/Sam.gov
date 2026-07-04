@@ -1124,6 +1124,23 @@ a {
   margin-top: 1rem;
 }
 
+.doc-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.doc-upload-label.upload-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.doc-upload-note {
+  margin: 0;
+}
+
 .card-official-title {
   font-size: 0.82rem;
   color: var(--muted);
