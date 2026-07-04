@@ -92,13 +92,19 @@ def _passes_set_aside_filter(row: dict[str, str]) -> bool:
     return "sba" in blob or "total small business" in blob
 
 
-def _passes_import_filters(row: dict[str, str], *, today: date | None = None) -> bool:
+def _passes_import_filters(
+    row: dict[str, str],
+    *,
+    today: date | None = None,
+    naics_set: set[str] | None = None,
+) -> bool:
     today = today or date.today()
     active = _row_get(row, "Active", "active").lower()
     if active not in ("yes", "y", "true", "1"):
         return False
     naics = _row_get(row, "NaicsCode", "naics_code")
-    if naics not in set(get_naics_codes()):
+    allowed = naics_set if naics_set is not None else set(get_naics_codes())
+    if naics not in allowed:
         return False
     if not _passes_set_aside_filter(row):
         return False
@@ -145,13 +151,15 @@ def parse_sam_csv(content: bytes | str) -> list[dict[str, str]]:
 
 def clear_non_protected_csv_rows(session: Session) -> int:
     """Delete gt_csv_opportunities rows whose status is not actively protected."""
+    protected = {s.lower() for s in PROTECTED_CSV_STATUSES}
     deleted = 0
-    for row in session.query(CsvOpportunity).all():
-        if _is_protected_status(row.status):
+    for row in session.query(CsvOpportunity).yield_per(500):
+        if (row.status or "").strip().lower() in protected:
             continue
         session.delete(row)
         deleted += 1
-    session.flush()
+    if deleted:
+        session.flush()
     return deleted
 
 
@@ -194,8 +202,9 @@ def _import_one_csv_row(
     today: date,
     summary: dict[str, Any],
     existing_by_notice: dict[str, CsvOpportunity],
+    naics_set: set[str] | None = None,
 ) -> None:
-    if not _passes_import_filters(raw, today=today):
+    if not _passes_import_filters(raw, today=today, naics_set=naics_set):
         summary["records_skipped_filters"] += 1
         return
 
@@ -217,7 +226,6 @@ def _import_one_csv_row(
     else:
         row = CsvOpportunity(**mapped)
         session.add(row)
-        session.flush()
         existing_by_notice[notice_id] = row
         summary["records_imported"] += 1
         summary["new_notice_ids"].append(notice_id)
@@ -252,18 +260,38 @@ def import_csv_opportunities_from_content(
 
     from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
 
+    if progress:
+        progress("prepare", "Preparing import (clearing previous CSV rows)…", rows_scanned=0, rows_imported=0)
+
     clear_pending_queue_for_deleted_csv(session)
     summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
 
-    existing_by_notice: dict[str, CsvOpportunity] = {
-        row.notice_id: row for row in session.query(CsvOpportunity).all()
-    }
+    if progress:
+        progress("prepare", "Loading existing opportunities for dedupe…", rows_scanned=0, rows_imported=0)
+
+    existing_by_notice: dict[str, CsvOpportunity] = {}
+    for row in session.query(CsvOpportunity).yield_per(500):
+        existing_by_notice[row.notice_id] = row
+
+    naics_set = set(get_naics_codes())
+
+    if progress:
+        progress("import", "Scanning CSV rows…", rows_scanned=0, rows_imported=0)
 
     rows_scanned = 0
     for raw in reader:
         rows_scanned += 1
-        _import_one_csv_row(session, dict(raw), today=today, summary=summary, existing_by_notice=existing_by_notice)
-        if progress and rows_scanned % 5000 == 0:
+        _import_one_csv_row(
+            session,
+            dict(raw),
+            today=today,
+            summary=summary,
+            existing_by_notice=existing_by_notice,
+            naics_set=naics_set,
+        )
+        if rows_scanned % 250 == 0:
+            session.flush()
+        if progress and rows_scanned % 2000 == 0:
             imported = summary["records_imported"] + summary["records_updated"]
             progress(
                 "import",

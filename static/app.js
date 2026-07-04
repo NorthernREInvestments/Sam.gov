@@ -1588,8 +1588,9 @@ function formatCsvImportStatusText(data) {
   if (data.status === "failed") return data.error || "CSV import failed";
   if (data.status === "processing") {
     const parts = [data.message || "CSV import running…"];
-    if (data.rows_scanned) parts.push(`${Number(data.rows_scanned).toLocaleString()} rows scanned`);
-    if (data.rows_imported) parts.push(`${Number(data.rows_imported).toLocaleString()} matched filters`);
+    if (data.phase) parts.push(String(data.phase));
+    if (data.rows_scanned != null) parts.push(`${Number(data.rows_scanned).toLocaleString()} rows scanned`);
+    if (data.rows_imported != null) parts.push(`${Number(data.rows_imported).toLocaleString()} matched filters`);
     if (data.started_at) {
       const started = new Date(data.started_at);
       const mins = Math.max(0, Math.floor((Date.now() - started.getTime()) / 60000));
