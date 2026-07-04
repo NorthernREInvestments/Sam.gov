@@ -491,6 +491,23 @@ def backfill_prior_contract_and_pricing(session, contract: Any) -> dict[str, Any
     - PDF bytes already in PostgreSQL
   Never calls SAM.gov.
     """
+    from watchlist_pricing import apply_watchlist_pricing, pricing_from_watchlist, should_skip_usaspending_lookup
+
+    if should_skip_usaspending_lookup(contract):
+        if apply_watchlist_pricing(contract):
+            pred = contract.pricing_intel.get("predecessor_award") if isinstance(contract.pricing_intel, dict) else {}
+            pred = pred if isinstance(pred, dict) else {}
+            return {
+                "skipped_usaspending": True,
+                "watchlist_sourced": True,
+                "is_prior_contract": bool(pred.get("is_prior_contract")),
+                "lookup_method": pred.get("lookup_method"),
+                "annual_amount": pred.get("recent_annual_amount") or pred.get("annual_amount"),
+                "incumbent_contractor": pred.get("recipient_name"),
+                "awarding_office": pred.get("awarding_office"),
+                "pricing_intel": contract.pricing_intel,
+            }
+
     had_text = bool(str(getattr(contract, "attachment_text", None) or "").strip())
     if not had_text:
         reextract_attachment_text_from_db(session, contract)
@@ -521,6 +538,18 @@ def backfill_prior_contract_and_pricing(session, contract: Any) -> dict[str, Any
 
 def refresh_pricing_after_pdf_extract(contract: Any) -> dict[str, Any] | None:
     """Re-run USAspending prior-contract lookup after PDF hints are merged."""
+    from watchlist_pricing import should_skip_usaspending_lookup, pricing_from_watchlist
+
+    if should_skip_usaspending_lookup(contract):
+        payload = pricing_from_watchlist(contract)
+        if payload:
+            contract.pricing_intel = payload
+            from usaspending_savings import record_usaspending_skip
+
+            record_usaspending_skip(contract)
+            return payload
+        return None
+
     from pricing import get_regional_benchmark
 
     contract.pricing_intel = None

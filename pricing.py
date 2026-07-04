@@ -96,6 +96,24 @@ def _merge_predecessor(intel: dict[str, Any], predecessor: dict[str, Any] | None
 
 def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dict[str, Any]:
     """Tier 1 — USAspending regional award benchmarks (cached on contract.pricing_intel)."""
+    from watchlist_pricing import (
+        apply_watchlist_pricing,
+        contract_has_watchlist_pricing,
+        pricing_from_watchlist,
+        should_skip_usaspending_lookup,
+    )
+    from usaspending_savings import record_usaspending_skip
+
+    if should_skip_usaspending_lookup(contract) and not force_refresh:
+        payload = pricing_from_watchlist(contract)
+        if payload:
+            if not contract_has_watchlist_pricing(contract):
+                apply_watchlist_pricing(contract)
+            else:
+                contract.pricing_intel = payload
+            record_usaspending_skip(contract)
+            return contract.pricing_intel or payload
+
     naics_code = (contract.naics_code or "").strip() or None
     work_location = extract_work_location(
         contract.location,
@@ -280,9 +298,9 @@ def _error_payload(message: str, naics_code: str | None, state_code: str | None)
 
 def contract_missing_prior_dollars(contract: Any) -> bool:
     """True when a scored contract has a work state but no dollar line for the dashboard card."""
-    from watchlist_pricing import contract_has_watchlist_pricing
+    from watchlist_pricing import should_skip_usaspending_lookup
 
-    if contract_has_watchlist_pricing(contract):
+    if should_skip_usaspending_lookup(contract):
         return False
     from display_format import pricing_card_display, prior_hints_from_contract
 
@@ -305,9 +323,9 @@ def contract_missing_prior_dollars(contract: Any) -> bool:
 
 def contract_pricing_needs_refresh(contract: Any) -> bool:
     """True when we should re-query USAspending for prior-contract dollars."""
-    from watchlist_pricing import contract_has_watchlist_pricing
+    from watchlist_pricing import should_skip_usaspending_lookup
 
-    if contract_has_watchlist_pricing(contract):
+    if should_skip_usaspending_lookup(contract):
         return False
     if contract_missing_prior_dollars(contract):
         return True

@@ -16,6 +16,23 @@ SCHEDULED_ROTATION_KEY = "naics_scheduled_rotation_index"
 FOCUS_NAICS_KEY = "sam_focus_naics"
 
 
+def _attach_usaspending_savings(report: dict[str, Any]) -> dict[str, Any]:
+    """Merge USAspending skip counters into sync report payloads."""
+    from usaspending_savings import get_usaspending_savings
+
+    savings = get_usaspending_savings()
+    report.update(savings)
+    saved = savings.get("usaspending_calls_saved", 0)
+    skipped = savings.get("usaspending_skipped_contracts", 0)
+    if saved:
+        suffix = (
+            f" USAspending: {saved} API call(s) saved on {skipped} watchlist "
+            f"match{'es' if skipped != 1 else ''}."
+        )
+        report["fetch_status"] = (report.get("fetch_status") or "") + suffix
+    return report
+
+
 def _parse_due_date(value: str | None) -> date | None:
     if not value:
         return None
@@ -763,8 +780,10 @@ def get_focus_naics(session: Session) -> str | None:
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
     """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
+    from usaspending_savings import reset_usaspending_savings
     from watchlist_sync import run_govspend_watchlist_sync
 
+    reset_usaspending_savings()
     watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     naics_codes = naics_from_env()
     if not naics_codes:
@@ -858,7 +877,7 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
     if not search_only:
         start_autopilot()
 
-    return {
+    return _attach_usaspending_savings({
         "api_calls": 1,
         "naics_code": naics_today,
         "search_only": search_only,
@@ -874,7 +893,7 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
         "naics_total": len(naics_codes),
         "api_budget": get_usage_snapshot(),
         "govspend_watchlist": watchlist_result,
-    }
+    })
 
 
 def _rotated_code_batch(codes: list[str], index: int, count: int) -> tuple[list[str], int]:
@@ -1288,8 +1307,10 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
 
 def sync_scheduled_naics() -> dict[str, Any]:
     """Use the full daily SAM budget: finish current NAICS, then search/enrich the next."""
+    from usaspending_savings import reset_usaspending_savings
     from watchlist_sync import run_govspend_watchlist_sync
 
+    reset_usaspending_savings()
     watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     from api_budget import can_spend_sam, get_usage_snapshot, scheduled_sync_attachments_only
     from intake import (
@@ -1313,7 +1334,9 @@ def sync_scheduled_naics() -> dict[str, Any]:
 
     if scheduled_sync_attachments_only() or backlog_pending > 0:
         # Pull attachments across every enabled NAICS until backlog is cleared.
-        return _sync_scheduled_attachments_only(enrich_pool)
+        attachments_result = _sync_scheduled_attachments_only(enrich_pool)
+        attachments_result["govspend_watchlist"] = watchlist_result
+        return _attach_usaspending_savings(attachments_result)
 
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — scheduled sync skipped until tomorrow.")
@@ -1411,7 +1434,7 @@ def sync_scheduled_naics() -> dict[str, Any]:
     elif searches_run:
         status_parts.append("rotation advanced — no pending attachments on last NAICS searched")
 
-    return {
+    return _attach_usaspending_savings({
         "mode": "budget_loop",
         "scheduled_tiers": tiers,
         "scheduled_pool": pool,
@@ -1426,18 +1449,20 @@ def sync_scheduled_naics() -> dict[str, Any]:
         "fetch_status": ". ".join(status_parts) + ".",
         "api_budget": budget,
         "govspend_watchlist": watchlist_result,
-    }
+    })
 
 
 def sync_all_naics() -> dict[str, Any]:
     """Manual full search — all enabled NAICS codes across every tier."""
+    from usaspending_savings import reset_usaspending_savings
     from watchlist_sync import run_govspend_watchlist_sync
 
+    reset_usaspending_savings()
     watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
     naics_codes = naics_from_env()
     sync_result = _sync_naics_code_list(naics_codes, manual_all_tiers=True)
     sync_result["govspend_watchlist"] = watchlist_result
-    return sync_result
+    return _attach_usaspending_savings(sync_result)
 
 
 def get_naics_sync_status() -> dict[str, Any]:

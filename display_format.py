@@ -263,6 +263,8 @@ def pricing_card_display(
             label = "Prior contract"
         elif method == "recipient_search":
             label = "Prior (incumbent)"
+        elif method == "govspend_watchlist":
+            label = "Prior (watchlist)"
         elif method == "same_city_match":
             label = "Prior (same city)"
         else:

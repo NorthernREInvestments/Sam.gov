@@ -27,9 +27,10 @@ def run_daily_sync() -> None:
     try:
         result = sync_scheduled_naics()
         logger.info(
-            "Scheduled sync done: mode=%s, %s",
+            "Scheduled sync done: mode=%s, %s, usaspending_saved=%s",
             result.get("mode"),
             result.get("fetch_status"),
+            result.get("usaspending_calls_saved", 0),
         )
     except Exception:
         logger.exception("Scheduled daily sync failed")

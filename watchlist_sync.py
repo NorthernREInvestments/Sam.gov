@@ -358,16 +358,21 @@ def run_govspend_watchlist_sync(*, trigger_pipeline: bool = True) -> dict[str, A
 
     result["api_budget"] = get_usage_snapshot()
 
+    from usaspending_savings import get_usaspending_savings
+
+    result.update(get_usaspending_savings())
+
     if trigger_pipeline and pipeline_ids:
         start_watchlist_priority_pipeline(pipeline_ids)
 
     logger.info(
-        "GovSpend watchlist sync: targets=%s searches=%s high_hits=%s possible=%s pipeline=%s",
+        "GovSpend watchlist sync: targets=%s searches=%s high_hits=%s possible=%s pipeline=%s usaspending_saved=%s",
         len(targets),
         result["sam_searches"],
         result["sam_hits"],
         result["possible_matches"],
         len(pipeline_ids),
+        result.get("usaspending_calls_saved", 0),
     )
     return result
 

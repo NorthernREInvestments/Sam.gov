@@ -56,7 +56,7 @@ def _backfill_contract_pricing(contract_id: int) -> dict[str, Any]:
 def run_missing_dollar_backfill() -> dict[str, int]:
     """Re-query USAspending for scored contracts that still show no prior-contract dollars."""
     ids = _scored_contract_ids()
-    stats = {"processed": 0, "found": 0, "errors": 0, "targets": 0, "skipped": 0}
+    stats = {"processed": 0, "found": 0, "errors": 0, "targets": 0, "skipped": 0, "skipped_watchlist": 0}
 
     logger.info("Missing-dollar pricing refresh for %s scored contract(s)", len(ids))
 
@@ -65,6 +65,11 @@ def run_missing_dollar_backfill() -> dict[str, int]:
         try:
             row = session.query(Contract).filter(Contract.id == contract_id).first()
             if not row or not contract_missing_prior_dollars(row):
+                continue
+            from watchlist_pricing import should_skip_usaspending_lookup
+
+            if should_skip_usaspending_lookup(row):
+                stats["skipped_watchlist"] += 1
                 continue
             notice_id = row.notice_id
         finally:
