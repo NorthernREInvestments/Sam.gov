@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260704-csv-import-prep"
+APP_BUILD_VERSION = "20260704-csv-opportunities-dashboard"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2206,6 +2206,40 @@ def update_performance_settings(body: PerformanceSettingsUpdate):
         wawf_last_password_change=body.wawf_last_password_change,
         ipp_registered=body.ipp_registered,
     )
+
+
+@app.get("/api/csv-opportunities")
+def list_csv_opportunities():
+    """All filtered CSV import rows for the dashboard CSV Opportunities section."""
+    session = SessionLocal()
+    try:
+        from csv_opportunity_service import list_csv_opportunity_cards
+
+        cards = list_csv_opportunity_cards(session)
+        return {"count": len(cards), "opportunities": cards}
+    finally:
+        session.close()
+
+
+@app.post("/api/csv-opportunities/{notice_id}/pursue")
+def pursue_csv_opportunity_endpoint(notice_id: str):
+    """Mark a CSV opportunity as Pursuing and start the full pipeline."""
+    session = SessionLocal()
+    try:
+        from csv_opportunity_service import pursue_csv_opportunity
+
+        result = pursue_csv_opportunity(session, notice_id)
+        if not result.get("ok"):
+            code = 404 if result.get("error") == "not_found" else 400
+            raise HTTPException(status_code=code, detail=result.get("error"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        session.close()
 
 
 @app.get("/api/upload/sam-csv/status")

@@ -2796,6 +2796,36 @@ a {
   color: var(--text-muted, #64748b);
 }
 
+.csv-opportunities-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #bbf7d0;
+}
+
+.csv-opportunities-section .section-heading h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  color: #15803d;
+}
+
+.csv-opportunities-section .section-help {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+}
+
+.compact-card-csv {
+  border-color: #86efac;
+}
+
+.score-badge-naics {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #86efac;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .watchlist-compare-list {
   display: flex;
   flex-direction: column;

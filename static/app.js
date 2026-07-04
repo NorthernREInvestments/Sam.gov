@@ -827,20 +827,32 @@ function buildCompactCardHtml(c) {
     : (c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit");
   const cardBadges = `${priorityBadge}${fetchBadge}`;
   const govspendClass = c.govspend_watchlist?.sam_found ? " compact-card-govspend-hit" : "";
+  const csvClass = c.csv_opportunity ? " compact-card-csv" : "";
+  const scoreBadge = c.csv_opportunity && c.naics_code
+    ? `<span class="score-badge score-badge-naics" title="NAICS ${escapeHtml(c.naics_code)}">${escapeHtml(c.naics_code)}</span>`
+    : `<span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>`;
+  const sizeLine = c.csv_opportunity
+    ? escapeHtml(c.set_aside_display || c.set_aside || "Set-aside pending")
+    : escapeHtml(compactSizeLine(c));
+  const historyLine = c.csv_opportunity
+    ? `<span class="pricing-kind pricing-kind-set_aside">${escapeHtml(contractAgencyDisplay(c))}</span>`
+    : renderHistoryLine(c);
+  const workflowDots = c.csv_opportunity ? "" : renderWorkflowDots(c);
+  const farBadge = c.csv_opportunity ? "" : compactFarBadge(c);
   return `
-    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}${govspendClass}" data-id="${c.notice_id}">
+    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}${govspendClass}${csvClass}" data-id="${c.notice_id}"${c.csv_opportunity ? ' data-csv-opportunity="1"' : ""}>
       <div class="compact-card-row compact-card-row-1">
-        <span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>
+        ${scoreBadge}
         <span class="compact-due-wrap">${cardBadges}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
       </div>
       <div class="compact-card-row compact-card-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>
       <div class="compact-card-row compact-card-meta">${escapeHtml(compactTypeLocationLine(c))}</div>
       ${addressLine ? `<div class="compact-card-row compact-card-address">${escapeHtml(addressLine)}</div>` : ""}
-      <div class="compact-card-row compact-card-size">${escapeHtml(compactSizeLine(c))}</div>
-      <div class="compact-card-row compact-card-history-line">${renderHistoryLine(c)}</div>
+      <div class="compact-card-row compact-card-size">${sizeLine}</div>
+      <div class="compact-card-row compact-card-history-line">${historyLine}</div>
       <div class="compact-card-row compact-card-row-far">
-        ${compactFarBadge(c)}
-        ${renderWorkflowDots(c)}
+        ${farBadge}
+        ${workflowDots}
       </div>
       <div class="compact-card-row compact-card-status${c.proximity_note && !fetchBlocked ? " compact-card-status-warn" : ""}${fetchBlocked ? " compact-card-status-fetch" : ""}">${escapeHtml(statusMsg)}</div>
       <button type="button" class="btn btn-primary compact-card-action" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
@@ -870,6 +882,88 @@ async function loadWatchlistHits() {
   } catch (err) {
     if (err.message !== "Login required") {
       console.warn("Watchlist hits:", err.message);
+    }
+  }
+}
+
+let csvOpportunities = [];
+
+function renderCsvOpportunityCards(rows) {
+  const section = document.getElementById("csv-opportunities-section");
+  const container = document.getElementById("csv-opportunities-cards");
+  const help = document.getElementById("csv-opportunities-help");
+  if (!section || !container) return;
+  csvOpportunities = rows || [];
+  if (!csvOpportunities.length) {
+    section.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+  section.hidden = false;
+  if (help) {
+    help.textContent = `${csvOpportunities.length} filtered row${csvOpportunities.length === 1 ? "" : "s"} from your SAM.gov CSV import, sorted by soonest response deadline. Click Pursue to download attachments and run analysis.`;
+  }
+  container.innerHTML = csvOpportunities.map((c) => buildCompactCardHtml(c)).join("");
+  wireCsvOpportunityCards(container);
+}
+
+function wireCsvOpportunityCards(container) {
+  if (!container) return;
+  container.querySelectorAll(".compact-card").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".compact-card-action")) return;
+      const noticeId = el.dataset.id;
+      const row = csvOpportunities.find((c) => c.notice_id === noticeId);
+      if (row?.csv_status === "Pursuing" || row?.contract_id) {
+        openContractDetail(noticeId);
+      }
+    });
+  });
+  container.querySelectorAll(".compact-card-action").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const noticeId = btn.dataset.noticeId;
+      const action = btn.dataset.action;
+      if (action === "pursue_csv") {
+        pursueCsvOpportunity(noticeId, btn);
+        return;
+      }
+      handleCardPrimaryAction(noticeId, action);
+    });
+  });
+}
+
+async function pursueCsvOpportunity(noticeId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/csv-opportunities/${encodeURIComponent(noticeId)}/pursue`, {
+      method: "POST",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(formatApiError(data, res));
+    showSyncStatus(
+      data.pipeline_started
+        ? "Pursuing — attachments and analysis pipeline started."
+        : "Marked as Pursuing."
+    );
+    await Promise.all([loadCsvOpportunities(), loadContracts()]);
+    if (data.contract_id) openContractDetail(noticeId);
+  } catch (err) {
+    if (err.message !== "Login required") showSyncStatus(err.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadCsvOpportunities() {
+  try {
+    const res = await apiFetch("/api/csv-opportunities");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to load CSV opportunities");
+    renderCsvOpportunityCards(data.opportunities || []);
+  } catch (err) {
+    if (err.message !== "Login required") {
+      console.warn("CSV opportunities:", err.message);
     }
   }
 }
@@ -1087,7 +1181,7 @@ async function loadContracts() {
     if (data.attachment_queue) filterStats.attachment_queue = data.attachment_queue;
     if (data.autopilot) config.autopilot = data.autopilot;
     renderCards();
-    await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);
+    await Promise.all([loadWatchlistHits(), loadWatchlistPossible(), loadCsvOpportunities()]);
     manageCardPolling();
     if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
     updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
@@ -1111,7 +1205,7 @@ async function loadContractsQuiet() {
   if (data.attachment_queue) filterStats.attachment_queue = data.attachment_queue;
   if (data.autopilot) config.autopilot = data.autopilot;
   renderCards();
-  await Promise.all([loadWatchlistHits(), loadWatchlistPossible()]);
+  await Promise.all([loadWatchlistHits(), loadWatchlistPossible(), loadCsvOpportunities()]);
   manageCardPolling();
 }
 
