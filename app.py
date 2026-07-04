@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260704-csv-opportunities-dashboard"
+APP_BUILD_VERSION = "20260704-csv-opportunities-v2"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2209,14 +2209,27 @@ def update_performance_settings(body: PerformanceSettingsUpdate):
 
 
 @app.get("/api/csv-opportunities")
-def list_csv_opportunities():
+def list_csv_opportunities(
+    state: str | None = Query(None, description="Filter by place-of-performance state"),
+    days: str | None = Query(
+        None,
+        description="Days until due bucket: under_7, 7_14, 14_30, 30_plus, or all",
+    ),
+    naics: str | None = Query(None, description="Filter by NAICS code"),
+    q: str | None = Query(None, description="Keyword search in title"),
+):
     """All filtered CSV import rows for the dashboard CSV Opportunities section."""
     session = SessionLocal()
     try:
         from csv_opportunity_service import list_csv_opportunity_cards
 
-        cards = list_csv_opportunity_cards(session)
-        return {"count": len(cards), "opportunities": cards}
+        return list_csv_opportunity_cards(
+            session,
+            state=state,
+            days_bucket=days,
+            naics_code=naics,
+            keyword=q,
+        )
     finally:
         session.close()
 

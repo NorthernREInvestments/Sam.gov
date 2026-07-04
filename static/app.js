@@ -887,31 +887,158 @@ async function loadWatchlistHits() {
 }
 
 let csvOpportunities = [];
+let csvOpportunityFilterOptions = { states: [], naics_codes: [] };
+let csvFilterDebounce = null;
 
-function renderCsvOpportunityCards(rows) {
+function csvDaysRemainingClass(days) {
+  if (days == null) return "due-unknown";
+  if (days <= 3) return "due-red";
+  if (days <= 7) return "due-yellow";
+  return "due-green";
+}
+
+function csvDaysRemainingLabel(c) {
+  const days = c.days_until_due;
+  if (days == null) return "Due date unknown";
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} overdue`;
+  if (days === 0) return "Due today";
+  return `${days} day${days === 1 ? "" : "s"} left`;
+}
+
+function csvDueDateLabel(c) {
+  if (!c.due_date) return "—";
+  const d = new Date(`${c.due_date}T00:00:00`);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function csvStatusBadgeClass(status) {
+  const s = String(status || "New").toLowerCase();
+  if (s === "pursuing") return "csv-opp-status-pursuing";
+  return "";
+}
+
+function csvWatchlistBadge(c) {
+  const conf = (c.watchlist_match_confidence || "").trim();
+  if (conf === "High") {
+    const score = c.watchlist_match_score != null ? ` ${c.watchlist_match_score}/11` : "";
+    return `<span class="csv-opp-watchlist-badge csv-opp-watchlist-high" title="GovSpend watchlist fingerprint match">Watchlist High${score}</span>`;
+  }
+  if (conf === "Possible") {
+    const score = c.watchlist_match_score != null ? ` ${c.watchlist_match_score}/11` : "";
+    return `<span class="csv-opp-watchlist-badge csv-opp-watchlist-possible" title="Possible GovSpend watchlist match">Watchlist Possible${score}</span>`;
+  }
+  return "";
+}
+
+function buildCsvOpportunityCardHtml(c) {
+  const status = c.csv_status || "New";
+  const pursuing = String(status).toLowerCase() === "pursuing";
+  const action = c.workflow_progress?.primary_action || { label: "Pursue", action: "pursue_csv" };
+  const coLine = [c.co_name, c.co_email].filter(Boolean).join(" · ") || "—";
+  const samUrl = c.sam_url || c.link || "";
+  const daysClass = csvDaysRemainingClass(c.days_until_due);
+  return `
+    <article class="csv-opp-card${pursuing ? " csv-opp-card-pursuing" : ""}" data-id="${escapeHtml(c.notice_id)}">
+      <div class="csv-opp-header">
+        <div class="csv-opp-days ${daysClass}">${escapeHtml(csvDaysRemainingLabel(c))}</div>
+        <div class="csv-opp-badges">
+          <span class="csv-opp-status-badge ${csvStatusBadgeClass(status)}">${escapeHtml(status)}</span>
+          ${csvWatchlistBadge(c)}
+        </div>
+      </div>
+      <h3 class="csv-opp-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</h3>
+      <dl class="csv-opp-fields">
+        <dt>Agency</dt><dd>${escapeHtml(c.agency_display || c.agency || "—")}</dd>
+        <dt>Location</dt><dd>${escapeHtml(c.location_display || "—")}</dd>
+        <dt>Due date</dt><dd>${escapeHtml(csvDueDateLabel(c))}</dd>
+        <dt>Set-aside</dt><dd>${escapeHtml(c.set_aside_display || c.set_aside || "—")}</dd>
+        <dt>NAICS</dt><dd>${escapeHtml(c.naics_code || "—")}${c.naics_label ? ` · ${escapeHtml(c.naics_label)}` : ""}</dd>
+        <dt>CO</dt><dd>${escapeHtml(coLine)}</dd>
+      </dl>
+      <div class="csv-opp-actions">
+        ${samUrl ? `<a class="csv-opp-sam-link" href="${escapeHtml(samUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">SAM.gov ↗</a>` : ""}
+        <button type="button" class="btn btn-primary compact-card-action csv-opp-pursue-btn" data-action="${escapeHtml(action.action)}" data-notice-id="${escapeHtml(c.notice_id)}">${escapeHtml(action.label)}</button>
+      </div>
+    </article>`;
+}
+
+function getCsvFilterParams() {
+  const search = document.getElementById("csv-filter-search");
+  const state = document.getElementById("csv-filter-state");
+  const days = document.getElementById("csv-filter-days");
+  const naics = document.getElementById("csv-filter-naics");
+  const params = new URLSearchParams();
+  const q = search?.value?.trim();
+  const st = state?.value?.trim();
+  const d = days?.value?.trim();
+  const n = naics?.value?.trim();
+  if (q) params.set("q", q);
+  if (st) params.set("state", st);
+  if (d) params.set("days", d);
+  if (n) params.set("naics", n);
+  return params;
+}
+
+function populateCsvFilterOptions(options) {
+  csvOpportunityFilterOptions = options || { states: [], naics_codes: [] };
+  const stateSel = document.getElementById("csv-filter-state");
+  const naicsSel = document.getElementById("csv-filter-naics");
+  if (stateSel) {
+    const current = stateSel.value;
+    stateSel.innerHTML = `<option value="">All states</option>${(csvOpportunityFilterOptions.states || [])
+      .map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+      .join("")}`;
+    if (current) stateSel.value = current;
+  }
+  if (naicsSel) {
+    const current = naicsSel.value;
+    naicsSel.innerHTML = `<option value="">All NAICS</option>${(csvOpportunityFilterOptions.naics_codes || [])
+      .map((code) => `<option value="${escapeHtml(code)}">${escapeHtml(code)}</option>`)
+      .join("")}`;
+    if (current) naicsSel.value = current;
+  }
+}
+
+function renderCsvOpportunityCards(rows, meta = {}) {
   const section = document.getElementById("csv-opportunities-section");
   const container = document.getElementById("csv-opportunities-cards");
-  const help = document.getElementById("csv-opportunities-help");
+  const emptyEl = document.getElementById("csv-opportunities-empty");
+  const countEl = document.getElementById("csv-opportunities-count");
+  const total = meta.total_count ?? csvOpportunities.length;
   if (!section || !container) return;
-  csvOpportunities = rows || [];
-  if (!csvOpportunities.length) {
+
+  if (total === 0) {
     section.hidden = true;
     container.innerHTML = "";
+    if (emptyEl) emptyEl.hidden = true;
+    if (countEl) countEl.hidden = true;
     return;
   }
+
   section.hidden = false;
-  if (help) {
-    help.textContent = `${csvOpportunities.length} filtered row${csvOpportunities.length === 1 ? "" : "s"} from your SAM.gov CSV import, sorted by soonest response deadline. Click Pursue to download attachments and run analysis.`;
+  csvOpportunities = rows || [];
+
+  if (countEl) {
+    countEl.hidden = false;
+    countEl.textContent = `Showing ${csvOpportunities.length} of ${total} CSV import${total === 1 ? "" : "s"} · Pursuing at top · then soonest deadline`;
   }
-  container.innerHTML = csvOpportunities.map((c) => buildCompactCardHtml(c)).join("");
+
+  if (!csvOpportunities.length) {
+    container.innerHTML = "";
+    if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+
+  if (emptyEl) emptyEl.hidden = true;
+  container.innerHTML = csvOpportunities.map((c) => buildCsvOpportunityCardHtml(c)).join("");
   wireCsvOpportunityCards(container);
 }
 
 function wireCsvOpportunityCards(container) {
   if (!container) return;
-  container.querySelectorAll(".compact-card").forEach((el) => {
+  container.querySelectorAll(".csv-opp-card").forEach((el) => {
     el.addEventListener("click", (e) => {
-      if (e.target.closest(".compact-card-action")) return;
+      if (e.target.closest(".csv-opp-pursue-btn") || e.target.closest(".csv-opp-sam-link")) return;
       const noticeId = el.dataset.id;
       const row = csvOpportunities.find((c) => c.notice_id === noticeId);
       if (row?.csv_status === "Pursuing" || row?.contract_id) {
@@ -919,7 +1046,7 @@ function wireCsvOpportunityCards(container) {
       }
     });
   });
-  container.querySelectorAll(".compact-card-action").forEach((btn) => {
+  container.querySelectorAll(".csv-opp-pursue-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const noticeId = btn.dataset.noticeId;
@@ -943,7 +1070,7 @@ async function pursueCsvOpportunity(noticeId, btn) {
     if (!res.ok) throw new Error(formatApiError(data, res));
     showSyncStatus(
       data.pipeline_started
-        ? "Pursuing — attachments and analysis pipeline started."
+        ? "Pursuing — moved to top of pipeline. Attachments and analysis started."
         : "Marked as Pursuing."
     );
     await Promise.all([loadCsvOpportunities(), loadContracts()]);
@@ -957,15 +1084,36 @@ async function pursueCsvOpportunity(noticeId, btn) {
 
 async function loadCsvOpportunities() {
   try {
-    const res = await apiFetch("/api/csv-opportunities");
+    const params = getCsvFilterParams();
+    const qs = params.toString();
+    const res = await apiFetch(`/api/csv-opportunities${qs ? `?${qs}` : ""}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to load CSV opportunities");
-    renderCsvOpportunityCards(data.opportunities || []);
+    populateCsvFilterOptions(data.filter_options);
+    renderCsvOpportunityCards(data.opportunities || [], {
+      total_count: data.total_count,
+      count: data.count,
+    });
   } catch (err) {
     if (err.message !== "Login required") {
       console.warn("CSV opportunities:", err.message);
     }
   }
+}
+
+function initCsvOpportunityFilters() {
+  const search = document.getElementById("csv-filter-search");
+  const state = document.getElementById("csv-filter-state");
+  const days = document.getElementById("csv-filter-days");
+  const naics = document.getElementById("csv-filter-naics");
+  const reload = () => {
+    clearTimeout(csvFilterDebounce);
+    csvFilterDebounce = setTimeout(() => loadCsvOpportunities(), 250);
+  };
+  search?.addEventListener("input", reload);
+  state?.addEventListener("change", reload);
+  days?.addEventListener("change", reload);
+  naics?.addEventListener("change", reload);
 }
 
 function watchlistSignalLabel(signal) {
@@ -2346,6 +2494,7 @@ document.getElementById("filters-backdrop")?.addEventListener("click", applyFilt
 document.getElementById("close-filters-btn")?.addEventListener("click", applyFiltersAndRefresh);
 
 bindFilterControls();
+initCsvOpportunityFilters();
 bindSlider("settings-min-days", "settings-min-days-value");
 bindSlider("settings-min-score", "settings-min-score-value");
 

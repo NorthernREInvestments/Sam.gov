@@ -99,11 +99,43 @@
           <div id="watchlist-possible-cards" class="watchlist-compare-list"></div>
         </section>
         <section id="csv-opportunities-section" class="csv-opportunities-section" hidden>
-          <div class="section-heading">
+          <div class="section-heading csv-opp-section-heading">
             <h2>CSV Opportunities</h2>
-            <p id="csv-opportunities-help" class="section-help">Filtered rows from your SAM.gov CSV import, sorted by soonest response deadline.</p>
+            <p id="csv-opportunities-help" class="section-help">
+              Raw SAM.gov CSV import — not GovSpend watchlist matches. These rows passed your import filters (active, NAICS, small-business set-aside, future deadline).
+            </p>
           </div>
-          <div id="csv-opportunities-cards" class="cards cards-compact"></div>
+          <div id="csv-opportunities-filters" class="csv-opp-filters">
+            <label class="csv-opp-filter">
+              <span class="csv-opp-filter-label">Search title</span>
+              <input type="search" id="csv-filter-search" class="settings-input" placeholder="Keyword in title…" autocomplete="off">
+            </label>
+            <label class="csv-opp-filter">
+              <span class="csv-opp-filter-label">State</span>
+              <select id="csv-filter-state" class="settings-input">
+                <option value="">All states</option>
+              </select>
+            </label>
+            <label class="csv-opp-filter">
+              <span class="csv-opp-filter-label">Days remaining</span>
+              <select id="csv-filter-days" class="settings-input">
+                <option value="">All deadlines</option>
+                <option value="under_7">Under 7 days</option>
+                <option value="7_14">7–14 days</option>
+                <option value="14_30">14–30 days</option>
+                <option value="30_plus">30+ days</option>
+              </select>
+            </label>
+            <label class="csv-opp-filter">
+              <span class="csv-opp-filter-label">NAICS</span>
+              <select id="csv-filter-naics" class="settings-input">
+                <option value="">All NAICS</option>
+              </select>
+            </label>
+          </div>
+          <p id="csv-opportunities-count" class="csv-opp-count" hidden></p>
+          <div id="csv-opportunities-cards" class="cards cards-compact csv-opp-cards"></div>
+          <p id="csv-opportunities-empty" class="csv-opp-empty" hidden>No CSV opportunities match the current filters.</p>
         </section>
         <div id="cards" class="cards cards-compact"></div>
       </main>
@@ -293,7 +325,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260704-csv-opportunities-dashboard"></script>
+  <script src="/app.js?v=20260704-csv-opportunities-v2"></script>
   <script src="/contract-detail.js?v=20260703-manual-attachment-upload"></script>
   <script src="/subs.js?v=20260702-playwright"></script>
   <script src="/pricing.js?v=20260701-desktop-layout"></script>
