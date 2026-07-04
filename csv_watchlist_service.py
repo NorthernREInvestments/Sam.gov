@@ -122,20 +122,32 @@ def run_csv_watchlist_matching(
         elif result.confidence == "Possible":
             summary["possible_matches"] += 1
 
-        if not trigger_pipeline:
-            continue
-
         if result.confidence in ("High", "Possible", "Weak"):
             contract = bridge_csv_to_contract(session, row)
-            _apply_best_fingerprint(contract, targets, result, pipeline_ids=pipeline_ids)
+            _apply_best_fingerprint(
+                contract,
+                targets,
+                result,
+                pipeline_ids=pipeline_ids if trigger_pipeline else [],
+            )
             row.contract_id = contract.id
 
     session.flush()
 
     if trigger_pipeline and pipeline_ids:
-        unique_ids = list(dict.fromkeys(pipeline_ids))
-        start_watchlist_priority_pipeline(unique_ids)
-        summary["pipeline_started"] = unique_ids
+        from screening_pipeline import has_attachments_ready
+
+        ready_ids = [
+            notice_id
+            for notice_id in dict.fromkeys(pipeline_ids)
+            if (row := session.query(Contract).filter_by(notice_id=notice_id).first())
+            and has_attachments_ready(row, session)
+        ]
+        if ready_ids:
+            start_watchlist_priority_pipeline(ready_ids)
+        summary["pipeline_started"] = ready_ids
+    elif trigger_pipeline:
+        summary["pipeline_started"] = []
 
     return summary
 

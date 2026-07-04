@@ -243,6 +243,11 @@ def is_visible_on_dashboard(
     stored_pdf_ids: set[int] | None = None,
 ) -> bool:
     """Show on dashboard when ready OR actively being processed by autopilot."""
+    from gs_watchlist_service import is_govspend_watchlist_hit, is_possible_watchlist_match
+
+    if is_govspend_watchlist_hit(row) or is_possible_watchlist_match(row):
+        return True
+
     if is_dashboard_ready_fast(row, session, stored_pdf_ids=stored_pdf_ids):
         return True
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
