@@ -2855,6 +2855,26 @@ a {
   border-color: #fde68a;
 }
 
+.csv-opp-pricing-pending {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.csv-opp-pricing-pending .csv-opp-pricing-main {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.csv-opp-pricing-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.csv-opp-pricing-error .csv-opp-pricing-main {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .csv-opp-pricing-main {
   font-size: 0.82rem;
   font-weight: 700;

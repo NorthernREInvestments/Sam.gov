@@ -14,7 +14,7 @@ from models import AppSetting
 logger = logging.getLogger("govtracker.csv_pricing_job")
 
 CSV_PRICING_JOB_KEY = "csv_pricing_job_state"
-_STALE_SECONDS = 30 * 60
+_STALE_SECONDS = 3 * 60 * 60
 
 _lock = threading.Lock()
 
@@ -133,6 +133,7 @@ def start_csv_pricing_job(
     days_bucket: str | None = None,
     naics_code: str | None = None,
     keyword: str | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Run USAspending pricing for filtered CSV rows in a background thread."""
     filters = {
@@ -157,12 +158,22 @@ def start_csv_pricing_job(
                 days_bucket=days_bucket,
                 naics_code=naics_code,
                 keyword=keyword,
+                force=force,
             )
         finally:
             session.close()
 
         if not row_ids:
-            return {"ok": False, "error": "No CSV opportunities match the current filters."}
+            if force:
+                detail = "No CSV opportunities match the current filters."
+            else:
+                detail = "All matching CSV opportunities already have pricing — use force to re-run."
+            return {"ok": False, "error": detail}
+
+        matched = len(row_ids)
+        resume_note = ""
+        if not force:
+            resume_note = " (resuming — skipping rows already priced)"
 
         now = datetime.now(timezone.utc).isoformat()
         _save_state_to_db(
@@ -172,8 +183,8 @@ def start_csv_pricing_job(
                 "started_at": now,
                 "updated_at": now,
                 "processed": 0,
-                "total": len(row_ids),
-                "message": f"Pricing 0 of {len(row_ids)}…",
+                "total": matched,
+                "message": f"Pricing 0 of {matched}…{resume_note}",
                 "filters": filters,
             }
         )
@@ -229,6 +240,6 @@ def start_csv_pricing_job(
     return {
         "ok": True,
         "status": "processing",
-        "total": len(row_ids),
-        "message": f"Pricing 0 of {len(row_ids)}…",
+        "total": matched,
+        "message": f"Pricing 0 of {matched}…{resume_note}",
     }

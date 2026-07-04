@@ -136,6 +136,7 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
 def enrich_contract_attachments(row: Contract, session=None) -> bool:
     """Load SAM scrape, download attachment bytes into PostgreSQL, extract text."""
     from attachment_pipeline import ensure_attachments_from_database, is_attachment_extraction_ready, run_attachment_pipeline
+    from csv_attachment_policy import notice_id_csv_attachment_eligible
     from database import SessionLocal
     from sam_enrich import is_sam_metadata_ready, is_scrape_complete, scrape_attachment_metadata
     from sam_client import normalize_opportunity
@@ -148,6 +149,9 @@ def enrich_contract_attachments(row: Contract, session=None) -> bool:
         already_ready = is_attachment_extraction_ready(row, session)
         if ensure_attachments_from_database(session, row):
             return not already_ready
+
+        if not notice_id_csv_attachment_eligible(session, row.notice_id):
+            return False
 
         raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
         if is_scrape_complete(raw) and is_attachment_extraction_ready(row, session):
@@ -849,14 +853,15 @@ def start_background_attachment_enrich(batch_size: int = 8) -> None:
     def _run() -> None:
         global _attachment_running
         try:
+            from csv_attachment_policy import sam_attachments_csv_only
             from settings_store import get_naics_codes
             from sync import burn_sam_budget_on_attachments
 
             pool = get_naics_codes()
-            if not pool:
+            if not pool and not sam_attachments_csv_only():
                 return
             try:
-                result = burn_sam_budget_on_attachments(pool)
+                result = burn_sam_budget_on_attachments(pool or [])
             except ValueError:
                 return
             total = result.get("attachments_enriched", 0)

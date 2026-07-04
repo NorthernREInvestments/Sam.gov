@@ -940,7 +940,15 @@ function csvPricingBlock(c) {
       ? `<span class="csv-opp-pricing-bidders">${Number(pd.unique_bidders).toLocaleString()} prior bidder${Number(pd.unique_bidders) === 1 ? "" : "s"}</span>`
       : "";
   const kindClass =
-    pd.kind === "prior" ? " csv-opp-pricing-prior" : pd.kind === "regional" ? " csv-opp-pricing-regional" : "";
+    pd.kind === "prior"
+      ? " csv-opp-pricing-prior"
+      : pd.kind === "regional"
+        ? " csv-opp-pricing-regional"
+        : pd.kind === "pending"
+          ? " csv-opp-pricing-pending"
+          : pd.kind === "error"
+            ? " csv-opp-pricing-error"
+            : "";
   return `
     <div class="csv-opp-pricing${kindClass}">
       <div class="csv-opp-pricing-main">${escapeHtml(main)}</div>
@@ -2126,12 +2134,24 @@ async function runAttachmentSync() {
   const saved = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Pulling PDFs…";
-  showSyncStatus("Pulling SAM.gov attachments for contracts in the database (uses remaining SAM API budget)…");
   try {
     const statusRes = await apiFetch("/api/sync/attachments/status");
     const status = await statusRes.json();
-    if (status.attachments_pending === 0) {
-      showSyncStatus("All matching contracts already have attachments in the database.");
+    const csvOnly = status.sam_attachments_csv_only || status.api_budget?.sam_attachments_csv_only;
+    const csvPending = status.csv_attachments_pending ?? status.csv_attachment_queue?.queued ?? 0;
+    if (csvOnly) {
+      showSyncStatus(
+        `CSV-only mode — pulling SAM attachments for ${csvPending} imported CSV opportunity(ies)…`
+      );
+    } else {
+      showSyncStatus("Pulling SAM.gov attachments for contracts in the database (uses remaining SAM API budget)…");
+    }
+    if (csvOnly ? csvPending === 0 : status.attachments_pending === 0) {
+      showSyncStatus(
+        csvOnly
+          ? "All CSV-imported opportunities already have attachment metadata in the queue."
+          : "All matching contracts already have attachments in the database."
+      );
       return;
     }
     const res = await apiFetch("/api/sync/attachments", { method: "POST" });

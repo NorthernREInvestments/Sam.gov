@@ -34,3 +34,23 @@ def test_csv_pricing_display_regional_average():
     assert display["main_line"].startswith("Regional avg:")
     assert display["source_label"] == "Regional estimate"
     assert display["unique_bidders"] == 7
+
+
+def test_csv_pricing_display_pending_when_not_run():
+    display = csv_pricing_card_display(None)
+    assert display["kind"] == "pending"
+    assert "not run" in display["main_line"].lower()
+
+
+def test_csv_pricing_display_shows_specific_error():
+    display = csv_pricing_card_display({"error": "Work state missing"})
+    assert display["kind"] == "error"
+    assert display["main_line"] == "Work state missing"
+
+
+def test_csv_row_needs_pricing_skips_cached():
+    from csv_pricing_service import csv_row_needs_pricing
+
+    row = type("Row", (), {"pricing_intel": {"cached_at": "2026-07-04", "tier": "csv_usaspending"}})()
+    assert not csv_row_needs_pricing(row)
+    assert csv_row_needs_pricing(row, force=True)

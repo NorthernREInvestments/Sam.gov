@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260704-csv-pricing-batch"
+APP_BUILD_VERSION = "20260704-csv-attachments-only"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2240,6 +2240,7 @@ def refresh_csv_opportunities_pricing(
     days: str | None = Query(None),
     naics: str | None = Query(None),
     q: str | None = Query(None),
+    force: bool = Query(False, description="Re-price rows that already have cached pricing"),
 ):
     """Background USAspending pricing for filtered CSV opportunities."""
     from csv_pricing_job import start_csv_pricing_job
@@ -2249,6 +2250,7 @@ def refresh_csv_opportunities_pricing(
         days_bucket=days,
         naics_code=naics,
         keyword=q,
+        force=force,
     )
     if not started.get("ok"):
         raise HTTPException(status_code=409, detail=started.get("error", "Pricing refresh failed"))

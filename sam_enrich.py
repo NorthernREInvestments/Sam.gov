@@ -33,6 +33,23 @@ def _api_key() -> str:
     return os.getenv("SAM_GOV_API_KEY", "").strip()
 
 
+def _attachment_sam_allowed(notice_id: str) -> bool:
+    """True when SAM attachment API calls are allowed for this notice (CSV-only mode gate)."""
+    from csv_attachment_policy import sam_attachments_csv_only
+    if not sam_attachments_csv_only():
+        return True
+    if not notice_id:
+        return False
+    from database import SessionLocal
+    from csv_attachment_policy import notice_id_csv_attachment_eligible
+
+    session = SessionLocal()
+    try:
+        return notice_id_csv_attachment_eligible(session, notice_id)
+    finally:
+        session.close()
+
+
 def _sam_api_get(url: str, *, params: dict[str, Any] | None = None, timeout: float = 45.0) -> httpx.Response | None:
     """Perform one SAM.gov API GET and count it against the daily budget."""
     if not can_spend_sam(1):
@@ -118,6 +135,8 @@ def fetch_opportunity_attachments(notice_id: str, api_key: str | None = None) ->
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
         return None
+    if not _attachment_sam_allowed(notice_id):
+        return []
 
     url = SAM_RESOURCES_URL.format(notice_id=notice_id)
     response = _sam_api_get(url, params={"api_key": api_key})
@@ -341,6 +360,11 @@ def enrich_opportunity(raw: dict[str, Any] | None, api_key: str | None = None) -
     if not raw:
         return {}
     notice_id = str(raw.get("noticeId") or "")
+    if notice_id and not _attachment_sam_allowed(notice_id):
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "csv_only_mode"
+        return failed
     description_field = raw.get("description")
     description_html: str | None = raw.get("descriptionHtml")
 
@@ -440,6 +464,12 @@ def scrape_attachment_metadata(raw: dict[str, Any], api_key: str | None = None) 
         failed["scrapeError"] = "missing_notice_id"
         return failed, False
 
+    if not _attachment_sam_allowed(notice_id):
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "csv_only_mode"
+        return failed, False
+
     if not can_spend_sam(1):
         failed = dict(raw)
         failed["scrapeStatus"] = "incomplete"
@@ -477,6 +507,12 @@ def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None)
         failed = dict(raw)
         failed["scrapeStatus"] = "incomplete"
         failed["scrapeError"] = "missing_notice_id"
+        return failed, False
+
+    if not _attachment_sam_allowed(notice_id):
+        failed = dict(raw)
+        failed["scrapeStatus"] = "incomplete"
+        failed["scrapeError"] = "csv_only_mode"
         return failed, False
 
     if not can_spend_sam(1):
@@ -560,6 +596,8 @@ def ensure_enriched_sam_raw(
     notice_id = str(getattr(contract, "notice_id", None) or raw.get("noticeId") or "")
 
     if force or needs_enrichment(raw):
+        if not _attachment_sam_allowed(notice_id):
+            return raw
         if not raw or not raw.get("noticeId"):
             fresh = fetch_opportunity_raw(notice_id, api_key) if notice_id else None
             raw = fresh or raw
@@ -576,6 +614,8 @@ def ensure_enriched_sam_raw(
 def fetch_opportunity_raw(notice_id: str, api_key: str | None = None) -> dict[str, Any] | None:
     api_key = api_key or _api_key()
     if not notice_id or not api_key:
+        return None
+    if not _attachment_sam_allowed(notice_id):
         return None
     response = _sam_api_get(
         SAM_SEARCH_URL,

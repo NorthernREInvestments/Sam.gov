@@ -310,7 +310,9 @@ def list_attachment_backlog(
             -int((r.analysis or {}).get("score") or 0),
         )
     )
-    return rows
+    from csv_attachment_policy import filter_contracts_csv_eligible
+
+    return filter_contracts_csv_eligible(session, rows)
 
 
 def _attachment_files_summary(row: Contract, session) -> dict[str, Any]:
@@ -743,6 +745,11 @@ def refresh_stale_sam_raw(session: Session, limit: int | None = None) -> int:
         if not notice_id:
             continue
 
+        from csv_attachment_policy import notice_id_csv_attachment_eligible
+
+        if not notice_id_csv_attachment_eligible(session, notice_id):
+            continue
+
         if not raw or not raw.get("noticeId"):
             if not can_spend_sam(1):
                 break
@@ -1123,6 +1130,8 @@ def attachment_sync_status() -> dict[str, Any]:
     """Backlog snapshot for attachment pulls (dashboard + manual sync UI)."""
     from api_budget import get_usage_snapshot
     from attachment_storage import contract_ids_with_stored_pdfs
+    from csv_attachment_policy import sam_attachments_csv_only
+    from csv_attachment_queue_service import get_attachment_queue_dashboard_stats
     from screening_pipeline import has_attachments_ready
     from settings_store import get_naics_codes
 
@@ -1131,6 +1140,7 @@ def attachment_sync_status() -> dict[str, Any]:
     try:
         total = session.query(Contract).count()
         pdf_ids = contract_ids_with_stored_pdfs(session)
+        csv_queue = get_attachment_queue_dashboard_stats(session)
         backlog = list_attachment_backlog(session, naics_codes=pool or None)
         pending = [row for row in backlog if not has_attachments_ready(row, session)]
         ready = len(backlog) - len(pending)
@@ -1141,17 +1151,73 @@ def attachment_sync_status() -> dict[str, Any]:
             "attachments_ready": ready,
             "attachments_pending": len(pending),
             "next_due_date": next_due,
+            "sam_attachments_csv_only": sam_attachments_csv_only(),
+            "csv_attachment_queue": csv_queue,
+            "csv_attachments_pending": csv_queue.get("queued", 0),
             "api_budget": get_usage_snapshot(),
         }
     finally:
         session.close()
 
 
+def sync_csv_attachments_only() -> dict[str, Any]:
+    """Burn remaining SAM budget on CSV-imported opportunity attachment metadata."""
+    from api_budget import get_usage_snapshot
+    from csv_attachment_policy import sam_attachments_csv_only_snapshot
+    from csv_attachment_queue_service import get_attachment_queue_dashboard_stats, process_attachment_queue
+
+    session = SessionLocal()
+    try:
+        queue_before = get_attachment_queue_dashboard_stats(session)
+        queue_result = process_attachment_queue(session)
+        session.commit()
+        queue_after = get_attachment_queue_dashboard_stats(session)
+    finally:
+        session.close()
+
+    budget = get_usage_snapshot()
+    completed = int(queue_result.get("completed") or 0)
+    failed = int(queue_result.get("failed") or 0)
+    waiting = int(queue_result.get("waiting_for_budget") or 0)
+    sam_used = int(queue_result.get("sam_api_calls_used") or 0)
+    status_parts = [
+        f"CSV-only mode — processed {queue_result.get('processed', 0)} queue item(s)",
+        f"{completed} completed",
+        f"{failed} failed",
+    ]
+    if waiting:
+        status_parts.append(f"{waiting} waiting for SAM budget")
+    return {
+        "mode": "csv_attachments_only",
+        **sam_attachments_csv_only_snapshot(),
+        "csv_attachment_queue_before": queue_before,
+        "csv_attachment_queue": queue_result,
+        "csv_attachment_queue_after": queue_after,
+        "attachments_enriched": completed,
+        "attachments_pending": queue_after.get("queued", 0),
+        "sam_calls_burned": sam_used,
+        "fetch_status": ". ".join(status_parts) + ".",
+        "api_budget": budget,
+    }
+
+
 def burn_sam_budget_on_attachments(pool: list[str]) -> dict[str, Any]:
     """Use every remaining SAM API call on attachment pulls. Per-contract errors skip to the next."""
     from api_budget import can_spend_sam, get_usage_snapshot
+    from csv_attachment_policy import sam_attachments_csv_only
     from intake import enrich_contract_attachments
     from screening_pipeline import has_attachments_ready
+
+    if sam_attachments_csv_only():
+        csv_result = sync_csv_attachments_only()
+        return {
+            "attachments_enriched": csv_result.get("attachments_enriched", 0),
+            "contracts_attempted": csv_result.get("csv_attachment_queue", {}).get("processed", 0),
+            "sam_calls_burned": csv_result.get("sam_calls_burned", 0),
+            "errors": [],
+            "phases": [{"mode": "csv_queue", **csv_result.get("csv_attachment_queue", {})}],
+            "csv_only_redirect": True,
+        }
 
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget exhausted — attachment sync skipped until tomorrow.")
@@ -1223,7 +1289,17 @@ def burn_sam_budget_on_attachments(pool: list[str]) -> dict[str, Any]:
 
 def sync_attachments_only() -> dict[str, Any]:
     """Burn remaining SAM budget on attachment pulls across all enabled NAICS."""
+    from csv_attachment_policy import sam_attachments_csv_only
     from settings_store import get_naics_codes
+
+    if sam_attachments_csv_only():
+        result = sync_csv_attachments_only()
+        from autopilot_service import start_autopilot
+        from pricing_backfill_service import start_background_pricing_backfill
+
+        start_autopilot(trigger="post-sync")
+        start_background_pricing_backfill()
+        return result
 
     pool = get_naics_codes()
     if not pool:

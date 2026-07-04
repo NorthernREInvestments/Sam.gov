@@ -173,6 +173,8 @@ def _set_usage(session, prefix: str, value: int) -> None:
 
 
 def get_usage_snapshot() -> dict[str, Any]:
+    from csv_attachment_policy import sam_attachments_csv_only_snapshot
+
     session = SessionLocal()
     try:
         sam_used = _get_usage(session, "sam_api")
@@ -185,7 +187,7 @@ def get_usage_snapshot() -> dict[str, Any]:
     sam_pdf_limit = sam_pdf_download_limit()
     screen_limit = screen_daily_limit()
     screens_unlimited = screen_limit == 0
-    return {
+    snapshot = {
         "sam_used_today": sam_used,
         "sam_daily_limit": sam_limit,
         "sam_remaining": max(0, sam_limit - sam_used),
@@ -216,6 +218,8 @@ def get_usage_snapshot() -> dict[str, Any]:
             else None
         ),
     }
+    snapshot.update(sam_attachments_csv_only_snapshot())
+    return snapshot
 
 
 def can_spend_sam(credits: int = 1) -> bool:

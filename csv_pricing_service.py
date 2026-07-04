@@ -67,14 +67,26 @@ def _short_money(value: Any) -> str:
 
 def csv_pricing_card_display(intel: dict[str, Any] | None) -> dict[str, Any]:
     """Dashboard pricing line for a CSV opportunity card."""
-    intel = intel if isinstance(intel, dict) else {}
-    if intel.get("error"):
+    if not intel or not isinstance(intel, dict):
         return {
-            "kind": "none",
-            "line": "Pricing lookup failed",
+            "kind": "pending",
+            "line": "Pricing not run yet",
+            "main_line": "Pricing not run yet",
             "source_label": None,
             "unique_bidders": None,
-            "main_line": None,
+            "lookup_method": None,
+        }
+
+    intel = dict(intel)
+    if intel.get("error"):
+        error = str(intel.get("error") or "Pricing lookup failed")
+        return {
+            "kind": "error",
+            "line": error,
+            "main_line": error,
+            "source_label": None,
+            "unique_bidders": None,
+            "lookup_method": None,
         }
 
     predecessor = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else {}
@@ -127,6 +139,46 @@ def csv_pricing_card_display(intel: dict[str, Any] | None) -> dict[str, Any]:
         "unique_bidders": unique_bidders,
         "lookup_method": None,
     }
+
+
+def csv_row_needs_pricing(row: CsvOpportunity, *, force: bool = False) -> bool:
+    """True when this row should be included in a pricing batch (resume skips completed lookups)."""
+    if force:
+        return True
+    intel = row.pricing_intel if isinstance(row.pricing_intel, dict) else None
+    if not intel:
+        return True
+    if intel.get("cached_at"):
+        return False
+    if intel.get("error") in ("Pricing lookup timed out",):
+        return True
+    return not bool(intel.get("tier"))
+
+
+def lookup_csv_opportunity_pricing_with_timeout(
+    row: CsvOpportunity,
+    *,
+    timeout_seconds: float = 120.0,
+) -> dict[str, Any]:
+    """Run lookup with a per-row timeout so one slow USAspending response cannot stall the batch."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(lookup_csv_opportunity_pricing, row)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FuturesTimeoutError:
+            logger.warning("CSV pricing timed out for %s after %ss", row.notice_id, timeout_seconds)
+            payload = {
+                "error": "Pricing lookup timed out",
+                "tier": "csv_usaspending",
+                "naics_code": row.naics_code,
+                "state_code": row.location_state,
+            }
+            return {
+                "pricing_intel": payload,
+                "pricing_display": csv_pricing_card_display(payload),
+            }
 
 
 def lookup_csv_opportunity_pricing(row: CsvOpportunity) -> dict[str, Any]:
@@ -206,9 +258,14 @@ def lookup_csv_opportunity_pricing(row: CsvOpportunity) -> dict[str, Any]:
     return {"pricing_intel": intel, "pricing_display": display}
 
 
-def refresh_csv_opportunity_pricing(session: Session, row: CsvOpportunity) -> dict[str, Any]:
+def refresh_csv_opportunity_pricing(
+    session: Session,
+    row: CsvOpportunity,
+    *,
+    timeout_seconds: float = 120.0,
+) -> dict[str, Any]:
     """Run lookup and persist on gt_csv_opportunities.pricing_intel."""
-    result = lookup_csv_opportunity_pricing(row)
+    result = lookup_csv_opportunity_pricing_with_timeout(row, timeout_seconds=timeout_seconds)
     row.pricing_intel = result.get("pricing_intel")
     session.flush()
     return {
@@ -224,6 +281,7 @@ def csv_opportunity_ids_for_filters(
     days_bucket: str | None = None,
     naics_code: str | None = None,
     keyword: str | None = None,
+    force: bool = False,
 ) -> list[int]:
     """Resolve filtered CSV row IDs for a pricing batch job."""
     from csv_opportunity_service import _days_bucket, csv_opportunity_to_card_dict
@@ -247,7 +305,8 @@ def csv_opportunity_ids_for_filters(
             naics_code=naics_code,
             keyword=keyword,
         ):
-            ids.append(row.id)
+            if csv_row_needs_pricing(row, force=force):
+                ids.append(row.id)
     return ids
 
 
