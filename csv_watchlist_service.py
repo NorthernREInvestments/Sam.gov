@@ -143,23 +143,23 @@ def run_csv_watchlist_matching(
 def run_full_csv_upload_pipeline(
     session: Session,
     csv_content: bytes | str,
+    *,
+    process_attachments: bool = True,
 ) -> dict[str, Any]:
-    """Steps 1–5: import, queue, attachments, watchlist match."""
+    """Steps 1–5: import, queue, optional attachments, watchlist match."""
     from csv_attachment_queue_service import (
         enqueue_csv_attachments,
         estimate_queue_api_calls,
         get_attachment_queue_dashboard_stats,
         process_attachment_queue,
     )
-    from csv_import_service import import_csv_opportunities, parse_sam_csv
+    from csv_import_service import import_csv_opportunities_from_content
     from csv_attachment_session import reset_csv_attachment_session
 
     reset_csv_attachment_session()
-    rows = parse_sam_csv(csv_content)
-    if not rows:
-        return {"ok": False, "error": "empty_or_invalid_csv"}
-
-    import_summary = import_csv_opportunities(session, rows)
+    import_summary = import_csv_opportunities_from_content(session, csv_content)
+    if not import_summary.get("ok"):
+        return {"ok": False, "error": import_summary.get("error", "empty_or_invalid_csv")}
     session.commit()
 
     imported_notice_ids = import_summary.get("imported_notice_ids") or []
@@ -178,8 +178,17 @@ def run_full_csv_upload_pipeline(
     )
     session.commit()
 
-    attachment_summary = process_attachment_queue(session)
-    session.commit()
+    if process_attachments:
+        attachment_summary = process_attachment_queue(session)
+        session.commit()
+    else:
+        attachment_summary = {
+            "processed": 0,
+            "completed": 0,
+            "failed": 0,
+            "waiting_for_budget": queue_summary.get("waiting_for_budget", 0),
+            "session_api_calls_used": 0,
+        }
 
     watchlist_summary = run_csv_watchlist_matching(
         session,

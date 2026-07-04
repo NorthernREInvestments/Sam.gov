@@ -181,35 +181,84 @@ def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -
     }
 
     for raw in csv_rows:
-        if not _passes_import_filters(raw, today=today):
-            summary["records_skipped_filters"] += 1
-            continue
-
-        mapped = _map_csv_row(raw)
-        notice_id = mapped["notice_id"]
-        existing = existing_by_notice.get(notice_id)
-        if existing and _is_protected_status(existing.status):
-            summary["records_protected_skipped"] += 1
-            continue
-
-        if existing:
-            for key, val in mapped.items():
-                if key == "status":
-                    continue
-                setattr(existing, key, val)
-            existing.status = existing.status if _is_protected_status(existing.status) else "New"
-            summary["records_updated"] += 1
-            summary["imported_notice_ids"].append(notice_id)
-        else:
-            row = CsvOpportunity(**mapped)
-            session.add(row)
-            session.flush()
-            existing_by_notice[notice_id] = row
-            summary["records_imported"] += 1
-            summary["new_notice_ids"].append(notice_id)
-            summary["imported_notice_ids"].append(notice_id)
+        _import_one_csv_row(session, raw, today=today, summary=summary, existing_by_notice=existing_by_notice)
 
     session.flush()
+    return summary
+
+
+def _import_one_csv_row(
+    session: Session,
+    raw: dict[str, str],
+    *,
+    today: date,
+    summary: dict[str, Any],
+    existing_by_notice: dict[str, CsvOpportunity],
+) -> None:
+    if not _passes_import_filters(raw, today=today):
+        summary["records_skipped_filters"] += 1
+        return
+
+    mapped = _map_csv_row(raw)
+    notice_id = mapped["notice_id"]
+    existing = existing_by_notice.get(notice_id)
+    if existing and _is_protected_status(existing.status):
+        summary["records_protected_skipped"] += 1
+        return
+
+    if existing:
+        for key, val in mapped.items():
+            if key == "status":
+                continue
+            setattr(existing, key, val)
+        existing.status = existing.status if _is_protected_status(existing.status) else "New"
+        summary["records_updated"] += 1
+        summary["imported_notice_ids"].append(notice_id)
+    else:
+        row = CsvOpportunity(**mapped)
+        session.add(row)
+        session.flush()
+        existing_by_notice[notice_id] = row
+        summary["records_imported"] += 1
+        summary["new_notice_ids"].append(notice_id)
+        summary["imported_notice_ids"].append(notice_id)
+
+
+def import_csv_opportunities_from_content(session: Session, content: bytes | str) -> dict[str, Any]:
+    """Stream-parse CSV content row-by-row (lower memory than loading all rows)."""
+    text = content.decode("utf-8-sig", errors="replace") if isinstance(content, bytes) else content
+    if not text.strip():
+        return {"ok": False, "error": "empty_or_invalid_csv"}
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return {"ok": False, "error": "empty_or_invalid_csv"}
+
+    today = date.today()
+    summary: dict[str, Any] = {
+        "records_imported": 0,
+        "records_updated": 0,
+        "records_skipped_filters": 0,
+        "records_protected_skipped": 0,
+        "records_deleted_before_import": 0,
+        "new_notice_ids": [],
+        "imported_notice_ids": [],
+    }
+
+    from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
+
+    clear_pending_queue_for_deleted_csv(session)
+    summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
+
+    existing_by_notice: dict[str, CsvOpportunity] = {
+        row.notice_id: row for row in session.query(CsvOpportunity).all()
+    }
+
+    for raw in reader:
+        _import_one_csv_row(session, dict(raw), today=today, summary=summary, existing_by_notice=existing_by_notice)
+
+    session.flush()
+    summary["ok"] = True
     return summary
 
 

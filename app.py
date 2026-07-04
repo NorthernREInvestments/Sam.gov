@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-manual-attachment-upload"
+APP_BUILD_VERSION = "20260703-csv-upload-background"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2208,15 +2208,23 @@ def update_performance_settings(body: PerformanceSettingsUpdate):
     )
 
 
+@app.get("/api/upload/sam-csv/status")
+def csv_upload_status():
+    """Poll background CSV import progress."""
+    from csv_upload_job import csv_upload_status as job_status
+
+    return job_status()
+
+
 @app.post("/api/upload/sam-csv")
 async def upload_sam_csv(
     request: Request,
     file: UploadFile = File(...),
     password: str = Form(""),
 ):
-    """Import SAM full CSV into gt_csv_opportunities with attachment queue + watchlist matching."""
+    """Import SAM full CSV into gt_csv_opportunities (runs in background for large files)."""
     from csv_import_service import csv_upload_max_bytes, verify_csv_upload_password
-    from csv_watchlist_service import run_full_csv_upload_pipeline
+    from csv_upload_job import start_csv_upload_job
 
     token = request.cookies.get(COOKIE_NAME)
     if not verify_auth_token(token) and not verify_csv_upload_password(password):
@@ -2233,21 +2241,10 @@ async def upload_sam_csv(
         max_mb = max_bytes // (1024 * 1024)
         raise HTTPException(status_code=400, detail=f"CSV file too large (max {max_mb}MB)")
 
-    session = SessionLocal()
-    try:
-        result = run_full_csv_upload_pipeline(session, content)
-        if not result.get("ok"):
-            raise HTTPException(status_code=400, detail=result.get("error", "Import failed"))
-        return result
-    except HTTPException:
-        session.rollback()
-        raise
-    except Exception as exc:
-        session.rollback()
-        logging.getLogger("govtracker.csv_upload").exception("CSV upload failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    finally:
-        session.close()
+    started = start_csv_upload_job(content, process_attachments=False)
+    if not started.get("ok"):
+        raise HTTPException(status_code=409, detail=started.get("error", "Import already running"))
+    return JSONResponse(status_code=202, content=started)
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

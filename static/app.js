@@ -1574,6 +1574,37 @@ function openCsvUploadModal() {
 
 const CSV_UPLOAD_MAX_BYTES = 250 * 1024 * 1024;
 
+function formatApiError(data, res) {
+  if (typeof data?.detail === "string" && data.detail.trim()) return data.detail;
+  if (Array.isArray(data?.detail)) {
+    return data.detail.map((d) => d.msg || d.message || String(d)).filter(Boolean).join("; ");
+  }
+  if (data?.error) return String(data.error);
+  if (res?.status === 502) return "Server timeout — try again after deploy finishes (large files import in the background now).";
+  if (res?.status === 504) return "Request timed out — if the file uploaded, check back in a few minutes.";
+  return res?.statusText || "Upload failed";
+}
+
+async function pollCsvUploadStatus(progressEl) {
+  const maxPolls = 600;
+  for (let i = 0; i < maxPolls; i += 1) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const res = await apiFetch("/api/upload/sam-csv/status");
+    const data = await res.json().catch(() => ({}));
+    if (data.status === "processing") {
+      if (progressEl) {
+        progressEl.querySelector("p").textContent =
+          "Importing and matching watchlist fingerprints… large files can take several minutes.";
+      }
+      continue;
+    }
+    if (data.status === "complete" && data.result) return data.result;
+    if (data.status === "failed") throw new Error(data.error || "Import failed");
+    if (data.status === "idle" && i > 2) throw new Error("Import status lost — refresh and check dashboard.");
+  }
+  throw new Error("Import still running — refresh the page in a few minutes to see results.");
+}
+
 async function submitCsvUpload(e) {
   e.preventDefault();
   const fileInput = document.getElementById("csv-file-input");
@@ -1600,9 +1631,25 @@ async function submitCsvUpload(e) {
   body.append("file", file);
 
   try {
+    progressEl.querySelector("p").textContent = "Uploading file… keep this tab open.";
     const res = await fetch("/api/upload/sam-csv", { method: "POST", body });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+    if (res.status === 202 || data.status === "processing") {
+      progressEl.querySelector("p").textContent = "File received — importing in background…";
+      showSyncStatus(data.message || "CSV import started in background…");
+      const result = await pollCsvUploadStatus(progressEl);
+      progressEl.hidden = true;
+      summaryEl.innerHTML = renderCsvUploadSummary(result);
+      summaryEl.hidden = false;
+      showSyncStatus(
+        `CSV import complete — ${result.records_imported ?? 0} imported, ${result.attachments_queued ?? 0} attachments queued.`
+      );
+      await loadContracts();
+      return;
+    }
+
+    if (!res.ok) throw new Error(formatApiError(data, res));
 
     progressEl.hidden = true;
     summaryEl.innerHTML = renderCsvUploadSummary(data);
