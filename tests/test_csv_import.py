@@ -11,6 +11,7 @@ from csv_import_service import (
     _map_csv_row,
     _passes_import_filters,
     _passes_set_aside_filter,
+    csv_upload_max_bytes,
     verify_csv_upload_password,
 )
 
@@ -77,3 +78,13 @@ def test_upload_password_requires_env(monkeypatch):
     assert not verify_csv_upload_password("secret")
     monkeypatch.setenv("CSV_UPLOAD_PASSWORD", "secret")
     assert verify_csv_upload_password("secret")
+
+
+def test_csv_upload_max_bytes_default(monkeypatch):
+    monkeypatch.delenv("CSV_UPLOAD_MAX_MB", raising=False)
+    assert csv_upload_max_bytes() == 250 * 1024 * 1024
+
+
+def test_csv_upload_max_bytes_env(monkeypatch):
+    monkeypatch.setenv("CSV_UPLOAD_MAX_MB", "300")
+    assert csv_upload_max_bytes() == 300 * 1024 * 1024

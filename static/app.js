@@ -1551,7 +1551,7 @@ function openCsvUploadModal() {
   document.getElementById("modal-content").innerHTML = `
     <div class="csv-upload-modal">
       <h2>SAM.gov CSV upload</h2>
-      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong>. GovTracker imports matching small-business opportunities, queues attachment downloads, and runs watchlist fingerprint matching.</p>
+      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong> (max 250 MB). GovTracker imports matching small-business opportunities, queues attachment downloads, and runs watchlist fingerprint matching.</p>
       <form id="csv-upload-form">
         <label class="filter-label" for="csv-file-input">CSV file</label>
         <input type="file" id="csv-file-input" class="settings-input" accept=".csv,text/csv" required>
@@ -1572,6 +1572,8 @@ function openCsvUploadModal() {
   document.getElementById("csv-upload-form")?.addEventListener("submit", submitCsvUpload);
 }
 
+const CSV_UPLOAD_MAX_BYTES = 250 * 1024 * 1024;
+
 async function submitCsvUpload(e) {
   e.preventDefault();
   const fileInput = document.getElementById("csv-file-input");
@@ -1581,6 +1583,13 @@ async function submitCsvUpload(e) {
   const submitBtn = document.getElementById("csv-upload-submit");
   if (!fileInput?.files?.length) return;
 
+  const file = fileInput.files[0];
+  if (file.size > CSV_UPLOAD_MAX_BYTES) {
+    errEl.textContent = "File too large (max 250 MB)";
+    errEl.hidden = false;
+    return;
+  }
+
   errEl.hidden = true;
   summaryEl.hidden = true;
   progressEl.hidden = false;
@@ -1588,7 +1597,7 @@ async function submitCsvUpload(e) {
   fileInput.disabled = true;
 
   const body = new FormData();
-  body.append("file", fileInput.files[0]);
+  body.append("file", file);
 
   try {
     const res = await fetch("/api/upload/sam-csv", { method: "POST", body });

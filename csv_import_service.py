@@ -1,4 +1,4 @@
-"""Import SAM.gov ContractOpportunitiesFullCSV into gt_csv_opportunities."""
+﻿"""Import SAM.gov ContractOpportunitiesFullCSV into gt_csv_opportunities."""
 
 from __future__ import annotations
 
@@ -18,6 +18,17 @@ from settings_store import get_naics_codes
 logger = logging.getLogger("govtracker.csv_import")
 
 SAM_CSV_RESERVE_CALLS = int(os.getenv("CSV_UPLOAD_SAM_RESERVE", "2"))
+CSV_UPLOAD_MAX_MB_DEFAULT = 250
+
+
+def csv_upload_max_bytes() -> int:
+    """Max SAM full CSV upload size (default 250 MB)."""
+    raw = os.getenv("CSV_UPLOAD_MAX_MB", str(CSV_UPLOAD_MAX_MB_DEFAULT)).strip()
+    try:
+        mb = max(1, min(500, int(raw)))
+    except ValueError:
+        mb = CSV_UPLOAD_MAX_MB_DEFAULT
+    return mb * 1024 * 1024
 
 
 def verify_csv_upload_password(password: str) -> bool:

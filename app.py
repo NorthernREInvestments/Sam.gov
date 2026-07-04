@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260703-csv-upload-modal"
+APP_BUILD_VERSION = "20260703-csv-upload-250mb"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2162,7 +2162,7 @@ async def upload_sam_csv(
     password: str = Form(""),
 ):
     """Import SAM full CSV into gt_csv_opportunities with attachment queue + watchlist matching."""
-    from csv_import_service import verify_csv_upload_password
+    from csv_import_service import csv_upload_max_bytes, verify_csv_upload_password
     from csv_watchlist_service import run_full_csv_upload_pipeline
 
     token = request.cookies.get(COOKIE_NAME)
@@ -2175,8 +2175,10 @@ async def upload_sam_csv(
     content = await file.read()
     if not content.strip():
         raise HTTPException(status_code=400, detail="CSV file is empty")
-    if len(content) > 50 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="CSV file too large (max 50MB)")
+    max_bytes = csv_upload_max_bytes()
+    if len(content) > max_bytes:
+        max_mb = max_bytes // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"CSV file too large (max {max_mb}MB)")
 
     session = SessionLocal()
     try:
