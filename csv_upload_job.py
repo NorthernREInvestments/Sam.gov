@@ -26,6 +26,10 @@ def _default_state() -> dict[str, Any]:
         "result": None,
         "started_at": None,
         "finished_at": None,
+        "phase": None,
+        "message": None,
+        "rows_scanned": 0,
+        "rows_imported": 0,
     }
 
 
@@ -117,6 +121,27 @@ def csv_upload_status() -> dict[str, Any]:
         return _serialize_state(_get_state())
 
 
+def update_csv_upload_progress(
+    phase: str,
+    message: str,
+    *,
+    rows_scanned: int | None = None,
+    rows_imported: int | None = None,
+) -> None:
+    """Update live progress while status=processing."""
+    with _lock:
+        state = _get_state()
+        if state.get("status") != "processing":
+            return
+        state["phase"] = phase
+        state["message"] = message
+        if rows_scanned is not None:
+            state["rows_scanned"] = rows_scanned
+        if rows_imported is not None:
+            state["rows_imported"] = rows_imported
+        _save_state_to_db(state)
+
+
 def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -> dict[str, Any]:
     """Parse and import CSV in a background thread; return immediately."""
     with _lock:
@@ -129,6 +154,10 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
             result=None,
             started_at=datetime.now(timezone.utc).isoformat(),
             finished_at=None,
+            phase="import",
+            message="Scanning CSV and applying filters…",
+            rows_scanned=0,
+            rows_imported=0,
         )
 
     def _run() -> None:

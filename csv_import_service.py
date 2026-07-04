@@ -224,7 +224,12 @@ def _import_one_csv_row(
         summary["imported_notice_ids"].append(notice_id)
 
 
-def import_csv_opportunities_from_content(session: Session, content: bytes | str) -> dict[str, Any]:
+def import_csv_opportunities_from_content(
+    session: Session,
+    content: bytes | str,
+    *,
+    progress: Any | None = None,
+) -> dict[str, Any]:
     """Stream-parse CSV content row-by-row (lower memory than loading all rows)."""
     text = content.decode("utf-8-sig", errors="replace") if isinstance(content, bytes) else content
     if not text.strip():
@@ -254,10 +259,28 @@ def import_csv_opportunities_from_content(session: Session, content: bytes | str
         row.notice_id: row for row in session.query(CsvOpportunity).all()
     }
 
+    rows_scanned = 0
     for raw in reader:
+        rows_scanned += 1
         _import_one_csv_row(session, dict(raw), today=today, summary=summary, existing_by_notice=existing_by_notice)
+        if progress and rows_scanned % 5000 == 0:
+            imported = summary["records_imported"] + summary["records_updated"]
+            progress(
+                "import",
+                f"Scanning CSV… {rows_scanned:,} rows read, {imported:,} matched filters so far",
+                rows_scanned=rows_scanned,
+                rows_imported=imported,
+            )
 
     session.flush()
+    if progress:
+        imported = summary["records_imported"] + summary["records_updated"]
+        progress(
+            "import",
+            f"CSV scan complete — {rows_scanned:,} rows read, {imported:,} matched filters",
+            rows_scanned=rows_scanned,
+            rows_imported=imported,
+        )
     summary["ok"] = True
     return summary
 

@@ -167,14 +167,20 @@ def run_full_csv_upload_pipeline(
     )
     from csv_import_service import import_csv_opportunities_from_content
     from csv_attachment_session import reset_csv_attachment_session
+    from csv_upload_job import update_csv_upload_progress
 
     reset_csv_attachment_session()
-    import_summary = import_csv_opportunities_from_content(session, csv_content)
+    import_summary = import_csv_opportunities_from_content(
+        session,
+        csv_content,
+        progress=update_csv_upload_progress,
+    )
     if not import_summary.get("ok"):
         return {"ok": False, "error": import_summary.get("error", "empty_or_invalid_csv")}
     session.commit()
 
     imported_notice_ids = import_summary.get("imported_notice_ids") or []
+    update_csv_upload_progress("watchlist", "Matching GovSpend watchlist fingerprints (pass 1)…")
     pre_watchlist = run_csv_watchlist_matching(
         session,
         trigger_pipeline=False,
@@ -183,6 +189,7 @@ def run_full_csv_upload_pipeline(
     session.commit()
     watchlist_ids = set(pre_watchlist.get("watchlist_notice_ids") or [])
 
+    update_csv_upload_progress("queue", "Queuing SAM attachment downloads (no API calls until budget allows)…")
     queue_summary = enqueue_csv_attachments(
         session,
         notice_ids=imported_notice_ids if imported_notice_ids else None,
@@ -202,6 +209,11 @@ def run_full_csv_upload_pipeline(
             "session_api_calls_used": 0,
         }
 
+    update_csv_upload_progress(
+        "finalize",
+        "Promoting watchlist matches to dashboard…",
+        rows_imported=import_summary.get("records_imported", 0) + import_summary.get("records_updated", 0),
+    )
     watchlist_summary = run_csv_watchlist_matching(
         session,
         trigger_pipeline=True,

@@ -1573,6 +1573,71 @@ function openCsvUploadModal() {
 }
 
 const CSV_UPLOAD_MAX_BYTES = 250 * 1024 * 1024;
+let csvImportPollTimer = null;
+
+function formatCsvImportStatusText(data) {
+  if (!data) return null;
+  if (data.status === "complete" && data.result) {
+    const r = data.result;
+    return (
+      `CSV import complete — ${r.records_imported ?? 0} imported, ` +
+      `${r.high_confidence_matches ?? 0} high watchlist matches, ` +
+      `${r.possible_matches ?? 0} possible matches.`
+    );
+  }
+  if (data.status === "failed") return data.error || "CSV import failed";
+  if (data.status === "processing") {
+    const parts = [data.message || "CSV import running…"];
+    if (data.rows_scanned) parts.push(`${Number(data.rows_scanned).toLocaleString()} rows scanned`);
+    if (data.rows_imported) parts.push(`${Number(data.rows_imported).toLocaleString()} matched filters`);
+    if (data.started_at) {
+      const started = new Date(data.started_at);
+      const mins = Math.max(0, Math.floor((Date.now() - started.getTime()) / 60000));
+      if (mins > 0) parts.push(`${mins} min elapsed`);
+    }
+    return parts.join(" · ");
+  }
+  return null;
+}
+
+async function refreshCsvImportStatusBanner() {
+  const res = await apiFetch("/api/upload/sam-csv/status");
+  const data = await res.json().catch(() => ({}));
+  const text = formatCsvImportStatusText(data);
+  if (data.status === "processing") {
+    showSyncStatus(text || "CSV import running…");
+    return "processing";
+  }
+  if (data.status === "complete" && data.result) {
+    showSyncStatus(text || "CSV import complete.");
+    await loadContracts();
+    return "complete";
+  }
+  if (data.status === "failed") {
+    showSyncStatus(text || "CSV import failed", true);
+    return "failed";
+  }
+  return "idle";
+}
+
+function startCsvImportStatusPolling() {
+  if (csvImportPollTimer) return;
+  csvImportPollTimer = setInterval(async () => {
+    try {
+      const state = await refreshCsvImportStatusBanner();
+      if (state !== "processing") {
+        clearInterval(csvImportPollTimer);
+        csvImportPollTimer = null;
+      }
+    } catch (err) {
+      if (err.message !== "Login required") {
+        showSyncStatus(err.message, true);
+      }
+      clearInterval(csvImportPollTimer);
+      csvImportPollTimer = null;
+    }
+  }, 3000);
+}
 
 function formatApiError(data, res) {
   if (typeof data?.detail === "string" && data.detail.trim()) return data.detail;
@@ -1614,15 +1679,11 @@ async function pollCsvUploadStatus(progressEl) {
 
 async function resumeCsvUploadIfProcessing() {
   try {
-    const res = await apiFetch("/api/upload/sam-csv/status");
-    const data = await res.json().catch(() => ({}));
-    if (data.status !== "processing") return;
-    showSyncStatus("CSV import still running — resuming progress…");
-    const result = await pollCsvUploadStatus(null);
-    showSyncStatus(
-      `CSV import complete — ${result.records_imported ?? 0} imported, ${result.attachments_queued ?? 0} attachments queued.`
-    );
-    await loadContracts();
+    const state = await refreshCsvImportStatusBanner();
+    if (state === "processing") {
+      startCsvImportStatusPolling();
+      return;
+    }
   } catch (err) {
     if (err.message !== "Login required") {
       showSyncStatus(err.message, true);
@@ -1663,6 +1724,7 @@ async function submitCsvUpload(e) {
     if (res.status === 202 || data.status === "processing") {
       progressEl.querySelector("p").textContent = "File received — importing in background…";
       showSyncStatus(data.message || "CSV import started in background…");
+      startCsvImportStatusPolling();
       const result = await pollCsvUploadStatus(progressEl);
       progressEl.hidden = true;
       summaryEl.innerHTML = renderCsvUploadSummary(result);
