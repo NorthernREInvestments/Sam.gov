@@ -180,11 +180,19 @@ def run_full_csv_upload_pipeline(
     session.commit()
 
     imported_notice_ids = import_summary.get("imported_notice_ids") or []
+    pipeline_notice_ids = list(
+        dict.fromkeys(
+            (import_summary.get("new_notice_ids") or [])
+            + (import_summary.get("changed_notice_ids") or [])
+        )
+    )
+    repricing_notice_ids = list(dict.fromkeys(import_summary.get("repricing_notice_ids") or []))
+
     update_csv_upload_progress("watchlist", "Matching GovSpend watchlist fingerprints (pass 1)…")
     pre_watchlist = run_csv_watchlist_matching(
         session,
         trigger_pipeline=False,
-        notice_ids=imported_notice_ids or None,
+        notice_ids=pipeline_notice_ids or None,
     )
     session.commit()
     watchlist_ids = set(pre_watchlist.get("watchlist_notice_ids") or [])
@@ -192,7 +200,7 @@ def run_full_csv_upload_pipeline(
     update_csv_upload_progress("queue", "Queuing SAM attachment downloads (no API calls until budget allows)…")
     queue_summary = enqueue_csv_attachments(
         session,
-        notice_ids=imported_notice_ids if imported_notice_ids else None,
+        notice_ids=pipeline_notice_ids if pipeline_notice_ids else None,
         watchlist_notice_ids=watchlist_ids,
     )
     session.commit()
@@ -217,9 +225,15 @@ def run_full_csv_upload_pipeline(
     watchlist_summary = run_csv_watchlist_matching(
         session,
         trigger_pipeline=True,
-        notice_ids=imported_notice_ids or None,
+        notice_ids=pipeline_notice_ids or None,
     )
     session.commit()
+
+    pricing_result: dict[str, Any] = {"ok": True, "skipped": True, "total": 0}
+    if repricing_notice_ids:
+        from csv_pricing_job import start_csv_pricing_job
+
+        pricing_result = start_csv_pricing_job(notice_ids=repricing_notice_ids)
 
     protected_count = import_summary.get("records_protected_skipped", 0)
 
@@ -229,9 +243,16 @@ def run_full_csv_upload_pipeline(
         "ok": True,
         "records_imported": import_summary["records_imported"],
         "records_updated": import_summary.get("records_updated", 0),
+        "records_unchanged": import_summary.get("records_unchanged", 0),
         "records_skipped_filters": import_summary["records_skipped_filters"],
         "records_protected": protected_count,
-        "records_deleted_before_import": import_summary["records_deleted_before_import"],
+        "records_removed_stale": import_summary.get("records_removed_stale", 0),
+        "new_notice_ids": import_summary.get("new_notice_ids") or [],
+        "changed_notice_ids": import_summary.get("changed_notice_ids") or [],
+        "repricing_notice_ids": repricing_notice_ids,
+        "pricing_started": bool(pricing_result.get("ok") and not pricing_result.get("skipped")),
+        "pricing_total": pricing_result.get("total", 0),
+        "pricing_message": pricing_result.get("message"),
         "watchlist_matches_found": watchlist_summary["watchlist_matches"],
         "high_confidence_matches": watchlist_summary["high_confidence"],
         "possible_matches": watchlist_summary["possible_matches"],

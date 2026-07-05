@@ -177,7 +177,7 @@ class _ExistingOpportunityCache:
 
 
 def clear_non_protected_csv_rows(session: Session) -> int:
-    """Delete staging CSV rows that are not protected and not linked to dashboard contracts."""
+    """Delete all non-protected CSV rows not linked to dashboard contracts (legacy full replace)."""
     protected_lower = [status.lower() for status in PROTECTED_CSV_STATUSES]
     linked_to_dashboard = exists().where(Contract.notice_id == CsvOpportunity.notice_id)
     deleted = (
@@ -192,26 +192,99 @@ def clear_non_protected_csv_rows(session: Session) -> int:
     return deleted
 
 
-def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -> dict[str, Any]:
-    """
-    Filter, dedupe, and upsert into gt_csv_opportunities.
-    Returns counts for the import summary (does not run queue or watchlist).
-    """
-    today = date.today()
-    summary: dict[str, Any] = {
+PRICING_AFFECTING_FIELDS = frozenset(
+    {
+        "title",
+        "agency",
+        "naics_code",
+        "location_city",
+        "location_state",
+        "description",
+        "due_date",
+        "set_aside",
+        "solicitation_number",
+    }
+)
+
+
+def _normalize_field_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    return value
+
+
+def _csv_row_fields_changed(existing: CsvOpportunity, mapped: dict[str, Any]) -> bool:
+    for key, new_val in mapped.items():
+        if key == "status":
+            continue
+        old_val = getattr(existing, key, None)
+        if _normalize_field_value(old_val) != _normalize_field_value(new_val):
+            return True
+    return False
+
+
+def _csv_pricing_fields_changed(existing: CsvOpportunity, mapped: dict[str, Any]) -> bool:
+    for key in PRICING_AFFECTING_FIELDS:
+        if key not in mapped:
+            continue
+        old_val = getattr(existing, key, None)
+        new_val = mapped[key]
+        if _normalize_field_value(old_val) != _normalize_field_value(new_val):
+            return True
+    return False
+
+
+def remove_stale_csv_rows(session: Session, present_notice_ids: set[str]) -> int:
+    """Remove CSV rows absent from the latest upload (keeps protected + dashboard-linked rows)."""
+    if not present_notice_ids:
+        return 0
+    protected_lower = [status.lower() for status in PROTECTED_CSV_STATUSES]
+    linked_to_dashboard = exists().where(Contract.notice_id == CsvOpportunity.notice_id)
+    deleted = (
+        session.query(CsvOpportunity)
+        .filter(~CsvOpportunity.notice_id.in_(present_notice_ids))
+        .filter(func.lower(func.coalesce(CsvOpportunity.status, "")).notin_(protected_lower))
+        .filter(CsvOpportunity.contract_id.is_(None))
+        .filter(~linked_to_dashboard)
+        .delete(synchronize_session=False)
+    )
+    if deleted:
+        session.flush()
+    return deleted
+
+def _new_import_summary() -> dict[str, Any]:
+    return {
         "records_imported": 0,
         "records_updated": 0,
+        "records_unchanged": 0,
         "records_skipped_filters": 0,
         "records_protected_skipped": 0,
-        "records_deleted_before_import": 0,
+        "records_removed_stale": 0,
         "new_notice_ids": [],
+        "changed_notice_ids": [],
+        "repricing_notice_ids": [],
         "imported_notice_ids": [],
     }
 
+
+def _finalize_csv_import(session: Session, summary: dict[str, Any], present_notice_ids: set[str]) -> None:
     from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
 
     clear_pending_queue_for_deleted_csv(session)
-    summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
+    summary["records_removed_stale"] = remove_stale_csv_rows(session, present_notice_ids)
+
+
+def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -> dict[str, Any]:
+    """
+    Filter, dedupe, and upsert into gt_csv_opportunities (incremental merge).
+    Returns counts for the import summary (does not run queue or watchlist).
+    """
+    today = date.today()
+    summary = _new_import_summary()
+    present_notice_ids: set[str] = set()
 
     existing_cache = _ExistingOpportunityCache(session)
     naics_set = set(get_naics_codes())
@@ -224,8 +297,10 @@ def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -
             summary=summary,
             existing_cache=existing_cache,
             naics_set=naics_set,
+            present_notice_ids=present_notice_ids,
         )
 
+    _finalize_csv_import(session, summary, present_notice_ids)
     session.flush()
     return summary
 
@@ -238,6 +313,7 @@ def _import_one_csv_row(
     summary: dict[str, Any],
     existing_cache: _ExistingOpportunityCache,
     naics_set: set[str] | None = None,
+    present_notice_ids: set[str],
 ) -> None:
     if not _passes_import_filters(raw, today=today, naics_set=naics_set):
         summary["records_skipped_filters"] += 1
@@ -245,18 +321,29 @@ def _import_one_csv_row(
 
     mapped = _map_csv_row(raw)
     notice_id = mapped["notice_id"]
+    present_notice_ids.add(notice_id)
     existing = existing_cache.get(notice_id)
     if existing and _is_protected_status(existing.status):
         summary["records_protected_skipped"] += 1
         return
 
     if existing:
+        if not _csv_row_fields_changed(existing, mapped):
+            summary["records_unchanged"] += 1
+            summary["imported_notice_ids"].append(notice_id)
+            return
+
+        if _csv_pricing_fields_changed(existing, mapped):
+            summary["repricing_notice_ids"].append(notice_id)
+            existing.pricing_intel = None
+
         for key, val in mapped.items():
             if key == "status":
                 continue
             setattr(existing, key, val)
         existing.status = existing.status if _is_protected_status(existing.status) else "New"
         summary["records_updated"] += 1
+        summary["changed_notice_ids"].append(notice_id)
         summary["imported_notice_ids"].append(notice_id)
     else:
         row = CsvOpportunity(**mapped)
@@ -264,6 +351,7 @@ def _import_one_csv_row(
         existing_cache.remember(notice_id, row)
         summary["records_imported"] += 1
         summary["new_notice_ids"].append(notice_id)
+        summary["repricing_notice_ids"].append(notice_id)
         summary["imported_notice_ids"].append(notice_id)
 
 
@@ -284,23 +372,11 @@ def import_csv_opportunities_from_content(
         return {"ok": False, "error": "empty_or_invalid_csv"}
 
     today = date.today()
-    summary: dict[str, Any] = {
-        "records_imported": 0,
-        "records_updated": 0,
-        "records_skipped_filters": 0,
-        "records_protected_skipped": 0,
-        "records_deleted_before_import": 0,
-        "new_notice_ids": [],
-        "imported_notice_ids": [],
-    }
-
-    from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
+    summary = _new_import_summary()
+    present_notice_ids: set[str] = set()
 
     if progress:
-        progress("prepare", "Preparing import (clearing previous CSV rows)…", rows_scanned=0, rows_imported=0)
-
-    clear_pending_queue_for_deleted_csv(session)
-    summary["records_deleted_before_import"] = clear_non_protected_csv_rows(session)
+        progress("prepare", "Preparing incremental import…", rows_scanned=0, rows_imported=0)
 
     existing_cache = _ExistingOpportunityCache(session)
     naics_set = set(get_naics_codes())
@@ -318,6 +394,7 @@ def import_csv_opportunities_from_content(
             summary=summary,
             existing_cache=existing_cache,
             naics_set=naics_set,
+            present_notice_ids=present_notice_ids,
         )
         if rows_scanned % 250 == 0:
             session.flush()
@@ -330,12 +407,13 @@ def import_csv_opportunities_from_content(
                 rows_imported=imported,
             )
 
+    _finalize_csv_import(session, summary, present_notice_ids)
     session.flush()
     if progress:
         imported = summary["records_imported"] + summary["records_updated"]
         progress(
             "import",
-            f"CSV scan complete — {rows_scanned:,} rows read, {imported:,} matched filters",
+            f"CSV scan complete — {rows_scanned:,} rows read, {imported:,} new/updated, {summary['records_unchanged']:,} unchanged",
             rows_scanned=rows_scanned,
             rows_imported=imported,
         )

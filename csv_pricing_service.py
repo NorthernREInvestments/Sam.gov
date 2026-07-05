@@ -274,6 +274,20 @@ def refresh_csv_opportunity_pricing(
     }
 
 
+def csv_opportunity_ids_for_notice_ids(
+    session: Session,
+    notice_ids: list[str],
+    *,
+    force: bool = False,
+) -> list[int]:
+    """Resolve notice IDs to row IDs that still need pricing."""
+    unique = list(dict.fromkeys(notice_id for notice_id in notice_ids if notice_id))
+    if not unique:
+        return []
+    rows = session.query(CsvOpportunity).filter(CsvOpportunity.notice_id.in_(unique)).all()
+    return [row.id for row in rows if csv_row_needs_pricing(row, force=force)]
+
+
 def csv_opportunity_ids_for_filters(
     session: Session,
     *,

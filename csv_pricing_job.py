@@ -134,6 +134,7 @@ def start_csv_pricing_job(
     naics_code: str | None = None,
     keyword: str | None = None,
     force: bool = False,
+    notice_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run USAspending pricing for filtered CSV rows in a background thread."""
     filters = {
@@ -141,6 +142,7 @@ def start_csv_pricing_job(
         "days": days_bucket,
         "naics": naics_code,
         "q": keyword,
+        "notice_ids": notice_ids,
     }
 
     with _lock:
@@ -150,20 +152,25 @@ def start_csv_pricing_job(
 
         session = SessionLocal()
         try:
-            from csv_pricing_service import csv_opportunity_ids_for_filters
+            from csv_pricing_service import csv_opportunity_ids_for_filters, csv_opportunity_ids_for_notice_ids
 
-            row_ids = csv_opportunity_ids_for_filters(
-                session,
-                state=state,
-                days_bucket=days_bucket,
-                naics_code=naics_code,
-                keyword=keyword,
-                force=force,
-            )
+            if notice_ids is not None:
+                row_ids = csv_opportunity_ids_for_notice_ids(session, notice_ids, force=force)
+            else:
+                row_ids = csv_opportunity_ids_for_filters(
+                    session,
+                    state=state,
+                    days_bucket=days_bucket,
+                    naics_code=naics_code,
+                    keyword=keyword,
+                    force=force,
+                )
         finally:
             session.close()
 
         if not row_ids:
+            if notice_ids is not None:
+                return {"ok": True, "skipped": True, "total": 0, "message": "Pricing already up to date."}
             if force:
                 detail = "No CSV opportunities match the current filters."
             else:
@@ -172,7 +179,9 @@ def start_csv_pricing_job(
 
         matched = len(row_ids)
         resume_note = ""
-        if not force:
+        if notice_ids is not None:
+            resume_note = " (new/changed from CSV import)"
+        elif not force:
             resume_note = " (resuming — skipping rows already priced)"
 
         now = datetime.now(timezone.utc).isoformat()

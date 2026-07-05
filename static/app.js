@@ -1881,10 +1881,13 @@ function renderCsvUploadSummary(data) {
   return `
     <h3>Import complete</h3>
     <ul class="csv-upload-summary-list">
-      <li><strong>${data.records_imported ?? 0}</strong> records imported</li>
-      <li><strong>${data.records_updated ?? 0}</strong> records updated</li>
+      <li><strong>${data.records_imported ?? 0}</strong> new records</li>
+      <li><strong>${data.records_updated ?? 0}</strong> updated records</li>
+      <li><strong>${data.records_unchanged ?? 0}</strong> unchanged (kept as-is)</li>
+      <li><strong>${data.records_removed_stale ?? 0}</strong> removed (no longer in CSV or expired)</li>
       <li><strong>${data.records_skipped_filters ?? 0}</strong> skipped (didn't meet filters)</li>
       <li><strong>${data.records_protected ?? 0}</strong> protected (kept from previous session)</li>
+      <li><strong>${data.pricing_total ?? data.repricing_notice_ids?.length ?? 0}</strong> pricing lookups queued</li>
       <li><strong>${data.watchlist_matches_found ?? 0}</strong> watchlist matches (${data.high_confidence_matches ?? 0} high confidence)</li>
       <li><strong>${data.attachments_queued ?? 0}</strong> attachments queued</li>
       <li><strong>${data.attachments_completed ?? 0}</strong> attachments complete</li>
@@ -1905,7 +1908,7 @@ function openCsvUploadModal() {
   document.getElementById("modal-content").innerHTML = `
     <div class="csv-upload-modal">
       <h2>SAM.gov CSV upload</h2>
-      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong> (max 250 MB). GovTracker imports matching small-business opportunities, queues attachment downloads, and runs watchlist fingerprint matching.</p>
+      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong> (max 250 MB). GovTracker merges new and changed opportunities into your existing list, removes expired ones, queues attachments for new rows only, and runs pricing on new/changed rows.</p>
       <form id="csv-upload-form">
         <label class="filter-label" for="csv-file-input">CSV file</label>
         <input type="file" id="csv-file-input" class="settings-input" accept=".csv,text/csv" required>
@@ -1934,9 +1937,9 @@ function formatCsvImportStatusText(data) {
   if (data.status === "complete" && data.result) {
     const r = data.result;
     return (
-      `CSV import complete — ${r.records_imported ?? 0} imported, ` +
-      `${r.high_confidence_matches ?? 0} high watchlist matches, ` +
-      `${r.possible_matches ?? 0} possible matches.`
+      `CSV import complete — ${r.records_imported ?? 0} new, ${r.records_updated ?? 0} updated, ` +
+      `${r.records_unchanged ?? 0} unchanged.` +
+      (r.pricing_started ? ` Pricing started for ${r.pricing_total ?? 0} row(s).` : "")
     );
   }
   if (data.status === "failed") {
@@ -2091,9 +2094,11 @@ async function submitCsvUpload(e) {
       summaryEl.innerHTML = renderCsvUploadSummary(result);
       summaryEl.hidden = false;
       showSyncStatus(
-        `CSV import complete — ${result.records_imported ?? 0} imported, ${result.attachments_queued ?? 0} attachments queued.`
+        `CSV import complete — ${result.records_imported ?? 0} new, ${result.records_updated ?? 0} updated, ${result.records_unchanged ?? 0} unchanged.` +
+          (result.pricing_started ? ` Pricing ${result.pricing_total ?? 0} row(s).` : "")
       );
       await loadContracts();
+      if (result.pricing_started) startCsvPricingPolling();
       return;
     }
 
@@ -2103,9 +2108,11 @@ async function submitCsvUpload(e) {
     summaryEl.innerHTML = renderCsvUploadSummary(data);
     summaryEl.hidden = false;
     showSyncStatus(
-      `CSV import complete — ${data.records_imported ?? 0} imported, ${data.attachments_queued ?? 0} attachments queued.`
+      `CSV import complete — ${data.records_imported ?? 0} new, ${data.records_updated ?? 0} updated.` +
+        (data.pricing_started ? ` Pricing ${data.pricing_total ?? 0} row(s).` : "")
     );
     await loadContracts();
+    if (data.pricing_started) startCsvPricingPolling();
   } catch (err) {
     progressEl.hidden = true;
     errEl.textContent = err.message || "Upload failed";
