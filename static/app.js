@@ -1896,7 +1896,19 @@ function renderCsvUploadSummary(data) {
       <li><strong>${data.sam_api_calls_used_this_session ?? 0}</strong> SAM API calls this session</li>
       <li><strong>${data.estimated_api_calls_remaining_queue ?? 0}</strong> estimated API calls left in queue</li>
     </ul>
-    ${data.attachment_queue ? `<p class="detail-note">Queue now: ${data.attachment_queue.downloading ?? 0} downloading · ${data.attachment_queue.queued ?? 0} queued · ${data.attachment_queue.complete ?? 0} complete · ${data.attachment_queue.failed ?? 0} failed</p>` : ""}`;
+    ${
+      (data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0) > 0
+        ? `<p class="detail-note csv-upload-budget-note">SAM attachment downloads are paused until daily API budget resets (or drops below the 80% cap). Pricing uses USAspending separately — check the CSV Opportunities section for new rows.</p>`
+        : ""
+    }
+    ${data.attachment_queue ? `<p class="detail-note">Queue now: ${data.attachment_queue.downloading ?? 0} downloading · ${data.attachment_queue.queued ?? 0} queued · ${data.attachment_queue.complete ?? 0} complete · ${data.attachment_queue.failed ?? 0} failed</p>` : ""}
+    <div class="csv-upload-actions">
+      <button type="button" class="btn btn-primary" id="csv-upload-done">Done — close</button>
+    </div>`;
+}
+
+function bindCsvUploadSummaryActions() {
+  document.getElementById("csv-upload-done")?.addEventListener("click", closeModal);
 }
 
 function openCsvUploadModal() {
