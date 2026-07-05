@@ -1169,7 +1169,7 @@ def sync_csv_attachments_only() -> dict[str, Any]:
     session = SessionLocal()
     try:
         queue_before = get_attachment_queue_dashboard_stats(session)
-        queue_result = process_attachment_queue(session)
+        queue_result = process_attachment_queue(session, use_reserved_budget=True)
         session.commit()
         queue_after = get_attachment_queue_dashboard_stats(session)
     finally:

@@ -10,6 +10,7 @@ from csv_attachment_queue_service import (
     TIER_POSSIBLE,
     compute_queue_priority,
     csv_attachment_budget_allowed,
+    csv_attachment_calls_remaining_before_cap,
 )
 from models import CsvOpportunity
 
@@ -51,8 +52,6 @@ def test_budget_blocked_at_80_percent(monkeypatch):
         lambda: {"sam_daily_limit": 10, "sam_used_today": 8, "sam_remaining": 2},
     )
     assert not csv_attachment_budget_allowed()
-    monkeypatch.setattr(
-        "csv_attachment_queue_service.get_usage_snapshot",
-        lambda: {"sam_daily_limit": 10, "sam_used_today": 7, "sam_remaining": 3},
-    )
-    assert csv_attachment_budget_allowed()
+    assert csv_attachment_budget_allowed(use_reserved_budget=True)
+    assert csv_attachment_calls_remaining_before_cap() == 0
+    assert csv_attachment_calls_remaining_before_cap(use_reserved_budget=True) == 2

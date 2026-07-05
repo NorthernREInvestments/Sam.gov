@@ -205,17 +205,9 @@ def run_full_csv_upload_pipeline(
     )
     session.commit()
 
-    if process_attachments:
-        attachment_summary = process_attachment_queue(session)
-        session.commit()
-    else:
-        attachment_summary = {
-            "processed": 0,
-            "completed": 0,
-            "failed": 0,
-            "waiting_for_budget": queue_summary.get("waiting_for_budget", 0),
-            "session_api_calls_used": 0,
-        }
+    update_csv_upload_progress("attachments", "Downloading SAM attachments for new/changed rows…")
+    attachment_summary = process_attachment_queue(session, use_reserved_budget=True)
+    session.commit()
 
     update_csv_upload_progress(
         "finalize",

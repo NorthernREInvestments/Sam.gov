@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260705-csv-upload-ux"
+APP_BUILD_VERSION = "20260705-csv-queue-reserved-budget"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -483,6 +483,27 @@ def config():
         "build_version": APP_BUILD_VERSION,
         "autopilot": _autopilot_summary(),
     }
+
+
+@app.post("/api/csv-attachment-queue/process")
+def process_csv_attachment_queue_endpoint():
+    """Process queued CSV attachment downloads using remaining daily SAM budget."""
+    from csv_attachment_queue_service import get_attachment_queue_dashboard_stats, process_attachment_queue
+
+    session = SessionLocal()
+    try:
+        before = get_attachment_queue_dashboard_stats(session)
+        result = process_attachment_queue(session, use_reserved_budget=True)
+        session.commit()
+        after = get_attachment_queue_dashboard_stats(session)
+        return {
+            "ok": True,
+            "before": before,
+            "result": result,
+            "after": after,
+        }
+    finally:
+        session.close()
 
 
 @app.get("/api/csv-attachment-queue")

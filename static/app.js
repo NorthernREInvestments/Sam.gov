@@ -243,7 +243,9 @@ function updateFilterHint(filterStats) {
   const aq = filterStats?.attachment_queue;
   if (aq && (aq.queued > 0 || aq.downloading > 0 || aq.failed > 0 || aq.complete > 0)) {
     const budgetNote = aq.waiting_for_budget > 0
-      ? ` <strong>${aq.waiting_for_budget}</strong> waiting for SAM API budget (resumes after daily reset).`
+      ? aq.can_process_with_reserved_budget
+        ? ` <strong>${aq.waiting_for_budget}</strong> queued — click <strong>Pull PDFs</strong> to process with remaining SAM budget.`
+        : ` <strong>${aq.waiting_for_budget}</strong> waiting for SAM API budget (resumes after daily reset).`
       : "";
     parts.push(
       `CSV attachment queue — ` +
@@ -2105,12 +2107,16 @@ async function submitCsvUpload(e) {
       progressEl.hidden = true;
       summaryEl.innerHTML = renderCsvUploadSummary(result);
       summaryEl.hidden = false;
+      bindCsvUploadSummaryActions();
       showSyncStatus(
         `CSV import complete — ${result.records_imported ?? 0} new, ${result.records_updated ?? 0} updated, ${result.records_unchanged ?? 0} unchanged.` +
           (result.pricing_started ? ` Pricing ${result.pricing_total ?? 0} row(s).` : "")
       );
       await loadContracts();
       if (result.pricing_started) startCsvPricingPolling();
+      else if ((result.repricing_notice_ids?.length ?? 0) > 0) {
+        showSyncStatus(`Import done — ${result.repricing_notice_ids.length} new row(s) need pricing. Click Refresh CSV Pricing in the CSV section.`);
+      }
       return;
     }
 
@@ -2119,6 +2125,7 @@ async function submitCsvUpload(e) {
     progressEl.hidden = true;
     summaryEl.innerHTML = renderCsvUploadSummary(data);
     summaryEl.hidden = false;
+    bindCsvUploadSummaryActions();
     showSyncStatus(
       `CSV import complete — ${data.records_imported ?? 0} new, ${data.records_updated ?? 0} updated.` +
         (data.pricing_started ? ` Pricing ${data.pricing_total ?? 0} row(s).` : "")

@@ -42,8 +42,14 @@ def csv_attachment_budget_threshold() -> float:
     return min(1.0, max(0.1, value))
 
 
-def csv_attachment_budget_allowed(*, extra_calls: int = 0) -> bool:
-    """True while today's SAM usage is below the CSV attachment budget threshold (default 80%)."""
+def csv_attachment_budget_allowed(*, extra_calls: int = 0, use_reserved_budget: bool = False) -> bool:
+    """True while CSV attachment pulls are allowed.
+
+    Default: pause at CSV_ATTACHMENT_BUDGET_THRESHOLD (80%) to reserve headroom for search sync.
+    use_reserved_budget: allow spending the remaining daily SAM budget (manual Pull PDFs / post-import).
+    """
+    if use_reserved_budget:
+        return can_spend_sam(max(1, extra_calls))
     snap = get_usage_snapshot()
     limit = int(snap.get("sam_daily_limit") or 0)
     if limit <= 0:
@@ -53,9 +59,11 @@ def csv_attachment_budget_allowed(*, extra_calls: int = 0) -> bool:
     return used + max(0, extra_calls) < cap
 
 
-def csv_attachment_calls_remaining_before_cap() -> int:
-    """SAM API calls still allowed before hitting the CSV attachment budget cap."""
+def csv_attachment_calls_remaining_before_cap(*, use_reserved_budget: bool = False) -> int:
+    """SAM API calls still allowed for CSV attachment pulls."""
     snap = get_usage_snapshot()
+    if use_reserved_budget:
+        return max(0, int(snap.get("sam_remaining") or 0))
     limit = int(snap.get("sam_daily_limit") or 0)
     if limit <= 0:
         return 999_999
@@ -224,7 +232,9 @@ def get_attachment_queue_dashboard_stats(session: Session) -> dict[str, Any]:
         "budget_threshold_pct": int(threshold * 100),
         "sam_used_today": used,
         "sam_daily_limit": limit,
+        "sam_remaining_today": max(0, limit - used) if limit > 0 else None,
         "sam_budget_cap_for_attachments": cap,
+        "can_process_with_reserved_budget": queued > 0 and can_spend_sam(2),
         "session_api_calls_used": get_csv_attachment_session_calls(),
         "estimated_api_calls_remaining_queue": estimate_queue_api_calls(session),
     }
@@ -250,13 +260,14 @@ def process_attachment_queue(
     session: Session,
     *,
     max_calls: int | None = None,
+    use_reserved_budget: bool = False,
 ) -> dict[str, Any]:
     """Process gt_attachment_queue in priority order without exceeding daily budget cap."""
     from sam_enrich import fetch_opportunity_raw, is_sam_metadata_ready, scrape_attachment_metadata
 
     prepare_queue_for_processing(session)
 
-    calls_allowed = csv_attachment_calls_remaining_before_cap()
+    calls_allowed = csv_attachment_calls_remaining_before_cap(use_reserved_budget=use_reserved_budget)
     if max_calls is not None:
         calls_allowed = min(calls_allowed, max_calls)
 
@@ -265,12 +276,13 @@ def process_attachment_queue(
         "completed": 0,
         "failed": 0,
         "waiting_for_budget": 0,
-        "budget_threshold_reached": not csv_attachment_budget_allowed(),
+        "budget_threshold_reached": not csv_attachment_budget_allowed(use_reserved_budget=use_reserved_budget),
+        "use_reserved_budget": use_reserved_budget,
         "sam_api_calls_used": 0,
         "session_api_calls_used": 0,
     }
 
-    if calls_allowed <= 0 or not csv_attachment_budget_allowed():
+    if calls_allowed <= 0 or not csv_attachment_budget_allowed(use_reserved_budget=use_reserved_budget):
         result["waiting_for_budget"] = _queued_items_query(session).count()
         result["budget_threshold_reached"] = True
         logger.info(
@@ -291,7 +303,7 @@ def process_attachment_queue(
         if session_calls + 2 > calls_allowed:
             result["waiting_for_budget"] += 1
             continue
-        if not csv_attachment_budget_allowed(extra_calls=2):
+        if not csv_attachment_budget_allowed(extra_calls=2, use_reserved_budget=use_reserved_budget):
             result["waiting_for_budget"] += len(items) - result["processed"] - result["waiting_for_budget"]
             result["budget_threshold_reached"] = True
             break
@@ -322,7 +334,9 @@ def process_attachment_queue(
                 result["processed"] += 1
                 continue
 
-            if not can_spend_sam(1) or not csv_attachment_budget_allowed(extra_calls=1):
+            if not can_spend_sam(1) or not csv_attachment_budget_allowed(
+                extra_calls=1, use_reserved_budget=use_reserved_budget
+            ):
                 item.status = QUEUE_STATUS_QUEUED
                 result["waiting_for_budget"] += 1
                 result["budget_threshold_reached"] = True
@@ -336,7 +350,9 @@ def process_attachment_queue(
                 if fetched:
                     raw = {**_build_minimal_sam_raw(row), **fetched}
 
-            if not can_spend_sam(1) or not csv_attachment_budget_allowed(extra_calls=1):
+            if not can_spend_sam(1) or not csv_attachment_budget_allowed(
+                extra_calls=1, use_reserved_budget=use_reserved_budget
+            ):
                 item.status = QUEUE_STATUS_QUEUED
                 result["waiting_for_budget"] += 1
                 result["budget_threshold_reached"] = True
@@ -369,7 +385,11 @@ def process_attachment_queue(
 
     result["waiting_for_budget"] = _queued_items_query(session).count()
     result["session_api_calls_used"] = get_csv_attachment_session_calls()
-    if result["waiting_for_budget"] > 0 and csv_attachment_budget_allowed():
+    if result["waiting_for_budget"] > 0 and csv_attachment_budget_allowed(use_reserved_budget=use_reserved_budget):
+        result["budget_threshold_reached"] = False
+    elif result["waiting_for_budget"] > 0 and not use_reserved_budget and csv_attachment_budget_allowed(
+        use_reserved_budget=True
+    ):
         result["budget_threshold_reached"] = False
     elif result["waiting_for_budget"] > 0:
         result["budget_threshold_reached"] = True
