@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -18,6 +19,9 @@ from csv_attachment_session import (
 from models import AttachmentQueueItem, CsvOpportunity
 
 logger = logging.getLogger("govtracker.csv_queue")
+
+_csv_queue_lock = threading.Lock()
+_csv_queue_running = False
 
 QUEUE_STATUS_QUEUED = "queued"
 QUEUE_STATUS_DOWNLOADING = "downloading"
@@ -128,21 +132,8 @@ def enqueue_csv_attachments(
     notice_ids: list[str] | None = None,
     watchlist_notice_ids: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Add gt_attachment_queue rows for imported CSV opportunities."""
+    """Add gt_attachment_queue rows for imported CSV opportunities (no SAM API calls)."""
     watchlist_notice_ids = watchlist_notice_ids or set()
-    if not csv_attachment_budget_allowed():
-        waiting = _queued_items_query(session).count()
-        logger.info(
-            "CSV attachment enqueue skipped — SAM budget at %.0f%% threshold (%s waiting)",
-            csv_attachment_budget_threshold() * 100,
-            waiting,
-        )
-        return {
-            "attachments_queued": 0,
-            "queue_ids": [],
-            "enqueue_blocked_budget": True,
-            "waiting_for_budget": waiting,
-        }
 
     query = session.query(CsvOpportunity)
     if notice_ids is not None:
@@ -194,11 +185,12 @@ def enqueue_csv_attachments(
         queue_ids.append(item.id)
 
     waiting = _queued_items_query(session).count()
+    budget_blocked = not csv_attachment_budget_allowed()
     return {
         "attachments_queued": queued,
         "queue_ids": queue_ids,
-        "enqueue_blocked_budget": False,
-        "waiting_for_budget": waiting,
+        "enqueue_blocked_budget": budget_blocked,
+        "waiting_for_budget": waiting if budget_blocked else 0,
     }
 
 
@@ -404,11 +396,7 @@ def process_attachment_queue(
 
 def run_scheduled_csv_attachment_queue() -> dict[str, Any]:
     """Process queued CSV attachments during daily sync (after budget reset)."""
-    from csv_attachment_policy import csv_auto_sam_attachments_on_import
     from database import SessionLocal
-
-    if not csv_auto_sam_attachments_on_import():
-        return {"skipped": True, "reason": "csv_auto_sam_attachments_disabled"}
 
     session = SessionLocal()
     try:
@@ -425,3 +413,37 @@ def run_scheduled_csv_attachment_queue() -> dict[str, Any]:
         raise
     finally:
         session.close()
+
+
+def start_background_csv_attachment_queue() -> None:
+    """Process CSV attachment queue in the background — never blocks CSV import."""
+    global _csv_queue_running
+    with _csv_queue_lock:
+        if _csv_queue_running:
+            return
+        _csv_queue_running = True
+
+    def _run() -> None:
+        global _csv_queue_running
+        from database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            result = process_attachment_queue(session, use_reserved_budget=True)
+            session.commit()
+            if result.get("completed") or result.get("failed"):
+                logger.info(
+                    "Background CSV attachment queue: completed=%s failed=%s waiting=%s",
+                    result.get("completed"),
+                    result.get("failed"),
+                    result.get("waiting_for_budget"),
+                )
+        except Exception:
+            session.rollback()
+            logger.exception("Background CSV attachment queue failed")
+        finally:
+            session.close()
+            with _csv_queue_lock:
+                _csv_queue_running = False
+
+    threading.Thread(target=_run, daemon=True, name="govtracker-csv-queue").start()

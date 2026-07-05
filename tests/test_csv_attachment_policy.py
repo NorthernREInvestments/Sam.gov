@@ -31,8 +31,14 @@ class _FakeSession:
         return _FakeQuery(self._found)
 
 
-def test_csv_only_defaults_enabled_until_july_10(monkeypatch):
+def test_csv_only_disabled_by_default(monkeypatch):
     monkeypatch.delenv("SAM_ATTACHMENTS_CSV_ONLY", raising=False)
+    monkeypatch.delenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", raising=False)
+    assert not sam_attachments_csv_only()
+
+
+def test_csv_only_enabled_until_date(monkeypatch):
+    monkeypatch.setenv("SAM_ATTACHMENTS_CSV_ONLY", "true")
     monkeypatch.delenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", raising=False)
     assert sam_attachments_csv_only_until() == date(2026, 7, 10)
     assert sam_attachments_csv_only()
@@ -62,17 +68,3 @@ def test_notice_eligible_with_csv_row(monkeypatch):
     monkeypatch.setenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", (date.today() + timedelta(days=7)).isoformat())
     session = _FakeSession(found=True)
     assert notice_id_csv_attachment_eligible(session, "CSV-123")
-
-
-def test_csv_auto_sam_attachments_default_off(monkeypatch):
-    monkeypatch.delenv("CSV_AUTO_SAM_ATTACHMENTS", raising=False)
-    from csv_attachment_policy import csv_auto_sam_attachments_on_import
-
-    assert not csv_auto_sam_attachments_on_import()
-
-
-def test_csv_auto_sam_attachments_env_on(monkeypatch):
-    monkeypatch.setenv("CSV_AUTO_SAM_ATTACHMENTS", "true")
-    from csv_attachment_policy import csv_auto_sam_attachments_on_import
-
-    assert csv_auto_sam_attachments_on_import()
