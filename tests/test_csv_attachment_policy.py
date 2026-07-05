@@ -62,3 +62,17 @@ def test_notice_eligible_with_csv_row(monkeypatch):
     monkeypatch.setenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", (date.today() + timedelta(days=7)).isoformat())
     session = _FakeSession(found=True)
     assert notice_id_csv_attachment_eligible(session, "CSV-123")
+
+
+def test_csv_auto_sam_attachments_default_off(monkeypatch):
+    monkeypatch.delenv("CSV_AUTO_SAM_ATTACHMENTS", raising=False)
+    from csv_attachment_policy import csv_auto_sam_attachments_on_import
+
+    assert not csv_auto_sam_attachments_on_import()
+
+
+def test_csv_auto_sam_attachments_env_on(monkeypatch):
+    monkeypatch.setenv("CSV_AUTO_SAM_ATTACHMENTS", "true")
+    from csv_attachment_policy import csv_auto_sam_attachments_on_import
+
+    assert csv_auto_sam_attachments_on_import()

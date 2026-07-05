@@ -1163,8 +1163,28 @@ def attachment_sync_status() -> dict[str, Any]:
 def sync_csv_attachments_only() -> dict[str, Any]:
     """Burn remaining SAM budget on CSV-imported opportunity attachment metadata."""
     from api_budget import get_usage_snapshot
-    from csv_attachment_policy import sam_attachments_csv_only_snapshot
+    from csv_attachment_policy import csv_auto_sam_attachments_on_import, sam_attachments_csv_only_snapshot
     from csv_attachment_queue_service import get_attachment_queue_dashboard_stats, process_attachment_queue
+
+    if not csv_auto_sam_attachments_on_import():
+        session = SessionLocal()
+        try:
+            stats = get_attachment_queue_dashboard_stats(session)
+        finally:
+            session.close()
+        return {
+            "mode": "csv_attachments_only",
+            **sam_attachments_csv_only_snapshot(),
+            "attachments_enriched": 0,
+            "attachments_pending": stats.get("queued", 0),
+            "sam_calls_burned": 0,
+            "fetch_status": (
+                "CSV upload does not use SAM.gov API. "
+                "Click Pursue on a CSV opportunity to fetch attachments for that contract."
+            ),
+            "api_budget": get_usage_snapshot(),
+            "csv_attachment_queue": stats,
+        }
 
     session = SessionLocal()
     try:

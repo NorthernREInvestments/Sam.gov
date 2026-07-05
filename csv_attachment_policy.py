@@ -56,7 +56,14 @@ def sam_attachments_csv_only_snapshot() -> dict[str, Any]:
             if sam_attachments_csv_only_until()
             else None
         ),
+        "csv_auto_sam_attachments_on_import": csv_auto_sam_attachments_on_import(),
     }
+
+
+def csv_auto_sam_attachments_on_import() -> bool:
+    """When False (default), CSV upload/pricing never calls SAM — only Pursue does."""
+    raw = os.getenv("CSV_AUTO_SAM_ATTACHMENTS", "false").strip().lower()
+    return raw in ("1", "true", "yes")
 
 
 def notice_id_csv_attachment_eligible(session: Session, notice_id: str) -> bool:

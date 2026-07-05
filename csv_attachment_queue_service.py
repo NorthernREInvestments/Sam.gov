@@ -404,7 +404,11 @@ def process_attachment_queue(
 
 def run_scheduled_csv_attachment_queue() -> dict[str, Any]:
     """Process queued CSV attachments during daily sync (after budget reset)."""
+    from csv_attachment_policy import csv_auto_sam_attachments_on_import
     from database import SessionLocal
+
+    if not csv_auto_sam_attachments_on_import():
+        return {"skipped": True, "reason": "csv_auto_sam_attachments_disabled"}
 
     session = SessionLocal()
     try:

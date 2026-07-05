@@ -1889,9 +1889,9 @@ function renderCsvUploadSummary(data) {
       <li><strong>${data.records_removed_stale ?? 0}</strong> removed (no longer in CSV or expired)</li>
       <li><strong>${data.records_skipped_filters ?? 0}</strong> skipped (didn't meet filters)</li>
       <li><strong>${data.records_protected ?? 0}</strong> protected (kept from previous session)</li>
-      <li><strong>${data.pricing_total ?? data.repricing_notice_ids?.length ?? 0}</strong> pricing lookups queued</li>
+      <li><strong>${data.pricing_total ?? data.repricing_notice_ids?.length ?? 0}</strong> pricing lookups queued (USAspending — not SAM.gov)</li>
       <li><strong>${data.watchlist_matches_found ?? 0}</strong> watchlist matches (${data.high_confidence_matches ?? 0} high confidence)</li>
-      <li><strong>${data.attachments_queued ?? 0}</strong> attachments queued</li>
+      <li><strong>${data.attachments_queued ?? 0}</strong> SAM attachment downloads queued</li>
       <li><strong>${data.attachments_completed ?? 0}</strong> attachments complete</li>
       <li><strong>${data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0}</strong> waiting for API budget</li>
       <li><strong>${data.attachments_failed ?? 0}</strong> failed (retry tomorrow)</li>
@@ -1899,9 +1899,11 @@ function renderCsvUploadSummary(data) {
       <li><strong>${data.estimated_api_calls_remaining_queue ?? 0}</strong> estimated API calls left in queue</li>
     </ul>
     ${
-      (data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0) > 0
-        ? `<p class="detail-note csv-upload-budget-note">SAM attachment downloads are paused until daily API budget resets (or drops below the 80% cap). Pricing uses USAspending separately — check the CSV Opportunities section for new rows.</p>`
-        : ""
+      data.skipped_sam_on_import || data.attachments_queued === 0
+        ? `<p class="detail-note csv-upload-budget-note">No SAM.gov API calls on upload. Pursue an opportunity when you want PDF attachments fetched.</p>`
+        : (data.attachments_waiting_for_budget ?? data.attachments_skipped_budget ?? 0) > 0
+          ? `<p class="detail-note csv-upload-budget-note">SAM attachment downloads paused until daily API budget resets.</p>`
+          : ""
     }
     ${data.attachment_queue ? `<p class="detail-note">Queue now: ${data.attachment_queue.downloading ?? 0} downloading · ${data.attachment_queue.queued ?? 0} queued · ${data.attachment_queue.complete ?? 0} complete · ${data.attachment_queue.failed ?? 0} failed</p>` : ""}
     <div class="csv-upload-actions">
@@ -1922,7 +1924,7 @@ function openCsvUploadModal() {
   document.getElementById("modal-content").innerHTML = `
     <div class="csv-upload-modal">
       <h2>SAM.gov CSV upload</h2>
-      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong> (max 250 MB). GovTracker merges new and changed opportunities into your existing list, removes expired ones, queues attachments for new rows only, and runs pricing on new/changed rows.</p>
+      <p class="detail-note">Upload <strong>ContractOpportunitiesFullCSV.csv</strong> (max 250 MB). GovTracker merges new/changed rows and runs <strong>USAspending pricing only</strong> — no SAM.gov API calls on upload. Click <strong>Pursue</strong> on a card when you want SAM to fetch PDF attachments.</p>
       <form id="csv-upload-form">
         <label class="filter-label" for="csv-file-input">CSV file</label>
         <input type="file" id="csv-file-input" class="settings-input" accept=".csv,text/csv" required>

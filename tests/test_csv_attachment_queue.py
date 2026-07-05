@@ -52,6 +52,7 @@ def test_budget_blocked_at_80_percent(monkeypatch):
         lambda: {"sam_daily_limit": 10, "sam_used_today": 8, "sam_remaining": 2},
     )
     assert not csv_attachment_budget_allowed()
+    monkeypatch.setattr("csv_attachment_queue_service.can_spend_sam", lambda credits=1: True)
     assert csv_attachment_budget_allowed(use_reserved_budget=True)
     assert csv_attachment_calls_remaining_before_cap() == 0
     assert csv_attachment_calls_remaining_before_cap(use_reserved_budget=True) == 2

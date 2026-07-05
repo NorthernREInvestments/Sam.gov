@@ -197,17 +197,34 @@ def run_full_csv_upload_pipeline(
     session.commit()
     watchlist_ids = set(pre_watchlist.get("watchlist_notice_ids") or [])
 
-    update_csv_upload_progress("queue", "Queuing SAM attachment downloads (no API calls until budget allows)…")
-    queue_summary = enqueue_csv_attachments(
-        session,
-        notice_ids=pipeline_notice_ids if pipeline_notice_ids else None,
-        watchlist_notice_ids=watchlist_ids,
-    )
-    session.commit()
+    from csv_attachment_policy import csv_auto_sam_attachments_on_import
 
-    update_csv_upload_progress("attachments", "Downloading SAM attachments for new/changed rows…")
-    attachment_summary = process_attachment_queue(session, use_reserved_budget=True)
-    session.commit()
+    auto_sam_attachments = csv_auto_sam_attachments_on_import() and process_attachments
+    if auto_sam_attachments:
+        update_csv_upload_progress("queue", "Queuing SAM attachment downloads…")
+        queue_summary = enqueue_csv_attachments(
+            session,
+            notice_ids=pipeline_notice_ids if pipeline_notice_ids else None,
+            watchlist_notice_ids=watchlist_ids,
+        )
+        session.commit()
+        update_csv_upload_progress("attachments", "Downloading SAM attachments for new/changed rows…")
+        attachment_summary = process_attachment_queue(session, use_reserved_budget=True)
+        session.commit()
+    else:
+        queue_summary = {
+            "attachments_queued": 0,
+            "waiting_for_budget": 0,
+            "skipped_sam_on_import": True,
+        }
+        attachment_summary = {
+            "processed": 0,
+            "completed": 0,
+            "failed": 0,
+            "waiting_for_budget": 0,
+            "session_api_calls_used": 0,
+            "skipped_sam_on_import": True,
+        }
 
     update_csv_upload_progress(
         "finalize",
@@ -249,6 +266,7 @@ def run_full_csv_upload_pipeline(
         "high_confidence_matches": watchlist_summary["high_confidence"],
         "possible_matches": watchlist_summary["possible_matches"],
         "attachments_queued": queue_summary["attachments_queued"],
+        "skipped_sam_on_import": not auto_sam_attachments,
         "attachments_processed": attachment_summary.get("processed", 0),
         "attachments_completed": attachment_summary.get("completed", 0),
         "attachments_failed": attachment_summary.get("failed", 0),

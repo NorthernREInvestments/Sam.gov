@@ -282,7 +282,7 @@ def pursue_csv_opportunity(session: Session, notice_id: str) -> dict[str, Any]:
 
     enqueue_csv_attachments(session, notice_ids=[notice_id], watchlist_notice_ids=set())
     session.flush()
-    attachment_summary = process_attachment_queue(session)
+    attachment_summary = process_attachment_queue(session, use_reserved_budget=True)
     session.commit()
 
     pipeline = start_watchlist_priority_pipeline([notice_id])
