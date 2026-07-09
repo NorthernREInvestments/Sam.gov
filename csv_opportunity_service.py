@@ -62,6 +62,10 @@ def csv_opportunity_to_card_dict(
 
     pricing_intel = row.pricing_intel if isinstance(row.pricing_intel, dict) else None
     pricing_display = csv_pricing_card_display(pricing_intel)
+    sam_meta = row.sam_raw if isinstance(row.sam_raw, dict) else {}
+    merged_notice_count = int(sam_meta.get("merged_notice_count") or 1)
+    amendment_number = sam_meta.get("amendment_number")
+    posted_date = sam_meta.get("posted_date")
 
     return {
         "notice_id": row.notice_id,
@@ -81,6 +85,7 @@ def csv_opportunity_to_card_dict(
         "co_email": row.co_email,
         "co_phone": row.co_phone,
         "due_date": row.due_date.isoformat() if row.due_date else None,
+        "solicitation_number": row.solicitation_number,
         "days_until_due": days_left,
         "csv_opportunity": True,
         "csv_status": status,
@@ -94,6 +99,9 @@ def csv_opportunity_to_card_dict(
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
         "pricing_intel": pricing_intel,
         "pricing_display": pricing_display,
+        "csv_amendment_number": amendment_number,
+        "csv_posted_date": posted_date,
+        "csv_merged_notice_count": merged_notice_count,
         "workflow_progress": {"primary_action": primary_action},
     }
 
@@ -108,6 +116,15 @@ def _days_bucket(days: int | None) -> str:
     if days <= 30:
         return "14_30"
     return "30_plus"
+
+
+def _csv_card_is_listable(card: dict[str, Any]) -> bool:
+    """Hide past-deadline CSV cards unless the user is actively working them."""
+    days = card.get("days_until_due")
+    if days is None or days >= 0:
+        return True
+    status = (card.get("csv_status") or "New").strip()
+    return _is_protected_status(status)
 
 
 def _matches_filters(
@@ -172,8 +189,23 @@ def list_csv_opportunity_cards(
     days_bucket: str | None = None,
     naics_code: str | None = None,
     keyword: str | None = None,
+    purge_expired: bool = True,
 ) -> dict[str, Any]:
     """All imported CSV opportunities with optional filters."""
+    removed_expired = 0
+    removed_duplicate = 0
+    if purge_expired:
+        from csv_import_service import (
+            remove_duplicate_csv_rows,
+            remove_expired_csv_rows,
+        )
+        from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
+
+        removed_expired = remove_expired_csv_rows(session)
+        removed_duplicate = remove_duplicate_csv_rows(session)
+        if removed_expired or removed_duplicate:
+            clear_pending_queue_for_deleted_csv(session)
+
     today = date.today()
     rows = session.query(CsvOpportunity).order_by(CsvOpportunity.due_date.asc().nullslast()).all()
     contract_by_notice = {
@@ -204,11 +236,14 @@ def list_csv_opportunity_cards(
             naics_code=naics_code,
             keyword=keyword,
         )
+        and _csv_card_is_listable(card)
     ]
     sorted_cards = _sort_csv_cards(filtered)
     return {
         "count": len(sorted_cards),
         "total_count": len(cards),
+        "records_removed_expired": removed_expired,
+        "records_removed_duplicate": removed_duplicate,
         "filter_options": csv_opportunity_filter_options(session),
         "opportunities": sorted_cards,
     }

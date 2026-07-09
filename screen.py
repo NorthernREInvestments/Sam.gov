@@ -57,10 +57,12 @@ def screen_one(notice_id: str, force: bool = False) -> dict[str, Any]:
         if result.get("reason") == "sam_budget":
             raise ValueError(result.get("message") or "SAM.gov daily budget reached.")
         if result.get("reason") == "screen_budget":
-            session.commit()
+            if session.is_active:
+                session.commit()
             return result
 
-        session.commit()
+        if session.is_active:
+            session.commit()
         return result
     finally:
         session.close()
@@ -72,12 +74,13 @@ def force_full_analysis(notice_id: str) -> dict[str, Any]:
         row = session.query(Contract).filter_by(notice_id=notice_id).first()
         if not row:
             raise ValueError(f"Contract not found: {notice_id}")
-        result = force_full_analysis_contract(row)
+        result = force_full_analysis_contract(row, session=session)
         if result.get("in_progress"):
             return result
         if result.get("reason") == "sam_budget":
             raise ValueError(result.get("message") or "SAM.gov daily budget reached.")
-        session.commit()
+        if session.is_active:
+            session.commit()
         return result
     finally:
         session.close()

@@ -908,6 +908,67 @@ def fetch_filtered_awards(
 
 
 
+def _parse_offer_count(value: Any) -> int | None:
+    """Parse USAspending number_of_offers_received (string or int)."""
+    if value is None or value == "":
+        return None
+    try:
+        count = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return count if count > 0 else None
+
+
+def _extract_number_of_offers_from_detail(detail: dict[str, Any] | None) -> int | None:
+    if not detail:
+        return None
+    contract_data = detail.get("latest_transaction_contract_data")
+    if isinstance(contract_data, dict):
+        offers = _parse_offer_count(contract_data.get("number_of_offers_received"))
+        if offers is not None:
+            return offers
+    return _parse_offer_count(detail.get("number_of_offers_received"))
+
+
+def backfill_predecessor_offer_count(predecessor: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Fill number_of_offers_received on a cached predecessor award when missing."""
+    if not isinstance(predecessor, dict):
+        return predecessor
+    if predecessor.get("number_of_offers_received") is not None:
+        return predecessor
+    contract_number = (predecessor.get("contract_number") or "").strip()
+    if not contract_number:
+        return predecessor
+    for award in fetch_awards_by_contract_number(contract_number, limit=1):
+        detail = fetch_award_detail(award.get("generated_internal_id"))
+        offers = _extract_number_of_offers_from_detail(detail)
+        if offers is not None:
+            updated = dict(predecessor)
+            updated["number_of_offers_received"] = offers
+            return updated
+    return predecessor
+
+
+def backfill_predecessor_award_details(predecessor: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Fill missing offer count and modification history on a cached predecessor award."""
+    if not isinstance(predecessor, dict):
+        return predecessor
+    updated = backfill_predecessor_offer_count(predecessor) or predecessor
+    if updated.get("modification_history"):
+        return updated
+    contract_number = (updated.get("contract_number") or "").strip()
+    if not contract_number:
+        return updated
+    for award in fetch_awards_by_contract_number(contract_number, limit=1):
+        transactions = fetch_all_award_transactions(award.get("generated_internal_id"))
+        history = build_modification_history(transactions)
+        if history:
+            result = dict(updated)
+            result["modification_history"] = history
+            return result
+    return updated
+
+
 def fetch_award_detail(generated_internal_id: str | None) -> dict[str, Any] | None:
     """Full award record — total obligation, PoP, option values."""
     if not generated_internal_id:
@@ -953,6 +1014,45 @@ def fetch_all_award_transactions(generated_internal_id: str | None, *, page_limi
     except Exception:
         return transactions
     return transactions
+
+
+def build_modification_history(
+    transactions: list[dict[str, Any]],
+    *,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Human-readable list of prior-award modifications for incumbent research."""
+    if not transactions:
+        return []
+    ordered = sorted(transactions, key=lambda row: str(row.get("action_date") or ""))
+    history: list[dict[str, Any]] = []
+    for txn in ordered:
+        mod = str(txn.get("modification_number") or "").strip()
+        try:
+            amount = float(txn.get("federal_action_obligation") or 0)
+        except (TypeError, ValueError):
+            amount = 0.0
+        description = (
+            str(txn.get("action_type_description") or txn.get("type_description") or txn.get("description") or "")
+            .strip()
+        )
+        if mod in ("", "0", "00") and not history:
+            label = "Base award"
+        elif mod in ("", "0", "00"):
+            continue
+        else:
+            label = mod
+        history.append(
+            {
+                "modification_number": label,
+                "action_date": txn.get("action_date"),
+                "amount": round(amount, 2) if amount else None,
+                "description": description or None,
+            }
+        )
+    if limit > 0 and len(history) > limit:
+        return history[-limit:]
+    return history
 
 
 def summarize_award_transactions(transactions: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1029,6 +1129,7 @@ def summarize_award_transactions(transactions: list[dict[str, Any]]) -> dict[str
         "annual_amount": round(annual_amount, 2) if annual_amount else None,
         "option_years_exercised": option_years_exercised,
         "modifications_count": mod_count,
+        "modification_history": build_modification_history(ordered),
         "obligation_years": positive_years,
         "yearly_obligations": {str(y): round(yearly_net[y], 2) for y in positive_years},
         "pricing_calc_note": calc_note,
@@ -1067,6 +1168,8 @@ def enrich_predecessor_with_award_detail(summary: dict[str, Any], award: dict[st
         summary["option_years_exercised"] = txn_summary["option_years_exercised"]
     if txn_summary.get("modifications_count") is not None:
         summary["modifications_count"] = txn_summary["modifications_count"]
+    if txn_summary.get("modification_history"):
+        summary["modification_history"] = txn_summary["modification_history"]
     if txn_summary.get("pricing_calc_note"):
         summary["pricing_calc_note"] = txn_summary["pricing_calc_note"]
     if txn_summary.get("yearly_obligations"):
@@ -1085,6 +1188,9 @@ def enrich_predecessor_with_award_detail(summary: dict[str, Any], award: dict[st
                 summary["base_and_options_value"] = float(base_value)
             except (TypeError, ValueError):
                 pass
+        offers = _extract_number_of_offers_from_detail(detail)
+        if offers is not None:
+            summary["number_of_offers_received"] = offers
 
     if summary.get("annual_amount") is None and summary.get("total_value"):
         award_for_annual = dict(award)

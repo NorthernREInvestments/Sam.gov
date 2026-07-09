@@ -248,11 +248,7 @@ def run_full_analysis(
     """Step 2 — PIEE/attachments + PDFs + full Claude analysis."""
     from pws_fields import apply_pws_extraction, contract_pws_missing
     from screening_pipeline import pdfs_expected_on_contract, pdfs_read_in_analysis
-    from sub_finder import (
-        ensure_sub_search_before_screening,
-        ensure_sub_type_from_pdfs,
-        subs_context_for_screening,
-    )
+    from sub_finder import ensure_sub_search_before_screening, subs_context_for_screening
 
     prior = prior or (row.analysis if isinstance(row.analysis, dict) else {})
     text_score = text_score_from_analysis(prior)
@@ -301,22 +297,17 @@ def run_full_analysis(
     # Attachments are in PostgreSQL — never re-fetch from SAM for Claude / scope / subs.
     db_only = True
 
-    from screening_pipeline import workflow_is_current
-
-    force_sub_pipeline = not workflow_is_current(prior)
     subs_context: dict[str, Any] | None = None
     if session is not None:
         try:
-            ensure_sub_type_from_pdfs(row, session, db_only=db_only)
-            ensure_sub_search_before_screening(session, row, force=force_sub_pipeline)
+            ensure_sub_search_before_screening(session, row, force=False)
             subs_context = subs_context_for_screening(session, row)
         except Exception:
             logger.exception("Sub pipeline before screening failed for %s", row.notice_id)
     else:
         sub_session = SessionLocal()
         try:
-            ensure_sub_type_from_pdfs(row, sub_session, db_only=db_only)
-            ensure_sub_search_before_screening(sub_session, row, force=force_sub_pipeline)
+            ensure_sub_search_before_screening(sub_session, row, force=False)
             subs_context = subs_context_for_screening(sub_session, row)
             sub_session.commit()
         except Exception:
@@ -347,11 +338,7 @@ def run_full_analysis(
     elif session is not None:
         session.commit()
 
-    analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=None)
-    if not record_screen_usage():
-        raise ScreenBudgetExceeded()
-
-    if session is None and closed_session_for_claude:
+    if closed_session_for_claude:
         from attachment_storage import load_contract_for_repair
         from database import with_db_retry
 
@@ -367,10 +354,17 @@ def run_full_analysis(
             finally:
                 s.close()
 
-        reloaded = with_db_retry(_reload_row)
+        row = with_db_retry(_reload_row)
+        if row is None:
+            raise ValueError(f"Contract not found: {notice_id}")
+
+    analysis = screen_contract(row, subs_context=subs_context, db_only=db_only, session=None)
+    if not record_screen_usage():
+        raise ScreenBudgetExceeded()
+
+    if closed_session_for_claude:
         session = SessionLocal()
-        if reloaded is not None:
-            row = session.merge(reloaded)
+        row = session.merge(row)
 
     if text_score is not None:
         analysis["text_score"] = text_score
@@ -480,7 +474,7 @@ def run_full_analysis(
         session.close()
 
     return {
-        "notice_id": row.notice_id,
+        "notice_id": notice_id,
         "skipped": False,
         "enriched": True,
         "screened": full_done,
@@ -576,11 +570,19 @@ def full_intake_contract(
         _end_intake(row.notice_id)
 
 
-def force_full_analysis_contract(row: Contract) -> dict[str, Any]:
+def force_full_analysis_contract(row: Contract, *, session=None) -> dict[str, Any]:
     """Manual override — run full PDF analysis regardless of text score."""
     if not _try_begin_intake(row.notice_id):
         return {"notice_id": row.notice_id, "in_progress": True}
+    own_session = False
+    if session is None:
+        session = SessionLocal()
+        own_session = True
     try:
+        if own_session:
+            bound = session.query(Contract).filter_by(notice_id=row.notice_id).first()
+            if bound is not None:
+                row = bound
         analysis = row.analysis if isinstance(row.analysis, dict) else {}
         if needs_text_screening(analysis):
             ensure_description_for_text_screen(row)
@@ -594,6 +596,13 @@ def force_full_analysis_contract(row: Contract) -> dict[str, Any]:
         return run_full_analysis(row, prior=analysis, session=session)
     finally:
         _end_intake(row.notice_id)
+        if own_session:
+            try:
+                if session.is_active:
+                    session.commit()
+            except Exception:
+                pass
+            session.close()
 
 
 def intake_matching_contracts(

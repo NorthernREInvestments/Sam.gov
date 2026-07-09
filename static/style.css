@@ -2900,6 +2900,44 @@ a {
   content: "· ";
 }
 
+.csv-opp-amendment-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
+.prior-mod-history-wrap {
+  margin-top: 0.75rem;
+}
+
+.prior-mod-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.prior-mod-history-table th,
+.prior-mod-history-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prior-mod-history-table th {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .csv-opp-filters {
   display: flex;
   flex-wrap: wrap;

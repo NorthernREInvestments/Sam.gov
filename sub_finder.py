@@ -381,33 +381,73 @@ def subs_context_for_screening(session: Session, contract: Contract) -> dict[str
     }
 
 
+def maybe_start_background_sub_search(
+    session: Session,
+    contract: Contract,
+    *,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Kick off Google Places sub search in a background thread when eligible."""
+    from screening_pipeline import has_attachments_ready
+
+    if not force:
+        if contract.sub_search_status == "complete":
+            existing = session.query(ContractSub).filter_by(contract_id=contract.id).count()
+            return {
+                "started": False,
+                "status": "complete",
+                "results_count": existing,
+                "in_progress": False,
+            }
+        if contract.sub_search_status == "searching":
+            return {"started": False, "status": "searching", "in_progress": True}
+        with _search_lock:
+            if contract.id in _search_ids:
+                return {"started": False, "status": "searching", "in_progress": True}
+
+    if force:
+        return {
+            **_run_places_search(session, contract, force=True),
+            "started": True,
+            "in_progress": False,
+        }
+
+    if not has_attachments_ready(contract, session):
+        lat, lng, _ = _contract_coords(contract)
+        if lat is None or lng is None:
+            return {
+                "started": False,
+                "status": contract.sub_search_status or "none",
+                "in_progress": False,
+                "reason": "pending_attachments",
+            }
+
+    start_background_sub_search(contract.notice_id, force=False)
+    if contract.sub_search_status not in ("complete", "searching"):
+        contract.sub_search_status = "searching"
+        session.commit()
+    return {"started": True, "status": "searching", "in_progress": True}
+
+
 def ensure_sub_search_before_screening(
     session: Session,
     contract: Contract,
     *,
     force: bool = False,
 ) -> dict[str, Any]:
-    """Run Google Places sub search synchronously before Claude ranks the contract."""
-    if not force:
-        if contract.sub_search_status == "complete":
-            existing = session.query(ContractSub).filter_by(contract_id=contract.id).count()
-            if existing > 0:
-                return {
-                    "notice_id": contract.notice_id,
-                    "skipped": True,
-                    "results_count": existing,
-                    "summary": contract_sub_summary(contract, session),
-                }
-        if contract.sub_search_status == "searching":
-            return {
-                "notice_id": contract.notice_id,
-                "skipped": True,
-                "in_progress": True,
-                "summary": contract_sub_summary(contract, session),
-            }
-
-    sub_type = _resolve_sub_type_for_search(contract)
-    return _run_places_search(session, contract, force=force, sub_type_override=sub_type)
+    """Ensure sub search is running or complete — never block contract screening on Places/Claude."""
+    kick = maybe_start_background_sub_search(session, contract, force=force)
+    summary = contract_sub_summary(contract, session)
+    if kick.get("started"):
+        summary["status"] = "searching"
+    return {
+        "notice_id": contract.notice_id,
+        "skipped": not kick.get("started") and not kick.get("in_progress"),
+        "in_progress": bool(kick.get("in_progress")),
+        "started_background": bool(kick.get("started")),
+        "results_count": kick.get("results_count", 0),
+        "summary": summary,
+    }
 
 
 def find_subs_for_contract(
@@ -466,6 +506,8 @@ def _run_places_search(
     session.commit()
 
     try:
+        ensure_sub_type_from_pdfs(contract, session, db_only=True)
+
         if force:
             session.query(ContractSub).filter(
                 ContractSub.contract_id == contract.id,

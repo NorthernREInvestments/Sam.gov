@@ -247,6 +247,8 @@ def run_full_csv_upload_pipeline(
         "records_skipped_filters": import_summary["records_skipped_filters"],
         "records_protected": protected_count,
         "records_removed_stale": import_summary.get("records_removed_stale", 0),
+        "records_removed_expired": import_summary.get("records_removed_expired", 0),
+        "records_removed_duplicate": import_summary.get("records_removed_duplicate", 0),
         "new_notice_ids": import_summary.get("new_notice_ids") or [],
         "changed_notice_ids": import_summary.get("changed_notice_ids") or [],
         "repricing_notice_ids": repricing_notice_ids,

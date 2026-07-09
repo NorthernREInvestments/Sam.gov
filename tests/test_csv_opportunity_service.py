@@ -55,6 +55,14 @@ def test_days_bucket_and_filters():
     assert not _matches_filters(card, state="CO", days_bucket=None, naics_code=None, keyword=None)
 
 
+def test_csv_card_hides_overdue_unless_protected():
+    from csv_opportunity_service import _csv_card_is_listable
+
+    assert not _csv_card_is_listable({"days_until_due": -3, "csv_status": "New"})
+    assert _csv_card_is_listable({"days_until_due": -3, "csv_status": "Pursuing"})
+    assert _csv_card_is_listable({"days_until_due": 2, "csv_status": "New"})
+
+
 def test_sort_pursuing_to_top():
     cards = [
         {"notice_id": "b", "csv_status": "New", "due_date": "2026-07-10", "days_until_due": 6},

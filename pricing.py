@@ -91,6 +91,8 @@ def _merge_predecessor(intel: dict[str, Any], predecessor: dict[str, Any] | None
     intel["previous_contract_number"] = predecessor.get("contract_number")
     if predecessor.get("option_years_exercised") is not None:
         intel["option_years_exercised"] = predecessor.get("option_years_exercised")
+    if predecessor.get("number_of_offers_received") is not None:
+        intel["number_of_offers_received"] = predecessor.get("number_of_offers_received")
     return intel
 
 
@@ -216,6 +218,12 @@ def get_full_pricing_intel(contract: Any, session, *, force_refresh: bool = Fals
         "most_frequent_winner": regional.get("most_frequent_winner"),
         "most_frequent_winner_count": regional.get("most_frequent_winner_count"),
         "incumbent": incumbent,
+        "offers_received": (
+            (regional.get("predecessor_award") or {}).get("number_of_offers_received")
+            if isinstance(regional.get("predecessor_award"), dict)
+            else None
+        )
+        or regional.get("number_of_offers_received"),
         "incumbent_note": (
             "This company may be the incumbent. Price competitively to displace them."
             if incumbent

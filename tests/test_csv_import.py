@@ -9,13 +9,16 @@ import pytest
 from csv_import_service import (
     _csv_pricing_fields_changed,
     _csv_row_fields_changed,
+    _csv_row_keep_score,
     _is_protected_status,
     _map_csv_row,
+    _normalize_solicitation_number,
     _passes_import_filters,
     _passes_set_aside_filter,
     csv_upload_max_bytes,
     verify_csv_upload_password,
 )
+from models import CsvOpportunity
 
 
 def test_set_aside_filter():
@@ -40,6 +43,73 @@ def test_import_filters_future_deadline(monkeypatch):
     row["Active"] = "Yes"
     row["NaicsCode"] = "999999"
     assert not _passes_import_filters(row)
+
+
+def test_normalize_solicitation_number():
+    assert _normalize_solicitation_number("692M15-26-R-00008") == "692M15-26-R-00008"
+    assert _normalize_solicitation_number("  rfq_15ddhq26q00000143 ") == "RFQ_15DDHQ26Q00000143"
+    assert _normalize_solicitation_number("") is None
+
+
+def test_csv_row_keep_score_prefers_protected_and_watchlist():
+    base = CsvOpportunity(
+        notice_id="a",
+        title="Test",
+        status="New",
+        due_date=date.today() + timedelta(days=10),
+    )
+    pursuing = CsvOpportunity(
+        notice_id="b",
+        title="Test",
+        status="Pursuing",
+        due_date=date.today() + timedelta(days=3),
+    )
+    assert _csv_row_keep_score(pursuing) > _csv_row_keep_score(base)
+    watchlist = CsvOpportunity(
+        notice_id="c",
+        title="Test",
+        status="New",
+        due_date=date.today() + timedelta(days=3),
+        watchlist_match_confidence="High",
+    )
+    assert _csv_row_keep_score(watchlist) > _csv_row_keep_score(base)
+
+
+def test_parse_amendment_number_from_title():
+    from csv_import_service import _parse_amendment_number
+
+    row = {"Title": "Ground Maintenance Services Amendment 0003"}
+    assert _parse_amendment_number(row) == 3
+    row = {"AmendmentNumber": "5"}
+    assert _parse_amendment_number(row) == 5
+
+
+def test_merge_csv_sam_meta_tracks_notice_ids():
+    from csv_import_service import _merge_csv_sam_meta
+
+    merged = _merge_csv_sam_meta(
+        {"merged_notice_ids": ["a"], "merged_notice_count": 1, "posted_date": "2026-07-01T00:00:00"},
+        {"merged_notice_ids": ["b"], "merged_notice_count": 1, "posted_date": "2026-07-04T00:00:00", "amendment_number": 2},
+    )
+    assert merged["merged_notice_count"] == 2
+    assert set(merged["merged_notice_ids"]) == {"a", "b"}
+    assert merged["amendment_number"] == 2
+
+
+def test_import_filters_past_deadline(monkeypatch):
+    monkeypatch.setattr("csv_import_service.get_naics_codes", lambda: ["561720"])
+    past = (date.today() - timedelta(days=1)).strftime("%m/%d/%Y")
+    row = {
+        "Active": "Yes",
+        "NaicsCode": "561720",
+        "SetASideCode": "Total Small Business",
+        "ResponseDeadLine": past,
+        "NoticeId": "abc123",
+    }
+    assert not _passes_import_filters(row)
+    today = date.today().strftime("%m/%d/%Y")
+    row["ResponseDeadLine"] = today
+    assert _passes_import_filters(row)
 
 
 def test_map_csv_row():

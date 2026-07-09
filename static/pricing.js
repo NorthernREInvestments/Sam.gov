@@ -201,6 +201,10 @@ function renderCompetitiveSection(competitive) {
           <span class="pricing-stat-label">Likely incumbent</span>
           <span class="pricing-stat-value pricing-stat-text">${escapeHtml(c.incumbent || "Not identified")}</span>
         </div>
+        <div class="pricing-stat pricing-stat-wide">
+          <span class="pricing-stat-label">Offers received (prior award)</span>
+          <span class="pricing-stat-value pricing-stat-text">${c.offers_received != null && Number(c.offers_received) > 0 ? Number(c.offers_received).toLocaleString() : "—"}</span>
+        </div>
       </div>
       ${c.incumbent_note ? `<p class="pricing-note pricing-incumbent-note">${escapeHtml(c.incumbent_note)}</p>` : ""}
     </div>`;

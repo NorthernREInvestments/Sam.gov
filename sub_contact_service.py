@@ -376,13 +376,21 @@ def contact_progress(contacts: list[SubContact]) -> dict[str, Any]:
     }
 
 
-def pre_bid_checklist(contract: Contract, contacts: list[SubContact], session: Session) -> dict[str, Any]:
-    from pricing import get_full_pricing_intel
+def pre_bid_checklist(
+    contract: Contract,
+    contacts: list[SubContact],
+    session: Session,
+    *,
+    pricing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from pricing import get_full_pricing_intel, get_regional_benchmark
 
     quoted = [c for c in contacts if c.quote_received and c.quote_amount]
     selected = next((c for c in contacts if c.is_selected), None)
-    pricing = get_full_pricing_intel(contract, session)
-    regional = pricing.get("regional_benchmark") or {}
+    if pricing is None:
+        regional = get_regional_benchmark(contract, force_refresh=False)
+    else:
+        regional = pricing.get("regional_benchmark") or {}
     incumbent_researched = bool(regional.get("average_annual_award") or regional.get("likely_incumbent"))
 
     items = [
@@ -438,11 +446,19 @@ def pre_bid_checklist(contract: Contract, contacts: list[SubContact], session: S
     }
 
 
-def quote_comparison(session: Session, contract: Contract, contacts: list[SubContact]) -> list[dict[str, Any]]:
-    from pricing import get_full_pricing_intel
+def quote_comparison(
+    session: Session,
+    contract: Contract,
+    contacts: list[SubContact],
+    *,
+    pricing: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    from pricing import get_regional_benchmark
 
-    pricing = get_full_pricing_intel(contract, session)
-    regional = pricing.get("regional_benchmark") or {}
+    if pricing is None:
+        regional = get_regional_benchmark(contract, force_refresh=False)
+    else:
+        regional = pricing.get("regional_benchmark") or {}
     hist_avg = regional.get("average_annual_award")
     wage = wage_requirements_for_contract(contract)
     rows = []
@@ -643,9 +659,13 @@ def list_sub_contacts_for_contract(session: Session, notice_id: str) -> dict[str
     )
     summary = contract_sub_summary(contract, session)
     summary["city"] = work.get("city") or work.get("label")
+    from pricing import get_regional_benchmark
+
+    regional = get_regional_benchmark(contract, force_refresh=False)
+    pricing = {"regional_benchmark": regional}
     wage = wage_requirements_for_contract(contract)
     progress = contact_progress(contacts)
-    checklist = pre_bid_checklist(contract, contacts, session)
+    checklist = pre_bid_checklist(contract, contacts, session, pricing=pricing)
     payload_contacts = [sub_contact_to_dict(c, contract) for c in contacts]
     return {
         "notice_id": notice_id,
@@ -658,7 +678,7 @@ def list_sub_contacts_for_contract(session: Session, notice_id: str) -> dict[str
         "pre_bid_checklist": checklist,
         "contacts": payload_contacts,
         "subs": payload_contacts,
-        "quote_comparison": quote_comparison(session, contract, contacts),
+        "quote_comparison": quote_comparison(session, contract, contacts, pricing=pricing),
     }
 
 

@@ -958,6 +958,18 @@ function csvPricingBlock(c) {
     </div>`;
 }
 
+function csvAmendmentBadge(c) {
+  const merged = Number(c.csv_merged_notice_count || 1);
+  const amend = c.csv_amendment_number;
+  if (amend != null && amend !== "") {
+    return `<span class="csv-opp-amendment-badge" title="Latest SAM amendment for this solicitation">Amendment ${escapeHtml(String(amend))}</span>`;
+  }
+  if (merged > 1) {
+    return `<span class="csv-opp-amendment-badge" title="Merged ${merged} SAM notices for one solicitation">${merged} notices merged</span>`;
+  }
+  return "";
+}
+
 function buildCsvOpportunityCardHtml(c) {
   const status = c.csv_status || "New";
   const pursuing = String(status).toLowerCase() === "pursuing";
@@ -971,6 +983,7 @@ function buildCsvOpportunityCardHtml(c) {
         <div class="csv-opp-days ${daysClass}">${escapeHtml(csvDaysRemainingLabel(c))}</div>
         <div class="csv-opp-badges">
           <span class="csv-opp-status-badge ${csvStatusBadgeClass(status)}">${escapeHtml(status)}</span>
+          ${csvAmendmentBadge(c)}
           ${csvWatchlistBadge(c)}
         </div>
       </div>
@@ -1886,7 +1899,7 @@ function renderCsvUploadSummary(data) {
       <li><strong>${data.records_imported ?? 0}</strong> new records</li>
       <li><strong>${data.records_updated ?? 0}</strong> updated records</li>
       <li><strong>${data.records_unchanged ?? 0}</strong> unchanged (kept as-is)</li>
-      <li><strong>${data.records_removed_stale ?? 0}</strong> removed (no longer in CSV or expired)</li>
+      <li><strong>${(data.records_removed_stale ?? 0) + (data.records_removed_expired ?? 0) + (data.records_removed_duplicate ?? 0)}</strong> removed (no longer in CSV, past deadline, or duplicate amendment)</li>
       <li><strong>${data.records_skipped_filters ?? 0}</strong> skipped (didn't meet filters)</li>
       <li><strong>${data.records_protected ?? 0}</strong> protected (kept from previous session)</li>
       <li><strong>${data.pricing_total ?? data.repricing_notice_ids?.length ?? 0}</strong> pricing lookups queued (USAspending — not SAM.gov)</li>

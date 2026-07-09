@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from models import Contract
+
+logger = logging.getLogger("govtracker.attachments")
 
 MIN_TEXT_FOR_FAR_CHECK = 500
 
@@ -425,6 +428,13 @@ def run_attachment_pipeline(
 
     merge_prior_contract_hints(row)
     session.flush()
+    if extraction.files_stored > 0 or extraction.char_count > 0:
+        try:
+            from sub_finder import maybe_start_background_sub_search
+
+            maybe_start_background_sub_search(session, row)
+        except Exception:
+            logger.exception("Background sub search kickoff failed for %s", row.notice_id)
     return {
         "attachment_text_chars": extraction.char_count,
         "attachment_extraction_method": extraction.method,

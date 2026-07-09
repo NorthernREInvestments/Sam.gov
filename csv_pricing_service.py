@@ -90,7 +90,11 @@ def csv_pricing_card_display(intel: dict[str, Any] | None) -> dict[str, Any]:
         }
 
     predecessor = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else {}
-    unique_bidders = intel.get("unique_bidders")
+    unique_bidders = predecessor.get("number_of_offers_received")
+    if unique_bidders is None:
+        unique_bidders = intel.get("number_of_offers_received")
+    if unique_bidders is None:
+        unique_bidders = intel.get("unique_bidders")
     if unique_bidders is None:
         unique_bidders = intel.get("awards_count")
 

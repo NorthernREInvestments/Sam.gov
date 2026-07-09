@@ -23,6 +23,21 @@ def test_csv_pricing_display_prior_same_location():
     assert display["unique_bidders"] == 4
 
 
+def test_csv_pricing_display_prior_offer_count_overrides_regional():
+    intel = {
+        "predecessor_award": {
+            "is_prior_contract": True,
+            "annual_amount": 340700,
+            "recipient_name": "ASHLEY-MARIE GROUP, INC.",
+            "lookup_method": "contract_number",
+            "number_of_offers_received": 6,
+        },
+        "unique_bidders": 12,
+    }
+    display = csv_pricing_card_display(intel)
+    assert display["unique_bidders"] == 6
+
+
 def test_csv_pricing_display_regional_average():
     intel = {
         "average_annual_award": 98000,

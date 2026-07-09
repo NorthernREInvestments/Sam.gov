@@ -169,10 +169,19 @@ async function loadContractSubsInto(noticeId, containerId, { quiet = false } = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to load subs");
     contractSubsData = data;
-    if (data.summary?.status === "searching") startContractSubsPolling(noticeId, containerId);
+    const contacts = data.contacts || data.subs || [];
+    const status = data.summary?.status || "none";
+    const searching = status === "searching" || status === "none";
+    if (searching) startContractSubsPolling(noticeId, containerId);
     else stopContractSubsPolling();
     container.innerHTML = renderContractSubsPage(data);
     bindContractSubsPage(container, noticeId);
+    if (searching && contacts.length === 0) {
+      const banner = document.createElement("p");
+      banner.className = "detail-note subs-search-banner";
+      banner.textContent = "Finding subcontractors near this site…";
+      container.prepend(banner);
+    }
   } catch (err) {
     if (!quiet) container.innerHTML = `<p class="pricing-panel-error">${escapeHtml(err.message)}</p>`;
   }
@@ -197,7 +206,7 @@ function startContractSubsPolling(noticeId, containerId = "contract-subs-content
       return;
     }
     loadContractSubsInto(noticeId, containerId, { quiet: true });
-  }, 4000);
+  }, 2000);
 }
 
 function copyTextToClipboard(text, message) {

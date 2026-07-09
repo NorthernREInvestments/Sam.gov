@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260705-csv-import-decoupled"
+APP_BUILD_VERSION = "20260709-subs-fast-load"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -837,6 +837,21 @@ def get_contract(notice_id: str):
             raise HTTPException(status_code=404, detail="Contract not found")
         if repair_open_opportunity_status(row):
             session.commit()
+        from usaspending_client import backfill_predecessor_award_details
+
+        intel = row.pricing_intel if isinstance(row.pricing_intel, dict) else None
+        if intel and isinstance(intel.get("predecessor_award"), dict):
+            pred = backfill_predecessor_award_details(intel["predecessor_award"])
+            if pred and (
+                pred.get("number_of_offers_received") != intel["predecessor_award"].get("number_of_offers_received")
+                or pred.get("modification_history") != intel["predecessor_award"].get("modification_history")
+            ):
+                intel = dict(intel)
+                intel["predecessor_award"] = pred
+                if pred.get("number_of_offers_received") is not None:
+                    intel["number_of_offers_received"] = pred["number_of_offers_received"]
+                row.pricing_intel = intel
+                session.commit()
         text_chars = (
             session.query(func.coalesce(func.length(Contract.attachment_text), 0))
             .filter(Contract.id == row.id)
@@ -1207,8 +1222,13 @@ def run_find_subs(notice_id: str, force: bool = Query(False)):
 def get_contract_subs(notice_id: str):
     session = SessionLocal()
     try:
-        from sub_finder import list_contract_subs
+        from models import Contract
+        from sub_finder import list_contract_subs, maybe_start_background_sub_search
 
+        contract = session.query(Contract).filter_by(notice_id=notice_id).first()
+        if not contract:
+            raise ValueError("Contract not found")
+        maybe_start_background_sub_search(session, contract)
         return list_contract_subs(session, notice_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -2244,13 +2264,16 @@ def list_csv_opportunities(
     try:
         from csv_opportunity_service import list_csv_opportunity_cards
 
-        return list_csv_opportunity_cards(
+        result = list_csv_opportunity_cards(
             session,
             state=state,
             days_bucket=days,
             naics_code=naics,
             keyword=q,
         )
+        if result.get("records_removed_expired") or result.get("records_removed_duplicate"):
+            session.commit()
+        return result
     finally:
         session.close()
 

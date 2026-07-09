@@ -134,6 +134,52 @@ function renderOverviewTab(c) {
   const optionYears = pred.option_years_exercised != null ? String(pred.option_years_exercised) : "—";
   const calcNote = pred.pricing_calc_note || "";
   const modCount = pred.modifications_count != null ? String(pred.modifications_count) : "—";
+  const modHistory = Array.isArray(pred.modification_history) ? pred.modification_history : [];
+  const modHistoryHtml = modHistory.length
+    ? `<div class="prior-mod-history-wrap">
+        <p class="card-label">Modification detail (prior awarded contract)</p>
+        <table class="prior-mod-history-table">
+          <thead><tr><th>Mod</th><th>Date</th><th>Amount</th><th>Type</th></tr></thead>
+          <tbody>
+            ${modHistory
+              .map((row) => {
+                const when = row.action_date
+                  ? new Date(`${String(row.action_date).slice(0, 10)}T00:00:00`).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—";
+                const amount = row.amount != null && Number(row.amount) !== 0 ? formatMoney(row.amount) : "—";
+                return `<tr>
+                  <td>${escapeHtml(row.modification_number || "—")}</td>
+                  <td>${escapeHtml(when)}</td>
+                  <td>${escapeHtml(amount)}</td>
+                  <td>${escapeHtml(row.description || "—")}</td>
+                </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </div>`
+    : "";
+  const offersReceived =
+    pred.number_of_offers_received != null
+      ? Number(pred.number_of_offers_received)
+      : intel.number_of_offers_received != null
+        ? Number(intel.number_of_offers_received)
+        : intel.unique_bidders != null
+          ? Number(intel.unique_bidders)
+          : null;
+  const offersLabel = pred.is_prior_contract
+    ? "Offers received (prior award)"
+    : offersReceived != null
+      ? "Unique bidders (region)"
+      : "Offers received";
+  const offersDisplay =
+    offersReceived != null && offersReceived > 0
+      ? offersReceived.toLocaleString()
+      : "—";
   const methodLabels = {
     contract_number: "Prior contract (exact #)",
     contract_number_keyword: "Prior contract (exact #)",
@@ -198,10 +244,12 @@ function renderOverviewTab(c) {
         <div><span class="card-label">Prior contract #</span><p>${escapeHtml(priorContract)}</p></div>
         <div><span class="card-label">Total obligated</span><p>${totalValue}</p></div>
         <div><span class="card-label">Option years</span><p>${escapeHtml(optionYears)}</p></div>
-        <div><span class="card-label">Modifications</span><p>${escapeHtml(modCount)}</p></div>
+        <div><span class="card-label">Contract mods (prior award)</span><p>${escapeHtml(modCount)}</p></div>
+        <div><span class="card-label">${escapeHtml(offersLabel)}</span><p>${escapeHtml(offersDisplay)}</p></div>
         <div><span class="card-label">Source</span><p>${escapeHtml(incumbentSource)}</p></div>
       </div>
       ${calcNote ? `<p class="pricing-note">${escapeHtml(calcNote)}</p>` : ""}
+      ${modHistoryHtml}
       <div class="prior-contract-lookup">
         <label class="card-label" for="prior-contract-input">Look up prior contract # (USAspending)</label>
         <div class="prior-contract-lookup-row">
@@ -427,16 +475,18 @@ function startContractDetailPolling(noticeId) {
 }
 
 async function beginContractDetailAnalysis(noticeId) {
+  requestContractScreening(noticeId).catch((err) => {
+    if (err.message !== "Login required") showSyncStatus(err.message, true);
+  });
+  startContractDetailPolling(noticeId);
   try {
-    await requestContractScreening(noticeId);
     const c = await fetchContract(noticeId);
     if (c) {
       activeContractData = c;
       if (activeContractTab === "overview") renderOverviewTab(c);
-      startContractDetailPolling(noticeId);
     }
-  } catch (err) {
-    if (err.message !== "Login required") showSyncStatus(err.message, true);
+  } catch {
+    /* polling will refresh overview */
   }
 }
 
