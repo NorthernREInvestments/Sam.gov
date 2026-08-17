@@ -36,6 +36,25 @@ def run_daily_sync() -> None:
         logger.exception("Scheduled daily sync failed")
         return
 
+    try:
+        from database import SessionLocal
+        from expired_purge_service import purge_expired_unpursued
+
+        session = SessionLocal()
+        try:
+            purge = purge_expired_unpursued(session)
+            if purge.get("contracts_removed") or purge.get("csv_removed"):
+                session.commit()
+                logger.info(
+                    "Expired purge: contracts=%s csv=%s",
+                    purge.get("contracts_removed"),
+                    purge.get("csv_removed"),
+                )
+        finally:
+            session.close()
+    except Exception:
+        logger.exception("Expired unpursued purge failed")
+
     from autopilot_service import run_scheduled_autopilot
     from pricing_backfill_service import start_background_pricing_backfill
 

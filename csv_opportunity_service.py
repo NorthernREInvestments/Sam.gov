@@ -193,17 +193,19 @@ def list_csv_opportunity_cards(
 ) -> dict[str, Any]:
     """All imported CSV opportunities with optional filters."""
     removed_expired = 0
+    removed_contracts = 0
     removed_duplicate = 0
     if purge_expired:
-        from csv_import_service import (
-            remove_duplicate_csv_rows,
-            remove_expired_csv_rows,
-        )
-        from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
+        from csv_import_service import remove_duplicate_csv_rows
+        from expired_purge_service import purge_expired_unpursued
 
-        removed_expired = remove_expired_csv_rows(session)
+        purge = purge_expired_unpursued(session)
+        removed_expired = int(purge.get("csv_removed") or 0)
+        removed_contracts = int(purge.get("contracts_removed") or 0)
         removed_duplicate = remove_duplicate_csv_rows(session)
-        if removed_expired or removed_duplicate:
+        if removed_duplicate and not removed_expired and not removed_contracts:
+            from csv_attachment_queue_service import clear_pending_queue_for_deleted_csv
+
             clear_pending_queue_for_deleted_csv(session)
 
     today = date.today()
@@ -243,6 +245,7 @@ def list_csv_opportunity_cards(
         "count": len(sorted_cards),
         "total_count": len(cards),
         "records_removed_expired": removed_expired,
+        "records_removed_contracts": removed_contracts,
         "records_removed_duplicate": removed_duplicate,
         "filter_options": csv_opportunity_filter_options(session),
         "opportunities": sorted_cards,

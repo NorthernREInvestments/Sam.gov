@@ -504,10 +504,12 @@ def remove_stale_csv_rows(session: Session, present_notice_ids: set[str]) -> int
 
 
 def remove_expired_csv_rows(session: Session, *, today: date | None = None) -> int:
-    """Remove CSV rows whose response deadline has passed (keeps protected + dashboard-linked rows)."""
+    """Remove CSV rows past the response deadline (keeps Pursuing / Submitted / Won / Lost)."""
     today = today or date.today()
+    protected_lower = [status.lower() for status in PROTECTED_CSV_STATUSES]
     deleted = (
-        _deletable_csv_rows_query(session)
+        session.query(CsvOpportunity)
+        .filter(func.lower(func.coalesce(CsvOpportunity.status, "")).notin_(protected_lower))
         .filter(CsvOpportunity.due_date.isnot(None))
         .filter(CsvOpportunity.due_date < today)
         .delete(synchronize_session=False)

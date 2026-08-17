@@ -32,7 +32,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260709-subs-fast-load"
+APP_BUILD_VERSION = "20260816-expired-unpursued-purge"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -539,9 +539,14 @@ def get_contracts(
     try:
         from api_budget import get_usage_snapshot
         from attachment_storage import contract_ids_with_stored_pdfs
+        from expired_purge_service import purge_expired_unpursued
         from screening_pipeline import is_dashboard_ready_fast, is_visible_on_dashboard
         from sam_client import min_days_from_env
         from sync import contract_to_card_dict, list_contracts
+
+        purge = purge_expired_unpursued(session)
+        if purge.get("contracts_removed") or purge.get("csv_removed"):
+            session.commit()
 
         effective_min_days = min_days if min_days is not None else min_days_from_env()
         stored_pdf_ids = set(contract_ids_with_stored_pdfs(session))
@@ -2271,7 +2276,11 @@ def list_csv_opportunities(
             naics_code=naics,
             keyword=q,
         )
-        if result.get("records_removed_expired") or result.get("records_removed_duplicate"):
+        if (
+            result.get("records_removed_expired")
+            or result.get("records_removed_duplicate")
+            or result.get("records_removed_contracts")
+        ):
             session.commit()
         return result
     finally:
