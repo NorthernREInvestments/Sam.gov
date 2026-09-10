@@ -787,6 +787,7 @@ def get_focus_naics(session: Session) -> str | None:
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
     """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
+    from api_budget import get_usage_snapshot
     from usaspending_savings import reset_usaspending_savings
     from watchlist_sync import run_govspend_watchlist_sync
 
@@ -955,7 +956,7 @@ def _sync_naics_code_list(
         status_session.close()
 
     from intake import intake_matching_contracts
-    from api_budget import can_spend_sam
+    from api_budget import can_spend_sam, get_usage_snapshot
 
     budget_skipped: list[str] = []
     for naics in naics_codes:
