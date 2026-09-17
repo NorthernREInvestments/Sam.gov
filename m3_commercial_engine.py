@@ -154,31 +154,41 @@ def _text_blob(row: dict[str, Any]) -> str:
 
 def extract_identification(row: dict[str, Any]) -> dict[str, Any]:
     """IDENTIFICATION block — exact product signals when present; else UNKNOWN."""
-    blob = _text_blob(row)
+    # Prefer title + BOM for manufacturer identity; full evidence blob causes portal chrome false hits
+    title = str(row.get("title") or "")
+    desc = str(row.get("description") or "")[:2000]
     meta = row.get("raw_metadata") if isinstance(row.get("raw_metadata"), dict) else {}
     bom = row.get("line_items") or row.get("bom") or []
     first = bom[0] if isinstance(bom, list) and bom and isinstance(bom[0], dict) else {}
+    bom_text = " ".join(
+        f"{li.get('description') or ''} {li.get('manufacturer') or ''} {li.get('part_number') or ''}"
+        for li in (bom if isinstance(bom, list) else [])
+        if isinstance(li, dict)
+    )
+    identity_blob = " ".join([title, desc, bom_text, str(meta.get("nsn") or ""), str(row.get("solicitation_number") or "")])
+    full_blob = _text_blob(row)
 
-    nsn = meta.get("nsn") or (NSN_RE.search(blob).group(1) if NSN_RE.search(blob) else None)
-    part = first.get("part_number") or (PART_RE.search(blob).group(1) if PART_RE.search(blob) else None)
-    cage = first.get("cage") or (CAGE_RE.search(blob).group(1) if CAGE_RE.search(blob) else None)
+    nsn = meta.get("nsn") or (NSN_RE.search(identity_blob).group(1) if NSN_RE.search(identity_blob) else None)
+    if not nsn and NSN_RE.search(full_blob):
+        nsn = NSN_RE.search(full_blob).group(1)
+    part = first.get("part_number") or (PART_RE.search(identity_blob).group(1) if PART_RE.search(identity_blob) else None)
+    cage = first.get("cage") or (CAGE_RE.search(identity_blob).group(1) if CAGE_RE.search(identity_blob) else None)
     qty = _num(first.get("quantity"))
     if qty is None:
-        qm = QTY_RE.search(blob)
+        qm = QTY_RE.search(identity_blob)
         qty = float(qm.group(1)) if qm else None
 
     mfr = first.get("manufacturer") or row.get("manufacturer")
     if not mfr:
         for name in KNOWN_MANUFACTURERS:
             if name in AMBIGUOUS_MFR_TOKENS:
-                # Require explicit manufacturer/context near token
                 if not re.search(
-                    rf"\b(?:manufacturer|mfr|brand|oem|model)?\s*{re.escape(name)}\b|\b{re.escape(name)}\s+(?:inc|corp|model|latitude|proliant|thinkpad)",
-                    blob,
+                    rf"\b{re.escape(name)}\b",
+                    title + " " + bom_text,
                     re.I,
                 ):
                     continue
-            if re.search(rf"\b{re.escape(name)}\b", blob, re.I):
+            if re.search(rf"\b{re.escape(name)}\b", title + " " + bom_text, re.I):
                 mfr = name
                 break
 
