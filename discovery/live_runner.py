@@ -1,4 +1,4 @@
-"""Live discovery runner — listing-first, per-source budget isolated."""
+"""Live discovery runner — listing-first, per-source budget isolated, full eligible coverage."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 from discovery.analytics import analyze_run_results, quality_sample
 from discovery.classify import classify_discovery_opportunity, early_reject_reasons
 from discovery.deadline import normalize_deadline
-from discovery.deadline_viability import compute_deadline_runway, enrich_opportunity_deadline
+from discovery.deadline_viability import enrich_opportunity_deadline
 from discovery.http_client import (
     BudgetExhausted,
     GlobalBudgetExhausted,
@@ -23,10 +23,79 @@ from discovery.profiles import get_profile
 from discovery.sam_policy import assert_no_broad_sam_discovery
 
 
-def _candidate_sources(max_sources: int, *, require_verified: bool = False) -> list[dict[str, Any]]:
+def _candidate_sources(
+    max_sources: int | None,
+    *,
+    require_verified: bool = False,
+    all_eligible: bool = False,
+) -> list[dict[str, Any]]:
     from discovery.selection import select_diversified_sources
 
-    return select_diversified_sources(max_sources=max_sources, require_verified=require_verified)
+    return select_diversified_sources(
+        max_sources=max_sources,
+        require_verified=require_verified,
+        all_eligible=all_eligible,
+    )
+
+
+def _explicit_source_state(per: dict[str, Any]) -> str:
+    """Map per-source result to an explicit accounting state."""
+    if per.get("selection_state") and not per.get("attempt", True):
+        return str(per["selection_state"])
+    stop = str(per.get("source_stop_reason") or "").upper()
+    if stop in {
+        "AUTH_REQUIRED",
+        "REGISTRATION_REQUIRED",
+        "BOT_PROTECTED",
+        "BACKOFF",
+        "DISABLED",
+        "DUPLICATE",
+        "HEALTHY_ZERO",
+        "PAGINATION_INCOMPLETE",
+        "NO_FETCHER",
+        "TECHNICAL_FAILURE",
+        "SOURCE_EXCEPTION",
+        "VALIDATION_FAILURE",
+        "SOURCE_BUDGET_EXHAUSTED",
+        "GLOBAL_BUDGET_EXHAUSTED",
+        "RUNTIME_BUDGET_EXHAUSTED",
+    }:
+        return stop
+    if per.get("ok") and int(per.get("raw") or 0) == 0:
+        return "HEALTHY_ZERO"
+    if per.get("ok"):
+        if stop == "PAGINATION_INCOMPLETE":
+            return "PAGINATION_INCOMPLETE"
+        return "SUCCESS"
+    if "AUTH" in stop:
+        return "AUTH_REQUIRED"
+    if "BOT" in stop or "CLOUDFLARE" in stop:
+        return "BOT_PROTECTED"
+    if "REGISTRATION" in stop:
+        return "REGISTRATION_REQUIRED"
+    return "TECHNICAL_FAILURE"
+
+
+def _known_active_inventory(session: Any | None) -> dict[str, Any]:
+    """Durable open-opportunity universe vs this-run fetches."""
+    if session is None:
+        return {
+            "known_active_market_inventory": None,
+            "note": "no_session",
+        }
+    try:
+        from models import DiscoveredOpportunity
+
+        closed = {"EXPIRED", "CANCELLED", "CANCELED", "AWARDED", "CLOSED"}
+        rows = session.query(DiscoveredOpportunity).all()
+        active = [r for r in rows if str(r.status or "OPEN").upper() not in closed]
+        return {
+            "known_active_market_inventory": len(active),
+            "known_total_discovered": len(rows),
+            "known_closed_or_expired": len(rows) - len(active),
+        }
+    except Exception as exc:
+        return {"known_active_market_inventory": None, "error": str(exc)}
 
 
 def run_live_discovery(
@@ -45,6 +114,7 @@ def run_live_discovery(
 ) -> dict[str, Any]:
     """
     Controlled live/preview discovery — listing-first by default for TINY/BROAD.
+    BROAD/NATIONAL: ALL eligible sources (priority = order only).
     Per-source budget exhaustion continues to next source.
     Optional on_source_complete(metrics, source_id) for coarse progress heartbeats.
     """
@@ -61,10 +131,15 @@ def run_live_discovery(
     if persist and session is None:
         return {"error": "persist requires session", "LIVE_API_REQUESTS": 0}
 
+    inventory_before = _known_active_inventory(session)
+
     prof = get_profile(profile)
     budget: RequestBudget = prof["budget"]
     do_details = prof.get("fetch_details", False) if fetch_details is None else fetch_details
     do_documents = prof.get("fetch_documents", False) if fetch_documents is None else fetch_documents
+    all_eligible = bool(prof.get("all_eligible_sources"))
+    pagination_exhaust = bool(prof.get("pagination_exhaust"))
+    pagination_safety_max_pages = int(prof.get("pagination_safety_max_pages") or budget.max_pages_per_source)
 
     client = PublicProcurementHttpClient(
         budget=budget,
@@ -72,25 +147,44 @@ def run_live_discovery(
         transport=transport,
     )
 
-    source_cap = max_sources if max_sources is not None else prof["max_sources"]
-    candidates = _candidate_sources(source_cap)
-    if source_ids:
-        # Preserve caller order for tests
-        pool = {c["source_id"]: c for c in _candidate_sources(999)}
-        # Also allow arbitrary ids from selection pool map
-        from discovery.selection import _pool_map
+    from discovery.selection import select_all_eligible_sources, _pool_map
 
+    selection_bundle = select_all_eligible_sources(include_blocked_accounted=True)
+    registered_sources = selection_bundle["registered_in_pool"]
+    eligible_full = selection_bundle["eligible"]
+    accounted_non_attempt = list(selection_bundle["accounted_non_attempt"])
+
+    source_cap = max_sources if max_sources is not None else prof.get("max_sources")
+    if source_ids:
+        pool = {c["source_id"]: c for c in _candidate_sources(999, all_eligible=True)}
         pool.update(_pool_map())
-        candidates = [pool[s] for s in source_ids if s in pool][:source_cap]
+        candidates = [pool[s] for s in source_ids if s in pool]
+        if isinstance(source_cap, int) and source_cap > 0:
+            candidates = candidates[:source_cap]
+    elif all_eligible or source_cap is None:
+        candidates = list(eligible_full)
+    else:
+        candidates = _candidate_sources(source_cap, all_eligible=False)
 
     metrics: dict[str, Any] = {
+        "registered_sources": registered_sources,
+        "eligible_sources": len(eligible_full),
         "sources_attempted": 0,
         "sources_successful": 0,
         "sources_failed": 0,
+        "sources_healthy_zero": 0,
+        "sources_auth_blocked": 0,
+        "sources_registration_blocked": 0,
+        "sources_bot_blocked": 0,
+        "sources_backoff": 0,
+        "sources_technical_failure": 0,
+        "sources_pagination_incomplete": 0,
+        "unattempted_eligible": 0,
         "raw_records": 0,
         "listing_records": 0,
         "normalized_records": 0,
         "unique_records": 0,
+        "fetched_this_run": 0,
         "CORE_PRODUCT": 0,
         "PRODUCT_PLUS_SERVICE": 0,
         "UNKNOWN": 0,
@@ -106,31 +200,59 @@ def run_live_discovery(
         "details_fetched": 0,
         "document_links_discovered": 0,
         "documents_fetched": 0,
-        "detail_fetches": 0,  # legacy alias
-        "documents_discovered": 0,  # legacy alias = links discovered
+        "detail_fetches": 0,
+        "documents_discovered": 0,
         "source_budget_exhausted": False,
         "global_budget_exhausted": False,
         "runtime_budget_exhausted": False,
+        "pages_fetched_total": 0,
     }
     collected: list[dict[str, Any]] = []
     seen_keys: set[str] = set()
     sources_contacted: list[dict[str, Any]] = []
+    attempted_ids: set[str] = set()
+
+    # Pre-account blocked/ineligible so they never appear as silent omissions
+    for row in accounted_non_attempt:
+        sid = row["source_id"]
+        metrics["per_source"][sid] = {
+            "ok": False,
+            "attempt": False,
+            "selection_state": row.get("selection_state") or row.get("accounted_reason"),
+            "source_stop_reason": row.get("accounted_reason") or row.get("selection_state"),
+            "explicit_state": row.get("selection_state") or "DISABLED",
+        }
+
+    stop_run_partial = False
+    partial_reason = None
 
     for cand in candidates:
         if metrics["raw_records"] >= prof["max_records_total"]:
+            stop_run_partial = True
+            partial_reason = "MAX_RECORDS_TOTAL"
             break
         if metrics["global_budget_exhausted"] or metrics["runtime_budget_exhausted"]:
+            stop_run_partial = True
+            partial_reason = (
+                "GLOBAL_BUDGET_EXHAUSTED"
+                if metrics["global_budget_exhausted"]
+                else "RUNTIME_BUDGET_EXHAUSTED"
+            )
             break
 
         metrics["sources_attempted"] += 1
         sid = cand["source_id"]
+        attempted_ids.add(sid)
         fetcher = get_live_fetcher(cand["adapter_family"])
         if not fetcher:
             metrics["sources_failed"] += 1
+            metrics["sources_technical_failure"] += 1
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": "no_fetcher",
                 "source_stop_reason": "NO_FETCHER",
+                "explicit_state": "TECHNICAL_FAILURE",
             }
             continue
 
@@ -142,37 +264,73 @@ def run_live_discovery(
                 list_url=cand["list_url"],
                 source_id=sid,
                 max_pages=budget.max_pages_per_source,
+                pagination_exhaust=pagination_exhaust,
+                pagination_safety_max_pages=pagination_safety_max_pages,
             )
-            metrics["listing_requests"] += 1
+            metrics["listing_requests"] += int(result.get("pages_fetched") or 1)
+            metrics["pages_fetched_total"] += int(result.get("pages_fetched") or 0)
             sources_contacted.append(
                 {"source_id": sid, "url": cand["list_url"], "name": cand.get("name")}
             )
 
             validation = result.get("validation") or {}
+            pag_complete = bool(result.get("pagination_complete"))
+            pag_stop = str(result.get("pagination_stop_reason") or "")
+            pages_fetched = int(result.get("pages_fetched") or 0)
+
             if not validation.get("valid"):
+                fail_type = (validation.get("failure_type") or "VALIDATION_FAILURE").upper()
                 metrics["sources_failed"] += 1
                 metrics["parser_warnings"].extend(validation.get("warnings") or [])
-                fail_type = (validation.get("failure_type") or "VALIDATION_FAILURE").upper()
+                if fail_type == "AUTH_REQUIRED":
+                    metrics["sources_auth_blocked"] += 1
+                elif fail_type == "BOT_PROTECTED":
+                    metrics["sources_bot_blocked"] += 1
+                elif fail_type == "REGISTRATION_REQUIRED":
+                    metrics["sources_registration_blocked"] += 1
+                else:
+                    metrics["sources_technical_failure"] += 1
                 metrics["per_source"][sid] = {
                     "ok": False,
+                    "attempt": True,
                     "validation": validation,
                     "requests": client.request_count - before,
-                    "listing_requests": 1,
+                    "listing_requests": pages_fetched or 1,
+                    "pages_fetched": pages_fetched,
+                    "records_fetched": int(result.get("records_fetched") or 0),
+                    "pagination_complete": pag_complete,
+                    "pagination_stop_reason": pag_stop or fail_type,
+                    "source_reported_total": result.get("source_reported_total"),
                     "source_stop_reason": fail_type,
                     "source_budget_exhausted": False,
+                    "explicit_state": fail_type
+                    if fail_type
+                    in {"AUTH_REQUIRED", "BOT_PROTECTED", "REGISTRATION_REQUIRED"}
+                    else "TECHNICAL_FAILURE",
+                    "beyond_page_1": bool(result.get("beyond_page_1")),
                 }
                 continue
 
             opps = result.get("opportunities") or []
             metrics["listing_records"] += len(opps)
-            metrics["sources_successful"] += 1
+
+            if pag_stop == "PAGINATION_INCOMPLETE":
+                metrics["sources_pagination_incomplete"] += 1
+                source_stop_reason = "PAGINATION_INCOMPLETE"
+            elif len(opps) == 0:
+                metrics["sources_healthy_zero"] += 1
+                metrics["sources_successful"] += 1
+                source_stop_reason = "HEALTHY_ZERO"
+            else:
+                metrics["sources_successful"] += 1
+
             src_raw = 0
             src_unique = 0
             src_product = 0
 
             for opp in opps:
                 if src_raw >= budget.max_records_per_source:
-                    source_stop_reason = "SOURCE_RECORD_CAP"
+                    source_stop_reason = source_stop_reason or "SOURCE_RECORD_CAP"
                     break
                 if metrics["raw_records"] >= prof["max_records_total"]:
                     break
@@ -191,7 +349,6 @@ def run_live_discovery(
                 elif cand["kind"] == "FEDERAL":
                     opp.jurisdiction = "FEDERAL"
 
-                # Document links discovered from listing (no body fetch)
                 for d in opp.document_links or []:
                     if d.get("url"):
                         metrics["document_links_discovered"] += 1
@@ -219,12 +376,14 @@ def run_live_discovery(
 
                 metrics["raw_records"] += 1
                 metrics["normalized_records"] += 1
+                metrics["fetched_this_run"] += 1
                 src_raw += 1
                 metrics[cls["classification"]] = metrics.get(cls["classification"], 0) + 1
 
                 if dl.get("deadline_passed"):
                     metrics["expired"] += 1
 
+                # UNKNOWN survives — only SERVICE / CLEARLY_IRRELEVANT / deadline reject early
                 if reject["reject"] or cls["classification"] == "SERVICE":
                     continue
 
@@ -236,17 +395,12 @@ def run_live_discovery(
                 if gate.get("earned"):
                     metrics["detail_eligible"] += 1
 
-                # Detail fetch only when profile enables AND gate says fetch
                 if gate.get("fetch") and opp.detail_url and (authorize_live or transport is not None):
-                    if not do_documents:
-                        # Detail HTML only — still no document body download policy for preview
-                        pass
                     try:
                         detail = fetcher.fetch_detail(client, detail_url=opp.detail_url, source_id=sid)
                         metrics["detail_requests"] += 1
                         metrics["details_fetched"] += 1
                         metrics["detail_fetches"] += 1
-                        # Discover more doc links without counting as document_requests
                         for d in detail.get("documents") or []:
                             if d.get("url"):
                                 existing = {x.get("url") for x in (opp.document_links or [])}
@@ -256,9 +410,8 @@ def run_live_discovery(
                                     opp.document_links.append(d)
                                     metrics["document_links_discovered"] += 1
                                     metrics["documents_discovered"] += 1
-                        # Explicit: never auto-fetch document bodies here
                         if do_documents:
-                            metrics["document_requests"] += 0  # reserved — bodies not fetched in this stage
+                            metrics["document_requests"] += 0
                     except SourceBudgetExhausted:
                         source_stop_reason = "SOURCE_BUDGET_EXHAUSTED"
                         metrics["source_budget_exhausted"] = True
@@ -307,85 +460,125 @@ def run_live_discovery(
                     if persist and session is not None:
                         upsert_canonical_opportunity(session, opp, dry_run=False)
 
+            explicit = _explicit_source_state(
+                {
+                    "ok": True,
+                    "raw": src_raw,
+                    "source_stop_reason": source_stop_reason
+                    or ("HEALTHY_ZERO" if src_raw == 0 else "SUCCESS"),
+                }
+            )
             metrics["per_source"][sid] = {
                 "ok": True,
+                "attempt": True,
                 "raw": src_raw,
                 "unique": src_unique,
                 "product_candidates": src_product,
                 "validation": validation.get("health_status"),
                 "url": cand["list_url"],
                 "requests": client.request_count - before,
-                "listing_requests": 1,
+                "listing_requests": pages_fetched or 1,
                 "detail_requests": 0,
-                "source_stop_reason": source_stop_reason or "COMPLETED",
+                "pages_fetched": pages_fetched,
+                "records_fetched": int(result.get("records_fetched") or src_raw),
+                "pagination_complete": pag_complete,
+                "pagination_stop_reason": pag_stop or source_stop_reason or "COMPLETED",
+                "source_reported_total": result.get("source_reported_total"),
+                "beyond_page_1": bool(result.get("beyond_page_1")),
+                "source_stop_reason": source_stop_reason
+                or ("HEALTHY_ZERO" if src_raw == 0 else "COMPLETED"),
                 "source_budget_exhausted": source_stop_reason == "SOURCE_BUDGET_EXHAUSTED",
+                "explicit_state": explicit,
+                "bootstrap_complete": bool(pag_complete)
+                and explicit in {"SUCCESS", "HEALTHY_ZERO"},
             }
 
         except SourceBudgetExhausted as exc:
             metrics["source_budget_exhausted"] = True
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": str(exc),
                 "source_stop_reason": "SOURCE_BUDGET_EXHAUSTED",
                 "source_budget_exhausted": True,
                 "requests": client.request_count - before,
                 "isolated": True,
+                "explicit_state": "SOURCE_BUDGET_EXHAUSTED",
             }
-            # CONTINUE to next source
             continue
         except GlobalBudgetExhausted as exc:
             metrics["global_budget_exhausted"] = True
+            stop_run_partial = True
+            partial_reason = "GLOBAL_BUDGET_EXHAUSTED"
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": str(exc),
                 "source_stop_reason": "GLOBAL_BUDGET_EXHAUSTED",
                 "requests": client.request_count - before,
+                "explicit_state": "GLOBAL_BUDGET_EXHAUSTED",
             }
             break
         except RuntimeBudgetExhausted as exc:
             metrics["runtime_budget_exhausted"] = True
+            stop_run_partial = True
+            partial_reason = "RUNTIME_BUDGET_EXHAUSTED"
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": str(exc),
                 "source_stop_reason": "RUNTIME_BUDGET_EXHAUSTED",
                 "requests": client.request_count - before,
+                "explicit_state": "RUNTIME_BUDGET_EXHAUSTED",
             }
             break
         except BudgetExhausted as exc:
-            # Backward-compatible: treat unknown BudgetExhausted by message
             msg = str(exc).lower()
             if "per-source" in msg:
                 metrics["source_budget_exhausted"] = True
                 metrics["per_source"][sid] = {
                     "ok": False,
+                    "attempt": True,
                     "error": str(exc),
                     "source_stop_reason": "SOURCE_BUDGET_EXHAUSTED",
                     "source_budget_exhausted": True,
                     "isolated": True,
+                    "explicit_state": "SOURCE_BUDGET_EXHAUSTED",
                 }
                 continue
             if "runtime" in msg or "max runtime" in msg:
                 metrics["runtime_budget_exhausted"] = True
+                stop_run_partial = True
+                partial_reason = "RUNTIME_BUDGET_EXHAUSTED"
                 metrics["per_source"][sid] = {
                     "ok": False,
+                    "attempt": True,
                     "error": str(exc),
                     "source_stop_reason": "RUNTIME_BUDGET_EXHAUSTED",
+                    "explicit_state": "RUNTIME_BUDGET_EXHAUSTED",
                 }
                 break
             metrics["global_budget_exhausted"] = True
+            stop_run_partial = True
+            partial_reason = "GLOBAL_BUDGET_EXHAUSTED"
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": str(exc),
                 "source_stop_reason": "GLOBAL_BUDGET_EXHAUSTED",
+                "explicit_state": "GLOBAL_BUDGET_EXHAUSTED",
             }
             break
         except Exception as exc:
             metrics["sources_failed"] += 1
+            metrics["sources_technical_failure"] += 1
             metrics["per_source"][sid] = {
                 "ok": False,
+                "attempt": True,
                 "error": str(exc),
                 "source_stop_reason": "SOURCE_EXCEPTION",
                 "isolated": True,
+                "explicit_state": "TECHNICAL_FAILURE",
             }
             continue
 
@@ -396,16 +589,71 @@ def run_live_discovery(
                 pass
 
         if metrics["global_budget_exhausted"] or metrics["runtime_budget_exhausted"]:
+            stop_run_partial = True
+            partial_reason = partial_reason or (
+                "GLOBAL_BUDGET_EXHAUSTED"
+                if metrics["global_budget_exhausted"]
+                else "RUNTIME_BUDGET_EXHAUSTED"
+            )
             break
+
+    # Remaining eligible sources not attempted (cost/runtime/record cap)
+    remaining = [c for c in candidates if c["source_id"] not in attempted_ids]
+    # Also count eligible_full not in candidates when TINY caps — those are intentional for tiny only
+    if all_eligible or source_cap is None:
+        for c in remaining:
+            metrics["unattempted_eligible"] += 1
+            metrics["per_source"][c["source_id"]] = {
+                "ok": False,
+                "attempt": False,
+                "source_stop_reason": "UNATTEMPTED_ELIGIBLE",
+                "explicit_state": "UNATTEMPTED_ELIGIBLE",
+                "partial_reason": partial_reason or "RUN_STOPPED",
+            }
+        if remaining:
+            stop_run_partial = True
+            partial_reason = partial_reason or "UNATTEMPTED_ELIGIBLE_REMAIN"
+
+    inventory_after = _known_active_inventory(session)
 
     unique = metrics["unique_records"] or 0
     product_cands = metrics.get("CORE_PRODUCT", 0) + metrics.get("PRODUCT_PLUS_SERVICE", 0)
     req = client.request_count or 0
     metrics["requests_per_unique_opportunity"] = round(req / unique, 3) if unique else None
     metrics["requests_per_product_candidate"] = round(req / product_cands, 3) if product_cands else None
+    metrics["fetched_this_run"] = metrics["raw_records"]
+    metrics["known_active_market_inventory_before"] = inventory_before.get("known_active_market_inventory")
+    metrics["known_active_market_inventory"] = inventory_after.get("known_active_market_inventory")
+    metrics["known_total_discovered"] = inventory_after.get("known_total_discovered")
+
+    run_status = "PARTIAL_DISCOVERY_RUN" if stop_run_partial else "COMPLETE"
+    if stop_run_partial and not partial_reason:
+        partial_reason = "PARTIAL"
 
     analytics = analyze_run_results(collected)
     samples = quality_sample(collected)
+
+    completeness = {
+        "run_status": run_status,
+        "partial_reason": partial_reason,
+        "registered_sources": registered_sources,
+        "eligible_sources": len(eligible_full),
+        "attempted_sources": metrics["sources_attempted"],
+        "successful_sources": metrics["sources_successful"],
+        "healthy_zero_sources": metrics["sources_healthy_zero"],
+        "auth_blocked": metrics["sources_auth_blocked"],
+        "registration_blocked": metrics["sources_registration_blocked"],
+        "bot_blocked": metrics["sources_bot_blocked"],
+        "backoff": metrics["sources_backoff"],
+        "technical_failures": metrics["sources_technical_failure"],
+        "pagination_incomplete": metrics["sources_pagination_incomplete"],
+        "unattempted_eligible": metrics["unattempted_eligible"],
+        "remaining_eligible_count": len(remaining) if (all_eligible or source_cap is None) else 0,
+        "fetched_this_run": metrics["fetched_this_run"],
+        "unique_records_fetched": metrics["unique_records"],
+        "known_active_market_inventory": metrics["known_active_market_inventory"],
+        "pages_fetched_total": metrics["pages_fetched_total"],
+    }
 
     return {
         "profile": prof["name"],
@@ -414,7 +662,12 @@ def run_live_discovery(
         "authorize_live": authorize_live,
         "fetch_details": do_details,
         "fetch_documents": do_documents,
+        "all_eligible_sources": all_eligible or source_cap is None,
+        "pagination_exhaust": pagination_exhaust,
         "metrics": metrics,
+        "completeness": completeness,
+        "run_status": run_status,
+        "partial_reason": partial_reason,
         "analytics": analytics,
         "quality_samples": samples if not persist else {"note": "available in preview"},
         "opportunities": collected if not persist else [],

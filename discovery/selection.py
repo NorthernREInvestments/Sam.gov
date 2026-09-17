@@ -1,4 +1,4 @@
-"""Diversified live source selection — not alphabetical AL/AK/AZ/AR/CA."""
+"""Diversified live source selection — priority orders execution; coverage is all eligible."""
 
 from __future__ import annotations
 
@@ -49,6 +49,8 @@ COOP_VALIDATION_PRIORITY = [
     "coop_omnia_live",
     "coop_1gpa_live",
 ]
+
+_BLOCKED_STATUSES = {"AUTH_REQUIRED", "BLOCKED", "BROKEN", "PLANNED", "UNSUPPORTED", "DISABLED"}
 
 
 def _pool_map() -> dict[str, dict[str, Any]]:
@@ -105,31 +107,140 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "kind": "FEDERAL",
             "adapter_status": ADAPTER_UNVERIFIED_LIVE if f.get("live_capable") else "PARTIAL",
             "validation_candidate": bool(f.get("list_url")),
+            "platform_family": f.get("platform_family") or "FederalPublic",
         }
     return out
 
 
 def _eligible(row: dict[str, Any], *, require_verified: bool = False) -> bool:
     st = (row.get("adapter_status") or "").upper()
+    if st in _BLOCKED_STATUSES:
+        return False
     if require_verified:
         return st == ADAPTER_LIVE_VERIFIED
-    if st in {ADAPTER_LIVE_VERIFIED, ADAPTER_UNVERIFIED_LIVE, "DEGRADED"}:
+    if st in {ADAPTER_LIVE_VERIFIED, ADAPTER_UNVERIFIED_LIVE, "DEGRADED", "PARTIAL"}:
         return True
     if st in VALIDATABLE_STATUSES:
+        return True
+    # Missing status but has URL + adapter → attempt (classify failure at runtime)
+    if row.get("list_url") and row.get("adapter_family"):
         return True
     return False
 
 
-def select_diversified_sources(
+def _priority_rank(source_id: str) -> int:
+    """Lower = earlier. Priority controls ORDER only."""
+    for i, sid in enumerate(STATE_VALIDATION_PRIORITY):
+        if sid == source_id:
+            return i
+    for i, sid in enumerate(LOCAL_VALIDATION_PRIORITY):
+        if sid == source_id:
+            return 100 + i
+    for i, sid in enumerate(COOP_VALIDATION_PRIORITY):
+        if sid == source_id:
+            return 200 + i
+    fed_ids = [f["source_id"] for f in FEDERAL_NON_SAM_LIVE if f.get("list_url")]
+    for i, sid in enumerate(fed_ids):
+        if sid == source_id:
+            return 50 + i
+    return 1000
+
+
+def select_all_eligible_sources(
     *,
-    max_sources: int = 5,
     require_verified: bool = False,
     status_overrides: dict[str, str] | None = None,
+    include_blocked_accounted: bool = True,
+) -> dict[str, Any]:
+    """
+    Full eligible coverage for BROAD/NATIONAL discovery.
+
+    Priority determines execution ORDER, never silent exclusion.
+    Blocked/auth sources are accounted for explicitly when include_blocked_accounted.
+    """
+    pool = _pool_map()
+    if status_overrides:
+        for sid, st in status_overrides.items():
+            if sid in pool:
+                pool[sid]["adapter_status"] = st
+
+    eligible: list[dict[str, Any]] = []
+    accounted: list[dict[str, Any]] = []
+    for sid, row in pool.items():
+        st = (row.get("adapter_status") or "").upper()
+        if st in _BLOCKED_STATUSES:
+            if include_blocked_accounted:
+                accounted.append(
+                    {
+                        **row,
+                        "selection_state": st,
+                        "attempt": False,
+                        "accounted_reason": st,
+                    }
+                )
+            continue
+        if not _eligible(row, require_verified=require_verified):
+            if include_blocked_accounted:
+                accounted.append(
+                    {
+                        **row,
+                        "selection_state": "INELIGIBLE",
+                        "attempt": False,
+                        "accounted_reason": f"status={st or 'NONE'}",
+                    }
+                )
+            continue
+        eligible.append(row)
+
+    # Order: verified first, then priority rank, then source_id for stability
+    eligible.sort(
+        key=lambda r: (
+            0 if (r.get("adapter_status") or "").upper() == ADAPTER_LIVE_VERIFIED else 1,
+            _priority_rank(r["source_id"]),
+            r["source_id"],
+        )
+    )
+    for r in eligible:
+        r["selection_state"] = "ELIGIBLE"
+        r["attempt"] = True
+
+    return {
+        "eligible": eligible,
+        "accounted_non_attempt": accounted,
+        "registered_in_pool": len(pool),
+        "eligible_count": len(eligible),
+        "accounted_non_attempt_count": len(accounted),
+    }
+
+
+def select_diversified_sources(
+    *,
+    max_sources: int | None = 5,
+    require_verified: bool = False,
+    status_overrides: dict[str, str] | None = None,
+    all_eligible: bool = False,
 ) -> list[dict[str, Any]]:
     """
-    TINY-style mix: up to 2 state, 1 local, 1 cooperative, 1 federal/state substitute.
-    Deterministic priority — NOT alphabetical AL/AK/AZ/AR/CA.
+    TINY-style mix when max_sources is small / all_eligible=False.
+
+    When all_eligible=True OR max_sources is None/large:
+    return ALL eligible sources (priority = order only).
     """
+    if all_eligible or max_sources is None or (isinstance(max_sources, int) and max_sources >= 999):
+        return select_all_eligible_sources(
+            require_verified=require_verified,
+            status_overrides=status_overrides,
+            include_blocked_accounted=False,
+        )["eligible"]
+
+    # Production caps ≥50 mean full eligible coverage slice, not priority-only
+    if isinstance(max_sources, int) and max_sources >= 50:
+        return select_all_eligible_sources(
+            require_verified=require_verified,
+            status_overrides=status_overrides,
+            include_blocked_accounted=False,
+        )["eligible"]
+
     pool = _pool_map()
     if status_overrides:
         for sid, st in status_overrides.items():
@@ -138,17 +249,17 @@ def select_diversified_sources(
 
     picked: list[dict[str, Any]] = []
     used: set[str] = set()
+    cap = int(max_sources or 5)
 
     def take_from(priority: list[str], kind: str, n: int) -> None:
         nonlocal picked
         count = 0
-        # Prefer LIVE_VERIFIED first within kind
         ordered = sorted(
             priority,
             key=lambda sid: 0 if (pool.get(sid) or {}).get("adapter_status") == ADAPTER_LIVE_VERIFIED else 1,
         )
         for sid in ordered:
-            if count >= n or len(picked) >= max_sources:
+            if count >= n or len(picked) >= cap:
                 break
             row = pool.get(sid)
             if not row or sid in used:
@@ -157,7 +268,7 @@ def select_diversified_sources(
                 continue
             if not _eligible(row, require_verified=require_verified):
                 continue
-            if row.get("adapter_status") in {"AUTH_REQUIRED", "BLOCKED", "BROKEN", "PLANNED"}:
+            if row.get("adapter_status") in _BLOCKED_STATUSES:
                 continue
             picked.append(row)
             used.add(sid)
@@ -167,17 +278,16 @@ def select_diversified_sources(
     take_from(LOCAL_VALIDATION_PRIORITY, "LOCAL", 1)
     take_from(COOP_VALIDATION_PRIORITY, "COOPERATIVE", 1)
 
-    # 5th: federal if credible else another state
     fed_ids = [f["source_id"] for f in FEDERAL_NON_SAM_LIVE if f.get("list_url")]
     take_from(fed_ids, "FEDERAL", 1)
-    if len(picked) < max_sources:
-        take_from(STATE_VALIDATION_PRIORITY, "STATE", max_sources - len(picked))
-    if len(picked) < max_sources:
-        take_from(LOCAL_VALIDATION_PRIORITY, "LOCAL", max_sources - len(picked))
-    if len(picked) < max_sources:
-        take_from(COOP_VALIDATION_PRIORITY, "COOPERATIVE", max_sources - len(picked))
+    if len(picked) < cap:
+        take_from(STATE_VALIDATION_PRIORITY, "STATE", cap - len(picked))
+    if len(picked) < cap:
+        take_from(LOCAL_VALIDATION_PRIORITY, "LOCAL", cap - len(picked))
+    if len(picked) < cap:
+        take_from(COOP_VALIDATION_PRIORITY, "COOPERATIVE", cap - len(picked))
 
-    return picked[:max_sources]
+    return picked[:cap]
 
 
 def select_validation_candidates(*, max_sources: int = 15) -> list[dict[str, Any]]:
@@ -191,7 +301,7 @@ def select_validation_candidates(*, max_sources: int = 15) -> list[dict[str, Any
         if not row or sid in used:
             continue
         st = (row.get("adapter_status") or "").upper()
-        if st in {"AUTH_REQUIRED", "BLOCKED", "BROKEN", "PLANNED", "UNSUPPORTED"}:
+        if st in _BLOCKED_STATUSES:
             continue
         if not row.get("list_url"):
             continue

@@ -154,6 +154,36 @@ def all_coops_enriched() -> list[dict[str, Any]]:
 
 FEDERAL_NON_SAM_LIVE: list[dict[str, Any]] = [
     {
+        "source_id": "fed_dla_dibbs_rfq",
+        "name": "DLA DIBBS Public Recent RFQs",
+        "list_url": "https://www.dibbs.bsm.dla.mil/RFQ/RfqRecents.aspx",
+        "adapter_family": "live_dibbs",
+        "platform_family": "DIBBS",
+        "note": "Public RFQ listing for DLA SPE* NSN/part procurements. Quote submission may require vendor login; listing metadata is public when accessible.",
+        "live_capable": True,
+        "notice_type": "RFQ",
+    },
+    {
+        "source_id": "fed_dla_dibbs_rfq_by_fsc",
+        "name": "DLA DIBBS RFQs by FSC (entry)",
+        "list_url": "https://www.dibbs.bsm.dla.mil/RFQ/RfqByFsc.aspx",
+        "adapter_family": "live_dibbs",
+        "platform_family": "DIBBS",
+        "note": "Alternate DIBBS public RFQ browse entry. Bot/auth barriers recorded explicitly when hit.",
+        "live_capable": True,
+        "notice_type": "RFQ",
+    },
+    {
+        "source_id": "fed_piee_public_solicitations",
+        "name": "PIEE Public Solicitation Index (unauthenticated)",
+        "list_url": "https://piee.eb.mil/sol/xhtml/unauth/index.xhtml",
+        "adapter_family": "live_piee_public",
+        "platform_family": "PIEE",
+        "note": "DoD PIEE public solicitation search — no login required for many open notices.",
+        "live_capable": True,
+        "notice_type": "SOLICITATION",
+    },
+    {
         "source_id": "fed_gsa_schedules_forecast_lead",
         "name": "GSA / FAS public procurement pages (LEAD_ONLY forecast — not open solicitations)",
         "list_url": None,  # buy-through-us is not a solicitation feed; removed from discovery
@@ -165,10 +195,10 @@ FEDERAL_NON_SAM_LIVE: list[dict[str, Any]] = [
     },
     {
         "source_id": "fed_agency_public_rfq_pages",
-        "name": "Federal agency public RFQ/bid pages (generic)",
+        "name": "Federal agency public RFQ/bid pages (generic placeholder)",
         "list_url": None,
         "adapter_family": "live_federal_public",
-        "note": "Fetcher exists; PARTIAL until specific agency URLs onboarded",
+        "note": "Fetcher exists; specific agency URLs onboarded via fed_dla_dibbs_* / fed_piee_*. No SAM broad scan.",
         "live_capable": False,
     },
 ]

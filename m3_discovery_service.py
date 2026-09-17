@@ -371,9 +371,22 @@ def list_recent_runs(limit: int = 10) -> dict[str, Any]:
     return {"runs": out, "count": len(out)}
 
 
-def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, Any]:
+def request_discovery_run(
+    *,
+    trigger_type: str = TRIGGER_MANUAL,
+    profile: str | None = None,
+    bootstrap: bool = False,
+) -> dict[str, Any]:
     if not discovery_enabled() and trigger_type != TRIGGER_MANUAL:
         return {"accepted": False, "reason": "discovery_disabled"}
+
+    profile_override = None
+    if bootstrap:
+        profile_override = "national"
+    elif profile:
+        p = str(profile).strip().lower()
+        if p in {"tiny", "broad", "national"}:
+            profile_override = p
 
     with _lock:
         state = recover_stale_runs()
@@ -411,13 +424,22 @@ def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, An
             "deep_research_queued": 0,
             "error_summary": None,
             "source_warnings": [],
+            "profile_override": profile_override,
+            "bootstrap": bool(bootstrap or profile_override == "national"),
         }
         state["current_run"] = run
         state["lock"] = {"held": True, "run_id": run_id, "since": _utc()}
         _save_state(state)
 
     _dispatch_discovery_job(run_id, trigger_type)
-    return {"accepted": True, "already_running": False, "run_id": run_id, "status": discovery_status()}
+    return {
+        "accepted": True,
+        "already_running": False,
+        "run_id": run_id,
+        "profile": profile_override or discovery_profile(),
+        "bootstrap": bool(bootstrap or profile_override == "national"),
+        "status": discovery_status(),
+    }
 
 
 def _dispatch_discovery_job(run_id: str, trigger_type: str) -> None:
@@ -678,18 +700,34 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             pass
 
         profile = discovery_profile()
+        # Operator/bootstrap override wins over env default
+        try:
+            ov = (_load_state().get("current_run") or {}).get("profile_override")
+            if ov in {"tiny", "broad", "national"}:
+                profile = ov
+        except Exception:
+            pass
         if profile not in {"tiny", "broad", "national"}:
             profile = "broad"
-        # Catch-up / first-ever run may use national when configured default is broad
+        # Catch-up / first-ever run: NATIONAL market bootstrap (full eligible + pagination exhaust)
         if trigger_type in {TRIGGER_STARTUP, TRIGGER_CATCH_UP} and not _load_state().get(
             "last_successful_completion"
         ):
-            profile = (os.environ.get("M3_DISCOVERY_BOOTSTRAP_PROFILE") or profile).strip().lower() or profile
-            if profile not in {"tiny", "broad", "national"}:
-                profile = "broad"
+            if not (_load_state().get("current_run") or {}).get("profile_override"):
+                profile = (
+                    os.environ.get("M3_DISCOVERY_BOOTSTRAP_PROFILE") or "national"
+                ).strip().lower() or "national"
+                if profile not in {"tiny", "broad", "national"}:
+                    profile = "national"
 
         try:
-            planned = int(get_profile(profile).get("max_sources") or 0)
+            from discovery.selection import select_all_eligible_sources
+
+            prof = get_profile(profile)
+            if prof.get("all_eligible_sources") or prof.get("max_sources") is None:
+                planned = int(select_all_eligible_sources(include_blocked_accounted=False)["eligible_count"])
+            else:
+                planned = int(prof.get("max_sources") or 0)
         except Exception:
             planned = 0
         _update_run(
@@ -804,6 +842,8 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             log.exception("Tracked solicitation check skipped")
 
         _update_run(run_id, phase="FINALIZING", progress_percent=98)
+        completeness = live.get("completeness") or {}
+        run_status = live.get("run_status") or "COMPLETE"
         try:
             db_run = DiscoveryRun(
                 run_id=run_id,
@@ -819,7 +859,7 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 service_count=int(metrics.get("SERVICE") or 0),
                 rejected_count=rejected,
                 dry_run=False,
-                notes=f"trigger={trigger_type};profile={profile}",
+                notes=f"trigger={trigger_type};profile={profile};run_status={run_status}",
                 metrics_json={
                     "trigger_type": trigger_type,
                     "profile": profile,
@@ -829,6 +869,17 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                     "deep_research_queued": deep_queued,
                     "LIVE_API_REQUESTS": live.get("LIVE_API_REQUESTS"),
                     "commercial_outreach": False,
+                    "completeness": completeness,
+                    "run_status": run_status,
+                    "partial_reason": live.get("partial_reason"),
+                    "fetched_this_run": metrics.get("fetched_this_run"),
+                    "known_active_market_inventory": metrics.get("known_active_market_inventory"),
+                    "pages_fetched_total": metrics.get("pages_fetched_total"),
+                    "eligible_sources": metrics.get("eligible_sources"),
+                    "registered_sources": metrics.get("registered_sources"),
+                    "unattempted_eligible": metrics.get("unattempted_eligible"),
+                    "OpenAI": live.get("OpenAI") or 0,
+                    "paid": live.get("paid") or 0,
                 },
                 finished_at=now_utc(),
             )
@@ -838,7 +889,12 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             log.exception("DiscoveryRun DB insert failed")
             session.rollback()
 
-        final_status = STATUS_COMPLETED_WITH_WARNINGS if sources_failed > 0 else STATUS_COMPLETED
+        if run_status == "PARTIAL_DISCOVERY_RUN":
+            final_status = STATUS_COMPLETED_WITH_WARNINGS
+        elif sources_failed > 0:
+            final_status = STATUS_COMPLETED_WITH_WARNINGS
+        else:
+            final_status = STATUS_COMPLETED
         _update_run(
             run_id,
             sources_successful=sources_successful,
@@ -851,7 +907,11 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             records_retrieved=int(metrics.get("raw_records") or len(records)),
             unique_records=len(records),
             open_current_records=len(open_current),
-            source_warnings=[f"{sources_failed} source(s) failed"] if sources_failed else [],
+            source_warnings=(
+                [f"PARTIAL: {live.get('partial_reason')}"]
+                if run_status == "PARTIAL_DISCOVERY_RUN"
+                else ([f"{sources_failed} source(s) failed"] if sources_failed else [])
+            ),
         )
         _finalize_run(run_id, status=final_status)
         log.info(

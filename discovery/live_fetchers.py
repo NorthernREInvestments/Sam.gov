@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -49,9 +50,31 @@ class LiveFetcher(ABC):
         list_url: str,
         source_id: str | None = None,
         max_pages: int = 1,
+        pagination_exhaust: bool = False,
+        pagination_safety_max_pages: int | None = None,
     ) -> dict[str, Any]:
+        """
+        Fetch listing pages.
+
+        When pagination_exhaust=True, continue until natural stop (empty/repeated/
+        no-next) or defensive safety_max_pages → PAGINATION_INCOMPLETE (never silent SUCCESS).
+        """
         sid = source_id or self.source_id
-        from family_adapter_contract import detect_pagination_model, next_page_url
+        from family_adapter_contract import (
+            PAGINATION_NONE,
+            PAGINATION_UNKNOWN,
+            detect_pagination_model,
+            next_page_url,
+        )
+
+        safety_cap = int(
+            pagination_safety_max_pages
+            if pagination_safety_max_pages is not None
+            else max(1, int(max_pages))
+        )
+        # Soft request budget vs hard safety: exhaust uses safety_cap as emergency only
+        soft_cap = max(1, int(max_pages))
+        hard_cap = max(soft_cap, safety_cap) if pagination_exhaust else soft_cap
 
         all_opps: list[CanonicalOpportunity] = []
         malformed_total = 0
@@ -60,27 +83,93 @@ class LiveFetcher(ABC):
         last_validation: dict[str, Any] = {}
         last_meta: dict[str, Any] = {}
         page_urls = [list_url]
+        seen_page_urls: set[str] = {list_url}
+        page_fingerprints: set[str] = set()
         pag_model = "UNKNOWN"
+        source_reported_total: int | None = None
+        pagination_complete = False
+        pagination_stop_reason = "NOT_STARTED"
+        beyond_page_1 = False
 
-        for page_idx in range(max(1, int(max_pages))):
+        for page_idx in range(hard_cap):
             page_url = page_urls[page_idx] if page_idx < len(page_urls) else None
             if page_url is None:
+                pagination_stop_reason = "MISSING_NEXT_TOKEN"
+                pagination_complete = pages_fetched > 0
                 break
+
             resp = client.get(page_url, source_id=sid)
             live_reqs += 0 if not client.authorize_live else 1
             pages_fetched += 1
             last_meta = resp.meta.to_dict()
-            if page_idx == 0:
-                pag = detect_pagination_model(resp.text, page_url)
-                pag_model = pag.get("model") or "UNKNOWN"
-                # Prepare subsequent page URLs when pagination exists
-                if max_pages > 1 and pag_model not in {"NO_PAGINATION", "UNKNOWN"}:
-                    for p in range(2, max_pages + 1):
-                        nxt = next_page_url(list_url, page=p, model=pag_model if pag_model != "BOUNDED_WINDOW" else "PAGE_NUMBER")
-                        if nxt and nxt not in page_urls:
-                            page_urls.append(nxt)
+            body = resp.text or ""
 
-            parsed = self.parse_listing(resp.text, list_url=page_url, meta=resp.meta.to_dict())
+            # Access blockers
+            if resp.status_code in {401, 403} or _is_cloudflare_challenge(body):
+                pagination_stop_reason = (
+                    "BOT_PROTECTED" if _is_cloudflare_challenge(body) else "AUTH_REQUIRED"
+                )
+                pagination_complete = False
+                last_validation = validate_listing_response(
+                    status_code=resp.status_code,
+                    content_type=resp.meta.content_type,
+                    body=body,
+                    records_found=0,
+                    expected_kind=self.expected_kind,
+                    structure_recognized=False,
+                )
+                last_validation["failure_type"] = pagination_stop_reason
+                last_validation["valid"] = False
+                break
+
+            fp = hashlib.sha256(body.encode("utf-8", errors="ignore")).hexdigest()[:24]
+            if fp in page_fingerprints:
+                pagination_stop_reason = "REPEATED_PAGE"
+                pagination_complete = True
+                break
+            page_fingerprints.add(fp)
+
+            if page_idx == 0:
+                pag = detect_pagination_model(body, page_url)
+                pag_model = pag.get("model") or "UNKNOWN"
+                # JSON total if present
+                try:
+                    if body.strip().startswith("{") or body.strip().startswith("["):
+                        data = json.loads(body)
+                        if isinstance(data, dict):
+                            for k in ("total", "totalCount", "totalRecords", "recordCount", "count"):
+                                if isinstance(data.get(k), int):
+                                    source_reported_total = data[k]
+                                    break
+                except Exception:
+                    pass
+                if hard_cap > 1 and pag_model not in {PAGINATION_NONE, PAGINATION_UNKNOWN, "NO_PAGINATION"}:
+                    for p in range(2, hard_cap + 1):
+                        model = "PAGE_NUMBER" if pag_model in {"BOUNDED_WINDOW", "PAGE_NUMBER"} else pag_model
+                        nxt = next_page_url(list_url, page=p, model=model)
+                        if nxt and nxt not in seen_page_urls:
+                            page_urls.append(nxt)
+                            seen_page_urls.add(nxt)
+
+            # Continuation / next link from HTML
+            if pagination_exhaust and pages_fetched < hard_cap:
+                next_href = None
+                m = re.search(
+                    r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*(?:Next|»|›|Load\s*more)\s*<',
+                    body,
+                    re.I,
+                )
+                if m:
+                    next_href = m.group(1)
+                if next_href:
+                    from urllib.parse import urljoin
+
+                    abs_next = urljoin(page_url, next_href)
+                    if abs_next not in seen_page_urls:
+                        page_urls.append(abs_next)
+                        seen_page_urls.add(abs_next)
+
+            parsed = self.parse_listing(body, list_url=page_url, meta=resp.meta.to_dict())
             from discovery.opportunity_gate import is_structurally_valid_opportunity
 
             page_opps: list[CanonicalOpportunity] = []
@@ -115,18 +204,52 @@ class LiveFetcher(ABC):
             seen = {o.external_id for o in all_opps}
             new = [o for o in page_opps if o.external_id not in seen]
             all_opps.extend(new)
+            if page_idx > 0 and len(new) > 0:
+                beyond_page_1 = True
 
             last_validation = validate_listing_response(
                 status_code=resp.status_code,
                 content_type=resp.meta.content_type,
-                body=resp.text,
+                body=body,
                 records_found=len(page_opps),
                 expected_kind=self.expected_kind,
-                structure_recognized=self.structure_recognized(resp.text, list_url=page_url),
+                structure_recognized=self.structure_recognized(body, list_url=page_url),
             )
-            # Stop if later page adds nothing
-            if page_idx > 0 and len(new) == 0:
+
+            if len(page_opps) == 0 and page_idx == 0:
+                pagination_stop_reason = "EMPTY_PAGE"
+                pagination_complete = True
                 break
+            if page_idx > 0 and len(new) == 0:
+                pagination_stop_reason = "EMPTY_PAGE" if len(page_opps) == 0 else "REPEATED_RECORD_FINGERPRINT"
+                pagination_complete = True
+                break
+            if source_reported_total is not None and len(all_opps) >= source_reported_total:
+                pagination_stop_reason = "SOURCE_REPORTED_TOTAL_REACHED"
+                pagination_complete = True
+                break
+
+            # No further URLs prepared and model says none
+            if page_idx + 1 >= len(page_urls):
+                if pag_model in {PAGINATION_NONE, "NO_PAGINATION"} or not pagination_exhaust:
+                    pagination_stop_reason = "NO_PAGINATION" if pag_model in {PAGINATION_NONE, "NO_PAGINATION"} else "PAGE_BUDGET_SOFT"
+                    pagination_complete = pag_model in {PAGINATION_NONE, "NO_PAGINATION"} or not pagination_exhaust
+                    if pagination_exhaust and pag_model not in {PAGINATION_NONE, "NO_PAGINATION", PAGINATION_UNKNOWN}:
+                        # Exhaust requested but could not discover next page
+                        pagination_stop_reason = "MISSING_NEXT_TOKEN"
+                        pagination_complete = True  # exhausted what is discoverable
+                    break
+                pagination_stop_reason = "MISSING_NEXT_TOKEN"
+                pagination_complete = True
+                break
+        else:
+            # Loop exhausted hard_cap without natural stop
+            if pagination_exhaust and pages_fetched >= safety_cap:
+                pagination_stop_reason = "PAGINATION_INCOMPLETE"
+                pagination_complete = False
+            else:
+                pagination_stop_reason = "PAGE_BUDGET_SOFT"
+                pagination_complete = not pagination_exhaust
 
         return {
             "opportunities": all_opps,
@@ -134,8 +257,12 @@ class LiveFetcher(ABC):
             "request_meta": last_meta,
             "validation": last_validation,
             "pages_fetched": pages_fetched,
+            "records_fetched": len(all_opps),
             "pagination_model": pag_model,
-            "beyond_page_1": pages_fetched > 1 and len(all_opps) > 0,
+            "pagination_complete": pagination_complete,
+            "pagination_stop_reason": pagination_stop_reason,
+            "source_reported_total": source_reported_total,
+            "beyond_page_1": beyond_page_1 or (pages_fetched > 1 and len(all_opps) > 0),
             "LIVE_API_REQUESTS": live_reqs,
         }
 
@@ -875,6 +1002,171 @@ class FederalPublicPageLiveFetcher(JsonLiveFetcher):
         return out
 
 
+# SPE* / NSN patterns used by DLA DIBBS public RFQ listings (parser only — not injected IDs)
+_SPE_SOL_RE = re.compile(
+    r"\b(SPE[0-9A-Z]{2,4}[-]?[0-9]{2,3}[-]?[A-Z]?[-]?[0-9A-Z]{3,6})\b",
+    re.I,
+)
+_NSN_RE = re.compile(r"\b(\d{4}-\d{2}-\d{3}-\d{4})\b")
+
+
+class DibbsLiveFetcher(LiveFetcher):
+    """DLA Internet Bid Board System (DIBBS) — public RFQ search/list pages."""
+
+    source_id = "live_dibbs"
+    source_name = "DLA DIBBS Public RFQs"
+    platform_family = "DIBBS"
+    expected_kind = "html"
+
+    def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
+        text = (body or "").lower()
+        if "dod warning" in text and "consent" in text and "rfq" not in text:
+            return False
+        return bool(
+            re.search(r"\b(rfq|solicitation|nsn|dibbs|return\s*by|issue\s*date)\b", text, re.I)
+            and (_SPE_SOL_RE.search(body or "") or _NSN_RE.search(body or "") or "<table" in text)
+        )
+
+    def parse_listing(self, body: str, *, list_url: str, meta: dict[str, Any] | None = None) -> list[CanonicalOpportunity]:
+        from urllib.parse import urljoin
+
+        text = body or ""
+        out: list[CanonicalOpportunity] = []
+        seen: set[str] = set()
+
+        # Table / link rows containing SPE* solicitation numbers
+        for m in re.finditer(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*(' + _SPE_SOL_RE.pattern + r')\s*</a>',
+            text,
+            re.I,
+        ):
+            href, sol = m.group(1), m.group(2).upper().replace(" ", "")
+            if sol in seen:
+                continue
+            seen.add(sol)
+            # Nearby NSN in a window after the match
+            window = text[m.end() : m.end() + 400]
+            nsn_m = _NSN_RE.search(window)
+            title_m = re.search(r">([A-Za-z][^<]{8,120})<", window)
+            title = (title_m.group(1).strip() if title_m else f"DLA RFQ {sol}")
+            if nsn_m:
+                title = f"{title} NSN {nsn_m.group(1)}"
+            detail = urljoin(list_url, href) if list_url else href
+            out.append(
+                CanonicalOpportunity(
+                    external_id=sol,
+                    source_id=self.source_id,
+                    source_url=list_url,
+                    detail_url=detail,
+                    title=title[:500],
+                    solicitation_number=sol,
+                    agency="Defense Logistics Agency",
+                    status="OPEN",
+                    jurisdiction="FEDERAL",
+                    buyer_type="FEDERAL_PUBLIC",
+                    trust_tier=self.trust_tier,
+                    raw_metadata={
+                        "platform": "DIBBS",
+                        "nsn": nsn_m.group(1) if nsn_m else None,
+                        "notice_type": "RFQ",
+                        "document_access": "PUBLIC_OR_VENDOR_PORTAL",
+                    },
+                )
+            )
+
+        # Fallback: bare SPE tokens near RFQ chrome
+        if not out:
+            for m in _SPE_SOL_RE.finditer(text):
+                sol = m.group(1).upper().replace(" ", "")
+                if sol in seen:
+                    continue
+                seen.add(sol)
+                window = text[max(0, m.start() - 80) : m.end() + 200]
+                nsn_m = _NSN_RE.search(window)
+                title = f"DLA RFQ {sol}"
+                if nsn_m:
+                    title = f"{title} NSN {nsn_m.group(1)}"
+                out.append(
+                    CanonicalOpportunity(
+                        external_id=sol,
+                        source_id=self.source_id,
+                        source_url=list_url,
+                        title=title,
+                        solicitation_number=sol,
+                        agency="Defense Logistics Agency",
+                        status="OPEN",
+                        jurisdiction="FEDERAL",
+                        buyer_type="FEDERAL_PUBLIC",
+                        trust_tier=self.trust_tier,
+                        raw_metadata={
+                            "platform": "DIBBS",
+                            "nsn": nsn_m.group(1) if nsn_m else None,
+                            "notice_type": "RFQ",
+                        },
+                    )
+                )
+        return out
+
+
+class PieePublicLiveFetcher(SimpleHtmlLiveFetcher):
+    """PIEE public (unauthenticated) solicitation index — DoD product/service notices."""
+
+    source_id = "live_piee_public"
+    source_name = "PIEE Public Solicitation Search"
+    platform_family = "PIEE"
+    expected_kind = "html"
+
+    def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
+        text = (body or "").lower()
+        return bool(
+            re.search(r"\b(solicitation|piee|opportunity|rfq|rfp|ifb)\b", text, re.I)
+            and ("piee" in text or "eb.mil" in (list_url or "").lower() or "<table" in text)
+        )
+
+    def parse_listing(self, body: str, *, list_url: str, meta: dict[str, Any] | None = None) -> list[CanonicalOpportunity]:
+        opps = super().parse_listing(body, list_url=list_url, meta=meta)
+        out: list[CanonicalOpportunity] = []
+        for o in opps:
+            o.source_id = self.source_id
+            o.jurisdiction = "FEDERAL"
+            o.buyer_type = "FEDERAL_PUBLIC"
+            o.raw_metadata = {**(o.raw_metadata or {}), "platform": "PIEE", "document_access": "PUBLIC_INDEX"}
+            out.append(o)
+        # Also capture W91*/SPE*/N00* style DoD solicitation numbers in links
+        from urllib.parse import urljoin
+
+        seen = {o.external_id for o in out}
+        for m in re.finditer(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*([A-Z0-9]{2,6}[-]?[A-Z0-9]{2,14})\s*</a>',
+            body or "",
+            re.I,
+        ):
+            href, sol = m.group(1), m.group(2).upper()
+            if sol in seen or len(sol) < 6:
+                continue
+            if not re.match(r"^(SPE|W91|W91[A-Z]|N00|FA|SPR)", sol, re.I):
+                continue
+            seen.add(sol)
+            detail = urljoin(list_url, href) if list_url else href
+            out.append(
+                CanonicalOpportunity(
+                    external_id=sol,
+                    source_id=self.source_id,
+                    source_url=list_url,
+                    detail_url=detail,
+                    title=f"DoD solicitation {sol}",
+                    solicitation_number=sol,
+                    agency="Department of Defense",
+                    status="OPEN",
+                    jurisdiction="FEDERAL",
+                    buyer_type="FEDERAL_PUBLIC",
+                    trust_tier=self.trust_tier,
+                    raw_metadata={"platform": "PIEE", "notice_type": "SOLICITATION"},
+                )
+            )
+        return out
+
+
 LIVE_FETCHERS: dict[str, LiveFetcher] = {
     SimpleHtmlLiveFetcher.source_id: SimpleHtmlLiveFetcher(),
     JsonLiveFetcher.source_id: JsonLiveFetcher(),
@@ -888,6 +1180,8 @@ LIVE_FETCHERS: dict[str, LiveFetcher] = {
     StateOwnedHtmlLiveFetcher.source_id: StateOwnedHtmlLiveFetcher(),
     CooperativeOpenSolicitationFetcher.source_id: CooperativeOpenSolicitationFetcher(),
     FederalPublicPageLiveFetcher.source_id: FederalPublicPageLiveFetcher(),
+    DibbsLiveFetcher.source_id: DibbsLiveFetcher(),
+    PieePublicLiveFetcher.source_id: PieePublicLiveFetcher(),
 }
 
 PLATFORM_TO_FETCHER = {
@@ -901,6 +1195,9 @@ PLATFORM_TO_FETCHER = {
     "BidNet": "live_bidnet",
     "Jaggaer": "live_jaggaer",
     "StateOwned": "live_state_owned_html",
+    "DIBBS": "live_dibbs",
+    "PIEE": "live_piee_public",
+    "FederalPublic": "live_federal_public",
 }
 
 

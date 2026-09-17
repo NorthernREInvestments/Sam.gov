@@ -356,8 +356,14 @@ def test_preview_does_not_persist_persist_does():
 def test_profiles_configured():
     assert get_profile("tiny")["name"] == "TINY"
     assert PROFILE_TINY["budget"].max_pages_per_source == 1
-    assert PROFILE_BROAD["max_sources"] == 25
-    assert PROFILE_NATIONAL["max_records_total"] == 5000
+    assert PROFILE_BROAD["max_sources"] is None
+    assert PROFILE_BROAD["all_eligible_sources"] is True
+    assert PROFILE_BROAD["pagination_exhaust"] is True
+    assert PROFILE_BROAD["max_records_total"] == 25000
+    assert PROFILE_NATIONAL["max_sources"] is None
+    assert PROFILE_NATIONAL["all_eligible_sources"] is True
+    assert PROFILE_NATIONAL["max_records_total"] == 25000
+    assert PROFILE_NATIONAL["pagination_exhaust"] is True
     assert PROFILE_TINY["fetch_details"] is False
     assert PROFILE_TINY["fetch_documents"] is False
     assert PROFILE_BROAD["fetch_details"] is False

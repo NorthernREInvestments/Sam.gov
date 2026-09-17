@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-package1b"
+APP_BUILD_VERSION = "20260917-m3-discovery-intake-open"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -741,11 +741,18 @@ def api_m3_discovery_status():
 
 
 @app.post("/api/m3/discovery/run")
-def api_m3_discovery_run():
-    """Operator RUN NOW — same incremental pipeline; no overlap; no outreach."""
+def api_m3_discovery_run(body: dict | None = None):
+    """Operator RUN NOW — optional body {profile, bootstrap} for national market bootstrap."""
     from m3_discovery_service import TRIGGER_MANUAL, request_discovery_run
 
-    return request_discovery_run(trigger_type=TRIGGER_MANUAL)
+    payload = body or {}
+    profile = payload.get("profile")
+    bootstrap = bool(payload.get("bootstrap"))
+    return request_discovery_run(
+        trigger_type=TRIGGER_MANUAL,
+        profile=profile,
+        bootstrap=bootstrap,
+    )
 
 
 @app.get("/api/m3/discovery/runs")
