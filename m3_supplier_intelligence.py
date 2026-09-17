@@ -525,7 +525,24 @@ def research_public_pricing_web(
     except Exception as exc:
         return {"executed": False, "reason": f"web_search_failed:{exc}", "evidence": [], "OpenAI": 0, "paid": 0}
 
-    parsed = extract_json_object(raw) if raw else {}
+    parsed = {}
+    try:
+        parsed = extract_json_object(raw) if raw else {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+    except Exception as exc:
+        return {
+            "executed": True,
+            "reused": False,
+            "evidence": [],
+            "extra_channels": [],
+            "OpenAI": 1,
+            "paid": 1,
+            "raw_notes": f"json_parse_failed:{exc}",
+            "query_fingerprint": fp,
+            "reason": f"json_parse_failed:{exc}",
+        }
+
     evidence: list[dict[str, Any]] = []
     for p in parsed.get("prices") or []:
         if not isinstance(p, dict):
