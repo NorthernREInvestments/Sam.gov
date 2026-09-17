@@ -68,7 +68,42 @@ def _read_durable_payload() -> dict[str, Any] | None:
         return None
 
 
-def _write_durable_payload(payload: dict[str, Any]) -> None:
+def _prefer_row(local: dict[str, Any], remote: dict[str, Any]) -> dict[str, Any]:
+    """Merge two opportunity rows without dropping discovery or research progress."""
+    if not remote:
+        return local
+    if not local:
+        return remote
+    out = dict(remote)
+    out.update({k: v for k, v in local.items() if v is not None})
+    # Prefer non-empty collections / richer evidence
+    for key in ("documents", "line_items", "bom", "source_references", "recovered_evidence", "operator_actions"):
+        loc_v = local.get(key)
+        rem_v = remote.get(key)
+        if isinstance(loc_v, list) and isinstance(rem_v, list):
+            out[key] = loc_v if len(loc_v) >= len(rem_v) else rem_v
+        elif loc_v and not rem_v:
+            out[key] = loc_v
+        elif rem_v and not loc_v:
+            out[key] = rem_v
+    # Lifecycle: don't regress from researched/advanced back to discovered-only
+    loc_lc = str(local.get("lifecycle") or "")
+    rem_lc = str(remote.get("lifecycle") or "")
+    early = {"DISCOVERED", "CHEAP_SCREENED", "RESEARCH_QUEUED", "", "None"}
+    if loc_lc not in early and rem_lc in early:
+        out["lifecycle"] = loc_lc
+        for k in ("research_queued", "research_in_progress", "stop_reason", "pending_next_action", "package_access"):
+            if local.get(k) is not None:
+                out[k] = local[k]
+    elif rem_lc not in early and loc_lc in early:
+        out["lifecycle"] = rem_lc
+    # Timestamps: keep latest last_seen
+    if str(local.get("last_seen_at") or "") >= str(remote.get("last_seen_at") or ""):
+        out["last_seen_at"] = local.get("last_seen_at") or remote.get("last_seen_at")
+    return out
+
+
+def _write_durable_payload(payload: dict[str, Any]) -> bool:
     try:
         from database import SessionLocal
         from models import AppSetting
@@ -82,10 +117,26 @@ def _write_durable_payload(payload: dict[str, Any]) -> None:
             else:
                 db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=raw))
             db.commit()
+            # Verify round-trip count
+            verify = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
+            if verify and verify.value:
+                data = json.loads(verify.value)
+                written = len(data.get("opportunities") or [])
+                expected = len(payload.get("opportunities") or [])
+                if written != expected:
+                    log.error(
+                        "Durable pipeline verify mismatch written=%s expected=%s",
+                        written,
+                        expected,
+                    )
+                    return False
+                return True
+            return False
         finally:
             db.close()
     except Exception:
         log.exception("Failed writing durable M3 pipeline to AppSetting")
+        return False
 
 
 class M3PipelineStore:
@@ -146,11 +197,36 @@ class M3PipelineStore:
                     pass
 
     def save(self) -> Path:
+        # Merge durable DB rows before write so concurrent research/discovery workers
+        # cannot clobber opportunities the other worker just upserted.
+        if self.durable:
+            try:
+                db_data = _read_durable_payload()
+                if db_data:
+                    db_rows, db_audit = _rows_from_payload(db_data)
+                    for cid, remote in db_rows.items():
+                        local = self._rows.get(cid)
+                        self._rows[cid] = _prefer_row(local, remote) if local else remote
+                    if db_audit:
+                        # Keep union of recent audit events
+                        seen = {(a.get("at"), a.get("canonical_id"), a.get("event")) for a in self._audit if isinstance(a, dict)}
+                        for a in db_audit:
+                            key = (a.get("at"), a.get("canonical_id"), a.get("event")) if isinstance(a, dict) else None
+                            if key and key not in seen:
+                                self._audit.append(a)
+            except Exception:
+                log.exception("Durable merge-before-save failed; continuing with local rows")
+
         payload = _payload_from_rows(self._rows, self._audit)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
         if self.durable:
-            _write_durable_payload(payload)
+            ok = _write_durable_payload(payload)
+            if not ok:
+                log.error(
+                    "Durable pipeline save failed or verify mismatch — file cache has %s opps",
+                    len(self._rows),
+                )
         return self.path
 
     def reload_from_durable(self) -> int:

@@ -302,7 +302,33 @@ def build_source_recovery_queue(
     """TOP_SOURCE_RECOVERY_QUEUE answering: where does the next 8 hours of fixes pay off?"""
     bundle = select_all_eligible_sources(include_blocked_accounted=True)
     pool = _pool_map()
-    per = per_source_metrics or {}
+    per = dict(per_source_metrics or {})
+
+    # Enrich from registry health when last-run per_source is unavailable
+    try:
+        from procurement_source_registry import ProcurementSourceRegistry
+
+        reg = ProcurementSourceRegistry()
+        for s in reg.all_sources():
+            sid = s.get("source_id")
+            if not sid or sid in per:
+                continue
+            if s.get("productive") or s.get("operator_health_state") == "PRODUCTIVE":
+                per[sid] = {
+                    "ok": True,
+                    "raw": int(s.get("records_seen") or s.get("last_records_seen") or 1),
+                    "unique": int(s.get("records_seen") or 1),
+                    "source_stop_reason": "COMPLETED",
+                }
+            elif s.get("root_cause") or s.get("failure_class"):
+                per[sid] = {
+                    "ok": False,
+                    "raw": 0,
+                    "source_stop_reason": s.get("root_cause") or s.get("failure_class"),
+                    "error": s.get("failure_class"),
+                }
+    except Exception:
+        pass
 
     # Family sizes for leverage
     family_sizes: dict[str, int] = {}

@@ -271,10 +271,60 @@ def test_discovery_status_includes_handoff_blocks(monkeypatch):
     assert st["PIPELINE_HANDOFF"]["discovered"] == 20
 
 
+def test_pipeline_store_merge_on_save_does_not_clobber(tmp_path, monkeypatch):
+    """Concurrent worker with stale local rows must not wipe durable discoveries."""
+    from m3_pipeline_store import M3PipelineStore
+
+    path = tmp_path / "pipe.json"
+    durable_box: dict = {"payload": None}
+
+    def fake_read():
+        return durable_box["payload"]
+
+    def fake_write(payload):
+        durable_box["payload"] = payload
+        return True
+
+    monkeypatch.setattr("m3_pipeline_store._read_durable_payload", fake_read)
+    monkeypatch.setattr("m3_pipeline_store._write_durable_payload", fake_write)
+
+    # Worker A discovers many
+    a = M3PipelineStore(path=path, durable=True)
+    for i in range(5):
+        a.upsert_from_discovery(
+            {
+                "title": f"Buy laptop batch {i}",
+                "external_id": f"MERGE-{i}",
+                "status": "OPEN",
+                "source_id": "demo",
+                "description": "computers supply",
+                "deadline": "2099-01-01",
+            }
+        )
+    a.save()
+    assert len(a.all()) == 5
+    assert len((durable_box["payload"] or {}).get("opportunities") or []) == 5
+
+    # Worker B has stale single-row view and saves — must merge not clobber
+    b = M3PipelineStore(path=path, durable=True)
+    b._rows = {
+        "only-stale": {
+            "canonical_id": "only-stale",
+            "title": "stale",
+            "lifecycle": "RESEARCH_IN_PROGRESS",
+            "last_seen_at": "2099-01-02T00:00:00+00:00",
+        }
+    }
+    b.save()
+    assert len(b.all()) >= 5
+    ids = {r["canonical_id"] for r in b.all()}
+    assert "only-stale" in ids
+    assert len(ids) >= 6
+
+
 def test_dla_fallback_tracks_metrics_shape():
     from discovery.dla_fallback import search_sam_dla_product_opportunities
 
-    # Without authorize_live — structured empty result
     out = search_sam_dla_product_opportunities(authorize_live=False)
     assert out["executed"] is False
     assert out["opportunities"] == []

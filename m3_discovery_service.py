@@ -1092,6 +1092,18 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             handoff_failed=0,
             reconciliation=recon,
             research_queue_count=int(recon.get("RESEARCH_QUEUE_COUNT") or deep_queued),
+            per_source_summary={
+                sid: {
+                    "ok": (row or {}).get("ok"),
+                    "raw": (row or {}).get("raw") or (row or {}).get("records_fetched"),
+                    "unique": (row or {}).get("unique"),
+                    "source_stop_reason": (row or {}).get("source_stop_reason"),
+                    "root_cause": (row or {}).get("root_cause"),
+                    "access_outcome": (row or {}).get("access_outcome"),
+                }
+                for sid, row in (metrics.get("per_source") or {}).items()
+                if isinstance(row, dict)
+            },
             source_warnings=(
                 [f"PARTIAL: {live.get('partial_reason')}"]
                 if run_status == "PARTIAL_DISCOVERY_RUN"

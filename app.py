@@ -464,6 +464,8 @@ def health():
         from m3_pipeline_store import M3PipelineStore
 
         store = M3PipelineStore()
+        if hasattr(store, "reload_from_durable"):
+            store.reload_from_durable()
         payload["pipeline_store"] = {
             "available": True,
             "opportunity_count": len(store.all()),
@@ -769,12 +771,13 @@ def api_m3_coverage():
     from source_recovery_priority import coverage_dashboard_payload
 
     st = discovery_status()
-    # Prefer last-run per_source from successful completion metrics if present
     per = None
     try:
         focus = st.get("last_successful_completion") or st.get("last_attempt") or {}
-        metrics = focus.get("metrics") if isinstance(focus.get("metrics"), dict) else {}
-        per = metrics.get("per_source")
+        per = focus.get("per_source_summary")
+        if not per:
+            metrics = focus.get("metrics") if isinstance(focus.get("metrics"), dict) else {}
+            per = metrics.get("per_source")
     except Exception:
         per = None
     return coverage_dashboard_payload(per_source_metrics=per, discovery_status=st)
