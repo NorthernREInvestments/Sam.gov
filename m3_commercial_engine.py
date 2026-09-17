@@ -50,50 +50,53 @@ CAGE_RE = re.compile(r"\bCAGE[:\s#]*([A-Z0-9]{5})\b", re.I)
 QTY_RE = re.compile(r"\b(?:QTY|QUANTITY)[:\s]*(\d{1,6})\b", re.I)
 
 # Well-known manufacturers often named in product solicitations (signal only)
+# Prefer longer / more distinctive names first; skip ultra-short ambiguous tokens
 KNOWN_MANUFACTURERS = [
-    "Dell",
-    "HP",
     "Hewlett Packard",
-    "Lenovo",
-    "Apple",
-    "Cisco",
+    "John Deere",
+    "Snap-on",
+    "Plantronics",
+    "Schneider",
+    "Honeywell",
+    "Caterpillar",
     "Microsoft",
-    "Apple",
+    "Motorola",
+    "Logitech",
     "Samsung",
-    "Sony",
+    "Lenovo",
+    "Brother",
+    "Grainger",
+    "Fastenal",
+    "Insight",
     "Canon",
     "Epson",
-    "Brother",
     "Xerox",
-    "3M",
-    "Honeywell",
-    "Motorola",
-    "Garmin",
+    "Cisco",
+    "Apple",
+    "Dell",
+    "Sony",
     "Bosch",
-    "Caterpillar",
-    "John Deere",
-    "Ford",
-    "Chevrolet",
-    "Toyota",
-    "IBM",
+    "Fluke",
+    "Eaton",
     "Oracle",
     "Adobe",
-    "Logitech",
-    "Poly",
-    "Plantronics",
-    "APC",
-    "Eaton",
-    "Schneider",
-    "Fluke",
-    "Milwaukee",
-    "DeWalt",
+    "Garmin",
     "Makita",
-    "Snap-on",
-    "Grainger",  # often distributor but listed
+    "DeWalt",
+    "Milwaukee",
+    "Toyota",
+    "Ford",
+    "IBM",
+    "HP",
+    "3M",
+    "APC",
     "CDW",
     "SHI",
-    "Insight",
+    "Poly",
 ]
+
+# Tokens too ambiguous to match from free text alone
+AMBIGUOUS_MFR_TOKENS = {"IBM", "HP", "APC", "3M", "Poly", "Ford"}
 
 DISTRIBUTOR_HINTS = (
     "distributor",
@@ -167,6 +170,14 @@ def extract_identification(row: dict[str, Any]) -> dict[str, Any]:
     mfr = first.get("manufacturer") or row.get("manufacturer")
     if not mfr:
         for name in KNOWN_MANUFACTURERS:
+            if name in AMBIGUOUS_MFR_TOKENS:
+                # Require explicit manufacturer/context near token
+                if not re.search(
+                    rf"\b(?:manufacturer|mfr|brand|oem|model)?\s*{re.escape(name)}\b|\b{re.escape(name)}\s+(?:inc|corp|model|latitude|proliant|thinkpad)",
+                    blob,
+                    re.I,
+                ):
+                    continue
             if re.search(rf"\b{re.escape(name)}\b", blob, re.I):
                 mfr = name
                 break
@@ -636,15 +647,36 @@ def score_commercial_opportunity(
         explanations.append("compliance_clearance_risk")
 
     points = max(0, min(100, points))
-    if points >= 60 and sc != SCORE_LOW:
+
+    # Band rules — never invent margin; still elevate identifiable resale candidates
+    reseller_high = rfit >= 65
+    reseller_med = rfit >= 40
+    has_mfr = ident.get("manufacturer") not in {None, "UNKNOWN"}
+    has_part = ident.get("part_number") not in {None, "UNKNOWN"} or ident.get("NSN") not in {None, "UNKNOWN"}
+    clearance = any(x in _text_blob(row).lower() for x in ("clearance", "secret", "classified", "facility clearance"))
+    sole = "sole source" in _text_blob(row).lower() or "brand name only" in _text_blob(row).lower()
+
+    if clearance or (sole and sc == SCORE_LOW):
+        band = SCORE_LOW
+    elif points >= 60 and sc != SCORE_LOW:
         band = SCORE_HIGH
-    elif points >= 35:
+    elif pricing.get("pricing_level") == PRICE_LEVEL_1_ACTUAL and isinstance(
+        pricing.get("estimated_gross_margin"), (int, float)
+    ):
+        band = SCORE_HIGH if float(pricing["estimated_gross_margin"]) > 10 else SCORE_MEDIUM
+    elif reseller_high and sc != SCORE_LOW and (has_mfr or has_part):
+        # Strong resale pattern with identity — MEDIUM until acquisition verified
         band = SCORE_MEDIUM
+        explanations.append("reseller_fit_strong_pending_acquisition_verification")
+    elif points >= 35 or (reseller_med and has_mfr and sc != SCORE_LOW):
+        band = SCORE_MEDIUM
+        if points < 35:
+            explanations.append("identifiable_product_channel_pending_cost_verification")
     else:
         band = SCORE_LOW
 
     next_action = "Low priority"
-    if band == SCORE_HIGH and pricing.get("pricing_level") == PRICE_LEVEL_4_UNKNOWN:
+    if band in {SCORE_HIGH, SCORE_MEDIUM} and pricing.get("pricing_level") == PRICE_LEVEL_4_UNKNOWN:
         next_action = "Find distributor pricing"
     elif band == SCORE_HIGH:
         next_action = "Verify approved source"
@@ -875,7 +907,15 @@ def analyze_top_commercial_opportunities(
         store.save()
     except Exception:
         pass
-    queue = build_commercial_research_queue(store.all(), limit=limit, persist=False)
+    # Rank using freshly built intelligence (ignore stale persisted scores for ranking)
+    queue = build_commercial_research_queue(
+        [
+            {**(store.get(r["canonical_id"]) or r), "commercial_intelligence": (store.get(r["canonical_id"]) or {}).get("commercial_intelligence")}
+            for r in store.all()
+        ],
+        limit=limit,
+        persist=False,
+    )
     return {
         "kind": "M3CommercialAnalysisRun",
         "generated_at": _utc(),
