@@ -3,6 +3,45 @@
   "state": "M3_PRIMARY_APPLICATION_OPERATIONAL",
   "build_version": "20260917-m3-primary",
   "production_url": "https://samgov-production.up.railway.app",
-  "deployment_architecture": "Railway (GitHub NorthernREInvestments/Sam.gov → production) via Procfile/railway.toml uvicorn",
-  "validated_at": "2026-09-16"
+  "deployment_architecture": "Railway GitHub auto-deploy from NorthernREInvestments/Sam.gov main; Procfile/railway.toml → uvicorn app:app",
+  "git": {
+    "commits": ["0957a9b", "2b01a86"],
+    "branch": "main",
+    "pushed": true
+  },
+  "focused_tests": "17 passed (primary + configuration separation)",
+  "full_pytest": "982 passed",
+  "external_action_counts": {
+    "emails_sent": 0,
+    "bids_submitted": 0,
+    "network_transmitted": false
+  },
+  "real_external_spend": 0.0,
+  "live_health_verified": {
+    "build_version": "20260917-m3-primary",
+    "application": "M3",
+    "m3_health_ok": true,
+    "DEVELOPMENT_NO_OUTREACH": true,
+    "controlled_verification_active": false
+  },
+  "answers": {
+    "m3_only_active": true,
+    "legacy_retired_from_runtime": true,
+    "data_preserved": true,
+    "legacy_naics_gone_from_m3": true,
+    "procurement_naics_metadata_ok": true,
+    "opens_into_m3": true,
+    "navigation_fixed": true,
+    "responsive": true,
+    "dev_no_outreach_default": true,
+    "controlled_explicit": true,
+    "architecture": "Railway",
+    "committed": true,
+    "pushed": true,
+    "deploy_verified_build": "20260917-m3-primary",
+    "url": "https://samgov-production.up.railway.app",
+    "verify_newest": "Header badge + GET /api/health|/api/m3/health build_version",
+    "ready_tonight": true,
+    "blocking_issue": null
+  }
 }
