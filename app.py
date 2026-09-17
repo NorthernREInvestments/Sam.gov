@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-deal-economics"
+APP_BUILD_VERSION = "20260917-m3-product-pricing"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1357,6 +1357,58 @@ def api_m3_economics_status():
         else:
             statuses["UNKNOWN"] += 1
     return {"kind": "M3DealEconomicsStatus", "researched": len(by_id), "profit_statuses": statuses, "DEVELOPMENT_NO_OUTREACH": True}
+
+
+@app.post("/api/m3/product/analyze")
+def api_m3_product_analyze(body: dict | None = None):
+    """TOP N product identity + gated market pricing research."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_product_pricing import analyze_product_pricing_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    allow_paid = bool(payload.get("allow_paid_web", False))
+    paid_limit = max(0, min(10, int(payload.get("paid_limit") or 5)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_product_pricing_top(
+        store, limit=limit, allow_paid_web=allow_paid, paid_limit=paid_limit
+    )
+
+
+@app.get("/api/m3/product/status")
+def api_m3_product_status():
+    from m3_product_pricing import load_product_index, MATCH_HIGH, MATCH_MEDIUM, MATCH_LOW, MATCH_UNKNOWN
+
+    idx = load_product_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    matches = {MATCH_HIGH: 0, MATCH_MEDIUM: 0, MATCH_LOW: 0, MATCH_UNKNOWN: 0}
+    levels = {"LEVEL_1": 0, "LEVEL_2": 0, "LEVEL_3": 0, "LEVEL_4": 0}
+    for pp in by_id.values():
+        if not isinstance(pp, dict):
+            continue
+        m = ((pp.get("PRODUCT_MATCH") or {}).get("PRODUCT_MATCH_CONFIDENCE") or MATCH_UNKNOWN)
+        if m in matches:
+            matches[m] += 1
+        else:
+            matches[MATCH_UNKNOWN] += 1
+        lvl = str(((pp.get("MARKET_PRICE") or {}).get("primary_level") or "LEVEL_4"))
+        if "LEVEL_1" in lvl:
+            levels["LEVEL_1"] += 1
+        elif "LEVEL_2" in lvl:
+            levels["LEVEL_2"] += 1
+        elif "LEVEL_3" in lvl:
+            levels["LEVEL_3"] += 1
+        else:
+            levels["LEVEL_4"] += 1
+    return {
+        "kind": "M3ProductPricingStatus",
+        "researched": len(by_id),
+        "matches": matches,
+        "pricing_levels": levels,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
 
 
 @app.get("/api/m3/mobile/sources")

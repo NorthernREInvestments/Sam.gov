@@ -843,6 +843,7 @@
       const compInt = deal.competitive_intelligence || {};
       const execInt = deal.execution_intelligence || {};
       const dealEcon = deal.deal_economics || {};
+      const prodInt = deal.product_intelligence || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -962,6 +963,23 @@
               <div><dt>Next Action</dt><dd>${esc(dealEcon.Next_Action ?? "—")}</dd></div>
             </dl>
             <p class="muted">Unknown cost ≠ reject · no invented margins · operator notes never hide economics</p>`
+          ),
+          sectionCard(
+            "Product Intelligence",
+            `<dl class="m3-kv">
+              <div><dt>Product identity</dt><dd>${esc(prodInt.Product_identity ?? "UNKNOWN")}</dd></div>
+              <div><dt>Identity confidence</dt><dd><strong>${esc(prodInt.Identity_confidence ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Manufacturer</dt><dd>${esc(prodInt.Manufacturer ?? "UNKNOWN")}</dd></div>
+              <div><dt>Part number</dt><dd>${esc(prodInt.Part_number ?? "UNKNOWN")}</dd></div>
+              <div><dt>NSN</dt><dd>${esc(prodInt.NSN ?? "UNKNOWN")}</dd></div>
+              <div><dt>Quantity</dt><dd>${esc(prodInt.Quantity ?? "UNKNOWN")}</dd></div>
+              <div><dt>Contract value</dt><dd>${esc(prodInt.Contract_value ?? "UNKNOWN")} <span class="muted">(${esc(prodInt.Contract_value_confidence || "")})</span></dd></div>
+              <div><dt>Pricing evidence</dt><dd>${esc(((prodInt.Pricing_evidence || {}).level) ?? "LEVEL_4")} · ${esc(((prodInt.Pricing_evidence || {}).items || []).length)} item(s)</dd></div>
+              <div><dt>Research readiness</dt><dd>${esc(prodInt.Research_readiness ?? "UNKNOWN")}</dd></div>
+              <div><dt>Missing information</dt><dd>${esc(((prodInt.Missing_information || []).join(", ")) || "none listed")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(prodInt.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">${esc(prodInt.Economics_message || "Pricing research only after identity confidence is known")}</p>`
           ),
           sectionCard(
             "Evidence",

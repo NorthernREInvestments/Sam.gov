@@ -299,6 +299,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "competitive_intelligence": _deal_competitive(row),
         "execution_intelligence": _deal_execution(row),
         "deal_economics": _deal_economics(row),
+        "product_intelligence": _deal_product(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -377,6 +378,19 @@ def _deal_economics(row: dict[str, Any]) -> dict[str, Any]:
             "kind": "M3DealRoomDealEconomics",
             "Profit_Target_Status": "UNKNOWN",
             "Next_Action": "Deal economics unavailable",
+        }
+
+
+def _deal_product(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_product_pricing import deal_room_product_section
+
+        return deal_room_product_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomProductIntelligence",
+            "Identity_confidence": "UNKNOWN",
+            "Next_Action": "Product intelligence unavailable",
         }
 
 
