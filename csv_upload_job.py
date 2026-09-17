@@ -1,6 +1,7 @@
 """Background SAM CSV import — avoids HTTP timeout on large uploads."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import json
 import logging
@@ -112,7 +113,7 @@ def _processing_is_stale(state: dict[str, Any]) -> bool:
     if not started:
         return True
 
-    now = datetime.now(timezone.utc)
+    now = now_utc()
     age_seconds = (now - started).total_seconds()
     rows = int(state.get("rows_scanned") or 0)
 
@@ -133,7 +134,7 @@ def _get_state() -> dict[str, Any]:
             status="failed",
             error=_stale_error_message(state),
             result=None,
-            finished_at=datetime.now(timezone.utc).isoformat(),
+            finished_at=now_utc().isoformat(),
         )
         _save_state_to_db(state)
     return state
@@ -142,7 +143,7 @@ def _get_state() -> dict[str, Any]:
 def _set_state(**updates: Any) -> dict[str, Any]:
     state = _get_state()
     updates = dict(updates)
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_at"] = now_utc().isoformat()
     state.update(updates)
     _save_state_to_db(state)
     return state
@@ -174,7 +175,7 @@ def update_csv_upload_progress(
             return
         state["phase"] = phase
         state["message"] = message
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        state["updated_at"] = now_utc().isoformat()
         if rows_scanned is not None:
             state["rows_scanned"] = rows_scanned
         if rows_imported is not None:
@@ -188,7 +189,7 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
         current = _get_state()
         if current.get("status") == "processing":
             return {"ok": False, "error": "CSV import already running — wait for it to finish."}
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_utc().isoformat()
         _save_state_to_db(
             {
                 **_default_state(),
@@ -217,7 +218,7 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
                     status="complete",
                     result=result,
                     error=None,
-                    finished_at=datetime.now(timezone.utc).isoformat(),
+                    finished_at=now_utc().isoformat(),
                 )
                 logger.info(
                     "CSV background import finished: imported=%s watchlist_high=%s",
@@ -229,7 +230,7 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
                     status="failed",
                     result=None,
                     error=result.get("error") or "Import failed",
-                    finished_at=datetime.now(timezone.utc).isoformat(),
+                    finished_at=now_utc().isoformat(),
                 )
         except Exception as exc:
             session.rollback()
@@ -238,7 +239,7 @@ def start_csv_upload_job(content: bytes, *, process_attachments: bool = False) -
                 status="failed",
                 result=None,
                 error=str(exc),
-                finished_at=datetime.now(timezone.utc).isoformat(),
+                finished_at=now_utc().isoformat(),
             )
         finally:
             session.close()

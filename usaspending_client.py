@@ -1,6 +1,7 @@
 """USAspending.gov historical award search for pricing intelligence."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import re
 import statistics
@@ -371,7 +372,7 @@ def _parse_award_date(value: str | None) -> date | None:
 
 def _recency_weight(award_date: date, today: date | None = None) -> float:
     """Exponential decay — awards from ~1 year ago weigh 2x more than ~3 years ago."""
-    today = today or date.today()
+    today = today or today_local()
     days_ago = max(0, (today - award_date).days)
     return 0.5 ** (days_ago / 365.0)
 
@@ -394,7 +395,7 @@ def _weighted_percentile(pairs: list[tuple[float, float]], pct: float) -> float:
 
 
 def _normalize_award(row: dict[str, Any], today: date | None = None) -> dict[str, Any]:
-    today = today or date.today()
+    today = today or today_local()
     amount = row.get("Award Amount")
     try:
         amount_value = float(amount) if amount is not None else None
@@ -691,7 +692,7 @@ def _post_award_search(payload: dict[str, Any], *, max_attempts: int = 4) -> lis
                     continue
                 response.raise_for_status()
                 data = response.json()
-            today = date.today()
+            today = today_local()
             return [_normalize_award(row, today) for row in (data.get("results") or [])]
         except httpx.HTTPStatusError as exc:
             last_error = exc
@@ -722,14 +723,17 @@ def _contract_period_years(start_raw: str | None, end_raw: str | None) -> float 
 
 
 def estimate_annual_award_amount(award: dict[str, Any]) -> float | None:
-    """Estimate annual payment from total award amount and contract period."""
+    """
+    Annualize total award ONLY when contract period years are known.
+    If period is unknown, return None — never present total as annual.
+    """
     amount = award.get("award_amount")
     if not amount or amount <= 0:
         return None
     years = _contract_period_years(award.get("start_date"), award.get("end_date"))
     if years and years >= 1:
         return round(float(amount) / years, 2)
-    return round(float(amount), 2)
+    return None
 
 
 def estimate_option_years(award: dict[str, Any]) -> int | None:
@@ -817,7 +821,7 @@ def build_search_payload(
     lookback_years: int = REGIONAL_LOOKBACK_YEARS,
     agency: str | None = None,
 ) -> dict[str, Any]:
-    end_date = date.today()
+    end_date = today_local()
     start_date = end_date - timedelta(days=365 * lookback_years)
     if isinstance(state_codes, str):
         state_codes = [state_codes]
@@ -1214,7 +1218,7 @@ def fetch_awards_by_recipient(
     limit: int = 25,
 ) -> list[dict[str, Any]]:
     """Search awards by recipient name (UEI/DUNS/name) with NAICS + location filters."""
-    end_date = date.today()
+    end_date = today_local()
     start_date = end_date - timedelta(days=365 * lookback_years)
     locations: list[dict[str, str]] = [{"country": "USA", "state": state_code}]
     if city:
@@ -1880,7 +1884,7 @@ def _query_awards_in_states(
         response.raise_for_status()
         data = response.json()
 
-    today = date.today()
+    today = today_local()
     allowed = set(state_codes)
     awards = [_normalize_award(row, today) for row in (data.get("results") or [])[:limit]]
     awards = _filter_awards_by_states(awards, allowed)
@@ -1900,7 +1904,7 @@ def summarize_awards(
     scope_profile: dict[str, Any] | None = None,
     unit_rate_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    today = date.today()
+    today = today_local()
     dated_awards = [
         a
         for a in awards
@@ -2153,7 +2157,7 @@ def fetch_pricing_intelligence(
         summary["closest_award_label"] = closest.get("distance_label")
         summary["closest_award_location"] = closest.get("performance_location")
     summary["source"] = "USAspending.gov"
-    summary["fetched_at"] = date.today().isoformat()
+    summary["fetched_at"] = today_local().isoformat()
     summary["scope_profile"] = profile
     summary["scope_matching"] = scope_meta
     summary["unit_rate_summary"] = unit_rate_summary
@@ -2235,6 +2239,11 @@ def fetch_regional_benchmarks(
     same_site_expired = sum(1 for a in dated_awards if a.get("location_priority"))
 
     amounts = [a["award_amount"] for a in dated_awards]
+    annual_amounts: list[float] = []
+    for award in dated_awards:
+        annual = estimate_annual_award_amount(award)
+        if annual is not None:
+            annual_amounts.append(float(annual))
     recipient_weights: Counter[str] = Counter()
     for award in dated_awards:
         name = str(award.get("recipient_name") or "").strip()
@@ -2254,7 +2263,10 @@ def fetch_regional_benchmarks(
         "min_award_amount": MIN_REGIONAL_AWARD_AMOUNT,
         "awards_count": len(dated_awards),
         "awards_with_dates": len(dated_awards),
-        "average_annual_award": round(statistics.mean(amounts), 2) if amounts else None,
+        # True annual average only when POP-known annualization succeeded
+        "average_annual_award": round(statistics.mean(annual_amounts), 2) if annual_amounts else None,
+        "average_award_total": round(statistics.mean(amounts), 2) if amounts else None,
+        "award_amount_basis": "annual" if annual_amounts else ("total" if amounts else None),
         "highest_award": round(max(amounts), 2) if amounts else None,
         "lowest_award": round(min(amounts), 2) if amounts else None,
         "most_frequent_winner": top_winner,
@@ -2263,20 +2275,29 @@ def fetch_regional_benchmarks(
         "likely_incumbent": incumbent,
         "confidence": conf_key,
         "confidence_label": conf_label,
+        "is_current_revenue": False,
         "benchmark_note": (
-            f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
-            f"over the last {lookback_years} years. Award amounts vary by building size and cleaning frequency."
+            "Historical award context only — not current deal revenue or supplier cost. "
             + (
-                f" {same_site_expired} prior award(s) at this same address & scope (expired) are listed first."
-                if same_site_expired
-                else ""
+                f"Annual average from {len(annual_amounts)} awards with known period. "
+                if annual_amounts
+                else "Period unknown for awards — average_annual_award left null; see average_award_total. "
             )
-            if dated_awards
-            else f"No contracts over ${MIN_REGIONAL_AWARD_AMOUNT:,} found in {state_name} for this NAICS."
+            + (
+                f"Based on {len(dated_awards)} similar contracts awarded in {state_name} "
+                f"over the last {lookback_years} years. Award amounts vary by building size and cleaning frequency."
+                + (
+                    f" {same_site_expired} prior award(s) at this same address & scope (expired) are listed first."
+                    if same_site_expired
+                    else ""
+                )
+                if dated_awards
+                else f"No contracts over ${MIN_REGIONAL_AWARD_AMOUNT:,} found in {state_name} for this NAICS."
+            )
         ),
         "same_location_expired_count": same_site_expired,
         "awards": dated_awards[:20],
         "source": "USAspending.gov",
-        "fetched_at": date.today().isoformat(),
+        "fetched_at": today_local().isoformat(),
     }
     return summary

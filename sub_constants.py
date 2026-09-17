@@ -122,7 +122,7 @@ def is_specific_sub_type(sub_type: str | None) -> bool:
 
 
 def search_terms_for_sub_type(sub_type: str | None) -> list[str]:
-    """Return Google Places text queries inferred from Claude sub_type text."""
+    """Return Google Places text queries inferred from AI sub_type text."""
     text = (sub_type or "").lower()
     if any(
         k in text
@@ -176,7 +176,7 @@ def resolve_search_terms(
     sub_type_needed: str | None = None,
     naics_code: str | None = None,
 ) -> list[str]:
-    """Prefer Claude sub_type from attachment review; fall back to NAICS defaults."""
+    """Prefer AI sub_type from attachment review; fall back to NAICS defaults."""
     if _sub_type_is_specific(sub_type_needed):
         terms = search_terms_for_sub_type(sub_type_needed)
         if terms and terms != ["commercial service company"]:
@@ -244,7 +244,7 @@ def infer_sub_type_hint(
     description: str | None = None,
     naics_code: str | None = None,
 ) -> str | None:
-    """Best-effort trade label before Claude has screened the contract."""
+    """Best-effort trade label before AI has screened the contract."""
     blob = f"{title or ''} {(description or '')[:1200]}".strip()
     if blob:
         terms = search_terms_for_sub_type(blob)

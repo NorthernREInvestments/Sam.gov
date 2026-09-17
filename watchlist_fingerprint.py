@@ -114,30 +114,10 @@ def extract_title_keywords(title: str | None, *, min_count: int = 3, max_count: 
 
 
 def parse_dollar_amount(value: Any) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        amount = float(value)
-        return amount if amount > 0 else None
-    text = str(value).strip()
-    if not text:
-        return None
-    text = text.replace(",", "").replace("$", "").strip()
-    mult = 1.0
-    if text[-1:].lower() == "k":
-        mult = 1_000.0
-        text = text[:-1]
-    elif text[-1:].lower() == "m":
-        mult = 1_000_000.0
-        text = text[:-1]
-    match = re.search(r"(\d+(?:\.\d+)?)", text)
-    if not match:
-        return None
-    try:
-        amount = float(match.group(1)) * mult
-    except ValueError:
-        return None
-    return amount if amount > 0 else None
+    """Strict money parse — never treat bare ZIP/building/NAICS digits as dollars."""
+    from data_integrity import parse_money
+
+    return parse_money(value, allow_loose=False)
 
 
 def values_within_tolerance(

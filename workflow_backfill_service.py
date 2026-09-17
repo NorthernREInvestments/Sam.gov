@@ -1,6 +1,7 @@
 """Automatically repair every contract through the correct intake pipeline — no manual force."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 import threading
@@ -40,10 +41,21 @@ def _set_repair_status(**kwargs: Any) -> None:
         _repair_status.update(kwargs)
 
 
-def _is_anthropic_api_blocked(exc: BaseException) -> bool:
-    from api_budget import is_anthropic_api_blocked
+def _is_ai_api_blocked(exc: BaseException) -> bool:
+    from api_budget import is_ai_api_blocked
 
-    return is_anthropic_api_blocked(exc)
+    return is_ai_api_blocked(exc)
+
+
+_AI_API_SKIP_REASONS = frozenset(
+    {
+        "ai_api",
+        "claude_api",  # legacy
+        "ai_credits",
+        "claude_credits",  # legacy
+        "screen_budget",
+    }
+)
 
 
 def contract_repair_reason(row: Contract, session=None) -> str | None:
@@ -74,7 +86,7 @@ def contract_repair_reason(row: Contract, session=None) -> str | None:
 def repair_contract(session, row: Contract) -> dict[str, Any]:
     """
     Run the full correct order for one contract using only stored database data:
-    attachments (from PostgreSQL PDF bytes) → prior pricing hints → PDF sub type → find subs → Claude rank.
+    attachments (from PostgreSQL PDF bytes) → prior pricing hints → PDF sub type → find subs → AI rank.
     Never calls SAM.gov.
     """
     from attachment_pipeline import ensure_attachments_from_database
@@ -125,7 +137,7 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
 
-    # Release all DB connections before long Claude calls.
+    # Release all DB connections before long AI calls.
     session.commit()
     notice_id = row.notice_id
     contract_id = row.id
@@ -166,12 +178,12 @@ def repair_contract(session, row: Contract) -> dict[str, Any]:
             "repair_reason": reason,
         }
     except Exception as exc:
-        if _is_anthropic_api_blocked(exc):
-            logger.error("Workflow repair halted — Anthropic API unavailable: %s", exc)
+        if _is_ai_api_blocked(exc):
+            logger.error("Workflow repair halted — AI API unavailable: %s", exc)
             return {
                 "notice_id": notice_id,
                 "skipped": True,
-                "reason": "claude_api",
+                "reason": "ai_api",
                 "repair_reason": reason,
                 "detail": str(exc)[:200],
             }
@@ -198,7 +210,7 @@ def contracts_needing_repair(session) -> list[Contract]:
         return []
 
     min_days = min_days_from_env()
-    today = date.today()
+    today = today_local()
     rows = (
         session.query(Contract)
         .options(defer(Contract.attachment_text))
@@ -249,7 +261,7 @@ def run_workflow_repair_batch(*, limit: int = 5) -> dict[str, Any]:
 
             stats["processed"] += 1
 
-            if result.get("reason") in ("claude_api", "claude_credits", "screen_budget"):
+            if result.get("reason") in _AI_API_SKIP_REASONS:
                 stats["errors"] += 1
                 logger.warning(
                     "Repair skipped for %s (%s) — continuing queue",
@@ -341,7 +353,7 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
 
     _set_repair_status(
         running=True,
-        started_at=datetime.now(timezone.utc).isoformat(),
+        started_at=now_utc().isoformat(),
         finished_at=None,
         stats=stats,
         error=None,
@@ -389,10 +401,10 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
                     detail[:120],
                 )
                 continue
-            if result.get("reason") in ("claude_api", "screen_budget", "claude_credits"):
+            if result.get("reason") in _AI_API_SKIP_REASONS:
                 stats["errors"] += 1
                 logger.warning(
-                    "Claude unavailable for %s (%s) — continuing with next contract",
+                    "AI unavailable for %s (%s) — continuing with next contract",
                     result.get("notice_id"),
                     result.get("reason"),
                 )
@@ -420,7 +432,7 @@ def repair_all_stored_attachment_contracts() -> dict[str, Any]:
     finally:
         _set_repair_status(
             running=False,
-            finished_at=datetime.now(timezone.utc).isoformat(),
+            finished_at=now_utc().isoformat(),
             stats=stats,
         )
 

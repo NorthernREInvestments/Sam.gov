@@ -14,7 +14,7 @@ from database import SessionLocal
 from db_tables import GT_CONTRACTS
 from models import Contract
 from sam_enrich import is_scrape_complete
-from claude_client import contract_attachment_text
+from openai_client import contract_attachment_text
 
 
 def main() -> None:

@@ -1,6 +1,7 @@
 """Per-contract proposal pipeline status for dashboard incomplete tracking."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 from typing import Any
 
@@ -173,7 +174,7 @@ def compute_card_pipeline(contract: Contract, session) -> dict[str, Any]:
         },
         {
             "key": "analysis",
-            "label": "Claude analysis",
+            "label": "AI analysis",
             "state": "done" if analysis.get("screening_stage") == "full" else "pending",
         },
     ]
@@ -223,7 +224,7 @@ def is_performance_contract(contract: Contract) -> bool:
         return False
     if contract.award_date or contract.period_of_performance_start:
         return True
-    today = date.today()
+    today = today_local()
     if contract.due_date and contract.due_date >= today:
         return False
     return status in PERFORMANCE_STATUSES

@@ -1,4 +1,4 @@
-"""Screen contracts with Claude and save analysis to PostgreSQL."""
+"""Screen contracts with AI and save analysis to PostgreSQL."""
 
 from __future__ import annotations
 

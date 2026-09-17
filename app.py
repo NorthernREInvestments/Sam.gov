@@ -1,6 +1,7 @@
 """GovTracker web API and dashboard."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 import threading
@@ -32,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260910-sync-usage-snapshot-fix"
+APP_BUILD_VERSION = "20260914-openai-migration"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -95,7 +96,12 @@ def _deferred_background_startup() -> None:
         if repaired:
             log.info("Stamped PIEE hints on %s existing contract(s)", repaired)
         if can_spend_sam(1):
-            start_background_attachment_enrich()
+            from sam_scarcity import sam_scarcity_mode
+
+            if sam_scarcity_mode():
+                log.info("Skipping startup SAM attachment enrich — SAM scarcity mode")
+            else:
+                start_background_attachment_enrich()
     except Exception:
         log.exception("Deferred attachment/PIEE startup failed")
 
@@ -121,6 +127,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GovTracker", version="0.1.0", lifespan=lifespan)
+
+from product_api import router as product_router
+
+app.include_router(product_router)
+from deals_api import router as deals_router
+from os_api import router as os_router
+from discovery_api import router as discovery_router
+
+app.include_router(deals_router)
+app.include_router(os_router)
+app.include_router(discovery_router)
 app.add_middleware(AuthMiddleware)
 
 
@@ -435,6 +452,895 @@ def watchlist_priority_targets():
     return watchlist_status()
 
 
+@app.get("/api/national-discovery/changes-requiring-review")
+def api_changes_requiring_review():
+    from national_discovery_api import changes_requiring_review_payload
+
+    return changes_requiring_review_payload()
+
+
+@app.get("/api/national-discovery/tracked/{deal_id}/timeline")
+def api_tracked_timeline(deal_id: str):
+    from national_discovery_api import get_tracked_store
+
+    store = get_tracked_store()
+    return {"deal_id": deal_id, "timeline": store.timeline_for(deal_id), "tracked": store.get(deal_id)}
+
+
+@app.post("/api/national-discovery/changes/{change_id}/acknowledge")
+def api_acknowledge_change(change_id: str):
+    from national_discovery_api import get_tracked_store
+
+    store = get_tracked_store()
+    result = store.acknowledge(change_id, operator_id="operator")
+    if result.get("error"):
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/national-discovery/source-registry/summary")
+def api_source_registry_summary():
+    from procurement_source_registry import bootstrap_registry
+    from source_network_audit import coverage_metrics_honest
+
+    reg = bootstrap_registry()
+    summary = reg.coverage_summary()
+    summary["honest_coverage"] = coverage_metrics_honest(reg)
+    summary["claim_100_percent_national_coverage"] = False
+    return summary
+
+
+@app.get("/api/national-discovery/source-network/audit")
+def api_source_network_audit():
+    from procurement_source_registry import ProcurementSourceRegistry
+    from source_network_audit import audit_source_network
+
+    return audit_source_network(ProcurementSourceRegistry())
+
+
+@app.get("/api/national-discovery/platform-families")
+def api_platform_families():
+    from source_network_audit import platform_family_inventory, platform_leverage_ranking
+
+    inv = platform_family_inventory()
+    return {"inventory": inv, "leverage": platform_leverage_ranking(inv)}
+
+
+@app.get("/api/national-discovery/adapter-health")
+def api_adapter_health():
+    from discovery.live_fetchers import list_live_capable_fetchers
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    reg = ProcurementSourceRegistry()
+    adapters = list_live_capable_fetchers()
+    by_adapter = {}
+    for s in reg.all_sources():
+        aid = s.get("adapter_family") or "NONE"
+        slot = by_adapter.setdefault(
+            aid,
+            {"adapter_id": aid, "sources": 0, "healthy": 0, "partial": 0, "unknown": 0, "last_success": None},
+        )
+        slot["sources"] += 1
+        h = s.get("health_state")
+        if h == "HEALTHY_PRODUCTION":
+            slot["healthy"] += 1
+        elif h == "PARTIALLY_PRODUCTIVE":
+            slot["partial"] += 1
+        elif h in {None, "UNKNOWN", "DISCOVERED_UNVALIDATED"}:
+            slot["unknown"] += 1
+        ls = s.get("last_success_at")
+        if ls and (not slot["last_success"] or str(ls) > str(slot["last_success"])):
+            slot["last_success"] = ls
+    return {"live_fetchers": adapters, "by_adapter": list(by_adapter.values())}
+
+
+@app.get("/api/national-discovery/coverage-gaps")
+def api_coverage_gaps():
+    from coverage_gap_intelligence import build_coverage_gap_report
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    return build_coverage_gap_report(ProcurementSourceRegistry())
+
+
+@app.get("/api/national-discovery/product-yield")
+def api_product_yield():
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    reg = ProcurementSourceRegistry()
+    rows = []
+    for s in reg.all_sources():
+        rows.append(
+            {
+                "source_id": s["source_id"],
+                "platform_family": s.get("platform_family"),
+                "records_discovered": s.get("records_discovered") or 0,
+                "health_state": s.get("health_state"),
+                "product_yield_rate": s.get("product_yield_rate"),
+                "resolution_state": s.get("resolution_state"),
+            }
+        )
+    return {"sources": rows, "note": "Yield rates populated after discovery runs"}
+
+
+@app.get("/api/national-discovery/unknown-resolution")
+def api_unknown_resolution():
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent / "artifacts" / "unknown_source_resolution.json"
+    if path.exists():
+        import json
+
+        return json.loads(path.read_text(encoding="utf-8"))
+    from collections import Counter
+
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    reg = ProcurementSourceRegistry()
+    by = Counter(s.get("resolution_state") or s.get("health_state") for s in reg.all_sources())
+    return {"by_resolution": dict(by), "note": "Run round2 validation to refresh artifact"}
+
+
+@app.get("/api/national-discovery/family-health")
+def api_family_health():
+    from unknown_source_resolution import round2_leverage_ranking
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    reg = ProcurementSourceRegistry()
+    return round2_leverage_ranking(reg)
+
+
+@app.get("/api/national-discovery/product-category-yield")
+def api_product_category_yield():
+    from pathlib import Path
+    import json
+
+    path = Path(__file__).resolve().parent / "artifacts" / "product_category_yield.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return {"by_category": [], "note": "No live yield artifact yet"}
+
+
+@app.get("/api/national-discovery/false-positive-audit")
+def api_false_positive_audit():
+    from pathlib import Path
+    import json
+
+    path = Path(__file__).resolve().parent / "artifacts" / "product_false_positive_audit.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return {"counts": {}, "note": "No audit artifact yet"}
+
+
+@app.get("/api/national-discovery/entity-coverage")
+def api_entity_coverage():
+    from entity_geographic_coverage import entity_type_coverage
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    return entity_type_coverage(ProcurementSourceRegistry())
+
+
+@app.get("/api/national-discovery/geographic-coverage")
+def api_geographic_coverage():
+    from entity_geographic_coverage import geographic_coverage
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    return geographic_coverage(ProcurementSourceRegistry())
+
+
+@app.get("/api/national-discovery/live-product-examples")
+def api_live_product_examples():
+    from pathlib import Path
+    import json
+
+    path = Path(__file__).resolve().parent / "artifacts" / "live_product_example_set.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return {"examples": [], "note": "No example set yet"}
+
+
+@app.get("/api/m3/pipeline/status")
+def api_m3_pipeline_status(canonical_id: str | None = None):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_lifecycle import readiness_summary
+
+    store = M3PipelineStore()
+    if canonical_id:
+        row = store.get(canonical_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="opportunity not found")
+        return {
+            "opportunity": row,
+            "readiness": row.get("readiness_summary") or readiness_summary(row),
+            "audit": store.audit_for(canonical_id)[-20:],
+        }
+    return {
+        "count": len(store.all()),
+        "opportunities": [
+            {
+                "canonical_id": r["canonical_id"],
+                "title": r.get("title"),
+                "lifecycle": r.get("lifecycle"),
+                "next_action": r.get("pending_next_action"),
+                "deadline": r.get("deadline"),
+                "stop_reason": r.get("stop_reason"),
+            }
+            for r in store.all()[:100]
+        ],
+    }
+
+
+@app.get("/api/m3/pipeline/next-action")
+def api_m3_next_action(canonical_id: str):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_lifecycle import determine_next_action
+
+    store = M3PipelineStore()
+    row = store.get(canonical_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return determine_next_action(row)
+
+
+@app.post("/api/m3/pipeline/advance")
+def api_m3_pipeline_advance(canonical_id: str):
+    from m3_end_to_end import M3EndToEndOrchestrator
+    from m3_pipeline_store import M3PipelineStore
+    from operating_mode import MODE_DEVELOPMENT_NO_OUTREACH, set_operating_mode
+
+    set_operating_mode(MODE_DEVELOPMENT_NO_OUTREACH)
+    orch = M3EndToEndOrchestrator(store=M3PipelineStore())
+    return orch.advance(canonical_id)
+
+
+@app.get("/api/m3/operator-queue")
+def api_m3_operator_queue():
+    from m3_pipeline_store import M3PipelineStore
+
+    return {"queue": M3PipelineStore().operator_queue(), "DEVELOPMENT_NO_OUTREACH": True}
+
+
+@app.get("/api/m3/readiness/{canonical_id}")
+def api_m3_readiness(canonical_id: str):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_lifecycle import readiness_summary
+
+    row = M3PipelineStore().get(canonical_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return readiness_summary(row)
+
+
+@app.get("/api/m3/mobile/dashboard")
+def api_m3_mobile_dashboard():
+    from m3_mobile_read_model import mobile_dashboard_summary
+
+    return mobile_dashboard_summary()
+
+
+@app.get("/api/m3/mobile/opportunities")
+def api_m3_mobile_opportunities():
+    from m3_mobile_read_model import mobile_dashboard_summary
+
+    dash = mobile_dashboard_summary()
+    return {
+        "opportunities": dash.get("active_opportunities") or [],
+        "count": dash.get("active_count") or 0,
+        "DEVELOPMENT_NO_OUTREACH": dash.get("DEVELOPMENT_NO_OUTREACH"),
+    }
+
+
+@app.get("/api/m3/mobile/actions")
+def api_m3_mobile_actions():
+    from m3_mobile_read_model import action_queue_mobile
+
+    return action_queue_mobile()
+
+
+@app.get("/api/m3/mobile/deal/{canonical_id}")
+def api_m3_mobile_deal(canonical_id: str):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_mobile_read_model import deal_room_summary
+
+    row = M3PipelineStore().get(canonical_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return deal_room_summary(row)
+
+
+@app.get("/api/m3/mobile/sources")
+def api_m3_mobile_sources():
+    from m3_mobile_read_model import mobile_sources_summary
+
+    return mobile_sources_summary()
+
+
+@app.get("/api/m3/controlled/mode")
+def api_m3_controlled_mode():
+    from operating_mode import mode_snapshot
+
+    return mode_snapshot()
+
+
+@app.post("/api/m3/controlled/enable")
+def api_m3_controlled_enable(body: dict | None = None):
+    from operating_mode import enable_controlled_real_world_verification
+
+    body = body or {}
+    return enable_controlled_real_world_verification(
+        operator_id=str(body.get("operator_id") or ""),
+        acknowledgment=bool(body.get("acknowledgment")),
+        acknowledgment_text=body.get("acknowledgment_text"),
+    )
+
+
+@app.post("/api/m3/controlled/disable")
+def api_m3_controlled_disable(body: dict | None = None):
+    from operating_mode import disable_controlled_real_world_verification
+
+    return disable_controlled_real_world_verification(
+        operator_id=str((body or {}).get("operator_id") or "operator")
+    )
+
+
+@app.get("/api/m3/controlled/first-pursuits")
+def api_m3_first_pursuits(limit: int = 10):
+    from first_pursuit_selection import rank_first_pursuits
+    from learning_feedback import apply_feedback_to_pursuit_score, compute_learning_feedback
+
+    ranked = rank_first_pursuits(limit=max(1, min(limit, 25)))
+    feedback = compute_learning_feedback()
+    enriched = []
+    for c in ranked.get("candidates") or []:
+        adj = apply_feedback_to_pursuit_score(
+            int(c.get("score") or 0),
+            source_id=c.get("source_id"),
+            category=c.get("category"),
+            feedback=feedback,
+        )
+        enriched.append({**c, "learning": adj, "score_with_learning": adj["adjusted_score"]})
+    enriched.sort(key=lambda x: (-int(x.get("score_with_learning") or 0), str(x.get("canonical_id"))))
+    ranked["candidates"] = enriched
+    ranked["learning_feedback_summary"] = {
+        "records_analyzed": feedback.get("records_analyzed"),
+        "adjustment_count": len(feedback.get("adjustments") or []),
+    }
+    return ranked
+
+
+@app.get("/api/m3/controlled/review/{canonical_id}")
+def api_m3_live_review(canonical_id: str):
+    from live_review_package import live_opportunity_review_package
+
+    pkg = live_opportunity_review_package(canonical_id=canonical_id)
+    if pkg.get("error"):
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    return pkg
+
+
+@app.post("/api/m3/learning/start")
+def api_m3_learning_start(body: dict | None = None):
+    from transaction_learning import get_transaction_learning_store
+
+    body = body or {}
+    cid = str(body.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    return get_transaction_learning_store().start_pursuit(
+        cid,
+        source=body.get("source"),
+        platform=body.get("platform"),
+        buyer=body.get("buyer"),
+        category=body.get("category"),
+        why_discovered=body.get("why_discovered"),
+        why_pursued=body.get("why_pursued"),
+        estimated_acquisition_cost=body.get("estimated_acquisition_cost", "UNKNOWN"),
+        estimated_freight=body.get("estimated_freight", "UNKNOWN"),
+    )
+
+
+@app.get("/api/m3/learning/records")
+def api_m3_learning_records(canonical_id: str | None = None):
+    from transaction_learning import get_transaction_learning_store
+
+    store = get_transaction_learning_store()
+    if canonical_id:
+        return {"records": store.by_opportunity(canonical_id)}
+    return {"records": store.all(), "count": len(store.all())}
+
+
+@app.post("/api/m3/learning/supplier-verification")
+def api_m3_learning_supplier(body: dict | None = None):
+    from transaction_learning import get_transaction_learning_store
+
+    body = body or {}
+    rid = str(body.get("record_id") or "")
+    if not rid:
+        raise HTTPException(status_code=400, detail="record_id required")
+    result = get_transaction_learning_store().record_supplier_verification(
+        rid,
+        supplier=str(body.get("supplier") or "UNKNOWN"),
+        product=str(body.get("product") or "UNKNOWN"),
+        quote_date=body.get("quote_date"),
+        price=body.get("price", "UNKNOWN"),
+        availability=str(body.get("availability") or "UNKNOWN"),
+        lead_time=str(body.get("lead_time") or "UNKNOWN"),
+        warranty=str(body.get("warranty") or "UNKNOWN"),
+        notes=body.get("notes"),
+        authorized_by=body.get("authorized_by"),
+        freshness_days=int(body.get("freshness_days") or 14),
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@app.post("/api/m3/learning/financing-verification")
+def api_m3_learning_financing(body: dict | None = None):
+    from transaction_learning import get_transaction_learning_store
+
+    body = body or {}
+    rid = str(body.get("record_id") or "")
+    if not rid:
+        raise HTTPException(status_code=400, detail="record_id required")
+    result = get_transaction_learning_store().record_financing_verification(
+        rid,
+        financing_path=str(body.get("financing_path") or "UNKNOWN"),
+        requirements=body.get("requirements"),
+        result=str(body.get("result") or "UNKNOWN"),
+        evidence=body.get("evidence"),
+        transaction_structure=body.get("transaction_structure"),
+        terms=body.get("terms"),
+        timeline=body.get("timeline"),
+        authorized_by=body.get("authorized_by"),
+        state=body.get("state"),
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@app.post("/api/m3/learning/outcome")
+def api_m3_learning_outcome(body: dict | None = None):
+    from transaction_learning import get_transaction_learning_store
+
+    body = body or {}
+    rid = str(body.get("record_id") or "")
+    if not rid:
+        raise HTTPException(status_code=400, detail="record_id required")
+    result = get_transaction_learning_store().record_outcome(
+        rid,
+        status=str(body.get("status") or "IN_PROGRESS"),
+        revenue=body.get("revenue", "UNKNOWN"),
+        actual_profit=body.get("actual_profit", "UNKNOWN"),
+        timeline=body.get("timeline"),
+        problems=body.get("problems"),
+        delays=body.get("delays"),
+        missing_information=body.get("missing_information"),
+        operator_id=body.get("operator_id"),
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@app.get("/api/m3/learning/feedback")
+def api_m3_learning_feedback():
+    from learning_feedback import compute_learning_feedback
+
+    return compute_learning_feedback()
+
+
+@app.get("/api/m3/learning/first-five")
+def api_m3_learning_first_five():
+    from learning_feedback import first_five_contract_learning_report
+
+    return first_five_contract_learning_report()
+
+
+@app.get("/api/cost-governor/dashboard")
+def api_cost_governor_dashboard():
+    from cost_governor import get_cost_governor
+    from budget_catchup import market_coverage_state
+    from procurement_source_registry import ProcurementSourceRegistry
+
+    gov = get_cost_governor()
+    dash = gov.dashboard_payload()
+    reg = ProcurementSourceRegistry()
+    coverage = market_coverage_state(
+        sources=reg.all_sources(),
+        budget_paused_ids=set(dash.get("sources_paused_by_budget") or []),
+    )
+    dash["market_coverage"] = coverage
+    dash["backlog_note"] = "Research backlog may remain while market coverage is CURRENT"
+    return dash
+
+
+@app.get("/api/cost-governor/config")
+def api_cost_governor_config():
+    from cost_governor import get_cost_governor
+
+    gov = get_cost_governor()
+    return {"config": gov.config_store.get(), "audit": gov.config_store.audit()[-50:]}
+
+
+@app.post("/api/cost-governor/config")
+def api_cost_governor_update_config(body: dict):
+    """Operator-only budget updates — autonomous callers rejected."""
+    from cost_governor import get_cost_governor
+
+    gov = get_cost_governor()
+    operator_id = str(body.get("operator_id") or "operator")
+    updates = body.get("updates") or {}
+    reason = body.get("reason")
+    try:
+        cfg = gov.config_store.update_limits(updates, operator_id=operator_id, reason=reason)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    restored = gov.on_budget_restored() if any(
+        k.endswith("_CAP") or k == "ABSOLUTE_AUTONOMOUS_SPEND_CAP" for k in updates
+    ) else None
+    return {"config": cfg, "restoration": restored}
+
+
+@app.get("/api/cost-governor/deferred")
+def api_cost_governor_deferred():
+    from cost_governor import get_cost_governor
+
+    gov = get_cost_governor()
+    return {"deferred": gov.deferred_work(), "paused_sources": gov._paused_sources}
+
+
+# --- Bid requirements + compliance intelligence ---
+_BID_COMPLIANCE_CACHE: dict[str, dict] = {}
+
+
+def _bid_compliance_for(opportunity_id: str, body: dict | None = None) -> dict:
+    from bid_compliance_engine import acknowledge_material_change, analyze_bid_compliance
+
+    body = body or {}
+    if opportunity_id in _BID_COMPLIANCE_CACHE and not body.get("force"):
+        cached = _BID_COMPLIANCE_CACHE[opportunity_id]
+        if body.get("acknowledge_change_id"):
+            cached = acknowledge_material_change(
+                analysis=cached,
+                change_id=str(body["acknowledge_change_id"]),
+                operator_id=str(body.get("operator_id") or "operator"),
+            )
+            _BID_COMPLIANCE_CACHE[opportunity_id] = cached
+        return cached
+    result = analyze_bid_compliance(
+        solicitation_id=opportunity_id,
+        documents=body.get("documents"),
+        document_texts=body.get("document_texts"),
+        company_profile=body.get("company_profile"),
+        company_facts=body.get("company_facts"),
+        product=body.get("product"),
+        deadline_viability=body.get("deadline_viability"),
+        pursuit_worthy=bool(body.get("pursuit_worthy")),
+        economics_potentially_viable=bool(body.get("economics_potentially_viable")),
+        assumed_lead_time_days=body.get("assumed_lead_time_days"),
+        known_registrations=body.get("known_registrations"),
+        unreviewed_material_changes=body.get("unreviewed_material_changes"),
+        last_authoritative_check_at=body.get("last_authoritative_check_at"),
+        paid_research_questions=body.get("paid_research_questions"),
+    )
+    _BID_COMPLIANCE_CACHE[opportunity_id] = result
+    return result
+
+
+@app.get("/api/opportunities/{opportunity_id}/bid-requirements")
+def api_bid_requirements(opportunity_id: str):
+    analysis = _bid_compliance_for(opportunity_id)
+    return {
+        "solicitation_id": opportunity_id,
+        "requirements": analysis.get("requirements"),
+        "mandatory_vs_informational": analysis.get("mandatory_vs_informational"),
+    }
+
+
+@app.get("/api/opportunities/{opportunity_id}/compliance-matrix")
+def api_compliance_matrix(opportunity_id: str):
+    analysis = _bid_compliance_for(opportunity_id)
+    return analysis.get("compliance_matrix") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/bid-readiness")
+def api_bid_readiness(opportunity_id: str):
+    analysis = _bid_compliance_for(opportunity_id)
+    return {
+        "bid_readiness": analysis.get("bid_readiness"),
+        "package_completeness": analysis.get("package_completeness"),
+        "commercial_verification": analysis.get("commercial_verification"),
+    }
+
+
+@app.get("/api/opportunities/{opportunity_id}/package-map")
+def api_package_map(opportunity_id: str):
+    analysis = _bid_compliance_for(opportunity_id)
+    return analysis.get("package_map") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/bid-checklist")
+def api_bid_checklist(opportunity_id: str):
+    analysis = _bid_compliance_for(opportunity_id)
+    return analysis.get("checklist") or {}
+
+
+@app.post("/api/opportunities/{opportunity_id}/analyze-compliance")
+def api_analyze_compliance(opportunity_id: str, body: dict | None = None):
+    payload = dict(body or {})
+    payload["force"] = True
+    return _bid_compliance_for(opportunity_id, payload)
+
+
+@app.post("/api/opportunities/{opportunity_id}/acknowledge-material-change")
+def api_acknowledge_material_change(opportunity_id: str, body: dict | None = None):
+    payload = dict(body or {})
+    if not payload.get("acknowledge_change_id") and payload.get("change_id"):
+        payload["acknowledge_change_id"] = payload["change_id"]
+    analysis = _bid_compliance_for(opportunity_id, payload)
+    return {"ok": True, "acknowledged_changes": analysis.get("acknowledged_changes"), "bid_readiness": analysis.get("bid_readiness")}
+
+
+# --- Bid assembly + pricing intelligence ---
+_BID_PRICING_CACHE: dict[str, dict] = {}
+
+
+def _bid_pricing_for(opportunity_id: str, body: dict | None = None) -> dict:
+    from bid_pricing_engine import analyze_bid_pricing
+
+    body = body or {}
+    if opportunity_id in _BID_PRICING_CACHE and not body.get("force") and not body.get("line_items"):
+        return _BID_PRICING_CACHE[opportunity_id]
+    result = analyze_bid_pricing(
+        solicitation_id=opportunity_id,
+        line_items=body.get("line_items"),
+        historical_observations=body.get("historical_observations"),
+        freight_cost=body.get("freight_cost"),
+        freight_confidence=body.get("freight_confidence") or "UNKNOWN",
+        financing_cost=body.get("financing_cost"),
+        financing_confidence=body.get("financing_confidence") or "UNKNOWN",
+        transaction_expense=body.get("transaction_expense"),
+        risk_allowance=body.get("risk_allowance"),
+        risk_protects_against=body.get("risk_protects_against"),
+        evaluation_basis=body.get("evaluation_basis"),
+        award_mode=body.get("award_mode") or "ALL_OR_NONE",
+        government_estimate=body.get("government_estimate"),
+        company_facts=body.get("company_facts"),
+        required_forms=body.get("required_forms"),
+        submission=body.get("submission"),
+        delivery=body.get("delivery"),
+        compliance_matrix=body.get("compliance_matrix"),
+        delivery_by=body.get("delivery_by"),
+        authorization_document=body.get("authorization_document"),
+        priced_at=body.get("priced_at"),
+        profit_config=body.get("profit_config"),
+        amendments_accounted=body.get("amendments_accounted"),
+        freshness_ok=body.get("freshness_ok", True),
+        hard_blocker=bool(body.get("hard_blocker")),
+        deadline_actionable=body.get("deadline_actionable", True),
+        product_compliance_ok=body.get("product_compliance_ok", True),
+        eligibility_ok=body.get("eligibility_ok", True),
+        paid_research_questions=body.get("paid_research_questions"),
+        prior_audit=(_BID_PRICING_CACHE.get(opportunity_id) or {}).get("pricing_audit"),
+    )
+    _BID_PRICING_CACHE[opportunity_id] = result
+    return result
+
+
+@app.get("/api/opportunities/{opportunity_id}/pricing")
+def api_opp_pricing(opportunity_id: str):
+    a = _bid_pricing_for(opportunity_id)
+    return {
+        "operator_summary": a.get("operator_summary"),
+        "finalization_state": a.get("finalization_state"),
+        "recommendation": (a.get("pricing_scenarios") or {}).get("recommended"),
+        "transaction_economics": a.get("transaction_economics"),
+    }
+
+
+@app.get("/api/opportunities/{opportunity_id}/pricing-scenarios")
+def api_opp_pricing_scenarios(opportunity_id: str):
+    return _bid_pricing_for(opportunity_id).get("pricing_scenarios") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/transaction-economics")
+def api_opp_transaction_economics(opportunity_id: str):
+    return _bid_pricing_for(opportunity_id).get("transaction_economics") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/draft-bid")
+def api_opp_draft_bid(opportunity_id: str):
+    return _bid_pricing_for(opportunity_id).get("draft_bid_package") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/bid-package-manifest")
+def api_opp_bid_package_manifest(opportunity_id: str):
+    draft = _bid_pricing_for(opportunity_id).get("draft_bid_package") or {}
+    return draft.get("package_manifest") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/commercial-verification-targets")
+def api_opp_commercial_targets(opportunity_id: str):
+    return _bid_pricing_for(opportunity_id).get("commercial_verification_targets") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/pricing-audit")
+def api_opp_pricing_audit(opportunity_id: str):
+    return {"audit": _bid_pricing_for(opportunity_id).get("pricing_audit") or []}
+
+
+@app.post("/api/opportunities/{opportunity_id}/analyze-pricing")
+def api_analyze_pricing(opportunity_id: str, body: dict | None = None):
+    payload = dict(body or {})
+    payload["force"] = True
+    return _bid_pricing_for(opportunity_id, payload)
+
+
+@app.post("/api/opportunities/{opportunity_id}/assemble-draft-bid")
+def api_assemble_draft_bid(opportunity_id: str, body: dict | None = None):
+    payload = dict(body or {})
+    payload["force"] = True
+    analysis = _bid_pricing_for(opportunity_id, payload)
+    return {
+        "draft_bid_package": analysis.get("draft_bid_package"),
+        "draft_validation": analysis.get("draft_validation"),
+        "finalization_state": analysis.get("finalization_state"),
+    }
+
+
+# --- Commercial verification + execution control ---
+_COMMERCIAL_VERIFICATION_CACHE: dict[str, dict] = {}
+
+
+def _commercial_for(opportunity_id: str, body: dict | None = None) -> dict:
+    from commercial_verification_engine import build_commercial_verification_bundle
+
+    body = body or {}
+    if opportunity_id in _COMMERCIAL_VERIFICATION_CACHE and not body.get("force"):
+        return _COMMERCIAL_VERIFICATION_CACHE[opportunity_id]
+    result = build_commercial_verification_bundle(
+        opportunity_id=opportunity_id,
+        product_description=body.get("product_description"),
+        quantity=body.get("quantity"),
+        acquisition_estimate=body.get("acquisition_estimate"),
+        acquisition_confidence=body.get("acquisition_confidence") or "UNKNOWN",
+        freight_estimate=body.get("freight_estimate"),
+        freight_confidence=body.get("freight_confidence") or "UNKNOWN",
+        financing_estimate=body.get("financing_estimate"),
+        bid_revenue=body.get("bid_revenue"),
+        delivery_by=body.get("delivery_by"),
+        quote_valid_through=body.get("quote_valid_through"),
+        destination=body.get("destination"),
+        authorization_required=bool(body.get("authorization_required")),
+        origin_required=bool(body.get("origin_required")),
+        government_payment_terms=body.get("government_payment_terms"),
+        supplier_payment_timing=body.get("supplier_payment_timing"),
+        agency=body.get("agency"),
+        supplier=body.get("supplier"),
+        operator_fico=body.get("operator_fico"),
+        operator_cash_available=body.get("operator_cash_available"),
+        pg_acceptable=body.get("pg_acceptable", True),
+        economically_attractive=bool(body.get("economically_attractive")),
+        stock_verified=bool(body.get("stock_verified")),
+        lead_time_verified=bool(body.get("lead_time_verified")),
+        unit_target=body.get("unit_target"),
+        unit_ceiling=body.get("unit_ceiling"),
+        solicitation_open=body.get("solicitation_open", True),
+        deadline_viable=body.get("deadline_viable", True),
+        package_fresh=body.get("package_fresh", True),
+        amendments_acknowledged=bool(body.get("amendments_acknowledged")),
+        compliance_passes=bool(body.get("compliance_passes")),
+        product_compliant=bool(body.get("product_compliant")),
+        submission_method=body.get("submission_method"),
+    )
+    _COMMERCIAL_VERIFICATION_CACHE[opportunity_id] = result
+    return result
+
+
+@app.get("/api/opportunities/{opportunity_id}/commercial-verification")
+def api_commercial_verification(opportunity_id: str):
+    b = _commercial_for(opportunity_id)
+    return {"dashboard": b.get("dashboard"), "readiness": b.get("commercial_readiness"), "funding_gate": b.get("funding_gate")}
+
+
+@app.get("/api/opportunities/{opportunity_id}/verification-items")
+def api_verification_items(opportunity_id: str):
+    return {"items": (_commercial_for(opportunity_id).get("verification_plan") or {}).get("items") or []}
+
+
+@app.get("/api/opportunities/{opportunity_id}/funding-requirement")
+def api_funding_requirement(opportunity_id: str):
+    return _commercial_for(opportunity_id).get("funding_requirement") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/financing-compatibility")
+def api_financing_compatibility(opportunity_id: str):
+    return {"compatibility": _commercial_for(opportunity_id).get("financing_compatibility") or []}
+
+
+@app.get("/api/opportunities/{opportunity_id}/external-actions")
+def api_external_actions(opportunity_id: str):
+    return {"actions": _commercial_for(opportunity_id).get("external_actions") or []}
+
+
+@app.get("/api/opportunities/{opportunity_id}/commercial-readiness")
+def api_commercial_readiness(opportunity_id: str):
+    return _commercial_for(opportunity_id).get("commercial_readiness") or {}
+
+
+@app.get("/api/opportunities/{opportunity_id}/execution-gate")
+def api_execution_gate(opportunity_id: str):
+    return _commercial_for(opportunity_id).get("execution_gate") or {}
+
+
+@app.post("/api/opportunities/{opportunity_id}/build-verification-plan")
+def api_build_verification_plan(opportunity_id: str, body: dict | None = None):
+    payload = dict(body or {})
+    payload["force"] = True
+    return _commercial_for(opportunity_id, payload)
+
+
+@app.post("/api/opportunities/{opportunity_id}/verification-result")
+def api_verification_result(opportunity_id: str, body: dict | None = None):
+    from commercial_result_pipeline import ingest_verification_result
+    from commercial_verification_engine import process_verification_result_and_recalc
+
+    body = body or {}
+    bundle = _commercial_for(opportunity_id)
+    result = ingest_verification_result(
+        opportunity_id=opportunity_id,
+        result_type=str(body.get("result_type") or "supplier_quote"),
+        payload=body.get("payload") or {},
+        authority=str(body.get("authority") or "UNKNOWN"),
+        source=body.get("source"),
+        expires_at=body.get("expires_at"),
+    )
+    updated = process_verification_result_and_recalc(
+        bundle,
+        result=result,
+        bid_revenue=body.get("bid_revenue"),
+        freight=body.get("freight"),
+        financing=body.get("financing"),
+    )
+    _COMMERCIAL_VERIFICATION_CACHE[opportunity_id] = updated
+    return updated
+
+
+@app.post("/api/external-actions/{action_id}/authorize")
+def api_authorize_external_action(action_id: str, body: dict | None = None):
+    from external_action_control import get_external_action_store
+
+    return get_external_action_store().authorize(action_id, operator_id=str((body or {}).get("operator_id") or "operator"))
+
+
+@app.post("/api/external-actions/{action_id}/reject")
+def api_reject_external_action(action_id: str, body: dict | None = None):
+    from external_action_control import get_external_action_store
+
+    return get_external_action_store().reject(
+        action_id,
+        operator_id=str((body or {}).get("operator_id") or "operator"),
+        reason=(body or {}).get("reason"),
+    )
+
+
+@app.post("/api/external-actions/{action_id}/revoke")
+def api_revoke_external_action(action_id: str, body: dict | None = None):
+    from external_action_control import get_external_action_store
+
+    return get_external_action_store().revoke(action_id, operator_id=str((body or {}).get("operator_id") or "operator"))
+
+
+@app.post("/api/external-actions/{action_id}/dry-run")
+def api_dry_run_external_action(action_id: str):
+    from external_action_control import execute_external_action
+
+    return execute_external_action(action_id)
+
+
 @app.get("/api/auth/status")
 def auth_status(request: Request):
     if not auth_enabled():
@@ -615,7 +1521,7 @@ def get_contracts(
                     rank,
                     0 if ready else 1,
                     row.due_date is None,
-                    (row.due_date - date.today()).days if row.due_date else 9999,
+                    (row.due_date - today_local()).days if row.due_date else 9999,
                 )
             if is_possible_watchlist_match(row):
                 return (1, 0, 0 if ready else 1, row.due_date is None)
@@ -871,7 +1777,7 @@ def get_contract(notice_id: str):
 
 @app.post("/api/contracts/{notice_id}/extract-solicitation")
 def extract_contract_solicitation(notice_id: str, force: bool = Query(False)):
-    """Pull CO, dates, and PWS scope from bid PDFs via Claude."""
+    """Pull CO, dates, and PWS scope from bid PDFs via AI."""
     session = SessionLocal()
     try:
         from models import Contract
@@ -1029,14 +1935,15 @@ def pricing_dashboard():
         session.close()
 
 
+@app.get("/api/export/ai")
 @app.get("/api/export/claude")
-def export_claude_portfolio():
-    """Download a complete JSON snapshot of GovTracker for Claude Projects."""
+def export_ai_portfolio():
+    """Download a complete JSON snapshot of GovTracker for offline AI / archive use."""
     session = SessionLocal()
     try:
-        from claude_export import export_claude_json_bytes
+        from ai_export import export_ai_json_bytes
 
-        data, filename = export_claude_json_bytes(session, include_attachment_text=True)
+        data, filename = export_ai_json_bytes(session, include_attachment_text=True)
         return Response(
             content=data,
             media_type="application/json; charset=utf-8",
@@ -1140,10 +2047,23 @@ def run_screen(
 
 
 @app.post("/api/contracts/{notice_id}/screen")
-def run_screen_one(notice_id: str, force: bool = Query(False)):
+def run_screen_one(
+    notice_id: str,
+    force: bool = Query(False),
+    auto: bool = Query(False, description="True when triggered by opening contract detail"),
+):
     try:
-        from api_budget import ScreenBudgetExceeded
+        from api_budget import ScreenBudgetExceeded, auto_screen_on_contract_detail, can_screen
 
+        if auto and not force and not auto_screen_on_contract_detail():
+            return {
+                "notice_id": notice_id,
+                "skipped": True,
+                "reason": "auto_screen_disabled",
+                "message": "Automatic screening on contract detail is off. Use Sync/Screen or set AUTO_SCREEN_ON_CONTRACT_DETAIL=true.",
+            }
+        if not can_screen() and not force:
+            raise ScreenBudgetExceeded()
         return screen_one(notice_id, force=force)
     except ScreenBudgetExceeded as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
@@ -1155,7 +2075,7 @@ def run_screen_one(notice_id: str, force: bool = Query(False)):
 
 @app.post("/api/contracts/{notice_id}/full-analysis")
 def run_force_full_analysis(notice_id: str):
-    """Manual override — PIEE/PDF download + full Claude analysis regardless of text score."""
+    """Manual override — PIEE/PDF download + full AI analysis regardless of text score."""
     try:
         from api_budget import ScreenBudgetExceeded
 

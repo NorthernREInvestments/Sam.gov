@@ -338,7 +338,7 @@ async function generateProposal(noticeId) {
   }
   const btn = document.getElementById("proposal-generate-btn");
   if (btn) { btn.disabled = true; btn.textContent = "Generating…"; }
-  showSyncStatus("Claude is writing your proposal — this may take 1–2 minutes.");
+  showSyncStatus("AI is writing your proposal — this may take 1–2 minutes.");
   try {
     const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/proposal/generate`, {
       method: "POST",

@@ -1,6 +1,7 @@
 """Pricing intelligence service — Tier 1 regional benchmarks + Tier 2 internal database."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -196,7 +197,7 @@ def get_regional_benchmark(contract: Any, *, force_refresh: bool = False) -> dic
         contract.pricing_intel = payload
         return payload
 
-    intel["cached_at"] = datetime.now(timezone.utc).isoformat()
+    intel["cached_at"] = now_utc().isoformat()
     intel["tier"] = "regional_benchmark"
     intel["pricing_hints"] = cache_key
     intel["lookback_years"] = DEFAULT_LOOKBACK_YEARS
@@ -290,7 +291,7 @@ def _cache_fresh(payload: dict[str, Any], max_age_days: int = 7) -> bool:
         return False
     if cached_at.tzinfo is None:
         cached_at = cached_at.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) - cached_at < timedelta(days=max_age_days)
+    return now_utc() - cached_at < timedelta(days=max_age_days)
 
 
 def _error_payload(message: str, naics_code: str | None, state_code: str | None) -> dict[str, Any]:

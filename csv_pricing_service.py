@@ -1,6 +1,7 @@
 """USAspending pricing lookups for gt_csv_opportunities (no SAM.gov, no attachments)."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 import time
@@ -254,7 +255,7 @@ def lookup_csv_opportunity_pricing(row: CsvOpportunity) -> dict[str, Any]:
         }
         return {"pricing_intel": payload, "pricing_display": csv_pricing_card_display(payload)}
 
-    intel["cached_at"] = datetime.now(timezone.utc).isoformat()
+    intel["cached_at"] = now_utc().isoformat()
     intel["tier"] = "csv_usaspending"
     intel["lookback_years"] = lookback
     intel["source"] = "csv_batch_usaspending"
@@ -304,7 +305,7 @@ def csv_opportunity_ids_for_filters(
     """Resolve filtered CSV row IDs for a pricing batch job."""
     from csv_opportunity_service import _days_bucket, csv_opportunity_to_card_dict
 
-    today = date.today()
+    today = today_local()
     rows = session.query(CsvOpportunity).order_by(CsvOpportunity.due_date.asc().nullslast()).all()
     keyword = (keyword or "").strip() or None
     state = (state or "").strip().upper() or None

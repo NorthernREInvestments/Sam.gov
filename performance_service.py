@@ -1,6 +1,7 @@
 """Post-award contract performance, invoicing, and sub payment tracking."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -28,11 +29,11 @@ SIGNOFF_WARNING = (
 
 
 def _today() -> date:
-    return date.today()
+    return today_local()
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return now_utc()
 
 
 def _dec(value: Decimal | float | int | None) -> float | None:

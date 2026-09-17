@@ -1,6 +1,7 @@
 """Persist and load solicitation attachment file bytes in PostgreSQL."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 from datetime import datetime, timezone
 from typing import Any
@@ -143,7 +144,7 @@ def persist_attachment_files(
             existing.file_size_bytes = len(data)
             if per_file_text:
                 existing.extracted_text = per_file_text
-            existing.downloaded_at = datetime.now(timezone.utc)
+            existing.downloaded_at = now_utc()
         else:
             session.add(
                 ContractAttachment(
@@ -156,7 +157,7 @@ def persist_attachment_files(
                     file_bytes=data,
                     file_size_bytes=len(data),
                     extracted_text=per_file_text or None,
-                    downloaded_at=datetime.now(timezone.utc),
+                    downloaded_at=now_utc(),
                 )
             )
         written += 1
@@ -201,7 +202,7 @@ def download_and_persist_attachments(
     max_pdfs: int = 12,
 ) -> list[tuple[str, bytes]]:
     """Download from SAM/PIEE URLs, persist bytes to DB, return PDF list."""
-    from claude_client import _attachment_label, _collect_attachment_urls
+    from openai_client import _attachment_label, _collect_attachment_urls
     from piee_client import fetch_piee_pdfs
 
     raw = contract.sam_raw if isinstance(contract.sam_raw, dict) else {}

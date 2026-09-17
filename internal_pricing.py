@@ -1,6 +1,7 @@
 """Tier 2 — internal pricing database queries and dashboard aggregates."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import statistics
 from datetime import date
@@ -108,7 +109,7 @@ def query_internal_pricing(session: Session, contract: Contract) -> dict[str, An
 
     matched = prioritize_matched_contracts(contract, matched)
     origin = extract_site_profile(contract)
-    today = date.today()
+    today = today_local()
     rates = [float(r.price_per_sqft_per_visit) for r in matched]
     avg_rate = statistics.mean(rates)
     sqft = contract.square_footage or 0

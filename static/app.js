@@ -25,7 +25,16 @@ function showView(name) {
   if (helpView) helpView.hidden = name !== "help";
   const detailView = document.getElementById("view-contract-detail");
   if (detailView) detailView.hidden = name !== "contract-detail";
+  // Preserve desktop flows: hide M3 mobile shells unless explicitly opened
+  ["view-m3-home", "view-m3-opportunities", "view-m3-actions", "view-m3-sources", "view-m3-verify", "view-m3-deal-room"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+  if (name !== "m3-home") {
+    document.body.classList.remove("m3-mobile-active");
+  }
   document.getElementById("tab-contracts")?.classList.toggle("active", name === "dashboard" || name === "contract-detail");
+  document.getElementById("tab-m3-home")?.classList.toggle("active", name === "m3-home");
   const tabPerf = document.getElementById("tab-performance");
   if (tabPerf) tabPerf.classList.toggle("active", name === "performance");
   document.getElementById("tab-settings")?.classList.toggle("active", name === "settings");
@@ -788,6 +797,149 @@ function compactPriorityBadge(c) {
   return `<span class="compact-priority-badge" title="High-priority watchlist target${niche}${score}">Priority</span>`;
 }
 
+/** Tracked solicitation change alert — badge + icon + text (not color alone). */
+function trackedChangeBadge(c) {
+  const alert = c.tracked_change_alert;
+  if (!alert?.badge_text) return "";
+  const icon = alert.icon === "alert-octagon" ? "🛑" : alert.icon === "alert-triangle" ? "⚠" : "ℹ";
+  return `<span class="${escapeHtml(alert.css_class || "change-alert")}" data-icon="${icon}" role="status" aria-label="${escapeHtml(alert.aria_label || alert.badge_text)}"><span class="change-alert-icon" aria-hidden="true">${icon}</span> ${escapeHtml(alert.badge_text)}</span>`;
+}
+
+async function loadChangesRequiringReview() {
+  try {
+    const res = await apiFetch("/api/national-discovery/changes-requiring-review");
+    if (!res.ok) return;
+    const data = await res.json();
+    const count = data.count || 0;
+    const label = data.label || `Changes requiring review: ${count}`;
+    const nav = document.getElementById("tab-changes-review");
+    const navLabel = document.getElementById("changes-review-label");
+    if (nav) nav.hidden = count <= 0;
+    if (navLabel) navLabel.textContent = label;
+    const banner = document.getElementById("changes-review-banner");
+    const bannerText = document.getElementById("changes-review-banner-text");
+    if (banner) banner.hidden = count <= 0;
+    if (bannerText) bannerText.textContent = label;
+    const list = document.getElementById("changes-review-list");
+    if (list) {
+      list.innerHTML = (data.changes || []).map((c) => {
+        const ui = c.ui || {};
+        return `<div class="change-review-card sev-${escapeHtml(c.severity || "UNKNOWN")}">
+          <div><strong>${escapeHtml(ui.badge_text || c.severity)}</strong> — ${escapeHtml(c.deal_id || "")}</div>
+          <div>${escapeHtml(c.change_type || "")} · detected ${escapeHtml(c.detected_at || "")}</div>
+          <div>Invalidated: ${escapeHtml((c.affected_dependencies || []).join(", ") || "—")}</div>
+          <button type="button" class="btn btn-secondary-action ack-change-btn" data-change-id="${escapeHtml(c.change_id)}">Acknowledge review</button>
+        </div>`;
+      }).join("") || "<p>No unreviewed material changes.</p>";
+      list.querySelectorAll(".ack-change-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          await apiFetch(`/api/national-discovery/changes/${btn.dataset.changeId}/acknowledge`, { method: "POST" });
+          loadChangesRequiringReview();
+        });
+      });
+    }
+  } catch (_) {
+    /* non-fatal */
+  }
+}
+
+async function loadBudgetGovernorBanner() {
+  try {
+    const res = await apiFetch("/api/cost-governor/dashboard");
+    if (!res.ok) return;
+    const data = await res.json();
+    const banner = document.getElementById("budget-governor-banner");
+    const badge = document.getElementById("budget-governor-badge");
+    const detail = document.getElementById("budget-governor-detail");
+    const coverage = document.getElementById("budget-coverage-badge");
+    if (!banner || !badge) return;
+    banner.hidden = false;
+    const ui = data.ui || {};
+    badge.textContent = ui.badge_text || data.budget_state || "BUDGET";
+    badge.className = ui.css_class || "budget-badge-normal";
+    badge.setAttribute("aria-label", ui.aria_label || badge.textContent);
+    const rem = data.remaining_authorized != null ? Number(data.remaining_authorized).toFixed(2) : "—";
+    detail.textContent = `Today $${Number(data.today_spend || 0).toFixed(2)} / $${Number(data.today_cap || 0).toFixed(2)} · Month $${Number(data.month_spend || 0).toFixed(2)} / $${Number(data.month_cap || 0).toFixed(2)} · Absolute $${Number(data.absolute_used || 0).toFixed(2)} / $${Number(data.absolute_cap || 0).toFixed(2)} · Remaining $${rem} · Deferred ${data.paid_work_deferred || 0}`;
+    const mc = data.market_coverage || {};
+    coverage.textContent = mc.state ? `${mc.state.replaceAll("_", " ")} · behind ${ (mc.sources_behind || []).length }` : "";
+    banner.classList.toggle("is-exhausted", !!data.hard_cap_exhausted);
+    banner.classList.toggle("is-constrained", ["BUDGET_CONSTRAINED", "PAID_DISCOVERY_PAUSED", "DISCOVERY_THROTTLED"].includes(data.budget_state));
+    banner.classList.toggle("is-catchup", ["CATCH_UP", "BACKLOG_RECOVERY"].includes(data.budget_state) || (mc.state || "").includes("CATCHING") || (mc.state || "").includes("BEHIND"));
+  } catch (_) {
+    /* non-fatal */
+  }
+  loadSourceNetworkBanner().catch(() => {});
+  loadM3OperatorBanner().catch(() => {});
+}
+
+async function loadSourceNetworkBanner() {
+  try {
+    const res = await apiFetch("/api/national-discovery/source-registry/summary");
+    if (!res.ok) return;
+    const data = await res.json();
+    const banner = document.getElementById("source-network-banner");
+    const badge = document.getElementById("source-network-badge");
+    const detail = document.getElementById("source-network-detail");
+    const gapEl = document.getElementById("source-network-gap");
+    const yieldEl = document.getElementById("source-network-yield");
+    const geoEl = document.getElementById("source-network-geo");
+    if (!banner || !badge) return;
+    banner.hidden = false;
+    const known = data.KNOWN_SOURCE_COVERAGE || data;
+    const honest = data.honest_coverage || {};
+    const sh = honest.SOURCE_HEALTH || {};
+    const total = sh.registered || known.total_sources || 81;
+    const healthy = sh.healthy_production || known.healthy_production || 0;
+    const partial = sh.partially_productive || 0;
+    const unknown = sh.unknown || 0;
+    badge.textContent = `${healthy} / ${total} HEALTHY_PRODUCTION`;
+    detail.textContent = `SOURCE HEALTH · Healthy ${healthy} · Partial/Meta ${partial} · Unknown ${unknown} · Auth ${sh.auth_gated || 0} · Reg ${sh.registration_required || 0} · Bot ${sh.bot_protected || 0} · Broken ${sh.broken || 0}`;
+    const mc = honest.MARKET_COVERAGE_CONFIDENCE || {};
+    gapEl.textContent = `MARKET COVERAGE (separate): ${mc.interpretation || "NOT a % of U.S. procurement"} — never 100% claim`;
+    try {
+      const [yRes, gRes] = await Promise.all([
+        apiFetch("/api/national-discovery/product-category-yield"),
+        apiFetch("/api/national-discovery/geographic-coverage"),
+      ]);
+      if (yRes.ok && yieldEl) {
+        const y = await yRes.json();
+        const top = (y.largest_categories || []).slice(0, 3).join(", ") || "n/a";
+        yieldEl.textContent = `Product yield cats: ${top} · survivors ${y.survivor_count || y.total_survivors || "—"}`;
+      }
+      if (gRes.ok && geoEl) {
+        const g = await gRes.json();
+        const s = g.summary || {};
+        geoEl.textContent = `Geo: statewide ${s.STATEWIDE_SOURCE_PRESENT || 0} · local-only ${s.LOCAL_SOURCE_ONLY || 0} · none ${s.NO_VERIFIED_SOURCE || 0}`;
+      }
+    } catch (_) {
+      /* optional */
+    }
+  } catch (_) {
+    /* non-fatal */
+  }
+}
+
+async function loadM3OperatorBanner() {
+  try {
+    const res = await apiFetch("/api/m3/operator-queue");
+    if (!res.ok) return;
+    const data = await res.json();
+    const banner = document.getElementById("m3-operator-banner");
+    const badge = document.getElementById("m3-operator-badge");
+    const detail = document.getElementById("m3-operator-detail");
+    const queueEl = document.getElementById("m3-operator-queue");
+    if (!banner || !badge) return;
+    banner.hidden = false;
+    const q = data.queue || [];
+    badge.textContent = `M3 PIPELINE · ${q.length} operator items`;
+    detail.textContent = "SOURCE HEALTH ≠ market coverage · DEVELOPMENT_NO_OUTREACH on";
+    const top = q.slice(0, 3).map((x) => x.title || x.action_type || x.canonical_id).filter(Boolean);
+    if (queueEl) queueEl.textContent = top.length ? `Next: ${top.join(" · ")}` : "No operator actions queued";
+  } catch (_) {
+    /* non-fatal */
+  }
+}
+
 function compactFetchBadge(c) {
   const alert = c.attachment_fetch_alert;
   if (alert?.blocked && alert.badge) {
@@ -827,9 +979,10 @@ function buildCompactCardHtml(c) {
   const statusMsg = fetchBlocked && c.attachment_fetch_alert?.summary
     ? c.attachment_fetch_alert.summary
     : (c.proximity_note || c.workflow_progress?.status_message || "Reviewing fit");
-  const cardBadges = `${priorityBadge}${fetchBadge}`;
+  const cardBadges = `${priorityBadge}${fetchBadge}${trackedChangeBadge(c)}`;
   const govspendClass = c.govspend_watchlist?.sam_found ? " compact-card-govspend-hit" : "";
   const csvClass = c.csv_opportunity ? " compact-card-csv" : "";
+  const changeBorder = c.tracked_change_alert?.border_class ? ` ${c.tracked_change_alert.border_class}` : "";
   const scoreBadge = c.csv_opportunity && c.naics_code
     ? `<span class="score-badge score-badge-naics" title="NAICS ${escapeHtml(c.naics_code)}">${escapeHtml(c.naics_code)}</span>`
     : `<span class="score-badge ${scoreBadgeClass(score)}">${score != null ? `${score}/10` : "—"}</span>`;
@@ -842,7 +995,7 @@ function buildCompactCardHtml(c) {
   const workflowDots = c.csv_opportunity ? "" : renderWorkflowDots(c);
   const farBadge = c.csv_opportunity ? "" : compactFarBadge(c);
   return `
-    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}${govspendClass}${csvClass}" data-id="${c.notice_id}"${c.csv_opportunity ? ' data-csv-opportunity="1"' : ""}>
+    <article class="compact-card${fetchBlocked ? " compact-card-fetch-blocked" : ""}${c.watchlist_priority ? " compact-card-priority" : ""}${govspendClass}${csvClass}${changeBorder}" data-id="${c.notice_id}"${c.csv_opportunity ? ' data-csv-opportunity="1"' : ""}>
       <div class="compact-card-row compact-card-row-1">
         ${scoreBadge}
         <span class="compact-due-wrap">${cardBadges}<span class="compact-due ${due.cls}">${escapeHtml(due.text)}</span></span>
@@ -1459,6 +1612,8 @@ async function loadContracts() {
     await Promise.all([loadWatchlistHits(), loadWatchlistPossible(), loadCsvOpportunities()]);
     manageCardPolling();
     if (typeof loadDashboardPerformanceAlerts === "function") loadDashboardPerformanceAlerts();
+    loadChangesRequiringReview();
+    loadBudgetGovernorBanner();
     updateStatusBar(contracts.length, processingCount, config.naics_sync?.next_naics || "—", filterStats);
     updateFilterHint(filterStats);
   } catch (err) {
@@ -1706,6 +1861,15 @@ function renderDetailModal(c, { analyzing = false } = {}) {
   const solSection = renderSolicitationMetaSection(c);
   const pipelineStrip = renderPipelineStrip(c);
   const perfSection = typeof renderPerformanceTabMount === "function" ? renderPerformanceTabMount(c.notice_id) : "";
+  const bidComplianceSection = `<div id="bid-compliance-panel" class="bid-compliance-panel" data-notice-id="${escapeHtml(c.notice_id)}">
+    <p class="muted">Loading bid readiness…</p>
+  </div>`;
+  const bidPricingSection = `<div id="bid-pricing-panel" class="bid-pricing-panel" data-notice-id="${escapeHtml(c.notice_id)}">
+    <p class="muted">Loading pricing + bid assembly…</p>
+  </div>`;
+  const commercialSection = `<div id="commercial-verification-panel" class="commercial-verification-panel" data-notice-id="${escapeHtml(c.notice_id)}">
+    <p class="muted">Loading commercial verification…</p>
+  </div>`;
 
   document.getElementById("modal-content").innerHTML = `
     <div class="detail-header">
@@ -1718,10 +1882,13 @@ function renderDetailModal(c, { analyzing = false } = {}) {
     <div class="detail-workflow-grid">
       ${wrapDetailSection("1 · Evaluate", summaryInner, "detail-section-summary")}
       ${wrapDetailSection("2 · Solicitation", solSection, "detail-section-solicitation")}
-      ${wrapDetailSection("3 · Pricing", pricingInner, "detail-section-pricing")}
+      ${wrapDetailSection("3 · Pricing intel", pricingInner, "detail-section-pricing")}
       ${wrapDetailSection("4 · Subs", subsLink || "<p>Run Find Subs to search Google Places.</p>", "detail-section-subs")}
       ${wrapDetailSection("5 · Pursue", pursueSection, "detail-section-pursue")}
-      ${wrapDetailSection("6 · Performance", perfSection, "detail-section-performance")}
+      ${wrapDetailSection("6 · Bid readiness", bidComplianceSection, "detail-section-bid-compliance")}
+      ${wrapDetailSection("7 · Pricing + bid assembly", bidPricingSection, "detail-section-bid-pricing")}
+      ${wrapDetailSection("8 · Commercial verification", commercialSection, "detail-section-commercial")}
+      ${wrapDetailSection("9 · Performance", perfSection, "detail-section-performance")}
     </div>
   `;
   document.getElementById("extract-solicitation-btn")?.addEventListener("click", () => {
@@ -1734,6 +1901,186 @@ function renderDetailModal(c, { analyzing = false } = {}) {
     if (typeof openSubmissionChecklist === "function") openSubmissionChecklist(c.notice_id);
   });
   if (typeof loadContractPerformanceTab === "function") loadContractPerformanceTab(c.notice_id);
+  loadBidCompliancePanel(c.notice_id);
+  loadBidPricingPanel(c.notice_id);
+  loadCommercialVerificationPanel(c.notice_id);
+}
+
+async function loadBidCompliancePanel(noticeId) {
+  const panel = document.getElementById("bid-compliance-panel");
+  if (!panel) return;
+  try {
+    const res = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/bid-readiness`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Bid readiness unavailable");
+    const ready = data.bid_readiness || {};
+    const pkg = data.package_completeness || {};
+    const badge = ready.badge || ready.state || "UNRESOLVED";
+    const blockers = (ready.blockers || []).slice(0, 6).map((b) => `<li>${escapeHtml(b)}</li>`).join("");
+    panel.innerHTML = `
+      <div class="bid-readiness-header">
+        <span class="bid-badge bid-badge-${escapeHtml(String(badge).toLowerCase().replace(/\\s+/g, "-"))}" role="status">${escapeHtml(badge)}</span>
+        <strong>${escapeHtml(ready.state || "UNKNOWN")}</strong>
+      </div>
+      <p class="muted">Package: ${escapeHtml(pkg.status || "UNKNOWN")} · Assembly: ${ready.ready_for_bid_assembly ? "yes" : "no"}</p>
+      <details class="bid-compliance-details">
+        <summary>Compliance matrix</summary>
+        <div id="bid-compliance-matrix-mount" class="muted">Expanding…</div>
+      </details>
+      <ul class="bid-blocker-list">${blockers || "<li>No blockers listed</li>"}</ul>
+      <button type="button" class="btn btn-secondary-action" id="bid-analyze-btn">Analyze compliance</button>
+    `;
+    panel.querySelector(".bid-compliance-details")?.addEventListener("toggle", async (ev) => {
+      if (!ev.target.open) return;
+      const mount = document.getElementById("bid-compliance-matrix-mount");
+      if (!mount || mount.dataset.loaded) return;
+      const mres = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/compliance-matrix`);
+      const matrix = await mres.json();
+      const rows = (matrix.rows || []).slice(0, 25).map((r) =>
+        `<tr><td>${escapeHtml(r.category || "")}</td><td>${escapeHtml(r.current_status || "")}</td><td>${r.blocking ? "YES" : ""}</td></tr>`
+      ).join("");
+      mount.innerHTML = `<table class="bid-matrix-table"><thead><tr><th>Category</th><th>Status</th><th>Block</th></tr></thead><tbody>${rows || "<tr><td colspan=3>No requirements extracted yet — run Analyze</td></tr>"}</tbody></table>`;
+      mount.dataset.loaded = "1";
+    });
+    document.getElementById("bid-analyze-btn")?.addEventListener("click", async () => {
+      showSyncStatus("Analyzing bid compliance…");
+      await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/analyze-compliance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      await loadBidCompliancePanel(noticeId);
+      showSyncStatus("Bid compliance updated.");
+    });
+  } catch (err) {
+    panel.innerHTML = `<p class="muted">Bid readiness: ${escapeHtml(err.message || "unavailable")}</p>`;
+  }
+}
+
+async function loadBidPricingPanel(noticeId) {
+  const panel = document.getElementById("bid-pricing-panel");
+  if (!panel) return;
+  try {
+    const res = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/pricing`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Pricing unavailable");
+    const s = data.operator_summary || {};
+    const money = (v) => (v == null || v === "" ? "—" : `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+    const pct = (v) => (v == null ? "—" : `${(Number(v) * 100).toFixed(1)}%`);
+    panel.innerHTML = `
+      <div class="bid-pricing-summary">
+        <span class="bid-badge bid-badge-unresolved" role="status">${escapeHtml(data.finalization_state || "PRICING")}</span>
+        <dl class="bid-pricing-dl">
+          <div><dt>What they want</dt><dd>${escapeHtml((s.what_they_want || []).filter(Boolean).slice(0, 3).join("; ") || "—")}</dd></div>
+          <div><dt>MSRP</dt><dd>${money(s.msrp)}</dd></div>
+          <div><dt>Historical gov price</dt><dd>${money(s.historical_government_price)}</dd></div>
+          <div><dt>Acquisition cost</dt><dd>${money(s.estimated_acquisition_cost)}</dd></div>
+          <div><dt>Recommended bid</dt><dd>${money(s.recommended_bid)}</dd></div>
+          <div><dt>Expected profit</dt><dd>${money(s.expected_profit)}</dd></div>
+          <div><dt>Expected margin</dt><dd>${pct(s.expected_margin)}</dd></div>
+        </dl>
+        <p class="muted">Confidence: ${escapeHtml(s.pricing_confidence || "UNKNOWN")} · Due: ${escapeHtml(s.when_due || "UNKNOWN")} · Submit: ${escapeHtml(s.how_to_submit || "UNKNOWN")}</p>
+      </div>
+      <details class="bid-compliance-details"><summary>Commercial verification targets</summary>
+        <ul>${(s.what_must_verify || []).map((t) => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None yet — analyze pricing</li>"}</ul>
+      </details>
+      <button type="button" class="btn btn-secondary-action" id="bid-pricing-analyze-btn">Analyze pricing</button>
+    `;
+    document.getElementById("bid-pricing-analyze-btn")?.addEventListener("click", async () => {
+      showSyncStatus("Analyzing bid pricing…");
+      await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/analyze-pricing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      await loadBidPricingPanel(noticeId);
+      showSyncStatus("Bid pricing updated.");
+    });
+  } catch (err) {
+    panel.innerHTML = `<p class="muted">Pricing + bid assembly: ${escapeHtml(err.message || "unavailable")}</p>`;
+  }
+}
+
+async function loadCommercialVerificationPanel(noticeId) {
+  const panel = document.getElementById("commercial-verification-panel");
+  if (!panel) return;
+  try {
+    const res = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/commercial-verification`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Commercial verification unavailable");
+    const d = data.dashboard || {};
+    const fin = d.financing || {};
+    const sup = d.supplier || {};
+    const money = (v) => (v == null || v === "" ? "—" : `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+    const paths = (fin.potential_paths || []).slice(0, 4).map((p) =>
+      `<li>${escapeHtml(p.financier || "")}: ${escapeHtml(p.state || "")}</li>`
+    ).join("");
+    let financingDetail = "";
+    try {
+      const fres = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/financing-compatibility`);
+      const fdata = await fres.json();
+      const compat = (fdata.compatibility || []).slice(0, 5);
+      financingDetail = compat.map((c) => {
+        return `<li><strong>${escapeHtml(c.financier || "")}</strong>: ${escapeHtml(c.state || "")}
+          · PG ${c.pg_required ? "REQUIRED" : "see profile"}
+          · Credit-dep ${c.personal_credit_dependent ? "MATERIAL/PRIMARY" : "see profile"}
+          · reasons: ${escapeHtml((c.reasons || []).slice(0, 2).join("; ") || "—")}</li>`;
+      }).join("");
+    } catch (_) { /* optional */ }
+    let execState = "—";
+    try {
+      const eres = await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/execution-gate`);
+      const edata = await eres.json();
+      execState = edata.state || "—";
+    } catch (_) { /* optional */ }
+    const del = d.delivery || {};
+    const econ = d.economics || {};
+    const fund = d.funding || fin;
+    const pursuit = d.pursuit || {};
+    const exec = d.execution || {};
+    const whyNot = (exec.why_not_ready || []).slice(0, 2).map((w) => `<li>${escapeHtml(w)}</li>`).join("");
+    panel.innerHTML = `
+      <div class="commercial-summary">
+        <span class="bid-badge bid-badge-unresolved" role="status">${escapeHtml((data.readiness || {}).state || "PLAN")}</span>
+        <span class="bid-badge bid-badge-future">${escapeHtml((data.funding_gate || {}).state || fund.status || "FUNDING")}</span>
+        ${(data.funding_gate || {}).label || fund.label ? `<p class="muted"><strong>${escapeHtml((data.funding_gate || {}).label || fund.label || "")}</strong></p>` : ""}
+        <h4 class="detail-subhead">Economics</h4>
+        <p>${money(econ.current_expected_profit)} expected profit · ${escapeHtml(econ.status || "—")}</p>
+        <h4 class="detail-subhead">Funding</h4>
+        <dl class="commercial-fin-dl">
+          <div><dt>Required</dt><dd>${money(fund.amount_required || fin.amount_required)}</dd></div>
+          <div><dt>Max financing cost</dt><dd>${money(fund.maximum_acceptable_financing_cost || fin.maximum_acceptable_financing_cost)}</dd></div>
+          <div><dt>Paths identified</dt><dd>${escapeHtml(String(fund.paths_identified ?? (fin.potential_paths || []).length ?? "—"))}</dd></div>
+          <div><dt>Untested / need verify</dt><dd>${escapeHtml(String(fund.paths_untested ?? "—"))} / ${escapeHtml(String(fund.paths_verification_required ?? "—"))}</dd></div>
+        </dl>
+        <p><strong>STATUS</strong> ${escapeHtml(fund.status || (data.funding_gate || {}).state || "—")}</p>
+        <ul class="commercial-path-list">${financingDetail || paths || "<li>No paths assessed yet — build plan</li>"}</ul>
+        <h4 class="detail-subhead">Pursuit</h4>
+        <p>${escapeHtml(pursuit.label || (pursuit.alive === false ? "STOP" : "KEEP PURSUING"))}</p>
+        <h4 class="detail-subhead">Execution</h4>
+        <p>${escapeHtml(exec.state || execState)} <span class="muted">(no live outreach)</span></p>
+        <ul class="commercial-path-list">${whyNot || "<li>Build plan for blockers</li>"}</ul>
+        ${exec.deal_cannot_be_done ? `<p class="muted"><strong>Deal cannot be done</strong> — funding paths exhausted with affirmative evidence.</p>` : ""}
+        <h4 class="detail-subhead">Supplier</h4>
+        <p>Estimate ${money(sup.current_estimate)} · Target ${money(sup.target)} · Hard ceiling ${money(sup.hard_ceiling)}</p>
+        <h4 class="detail-subhead">Delivery</h4>
+        <p>Required ${escapeHtml(del.required_date || "—")} · Freight ${money(del.freight)} · ${escapeHtml(del.status || "")}</p>
+      </div>
+      <button type="button" class="btn btn-secondary-action" id="commercial-plan-btn">Build verification plan</button>
+    `;
+    document.getElementById("commercial-plan-btn")?.addEventListener("click", async () => {
+      showSyncStatus("Building commercial verification plan…");
+      await apiFetch(`/api/opportunities/${encodeURIComponent(noticeId)}/build-verification-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true, economically_attractive: true }),
+      });
+      await loadCommercialVerificationPanel(noticeId);
+      showSyncStatus("Commercial verification plan ready (no outreach).");
+    });
+  } catch (err) {
+    panel.innerHTML = `<p class="muted">Commercial verification: ${escapeHtml(err.message || "unavailable")}</p>`;
+  }
 }
 
 async function extractSolicitationMeta(noticeId) {
@@ -1758,10 +2105,14 @@ async function fetchContract(noticeId) {
   return res.json();
 }
 
-async function requestContractScreening(noticeId) {
-  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/screen`, { method: "POST" });
+async function requestContractScreening(noticeId, { force = false, auto = false } = {}) {
+  const qs = new URLSearchParams();
+  if (force) qs.set("force", "true");
+  if (auto) qs.set("auto", "true");
+  const suffix = qs.toString() ? `?${qs}` : "";
+  const res = await apiFetch(`/api/contracts/${encodeURIComponent(noticeId)}/screen${suffix}`, { method: "POST" });
   const data = await res.json();
-  if (!res.ok && !data.in_progress) {
+  if (!res.ok && !data.in_progress && !data.skipped) {
     throw new Error(data.detail || "Screening failed");
   }
   return data;
@@ -1795,7 +2146,7 @@ async function beginAutoAnalysis(noticeId) {
   startDetailLiveUpdates(noticeId);
 
   try {
-    await requestContractScreening(noticeId);
+    await requestContractScreening(noticeId, { auto: true });
     const c = await fetchContract(noticeId);
     if (c && getContractSummary(c)) {
       renderDetailModal(c);
@@ -1849,15 +2200,60 @@ function firstSentence(text, maxLen = 180) {
 }
 
 function formatMoney(value) {
-  if (value == null || value === "") return "—";
+  // Missing factual money → Unknown (never invent $0)
+  if (value == null || value === "") return "Unknown";
+  if (typeof value === "object" && value.status) {
+    if (value.status === "UNKNOWN" || value.value == null) return "Unknown";
+    value = value.value;
+  }
   if (typeof value === "string" && value.trim().startsWith("$")) return value.trim();
   const num = Number(String(value).replace(/[^0-9.-]/g, ""));
-  if (Number.isNaN(num)) return String(value);
+  if (Number.isNaN(num)) return "Unknown";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(num);
+}
+
+function formatEconomicMoney(value, opts = {}) {
+  // Unknown ≠ $0. Scenario ≠ actual.
+  if (value == null || value === "") return opts.unknownLabel || "Unknown";
+  if (typeof value === "object") {
+    const st = value.status || "";
+    if (st === "UNKNOWN" || st === "INCOMPLETE" || st === "REQUIRED_UNKNOWN") {
+      return opts.required ? "Unknown — required" : "Unknown";
+    }
+    if (st === "NOT_APPLICABLE") return "Not applicable";
+    if (st === "VERIFIED_ZERO") return "$0 (verified)";
+    if (st === "ESTIMATED_SCENARIO") {
+      const sp = value.scenario_profit ?? value.value;
+      if (sp == null) return "Unknown";
+      return `${formatMoney(sp)} (POLICY SCENARIO — not verified actual profit)`;
+    }
+    if (value.value == null && value.actual_profit == null && value.amount == null) {
+      return opts.unknownLabel || "Unknown";
+    }
+    value = value.actual_profit ?? value.value ?? value.amount;
+  }
+  return formatMoney(value);
+}
+
+function formatPgRequirement(state) {
+  if (state === "PASS") return "No PG (verified)";
+  if (state === "FAIL") return "PG required — FAIL";
+  return "PG requirement: Unknown";
+}
+
+function formatBoolOrUnknown(value) {
+  if (value == null) return "Unknown";
+  if (typeof value === "object" && value.status) {
+    if (value.status === "UNKNOWN" || value.value == null) return "Unknown";
+    value = value.value;
+  }
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "Unknown";
 }
 
 function mergeContractUpdate(updated) {
@@ -1868,9 +2264,12 @@ function mergeContractUpdate(updated) {
 
 function recommendedAnnualBid(c) {
   const quote = c?.selected_sub_quote;
-  const margin = c?.effective_margin_pct ?? c?.margin_percentage ?? 20;
-  if (quote && quote > 0) {
-    return quote / (1 - margin / 100);
+  const margin = c?.effective_margin_pct ?? c?.margin_percentage ?? null;
+  const basis = c?.selected_sub_quote_basis; // "monthly" | "annual" | unknown
+  if (quote && quote > 0 && margin != null && margin > 0) {
+    // Default historical storage is monthly — annualize unless explicitly annual
+    const annual = basis === "annual" ? quote : quote * 12;
+    return annual / (1 - margin / 100);
   }
   if (c?.estimated_annual_bid) return c.estimated_annual_bid;
   const intel = c?.pricing_intel;
@@ -2242,7 +2641,7 @@ async function runSync({ allNaics = false, searchOnly = false } = {}) {
       `Searching SAM.gov for NAICS ${naics || config.naics_sync?.next_naics || "next in rotation"} (1 API call only)…`
     );
   } else {
-    showSyncStatus("Searching SAM.gov — saves all filter-matching contracts, then pulls attachments and runs Claude analysis when ready…");
+    showSyncStatus("Searching SAM.gov — saves all filter-matching contracts, then pulls attachments and runs AI analysis when ready…");
   }
 
   try {
@@ -2344,14 +2743,14 @@ async function saveBlobWithPicker(blob, filename, mimeType = "application/json")
   return filename;
 }
 
-async function exportForClaude() {
-  const btn = document.getElementById("export-claude-btn");
-  const statusEl = document.getElementById("export-claude-status");
+async function exportForAi() {
+  const btn = document.getElementById("export-ai-btn") || document.getElementById("export-claude-btn");
+  const statusEl = document.getElementById("export-ai-status") || document.getElementById("export-claude-status");
   if (!btn) return;
   btn.disabled = true;
   if (statusEl) statusEl.textContent = "Building full export — contracts, subs, pricing, and attachment text…";
   try {
-    const res = await apiFetch("/api/export/claude");
+    const res = await apiFetch("/api/export/ai");
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Export failed");
@@ -2359,7 +2758,7 @@ async function exportForClaude() {
     const blob = await res.blob();
     const disp = res.headers.get("Content-Disposition") || "";
     const match = disp.match(/filename=\"?([^\";]+)\"?/i);
-    const filename = match ? match[1] : `govtracker-claude-export-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = match ? match[1] : `govtracker-ai-export-${new Date().toISOString().slice(0, 10)}.json`;
     const savedAs = await saveBlobWithPicker(blob, filename);
     if (statusEl) statusEl.textContent = `Saved ${savedAs}`;
     showSyncStatus(`Exported ${savedAs}`);
@@ -2375,6 +2774,7 @@ async function exportForClaude() {
     btn.disabled = false;
   }
 }
+const exportForClaude = exportForAi;
 
 async function loadSettingsPage() {
   const res = await apiFetch("/api/settings");
@@ -2440,7 +2840,7 @@ async function loadSettingsPage() {
   const keys = data.api_keys || {};
   document.getElementById("api-key-status").innerHTML = `
     <li>SAM.gov: ${keys.sam_gov ? "configured" : "missing"}</li>
-    <li>Anthropic: ${keys.anthropic ? "configured" : "missing"}</li>
+    <li>OpenAI: ${keys.openai ? "configured" : "missing"}</li>
     <li>Google Places: ${keys.google_places ? "configured" : "missing"}</li>
     <li>PostgreSQL: ${keys.database ? "configured" : "missing"}</li>
   `;
@@ -2461,7 +2861,7 @@ async function loadSettingsPage() {
   document.getElementById("api-budget-status").innerHTML = `
     <li><strong>SAM.gov API</strong> (search + attachment metadata): ${budget.sam_used_today ?? 0} / ${budget.sam_daily_limit ?? "?"} used today — <strong>${budget.sam_remaining ?? "?"} remaining</strong></li>
     <li>Browsing the dashboard and opening contracts uses <strong>only the database</strong> — SAM.gov is called by the <strong>Sync</strong> button and the scheduled 6am job only.</li>
-    <li>Only SAM.gov API calls are capped daily. Claude, PDF reads, and other services are not limited by this app.</li>
+    <li>SAM.gov and AI screening are capped daily. PDF reads are not capped by this app unless SAM_PDF_DOWNLOAD_BUDGET is set.</li>
     ${syncMode}
     <li>Pending attachment pulls resume on the next run until the SAM.gov daily cap is reached</li>
   `;
@@ -2640,8 +3040,29 @@ document.getElementById("tab-contracts")?.addEventListener("click", () => {
     activeContractId = null;
   }
   showView("dashboard");
+  const panel = document.getElementById("view-changes-review");
+  if (panel) panel.hidden = true;
+});
+document.getElementById("tab-changes-review")?.addEventListener("click", () => {
+  showView("dashboard");
+  const panel = document.getElementById("view-changes-review");
+  if (panel) panel.hidden = false;
+  loadChangesRequiringReview();
+});
+document.getElementById("changes-review-banner-btn")?.addEventListener("click", () => {
+  const panel = document.getElementById("view-changes-review");
+  if (panel) panel.hidden = false;
+  loadChangesRequiringReview();
 });
 document.getElementById("tab-performance")?.addEventListener("click", () => showView("performance"));
+document.getElementById("tab-m3-home")?.addEventListener("click", () => {
+  if (window.M3Mobile && typeof window.M3Mobile.showM3View === "function") {
+    window.M3Mobile.showM3View("home");
+    document.getElementById("tab-m3-home")?.classList.add("active");
+  } else {
+    showView("m3-home");
+  }
+});
 document.getElementById("tab-settings")?.addEventListener("click", () => showView("settings"));
 document.getElementById("tab-help")?.addEventListener("click", () => showView("help"));
 document.getElementById("logout-btn").addEventListener("click", logout);
@@ -2653,7 +3074,8 @@ document.getElementById("modal-close")?.addEventListener("click", closeModal);
 document.getElementById("modal-backdrop")?.addEventListener("click", closeModal);
 document.getElementById("save-settings-btn").addEventListener("click", saveSettings);
 document.getElementById("reset-prompt-btn").addEventListener("click", resetPrompt);
-document.getElementById("export-claude-btn")?.addEventListener("click", exportForClaude);
+document.getElementById("export-ai-btn")?.addEventListener("click", exportForAi);
+document.getElementById("export-claude-btn")?.addEventListener("click", exportForAi);
 document.getElementById("mobile-filter-btn")?.addEventListener("click", () => setFiltersOpen(true));
 document.getElementById("filters-backdrop")?.addEventListener("click", applyFiltersAndRefresh);
 document.getElementById("close-filters-btn")?.addEventListener("click", applyFiltersAndRefresh);

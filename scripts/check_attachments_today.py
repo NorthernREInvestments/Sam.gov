@@ -1,5 +1,6 @@
 """Check attachment download activity — read-only DB query."""
 from __future__ import annotations
+from application_clock import now_utc
 
 from datetime import datetime, timedelta, timezone
 
@@ -13,7 +14,7 @@ import os
 from db_tables import GT_APP_SETTINGS, GT_CONTRACT_ATTACHMENTS, GT_CONTRACTS
 
 engine = create_engine(os.getenv("DATABASE_URL", ""))
-now = datetime.now(timezone.utc)
+now = now_utc()
 today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 # ~6 AM Mountain = 12:00 or 13:00 UTC depending on DST
 mountain_morning = now.replace(hour=12, minute=0, second=0, microsecond=0)

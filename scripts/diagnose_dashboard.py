@@ -1,6 +1,7 @@
 """Diagnose why dashboard shows fewer contracts than expected."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 from datetime import date, datetime, timedelta, timezone
 
@@ -14,10 +15,10 @@ from sync import list_contracts
 
 def main() -> None:
     s = SessionLocal()
-    today = date.today()
+    today = today_local()
     naics = get_naics_codes()
     sched = get_scheduler_settings()
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = now_utc() - timedelta(hours=24)
 
     recent = s.query(Contract).filter(Contract.last_updated_at >= cutoff).count()
     new_24h = s.query(Contract).filter(Contract.first_seen_at >= cutoff).count()

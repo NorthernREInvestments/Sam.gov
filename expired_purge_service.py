@@ -1,6 +1,7 @@
 """Delete past-due opportunities that were never pursued."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 from datetime import date
@@ -31,7 +32,7 @@ PURSUED_CONTRACT_STATUSES = frozenset(
 
 
 def contract_was_pursued(session: Session, contract: Contract) -> bool:
-    """True when the user went after this opportunity (not just Claude recommend)."""
+    """True when the user went after this opportunity (not just AI recommend)."""
     status = (contract.status or "").strip().lower()
     if status in PURSUED_CONTRACT_STATUSES:
         return True
@@ -60,7 +61,7 @@ def contract_was_pursued(session: Session, contract: Contract) -> bool:
 
 def remove_expired_unpursued_contracts(session: Session, *, today: date | None = None) -> int:
     """Delete dashboard contracts past due_date that were never pursued."""
-    today = today or date.today()
+    today = today or today_local()
     candidates = (
         session.query(Contract)
         .filter(Contract.due_date.isnot(None))
@@ -85,7 +86,7 @@ def purge_expired_unpursued(session: Session, *, today: date | None = None) -> d
 
     Keeps: Pursuing / Submitted / Won / Lost (CSV), bidding+ / proposals / awards (contracts).
     """
-    today = today or date.today()
+    today = today or today_local()
     contracts_removed = remove_expired_unpursued_contracts(session, today=today)
     csv_removed = remove_expired_csv_rows(session, today=today)
 

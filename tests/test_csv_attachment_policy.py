@@ -38,9 +38,10 @@ def test_csv_only_disabled_by_default(monkeypatch):
 
 
 def test_csv_only_enabled_until_date(monkeypatch):
+    until = date.today() + timedelta(days=14)
     monkeypatch.setenv("SAM_ATTACHMENTS_CSV_ONLY", "true")
-    monkeypatch.delenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", raising=False)
-    assert sam_attachments_csv_only_until() == date(2026, 7, 10)
+    monkeypatch.setenv("SAM_ATTACHMENTS_CSV_ONLY_UNTIL", until.isoformat())
+    assert sam_attachments_csv_only_until() == until
     assert sam_attachments_csv_only()
 
 

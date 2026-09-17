@@ -28,7 +28,7 @@ def _make_contract(session: Session) -> Contract:
     return session.query(Contract).filter_by(notice_id=row.notice_id).one()
 
 
-def test_run_full_analysis_reloads_row_before_claude_screen(monkeypatch):
+def test_run_full_analysis_reloads_row_before_ai_screen(monkeypatch):
     """After commit+close, screen_contract must receive a fresh expunged row."""
     session = SessionLocal()
     try:
@@ -48,7 +48,9 @@ def test_run_full_analysis_reloads_row_before_claude_screen(monkeypatch):
         monkeypatch.setattr("sub_finder.ensure_sub_search_before_screening", lambda *a, **k: None)
         monkeypatch.setattr("sub_finder.subs_context_for_screening", lambda *a, **k: None)
         monkeypatch.setattr("api_budget.can_screen", lambda: True)
+        monkeypatch.setattr("intake.can_screen", lambda: True)
         monkeypatch.setattr("api_budget.record_screen_usage", lambda: True)
+        monkeypatch.setattr("intake.record_screen_usage", lambda: True)
         monkeypatch.setattr("intake.screen_contract", fake_screen)
         monkeypatch.setattr("pws_fields.apply_pws_extraction", lambda *a, **k: None)
         monkeypatch.setattr("pws_fields.contract_pws_missing", lambda *a, **k: False)

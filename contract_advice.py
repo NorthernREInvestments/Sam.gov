@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from claude_client import generate_contract_advice, normalize_contract_advice
+from openai_client import generate_contract_advice, normalize_contract_advice
 
 
 def get_contract_advice(contract: Any) -> dict[str, Any] | None:
@@ -13,7 +13,7 @@ def get_contract_advice(contract: Any) -> dict[str, Any] | None:
 
 
 def ensure_contract_advice(session, contract: Any, *, force: bool = False) -> dict[str, Any] | None:
-    """Generate Claude advice when missing. Requires plain-English summary."""
+    """Generate AI advice when missing. Requires plain-English summary."""
     existing = get_contract_advice(contract)
     if existing and not force:
         return existing

@@ -1,6 +1,7 @@
 """Export subcontract agreements to PDF."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import io
 import re
@@ -19,11 +20,11 @@ from proposal_export import (
 
 
 def _today_str() -> str:
-    return date.today().strftime("%B %d, %Y")
+    return today_local().strftime("%B %d, %Y")
 
 
 def _date_file() -> str:
-    return date.today().strftime("%Y%m%d")
+    return today_local().strftime("%Y%m%d")
 
 
 def agreement_filenames(solicitation_number: str, sub_name: str) -> dict[str, str]:

@@ -1,6 +1,7 @@
 """Proposal package detection, submission checklist, and CO questions."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import re
 import uuid
@@ -83,7 +84,7 @@ SECTION_LABELS = {
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return now_utc()
 
 
 def _parse_date(raw: str | None) -> date | None:
@@ -223,7 +224,7 @@ def _infer_method_from_text(text: str) -> str:
     return "Unknown"
 
 
-def merge_claude_package(analysis: dict[str, Any]) -> dict[str, Any]:
+def merge_ai_package(analysis: dict[str, Any]) -> dict[str, Any]:
     pkg = analysis.get("submission_package") if isinstance(analysis.get("submission_package"), dict) else {}
     sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
     out: dict[str, Any] = {}
@@ -242,6 +243,9 @@ def merge_claude_package(analysis: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+merge_claude_package = merge_ai_package  # legacy alias
+
+
 def normalize_eval_type(raw: str) -> str:
     if LPTA_RE.search(raw):
         return "LPTA"
@@ -251,43 +255,43 @@ def normalize_eval_type(raw: str) -> str:
 
 
 def apply_submission_package(contract: Contract, session: Session, *, analysis: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Run heuristics + merge Claude extraction; persist on contract."""
+    """Run heuristics + merge AI extraction; persist on contract."""
     analysis = analysis if isinstance(analysis, dict) else (contract.analysis or {})
     full_text = contract.attachment_text or ""
     heur = detect_from_text(full_text)
     pricing = detect_pricing_schedule(contract, session, full_text)
-    claude = merge_claude_package(analysis)
+    ai_pkg = merge_ai_package(analysis)
 
-    contract.pricing_schedule_required = pricing.get("required") or claude.get("pricing_schedule_required")
+    contract.pricing_schedule_required = pricing.get("required") or ai_pkg.get("pricing_schedule_required")
     if pricing.get("attachment_id"):
         contract.pricing_schedule_attachment_id = pricing["attachment_id"]
-    elif claude.get("pricing_schedule_filename"):
+    elif ai_pkg.get("pricing_schedule_filename"):
         for att in _attachment_candidates(contract, session):
             fn = att.get("filename") or ""
-            if claude["pricing_schedule_filename"].lower() in fn.lower() and att.get("id"):
+            if ai_pkg["pricing_schedule_filename"].lower() in fn.lower() and att.get("id"):
                 contract.pricing_schedule_attachment_id = att["id"]
                 break
 
-    contract.multiple_pricing_encouraged = heur["multiple_pricing_encouraged"] or claude.get(
+    contract.multiple_pricing_encouraged = heur["multiple_pricing_encouraged"] or ai_pkg.get(
         "multiple_pricing_encouraged", False
     )
-    contract.sf1449_required = heur["sf1449_required"] or claude.get("sf1449_required", False)
+    contract.sf1449_required = heur["sf1449_required"] or ai_pkg.get("sf1449_required", False)
 
-    method = claude.get("submission_method") or normalize_submission_method(heur.get("submission_method_raw"))
+    method = ai_pkg.get("submission_method") or normalize_submission_method(heur.get("submission_method_raw"))
     if method == "Unknown" and heur.get("submission_method_raw"):
         method = normalize_submission_method(heur["submission_method_raw"])
     contract.submission_method = method if method in SUBMISSION_METHODS else "Unknown"
 
-    email = claude.get("submission_email") or heur.get("submission_email")
+    email = ai_pkg.get("submission_email") or heur.get("submission_email")
     if not email and contract.submission_method == "Email":
         sol = analysis.get("solicitation_meta") if isinstance(analysis.get("solicitation_meta"), dict) else {}
         email = extract_submission_email(str(sol.get("submission_method") or ""))
     contract.submission_email = email
 
-    eval_type = claude.get("evaluation_criteria_type") or heur.get("evaluation_criteria_type") or "Unknown"
+    eval_type = ai_pkg.get("evaluation_criteria_type") or heur.get("evaluation_criteria_type") or "Unknown"
     contract.evaluation_criteria_type = eval_type if eval_type in EVAL_TYPES else "Unknown"
 
-    qd = claude.get("questions_deadline") or _parse_date(heur.get("questions_deadline_raw"))
+    qd = ai_pkg.get("questions_deadline") or _parse_date(heur.get("questions_deadline_raw"))
     if qd:
         contract.questions_deadline = qd
 
@@ -339,9 +343,9 @@ def generate_co_questions(contract: Contract, analysis: dict[str, Any] | None = 
     elif "on-site" in (contract.attachment_text or "").lower()[:8000]:
         add("Does this contract require the prime contractor to have personnel physically present at the facility?")
 
-    claude_q = analysis.get("co_questions_suggested")
-    if isinstance(claude_q, list):
-        for q in claude_q:
+    ai_q = analysis.get("co_questions_suggested")
+    if isinstance(ai_q, list):
+        for q in ai_q:
             if isinstance(q, str) and q.strip():
                 add(q.strip())
 
@@ -493,7 +497,7 @@ def update_co_question(contract: Contract, question_id: str, payload: dict[str, 
     if "asked" in payload:
         target["asked"] = bool(payload["asked"])
         if target["asked"] and not target.get("asked_date"):
-            target["asked_date"] = date.today().isoformat()
+            target["asked_date"] = today_local().isoformat()
     if "response" in payload:
         target["response"] = payload["response"] or ""
     if "resolved" in payload:
@@ -513,7 +517,9 @@ def deadline_display(contract: Contract) -> dict[str, Any]:
             "timezone_note": TIMEZONE_NOTE,
             "alert_24h": False,
         }
-    now_et = datetime.now(EASTERN)
+    from application_clock import now_in_timezone
+
+    now_et = now_in_timezone(EASTERN)
     deadline_et = datetime.combine(contract.due_date, time(23, 59, 59), tzinfo=EASTERN)
     delta = deadline_et - now_et
     hours = max(0, int(delta.total_seconds() // 3600))

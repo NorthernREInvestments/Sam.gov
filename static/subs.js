@@ -852,9 +852,9 @@ async function generateSubAgreement(linkId, card, resend) {
   }
   if (msg) {
     msg.hidden = false;
-    msg.textContent = "Claude is filling the agreement — this may take a minute…";
+    msg.textContent = "AI is filling the agreement — this may take a minute…";
   }
-  showSyncStatus(resend ? "Regenerating subcontract agreement…" : "Generating subcontract agreement with Claude…");
+  showSyncStatus(resend ? "Regenerating subcontract agreement…" : "Generating subcontract agreement with AI…");
   const url = resend
     ? `/api/contract-subs/${linkId}/agreement/resend`
     : `/api/contract-subs/${linkId}/agreement/generate`;

@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
-import time
+
+from application_clock import unix_timestamp
 
 COOKIE_NAME = "govtracker_auth"
 MAX_AGE_SECONDS = 60 * 60 * 24 * 7  # 7 days
@@ -40,7 +41,7 @@ def verify_login(email: str, password: str) -> bool:
 
 
 def create_auth_token() -> str:
-    payload = str(int(time.time()))
+    payload = str(int(unix_timestamp()))
     sig = hmac.new(_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}.{sig}"
 
@@ -53,7 +54,7 @@ def verify_auth_token(token: str | None) -> bool:
     if not hmac.compare_digest(sig, expected):
         return False
     try:
-        age = int(time.time()) - int(payload)
+        age = int(unix_timestamp()) - int(payload)
     except ValueError:
         return False
     return age <= MAX_AGE_SECONDS

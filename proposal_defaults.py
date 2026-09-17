@@ -45,7 +45,13 @@ PROPOSAL_SECTIONS = (
 )
 
 def resolve_contract_margin(contract, owner: dict | None = None) -> float:
-    """Per-contract margin override, else owner default from Settings."""
+    """
+    Per-contract margin override, else owner default from Settings.
+
+    This is a POLICY / configuration value — NOT a verified market fact and
+    NEVER actual-profit input by itself. Prefer resolve_contract_margin_or_none
+    when refusal-on-unknown is required.
+    """
     if getattr(contract, "margin_percentage", None) is not None:
         return float(contract.margin_percentage)
     if owner is None:
@@ -53,6 +59,20 @@ def resolve_contract_margin(contract, owner: dict | None = None) -> float:
 
         owner = get_owner_settings()
     return float(owner.get("default_margin_pct", 20))
+
+
+def resolve_contract_margin_or_none(contract, owner: dict | None = None) -> float | None:
+    """Return explicit contract margin or owner default; None only if both unset."""
+    if getattr(contract, "margin_percentage", None) is not None:
+        return float(contract.margin_percentage)
+    if owner is None:
+        from settings_store import get_owner_settings
+
+        owner = get_owner_settings()
+    raw = owner.get("default_margin_pct") if owner else None
+    if raw is None or raw == "":
+        return None
+    return float(raw)
 
 
 SECTION_TITLES = {

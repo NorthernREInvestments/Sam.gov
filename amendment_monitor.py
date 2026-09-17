@@ -1,6 +1,7 @@
 """SAM.gov amendment monitoring for active contracts."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 from datetime import date, datetime, timezone
@@ -38,7 +39,7 @@ def should_monitor(contract: Contract) -> bool:
         return False
     if contract.status not in AMENDMENT_MONITOR_STATUSES:
         return False
-    if contract.due_date and contract.due_date < date.today() and contract.status in ("bidding", "submitted"):
+    if contract.due_date and contract.due_date < today_local() and contract.status in ("bidding", "submitted"):
         return False
     return True
 
@@ -55,7 +56,7 @@ def check_contract_amendments(session: Session, contract: Contract) -> bool:
     known = _known_attachment_keys(contract)
     fresh = fetch_opportunity_attachments(notice_id)
     if fresh is None:
-        contract.amendments_last_checked_at = datetime.now(timezone.utc)
+        contract.amendments_last_checked_at = now_utc()
         return False
 
     new_items: list[dict[str, Any]] = []
@@ -73,7 +74,7 @@ def check_contract_amendments(session: Session, contract: Contract) -> bool:
             }
         )
 
-    contract.amendments_last_checked_at = datetime.now(timezone.utc)
+    contract.amendments_last_checked_at = now_utc()
 
     if new_items:
         existing = list(contract.amendment_alert_data or [])
@@ -89,7 +90,7 @@ def check_contract_amendments(session: Session, contract: Contract) -> bool:
                 logger.exception("Failed to refresh sam_raw for %s", notice_id)
         return True
 
-    if contract.due_date and contract.due_date < date.today():
+    if contract.due_date and contract.due_date < today_local():
         contract.amendment_monitoring_active = False
     return False
 
@@ -103,7 +104,7 @@ def check_all_amendments(session: Session) -> dict[str, int]:
             continue
         last = row.amendments_last_checked_at
         if last:
-            hours = (datetime.now(timezone.utc) - last).total_seconds() / 3600
+            hours = (now_utc() - last).total_seconds() / 3600
             if hours < 24:
                 continue
         checked += 1
@@ -118,5 +119,5 @@ def dismiss_amendment_alert(session: Session, notice_id: str) -> Contract:
     if not contract:
         raise ValueError("Contract not found")
     contract.amendment_alert_active = False
-    contract.amendments_reviewed_at = datetime.now(timezone.utc)
+    contract.amendments_reviewed_at = now_utc()
     return contract

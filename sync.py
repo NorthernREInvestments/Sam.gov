@@ -1,6 +1,7 @@
 """Sync SAM.gov contract opportunities into PostgreSQL."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import json
 from datetime import date, datetime, timezone
@@ -85,7 +86,7 @@ def upsert_contracts(session: Session, opportunities: list[dict[str, Any]]) -> t
     """Insert new contracts or update existing ones. Preserves status and analysis."""
     new_count = 0
     updated_count = 0
-    now = datetime.now(timezone.utc)
+    now = now_utc()
 
     for opp in opportunities:
         notice_id = str(opp.get("notice_id") or "")
@@ -145,7 +146,7 @@ def opportunity_passes_filters(
 
     due = _parse_due_date(opp.get("due_date"))
     if due is not None:
-        if (due - date.today()).days < min_days:
+        if (due - today_local()).days < min_days:
             return False
 
     if analysis:
@@ -224,7 +225,7 @@ def list_contracts(
     min_score = min_score if min_score is not None else get_min_score_threshold()
     naics_set = set(naics_codes)
     id_set = set(notice_ids) if notice_ids else None
-    today = date.today()
+    today = today_local()
     agency_query = agency.strip().lower() if agency else None
 
     rows = (
@@ -302,7 +303,7 @@ def list_attachment_backlog(
         require_scrape_complete=False,
         notice_ids=notice_ids,
     )
-    today = date.today()
+    today = today_local()
     rows.sort(
         key=lambda r: (
             r.due_date is None,
@@ -344,7 +345,7 @@ def contract_to_card_dict(
     from usaspending_client import extract_work_location
     from workflow_status import compute_workflow_progress_fast
 
-    today = date.today()
+    today = today_local()
     days_left = (row.due_date - today).days if row.due_date else None
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
@@ -459,7 +460,7 @@ def contract_to_dict(
 ) -> dict[str, Any]:
     from naics_labels import naics_display, naics_label, tier_label
 
-    today = date.today()
+    today = today_local()
     days_left = (row.due_date - today).days if row.due_date else None
     analysis = row.analysis if isinstance(row.analysis, dict) else {}
     sam_raw = row.sam_raw if isinstance(row.sam_raw, dict) else {}
@@ -786,10 +787,29 @@ def get_focus_naics(session: Session) -> str | None:
 
 
 def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -> dict[str, Any]:
-    """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run Claude."""
+    """Pull one enabled NAICS code from SAM.gov, save filter-matching contracts, enrich attachments, run AI."""
     from api_budget import get_usage_snapshot
+    from sam_scarcity import PURPOSE_NAICS_SCAN, gate_sam_api_call, sam_scarcity_mode
     from usaspending_savings import reset_usaspending_savings
     from watchlist_sync import run_govspend_watchlist_sync
+
+    if sam_scarcity_mode():
+        gate = gate_sam_api_call(
+            purpose=PURPOSE_NAICS_SCAN,
+            authorize_live=False,
+            authorize_broad_sam_discovery=False,
+        )
+        if not gate["allowed"]:
+            return {
+                "ok": False,
+                "error": "broad_sam_discovery_blocked",
+                "note": "SAM NAICS sync is not routine discovery under scarcity mode",
+                "gate": gate,
+                "LIVE_SAM_CALLS": 0,
+                "inserted": 0,
+                "updated": 0,
+                "api_usage": get_usage_snapshot(),
+            }
 
     reset_usaspending_savings()
     watchlist_result = run_govspend_watchlist_sync(trigger_pipeline=True)
@@ -815,7 +835,12 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
         else:
             naics_today = naics_codes[index]
 
-        batch = fetch_naics_from_sam(naics_today)
+        batch = fetch_naics_from_sam(
+            naics_today,
+            authorize_live=True,
+            authorize_broad_sam_discovery=True,
+            purpose=PURPOSE_NAICS_SCAN,
+        )
         search_count = len(batch)
         batch, filter_stats = filter_search_results(batch, session)
         batch_notice_ids: list[str] = []
@@ -844,7 +869,7 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
             intake_result = intake_matching_contracts(session, batch_notice_ids)
 
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
-        synced_map[naics_today] = date.today().isoformat()
+        synced_map[naics_today] = today_local().isoformat()
         _set_setting(session, "naics_last_synced", json.dumps(synced_map))
         if not naics_code:
             _set_setting(session, "naics_rotation_index", str((index + 1) % len(naics_codes)))
@@ -872,7 +897,7 @@ def sync_from_sam(naics_code: str | None = None, *, search_only: bool = False) -
                 f"from {search_count} SAM result(s) (1 search call).{filter_note} "
                 f"Attachments ready: {scrape_result.get('attachments_enriched', 0)}; "
                 f"pending: {scrape_result.get('attachments_pending', 0)}. "
-                f"Claude analysis runs when attachments are complete."
+                f"AI analysis runs when attachments are complete."
             )
             if loaded < len(naics_codes):
                 fetch_status += f" Coverage: {loaded}/{len(naics_codes)} NAICS codes."
@@ -995,7 +1020,7 @@ def _sync_naics_code_list(
             scrape_skipped_total += attach_result.get("attachments_pending", 0)
 
             all_notice_ids.extend(batch_ids)
-            synced_map[naics] = date.today().isoformat()
+            synced_map[naics] = today_local().isoformat()
             _set_setting(session, "naics_last_synced", json.dumps(synced_map))
             session.commit()
         finally:
@@ -1047,7 +1072,7 @@ def _sync_naics_code_list(
         f"{scope}. Saved {matched_total} filter-matching contract(s); "
         f"attachments pulled for {scraped_total} this run "
         f"({scrape_skipped_total} still pending — retried on next sync). "
-        f"Claude full analysis runs on every contract once attachments are ready (ranking score)."
+        f"AI full analysis runs on every contract once attachments are ready (ranking score)."
     )
 
     from autopilot_service import start_autopilot
@@ -1098,7 +1123,7 @@ def _sync_single_naics_scheduled(naics: str) -> dict[str, Any]:
         new_count, updated_count = upsert_contracts(session, batch)
         attach_result = enrich_matching_attachments(session, batch_ids, limit=None, naics_code=naics)
         synced_map = json.loads(_get_setting(session, "naics_last_synced", "{}"))
-        synced_map[naics] = date.today().isoformat()
+        synced_map[naics] = today_local().isoformat()
         _set_setting(session, "naics_last_synced", json.dumps(synced_map))
         session.commit()
         pending_after = _pending_scrape_notice_ids(session, naics)
@@ -1331,7 +1356,7 @@ def sync_attachments_only() -> dict[str, Any]:
 
 
 def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
-    """SAM pulls (all daily credits) + Claude eval per contract. Errors skip to the next."""
+    """SAM pulls (all daily credits) + AI eval per contract. Errors skip to the next."""
     from api_budget import (
         get_usage_snapshot,
         scheduled_sync_attachments_only,
@@ -1349,7 +1374,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     attachments_enriched = burn["attachments_enriched"]
     contracts_attempted = burn["contracts_attempted"]
     sam_calls_burned = burn["sam_calls_burned"]
-    claude_errors = sum(1 for e in burn.get("errors", []) if "claude" in e.lower())
+    ai_errors = sum(1 for e in burn.get("errors", []) if "ai" in e.lower() or "claude" in e.lower())
     phases = burn.get("phases", [])
 
     session = SessionLocal()
@@ -1361,14 +1386,14 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
     budget = get_usage_snapshot()
     tiers = tiers_for_scheduled_sync()
     status_parts = [
-        "Attachments-only mode (SAM download + Claude eval from stored PDFs)",
+        "Attachments-only mode (SAM download + AI eval from stored PDFs)",
         f"SAM.gov: {budget['sam_used_today']}/{budget['sam_daily_limit']} API calls used today",
         f"{sam_calls_burned} SAM call(s) this run on {contracts_attempted} contract(s)",
         f"{attachments_enriched} now have PDFs in the database",
         f"{pending_before} pending before · {pending_after} still pending",
     ]
-    if claude_errors:
-        status_parts.append(f"{claude_errors} Claude eval error(s) — skipped those, continued queue")
+    if ai_errors:
+        status_parts.append(f"{ai_errors} AI eval error(s) — skipped those, continued queue")
     if pending_after > 0 and scheduled_sync_attachments_only_until():
         status_parts.append(f"normal NAICS rotation resumes after {scheduled_sync_attachments_only_until()}")
     elif pending_after > 0:
@@ -1394,7 +1419,7 @@ def _sync_scheduled_attachments_only(pool: list[str]) -> dict[str, Any]:
         "fetch_status": ". ".join(status_parts) + ".",
         "api_budget": budget,
         "scheduled_sync_attachments_only": scheduled_sync_attachments_only(),
-        "claude_errors": claude_errors,
+        "ai_errors": ai_errors,
     }
 
 

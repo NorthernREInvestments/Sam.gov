@@ -1,6 +1,7 @@
 """Match contracts and awards by place of performance — same address + scope of work."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import re
 from datetime import date
@@ -228,7 +229,7 @@ def extract_award_site_profile(award: dict[str, Any], *, origin_naics: str | Non
 
 
 def is_award_expired(award: dict[str, Any], *, today: date | None = None) -> bool:
-    today = today or date.today()
+    today = today or today_local()
     end = _parse_award_date(award.get("end_date"))
     if end:
         return end < today
@@ -287,7 +288,7 @@ def query_site_contract_history(session: Any, contract: Any) -> list[dict[str, A
     if not origin.get("address_key"):
         return []
 
-    today = date.today()
+    today = today_local()
     rows = (
         session.query(Contract)
         .filter(Contract.id != contract.id)
@@ -329,7 +330,7 @@ def query_site_contract_history(session: Any, contract: Any) -> list[dict[str, A
 def prioritize_matched_contracts(contract: Any, matches: list[Any]) -> list[Any]:
     """Sort internal pricing matches — same address & scope + expired due date first."""
     origin = extract_site_profile(contract)
-    today = date.today()
+    today = today_local()
 
     def sort_key(row: Any) -> tuple[int, int]:
         row_profile = extract_site_profile(row)

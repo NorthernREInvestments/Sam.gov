@@ -2,3 +2,15 @@
 .cache/
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Generated validation/runtime artifacts (not source)
+artifacts/
+_opp*_report.json
+_opp*_*.json
+*_full_pytest.txt

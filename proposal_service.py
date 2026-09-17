@@ -1,6 +1,7 @@
 """Proposal writer — bid math, config assembly, generation orchestration."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import json
 import re
@@ -32,60 +33,67 @@ def _dec(value: Decimal | float | int | None) -> float | None:
 def calculate_bid_pricing(
     sub_quote: float,
     margin_pct: float,
-    option_years: int = 4,
-    increase_pct: float = 3.0,
+    option_years: int | None = None,
+    increase_pct: float | None = None,
 ) -> dict[str, Any]:
-    margin = max(10.0, min(35.0, margin_pct))
-    sub = float(sub_quote)
-    base_bid = sub / (1 - margin / 100.0) if margin < 100 else sub
-    profit = base_bid - sub
+    """
+    POLICY margin scenario math — NOT actual profit.
 
-    years: dict[str, float] = {"base_year": round(base_bid, 2)}
-    prev = base_bid
-    mult = 1 + increase_pct / 100.0
-    for i in range(1, max(0, option_years) + 1):
-        prev = prev * mult
-        years[f"option_year_{i}"] = round(prev, 2)
+    Returns ESTIMATED_SCENARIO fields. Never sets actual_profit.
+    option_years/increase_pct: omit schedule when unknown (do not invent 4 years / 3%).
+    """
+    from economic_integrity import ECON_ESTIMATED_SCENARIO, policy_margin_scenario
 
-    total = round(sum(years.values()), 2)
+    oy = option_years if option_years is not None else 0
+    inc = increase_pct if increase_pct is not None else 0.0
+    scenario = policy_margin_scenario(
+        cost_basis=float(sub_quote),
+        margin_pct=float(margin_pct),
+        option_years=oy if oy > 0 else None,
+        increase_pct=inc if oy > 0 else None,
+        cost_basis_label="sub_quote",
+    )
+    years = scenario.get("option_years") or {"base_year": scenario.get("scenario_bid")}
     return {
-        "sub_quote": round(sub, 2),
-        "margin_percentage": margin,
-        "base_year_bid": years["base_year"],
-        "base_year_profit": round(profit, 2),
+        "sub_quote": round(float(sub_quote), 2),
+        "margin_percentage": float(margin_pct),
+        "base_year_bid": years.get("base_year"),
+        "base_year_profit": scenario.get("scenario_profit"),
         "option_year_increase_pct": increase_pct,
         "option_years": years,
-        "total_all_years": total,
+        "total_all_years": round(sum(years.values()), 2) if years else None,
+        "status": ECON_ESTIMATED_SCENARIO,
+        "actual_profit": None,
+        "meets_min_actual_profit": False,
+        "display": scenario.get("display"),
+        "economic_kind": "POLICY_SCENARIO",
     }
 
 
 def bid_range_status(base_bid: float, pricing: dict[str, Any] | None) -> dict[str, str]:
-    """Green/yellow/red vs internal or regional recommended range."""
+    """Compare to internal recommended range only — never invent ±15% bands from averages."""
     if not pricing:
         return {"level": "neutral", "message": ""}
     internal = pricing.get("internal") or {}
     low = internal.get("recommended_bid_low")
     high = internal.get("recommended_bid_high")
-    if not low and not high:
-        regional = pricing.get("regional_benchmark") or {}
-        avg = regional.get("average_annual_award")
-        if avg:
-            low = avg * 0.85
-            high = avg * 1.15
     if not low or not high:
-        return {"level": "neutral", "message": "No regional benchmark available for comparison."}
+        return {
+            "level": "neutral",
+            "message": "No verified internal bid range — regional averages are context only, not a bid band.",
+        }
     if base_bid <= high:
         if base_bid >= low:
-            return {"level": "green", "message": "Within recommended bid range."}
-        return {"level": "green", "message": "Below recommended range — aggressive bid."}
+            return {"level": "green", "message": "Within recommended bid range (internal assessment)."}
+        return {"level": "green", "message": "Below recommended range — aggressive bid (internal assessment)."}
     if base_bid <= high * 1.15:
         return {
             "level": "yellow",
-            "message": "Slightly above regional average — still competitive.",
+            "message": "Slightly above internal recommended range.",
         }
     return {
         "level": "red",
-        "message": "Significantly above regional average. Consider reducing margin to improve win probability.",
+        "message": "Significantly above internal recommended range.",
     }
 
 
@@ -320,7 +328,7 @@ def ensure_proposal_requirements(session: Session, contract: Contract, *, force:
         return existing
 
     from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
-    from claude_client import extract_proposal_requirements
+    from openai_client import extract_proposal_requirements
 
     if not can_screen():
         return existing
@@ -356,7 +364,7 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
         return sol
 
     from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
-    from claude_client import extract_solicitation_meta
+    from openai_client import extract_solicitation_meta
 
     if not can_screen():
         return sol
@@ -386,7 +394,7 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
         if isinstance(pkg, dict):
             analysis["submission_package"] = pkg
         contract.analysis = analysis
-        from claude_client import contract_attachment_text
+        from openai_client import contract_attachment_text
         from pws_fields import supplement_pws_from_pdf_text
 
         supplement_pws_from_pdf_text(analysis, contract_attachment_text(contract))
@@ -398,7 +406,7 @@ def ensure_solicitation_meta(session: Session, contract: Contract, *, force: boo
             raise ScreenBudgetExceeded()
 
     if contract.square_footage is None and can_screen():
-        from claude_client import try_extract_sqft_from_drawings
+        from openai_client import try_extract_sqft_from_drawings
 
         if try_extract_sqft_from_drawings(contract, analysis):
             contract.analysis = analysis
@@ -449,10 +457,19 @@ def build_proposal_config(
     increase = option_increase_pct if option_increase_pct is not None else float(
         owner.get("default_option_year_increase_pct", 3)
     )
-    option_years = int(_extract_solicitation_meta(contract).get("option_years") or 4)
+    meta_oy = _extract_solicitation_meta(contract).get("option_years")
+    option_years = int(meta_oy) if meta_oy is not None else None
+    # Sub quotes are stored monthly — convert to annual for scenario bid math
+    from economic_integrity import monthly_quote_to_annual
+
+    annual_quote = monthly_quote_to_annual(float(link.quote_amount))
+    if annual_quote is None:
+        raise ValueError("Sub quote amount unknown — cannot build pricing scenario")
     pricing_math = calculate_bid_pricing(
-        float(link.quote_amount), margin, option_years=option_years, increase_pct=increase
+        annual_quote, margin, option_years=option_years, increase_pct=increase if option_years else None
     )
+    pricing_math["quote_basis"] = "annualized_from_monthly"
+    pricing_math["monthly_quote"] = float(link.quote_amount)
     full_pricing = get_full_pricing_intel(contract, session)
     range_status = bid_range_status(pricing_math["base_year_bid"], full_pricing)
 
@@ -602,7 +619,7 @@ def detect_missing_fields(
             missing.append(
                 {
                     "field": "pdfs",
-                    "label": "No solicitation PDFs sent to Claude yet",
+                    "label": "No solicitation PDFs sent to AI yet",
                     "where": "solicitation",
                 }
             )
@@ -638,7 +655,7 @@ def generate_proposal(
     notice_id: str,
     config: dict[str, Any],
 ) -> Proposal:
-    from claude_client import generate_proposal_content
+    from openai_client import generate_proposal_content
 
     contract = session.query(Contract).filter_by(notice_id=notice_id).first()
     if not contract:
@@ -685,14 +702,18 @@ def generate_proposal(
         contract_sub_id=sub.get("contract_sub_id"),
         sub_name=sub.get("business_name"),
         sub_quote=Decimal(str(pricing.get("sub_quote"))) if pricing.get("sub_quote") else None,
-        margin_percentage=Decimal(str(pricing.get("margin_percentage", 20))),
+        margin_percentage=Decimal(str(pricing["margin_percentage"]))
+        if pricing.get("margin_percentage") is not None
+        else None,
         base_year_bid=Decimal(str(pricing.get("base_year_bid"))) if pricing.get("base_year_bid") else None,
         option_year_1=Decimal(str(opt.get("option_year_1"))) if opt.get("option_year_1") else None,
         option_year_2=Decimal(str(opt.get("option_year_2"))) if opt.get("option_year_2") else None,
         option_year_3=Decimal(str(opt.get("option_year_3"))) if opt.get("option_year_3") else None,
         option_year_4=Decimal(str(opt.get("option_year_4"))) if opt.get("option_year_4") else None,
         total_all_years=Decimal(str(pricing.get("total_all_years"))) if pricing.get("total_all_years") else None,
-        option_year_increase_pct=Decimal(str(pricing.get("option_year_increase_pct", 3))),
+        option_year_increase_pct=Decimal(str(pricing["option_year_increase_pct"]))
+        if pricing.get("option_year_increase_pct") is not None
+        else None,
         proposal_html=html,
         sections_json=sections,
         config_json=config,
@@ -757,7 +778,7 @@ def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, A
             {
                 "html": proposal.proposal_html,
                 "sections": proposal.sections_json,
-                "saved_at": datetime.now(timezone.utc).isoformat(),
+                "saved_at": now_utc().isoformat(),
             }
         )
         history = history[-20:]
@@ -780,12 +801,12 @@ def save_proposal_draft(session: Session, proposal_id: int, payload: dict[str, A
                 raise ValueError(f"Cannot mark submitted until required fields are filled: {labels}")
         proposal.status = payload["status"]
         if payload["status"] == "submitted":
-            proposal.date_submitted = datetime.now(timezone.utc)
+            proposal.date_submitted = now_utc()
     if "winning_bid_amount" in payload and payload["winning_bid_amount"] is not None:
         proposal.winning_bid_amount = Decimal(str(payload["winning_bid_amount"]))
 
     proposal.version_history = history
-    proposal.date_updated = datetime.now(timezone.utc)
+    proposal.date_updated = now_utc()
     session.commit()
     session.refresh(proposal)
     return proposal
@@ -805,7 +826,7 @@ def restore_proposal_version(session: Session, proposal_id: int, version_index: 
             {
                 "html": proposal.proposal_html,
                 "sections": proposal.sections_json,
-                "saved_at": datetime.now(timezone.utc).isoformat(),
+                "saved_at": now_utc().isoformat(),
                 "note": "Before restore",
             }
         )
@@ -814,7 +835,7 @@ def restore_proposal_version(session: Session, proposal_id: int, version_index: 
     proposal.proposal_html = snap.get("html") or ""
     proposal.sections_json = snap.get("sections") or parse_sections_from_html(proposal.proposal_html)
     proposal.version_history = history[-20:]
-    proposal.date_updated = datetime.now(timezone.utc)
+    proposal.date_updated = now_utc()
     session.commit()
     session.refresh(proposal)
     return proposal
@@ -880,7 +901,7 @@ def _word_count(html: str) -> int:
 
 
 def regenerate_section(session: Session, proposal_id: int, section_key: str) -> Proposal:
-    from claude_client import regenerate_proposal_section
+    from openai_client import regenerate_proposal_section
 
     proposal = session.get(Proposal, proposal_id)
     if not proposal or not proposal.config_json:
@@ -915,13 +936,13 @@ def _rebuild_full_html(sections: dict[str, str]) -> str:
 
 
 def humanize_selection(session: Session, proposal_id: int, selected_html: str) -> str:
-    from claude_client import humanize_proposal_text
+    from openai_client import humanize_proposal_text
 
     return humanize_proposal_text(selected_html)
 
 
 def reduce_ai_score_pass(session: Session, proposal_id: int) -> Proposal:
-    from claude_client import reduce_proposal_ai_score
+    from openai_client import reduce_proposal_ai_score
 
     proposal = session.get(Proposal, proposal_id)
     if not proposal or not proposal.proposal_html:

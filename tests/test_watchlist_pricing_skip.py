@@ -58,11 +58,15 @@ def test_pricing_payload_uses_watchlist_fields():
     )
     payload = pricing_from_watchlist(contract)
     assert payload is not None
-    assert payload["contract_value"] == 750000
+    assert payload["prior_contract_annual"] == 750000
+    assert payload["prior_contract_total"] == 700000
+    assert payload["contract_value"] == 700000
     assert payload["awarding_office"] == "US Army Contracting Command"
     assert payload["likely_incumbent"] == "Acme Facility Services"
     pred = payload["predecessor_award"]
     assert pred["historical_award_amount"] == 700000
+    assert pred["annual_amount"] == 750000
+    assert pred["amount_basis"] == "annual"
     assert pred["recipient_name"] == "Acme Facility Services"
     assert payload["skip_usaspending"] is True
 

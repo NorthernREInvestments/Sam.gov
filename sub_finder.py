@@ -1,6 +1,7 @@
 """Find and track potential subcontractors via Google Places."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 import re
@@ -13,7 +14,7 @@ from typing import Any
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from claude_client import analyze_subcontractors
+from openai_client import analyze_subcontractors
 from database import SessionLocal
 from geo import haversine_miles, resolve_coordinates
 from models import Contract, ContractSub, Sub, SubContact
@@ -134,7 +135,7 @@ def _google_search_candidates(
 
 def _outreach_block(contract: Contract, link: ContractSub) -> str:
     title = (contract.title or "Contract")[:100]
-    lines = [f"[{date.today().isoformat()} · {title}]"]
+    lines = [f"[{today_local().isoformat()} · {title}]"]
     if link.status and link.status != DEFAULT_SUB_STATUS:
         lines.append(f"Status: {link.status}")
     if link.contact_notes and link.contact_notes.strip():
@@ -164,7 +165,7 @@ def _sync_sub_outreach_log(sub: Sub, contract: Contract, link: ContractSub) -> N
         sub.notes = f"{existing.strip()}\n\n{wrapped}"
     else:
         sub.notes = wrapped
-    sub.date_last_updated = datetime.now(timezone.utc)
+    sub.date_last_updated = now_utc()
 
 
 def _latest_outreach(session: Session, sub_id: int) -> dict[str, Any]:
@@ -193,7 +194,7 @@ def _latest_outreach(session: Session, sub_id: int) -> dict[str, Any]:
 def upsert_sub(session: Session, place: dict[str, Any], *, sub_type: str) -> Sub:
     place_id = place["place_id"]
     row = session.query(Sub).filter_by(place_id=place_id).first()
-    now = datetime.now(timezone.utc)
+    now = now_utc()
     rating = place.get("rating")
     values = {
         "business_name": place.get("business_name") or "Unknown business",
@@ -284,14 +285,14 @@ def ensure_sub_type_from_pdfs(
     *,
     db_only: bool = False,
 ) -> str | None:
-    """Claude reads PDFs to set sub_type_needed before Google Places search."""
+    """AI reads PDFs to set sub_type_needed before Google Places search."""
     analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
     existing = analysis.get("sub_type_needed")
     if is_specific_sub_type(existing) and analysis.get("sub_type_source") == "pdf":
         return str(existing).strip()
 
     from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
-    from claude_client import extract_sub_type_for_sub_search
+    from openai_client import extract_sub_type_for_sub_search
 
     if not can_screen():
         hint = infer_sub_type_hint(
@@ -337,7 +338,7 @@ def ensure_sub_type_from_pdfs(
 
 
 def subs_context_for_screening(session: Session, contract: Contract) -> dict[str, Any]:
-    """Summarize linked subs for Claude contract screening."""
+    """Summarize linked subs for AI contract screening."""
     links = (
         session.query(ContractSub)
         .options(joinedload(ContractSub.sub))
@@ -435,7 +436,7 @@ def ensure_sub_search_before_screening(
     *,
     force: bool = False,
 ) -> dict[str, Any]:
-    """Ensure sub search is running or complete — never block contract screening on Places/Claude."""
+    """Ensure sub search is running or complete — never block contract screening on Places/AI."""
     kick = maybe_start_background_sub_search(session, contract, force=force)
     summary = contract_sub_summary(contract, session)
     if kick.get("started"):
@@ -553,16 +554,16 @@ def _run_places_search(
             links.append(link)
         session.flush()
 
-        claude_rows = analyze_subcontractors(
+        ai_rows = analyze_subcontractors(
             contract,
             candidates,
             sub_type_hint=sub_type_needed,
             scope_hint=_scope_hint_for_sub_scoring(contract),
         )
-        claude_by_place = {row["place_id"]: row for row in claude_rows}
+        ai_by_place = {row["place_id"]: row for row in ai_rows}
         for link in links:
             sub = link.sub
-            insight = claude_by_place.get(sub.place_id) if sub else None
+            insight = ai_by_place.get(sub.place_id) if sub else None
             if insight:
                 link.claude_score = insight["score"]
                 link.claude_reason = insight["reason"]
@@ -603,7 +604,7 @@ def start_background_sub_search(notice_id: str, *, force: bool = False) -> None:
 
 
 def maybe_auto_sub_search(contract: Contract) -> None:
-    """Legacy hook — subs are now searched before Claude screening in intake."""
+    """Legacy hook — subs are now searched before AI screening in intake."""
     if contract.sub_search_status in ("complete", "searching"):
         return
 
@@ -712,7 +713,7 @@ def update_contract_sub(session: Session, link_id: int, payload: dict[str, Any])
         if status not in SUB_STATUSES:
             raise ValueError(f"Invalid status. Choose one of: {', '.join(SUB_STATUSES)}")
         link.status = status
-        link.date_status_updated = datetime.now(timezone.utc)
+        link.date_status_updated = now_utc()
 
         if status == "Selected":
             others = (
@@ -768,7 +769,7 @@ def update_contract_sub(session: Session, link_id: int, payload: dict[str, Any])
 
     outreach_fields = {"contact_notes", "quote_amount", "quote_date", "status", "agreement_signature_status"}
     if outreach_fields.intersection(payload.keys()):
-        link.date_status_updated = datetime.now(timezone.utc)
+        link.date_status_updated = now_utc()
         sub = session.get(Sub, link.sub_id)
         contract = session.get(Contract, link.contract_id)
         if sub and contract:

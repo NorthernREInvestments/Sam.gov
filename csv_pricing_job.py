@@ -1,6 +1,7 @@
 """Background USAspending pricing refresh for gt_csv_opportunities."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import json
 import logging
@@ -93,7 +94,7 @@ def _processing_is_stale(state: dict[str, Any]) -> bool:
         updated = datetime.fromisoformat(str(updated_raw).replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError:
         return True
-    return (datetime.now(timezone.utc) - updated).total_seconds() > _STALE_SECONDS
+    return (now_utc() - updated).total_seconds() > _STALE_SECONDS
 
 
 def _get_state() -> dict[str, Any]:
@@ -102,7 +103,7 @@ def _get_state() -> dict[str, Any]:
         state.update(
             status="failed",
             error="CSV pricing job interrupted — try Refresh CSV Pricing again.",
-            finished_at=datetime.now(timezone.utc).isoformat(),
+            finished_at=now_utc().isoformat(),
         )
         _save_state_to_db(state)
     return state
@@ -120,7 +121,7 @@ def _update_progress(*, processed: int, total: int, notice_id: str | None = None
             return
         state["processed"] = processed
         state["total"] = total
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        state["updated_at"] = now_utc().isoformat()
         state["message"] = f"Pricing {processed} of {total}…"
         if notice_id:
             state["last_notice_id"] = notice_id
@@ -184,7 +185,7 @@ def start_csv_pricing_job(
         elif not force:
             resume_note = " (resuming — skipping rows already priced)"
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_utc().isoformat()
         _save_state_to_db(
             {
                 **_default_state(),
@@ -220,8 +221,8 @@ def start_csv_pricing_job(
                         f"Pricing complete — {result.get('found_prior', 0)} prior matches, "
                         f"{result.get('found_regional', 0)} regional averages"
                     ),
-                    "finished_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "finished_at": now_utc().isoformat(),
+                    "updated_at": now_utc().isoformat(),
                 }
             )
             logger.info(
@@ -238,8 +239,8 @@ def start_csv_pricing_job(
                     **_load_state_from_db(),
                     "status": "failed",
                     "error": str(exc),
-                    "finished_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "finished_at": now_utc().isoformat(),
+                    "updated_at": now_utc().isoformat(),
                 }
             )
         finally:

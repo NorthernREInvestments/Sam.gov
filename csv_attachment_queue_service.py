@@ -1,6 +1,7 @@
 """SAM.gov attachment queue for CSV-imported opportunities."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import logging
 import os
@@ -81,7 +82,7 @@ def compute_queue_priority(row: CsvOpportunity) -> tuple[int, str | None]:
     Priority order: High watchlist → Possible watchlist → others by soonest due date.
     Lower priority value = processed first.
     """
-    today = date.today()
+    today = today_local()
     days_until = (row.due_date - today).days if row.due_date else 99_999
     days_until = max(0, days_until)
     confidence = (row.watchlist_match_confidence or "").strip()
@@ -114,7 +115,7 @@ def _active_items_query(session: Session):
 
 def prepare_queue_for_processing(session: Session) -> None:
     """Retry failed items from prior days; reset stuck downloading rows."""
-    today = date.today()
+    today = today_local()
     for item in session.query(AttachmentQueueItem).filter_by(status=QUEUE_STATUS_FAILED).all():
         if item.processed_at and item.processed_at.date() < today:
             item.status = QUEUE_STATUS_QUEUED
@@ -304,7 +305,7 @@ def process_attachment_queue(
         if not row:
             item.status = QUEUE_STATUS_FAILED
             item.error_message = "csv_row_missing"
-            item.processed_at = datetime.now(timezone.utc)
+            item.processed_at = now_utc()
             result["failed"] += 1
             result["processed"] += 1
             continue
@@ -321,7 +322,7 @@ def process_attachment_queue(
             if is_sam_metadata_ready(raw):
                 row.sam_raw = raw
                 item.status = QUEUE_STATUS_COMPLETE
-                item.processed_at = datetime.now(timezone.utc)
+                item.processed_at = now_utc()
                 result["completed"] += 1
                 result["processed"] += 1
                 continue
@@ -357,7 +358,7 @@ def process_attachment_queue(
 
             row.sam_raw = enriched
             item.sam_api_calls_used = calls_for_item
-            item.processed_at = datetime.now(timezone.utc)
+            item.processed_at = now_utc()
             if ok:
                 item.status = QUEUE_STATUS_COMPLETE
                 result["completed"] += 1
@@ -371,7 +372,7 @@ def process_attachment_queue(
             logger.exception("Attachment queue failed for %s", row.notice_id)
             item.status = QUEUE_STATUS_FAILED
             item.error_message = str(exc)[:500]
-            item.processed_at = datetime.now(timezone.utc)
+            item.processed_at = now_utc()
             result["failed"] += 1
             result["processed"] += 1
 

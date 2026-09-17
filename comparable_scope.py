@@ -182,26 +182,36 @@ def award_text_blob(award: dict[str, Any]) -> str:
 
 def annotate_award_unit_rates(award: dict[str, Any]) -> dict[str, Any]:
     """
-    Add normalized pricing fields: award amount ÷ sq ft ÷ visits per year = $/sq ft per visit.
-    Assumes USAspending award_amount is an annual contract value when frequency is known.
+    Add normalized pricing fields when amount basis is known.
+
+    USAspending award_amount is a TOTAL unless period years are known.
+    Unit rates use annualized amount only when period is known; otherwise omit
+    $/sqft/visit rather than fabricating an annual basis.
     """
+    from usaspending_client import estimate_annual_award_amount
+
     row = dict(award)
     text = award_text_blob(row)
     amount = row.get("award_amount")
     sqft = extract_square_feet(text)
     freq = detect_service_frequency(text)
     visits = freq["visits_per_year"] if freq else None
+    annual = estimate_annual_award_amount(row)
 
     row["award_square_feet"] = sqft
     row["award_visits_per_year"] = visits
     row["award_frequency_label"] = freq["label"] if freq else None
+    row["award_amount_basis"] = "annual" if annual is not None else ("total" if amount else None)
+    row["award_annual_amount"] = annual
     row["price_per_sqft"] = None
     row["price_per_sqft_per_visit"] = None
 
-    if sqft and amount and float(amount) > 0:
-        row["price_per_sqft"] = round(float(amount) / sqft, 4)
-    if sqft and visits and visits > 0 and amount and float(amount) > 0:
-        row["price_per_sqft_per_visit"] = round(float(amount) / (sqft * visits), 6)
+    # Prefer annualized amount for unit rates; if unknown period, do not invent annual.
+    rate_base = annual
+    if rate_base is not None and sqft and float(rate_base) > 0:
+        row["price_per_sqft"] = round(float(rate_base) / sqft, 4)
+    if rate_base is not None and sqft and visits and visits > 0 and float(rate_base) > 0:
+        row["price_per_sqft_per_visit"] = round(float(rate_base) / (sqft * visits), 6)
 
     return row
 

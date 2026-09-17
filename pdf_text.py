@@ -1,4 +1,4 @@
-"""Extract plain text from PDF bytes when files are too large to send to Claude as documents."""
+"""Extract plain text from PDF bytes when files are too large to send to AI as documents."""
 
 from __future__ import annotations
 

@@ -1,6 +1,7 @@
 """Dashboard list and pursue actions for gt_csv_opportunities."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 from datetime import date, datetime, timezone
 from typing import Any
@@ -36,7 +37,7 @@ def csv_opportunity_to_card_dict(
     from naics_labels import naics_label
     from display_format import format_service_type_display
 
-    today = today or date.today()
+    today = today or today_local()
     days_left = (row.due_date - today).days if row.due_date else None
     location = _location_display(row)
     service = format_service_type_display(row.naics_code, naics_label(row.naics_code))
@@ -63,7 +64,8 @@ def csv_opportunity_to_card_dict(
     pricing_intel = row.pricing_intel if isinstance(row.pricing_intel, dict) else None
     pricing_display = csv_pricing_card_display(pricing_intel)
     sam_meta = row.sam_raw if isinstance(row.sam_raw, dict) else {}
-    merged_notice_count = int(sam_meta.get("merged_notice_count") or 1)
+    merged_raw = sam_meta.get("merged_notice_count")
+    merged_notice_count = int(merged_raw) if merged_raw not in (None, "") else None
     amendment_number = sam_meta.get("amendment_number")
     posted_date = sam_meta.get("posted_date")
 
@@ -208,7 +210,7 @@ def list_csv_opportunity_cards(
 
             clear_pending_queue_for_deleted_csv(session)
 
-    today = date.today()
+    today = today_local()
     rows = session.query(CsvOpportunity).order_by(CsvOpportunity.due_date.asc().nullslast()).all()
     contract_by_notice = {
         c.notice_id: c
@@ -269,7 +271,7 @@ def pursue_csv_opportunity(session: Session, notice_id: str) -> dict[str, Any]:
     if not row:
         return {"ok": False, "error": "not_found"}
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = now_utc().isoformat()
 
     if row.status == "Pursuing" or row.contract_id:
         contract = bridge_csv_to_contract(session, row)

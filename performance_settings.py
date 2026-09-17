@@ -1,6 +1,7 @@
 """WAWF password and IPP registration settings."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import json
 from datetime import date, timedelta
@@ -73,7 +74,7 @@ def wawf_password_status(last_change: str | None = None) -> dict[str, Any]:
     except ValueError:
         return {"level": "neutral", "days_remaining": None, "message": None, "next_due": None}
     next_due = changed + timedelta(days=WAWF_PASSWORD_CYCLE_DAYS)
-    days_left = (next_due - date.today()).days
+    days_left = (next_due - today_local()).days
     if days_left < 0:
         return {
             "level": "red",

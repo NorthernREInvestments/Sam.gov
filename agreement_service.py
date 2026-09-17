@@ -1,6 +1,7 @@
-"""Subcontract agreement generation — config assembly, Claude fill-in, persistence."""
+"""Subcontract agreement generation — config assembly, AI fill-in, persistence."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import json
 from datetime import date, datetime, timezone
@@ -78,7 +79,7 @@ def append_agreement_status_log(
     log.append(
         {
             "status": status,
-            "at": datetime.now(timezone.utc).isoformat(),
+            "at": now_utc().isoformat(),
             "note": note or "",
         }
     )
@@ -129,7 +130,7 @@ def build_agreement_config(session: Session, link_id: int) -> dict[str, Any]:
                 wage_rate = None
 
     config = {
-        "agreement_date": date.today().isoformat(),
+        "agreement_date": today_local().isoformat(),
         "prime_contractor": prime,
         "contract": {
             "notice_id": contract.notice_id,
@@ -164,7 +165,7 @@ def build_agreement_config(session: Session, link_id: int) -> dict[str, Any]:
             "option_year_4": _format_money(option_amounts.get("option_year_4")),
         },
         "field_map": {
-            "DATE": date.today().strftime("%B %d, %Y"),
+            "DATE": today_local().strftime("%B %d, %Y"),
             "PHONE FROM SETTINGS": prime["business_phone"],
             "SUB LEGAL BUSINESS NAME": sub.business_name,
             "SUB ADDRESS": sub.address or "To be provided",
@@ -272,7 +273,7 @@ def generate_agreement(
 ) -> dict[str, Any]:
     from agreement_export import build_agreement_pdf
     from api_budget import ScreenBudgetExceeded, can_screen, record_screen_usage
-    from claude_client import generate_subcontract_agreement
+    from openai_client import generate_subcontract_agreement
 
     config = build_agreement_config(session, link_id)
     missing = config.get("missing_fields") or []
@@ -285,7 +286,7 @@ def generate_agreement(
         raise ValueError("Contract sub link not found")
 
     if not can_screen():
-        raise ValueError("Claude screening budget reached — try again tomorrow.")
+        raise ValueError("AI screening budget reached — try again tomorrow.")
 
     contract = session.get(Contract, link.contract_id)
     if not contract:
@@ -304,7 +305,7 @@ def generate_agreement(
         existing.config_json = config
         existing.pdf_bytes = pdf_bytes
         existing.version = version
-        existing.date_updated = datetime.now(timezone.utc)
+        existing.date_updated = now_utc()
         row = existing
     else:
         row = SubcontractAgreement(
@@ -376,7 +377,7 @@ def update_sub_profile(session: Session, sub_id: int, payload: dict[str, Any]) -
         if key == "state" and value:
             value = str(value).strip().upper()[:8]
         setattr(row, key, value)
-    row.date_last_updated = datetime.now(timezone.utc)
+    row.date_last_updated = now_utc()
     session.commit()
     session.refresh(row)
     return row

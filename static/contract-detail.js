@@ -475,7 +475,7 @@ function startContractDetailPolling(noticeId) {
 }
 
 async function beginContractDetailAnalysis(noticeId) {
-  requestContractScreening(noticeId).catch((err) => {
+  requestContractScreening(noticeId, { auto: true }).catch((err) => {
     if (err.message !== "Login required") showSyncStatus(err.message, true);
   });
   startContractDetailPolling(noticeId);

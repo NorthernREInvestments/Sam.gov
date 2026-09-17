@@ -67,7 +67,7 @@ def reset_connection_pool() -> None:
 
 
 def with_db_retry(fn, *, attempts: int = 3, base_delay: float = 1.0):
-    """Retry DB work after transient connection drops (e.g. during long Claude calls)."""
+    """Retry DB work after transient connection drops (e.g. during long AI calls)."""
     import time
 
     from sqlalchemy.exc import OperationalError, SQLAlchemyError
@@ -92,18 +92,55 @@ def init_db() -> None:
 
     log = logging.getLogger("govtracker.db")
     from models import (  # noqa: F401
+        AiAnalysisJob,
         AppSetting,
+        AskAboutDealRequest,
         AttachmentQueueItem,
+        AwardLifecycle,
+        BidPackage,
+        CallTranscript,
+        CompanyCapability,
         Contract,
         ContractAttachment,
         ContractInvoice,
         ContractSub,
+        CrmActivity,
         CsvOpportunity,
+        DealState,
+        DealWarning,
+        DiscoveredOpportunity,
+        DiscoveryAgency,
+        DiscoveryRun,
+        DiscoverySource,
+        FinancierContact,
+        FinancingProvider,
+        FinancingPursuit,
+        FinancingTerm,
+        FreightQuote,
+        FundingGap,
+        FundingPlan,
+        FundingStrategyCandidate,
+        GovernmentContact,
+        KnowledgeProduct,
+        KnowledgeSupplier,
+        MissingInfoItem,
+        OperatorNote,
+        OpportunitySighting,
+        ActionQueueItem,
+        ProductRequirement,
         Proposal,
+        QuoteDocument,
+        RequirementRegisterItem,
+        ResearchEvent,
+        SamApiAudit,
+        SolicitationDocument,
         Sub,
         SubContact,
         SubPayment,
         SubcontractAgreement,
+        SupplierContact,
+        SupplierOffer,
+        SupplierPursuitPlan,
     )
 
     log.info("init_db: rename legacy tables")
@@ -128,6 +165,9 @@ def init_db() -> None:
     _migrate_add_submission_package()
     _migrate_add_csv_attachment_queue()
     _migrate_add_csv_opportunity_pricing()
+    _migrate_add_deal_workspace_columns()
+    _migrate_add_govcon_os_foundation()
+    _migrate_add_live_discovery_coverage()
     log.info("init_db: done")
     print("govtracker: init_db done", flush=True)
 
@@ -414,4 +454,89 @@ def _migrate_add_csv_opportunity_pricing() -> None:
         conn.execute(
             text(f"ALTER TABLE {GT_CSV_OPPORTUNITIES} ADD COLUMN IF NOT EXISTS pricing_intel JSONB")
         )
+        conn.commit()
+
+
+def _migrate_add_deal_workspace_columns() -> None:
+    """Additive columns for Deal Workspace CRM on existing knowledge tables."""
+    from db_tables import GT_KNOWLEDGE_SUPPLIERS, GT_SUPPLIER_OFFERS
+
+    supplier_cols = [
+        ("federal_capability", "VARCHAR(64)"),
+        ("relationship_strength", "VARCHAR(64)"),
+        ("last_contact_at", "TIMESTAMP WITH TIME ZONE"),
+        ("next_followup_at", "TIMESTAMP WITH TIME ZONE"),
+        ("crm_json", "JSONB"),
+    ]
+    offer_cols = [
+        ("quote_number", "VARCHAR(128)"),
+        ("validation_status", "VARCHAR(32)"),
+        ("bom_match", "BOOLEAN"),
+        ("quote_details_json", "JSONB"),
+    ]
+    with engine.connect() as conn:
+        for name, col_type in supplier_cols:
+            conn.execute(
+                text(f"ALTER TABLE {GT_KNOWLEDGE_SUPPLIERS} ADD COLUMN IF NOT EXISTS {name} {col_type}")
+            )
+        for name, col_type in offer_cols:
+            conn.execute(
+                text(f"ALTER TABLE {GT_SUPPLIER_OFFERS} ADD COLUMN IF NOT EXISTS {name} {col_type}")
+            )
+        conn.commit()
+
+
+def _migrate_add_govcon_os_foundation() -> None:
+    """Additive columns/tables for GovCon OS foundation build."""
+    from db_tables import GT_CALL_TRANSCRIPTS, GT_FINANCING_PROVIDERS
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(f"ALTER TABLE {GT_FINANCING_PROVIDERS} ADD COLUMN IF NOT EXISTS profile_json JSONB")
+        )
+        transcript_cols = [
+            ("provider_id", "INTEGER"),
+            ("transcript_type", "VARCHAR(32)"),
+            ("organization_name", "VARCHAR(512)"),
+            ("operator", "VARCHAR(128)"),
+            ("analysis_status", "VARCHAR(64)"),
+        ]
+        for name, col_type in transcript_cols:
+            conn.execute(
+                text(f"ALTER TABLE {GT_CALL_TRANSCRIPTS} ADD COLUMN IF NOT EXISTS {name} {col_type}")
+            )
+        conn.commit()
+
+
+def _migrate_add_live_discovery_coverage() -> None:
+    """Agency live_capable / last_verified + source live validation evidence."""
+    from db_tables import GT_DISCOVERY_AGENCIES, GT_DISCOVERY_SOURCES
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                f"ALTER TABLE {GT_DISCOVERY_AGENCIES} "
+                f"ADD COLUMN IF NOT EXISTS live_capable BOOLEAN DEFAULT FALSE"
+            )
+        )
+        conn.execute(
+            text(
+                f"ALTER TABLE {GT_DISCOVERY_AGENCIES} "
+                f"ADD COLUMN IF NOT EXISTS last_verified VARCHAR(32)"
+            )
+        )
+        for name, col_type in [
+            ("last_live_verified_at", "TIMESTAMPTZ"),
+            ("last_live_validation_result", "VARCHAR(64)"),
+            ("last_live_http_status", "INTEGER"),
+            ("last_live_record_count", "INTEGER"),
+            ("last_live_sample_external_id", "VARCHAR(256)"),
+            ("validation_notes", "TEXT"),
+        ]:
+            conn.execute(
+                text(
+                    f"ALTER TABLE {GT_DISCOVERY_SOURCES} "
+                    f"ADD COLUMN IF NOT EXISTS {name} {col_type}"
+                )
+            )
         conn.commit()

@@ -1,6 +1,7 @@
 """Notify GovSpend when a gs_watchlist target is matched on SAM.gov (read-only on gs_watchlist)."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import logging
 import os
@@ -58,7 +59,7 @@ def build_watchlist_hit_payload(
         "match_confidence": match_confidence or meta.get("match_confidence"),
         "match_signals": match_signals if match_signals is not None else meta.get("match_signals"),
         "match_confirmed": bool(meta.get("match_confirmed")),
-        "matched_at": datetime.now(timezone.utc).isoformat(),
+        "matched_at": now_utc().isoformat(),
         "watchlist_target": {
             "id": target.id,
             "award_id": target.award_id,
@@ -165,7 +166,7 @@ def _store_notify_result(
     analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
     meta = dict(analysis.get("govspend_watchlist") or {})
     if ok:
-        meta["govspend_notified_at"] = datetime.now(timezone.utc).isoformat()
+        meta["govspend_notified_at"] = now_utc().isoformat()
         meta["govspend_notify_ok"] = True
         meta.pop("govspend_notify_error", None)
         if response is not None:

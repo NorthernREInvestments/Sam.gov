@@ -1,6 +1,7 @@
 """Download solicitation PDFs, persist file bytes, extract text, FAR 52.219-14 checks."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import logging
 import re
@@ -194,7 +195,7 @@ def extract_contract_attachment_text(
         get_contract_pdf_bytes,
         persist_attachment_files,
     )
-    from claude_client import is_drawing_pdf
+    from openai_client import is_drawing_pdf
     from pdf_text import extract_pdf_text
     from screening_pipeline import pdfs_expected_on_contract
 
@@ -383,7 +384,7 @@ def persist_attachment_and_compliance(
     row.attachment_text = extraction.text or None
     row.attachment_extraction_method = extraction.method
     row.attachment_extraction_note = extraction.note
-    row.attachment_text_extracted_at = datetime.now(timezone.utc)
+    row.attachment_text_extracted_at = now_utc()
 
     check = check_subcontracting_limitation(extraction.text, char_count=extraction.char_count)
     _apply_subcontracting_compliance(row, check)

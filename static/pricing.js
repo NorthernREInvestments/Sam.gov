@@ -235,29 +235,37 @@ function renderBidCalculator(data) {
   const subDefault = data.selected_sub_quote || "";
   const internal = data.internal || {};
   const optionYears = Number(data.pws?.option_years) || 0;
-  const margin = data.effective_margin_pct ?? data.margin_percentage ?? 20;
+  const marginRaw = data.effective_margin_pct ?? data.margin_percentage;
+  const margin = marginRaw != null && marginRaw !== "" ? Number(marginRaw) : null;
   const marginCustom = data.margin_percentage != null;
+  const marginDisplay = margin != null ? margin : "";
+  const marginNote =
+    margin == null
+      ? "Margin unknown — set a default in Settings before calculating a bid. Do not assume a percentage."
+      : marginCustom
+        ? "Custom margin saved for this contract."
+        : "Using your default margin from Settings — adjust here to override for this contract.";
   return `
     <div class="pricing-tier pricing-tier-calculator" id="bid-calculator" data-notice-id="${escapeHtml(data.notice_id || "")}" data-bid-low="${internal.recommended_bid_low ?? ""}" data-bid-high="${internal.recommended_bid_high ?? ""}" data-option-years="${optionYears}">
       <h4 class="pricing-tier-title">Bid calculator</h4>
       <label class="filter-label">Sub quote (annual)</label>
       <input type="number" id="calc-sub-quote" class="settings-input" value="${subDefault}" step="0.01" placeholder="From selected sub">
-      <label class="filter-label">Your margin <span id="calc-margin-label">${margin}%</span></label>
-      <input type="range" id="calc-margin" min="10" max="35" value="${margin}" step="1">
-      <p class="detail-note">${marginCustom ? "Custom margin saved for this contract." : "Using your default margin from Settings — adjust here to override for this contract."}</p>
+      <label class="filter-label">Your margin <span id="calc-margin-label">${margin != null ? `${margin}%` : "Unknown"}</span></label>
+      <input type="range" id="calc-margin" min="10" max="35" value="${marginDisplay !== "" ? marginDisplay : 20}" step="1" ${margin == null ? "disabled" : ""}>
+      <p class="detail-note">${marginNote}</p>
       <p class="sub-save-hint" id="calc-margin-hint" hidden>Saved</p>
       <div class="pricing-stats">
         <div class="pricing-stat pricing-stat-highlight">
           <span class="pricing-stat-label">Your bid</span>
-          <span class="pricing-stat-value" id="calc-your-bid">—</span>
+          <span class="pricing-stat-value" id="calc-your-bid">${margin == null ? "Unknown" : "—"}</span>
         </div>
         <div class="pricing-stat">
           <span class="pricing-stat-label">Annual profit</span>
-          <span class="pricing-stat-value" id="calc-annual-profit">—</span>
+          <span class="pricing-stat-value" id="calc-annual-profit">${margin == null ? "Unknown" : "—"}</span>
         </div>
         <div class="pricing-stat">
           <span class="pricing-stat-label">5-year profit</span>
-          <span class="pricing-stat-value" id="calc-five-year">—</span>
+          <span class="pricing-stat-value" id="calc-five-year">${margin == null ? "Unknown" : "—"}</span>
         </div>
       </div>
       <p class="pricing-note" id="calc-range-status"></p>
@@ -268,10 +276,20 @@ function renderBidCalculator(data) {
 function updateBidCalculator() {
   const calc = document.getElementById("bid-calculator");
   if (!calc) return;
+  const marginInput = document.getElementById("calc-margin");
+  if (marginInput?.disabled) {
+    const bidEl = document.getElementById("calc-your-bid");
+    const profitEl = document.getElementById("calc-annual-profit");
+    const fiveEl = document.getElementById("calc-five-year");
+    if (bidEl) bidEl.textContent = "Unknown";
+    if (profitEl) profitEl.textContent = "Unknown — policy margin required";
+    if (fiveEl) fiveEl.textContent = "Unknown";
+    return;
+  }
   const sub = Number(document.getElementById("calc-sub-quote")?.value);
-  const marginPct = Number(document.getElementById("calc-margin")?.value || 20);
+  const marginPct = Number(marginInput?.value);
   const marginLabel = document.getElementById("calc-margin-label");
-  if (marginLabel) marginLabel.textContent = `${marginPct}%`;
+  if (marginLabel) marginLabel.textContent = Number.isFinite(marginPct) ? `${marginPct}%` : "Unknown";
 
   const bidEl = document.getElementById("calc-your-bid");
   const profitEl = document.getElementById("calc-annual-profit");
@@ -279,19 +297,40 @@ function updateBidCalculator() {
   const statusEl = document.getElementById("calc-range-status");
   const optionEl = document.getElementById("calc-option-years");
 
-  if (!sub || sub <= 0) {
-    if (bidEl) bidEl.textContent = "—";
-    if (profitEl) profitEl.textContent = "—";
-    if (fiveEl) fiveEl.textContent = "—";
+  if (!sub || sub <= 0 || !Number.isFinite(marginPct)) {
+    if (bidEl) bidEl.textContent = "Unknown";
+    if (profitEl) profitEl.textContent = "Unknown";
+    if (fiveEl) fiveEl.textContent = "Unknown";
     return;
   }
 
+  // POLICY SCENARIO only — not actual profit
   const margin = marginPct / 100;
   const bid = sub / (1 - margin);
   const profit = bid - sub;
   if (bidEl) bidEl.textContent = formatMoney(bid);
-  if (profitEl) profitEl.textContent = formatMoney(profit);
-  if (fiveEl) fiveEl.textContent = formatMoney(profit * 5);
+  if (profitEl) profitEl.textContent = `${formatMoney(profit)} (POLICY SCENARIO)`;
+  const oy = Number(calc.dataset.optionYears);
+  if (fiveEl) {
+    if (Number.isFinite(oy) && oy > 0) {
+      // Sum base + option years at stated increase only when OY count known — else Unknown
+      const increasePct = Number(calc.dataset.optionIncreasePct);
+      if (!Number.isFinite(increasePct)) {
+        fiveEl.textContent = "Unknown — option-year increase not set";
+      } else {
+        let totalProfit = profit;
+        let prev = bid;
+        const mult = 1 + increasePct / 100;
+        for (let i = 0; i < oy; i++) {
+          prev = prev * mult;
+          totalProfit += prev - sub * Math.pow(mult, i + 1); // rough; prefer label as scenario
+        }
+        fiveEl.textContent = `${formatMoney(profit * (1 + oy))} (POLICY SCENARIO — approx)`;
+      }
+    } else {
+      fiveEl.textContent = "Unknown — option years not verified";
+    }
+  }
 
   const low = Number(calc.dataset.bidLow);
   const high = Number(calc.dataset.bidHigh);
@@ -462,7 +501,7 @@ function renderPricingDashboard(data) {
 
   return `
     <h2>Pricing intelligence</h2>
-    <p class="settings-help">Your internal database grows as Claude extracts PWS data and you record winning bids.</p>
+    <p class="settings-help">Your internal database grows as AI extracts PWS data and you record winning bids.</p>
     <div class="pricing-stats">
       <div class="pricing-stat"><span class="pricing-stat-label">Contracts with scope data</span><span class="pricing-stat-value">${data.total_in_database ?? 0}</span></div>
       <div class="pricing-stat"><span class="pricing-stat-label">With unit rates</span><span class="pricing-stat-value">${data.total_with_unit_rates ?? 0}</span></div>

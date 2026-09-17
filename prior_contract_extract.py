@@ -1,6 +1,7 @@
 """Extract incumbent and prior contract # from solicitation PDF text — always when present."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import re
 from typing import Any
@@ -109,16 +110,9 @@ def _looks_like_fake_contract_number(value: str) -> bool:
 
 
 def _parse_money_amount(value: str | None) -> float | None:
-    if not value:
-        return None
-    cleaned = re.sub(r"[^\d.]", "", str(value))
-    if not cleaned:
-        return None
-    try:
-        amount = float(cleaned)
-    except ValueError:
-        return None
-    return amount if amount > 0 else None
+    from data_integrity import parse_money
+
+    return parse_money(value, allow_loose=True)
 
 
 def _prior_contract_pricing_section(text: str) -> str:
@@ -191,7 +185,7 @@ def extract_prior_pricing_from_text(text: str | None) -> dict[str, Any]:
 
 
 def parse_prior_amount_from_estimated_value(value: str | None) -> dict[str, Any]:
-    """Use Claude screening estimated_value when it cites prior-contract dollars."""
+    """Use AI screening estimated_value when it cites prior-contract dollars."""
     if not value or not str(value).strip():
         return {}
     text = str(value).strip()
@@ -418,7 +412,7 @@ def ensure_prior_contract_from_pdfs(contract: Any, session=None, *, force: bool 
     """
     Guarantee prior-contract fields are extracted from PDFs when present.
     1) Regex on stored attachment text (free)
-    2) Claude solicitation meta if still missing (uses PDFs, not SAM.gov)
+    2) AI solicitation meta if still missing (uses PDFs, not SAM.gov)
     """
     analysis = dict(contract.analysis) if isinstance(contract.analysis, dict) else {}
     merge_prior_contract_hints(contract)
@@ -480,7 +474,7 @@ def reextract_attachment_text_from_db(session, contract: Any, *, max_pdfs: int =
     merged = "\n\n".join(parts)
     contract.attachment_text = merged
     contract.attachment_extraction_method = "text"
-    contract.attachment_text_extracted_at = datetime.now(timezone.utc)
+    contract.attachment_text_extracted_at = now_utc()
     return True
 
 

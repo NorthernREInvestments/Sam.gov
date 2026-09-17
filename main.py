@@ -1,4 +1,5 @@
 """View contracts stored in PostgreSQL."""
+from application_clock import now_utc, today_local
 
 import json
 import sys
@@ -21,7 +22,7 @@ def main() -> None:
 
     print(f"Showing {len(contracts)} matching contract(s) from database\n")
     for i, c in enumerate(contracts, 1):
-        days = (c.due_date - date.today()).days if c.due_date else None
+        days = (c.due_date - today_local()).days if c.due_date else None
         print(f"{i}. {c.title}")
         print(f"   Agency:    {c.agency}")
         print(f"   Location:  {c.location}")

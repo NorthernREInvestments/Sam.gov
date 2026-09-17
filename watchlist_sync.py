@@ -8,6 +8,7 @@ from typing import Any
 
 from database import SessionLocal
 from models import Contract
+from application_clock import now_utc, today_local
 from watchlist_fingerprint import FingerprintMatchResult, log_weak_match, posting_fingerprint_from_contract
 
 logger = logging.getLogger("govtracker.watchlist")
@@ -445,7 +446,7 @@ def list_watchlist_hit_contracts(session) -> list[Contract]:
 
     rows = session.query(Contract).order_by(Contract.due_date.asc().nullslast(), Contract.id.asc()).all()
     hits = [row for row in rows if is_govspend_watchlist_hit(row)]
-    today = __import__("datetime").date.today()
+    today = today_local()
     hits.sort(
         key=lambda r: (
             r.due_date is None,
@@ -461,7 +462,7 @@ def list_possible_watchlist_matches(session) -> list[Contract]:
 
     rows = session.query(Contract).order_by(Contract.due_date.asc().nullslast(), Contract.id.asc()).all()
     matches = [row for row in rows if is_possible_watchlist_match(row)]
-    today = __import__("datetime").date.today()
+    today = today_local()
     matches.sort(
         key=lambda r: (
             r.due_date is None,

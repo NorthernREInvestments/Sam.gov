@@ -1,6 +1,7 @@
 """Fetch full SAM.gov opportunity details: description, attachments, document access."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import os
 import re
@@ -50,8 +51,34 @@ def _attachment_sam_allowed(notice_id: str) -> bool:
         session.close()
 
 
-def _sam_api_get(url: str, *, params: dict[str, Any] | None = None, timeout: float = 45.0) -> httpx.Response | None:
-    """Perform one SAM.gov API GET and count it against the daily budget."""
+def _sam_api_get(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    timeout: float = 45.0,
+    purpose: str | None = None,
+    opportunity: Any | None = None,
+    context: dict[str, Any] | None = None,
+    exception: dict[str, Any] | None = None,
+    authorize_live: bool = False,
+) -> httpx.Response | None:
+    """Perform one SAM.gov API GET after scarcity gate + daily budget check."""
+    from sam_scarcity import (
+        PURPOSE_OPPORTUNITY_VERIFY,
+        gate_sam_api_call,
+        mark_sam_audit_executed,
+    )
+
+    gate = gate_sam_api_call(
+        purpose=purpose or PURPOSE_OPPORTUNITY_VERIFY,
+        opportunity=opportunity,
+        context=context,
+        exception=exception,
+        authorize_live=authorize_live,
+        endpoint=url,
+    )
+    if not gate["allowed"]:
+        return None
     if not can_spend_sam(1):
         return None
     try:
@@ -59,6 +86,11 @@ def _sam_api_get(url: str, *, params: dict[str, Any] | None = None, timeout: flo
             response = client.get(url, params=params)
             response.raise_for_status()
             record_sam_usage(1)
+            mark_sam_audit_executed(
+                gate.get("audit_id"),
+                useful_new_evidence=True,
+                result_status="EXECUTED",
+            )
             return response
     except Exception:
         return None
@@ -351,7 +383,7 @@ def enrich_description_only(raw: dict[str, Any] | None, api_key: str | None = No
         enriched["descriptionHtml"] = description_html
     if description_text:
         enriched["descriptionText"] = description_text
-    enriched["textEnrichedAt"] = datetime.now(timezone.utc).isoformat() if description_text else None
+    enriched["textEnrichedAt"] = now_utc().isoformat() if description_text else None
     return enriched
 
 
@@ -482,7 +514,7 @@ def scrape_attachment_metadata(raw: dict[str, Any], api_key: str | None = None) 
 
     enriched = attach_piee_manifest(enriched)
     enriched["scrapeStatus"] = "metadata_ready"
-    enriched["scrapedAt"] = datetime.now(timezone.utc).isoformat()
+    enriched["scrapedAt"] = now_utc().isoformat()
     enriched.pop("scrapeError", None)
     return enriched, True
 
@@ -527,7 +559,7 @@ def scrape_opportunity_complete(raw: dict[str, Any], api_key: str | None = None)
 
     enriched = attach_piee_manifest(enriched)
     enriched["scrapeStatus"] = "metadata_ready"
-    enriched["scrapedAt"] = datetime.now(timezone.utc).isoformat()
+    enriched["scrapedAt"] = now_utc().isoformat()
     enriched.pop("scrapeError", None)
     return enriched, True
 

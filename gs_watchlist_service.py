@@ -1,6 +1,7 @@
 """Read GovSpend gs_watchlist targets (read-only) and match SAM.gov contracts."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import os
 from dataclasses import dataclass
@@ -403,7 +404,7 @@ def stamp_fingerprint_match(
         "location_city": target.location_city,
         "location_state": target.location_state,
         "location_zip": target.location_zip,
-        "matched_at": datetime.now(timezone.utc).isoformat(),
+        "matched_at": now_utc().isoformat(),
         "sam_found": sam_found,
         "match_confirmed": bool(prev.get("match_confirmed")),
         "match_rejected": bool(prev.get("match_rejected")),
@@ -432,7 +433,7 @@ def confirm_fingerprint_match(contract: Any) -> dict[str, Any] | None:
     updated["needs_review"] = False
     updated["sam_found"] = True
     updated["surfaced"] = True
-    updated["confirmed_at"] = datetime.now(timezone.utc).isoformat()
+    updated["confirmed_at"] = now_utc().isoformat()
     analysis["govspend_watchlist"] = updated
     contract.analysis = analysis
     return updated
@@ -449,7 +450,7 @@ def reject_fingerprint_match(contract: Any) -> dict[str, Any] | None:
     updated["needs_review"] = False
     updated["sam_found"] = False
     updated["surfaced"] = False
-    updated["rejected_at"] = datetime.now(timezone.utc).isoformat()
+    updated["rejected_at"] = now_utc().isoformat()
     analysis["govspend_watchlist"] = updated
     contract.analysis = analysis
     return updated

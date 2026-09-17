@@ -1,13 +1,14 @@
 """App settings stored in PostgreSQL."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import json
 import os
 from datetime import datetime, timezone
 from typing import Any
 
-from claude_client import DEFAULT_SCREENING_PROMPT
+from openai_client import DEFAULT_SCREENING_PROMPT
 from database import SessionLocal
 from models import AppSetting
 from naics_labels import ALL_NAICS_CODES, NAICS_LABELS, NAICS_TIER_GROUPS, TIER_SCHEDULE_SUMMARY
@@ -220,7 +221,7 @@ def get_all_settings() -> dict[str, Any]:
         "api_budget": get_usage_snapshot(),
         "api_keys": {
             "sam_gov": bool(os.getenv("SAM_GOV_API_KEY", "").strip()),
-            "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
+            "openai": bool(os.getenv("OPENAI_API_KEY", "").strip()),
             "google_places": bool(os.getenv("GOOGLE_PLACES_API_KEY", "").strip()),
             "database": bool(os.getenv("DATABASE_URL", "").strip()),
         },
@@ -308,7 +309,7 @@ def is_pricing_agency_fix_complete() -> bool:
 
 
 def mark_pricing_agency_fix_complete(session) -> None:
-    _set_setting(session, PRICING_AGENCY_FIX_KEY, datetime.now(timezone.utc).isoformat())
+    _set_setting(session, PRICING_AGENCY_FIX_KEY, now_utc().isoformat())
 
 
 def is_exact_match_fix_complete() -> bool:
@@ -320,8 +321,8 @@ def is_exact_match_fix_complete() -> bool:
 
 
 def mark_exact_match_fix_complete(session) -> None:
-    _set_setting(session, EXACT_MATCH_FIX_KEY, datetime.now(timezone.utc).isoformat())
+    _set_setting(session, EXACT_MATCH_FIX_KEY, now_utc().isoformat())
 
 
 def mark_pricing_backfill_complete(session) -> None:
-    _set_setting(session, PRICING_BACKFILL_KEY, datetime.now(timezone.utc).isoformat())
+    _set_setting(session, PRICING_BACKFILL_KEY, now_utc().isoformat())

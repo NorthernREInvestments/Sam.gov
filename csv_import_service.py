@@ -1,6 +1,7 @@
 ﻿"""Import SAM.gov ContractOpportunitiesFullCSV into gt_csv_opportunities."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import csv
 import io
@@ -225,7 +226,7 @@ def _passes_import_filters(
     today: date | None = None,
     naics_set: set[str] | None = None,
 ) -> bool:
-    today = today or date.today()
+    today = today or today_local()
     active = _row_get(row, "Active", "active").lower()
     if active not in ("yes", "y", "true", "1"):
         return False
@@ -505,7 +506,7 @@ def remove_stale_csv_rows(session: Session, present_notice_ids: set[str]) -> int
 
 def remove_expired_csv_rows(session: Session, *, today: date | None = None) -> int:
     """Remove CSV rows past the response deadline (keeps Pursuing / Submitted / Won / Lost)."""
-    today = today or date.today()
+    today = today or today_local()
     protected_lower = [status.lower() for status in PROTECTED_CSV_STATUSES]
     deleted = (
         session.query(CsvOpportunity)
@@ -552,7 +553,7 @@ def import_csv_opportunities(session: Session, csv_rows: list[dict[str, str]]) -
     Filter, dedupe, and upsert into gt_csv_opportunities (incremental merge).
     Returns counts for the import summary (does not run queue or watchlist).
     """
-    today = date.today()
+    today = today_local()
     summary = _new_import_summary()
     present_notice_ids: set[str] = set()
 
@@ -663,7 +664,7 @@ def import_csv_opportunities_from_content(
     if not reader.fieldnames:
         return {"ok": False, "error": "empty_or_invalid_csv"}
 
-    today = date.today()
+    today = today_local()
     summary = _new_import_summary()
     present_notice_ids: set[str] = set()
 

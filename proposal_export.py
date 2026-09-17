@@ -1,6 +1,7 @@
 """Export proposals to Word (.docx) and PDF (WeasyPrint with fpdf2 fallback)."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import io
 import re
@@ -17,11 +18,11 @@ NAVY = "#1e3a5f"
 
 
 def _today_str() -> str:
-    return date.today().strftime("%B %d, %Y")
+    return today_local().strftime("%B %d, %Y")
 
 
 def _date_file() -> str:
-    return date.today().strftime("%Y%m%d")
+    return today_local().strftime("%Y%m%d")
 
 
 def _css_escape(value: str) -> str:

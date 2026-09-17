@@ -1,6 +1,7 @@
-"""Track and enforce daily API usage budgets (SAM.gov + Claude screening)."""
+"""Track and enforce daily API usage budgets (SAM.gov + AI screening)."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import os
 from datetime import date
@@ -9,9 +10,12 @@ from typing import Any
 from database import SessionLocal
 from models import AppSetting
 
+# Legacy usage key kept for same-day continuity after Anthropic → OpenAI migration.
+_AI_USAGE_KEYS = ("ai_screen", "anthropic_screen")
+
 
 def _today() -> str:
-    return date.today().isoformat()
+    return today_local().isoformat()
 
 
 def _daily_limit(env_key: str, default: int) -> int:
@@ -23,7 +27,12 @@ def _daily_limit(env_key: str, default: int) -> int:
 
 
 def sam_daily_limit() -> int:
-    """SAM.gov search + enrich calls per day (protect expiring API key credits)."""
+    """SAM.gov search + enrich calls per day (protect expiring API key credits).
+
+    Prefer SAM_API_CALL_LIMIT when set; fall back to SAM_DAILY_API_BUDGET (default 10).
+    """
+    if os.getenv("SAM_API_CALL_LIMIT") is not None:
+        return _daily_limit("SAM_API_CALL_LIMIT", 10)
     return _daily_limit("SAM_DAILY_API_BUDGET", 10)
 
 
@@ -42,8 +51,16 @@ def scheduled_sync_batch_size() -> int:
 
 
 def screen_daily_limit() -> int:
-    """Claude screenings per day. 0 = unlimited (no daily cap)."""
-    return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 0)
+    """
+    AI screenings per day.
+    Prefer AI_DAILY_SCREEN_BUDGET; fall back to legacy ANTHROPIC_DAILY_SCREEN_BUDGET if set.
+    Default 25 (not unlimited) to protect OpenAI spend.
+    """
+    if os.getenv("AI_DAILY_SCREEN_BUDGET") is not None:
+        return _daily_limit("AI_DAILY_SCREEN_BUDGET", 25)
+    if os.getenv("ANTHROPIC_DAILY_SCREEN_BUDGET") is not None:
+        return _daily_limit("ANTHROPIC_DAILY_SCREEN_BUDGET", 25)
+    return 25
 
 
 def enrich_on_sync_limit() -> int:
@@ -51,20 +68,38 @@ def enrich_on_sync_limit() -> int:
 
 
 def intake_on_sync_enabled() -> bool:
-    raw = os.getenv("INTAKE_ON_SYNC", "true").strip().lower()
-    return raw not in ("0", "false", "no")
+    """Default OFF — prevent automatic paid AI on every sync unless explicitly enabled."""
+    raw = os.getenv("INTAKE_ON_SYNC", "false").strip().lower()
+    return raw in ("1", "true", "yes")
 
 
-def is_anthropic_api_blocked(exc: BaseException) -> bool:
+def auto_screen_on_contract_detail() -> bool:
+    """
+    When true, opening an unscored contract detail may trigger paid AI screening.
+    Default OFF — user/explicit workflow should trigger screening.
+    """
+    raw = os.getenv("AUTO_SCREEN_ON_CONTRACT_DETAIL", "false").strip().lower()
+    return raw in ("1", "true", "yes")
+
+
+def is_ai_api_blocked(exc: BaseException) -> bool:
     msg = str(exc).lower()
     if "credit balance" in msg:
         return True
+    if "insufficient_quota" in msg or "insufficient quota" in msg:
+        return True
     if "authentication" in msg and "api" in msg:
+        return True
+    if "invalid_api_key" in msg or "incorrect api key" in msg:
         return True
     return False
 
 
-class ClaudePipelineHalt(Exception):
+# Backward-compatible alias
+is_anthropic_api_blocked = is_ai_api_blocked
+
+
+class AIPipelineHalt(Exception):
     """Legacy — errors return per-contract results; queue always continues."""
 
     def __init__(self, reason: str, *, notice_id: str | None = None, detail: str | None = None):
@@ -74,15 +109,21 @@ class ClaudePipelineHalt(Exception):
         super().__init__(detail or reason)
 
 
-def claude_intake_allowed() -> bool:
-    """Automatic Claude intake/repair (from stored PDFs) when sync intake is on."""
+ClaudePipelineHalt = AIPipelineHalt
+
+
+def ai_intake_allowed() -> bool:
+    """Automatic AI intake/repair (from stored PDFs) when sync intake is on and budget allows."""
     if not intake_on_sync_enabled():
         return False
     return can_screen()
 
 
+claude_intake_allowed = ai_intake_allowed
+
+
 def intake_per_sync_limit() -> int | None:
-    """Max Claude intakes per sync. 0 = unlimited (process entire pending queue)."""
+    """Max AI intakes per sync. 0 = unlimited within daily screen budget."""
     raw = _daily_limit("INTAKE_PER_SYNC_LIMIT", 0)
     return None if raw == 0 else raw
 
@@ -106,7 +147,7 @@ def scheduled_sync_attachments_only() -> bool:
     """True during the configured attachments-only window (inclusive on both ends)."""
     until = scheduled_sync_attachments_only_until()
     if until is not None:
-        today = date.today()
+        today = today_local()
         start = scheduled_sync_attachments_only_from()
         if start is not None and today < start:
             return False
@@ -127,7 +168,6 @@ def scheduled_sync_attachments_only_from() -> date | None:
 
 
 def scheduled_sync_attachments_only_until() -> date | None:
-    """Last calendar day (inclusive) for attachments-only 6am syncs."""
     raw = os.getenv("SCHEDULED_SYNC_ATTACHMENTS_ONLY_UNTIL", "").strip()
     if not raw:
         return None
@@ -137,16 +177,13 @@ def scheduled_sync_attachments_only_until() -> date | None:
         return None
 
 
-def auto_screen_on_startup() -> bool:
-    """Legacy flag — intake on startup uses INTAKE_ON_SYNC instead."""
-    if os.getenv("AUTO_SCREEN_ON_STARTUP", "").strip():
-        return os.getenv("AUTO_SCREEN_ON_STARTUP", "false").strip().lower() in ("1", "true", "yes")
-    return intake_on_sync_enabled()
-
-
 def sam_pdf_download_limit() -> int:
-    """Legacy hook — 0 = unlimited. PDF file downloads do not use the SAM API call budget."""
     return _daily_limit("SAM_PDF_DOWNLOAD_BUDGET", 0)
+
+
+def auto_screen_on_startup() -> bool:
+    raw = os.getenv("AUTO_SCREEN_ON_STARTUP", "false").strip().lower()
+    return raw in ("1", "true", "yes")
 
 
 def _usage_key(prefix: str) -> str:
@@ -154,8 +191,8 @@ def _usage_key(prefix: str) -> str:
 
 
 def _get_usage(session, prefix: str) -> int:
-    row = session.get(AppSetting, _usage_key(prefix))
-    if not row:
+    row = session.query(AppSetting).filter_by(key=_usage_key(prefix)).first()
+    if not row or not row.value:
         return 0
     try:
         return max(0, int(row.value))
@@ -163,25 +200,43 @@ def _get_usage(session, prefix: str) -> int:
         return 0
 
 
+def _get_ai_screen_usage(session) -> int:
+    """Read AI screen usage; merge legacy anthropic_screen counter for the same day."""
+    total = 0
+    for prefix in _AI_USAGE_KEYS:
+        total += _get_usage(session, prefix)
+    return total
+
+
 def _set_usage(session, prefix: str, value: int) -> None:
     key = _usage_key(prefix)
-    row = session.get(AppSetting, key)
+    row = session.query(AppSetting).filter_by(key=key).first()
     if row:
         row.value = str(value)
     else:
         session.add(AppSetting(key=key, value=str(value)))
 
 
+def _usage_counts() -> dict[str, int]:
+    """Read daily usage counters only — never calls can_screen / get_usage_snapshot."""
+    session = SessionLocal()
+    try:
+        return {
+            "sam_used_today": _get_usage(session, "sam_api"),
+            "sam_pdf_downloads_today": _get_usage(session, "sam_pdf"),
+            "screens_used_today": _get_ai_screen_usage(session),
+        }
+    finally:
+        session.close()
+
+
 def get_usage_snapshot() -> dict[str, Any]:
     from csv_attachment_policy import sam_attachments_csv_only_snapshot
 
-    session = SessionLocal()
-    try:
-        sam_used = _get_usage(session, "sam_api")
-        sam_pdf_used = _get_usage(session, "sam_pdf")
-        screen_used = _get_usage(session, "anthropic_screen")
-    finally:
-        session.close()
+    counts = _usage_counts()
+    sam_used = counts["sam_used_today"]
+    sam_pdf_used = counts["sam_pdf_downloads_today"]
+    screen_used = counts["screens_used_today"]
 
     sam_limit = sam_daily_limit()
     sam_pdf_limit = sam_pdf_download_limit()
@@ -193,15 +248,18 @@ def get_usage_snapshot() -> dict[str, Any]:
         "sam_remaining": max(0, sam_limit - sam_used),
         "sam_pdf_downloads_today": sam_pdf_used,
         "sam_pdf_download_limit": sam_pdf_limit,
-        "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used),
+        "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used) if sam_pdf_limit else None,
         "screens_used_today": screen_used,
         "screen_daily_limit": screen_limit,
         "screens_unlimited": screens_unlimited,
         "screens_remaining": None if screens_unlimited else max(0, screen_limit - screen_used),
         "auto_screen_on_startup": auto_screen_on_startup(),
+        "auto_screen_on_contract_detail": auto_screen_on_contract_detail(),
         "enrich_on_sync_limit": enrich_on_sync_limit(),
         "intake_on_sync": intake_on_sync_enabled(),
-        "claude_intake_allowed": claude_intake_allowed(),
+        # Computed after counts — must not re-enter get_usage_snapshot (RecursionError)
+        "ai_intake_allowed": _ai_intake_allowed_from_counts(screen_used=screen_used, screen_limit=screen_limit),
+        "claude_intake_allowed": False,  # set below to same value
         "intake_per_sync_limit": intake_per_sync_limit(),
         "scheduled_naics_per_sync": scheduled_naics_per_sync(),
         "attachment_enrich_per_sync_limit": attachment_enrich_per_sync_limit(),
@@ -218,27 +276,56 @@ def get_usage_snapshot() -> dict[str, Any]:
             else None
         ),
     }
+    snapshot["claude_intake_allowed"] = snapshot["ai_intake_allowed"]
+    try:
+        from ai_cost_budget import get_cost_snapshot
+
+        snapshot["ai_cost"] = get_cost_snapshot()
+    except Exception:
+        snapshot["ai_cost"] = None
     snapshot.update(sam_attachments_csv_only_snapshot())
     return snapshot
+
+
+def _ai_intake_allowed_from_counts(*, screen_used: int, screen_limit: int) -> bool:
+    if not intake_on_sync_enabled():
+        return False
+    return _can_screen_from_counts(screen_used=screen_used, screen_limit=screen_limit)
+
+
+def _can_screen_from_counts(*, screen_used: int, screen_limit: int) -> bool:
+    """Legacy count budget AND dollar monthly budget must allow spend — no snapshot recursion."""
+    if screen_limit != 0 and max(0, screen_limit - screen_used) <= 0:
+        return False
+    try:
+        from ai_cost_budget import get_cost_snapshot
+
+        cost = get_cost_snapshot()
+        if float(cost.get("monthly_remaining_usd") or 0) <= 0:
+            return False
+    except Exception:
+        pass
+    return True
 
 
 def can_spend_sam(credits: int = 1) -> bool:
     if credits <= 0:
         return True
-    snap = get_usage_snapshot()
-    return snap["sam_remaining"] >= credits
+    counts = _usage_counts()
+    return max(0, sam_daily_limit() - counts["sam_used_today"]) >= credits
 
 
 def can_download_screening_pdf() -> bool:
     limit = sam_pdf_download_limit()
     if limit == 0:
         return True
-    snap = get_usage_snapshot()
-    return snap["sam_pdf_downloads_remaining"] > 0
+    counts = _usage_counts()
+    remaining = max(0, limit - counts["sam_pdf_downloads_today"])
+    return remaining > 0
 
 
 def record_sam_pdf_download() -> bool:
-    """Record one SAM.gov-hosted PDF download during Claude screening."""
+    """Record one SAM.gov-hosted PDF download during AI screening."""
     session = SessionLocal()
     try:
         used = _get_usage(session, "sam_pdf")
@@ -253,12 +340,12 @@ def record_sam_pdf_download() -> bool:
 
 
 def can_screen() -> bool:
-    limit = screen_daily_limit()
-    if limit == 0:
-        return True
-    snap = get_usage_snapshot()
-    return (snap["screens_remaining"] or 0) > 0
-
+    """Legacy count budget AND dollar monthly budget must allow spend."""
+    counts = _usage_counts()
+    return _can_screen_from_counts(
+        screen_used=counts["screens_used_today"],
+        screen_limit=screen_daily_limit(),
+    )
 
 def record_sam_usage(credits: int = 1) -> bool:
     """Record SAM.gov API usage. Returns False if budget would be exceeded."""
@@ -280,11 +367,13 @@ def record_sam_usage(credits: int = 1) -> bool:
 def record_screen_usage() -> bool:
     session = SessionLocal()
     try:
-        used = _get_usage(session, "anthropic_screen")
+        used = _get_ai_screen_usage(session)
         limit = screen_daily_limit()
         if limit > 0 and used + 1 > limit:
             return False
-        _set_usage(session, "anthropic_screen", used + 1)
+        # Write only to the new key going forward.
+        current_new = _get_usage(session, "ai_screen")
+        _set_usage(session, "ai_screen", current_new + 1)
         session.commit()
         return True
     finally:
@@ -305,7 +394,7 @@ class ScreenBudgetExceeded(Exception):
     def __init__(self, message: str | None = None):
         snap = get_usage_snapshot()
         detail = message or (
-            f"Daily Claude screening budget exhausted "
+            f"Daily AI screening budget exhausted "
             f"({snap['screens_used_today']}/{snap['screen_daily_limit']} used today)."
         )
         super().__init__(detail)

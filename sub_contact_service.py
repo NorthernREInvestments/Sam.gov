@@ -1,6 +1,7 @@
 """Sub contact workflow — outreach tracking, quotes, wage compliance, email templates."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -25,7 +26,7 @@ FOLLOWUP_HOURS = 48
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return now_utc()
 
 
 def _dec(value: Decimal | float | int | None) -> float | None:
@@ -461,23 +462,43 @@ def quote_comparison(
         regional = pricing.get("regional_benchmark") or {}
     hist_avg = regional.get("average_annual_award")
     wage = wage_requirements_for_contract(contract)
+    from economic_integrity import monthly_quote_to_annual
+    from proposal_defaults import resolve_contract_margin
+
+    # POLICY scenario margins (owner config) — not fabricated market facts / not actual profit
+    policy_margin = float(resolve_contract_margin(contract))
+    alt_margin = 18.0 if abs(policy_margin - 18.0) > 0.01 else 20.0
     rows = []
     for c in contacts:
         if not c.quote_received or c.quote_amount is None:
             continue
         monthly = float(c.quote_amount)
-        annual = monthly * 12
-        bid18 = calculate_bid_pricing(monthly, 18.0)["base_year_bid"]
-        bid20 = calculate_bid_pricing(monthly, 20.0)["base_year_bid"]
+        annual = monthly_quote_to_annual(monthly)
+        if annual is None:
+            continue
+        bid_policy = calculate_bid_pricing(annual, policy_margin)["base_year_bid"]
+        bid_alt = calculate_bid_pricing(annual, alt_margin)["base_year_bid"]
         compliance = wage_compliance_status(monthly, wage.get("minimum_monthly_quote"))
-        competitiveness = {"level": "neutral", "message": ""}
+        competitiveness = {"level": "neutral", "message": "Historical average is context only — POLICY scenario, not actual profit."}
         if hist_avg:
-            if bid20 <= hist_avg * 1.05:
-                competitiveness = {"level": "green", "message": "Bid at 20% margin is at or below historical average."}
-            elif bid20 <= hist_avg * 1.15:
-                competitiveness = {"level": "yellow", "message": "Bid at 20% margin is slightly above historical average."}
+            if bid_policy <= hist_avg * 1.05:
+                competitiveness = {
+                    "level": "green",
+                    "message": (
+                        f"POLICY scenario bid @ {policy_margin:g}% is at/below labeled annual historical average "
+                        "(not actual profit)."
+                    ),
+                }
+            elif bid_policy <= hist_avg * 1.15:
+                competitiveness = {
+                    "level": "yellow",
+                    "message": f"POLICY scenario bid @ {policy_margin:g}% slightly above historical annual average.",
+                }
             else:
-                competitiveness = {"level": "red", "message": "Bid at 20% margin is well above historical average."}
+                competitiveness = {
+                    "level": "red",
+                    "message": f"POLICY scenario bid @ {policy_margin:g}% well above historical annual average.",
+                }
         rows.append(
             {
                 "id": c.id,
@@ -486,8 +507,15 @@ def quote_comparison(
                 "monthly_quote": monthly,
                 "annual_quote": annual,
                 "wage_compliance": compliance,
-                "bid_at_18_margin": bid18,
-                "bid_at_20_margin": bid20,
+                "bid_at_policy_margin": bid_policy,
+                "bid_at_alt_margin": bid_alt,
+                "policy_margin_pct": policy_margin,
+                "alt_margin_pct": alt_margin,
+                "economic_kind": "POLICY_SCENARIO",
+                "actual_profit": None,
+                # Legacy keys retained for UI; annualized POLICY scenarios
+                "bid_at_18_margin": bid_alt if alt_margin == 18.0 else calculate_bid_pricing(annual, 18.0)["base_year_bid"],
+                "bid_at_20_margin": bid_policy if abs(policy_margin - 20.0) < 0.01 else calculate_bid_pricing(annual, 20.0)["base_year_bid"],
                 "historical_avg_annual": hist_avg,
                 "competitiveness": competitiveness,
                 "is_selected": c.is_selected,

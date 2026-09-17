@@ -1,6 +1,7 @@
-"""Contract screening: attachments → PDF scope/sub type → sub search → Claude ranking."""
+"""Contract screening: attachments → PDF scope/sub type → sub search → AI ranking."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import os
 from datetime import datetime, timezone
@@ -62,7 +63,7 @@ def is_full_analysis_complete(
     analysis: dict[str, Any] | None,
     row: Contract | None = None,
 ) -> bool:
-    """True only when Claude finished AND expected PDFs were read (or scope is persisted)."""
+    """True only when AI finished AND expected PDFs were read (or scope is persisted)."""
     if not isinstance(analysis, dict):
         return False
     if analysis_stage(analysis) not in ("full",) and not analysis.get("plain_english_summary"):
@@ -148,13 +149,16 @@ def needs_intake(row: Contract, *, force: bool = False, session=None) -> bool:
     return True
 
 
-def needs_claude_work(row: Contract, session=None) -> bool:
-    """True only when Claude can still accomplish something (contract not dashboard-ready)."""
+def needs_ai_work(row: Contract, session=None) -> bool:
+    """True only when AI can still accomplish something (contract not dashboard-ready)."""
     if getattr(row, "subcontracting_limitation_check", None) == "FOUND":
         return False
     if not has_attachments_ready(row, session):
         return False
     return not is_dashboard_ready(row)
+
+
+needs_claude_work = needs_ai_work  # legacy alias
 
 
 def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:
@@ -163,7 +167,7 @@ def mark_low_text_score(row: Contract, analysis: dict[str, Any]) -> None:
     analysis["pursue"] = False
     row.analysis = analysis
     row.status = "skipped"
-    row.last_updated_at = datetime.now(timezone.utc)
+    row.last_updated_at = now_utc()
 
 
 def has_attachments_ready_fast(
@@ -282,7 +286,7 @@ def mark_pending_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
     if row.status in (None, "new", "skipped"):
         row.status = "reviewing"
     row.analysis = analysis
-    row.last_updated_at = datetime.now(timezone.utc)
+    row.last_updated_at = now_utc()
 
 
 def finalize_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
@@ -292,7 +296,7 @@ def finalize_full_analysis(row: Contract, analysis: dict[str, Any]) -> None:
     if analysis.get("text_score") is None and analysis.get("score") is not None:
         analysis["text_score"] = analysis.get("score")
     row.analysis = analysis
-    row.last_updated_at = datetime.now(timezone.utc)
+    row.last_updated_at = now_utc()
     if analysis.get("pursue") is False:
         row.status = "skipped"
     elif row.status in (None, "new", "skipped"):

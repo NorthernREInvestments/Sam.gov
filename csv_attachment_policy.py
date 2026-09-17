@@ -1,6 +1,7 @@
 """Restrict SAM.gov attachment API usage to CSV-imported opportunities when enabled."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import os
 from datetime import date
@@ -33,7 +34,7 @@ def sam_attachments_csv_only_until() -> date | None:
 def sam_attachments_csv_only() -> bool:
     """When True, SAM attachment API calls are limited to gt_csv_opportunities rows."""
     until = sam_attachments_csv_only_until()
-    today = date.today()
+    today = today_local()
     if until is not None and today > until:
         return False
     start = sam_attachments_csv_only_from()

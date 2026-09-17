@@ -1,6 +1,7 @@
 """Two-step contract intake: text screening → full PDF analysis when score >= threshold."""
 
 from __future__ import annotations
+from application_clock import now_utc
 
 import logging
 import threading
@@ -15,7 +16,7 @@ from api_budget import (
     intake_per_sync_limit,
     record_screen_usage,
 )
-from claude_client import screen_contract, screen_contract_text
+from openai_client import screen_contract, screen_contract_text
 from database import SessionLocal
 from models import Contract
 from screening_pipeline import (
@@ -103,12 +104,12 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
     After PDFs are saved in PostgreSQL, run the full v2 pipeline from stored data only.
     Called immediately on new downloads so we never need a separate repair pass.
     """
-    from api_budget import ScreenBudgetExceeded, can_screen, claude_intake_allowed, is_anthropic_api_blocked
+    from api_budget import ScreenBudgetExceeded, can_screen, ai_intake_allowed, is_ai_api_blocked
     from screening_pipeline import has_attachments_ready, is_full_analysis_complete, workflow_is_current
 
     if not has_attachments_ready(row, session):
         return None
-    if not claude_intake_allowed() or not can_screen():
+    if not ai_intake_allowed() or not can_screen():
         return None
     from workflow_backfill_service import contract_repair_reason
 
@@ -123,11 +124,11 @@ def run_post_attachment_intake(row: Contract, session) -> dict[str, Any] | None:
     except ScreenBudgetExceeded:
         return {"notice_id": row.notice_id, "skipped": True, "reason": "screen_budget"}
     except Exception as exc:
-        if is_anthropic_api_blocked(exc):
-            logger.warning("Claude eval failed for %s — continuing queue: %s", row.notice_id, str(exc)[:120])
+        if is_ai_api_blocked(exc):
+            logger.warning("AI eval failed for %s — continuing queue: %s", row.notice_id, str(exc)[:120])
             return {
                 "notice_id": row.notice_id,
-                "error": "claude_api",
+                "error": "ai_api",
                 "detail": str(exc)[:200],
             }
         raise
@@ -192,17 +193,45 @@ def enrich_contract_from_sam(row: Contract) -> bool:
 
 
 def run_text_screen(row: Contract) -> dict[str, Any]:
-    """Step 1 — Claude text-only score; no PDF download."""
+    """Step 1 — AI text-only score; no PDF download."""
+    from ai_funnel import stage0_evaluate
+
+    # Stage 0 — deterministic $0 filters before any OpenAI call
+    stage0 = stage0_evaluate(row)
+    if stage0.get("decision") == "REJECT" or not stage0.get("advance", True):
+        analysis = row.analysis if isinstance(row.analysis, dict) else {}
+        analysis = {
+            **analysis,
+            "stage0": stage0,
+            "screening_stage": "stage0",
+            "pursue": False,
+            "score": 1,
+            "text_score": 1,
+            "skip_reason": ",".join(stage0.get("reject_reasons") or ["stage0_reject"]),
+        }
+        row.analysis = analysis
+        row.status = "skipped"
+        return {
+            "notice_id": row.notice_id,
+            "skipped": True,
+            "reason": "stage0",
+            "stage0": stage0,
+            "message": "Rejected by free deterministic filters (no AI cost).",
+            "analysis": analysis,
+        }
+
     ensure_description_for_text_screen(row)
     if not can_screen():
         return {
             "notice_id": row.notice_id,
             "skipped": True,
             "reason": "screen_budget",
-            "message": "Claude screening budget reached before text triage could run.",
+            "message": "AI screening budget reached before text triage could run.",
         }
 
-    analysis = screen_contract_text(row)
+    from ai_stage1 import run_stage1_triage
+
+    analysis = run_stage1_triage(row, stage0=stage0, automatic=True)
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 
@@ -245,7 +274,7 @@ def run_full_analysis(
     session=None,
     db_only: bool = False,
 ) -> dict[str, Any]:
-    """Step 2 — PIEE/attachments + PDFs + full Claude analysis."""
+    """Step 2 — PIEE/attachments + PDFs + full AI analysis."""
     from pws_fields import apply_pws_extraction, contract_pws_missing
     from screening_pipeline import pdfs_expected_on_contract, pdfs_read_in_analysis
     from sub_finder import ensure_sub_search_before_screening, subs_context_for_screening
@@ -294,7 +323,7 @@ def run_full_analysis(
             "text_score": text_score,
         }
 
-    # Attachments are in PostgreSQL — never re-fetch from SAM for Claude / scope / subs.
+    # Attachments are in PostgreSQL — never re-fetch from SAM for AI / scope / subs.
     db_only = True
 
     subs_context: dict[str, Any] | None = None
@@ -322,23 +351,23 @@ def run_full_analysis(
             "skipped": True,
             "reason": "screen_budget",
             "enriched": True,
-            "message": "Claude budget reached before full PDF analysis could run.",
+            "message": "AI budget reached before full PDF analysis could run.",
             "text_score": text_score,
         }
 
     notice_id = row.notice_id
     contract_id = row.id
-    closed_session_for_claude = False
+    closed_session_for_ai = False
 
     if db_only and session is not None:
         session.commit()
         session.close()
         session = None
-        closed_session_for_claude = True
+        closed_session_for_ai = True
     elif session is not None:
         session.commit()
 
-    if closed_session_for_claude:
+    if closed_session_for_ai:
         from attachment_storage import load_contract_for_repair
         from database import with_db_retry
 
@@ -362,7 +391,7 @@ def run_full_analysis(
     if not record_screen_usage():
         raise ScreenBudgetExceeded()
 
-    if closed_session_for_claude:
+    if closed_session_for_ai:
         session = SessionLocal()
         row = session.merge(row)
 
@@ -375,7 +404,7 @@ def run_full_analysis(
 
     row.analysis = analysis
 
-    from claude_client import contract_attachment_text
+    from openai_client import contract_attachment_text
     from pws_fields import supplement_pws_from_pdf_text
 
     apply_pws_extraction(row, analysis)
@@ -403,7 +432,7 @@ def run_full_analysis(
         supplement_pws_from_pdf_text(analysis, full_text)
         apply_pws_extraction(row, analysis)
         if row.square_footage is None and can_screen() and not db_only:
-            from claude_client import try_extract_sqft_from_drawings
+            from openai_client import try_extract_sqft_from_drawings
 
             if try_extract_sqft_from_drawings(row, analysis, db_only=db_only, session=session):
                 apply_pws_extraction(row, analysis)
@@ -447,8 +476,19 @@ def run_full_analysis(
         except Exception:
             pass
 
+    # AI/assessment estimated_value must NEVER promote onto ORM estimated_value
+    # (ORM column is treated as VERIFIED HIGH by Stage 0). Keep as labeled assessment.
     if analysis.get("estimated_value") and not row.estimated_value:
-        row.estimated_value = str(analysis["estimated_value"])[:128]
+        from data_integrity import assessment_fact
+
+        analysis["estimated_value_fact"] = assessment_fact(
+            analysis["estimated_value"],
+            source_type="AI",
+            source_field="analysis.estimated_value",
+            confidence="MEDIUM",
+            notes="AI screening value — not a verified SAM/solicitation monetary field",
+        )
+        row.analysis = analysis
 
     if pdfs_expected_on_contract(row) and contract_pws_missing(row):
         analysis["screening_stage"] = "pdf_pending"
@@ -469,7 +509,7 @@ def run_full_analysis(
 
         apply_submission_package(row, session, analysis=analysis)
 
-    if closed_session_for_claude and session is not None:
+    if closed_session_for_ai and session is not None:
         session.commit()
         session.close()
 
@@ -510,7 +550,7 @@ def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
             "notice_id": row.notice_id,
             "skipped": True,
             "reason": "screen_budget",
-            "message": "Claude budget reached before PWS scope could be extracted.",
+            "message": "AI budget reached before PWS scope could be extracted.",
         }
 
     ensure_solicitation_meta(session, row, force=True)
@@ -519,7 +559,7 @@ def run_scope_extraction(row: Contract, session) -> dict[str, Any]:
         refresh_pricing_after_pdf_extract(row)
     except Exception:
         pass
-    row.last_updated_at = datetime.now(timezone.utc)
+    row.last_updated_at = now_utc()
     return {
         "notice_id": row.notice_id,
         "skipped": False,
@@ -540,7 +580,7 @@ def full_intake_contract(
     force_full: bool = False,
     db_only: bool = False,
 ) -> dict[str, Any]:
-    """Run full Claude analysis once SAM attachments are complete (drives dashboard ranking)."""
+    """Run full AI analysis once SAM attachments are complete (drives dashboard ranking)."""
     from pws_fields import contract_pws_missing
 
     from screening_pipeline import workflow_is_current
@@ -613,11 +653,11 @@ def intake_matching_contracts(
     force: bool = False,
     force_full: bool = False,
 ) -> dict[str, Any]:
-    """Run Claude full analysis for filter-matching contracts with attachments ready."""
-    from api_budget import claude_intake_allowed
+    """Run AI full analysis for filter-matching contracts with attachments ready."""
+    from api_budget import ai_intake_allowed
     from sync import list_contracts
 
-    if not force and not force_full and not claude_intake_allowed():
+    if not force and not force_full and not ai_intake_allowed():
         return {"processed": 0, "screened": 0, "text_screened": 0, "enriched_only": 0, "skipped": 0, "errors": []}
 
     if not intake_on_sync_enabled() and not force and not force_full:
@@ -678,11 +718,11 @@ def intake_matching_contracts(
                 errors.append("SAM.gov daily budget reached — remaining contracts queued for later.")
                 break
             if result.get("reason") == "screen_budget":
-                errors.append(f"{notice_id}: Claude budget reached — skipped, continuing queue.")
+                errors.append(f"{notice_id}: AI budget reached — skipped, continuing queue.")
                 continue
         except ScreenBudgetExceeded:
             session.rollback()
-            errors.append(f"{notice_id}: Claude budget reached — skipped, continuing queue.")
+            errors.append(f"{notice_id}: AI budget reached — skipped, continuing queue.")
             continue
         except Exception as exc:
             session.rollback()
@@ -781,7 +821,7 @@ def enrich_matching_attachments(
     max_attempts: int | None = None,
 ) -> dict[str, Any]:
     """Backfill SAM attachments for filter-matching contracts not yet scrape-complete."""
-    from api_budget import claude_intake_allowed
+    from api_budget import ai_intake_allowed
     from screening_pipeline import has_attachments_ready
     from sync import list_attachment_backlog
 
@@ -813,7 +853,7 @@ def enrich_matching_attachments(
             if ensure_attachments_from_database(session, row):
                 session.commit()
                 enriched += 1
-                if claude_intake_allowed():
+                if ai_intake_allowed():
                     intake_result = run_post_attachment_intake(row, session)
                     if intake_result and intake_result.get("error"):
                         session.rollback()
@@ -827,7 +867,7 @@ def enrich_matching_attachments(
             if enrich_contract_attachments(row, session=session):
                 session.commit()
                 enriched += 1
-                if claude_intake_allowed():
+                if ai_intake_allowed():
                     intake_result = run_post_attachment_intake(row, session)
                     if intake_result and intake_result.get("error"):
                         session.rollback()

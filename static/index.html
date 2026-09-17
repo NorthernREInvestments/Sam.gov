@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GovTracker</title>
-  <link rel="stylesheet" href="/style.css?v=20260702-location">
+  <link rel="stylesheet" href="/style.css?v=20260916-mobile-ops">
 </head>
 <body>
   <header class="header">
@@ -12,7 +12,21 @@
       <h1>GovTracker</h1>
     </div>
     <nav class="main-nav">
-      <button id="tab-contracts" class="tab active" type="button">Contracts</button>
+      <button id="tab-gos-dashboard" class="tab gos-nav" data-gos="dashboard" type="button">Dashboard</button>
+      <button id="tab-m3-home" class="tab" type="button">M3 Home</button>
+      <button id="tab-gos-today" class="tab gos-nav" data-gos="today" type="button">Today</button>
+      <button id="tab-gos-pipeline" class="tab gos-nav" data-gos="pipeline" type="button">Active Deals</button>
+      <button id="tab-gos-suppliers" class="tab gos-nav" data-gos="suppliers" type="button">Suppliers</button>
+      <button id="tab-gos-contacts" class="tab gos-nav" data-gos="contacts" type="button">Contacts</button>
+      <button id="tab-gos-funding" class="tab gos-nav" data-gos="funding" type="button">Funding</button>
+      <button id="tab-gos-bids" class="tab gos-nav" data-gos="bids" type="button">Bids</button>
+      <button id="tab-gos-awards" class="tab gos-nav" data-gos="awards" type="button">Awards</button>
+      <button id="tab-product" class="tab" type="button">Opportunities</button>
+      <button id="tab-contracts" class="tab" type="button">Contracts</button>
+      <button id="tab-changes-review" class="tab nav-changes-review" type="button" hidden aria-live="polite">
+        <span class="nav-changes-icon" aria-hidden="true">⚠</span>
+        <span id="changes-review-label">Changes requiring review: 0</span>
+      </button>
       <button id="tab-performance" class="tab" type="button">Performance</button>
       <button id="tab-settings" class="tab" type="button">Settings</button>
       <button id="tab-help" class="tab" type="button">Help</button>
@@ -24,8 +38,71 @@
   <div id="sync-status" class="sync-status" hidden></div>
   <div id="dashboard-perf-alerts" class="dashboard-perf-alerts"></div>
 
+  <!-- GovCon OS -->
+  <div id="view-gos-dashboard" hidden>
+    <div class="settings-page">
+      <h2>Operator Dashboard</h2>
+      <div id="gos-dashboard-body">Loading…</div>
+    </div>
+  </div>
+  <div id="view-gos-today" hidden>
+    <div class="settings-page">
+      <h2>Today — What To Do</h2>
+      <div id="gos-today-body">Loading…</div>
+    </div>
+  </div>
+  <div id="view-gos-pipeline" hidden>
+    <div class="settings-page">
+      <h2>Active Deals Pipeline</h2>
+      <div id="gos-pipeline-body">Loading…</div>
+    </div>
+  </div>
+  <div id="view-gos-suppliers" hidden>
+    <div class="settings-page"><h2>Suppliers</h2><div id="gos-suppliers-body">Loading…</div></div>
+  </div>
+  <div id="view-gos-contacts" hidden>
+    <div class="settings-page"><h2>Contacts</h2><div id="gos-contacts-body">Loading…</div></div>
+  </div>
+  <div id="view-gos-funding" hidden>
+    <div class="settings-page"><h2>Funding Work Queue</h2><div id="gos-funding-body">Loading…</div></div>
+  </div>
+  <div id="view-gos-bids" hidden>
+    <div class="settings-page"><h2>Bids</h2><div id="gos-bids-body">Loading…</div></div>
+  </div>
+  <div id="view-gos-awards" hidden>
+    <div class="settings-page"><h2>Awards</h2><div id="gos-awards-body">Loading…</div></div>
+  </div>
+
   <!-- Contracts dashboard -->
   <div id="view-dashboard">
+    <div id="changes-review-banner" class="changes-review-banner" hidden role="status">
+      <span class="changes-review-banner-icon" aria-hidden="true">⚠</span>
+      <strong id="changes-review-banner-text">Changes requiring review: 0</strong>
+      <button type="button" id="changes-review-banner-btn" class="btn btn-secondary-action">View changes</button>
+    </div>
+    <div id="budget-governor-banner" class="budget-governor-banner" hidden role="status">
+      <span class="budget-governor-icon" aria-hidden="true">💳</span>
+      <strong id="budget-governor-badge">BUDGET NORMAL</strong>
+      <span id="budget-governor-detail" class="budget-governor-detail"></span>
+      <span id="budget-coverage-badge" class="budget-coverage-badge"></span>
+    </div>
+    <div id="source-network-banner" class="source-network-banner" hidden role="status">
+      <strong id="source-network-badge">SOURCE NETWORK</strong>
+      <span id="source-network-detail" class="muted"></span>
+      <span id="source-network-gap" class="muted"></span>
+      <span id="source-network-yield" class="muted"></span>
+      <span id="source-network-geo" class="muted"></span>
+    </div>
+    <div id="m3-operator-banner" class="source-network-banner" hidden role="status">
+      <strong id="m3-operator-badge">M3 PIPELINE</strong>
+      <span id="m3-operator-detail" class="muted"></span>
+      <span id="m3-operator-queue" class="muted"></span>
+    </div>
+    <div id="view-changes-review" class="changes-review-panel" hidden>
+      <h2>Changes requiring review</h2>
+      <p class="muted">Material and critical updates to tracked solicitations — machine processing does not clear these.</p>
+      <div id="changes-review-list"></div>
+    </div>
     <div class="dashboard-toolbar">
       <button id="mobile-filter-btn" class="btn btn-secondary-header mobile-only" type="button">Filters</button>
       <div class="sync-controls sync-controls-compact">
@@ -148,6 +225,74 @@
     </div>
   </div>
 
+  <!-- Product Pipeline / Opportunities (read-only load — no paid AI) -->
+  <div id="view-product" hidden>
+    <div class="settings-page">
+      <h2>Opportunities</h2>
+      <p class="settings-help">
+        Product-first discovery across federal, state, local, and cooperative sources.
+        Page load never triggers paid AI or SAM. Research priority is a heuristic — not profit.
+      </p>
+      <div id="product-cost-summary" class="section-help"></div>
+      <div id="discovery-funnel-summary" class="section-help"></div>
+      <div class="dashboard-toolbar" style="flex-wrap:wrap;gap:0.5rem;margin:0.75rem 0;">
+        <select id="disc-filter-class" aria-label="Classification">
+          <option value="">All classes</option>
+          <option value="CORE_PRODUCT">Core Product</option>
+          <option value="PRODUCT_PLUS_SERVICE">Product + Service</option>
+          <option value="UNKNOWN">Unknown</option>
+          <option value="SERVICE">Service</option>
+        </select>
+        <select id="disc-filter-status" aria-label="Status">
+          <option value="">All statuses</option>
+          <option value="NEW">New</option>
+          <option value="NEEDS_REVIEW">Needs Review</option>
+          <option value="RESEARCH_CANDIDATE">Research Candidate</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="WATCH">Watch</option>
+          <option value="ACTIVE_DEAL">Active Deal</option>
+        </select>
+        <select id="disc-filter-jur" aria-label="Jurisdiction">
+          <option value="">All jurisdictions</option>
+          <option value="FEDERAL">Federal</option>
+          <option value="STATE">State</option>
+          <option value="CITY">City / Local</option>
+          <option value="COUNTY">County</option>
+          <option value="COOPERATIVE">Cooperative</option>
+        </select>
+        <button id="disc-run-fixtures" class="btn btn-secondary-action" type="button">Load fixture discovery</button>
+        <button id="product-pipeline-refresh" class="btn btn-secondary-action" type="button">Refresh</button>
+      </div>
+      <div id="discovery-opp-list"></div>
+      <hr />
+      <h3>Active product deals</h3>
+      <div id="product-pipeline-counts" class="cards cards-compact"></div>
+      <div id="product-pipeline-lists"></div>
+      <details style="margin-top:1.5rem;">
+        <summary>Admin — Source registry</summary>
+        <div id="discovery-source-registry"></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Deal Workspace (functional CRM — GET only on load) -->
+  <div id="view-deal-workspace" hidden>
+    <div class="settings-page">
+      <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+        <button id="deal-workspace-back" class="btn btn-secondary-action" type="button">← Product Pipeline</button>
+        <h2 style="margin:0;">Deal Workspace</h2>
+        <span id="deal-workspace-id" class="badge"></span>
+      </div>
+      <p class="settings-help">
+        End-to-end deal CRM. Page load never triggers paid AI or SAM. Blockers are explicit.
+      </p>
+      <div id="deal-workspace-readiness" class="section-help"></div>
+      <nav id="deal-workspace-tabs" class="contract-detail-tabs" role="tablist"></nav>
+      <div id="deal-workspace-panels" class="contract-detail-panels"></div>
+      <button id="deal-workspace-refresh" class="btn btn-secondary-action" type="button">Refresh workspace</button>
+    </div>
+  </div>
+
   <!-- Contract detail page -->
   <div id="view-contract-detail" hidden>
     <div class="contract-detail-page">
@@ -184,7 +329,7 @@
           <input type="range" id="settings-min-score" min="1" max="10" value="1">
           <span id="settings-min-score-value">1</span>
         </div>
-        <label class="filter-label" for="settings-prompt">Claude screening prompt</label>
+        <label class="filter-label" for="settings-prompt">AI screening prompt</label>
         <p id="prompt-status" class="prompt-status"></p>
         <textarea id="settings-prompt" class="prompt-textarea" rows="14"></textarea>
         <button id="reset-prompt-btn" class="btn btn-secondary-action" type="button">Reset prompt to default</button>
@@ -251,9 +396,9 @@
         <input type="number" id="settings-default-margin" class="settings-input" min="10" max="35" step="1" value="20">
       </section>
       <section class="settings-section">
-        <h3>Export for Claude</h3>
-        <button id="export-claude-btn" class="btn btn-secondary-action" type="button">Export for Claude…</button>
-        <p id="export-claude-status" class="settings-help"></p>
+        <h3>Export for AI</h3>
+        <button id="export-ai-btn" class="btn btn-secondary-action" type="button">Export for AI…</button>
+        <p id="export-ai-status" class="settings-help"></p>
       </section>
       <section class="settings-section">
         <h3>API usage today</h3>
@@ -293,7 +438,7 @@
         <h3>How GovTracker works</h3>
         <ol class="help-steps">
           <li><strong>Found</strong> — SAM.gov sync discovers matching opportunities.</li>
-          <li><strong>Analyzed</strong> — Claude screens each contract and writes a plain-English summary.</li>
+          <li><strong>Analyzed</strong> — AI screens each contract and writes a plain-English summary.</li>
           <li><strong>Subs</strong> — Find subcontractors, collect quotes, complete the pre-bid checklist.</li>
           <li><strong>Proposal</strong> — Configure margin, generate proposal, complete submission checklist.</li>
           <li><strong>Submitted</strong> — Track submission and, after award, move to Performance.</li>
@@ -319,6 +464,130 @@
     </div>
   </div>
 
+  <!-- M3 Mobile Operator Experience -->
+  <div id="view-m3-home" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Home</h2>
+        <p class="m3-mobile-sub">What needs attention</p>
+      </header>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Actions first</h3>
+        <div id="m3-home-actions" class="m3-card-stack"></div>
+      </section>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Active opportunities</h3>
+        <div id="m3-home-opps" class="m3-card-stack"></div>
+      </section>
+      <p id="m3-home-empty" class="m3-empty" hidden>No active pipeline opportunities yet.</p>
+    </div>
+  </div>
+
+  <div id="view-m3-opportunities" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Opportunities</h2>
+        <p class="m3-mobile-sub">Priority deals</p>
+      </header>
+      <div id="m3-opps-list" class="m3-card-stack"></div>
+    </div>
+  </div>
+
+  <div id="view-m3-actions" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>What do I need to do?</h2>
+        <p class="m3-mobile-sub">Operator actions only</p>
+      </header>
+      <div id="m3-actions-list" class="m3-card-stack"></div>
+      <p id="m3-actions-empty" class="m3-empty" hidden>No operator actions queued.</p>
+    </div>
+  </div>
+
+  <div id="view-m3-sources" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Sources</h2>
+        <p class="m3-mobile-sub">Source health ≠ market coverage</p>
+      </header>
+      <div id="m3-sources-body" class="m3-card-stack"></div>
+    </div>
+  </div>
+
+  <div id="view-m3-verify" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Controlled Verify</h2>
+        <p class="m3-mobile-sub">Operator-authorized real-world testing</p>
+      </header>
+      <section class="m3-mobile-section">
+        <article class="m3-info-card" id="m3-controlled-mode-card">
+          <h3>Mode</h3>
+          <p id="m3-mode-status" class="muted">Loading…</p>
+          <div class="m3-btn-row">
+            <button type="button" id="m3-enable-controlled" class="m3-back-btn">Enable controlled</button>
+            <button type="button" id="m3-disable-controlled" class="m3-back-btn">Back to development</button>
+          </div>
+          <p class="muted">No automatic outreach, bids, registrations, or signatures.</p>
+        </article>
+      </section>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">First pursuits</h3>
+        <div id="m3-first-pursuits" class="m3-card-stack"></div>
+      </section>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Learning</h3>
+        <div id="m3-learning-body" class="m3-card-stack"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-m3-deal-room" hidden>
+    <div class="m3-mobile-page m3-deal-room">
+      <header class="m3-mobile-header m3-deal-header">
+        <button type="button" id="m3-deal-back" class="m3-back-btn">← Back</button>
+        <h2 id="m3-deal-title">Deal Room</h2>
+        <p id="m3-deal-sub" class="m3-mobile-sub"></p>
+      </header>
+      <div id="m3-deal-sections" class="m3-card-stack"></div>
+      <section class="m3-mobile-section" id="m3-deal-learning-panel">
+        <h3 class="m3-section-label">Record learning</h3>
+        <article class="m3-info-card">
+          <div class="m3-btn-row">
+            <button type="button" id="m3-start-pursuit" class="m3-back-btn">Start pursuit record</button>
+            <button type="button" id="m3-load-review" class="m3-back-btn">Live review package</button>
+          </div>
+          <p id="m3-learning-record-id" class="muted">No active learning record</p>
+          <label class="m3-field">Supplier <input id="m3-sv-supplier" type="text" placeholder="Supplier name"></label>
+          <label class="m3-field">Price <input id="m3-sv-price" type="text" placeholder="UNKNOWN"></label>
+          <button type="button" id="m3-record-supplier" class="m3-back-btn">Record supplier quote</button>
+          <label class="m3-field">Financing path <input id="m3-fv-path" type="text" placeholder="UNKNOWN"></label>
+          <label class="m3-field">Result state <input id="m3-fv-state" type="text" placeholder="UNKNOWN"></label>
+          <button type="button" id="m3-record-financing" class="m3-back-btn">Record financing verification</button>
+          <label class="m3-field">Outcome
+            <select id="m3-outcome-status">
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="WON">WON</option>
+              <option value="LOST">LOST</option>
+              <option value="ABANDONED">ABANDONED</option>
+              <option value="NOT_BID">NOT_BID</option>
+            </select>
+          </label>
+          <button type="button" id="m3-record-outcome" class="m3-back-btn">Record outcome</button>
+          <p id="m3-learning-msg" class="muted"></p>
+        </article>
+      </section>
+    </div>
+  </div>
+
+  <nav id="m3-bottom-nav" class="m3-bottom-nav" aria-label="M3 mobile navigation">
+    <button type="button" class="m3-nav-btn" data-m3-view="home">Home</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="opportunities">Opps</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="actions">Actions</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="verify">Verify</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="settings">Settings</button>
+  </nav>
+
   <!-- Legacy hidden views for embedded proposal steps -->
   <div id="view-proposal-config" hidden><div class="settings-page"><div id="proposal-config-content"></div></div></div>
   <div id="view-proposal-editor" hidden><div id="proposal-editor-content"></div></div>
@@ -332,6 +601,10 @@
   </div>
 
   <script src="/app.js?v=20260704-csv-pricing-batch"></script>
+  <script src="/m3-mobile.js?v=20260916-controlled-verify"></script>
+  <script src="/gos-app.js?v=20260915-gos-os"></script>
+  <script src="/product-pipeline.js?v=20260915-product-beta"></script>
+  <script src="/deal-workspace.js?v=20260915-deal-ws"></script>
   <script src="/contract-detail.js?v=20260703-manual-attachment-upload"></script>
   <script src="/subs.js?v=20260702-playwright"></script>
   <script src="/pricing.js?v=20260701-desktop-layout"></script>

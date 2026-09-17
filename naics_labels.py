@@ -1,6 +1,7 @@
 """Plain-English labels, tiers, and search terms for NAICS codes used by GovTracker."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 from datetime import date
 
@@ -155,7 +156,7 @@ def codes_in_tiers(tier_numbers: list[int]) -> list[str]:
 
 def tiers_for_scheduled_sync(day: date | None = None) -> list[int]:
     """Determine which tiers to search on a scheduled sync run."""
-    day = day or date.today()
+    day = day or today_local()
     tiers = [1]
     if day.weekday() in (0, 2, 4):  # Mon, Wed, Fri
         tiers.append(2)

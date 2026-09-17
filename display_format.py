@@ -10,6 +10,73 @@ from typing import Any
 from usaspending_client import extract_work_location, normalize_state
 
 
+def format_unknown(value: Any, *, unknown_label: str = "Unknown") -> str:
+    """Display helper: null/empty → Unknown; never invent $0 / 0."""
+    if value is None:
+        return unknown_label
+    if isinstance(value, dict) and value.get("status"):
+        from data_integrity import display_fact
+
+        return display_fact(value, unknown_label=unknown_label)
+    if isinstance(value, str) and not value.strip():
+        return unknown_label
+    return str(value)
+
+
+def format_money_or_unknown(value: Any, *, unknown_label: str = "Unknown") -> str:
+    """Format money; missing → Unknown (not $0). Unproven legacy is labeled."""
+    if value is None or value == "":
+        return unknown_label
+    if isinstance(value, dict):
+        from data_integrity import (
+            STATUS_SOURCE_CONFLICT,
+            STATUS_UNKNOWN,
+            STATUS_UNPROVEN_LEGACY,
+            display_fact,
+        )
+
+        st = str(value.get("status") or "").upper()
+        if st == STATUS_UNKNOWN or (
+            value.get("value") is None and value.get("amount") is None and st != STATUS_UNPROVEN_LEGACY
+        ):
+            return display_fact(value, unknown_label=unknown_label)
+        if st == STATUS_UNPROVEN_LEGACY:
+            raw = value.get("value", value.get("amount"))
+            return f"{_fmt_usd(raw)} (unverified legacy)" if raw is not None else "Needs verification"
+        if st == STATUS_SOURCE_CONFLICT:
+            return "Needs verification"
+        raw = value.get("value", value.get("amount"))
+        if raw is None:
+            return display_fact(value, unknown_label=unknown_label)
+        value = raw
+    return _fmt_usd(value)
+
+
+def _fmt_usd(value: Any) -> str:
+    try:
+        num = float(str(value).replace(",", "").replace("$", ""))
+    except (TypeError, ValueError):
+        return "Unknown"
+    return f"${num:,.0f}"
+
+
+def format_bool_or_unknown(value: Any, *, true_label: str = "Yes", false_label: str = "No") -> str:
+    """Preserve verified false vs unknown — never show 'No' for null."""
+    if value is None:
+        return "Unknown"
+    if isinstance(value, dict):
+        from data_integrity import STATUS_UNKNOWN
+
+        if str(value.get("status") or "").upper() == STATUS_UNKNOWN or value.get("value") is None:
+            return "Unknown"
+        value = value.get("value")
+    if value is True:
+        return true_label
+    if value is False:
+        return false_label
+    return "Unknown"
+
+
 def format_agency_display(agency: str | None) -> str:
     if not agency:
         return "Federal agency"
@@ -245,12 +312,11 @@ def pricing_card_display(
     predecessor = intel.get("predecessor_award") if isinstance(intel.get("predecessor_award"), dict) else None
 
     if predecessor and predecessor.get("is_prior_contract"):
-        annual = (
-            predecessor.get("recent_annual_amount")
-            or predecessor.get("annual_amount")
-            or predecessor.get("base_year_amount")
-            or predecessor.get("total_value")
-        )
+        annual = predecessor.get("recent_annual_amount") or predecessor.get("annual_amount")
+        # Do NOT fall back to total_value with a /yr suffix
+        total_only = None
+        if annual is None:
+            total_only = predecessor.get("total_value") or predecessor.get("historical_award_amount")
         recipient = _short_company_name(predecessor.get("recipient_name"))
         method = predecessor.get("lookup_method") or ""
         if method in ("contract_number", "contract_number_keyword", "manual_contract_number"):
@@ -269,20 +335,21 @@ def pricing_card_display(
             label = "Prior (same city)"
         else:
             label = "Prior (incumbent)"
-        amount_suffix = "/yr"
-        if predecessor.get("recent_annual_amount") and predecessor.get("award_amount_source") == "transaction_history":
-            amount_suffix = "/yr recent"
-        if annual and recipient:
-            return {
-                "kind": "prior_contract",
-                "label": label,
-                "amount": short_money(annual),
-                "recipient": recipient,
-                "line": f"{label}: {short_money(annual)}{amount_suffix} · {recipient}",
-                "confidence": predecessor.get("confidence") or "high",
-                "calc_note": predecessor.get("pricing_calc_note"),
-            }
         if annual:
+            amount_suffix = "/yr"
+            if predecessor.get("recent_annual_amount") and predecessor.get("award_amount_source") == "transaction_history":
+                amount_suffix = "/yr recent"
+            if recipient:
+                return {
+                    "kind": "prior_contract",
+                    "label": label,
+                    "amount": short_money(annual),
+                    "recipient": recipient,
+                    "line": f"{label}: {short_money(annual)}{amount_suffix} · {recipient}",
+                    "confidence": predecessor.get("confidence") or "high",
+                    "calc_note": predecessor.get("pricing_calc_note"),
+                    "amount_basis": "annual",
+                }
             return {
                 "kind": "prior_contract",
                 "label": label,
@@ -291,6 +358,30 @@ def pricing_card_display(
                 "line": f"{label}: {short_money(annual)}{amount_suffix}",
                 "confidence": predecessor.get("confidence") or "high",
                 "calc_note": predecessor.get("pricing_calc_note"),
+                "amount_basis": "annual",
+            }
+        if total_only:
+            if recipient:
+                return {
+                    "kind": "prior_contract",
+                    "label": label,
+                    "amount": short_money(total_only),
+                    "recipient": recipient,
+                    "line": f"{label}: {short_money(total_only)} total · {recipient}",
+                    "confidence": predecessor.get("confidence") or "medium",
+                    "calc_note": predecessor.get("pricing_calc_note")
+                    or "Total award shown — period unknown; not annualized.",
+                    "amount_basis": "total",
+                }
+            return {
+                "kind": "prior_contract",
+                "label": label,
+                "amount": short_money(total_only),
+                "recipient": None,
+                "line": f"{label}: {short_money(total_only)} total",
+                "confidence": predecessor.get("confidence") or "medium",
+                "calc_note": "Total award shown — period unknown; not annualized.",
+                "amount_basis": "total",
             }
 
     hints = prior_hints if isinstance(prior_hints, dict) else {}

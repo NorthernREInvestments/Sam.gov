@@ -1,6 +1,7 @@
 """Pull active federal contract opportunities from SAM.gov."""
 
 from __future__ import annotations
+from application_clock import now_utc, today_local
 
 import os
 from datetime import date, datetime, timedelta
@@ -36,10 +37,17 @@ def _parse_date(value: str | None) -> date | None:
 def _days_until(due: date | None) -> int | None:
     if due is None:
         return None
-    return (due - date.today()).days
+    return (due - today_local()).days
 
 
 def _set_aside_matches(opp: dict[str, Any]) -> bool:
+    """Accept Total Small Business / SBA total set-asides; reject socio-economic exclusives.
+
+    SAM.gov commonly returns descriptions like:
+      \"Small Business Set Aside - Total\"
+      \"Total Small Business\"
+      \"Total Small Business Set-Aside\"
+    """
     text = str(
         opp.get("typeOfSetAsideDescription")
         or opp.get("typeOfSetAside")
@@ -47,12 +55,28 @@ def _set_aside_matches(opp: dict[str, Any]) -> bool:
     ).strip().lower()
     if not text:
         return False
-    if "total small business" in text:
-        return True
-    excluded = ("veteran", "women", "hubzone", "8(a)", "8a", "disadvantaged", "indian")
-    if any(tag in text for tag in excluded):
+    # Normalize punctuation so \"set-aside\" and \"set aside\" match equally
+    normalized = (
+        text.replace("–", "-")
+        .replace("—", "-")
+        .replace("_", " ")
+    )
+    compact = " ".join(normalized.replace("-", " ").split())
+
+    excluded = ("veteran", "women", "hubzone", "8(a)", "8a", "disadvantaged", "indian", "wosb", "sdvosb", "edwosb")
+    if any(tag in compact for tag in excluded):
         return False
-    return text == "small business" or text.startswith("small business set-aside")
+
+    if "total small business" in compact:
+        return True
+    if compact == "small business":
+        return True
+    if compact.startswith("small business set aside"):
+        # Includes \"Small Business Set Aside - Total\" from live SAM payloads
+        return "total" in compact or compact == "small business set aside"
+    if compact.startswith("sba") and "total" in compact:
+        return True
+    return False
 
 
 def _format_location(raw: dict[str, Any]) -> str | None:
@@ -123,9 +147,30 @@ def min_days_from_env() -> int:
 def fetch_naics_from_sam(
     naics_code: str,
     api_key: str | None = None,
+    *,
+    authorize_live: bool = False,
+    authorize_broad_sam_discovery: bool = False,
+    purpose: str | None = None,
 ) -> list[dict[str, Any]]:
-    """One SAM.gov API call for a single NAICS code. Returns normalized opportunities."""
+    """One SAM.gov API call for a single NAICS code. Returns normalized opportunities.
+
+    Blocked by default under SAM scarcity — requires authorize_live + broad discovery auth.
+    """
     from api_budget import can_spend_sam, record_sam_usage
+    from sam_scarcity import PURPOSE_NAICS_SCAN, gate_sam_api_call, mark_sam_audit_executed
+
+    gate = gate_sam_api_call(
+        purpose=purpose or PURPOSE_NAICS_SCAN,
+        authorize_live=authorize_live,
+        authorize_broad_sam_discovery=authorize_broad_sam_discovery,
+        endpoint=SAM_SEARCH_URL,
+        context={"requested_fact": f"naics_search:{naics_code}"},
+    )
+    if not gate["allowed"]:
+        raise ValueError(
+            "SAM NAICS scan blocked by scarcity gate: "
+            + (gate.get("blocked_reason") or "not_eligible")
+        )
 
     api_key = (api_key or os.getenv("SAM_GOV_API_KEY", "")).strip()
     if not api_key:
@@ -134,9 +179,11 @@ def fetch_naics_from_sam(
             "Get a free key at sam.gov -> Account Details -> Public API Key."
         )
     if not can_spend_sam(1):
-        raise ValueError("SAM.gov daily API budget reached — try again tomorrow or raise SAM_DAILY_API_BUDGET.")
+        raise ValueError(
+            "SAM.gov daily API budget reached — try again tomorrow or raise SAM_API_CALL_LIMIT."
+        )
 
-    posted_to = date.today()
+    posted_to = today_local()
     posted_from = posted_to - timedelta(days=30)
 
     params = {
@@ -155,6 +202,7 @@ def fetch_naics_from_sam(
         batch = resp.json().get("opportunitiesData") or []
 
     record_sam_usage(1)
+    mark_sam_audit_executed(gate.get("audit_id"), useful_new_evidence=bool(batch), result_status="EXECUTED")
 
     results: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -177,6 +225,19 @@ def fetch_naics_from_sam(
 def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
     """One SAM.gov search tailored to a GovSpend gs_watchlist row."""
     from api_budget import can_spend_sam, record_sam_usage
+    from sam_scarcity import PURPOSE_WATCHLIST_SEARCH, gate_sam_api_call, mark_sam_audit_executed
+
+    gate = gate_sam_api_call(
+        purpose=PURPOSE_WATCHLIST_SEARCH,
+        authorize_live=False,
+        authorize_broad_sam_discovery=False,
+        endpoint=SAM_SEARCH_URL,
+    )
+    if not gate["allowed"]:
+        raise ValueError(
+            "SAM watchlist search blocked by scarcity gate: "
+            + (gate.get("blocked_reason") or "broad_sam_discovery_blocked")
+        )
 
     api_key = (os.getenv("SAM_GOV_API_KEY", "") or "").strip()
     if not api_key:
@@ -184,7 +245,7 @@ def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget reached.")
 
-    posted_to = date.today()
+    posted_to = today_local()
     posted_from = posted_to - timedelta(days=45)
 
     params: dict[str, Any] = {
@@ -214,6 +275,7 @@ def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
         batch = resp.json().get("opportunitiesData") or []
 
     record_sam_usage(1)
+    mark_sam_audit_executed(gate.get("audit_id"), useful_new_evidence=bool(batch), result_status="EXECUTED")
 
     results: list[dict[str, Any]] = []
     seen: set[str] = set()

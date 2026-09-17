@@ -1,4 +1,4 @@
-"""Persist PWS scope fields from Claude screening onto contract records."""
+"""Persist PWS scope fields from AI screening onto contract records."""
 
 from __future__ import annotations
 
@@ -11,13 +11,10 @@ from usaspending_client import extract_work_location
 
 
 def _parse_int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return int(value)
-    text = str(value).strip().replace(",", "")
-    match = re.search(r"(\d{3,})", text)
-    return int(match.group(1)) if match else None
+    """Parse square-footage-like ints; reject bare building numbers without context."""
+    from data_integrity import parse_square_footage
+
+    return parse_square_footage(value)
 
 
 def _parse_frequency(value: Any) -> Decimal | None:
@@ -38,11 +35,14 @@ def _parse_frequency(value: Any) -> Decimal | None:
         return Decimal("2")
     if "weekly" in text and "per week" not in text:
         return Decimal("1")
-    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:days?\s+per\s+week|x\s+per\s+week|times?\s+per\s+week)", text)
+    match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:days?\s+per\s+week|x\s+per\s+week|times?\s+per\s+week)",
+        text,
+    )
     if match:
         return Decimal(match.group(1))
-    match = re.search(r"(\d+(?:\.\d+)?)", text)
-    return Decimal(match.group(1)) if match else None
+    # Do NOT fall back to a bare first digit — that fabricates frequency.
+    return None
 
 
 def _normalize_building_type(value: Any) -> str | None:
@@ -127,7 +127,17 @@ def supplement_pws_from_pdf_text(analysis: dict[str, Any], text: str) -> None:
         for pattern in patterns:
             match = re.search(pattern, text, flags=re.IGNORECASE)
             if match:
-                pws["square_footage"] = int(match.group(1).replace(",", ""))
+                from data_integrity import assessment_fact
+
+                sqft = int(match.group(1).replace(",", ""))
+                pws["square_footage"] = sqft
+                pws["square_footage_fact"] = assessment_fact(
+                    sqft,
+                    source_type="REGEX",
+                    source_field="pdf_text",
+                    confidence="MEDIUM",
+                    notes="regex extraction from solicitation PDF text",
+                )
                 break
 
     if not pws.get("wage_determination_number"):
@@ -135,19 +145,45 @@ def supplement_pws_from_pdf_text(analysis: dict[str, Any], text: str) -> None:
         if wd:
             pws["wage_determination_number"] = f"WD {wd.group(1).replace(' ', '-')}"
 
-    if re.search(r"monday\s+through\s+friday|mon\s*[-–]\s*fri|5\s+days?\s+per\s+week", text, re.I):
-        pws["cleaning_frequency_per_week"] = 5
+    # Frequency: only set when explicit days-per-week language is present.
+    # Do not invent 5 from weak Mon–Fri hints without labeling as assessment.
+    if pws.get("cleaning_frequency_per_week") is None:
+        if re.search(
+            r"(?:5\s+days?\s+per\s+week|five\s+days?\s+per\s+week|"
+            r"monday\s+through\s+friday|mon\s*[-–]\s*fri)",
+            text,
+            re.I,
+        ):
+            from data_integrity import assessment_fact
+
+            pws["cleaning_frequency_per_week"] = 5
+            pws["cleaning_frequency_fact"] = assessment_fact(
+                5,
+                source_type="REGEX",
+                source_field="pdf_text",
+                confidence="MEDIUM",
+                notes="inferred from Mon–Fri / 5 days language — assessment, not verified schedule",
+            )
 
 
 def apply_pws_extraction(contract: Any, analysis: dict[str, Any]) -> None:
-    """Map Claude PWS extraction fields onto the contract row."""
+    """Map AI PWS extraction fields onto the contract row."""
     pws = analysis.get("pws_extraction")
     if not isinstance(pws, dict):
         pws = {}
 
-    sqft = _parse_int(pws.get("square_footage") or analysis.get("square_footage"))
-    if sqft:
-        contract.square_footage = sqft
+    drawing = analysis.get("drawing_sqft_extraction") if isinstance(analysis.get("drawing_sqft_extraction"), dict) else {}
+    # Estimated drawing sqft must NOT become a contract.square_footage fact.
+    if drawing.get("estimated") and drawing.get("square_footage"):
+        analysis["square_footage_estimated"] = True
+        analysis["square_footage_assessment"] = drawing.get("square_footage")
+        # Prefer leaving ORM null when only estimate exists
+        if contract.square_footage is None:
+            pass  # keep UNKNOWN on ORM
+    else:
+        sqft = _parse_int(pws.get("square_footage") or analysis.get("square_footage"))
+        if sqft and not drawing.get("estimated"):
+            contract.square_footage = sqft
 
     freq = _parse_frequency(pws.get("cleaning_frequency_per_week"))
     if freq is not None:

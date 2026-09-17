@@ -1,0 +1,209 @@
+"""Diversified live source selection — not alphabetical AL/AK/AZ/AR/CA."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from discovery.agency_seeds import all_agencies_enriched, all_coops_enriched, FEDERAL_NON_SAM_LIVE
+from discovery.constants import (
+    ADAPTER_LIVE_VERIFIED,
+    ADAPTER_UNVERIFIED_LIVE,
+    VALIDATABLE_STATUSES,
+)
+from discovery.state_matrix import all_states_enriched
+
+# Deterministic easy-win validation priority (geographic diversity).
+# Excludes known-hard AL/AK/AZ/CA from front of line; AR included if URL repaired.
+STATE_VALIDATION_PRIORITY = [
+    "state_ia",  # Jaggaer SciQuest public
+    "state_mt",  # Jaggaer SciQuest public
+    "state_tx",  # ESBD — prior productive
+    "state_ne",  # NE purchasing — prior validation content
+    "state_nh",  # NH bids — URL repaired to apps.das.nh.gov
+    "state_id",  # Idaho purchasing root — URL repaired
+    "state_nc",  # IPS — try before chronic parser failures
+    # Chronic parser/empty/auth feeds demoted (source-health):
+    "state_pa",
+    "state_ga",
+    "state_ar",
+    "state_la",
+    "state_ms",
+    "state_ok",
+    # WV demoted — auth/bulletin login only
+]
+
+LOCAL_VALIDATION_PRIORITY = [
+    "agency_airport_dfw_tx",
+    "agency_city_houston_tx",
+    "agency_county_harris_tx",
+    "agency_city_phoenix_az",
+    "agency_city_denver_co",
+    # agency_city_cheyenne_wy demoted — PublicPurchase home AUTH_REQUIRED / marketing
+]
+
+COOP_VALIDATION_PRIORITY = [
+    "coop_sourcewell_live",
+    "coop_hgac_live",
+    "coop_naspo_live",
+    "coop_buyboard_live",
+    "coop_omnia_live",
+    "coop_1gpa_live",
+]
+
+
+def _pool_map() -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for s in all_states_enriched():
+        if not s.get("list_url"):
+            continue
+        out[s["source_id"]] = {
+            "source_id": s["source_id"],
+            "name": s["name"],
+            "list_url": s["list_url"],
+            "adapter_family": s["adapter_family"],
+            "platform_family": s.get("platform_family"),
+            "kind": "STATE",
+            "state_code": s["state"],
+            "adapter_status": s.get("adapter_status"),
+            "validation_candidate": s.get("validation_candidate", False),
+        }
+    for a in all_agencies_enriched():
+        if not a.get("procurement_url"):
+            continue
+        out[a["source_id"]] = {
+            "source_id": a["source_id"],
+            "name": a["name"],
+            "list_url": a["procurement_url"],
+            "adapter_family": a["adapter_family"],
+            "platform_family": a.get("platform_family"),
+            "kind": "LOCAL",
+            "state_code": a.get("state_code"),
+            "adapter_status": a.get("adapter_status"),
+            "validation_candidate": a.get("validation_candidate", True),
+        }
+    for c in all_coops_enriched():
+        if not c.get("list_url"):
+            continue
+        out[c["source_id"]] = {
+            "source_id": c["source_id"],
+            "name": c["name"],
+            "list_url": c["list_url"],
+            "adapter_family": c["adapter_family"],
+            "platform_family": "JSON",
+            "kind": "COOPERATIVE",
+            "adapter_status": c.get("adapter_status"),
+            "validation_candidate": True,
+        }
+    for f in FEDERAL_NON_SAM_LIVE:
+        if not f.get("list_url"):
+            continue
+        out[f["source_id"]] = {
+            "source_id": f["source_id"],
+            "name": f["name"],
+            "list_url": f["list_url"],
+            "adapter_family": f["adapter_family"],
+            "kind": "FEDERAL",
+            "adapter_status": ADAPTER_UNVERIFIED_LIVE if f.get("live_capable") else "PARTIAL",
+            "validation_candidate": bool(f.get("list_url")),
+        }
+    return out
+
+
+def _eligible(row: dict[str, Any], *, require_verified: bool = False) -> bool:
+    st = (row.get("adapter_status") or "").upper()
+    if require_verified:
+        return st == ADAPTER_LIVE_VERIFIED
+    if st in {ADAPTER_LIVE_VERIFIED, ADAPTER_UNVERIFIED_LIVE, "DEGRADED"}:
+        return True
+    if st in VALIDATABLE_STATUSES:
+        return True
+    return False
+
+
+def select_diversified_sources(
+    *,
+    max_sources: int = 5,
+    require_verified: bool = False,
+    status_overrides: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    TINY-style mix: up to 2 state, 1 local, 1 cooperative, 1 federal/state substitute.
+    Deterministic priority — NOT alphabetical AL/AK/AZ/AR/CA.
+    """
+    pool = _pool_map()
+    if status_overrides:
+        for sid, st in status_overrides.items():
+            if sid in pool:
+                pool[sid]["adapter_status"] = st
+
+    picked: list[dict[str, Any]] = []
+    used: set[str] = set()
+
+    def take_from(priority: list[str], kind: str, n: int) -> None:
+        nonlocal picked
+        count = 0
+        # Prefer LIVE_VERIFIED first within kind
+        ordered = sorted(
+            priority,
+            key=lambda sid: 0 if (pool.get(sid) or {}).get("adapter_status") == ADAPTER_LIVE_VERIFIED else 1,
+        )
+        for sid in ordered:
+            if count >= n or len(picked) >= max_sources:
+                break
+            row = pool.get(sid)
+            if not row or sid in used:
+                continue
+            if row.get("kind") != kind and kind != "ANY":
+                continue
+            if not _eligible(row, require_verified=require_verified):
+                continue
+            if row.get("adapter_status") in {"AUTH_REQUIRED", "BLOCKED", "BROKEN", "PLANNED"}:
+                continue
+            picked.append(row)
+            used.add(sid)
+            count += 1
+
+    take_from(STATE_VALIDATION_PRIORITY, "STATE", 2)
+    take_from(LOCAL_VALIDATION_PRIORITY, "LOCAL", 1)
+    take_from(COOP_VALIDATION_PRIORITY, "COOPERATIVE", 1)
+
+    # 5th: federal if credible else another state
+    fed_ids = [f["source_id"] for f in FEDERAL_NON_SAM_LIVE if f.get("list_url")]
+    take_from(fed_ids, "FEDERAL", 1)
+    if len(picked) < max_sources:
+        take_from(STATE_VALIDATION_PRIORITY, "STATE", max_sources - len(picked))
+    if len(picked) < max_sources:
+        take_from(LOCAL_VALIDATION_PRIORITY, "LOCAL", max_sources - len(picked))
+    if len(picked) < max_sources:
+        take_from(COOP_VALIDATION_PRIORITY, "COOPERATIVE", max_sources - len(picked))
+
+    return picked[:max_sources]
+
+
+def select_validation_candidates(*, max_sources: int = 15) -> list[dict[str, Any]]:
+    """Ordered candidates for validate_discovery_sources.py — diverse, not alpha."""
+    pool = _pool_map()
+    out: list[dict[str, Any]] = []
+    used: set[str] = set()
+
+    for sid in STATE_VALIDATION_PRIORITY + LOCAL_VALIDATION_PRIORITY + COOP_VALIDATION_PRIORITY:
+        row = pool.get(sid)
+        if not row or sid in used:
+            continue
+        st = (row.get("adapter_status") or "").upper()
+        if st in {"AUTH_REQUIRED", "BLOCKED", "BROKEN", "PLANNED", "UNSUPPORTED"}:
+            continue
+        if not row.get("list_url"):
+            continue
+        out.append(row)
+        used.add(sid)
+        if len(out) >= max_sources:
+            break
+    return out
+
+
+def asserts_not_alpha_first_five(selected: list[dict[str, Any]]) -> bool:
+    """Guard: TINY must not be exactly AL/AK/AZ/AR/CA."""
+    ids = [s["source_id"] for s in selected]
+    bad = {"state_al", "state_ak", "state_az", "state_ar", "state_ca"}
+    return set(ids) != bad
