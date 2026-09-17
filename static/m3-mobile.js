@@ -845,6 +845,7 @@
       const dealEcon = deal.deal_economics || {};
       const prodInt = deal.product_intelligence || {};
       const pkgInt = deal.procurement_package || {};
+      const evRec = deal.evidence_recovery || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -1013,6 +1014,24 @@
             <p class="muted">Procurement BOM</p>
             <ul class="m3-bom">${pkgBomHtml}</ul>
             <p class="muted">${esc(pkgInt.Economics_message || "Do not invent accessories, compatibility, or prices")}</p>`
+          ),
+          sectionCard(
+            "Evidence Recovery",
+            `<dl class="m3-kv">
+              <div><dt>Documents found</dt><dd>${esc(((evRec.Documents_found || []).length) || 0)}</dd></div>
+              <div><dt>Documents missing</dt><dd>${esc(((evRec.Documents_missing || []).join(", ")) || "none listed")}</dd></div>
+              <div><dt>Recovered value</dt><dd>${esc(((evRec.Recovered_values || {}).primary) ?? "UNKNOWN")} <span class="muted">(${esc(((evRec.Recovered_values || {}).confidence) || "")})</span></dd></div>
+              <div><dt>Recovered quantity</dt><dd>${esc(((evRec.Recovered_quantities || {}).quantity) ?? "UNKNOWN")} ${esc(((evRec.Recovered_quantities || {}).uom) || "")}</dd></div>
+              <div><dt>Product / Part</dt><dd>${esc(((evRec.Product_identifiers || {}).Manufacturer) ?? "UNKNOWN")} · ${esc(((evRec.Product_identifiers || {}).Part_number) ?? "UNKNOWN")}</dd></div>
+              <div><dt>Completeness</dt><dd>${esc(evRec.Completeness_score ?? "UNKNOWN")}</dd></div>
+              <div><dt>Commercial readiness</dt><dd><strong>${esc(evRec.Commercial_readiness ?? "0")}</strong></dd></div>
+              <div><dt>Attachment status</dt><dd>${esc(evRec.Attachment_status ?? "UNKNOWN")}</dd></div>
+              <div><dt>Source health</dt><dd>${esc(evRec.Source_health ?? "UNKNOWN")}</dd></div>
+              <div><dt>Queue</dt><dd>${esc(evRec.Queue ?? "UNKNOWN")}</dd></div>
+              <div><dt>Missing information</dt><dd>${esc(((evRec.Missing_information || []).join(", ")) || "none listed")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(evRec.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">${esc(evRec.Readiness_explanation || "VA may attach evidence / escalate — no bids, outreach, or scoring changes")}</p>`
           ),
           sectionCard(
             "Evidence",

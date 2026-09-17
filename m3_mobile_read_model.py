@@ -301,6 +301,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "deal_economics": _deal_economics(row),
         "product_intelligence": _deal_product(row),
         "procurement_package": _deal_procurement_package(row),
+        "evidence_recovery": _deal_evidence_recovery(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -406,6 +407,20 @@ def _deal_procurement_package(row: dict[str, Any]) -> dict[str, Any]:
             "Identity_confidence": "UNKNOWN",
             "Configuration_completeness": "INCOMPLETE",
             "Next_Action": "Procurement package intelligence unavailable",
+        }
+
+
+def _deal_evidence_recovery(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_document_evidence import deal_room_evidence_recovery_section
+
+        return deal_room_evidence_recovery_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomEvidenceRecovery",
+            "Completeness_score": "UNKNOWN",
+            "Commercial_readiness": 0,
+            "Next_Action": "Evidence recovery unavailable",
         }
 
 

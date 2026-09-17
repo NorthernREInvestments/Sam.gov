@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-procurement-package"
+APP_BUILD_VERSION = "20260917-m3-document-evidence"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1489,6 +1489,134 @@ def api_m3_package_status():
         "research_queues": queues,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
+
+
+@app.post("/api/m3/evidence/analyze")
+def api_m3_evidence_analyze(body: dict | None = None):
+    """TOP N document recovery + procurement evidence analysis."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_evidence import analyze_document_evidence_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    run_recovery = bool(payload.get("run_recovery", True))
+    allow_paid = bool(payload.get("allow_paid", False))
+    paid_limit = max(0, min(10, int(payload.get("paid_limit") or 2)))
+    recovery_limit = max(0, min(25, int(payload.get("recovery_limit") or 10)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_document_evidence_top(
+        store,
+        limit=limit,
+        run_recovery=run_recovery,
+        allow_paid=allow_paid,
+        paid_limit=paid_limit,
+        recovery_limit=recovery_limit,
+    )
+
+
+@app.get("/api/m3/evidence/status")
+def api_m3_evidence_status():
+    from m3_document_evidence import (
+        load_evidence_index,
+        COMPLETE_PURCHASE_PACKAGE,
+        READY_FOR_PRICING,
+        READY_FOR_SUPPLIER_RESEARCH,
+        PARTIAL,
+        DOCUMENT_RECOVERY_REQUIRED,
+        INSUFFICIENT_DATA,
+    )
+
+    idx = load_evidence_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    completeness = {
+        COMPLETE_PURCHASE_PACKAGE: 0,
+        READY_FOR_PRICING: 0,
+        READY_FOR_SUPPLIER_RESEARCH: 0,
+        PARTIAL: 0,
+        DOCUMENT_RECOVERY_REQUIRED: 0,
+        INSUFFICIENT_DATA: 0,
+    }
+    queues: dict[str, int] = {}
+    readiness_sum = 0
+    readiness_n = 0
+    for pkg in by_id.values():
+        if not isinstance(pkg, dict):
+            continue
+        st = ((pkg.get("PROCUREMENT_COMPLETENESS") or {}).get("PROCUREMENT_COMPLETENESS") or INSUFFICIENT_DATA)
+        if st in completeness:
+            completeness[st] += 1
+        else:
+            completeness[INSUFFICIENT_DATA] += 1
+        q = str(((pkg.get("RECOVERY_QUEUE") or {}).get("queue") or "UNKNOWN"))
+        queues[q] = queues.get(q, 0) + 1
+        sc = (pkg.get("COMMERCIAL_READINESS") or {}).get("score")
+        if sc is not None:
+            readiness_sum += int(sc)
+            readiness_n += 1
+    return {
+        "kind": "M3DocumentEvidenceStatus",
+        "researched": len(by_id),
+        "completeness": completeness,
+        "research_queues": queues,
+        "average_commercial_readiness": round(readiness_sum / readiness_n, 1) if readiness_n else 0,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/evidence/queues")
+def api_m3_evidence_queues(limit: int = Query(25, ge=1, le=100)):
+    """VA-operable evidence recovery queues."""
+    from m3_document_evidence import (
+        load_evidence_index,
+        build_queue_card,
+        VA_ALLOWED_ACTIONS,
+        VA_FORBIDDEN_ACTIONS,
+    )
+
+    idx = load_evidence_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    queues: dict[str, list] = {}
+    for cid, pkg in by_id.items():
+        if not isinstance(pkg, dict):
+            continue
+        card = build_queue_card({"canonical_id": cid, "title": ((pkg.get("PRODUCT_EVIDENCE") or {}).get("Manufacturer"))}, pkg)
+        card["canonical_id"] = cid
+        q = card.get("Queue") or "NEEDS_DOCUMENT_RECOVERY"
+        queues.setdefault(q, []).append(card)
+    for q in queues:
+        queues[q] = queues[q][: max(1, min(limit, 50))]
+    return {
+        "kind": "M3EvidenceRecoveryQueues",
+        "queues": queues,
+        "VA_allowed_actions": sorted(VA_ALLOWED_ACTIONS),
+        "VA_forbidden_actions": sorted(VA_FORBIDDEN_ACTIONS),
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.post("/api/m3/evidence/va/update")
+def api_m3_evidence_va_update(body: dict | None = None):
+    """VA evidence actions only — attach/status/escalate/note. No deals/bids/outreach."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_evidence import apply_va_evidence_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_evidence_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        status=payload.get("status"),
+        attached_document=payload.get("attached_document") if isinstance(payload.get("attached_document"), dict) else None,
+    )
 
 
 @app.get("/api/m3/mobile/sources")
