@@ -690,15 +690,10 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
     _update_run(run_id, phase="PREPARING", progress_percent=5)
     session = None
     try:
+        print(f"govtracker: discovery opening DB session {run_id}", flush=True)
         session = SessionLocal()
-        try:
-            from cost_governor import get_cost_governor
-
-            # Touch governor — public discovery continues; paid research stays governed downstream
-            get_cost_governor().dashboard_payload()
-        except Exception:
-            pass
-
+        print(f"govtracker: discovery DB session open {run_id}", flush=True)
+        _update_run(run_id, phase="PREPARING", progress_percent=8)
         profile = discovery_profile()
         # Operator/bootstrap override wins over env default
         try:
