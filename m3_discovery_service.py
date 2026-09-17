@@ -213,6 +213,25 @@ def _progress_for_phase(phase: str, sources_completed: int, sources_total: int) 
     return base
 
 
+def clear_orphan_locks_on_boot() -> dict[str, Any]:
+    """Railway/uvicorn restart cannot keep an in-process discovery worker — clear locks."""
+    state = _load_state()
+    cur = state.get("current_run")
+    if not cur or cur.get("status") not in {STATUS_RUNNING, STATUS_QUEUED}:
+        return state
+    cur = deepcopy(cur)
+    cur["status"] = STATUS_STALE_RECOVERED
+    cur["completed_at"] = _utc()
+    cur["error_summary"] = "Orphan discovery lock cleared on process start"
+    cur["phase"] = "FINALIZING"
+    state["last_attempt"] = cur
+    state["current_run"] = None
+    state["lock"] = {"held": False, "run_id": None, "since": None}
+    _save_state(state)
+    print(f"govtracker: cleared orphan discovery lock {cur.get('run_id')}", flush=True)
+    return state
+
+
 def recover_stale_runs(state: dict[str, Any] | None = None) -> dict[str, Any]:
     state = state or _load_state()
     cur = state.get("current_run")
@@ -233,6 +252,7 @@ def recover_stale_runs(state: dict[str, Any] | None = None) -> dict[str, Any]:
         state["lock"] = {"held": False, "run_id": None, "since": None}
         _save_state(state)
         log.warning("Recovered stale discovery run %s", cur.get("run_id"))
+        print(f"govtracker: recovered stale discovery {cur.get('run_id')}", flush=True)
     return state
 
 
@@ -850,7 +870,8 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
 def maybe_startup_discovery() -> dict[str, Any]:
     if not discovery_enabled():
         return {"queued": False, "reason": "disabled"}
-    state = recover_stale_runs()
+    # Process restart ⇒ any prior RUNNING/QUEUED lock is orphaned
+    state = clear_orphan_locks_on_boot()
     state["next_scheduled_run"] = compute_next_scheduled_run()
     _save_state(state)
     # Ensure pipeline restored on boot
@@ -861,15 +882,11 @@ def maybe_startup_discovery() -> dict[str, Any]:
         restore_pipeline_store_from_db(store)
     except Exception:
         pass
-    # If a prior crash left a recovered attempt and data is still stale, catch up
-    if state.get("current_run") and state["current_run"].get("status") in {
-        STATUS_RUNNING,
-        STATUS_QUEUED,
-    }:
-        return {"queued": False, "reason": "already_running", "status": discovery_status()}
     if is_data_fresh(state):
+        print("govtracker: discovery data already fresh — skip startup run", flush=True)
         return {"queued": False, "reason": "already_fresh", "status": discovery_status()}
     trigger = TRIGGER_STARTUP if not state.get("last_successful_completion") else TRIGGER_CATCH_UP
+    print(f"govtracker: startup discovery trigger={trigger}", flush=True)
     return request_discovery_run(trigger_type=trigger)
 
 
