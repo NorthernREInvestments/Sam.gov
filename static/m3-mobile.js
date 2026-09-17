@@ -841,6 +841,7 @@
       const ci = deal.commercial_intelligence || {};
       const si = deal.supplier_intelligence || {};
       const compInt = deal.competitive_intelligence || {};
+      const execInt = deal.execution_intelligence || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -928,6 +929,22 @@
               <div><dt>Next Action</dt><dd>${esc(compInt.Next_Action ?? "—")}</dd></div>
             </dl>
             <p class="muted">Competition ≠ auto-reject · bidder count alone never rejects</p>`
+          ),
+          sectionCard(
+            "Execution Intelligence",
+            `<dl class="m3-kv">
+              <div><dt>Contract Value</dt><dd>${esc(execInt.Contract_Value ?? "UNKNOWN")}</dd></div>
+              <div><dt>Estimated Capital Needed</dt><dd>${esc(execInt.Estimated_Capital_Needed ?? "UNKNOWN")} <span class="muted">(${esc(execInt.Capital_Need_Band || "")})</span></dd></div>
+              <div><dt>Financing Fit</dt><dd>${esc(execInt.Financing_Fit ?? "UNKNOWN")}</dd></div>
+              <div><dt>Supplier Risk</dt><dd>${esc(execInt.Supplier_Risk ?? "UNKNOWN")}</dd></div>
+              <div><dt>Delivery Risk</dt><dd>${esc(execInt.Delivery_Risk ?? "UNKNOWN")}</dd></div>
+              <div><dt>Execution Score</dt><dd><strong>${esc(execInt.Execution_Score ?? "UNKNOWN")}</strong> · ${esc(execInt.Execution_Band ?? "")}</dd></div>
+              <div><dt>Action Priority</dt><dd>${esc(execInt.ACTION_PRIORITY_SCORE ?? "—")}</dd></div>
+              <div><dt>Bucket</dt><dd>${esc(execInt.BUCKET ?? "UNKNOWN")}</dd></div>
+              <div><dt>Recommended Path</dt><dd>${esc(execInt.Recommended_Path ?? "—")}</dd></div>
+              <div><dt>Why</dt><dd>${esc(((execInt.Why || []).slice(0, 5).join("; ")) || "—")}</dd></div>
+            </dl>
+            <p class="muted">Research only · no bids · no financing applications · financing not assumed</p>`
           ),
           sectionCard(
             "Evidence",

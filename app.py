@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-competitive-intelligence-v2"
+APP_BUILD_VERSION = "20260917-m3-execution-intelligence"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1217,6 +1217,47 @@ def api_m3_competitive_status():
         "researched": len(by_id),
         "buckets": buckets,
         "bucket_a_first_deal": buckets["A"],
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.post("/api/m3/execution/analyze")
+def api_m3_execution_analyze(body: dict | None = None):
+    """TOP N transaction execution / capital readiness — local only, no outreach."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_execution_intelligence import analyze_execution_top_opportunities
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_execution_top_opportunities(store, limit=limit)
+
+
+@app.get("/api/m3/execution/status")
+def api_m3_execution_status():
+    from m3_execution_intelligence import load_execution_index
+
+    idx = load_execution_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    buckets = {"A": 0, "B": 0, "C": 0, "D": 0}
+    for ei in by_id.values():
+        if not isinstance(ei, dict):
+            continue
+        b = str(ei.get("BUCKET") or "")
+        if "READY" in b:
+            buckets["A"] += 1
+        elif "COMMERCIAL" in b:
+            buckets["B"] += 1
+        elif "STRATEGIC" in b:
+            buckets["C"] += 1
+        else:
+            buckets["D"] += 1
+    return {
+        "kind": "M3ExecutionStatus",
+        "researched": len(by_id),
+        "buckets": buckets,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
 
