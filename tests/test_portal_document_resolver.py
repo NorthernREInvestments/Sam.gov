@@ -25,6 +25,8 @@ def test_classify_portal_families():
     assert classify_portal_family({"source_id": "state_mt", "agency": "State of Montana"}) == "MONTANA"
     assert classify_portal_family({"source_id": "agency_city_phoenix_az", "agency": "City of Phoenix"}) == "PHOENIX"
     assert classify_portal_family({"source_id": "coop_sourcewell_live", "agency": "Sourcewell"}) == "SOURCEWELL"
+    assert classify_portal_family({"detail_url": "https://sam.gov/opp/abc", "source_id": "sam"}) == "SAM"
+    assert classify_portal_family({"source_id": "bidnet_x", "platform_family": "bidnet"}) == "BIDNET"
 
 
 def test_extract_jaggaer_seed_and_lump_sum_lines():

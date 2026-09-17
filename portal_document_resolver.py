@@ -173,6 +173,27 @@ def classify_portal_family(row: dict[str, Any]) -> str:
     src = str(row.get("source_id") or "").lower()
     url = str(row.get("detail_url") or row.get("source_url") or row.get("url") or "").lower()
     agency = str(row.get("agency") or "").lower()
+    platform = str(row.get("platform_family") or row.get("platform") or "").lower()
+    meta = row.get("raw_metadata") if isinstance(row.get("raw_metadata"), dict) else {}
+    meta_platform = str(meta.get("platform_family") or meta.get("platform") or "").lower()
+
+    if (
+        "sam.gov" in url
+        or "sam.gov" in str(meta.get("uiLink") or meta.get("ui_link") or "").lower()
+        or src.startswith("sam")
+        or "sam_gov" in src
+        or platform in {"sam", "sam_gov"}
+        or meta_platform in {"sam", "sam_gov"}
+    ):
+        return "SAM"
+
+    if any(x in src or x in url or x in agency for x in ("dibbs", "dla", "dla.mil", "piee")) or platform in {
+        "dibbs",
+        "dla",
+        "piee",
+    }:
+        return "DLA"
+
     if src.startswith("state_ia") or "iowa" in agency or "das iowa" in agency or "customerorg=dasiowa" in url:
         return "IOWA"
     if src.startswith("state_mt") or "montana" in agency or "stateofmontana" in url:
@@ -181,12 +202,30 @@ def classify_portal_family(row: dict[str, Any]) -> str:
         return "PHOENIX"
     if "sourcewell" in src or "sourcewell" in url or "sourcewell" in agency:
         return "SOURCEWELL"
-    if "jaggaer" in url or "sciquest" in url or "viewsourcingevent" in url:
+    if "jaggaer" in url or "sciquest" in url or "viewsourcingevent" in url or platform in {"jaggaer", "sciquest"}:
         if "montana" in agency:
             return "MONTANA"
         if "iowa" in agency:
             return "IOWA"
         return "JAGGAER"
+
+    if "bonfire" in src or "bonfire" in url or platform == "bonfire" or meta_platform == "bonfire":
+        return "BONFIRE"
+    if "bidnet" in src or "bidnet" in url or platform == "bidnet" or meta_platform == "bidnet":
+        return "BIDNET"
+    if "opengov" in src or "opengov" in url or "procurement.opengov" in url or platform == "opengov":
+        return "OPENGOV"
+    if (
+        "publicpurchase" in src
+        or "publicpurchase" in url
+        or "public_purchase" in src
+        or platform in {"publicpurchase", "public_purchase"}
+    ):
+        return "PUBLIC_PURCHASE"
+
+    if src.startswith("state_") or platform in {"stateowned", "state_portal", "state"}:
+        return "STATE_PORTAL"
+
     return "GENERIC"
 
 
@@ -331,6 +370,14 @@ def extract_jaggaer_product_line_items(text: str) -> list[dict[str, Any]]:
 def resolve_portal_documents(opportunity: dict[str, Any]) -> dict[str, Any]:
     """Dispatch to family resolver."""
     family = classify_portal_family(opportunity)
+    if family == "SAM":
+        from portal_resolvers.sam import resolve_sam_documents
+
+        return resolve_sam_documents(opportunity)
+    if family == "DLA":
+        from portal_resolvers.portal_families import resolve_dla_documents
+
+        return resolve_dla_documents(opportunity)
     if family in {"IOWA", "MONTANA", "JAGGAER"}:
         from portal_resolvers.jaggaer import resolve_jaggaer_documents
 
@@ -343,6 +390,26 @@ def resolve_portal_documents(opportunity: dict[str, Any]) -> dict[str, Any]:
         from portal_resolvers.phoenix import resolve_phoenix_documents
 
         return resolve_phoenix_documents(opportunity)
+    if family == "BONFIRE":
+        from portal_resolvers.portal_families import resolve_bonfire_documents
+
+        return resolve_bonfire_documents(opportunity)
+    if family == "BIDNET":
+        from portal_resolvers.portal_families import resolve_bidnet_documents
+
+        return resolve_bidnet_documents(opportunity)
+    if family == "OPENGOV":
+        from portal_resolvers.portal_families import resolve_opengov_documents
+
+        return resolve_opengov_documents(opportunity)
+    if family == "PUBLIC_PURCHASE":
+        from portal_resolvers.portal_families import resolve_public_purchase_documents
+
+        return resolve_public_purchase_documents(opportunity)
+    if family == "STATE_PORTAL":
+        from portal_resolvers.portal_families import resolve_state_portal_documents
+
+        return resolve_state_portal_documents(opportunity)
     from portal_resolvers.generic import resolve_generic_documents
 
     return resolve_generic_documents(opportunity)

@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-evidence-chain-2"
+APP_BUILD_VERSION = "20260917-m3-document-discovery-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1657,6 +1657,86 @@ def api_m3_evidence_chain_status():
         "with_data_loss": loss,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
+
+
+@app.post("/api/m3/document-discovery/analyze")
+def api_m3_document_discovery_analyze(body: dict | None = None):
+    """Procurement document discovery adapters + attachment recovery engine."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_discovery import analyze_document_discovery_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    run_processing = bool(payload.get("run_processing", True))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_document_discovery_top(
+        store,
+        limit=limit,
+        run_processing=run_processing,
+        persist=True,
+    )
+
+
+@app.get("/api/m3/document-discovery/status")
+def api_m3_document_discovery_status():
+    from m3_document_discovery import load_discovery_index
+
+    idx = load_discovery_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    statuses: dict[str, int] = {}
+    families: dict[str, int] = {}
+    for pkg in by_id.values():
+        if not isinstance(pkg, dict):
+            continue
+        ddr = pkg.get("DOCUMENT_DISCOVERY_RESULT") or {}
+        st = str(ddr.get("Access_status") or "UNKNOWN")
+        statuses[st] = statuses.get(st, 0) + 1
+        fam = str(ddr.get("Portal_family") or "OTHER")
+        families[fam] = families.get(fam, 0) + 1
+    return {
+        "kind": "M3DocumentDiscoveryStatus",
+        "researched": len(by_id),
+        "access_status": statuses,
+        "portal_families": families,
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "PROCUREMENT_DOCUMENT_RECOVERY_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/document-discovery/queues")
+def api_m3_document_discovery_queues(limit: int = Query(25, ge=1, le=100)):
+    """VA-operable document recovery queues."""
+    from m3_document_discovery import build_va_document_queues
+
+    return build_va_document_queues(limit=limit)
+
+
+@app.post("/api/m3/document-discovery/va/update")
+def api_m3_document_discovery_va_update(body: dict | None = None):
+    """VA document recovery actions — review/verify/attach/notes. No access bypass."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_discovery import apply_va_document_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_document_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        status=payload.get("status"),
+        attached_document=payload.get("attached_document")
+        if isinstance(payload.get("attached_document"), dict)
+        else None,
+    )
 
 
 @app.get("/api/m3/mobile/sources")
