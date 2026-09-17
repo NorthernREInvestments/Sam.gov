@@ -504,6 +504,16 @@ def score_reseller_fit(row: dict[str, Any], ident: dict[str, Any], winners: dict
     if classification in {"CORE_PRODUCT", "PRODUCT_PLUS_SERVICE"}:
         score += 20
         reasons.append("product_resale_classification")
+    elif classification not in {"SERVICE", "LIKELY_SERVICE_FALSE_POSITIVE"} and ident.get("manufacturer") not in {
+        None,
+        "UNKNOWN",
+    }:
+        score += 12
+        reasons.append("named_manufacturer_product_title")
+    cat = str(row.get("product_category") or "").upper()
+    if any(x in cat for x in ("IT_", "ELECTRONIC", "COMPUTER", "PARTS", "VEHICLE", "INDUSTRIAL", "HVAC", "OFFICE")):
+        score += 8
+        reasons.append("product_category_signal")
     if ident.get("part_number") not in {None, "UNKNOWN"}:
         score += 15
         reasons.append("exact_part_number")
@@ -576,6 +586,21 @@ def score_financing_complexity(
         "required_working_capital": value if value is not None else "UNKNOWN",
         "notes": ["no_financier_contact", "classification_is_heuristic"],
     }
+
+
+def classification_ok(row: dict[str, Any]) -> bool:
+    c = str(row.get("product_classification") or "").upper()
+    cat = str(row.get("product_category") or "").upper()
+    title = str(row.get("title") or "").lower()
+    if c in {"SERVICE"} or "LIKELY_SERVICE" in cat:
+        return False
+    if any(x in title for x in ("restoration", "construction", "elevator replacement", "wetland", "install")):
+        return False
+    if any(x in title for x in ("switch", "laptop", "computer", "printer", "monitor", "server", "nsn", "equipment only")):
+        return True
+    if c in {"CORE_PRODUCT", "PRODUCT_PLUS_SERVICE", "UNKNOWN", ""}:
+        return True
+    return cat not in {"", "UNKNOWN"}
 
 
 def score_commercial_opportunity(
@@ -663,8 +688,8 @@ def score_commercial_opportunity(
     reseller_med = rfit >= 40
     has_mfr = ident.get("manufacturer") not in {None, "UNKNOWN"}
     has_part = ident.get("part_number") not in {None, "UNKNOWN"} or ident.get("NSN") not in {None, "UNKNOWN"}
-    clearance = any(x in _text_blob(row).lower() for x in ("clearance", "secret", "classified", "facility clearance"))
-    sole = "sole source" in _text_blob(row).lower() or "brand name only" in _text_blob(row).lower()
+    clearance = any(x in blob for x in ("clearance", "secret", "classified", "facility clearance"))
+    sole = "sole source" in blob or "brand name only" in blob
 
     if clearance or (sole and sc == SCORE_LOW):
         band = SCORE_LOW
@@ -675,9 +700,11 @@ def score_commercial_opportunity(
     ):
         band = SCORE_HIGH if float(pricing["estimated_gross_margin"]) > 10 else SCORE_MEDIUM
     elif reseller_high and sc != SCORE_LOW and (has_mfr or has_part):
-        # Strong resale pattern with identity — MEDIUM until acquisition verified
         band = SCORE_MEDIUM
         explanations.append("reseller_fit_strong_pending_acquisition_verification")
+    elif has_mfr and sc != SCORE_LOW and not clearance and classification_ok(row):
+        band = SCORE_MEDIUM
+        explanations.append("named_manufacturer_with_channel_pending_cost_verification")
     elif points >= 35 or (reseller_med and has_mfr and sc != SCORE_LOW):
         band = SCORE_MEDIUM
         if points < 35:
