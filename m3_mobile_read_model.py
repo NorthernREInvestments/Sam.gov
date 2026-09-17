@@ -295,6 +295,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
             "note": "UNKNOWN until evidence supports commercial research",
         },
         "commercial_intelligence": _deal_commercial(row),
+        "supplier_intelligence": _deal_supplier(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -319,6 +320,20 @@ def _deal_commercial(row: dict[str, Any]) -> dict[str, Any]:
             "Commercial_Confidence": "UNKNOWN",
             "Next_Action": "Commercial intelligence unavailable",
             "Estimated_Acquisition": {"status": "UNKNOWN"},
+        }
+
+
+def _deal_supplier(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_supplier_intelligence import deal_room_supplier_section
+
+        return deal_room_supplier_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomSupplierIntelligence",
+            "Cost_Confidence": "UNKNOWN",
+            "Margin_Status": "MARGIN_PENDING_SUPPLIER_VERIFICATION",
+            "Next_Action": "Supplier intelligence unavailable",
         }
 
 

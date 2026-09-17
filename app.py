@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-commercial-intelligence-v3"
+APP_BUILD_VERSION = "20260917-m3-supplier-intelligence"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1108,6 +1108,61 @@ def api_m3_commercial_status():
         "TOP_10": queue.get("TOP_25", [])[:10],
         "DEVELOPMENT_NO_OUTREACH": True,
         "commercial_outreach": False,
+    }
+
+
+@app.get("/api/m3/supplier/queue")
+def api_m3_supplier_queue(limit: int = Query(10, ge=1, le=50)):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_supplier_intelligence import build_supplier_research_queue
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return build_supplier_research_queue(store.all(), limit=limit)
+
+
+@app.post("/api/m3/supplier/analyze")
+def api_m3_supplier_analyze(body: dict | None = None):
+    """TOP N supplier/acquisition research — Cost Governor gated, no outreach."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_supplier_intelligence import analyze_supplier_top_opportunities
+
+    payload = body or {}
+    limit = max(1, min(15, int(payload.get("limit") or 10)))
+    allow_paid = payload.get("allow_paid_web", True)
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_supplier_top_opportunities(store, limit=limit, allow_paid_web=bool(allow_paid))
+
+
+@app.get("/api/m3/supplier/status")
+def api_m3_supplier_status():
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_supplier_intelligence import PRICE_LEVEL_4_UNKNOWN
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    rows = [r for r in store.all() if r.get("supplier_intelligence")]
+    levels = {"LEVEL_1": 0, "LEVEL_2": 0, "LEVEL_3": 0, "LEVEL_4": 0}
+    for r in rows:
+        si = r.get("supplier_intelligence") or {}
+        lvl = ((si.get("Pricing_evidence") or {}).get("primary_level") or PRICE_LEVEL_4_UNKNOWN)
+        if "LEVEL_1" in str(lvl):
+            levels["LEVEL_1"] += 1
+        elif "LEVEL_2" in str(lvl):
+            levels["LEVEL_2"] += 1
+        elif "LEVEL_3" in str(lvl):
+            levels["LEVEL_3"] += 1
+        else:
+            levels["LEVEL_4"] += 1
+    return {
+        "kind": "M3SupplierStatus",
+        "researched": len(rows),
+        "pricing_levels": levels,
+        "DEVELOPMENT_NO_OUTREACH": True,
     }
 
 

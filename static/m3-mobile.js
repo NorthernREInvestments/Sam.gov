@@ -839,6 +839,7 @@
       const ev = deal.evidence || {};
       const commercial = deal.commercial_research || {};
       const ci = deal.commercial_intelligence || {};
+      const si = deal.supplier_intelligence || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -852,6 +853,21 @@
         .map((w) => esc(w))
         .join(", ") || "UNKNOWN";
       const acq = ci.Estimated_Acquisition || {};
+      const suppliersHtml =
+        (si.Possible_Suppliers || [])
+          .slice(0, 6)
+          .map(
+            (s) =>
+              `<li>${esc(s.company || "UNKNOWN")} <span class="muted">(${esc(s.role || "")})</span></li>`
+          )
+          .join("") || "<li class='muted'>No mapped channels yet</li>";
+      const priceItems = ((si.Pricing_Evidence || {}).items || [])
+        .slice(0, 3)
+        .map(
+          (p) =>
+            `<li>${esc(p.level)} · ${esc(p.amount)} ${esc(p.unit || "USD")} · ${esc(p.Source)} · match ${esc(p.Product_match_confidence)}</li>`
+        )
+        .join("") || `<li class="muted">${esc((si.Pricing_Evidence || {}).level || "LEVEL_4_UNKNOWN")}</li>`;
       if (sections) {
         sections.innerHTML = [
           sectionCard(
@@ -879,6 +895,22 @@
               <div><dt>Next Action</dt><dd>${esc(ci.Next_Action ?? "—")}</dd></div>
             </dl>
             <p class="muted">Government price ≠ profit · research only · no supplier contact</p>`
+          ),
+          sectionCard(
+            "Supplier Intelligence",
+            `<dl class="m3-kv">
+              <div><dt>Product</dt><dd>${esc(si.Product ?? "UNKNOWN")}</dd></div>
+              <div><dt>Manufacturer</dt><dd>${esc(si.Manufacturer ?? "UNKNOWN")}</dd></div>
+              <div><dt>Cost Confidence</dt><dd><strong>${esc(si.Cost_Confidence ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Margin Status</dt><dd>${esc(si.Margin_Status ?? "MARGIN_PENDING_SUPPLIER_VERIFICATION")}</dd></div>
+              <div><dt>First Deal Fit</dt><dd>${esc(si.First_Deal_Fit ?? "UNKNOWN")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(si.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">Possible suppliers</p>
+            <ul class="m3-bom">${suppliersHtml}</ul>
+            <p class="muted">Pricing evidence</p>
+            <ul class="m3-bom">${priceItems}</ul>
+            <p class="muted">Research only · no supplier outreach · no invented margins</p>`
           ),
           sectionCard(
             "Evidence",
