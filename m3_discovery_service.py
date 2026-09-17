@@ -216,13 +216,17 @@ def _progress_for_phase(phase: str, sources_completed: int, sources_total: int) 
 def recover_stale_runs(state: dict[str, Any] | None = None) -> dict[str, Any]:
     state = state or _load_state()
     cur = state.get("current_run")
-    if not cur or cur.get("status") != STATUS_RUNNING:
+    if not cur or cur.get("status") not in {STATUS_RUNNING, STATUS_QUEUED}:
         return state
     hb = _parse(cur.get("last_heartbeat_at") or cur.get("started_at"))
-    if hb and now_utc() - hb > timedelta(minutes=STALE_HEARTBEAT_MINUTES):
+    # QUEUED with no worker heartbeat recovers faster (Railway restart orphan)
+    limit_min = 3 if cur.get("status") == STATUS_QUEUED else STALE_HEARTBEAT_MINUTES
+    if hb and now_utc() - hb > timedelta(minutes=limit_min):
         cur["status"] = STATUS_STALE_RECOVERED
         cur["completed_at"] = _utc()
-        cur["error_summary"] = "Stale RUNNING lock recovered after missed heartbeat"
+        cur["error_summary"] = (
+            "Stale QUEUED/RUNNING lock recovered after missed heartbeat (likely process restart)"
+        )
         cur["phase"] = "FINALIZING"
         state["last_attempt"] = deepcopy(cur)
         state["current_run"] = None
@@ -251,12 +255,12 @@ def discovery_status() -> dict[str, Any]:
     cur = state.get("current_run")
     last_ok = state.get("last_successful_completion")
     last_attempt = state.get("last_attempt")
-    running = bool(cur and cur.get("status") == STATUS_RUNNING)
+    running = bool(cur and cur.get("status") in {STATUS_RUNNING, STATUS_QUEUED})
     fresh = is_data_fresh(state)
     next_run = state.get("next_scheduled_run") or compute_next_scheduled_run()
     status_label = "IDLE"
     if running:
-        status_label = "RUNNING"
+        status_label = "RUNNING" if (cur or {}).get("status") == STATUS_RUNNING else "QUEUED"
     elif not last_ok:
         status_label = "NO_SUCCESSFUL_RUN"
     elif last_attempt and last_attempt.get("status") == STATUS_FAILED:
@@ -612,12 +616,17 @@ def _check_tracked_changes(store: Any, survivors: list[dict[str, Any]]) -> int:
 
 
 def _execute_run(run_id: str, trigger_type: str) -> None:
-    from database import SessionLocal
-    from discovery.live_runner import run_live_discovery
-    from discovery.profiles import get_profile
-    from m3_end_to_end import M3EndToEndOrchestrator
-    from m3_pipeline_store import M3PipelineStore
-    from models import DiscoveryRun
+    try:
+        from database import SessionLocal
+        from discovery.live_runner import run_live_discovery
+        from discovery.profiles import get_profile
+        from m3_end_to_end import M3EndToEndOrchestrator
+        from m3_pipeline_store import M3PipelineStore
+        from models import DiscoveryRun
+    except Exception as exc:
+        log.exception("M3 discovery imports failed")
+        _finalize_run(run_id, status=STATUS_FAILED, error=f"import_failure: {exc}")
+        return
 
     _update_run(run_id, status=STATUS_RUNNING, phase="PREPARING", progress_percent=2)
     session = None

@@ -141,6 +141,25 @@ def test_stale_lock_recovery(discovery_env):
     assert recovered["lock"]["held"] is False
 
 
+def test_stale_queued_lock_recovery(discovery_env):
+    from m3_discovery_service import STATUS_QUEUED, STATUS_STALE_RECOVERED, _empty_state, _save_state, recover_stale_runs
+
+    state = _empty_state()
+    state["current_run"] = {
+        "run_id": "MDR-queued",
+        "status": STATUS_QUEUED,
+        "started_at": (now_utc() - timedelta(minutes=10)).isoformat(),
+        "last_heartbeat_at": (now_utc() - timedelta(minutes=10)).isoformat(),
+        "phase": "PREPARING",
+        "progress_percent": 1,
+    }
+    state["lock"] = {"held": True, "run_id": "MDR-queued", "since": (now_utc() - timedelta(minutes=10)).isoformat()}
+    _save_state(state)
+    recovered = recover_stale_runs()
+    assert recovered.get("current_run") is None
+    assert recovered["last_attempt"]["status"] == STATUS_STALE_RECOVERED
+
+
 def test_progress_monotonic_and_real(discovery_env):
     from m3_discovery_service import _progress_for_phase
 
