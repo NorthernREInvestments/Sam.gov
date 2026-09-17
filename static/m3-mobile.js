@@ -842,6 +842,7 @@
       const si = deal.supplier_intelligence || {};
       const compInt = deal.competitive_intelligence || {};
       const execInt = deal.execution_intelligence || {};
+      const dealEcon = deal.deal_economics || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -945,6 +946,22 @@
               <div><dt>Why</dt><dd>${esc(((execInt.Why || []).slice(0, 5).join("; ")) || "—")}</dd></div>
             </dl>
             <p class="muted">Research only · no bids · no financing applications · financing not assumed</p>`
+          ),
+          sectionCard(
+            "Deal Economics",
+            `<dl class="m3-kv">
+              <div><dt>Contract Value</dt><dd>${esc(dealEcon.Contract_Value ?? "UNKNOWN")}</dd></div>
+              <div><dt>Target Profit</dt><dd>${esc(dealEcon.Target_Profit ?? "UNKNOWN")}</dd></div>
+              <div><dt>Required Acquisition Cost</dt><dd>${esc(dealEcon.Required_Acquisition_Cost ?? "UNKNOWN")}</dd></div>
+              <div><dt>Current Pricing Evidence</dt><dd>${esc(((dealEcon.Current_Pricing_Evidence || {}).cost) ?? "UNKNOWN")} <span class="muted">(${esc(((dealEcon.Current_Pricing_Evidence || {}).level) || "")})</span></dd></div>
+              <div><dt>Projected Profit</dt><dd>${esc(dealEcon.Projected_Profit ?? "UNKNOWN")}</dd></div>
+              <div><dt>Profit Target Status</dt><dd><strong>${esc(dealEcon.Profit_Target_Status ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Pricing Confidence</dt><dd>${esc(dealEcon.Pricing_Confidence ?? "UNKNOWN")}</dd></div>
+              <div><dt>Gap / Improvement</dt><dd>${esc(((dealEcon.Target_Acquisition_Gap || {}).difference) ?? "UNKNOWN")} · ${esc(((dealEcon.Target_Acquisition_Gap || {}).required_improvement_pct) ?? "UNKNOWN")}%</dd></div>
+              <div><dt>Economics Priority</dt><dd>${esc(dealEcon.ECONOMICS_PRIORITY_SCORE ?? "—")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(dealEcon.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">Unknown cost ≠ reject · no invented margins · operator notes never hide economics</p>`
           ),
           sectionCard(
             "Evidence",

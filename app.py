@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-execution-intelligence"
+APP_BUILD_VERSION = "20260917-m3-deal-economics"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1260,6 +1260,103 @@ def api_m3_execution_status():
         "buckets": buckets,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
+
+
+@app.post("/api/m3/economics/analyze")
+def api_m3_economics_analyze(body: dict | None = None):
+    """TOP N deal economics / profit target status — local only."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_deal_economics import analyze_deal_economics_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_deal_economics_top(store, limit=limit)
+
+
+@app.post("/api/m3/economics/simulate")
+def api_m3_economics_simulate(body: dict | None = None):
+    """What-if acquisition cost — does not persist as pricing evidence."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_deal_economics import simulate_cost_change, get_persisted_economics, build_deal_economics
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "").strip()
+    cost = payload.get("acquisition_cost")
+    if not cid or cost is None:
+        raise HTTPException(status_code=400, detail="canonical_id and acquisition_cost required")
+    try:
+        cost_f = float(cost)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="acquisition_cost must be numeric") from exc
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    row = store.get(cid) or {"canonical_id": cid}
+    # Attach persisted economics operator overrides if any
+    de = get_persisted_economics(cid)
+    if de and isinstance(row, dict):
+        row = {**row, "deal_economics": de}
+    return simulate_cost_change(row, cost_f)
+
+
+@app.post("/api/m3/economics/operator-notes")
+def api_m3_economics_operator_notes(body: dict | None = None):
+    """Store strategic override notes — never hides actual economics."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_deal_economics import build_deal_economics, load_economics_index, save_economics_index
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "").strip()
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    row = store.get(cid)
+    if not row:
+        raise HTTPException(status_code=404, detail="opportunity not found")
+    op = dict(row.get("operator_economics") or {})
+    if "strategic_notes" in payload:
+        op["strategic_notes"] = payload.get("strategic_notes")
+    if "strategic_value" in payload:
+        op["strategic_value"] = payload.get("strategic_value")
+    if "accept_below_target" in payload:
+        op["accept_below_target"] = bool(payload.get("accept_below_target"))
+    if "target_profit_usd" in payload and payload.get("target_profit_usd") is not None:
+        op["target_profit_usd"] = float(payload["target_profit_usd"])
+    row = {**row, "operator_economics": op}
+    pkg = build_deal_economics(row)
+    store._rows[cid] = {**row, "deal_economics": pkg, "operator_economics": op}
+    try:
+        store.save()
+    except Exception:
+        pass
+    idx = load_economics_index()
+    by = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    by[cid] = pkg
+    save_economics_index(by)
+    return {"ok": True, "deal_economics": pkg, "DEVELOPMENT_NO_OUTREACH": True}
+
+
+@app.get("/api/m3/economics/status")
+def api_m3_economics_status():
+    from m3_deal_economics import load_economics_index
+
+    idx = load_economics_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    statuses = {"EXCEEDS_TARGET": 0, "MEETS_TARGET": 0, "WITHIN_ACCEPTABLE_RANGE": 0, "BELOW_TARGET": 0, "UNVIABLE": 0, "UNKNOWN": 0}
+    for de in by_id.values():
+        if not isinstance(de, dict):
+            continue
+        st = str(de.get("PROFIT_TARGET_STATUS") or "UNKNOWN")
+        if st in statuses:
+            statuses[st] += 1
+        else:
+            statuses["UNKNOWN"] += 1
+    return {"kind": "M3DealEconomicsStatus", "researched": len(by_id), "profit_statuses": statuses, "DEVELOPMENT_NO_OUTREACH": True}
 
 
 @app.get("/api/m3/mobile/sources")
