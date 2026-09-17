@@ -371,9 +371,9 @@ def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, An
             "started_at": _utc(),
             "completed_at": None,
             "last_heartbeat_at": _utc(),
-            "status": STATUS_QUEUED,
+            "status": STATUS_RUNNING,
             "phase": "PREPARING",
-            "progress_percent": 1,
+            "progress_percent": 2,
             "sources_total": 0,
             "sources_attempted": 0,
             "sources_completed": 0,
@@ -394,7 +394,33 @@ def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, An
         state["lock"] = {"held": True, "run_id": run_id, "since": _utc()}
         _save_state(state)
 
+    _dispatch_discovery_job(run_id, trigger_type)
+    return {"accepted": True, "already_running": False, "run_id": run_id, "status": discovery_status()}
+
+
+def _dispatch_discovery_job(run_id: str, trigger_type: str) -> None:
+    """Prefer APScheduler (same process as web); fall back to daemon thread."""
     global _worker
+    try:
+        from scheduler import scheduler
+
+        if not scheduler.running:
+            scheduler.start()
+        scheduler.add_job(
+            _execute_run,
+            trigger="date",
+            run_date=now_utc(),
+            args=[run_id, trigger_type],
+            id=f"m3_disc_exec_{run_id}",
+            replace_existing=True,
+            misfire_grace_time=600,
+            max_instances=1,
+        )
+        log.info("Dispatched M3 discovery %s via APScheduler", run_id)
+        return
+    except Exception:
+        log.exception("APScheduler dispatch failed — falling back to thread")
+
     _worker = threading.Thread(
         target=_execute_run,
         args=(run_id, trigger_type),
@@ -402,7 +428,7 @@ def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, An
         daemon=True,
     )
     _worker.start()
-    return {"accepted": True, "already_running": False, "run_id": run_id, "status": discovery_status()}
+    log.info("Dispatched M3 discovery %s via thread", run_id)
 
 
 def _update_run(run_id: str, **patch: Any) -> None:
@@ -850,6 +876,12 @@ def maybe_startup_discovery() -> dict[str, Any]:
         restore_pipeline_store_from_db(store)
     except Exception:
         pass
+    # If a prior crash left a recovered attempt and data is still stale, catch up
+    if state.get("current_run") and state["current_run"].get("status") in {
+        STATUS_RUNNING,
+        STATUS_QUEUED,
+    }:
+        return {"queued": False, "reason": "already_running", "status": discovery_status()}
     if is_data_fresh(state):
         return {"queued": False, "reason": "already_fresh", "status": discovery_status()}
     trigger = TRIGGER_STARTUP if not state.get("last_successful_completion") else TRIGGER_CATCH_UP
