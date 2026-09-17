@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-package1"
+APP_BUILD_VERSION = "20260917-m3-package1b"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -829,14 +829,19 @@ def api_m3_evidence_acquire(canonical_id: str | None = None, body: dict | None =
     # Kick research runner which now includes evidence ladder
     from m3_research_service import TRIGGER_MANUAL, request_research_run
 
-    # Clear research fingerprints for deferred without ladder so they re-enter queue
+    # Clear research fingerprints for deferred needing portal package resolver / incomplete ladder
     cleared = 0
     for row in store.all():
         lc = str(row.get("lifecycle") or "")
-        if lc not in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "CHEAP_SCREENED"}:
+        if lc not in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "CHEAP_SCREENED", "PACKAGE_REQUIRED"}:
             continue
         ea = row.get("evidence_acquisition") or {}
-        if "TIER_1_DIRECT" not in (ea.get("tiers_attempted") or []):
+        tiers = ea.get("tiers_attempted") or []
+        needs_portal = "PORTAL_DOCUMENT_RESOLVER" not in tiers and not (
+            row.get("line_items") or row.get("bom")
+        )
+        needs_ladder = "TIER_1_DIRECT" not in tiers
+        if needs_portal or needs_ladder:
             row.pop("research_completed_fingerprint", None)
             row["research_queued"] = True
             store._rows[row["canonical_id"]] = row

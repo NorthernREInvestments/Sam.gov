@@ -258,10 +258,16 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
                 for e in (row.get("recovered_evidence") or [])[-8:]
                 if isinstance(e, dict)
             ],
-            "primary_failure": (row.get("evidence_failure") or {}).get("primary_reason")
-            or (row.get("portal_resolution") or {}).get("failure")
-            or row.get("stop_reason")
-            or "UNKNOWN",
+            "primary_failure": (
+                None
+                if bom
+                else (
+                    (row.get("evidence_failure") or {}).get("primary_reason")
+                    or (row.get("portal_resolution") or {}).get("failure")
+                    or row.get("stop_reason")
+                    or "UNKNOWN"
+                )
+            ),
             "auth_requirements": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "registration_url": row.get("registration_url") or (row.get("portal_resolution") or {}).get("registration_url"),
             "login_url": row.get("login_url") or (row.get("portal_resolution") or {}).get("login_url"),

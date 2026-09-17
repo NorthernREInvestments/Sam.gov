@@ -115,6 +115,32 @@ def classify_evidence_failure(row: dict[str, Any]) -> dict[str, Any]:
     attempts = row.get("evidence_recovery_attempts") or []
     tier_done = {a.get("tier") for a in attempts if isinstance(a, dict)}
 
+    # Successful package recovery is not a failure — do not invent PUBLIC_METADATA_ONLY
+    if lines or (
+        any(isinstance(d, dict) and d.get("bytes_recovered") for d in docs)
+        and str(row.get("package_completeness") or "").upper()
+        in {
+            "GOVERNING_SOLICITATION_RECOVERED",
+            "BOM_RECOVERED",
+            "COMPLETE_ENOUGH_FOR_RESEARCH",
+            "PACKAGE_COMPLETE",
+            "SPECIFICATIONS_RECOVERED",
+            "PRICING_SCHEDULE_RECOVERED",
+            "PARTIAL_PACKAGE",
+        }
+    ):
+        return {
+            "kind": "M3EvidenceFailureClassification",
+            "canonical_id": row.get("canonical_id"),
+            "primary_reason": None,
+            "reasons": [],
+            "has_detail_url": bool(url),
+            "document_count": len(docs),
+            "has_line_items": bool(lines),
+            "tiers_attempted": sorted(t for t in tier_done if t),
+            "status": "EVIDENCE_SUFFICIENT" if lines else "DOCUMENTS_RECOVERED",
+        }
+
     if pkg in {"AUTH_GATED", "REGISTRATION_REQUIRED"} or access in {
         SA_AUTH_REQUIRED,
         SA_REGISTRATION_REQUIRED,

@@ -97,7 +97,7 @@
         <p class="m3-disc-line muted">Scheduled discovery has not successfully completed within the expected freshness window.</p>
         <p class="m3-disc-line muted">Next run: ${esc(fmtWhen(st.next_scheduled_run))}</p>`;
     } else {
-      body = `<p class="m3-disc-line"><strong>Current</strong> · ${pct}%</p>
+      body = `<p class="m3-disc-line"><strong>Discovery stage current</strong> · last run ${pct}%</p>
         <p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at))} · Next run: ${esc(fmtWhen(st.next_scheduled_run))}</p>
         <p class="m3-disc-line muted">${esc(survivors ?? records ?? 0)} opportunities screened · ${esc(pipelineDelta)} added/updated</p>`;
       if (lastOk.sources_failed) {
