@@ -399,28 +399,12 @@ def request_discovery_run(*, trigger_type: str = TRIGGER_MANUAL) -> dict[str, An
 
 
 def _dispatch_discovery_job(run_id: str, trigger_type: str) -> None:
-    """Prefer APScheduler (same process as web); fall back to daemon thread."""
+    """Run discovery out-of-band in this web process (daemon thread).
+
+    APScheduler interval handles cadence; one-shot execution uses a thread so
+    RUN NOW / startup never depend on date-trigger misfire behavior.
+    """
     global _worker
-    try:
-        from scheduler import scheduler
-
-        if not scheduler.running:
-            scheduler.start()
-        scheduler.add_job(
-            _execute_run,
-            trigger="date",
-            run_date=now_utc(),
-            args=[run_id, trigger_type],
-            id=f"m3_disc_exec_{run_id}",
-            replace_existing=True,
-            misfire_grace_time=600,
-            max_instances=1,
-        )
-        log.info("Dispatched M3 discovery %s via APScheduler", run_id)
-        return
-    except Exception:
-        log.exception("APScheduler dispatch failed — falling back to thread")
-
     _worker = threading.Thread(
         target=_execute_run,
         args=(run_id, trigger_type),
@@ -428,7 +412,7 @@ def _dispatch_discovery_job(run_id: str, trigger_type: str) -> None:
         daemon=True,
     )
     _worker.start()
-    log.info("Dispatched M3 discovery %s via thread", run_id)
+    log.info("Dispatched M3 discovery %s via thread (alive=%s)", run_id, _worker.is_alive())
 
 
 def _update_run(run_id: str, **patch: Any) -> None:
@@ -642,6 +626,7 @@ def _check_tracked_changes(store: Any, survivors: list[dict[str, Any]]) -> int:
 
 
 def _execute_run(run_id: str, trigger_type: str) -> None:
+    _update_run(run_id, status=STATUS_RUNNING, phase="PREPARING", progress_percent=2)
     try:
         from database import SessionLocal
         from discovery.live_runner import run_live_discovery
@@ -654,7 +639,7 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         _finalize_run(run_id, status=STATUS_FAILED, error=f"import_failure: {exc}")
         return
 
-    _update_run(run_id, status=STATUS_RUNNING, phase="PREPARING", progress_percent=2)
+    _update_run(run_id, phase="PREPARING", progress_percent=5)
     session = None
     try:
         session = SessionLocal()
