@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-document-discovery-1"
+APP_BUILD_VERSION = "20260917-m3-document-intelligence-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1736,6 +1736,80 @@ def api_m3_document_discovery_va_update(body: dict | None = None):
         attached_document=payload.get("attached_document")
         if isinstance(payload.get("attached_document"), dict)
         else None,
+    )
+
+
+@app.post("/api/m3/document-intelligence/analyze")
+def api_m3_document_intelligence_analyze(body: dict | None = None):
+    """Extract structured commercial intelligence from recovered procurement documents."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_intelligence import analyze_document_intelligence_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    priority_only = bool(payload.get("priority_families_only", True))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_document_intelligence_top(
+        store,
+        limit=limit,
+        persist=True,
+        priority_families_only=priority_only,
+    )
+
+
+@app.get("/api/m3/document-intelligence/status")
+def api_m3_document_intelligence_status():
+    from m3_document_intelligence import load_intelligence_index, load_learning_index
+
+    idx = load_intelligence_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    readiness: dict[str, int] = {}
+    for snap in by_id.values():
+        if not isinstance(snap, dict):
+            continue
+        st = str(((snap.get("summary") or {}).get("ECONOMICS_READINESS") or "UNKNOWN"))
+        readiness[st] = readiness.get(st, 0) + 1
+    learning = load_learning_index()
+    return {
+        "kind": "M3DocumentIntelligenceStatus",
+        "researched": len(by_id),
+        "economics_readiness": readiness,
+        "learning_families": list((learning.get("by_portal_family") or {}).keys()),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "PROCUREMENT_DOCUMENT_INTELLIGENCE_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/document-intelligence/learning")
+def api_m3_document_intelligence_learning():
+    from m3_document_intelligence import load_learning_index
+
+    return load_learning_index()
+
+
+@app.post("/api/m3/document-intelligence/va/update")
+def api_m3_document_intelligence_va_update(body: dict | None = None):
+    """VA extraction review/correct/flag/notes — no deals, bids, outreach, or scoring."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_document_intelligence import apply_va_intelligence_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_intelligence_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        correction=payload.get("correction") if isinstance(payload.get("correction"), dict) else None,
+        status=payload.get("status"),
     )
 
 

@@ -127,7 +127,10 @@ FALSE_ID_BLOCKLIST = re.compile(
     r"\d{4}-\d{2}-\d{2}T|\d{10,}|javascript|cookie|session)",
     re.I,
 )
-DOC_ID_RE = re.compile(r"^(DOC|ATT|AMD|SOL|RFQ|RFP|IFB)[-_]?\d{3,}$", re.I)
+DOC_ID_RE = re.compile(
+    r"^(DOC|ATT|AMD|SOL|RFQ|RFP|IFB|NOTICE|BID)[-_]?[\d][\d\-_]{1,}$",
+    re.I,
+)
 TIMESTAMPISH_RE = re.compile(r"^\d{8,}([T_]\d+)?$")
 URL_FRAGMENT_RE = re.compile(r"[/\\]|^\w+\.\w+$")
 
