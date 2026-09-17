@@ -7,6 +7,7 @@ Government award price alone is NOT profit.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -25,8 +26,11 @@ from m3_commercial_engine import (
     classify_winner_type,
 )
 
+log = logging.getLogger("govtracker.m3_supplier_intelligence")
+
 PRODUCT_IDENTITY_INCOMPLETE = "PRODUCT_IDENTITY_INCOMPLETE"
 MARGIN_PENDING = "MARGIN_PENDING_SUPPLIER_VERIFICATION"
+SUPPLIER_INTEL_SETTINGS_KEY = "m3_supplier_intelligence_v1"
 
 OEM = "OEM"
 AUTHORIZED_DISTRIBUTOR = "AUTHORIZED_DISTRIBUTOR"
@@ -97,6 +101,74 @@ def _num(v: Any) -> float | None:
     except (TypeError, ValueError):
         return None
 
+
+def load_supplier_intel_index() -> dict[str, Any]:
+    """Durable SI map keyed by canonical_id — survives concurrent pipeline saves."""
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == SUPPLIER_INTEL_SETTINGS_KEY).one_or_none()
+            if not row or not row.value:
+                return {}
+            data = json.loads(row.value)
+            return data if isinstance(data, dict) else {}
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed loading supplier intelligence index")
+        return {}
+
+
+def save_supplier_intel_index(index: dict[str, Any]) -> bool:
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        payload = {
+            "kind": "M3SupplierIntelligenceIndex",
+            "updated_at": _utc(),
+            "by_id": index,
+            "count": len(index),
+        }
+        raw = json.dumps(payload, default=str)
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == SUPPLIER_INTEL_SETTINGS_KEY).one_or_none()
+            if row:
+                row.value = raw
+            else:
+                db.add(AppSetting(key=SUPPLIER_INTEL_SETTINGS_KEY, value=raw))
+            db.commit()
+            return True
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed saving supplier intelligence index")
+        return False
+
+
+def get_persisted_supplier_intelligence(canonical_id: str) -> dict[str, Any] | None:
+    if not canonical_id:
+        return None
+    data = load_supplier_intel_index()
+    by_id = data.get("by_id") if isinstance(data.get("by_id"), dict) else data
+    si = by_id.get(canonical_id) if isinstance(by_id, dict) else None
+    return si if isinstance(si, dict) else None
+
+
+def upsert_persisted_supplier_intelligence(canonical_id: str, si: dict[str, Any]) -> bool:
+    data = load_supplier_intel_index()
+    by_id = data.get("by_id") if isinstance(data.get("by_id"), dict) else {}
+    if not isinstance(by_id, dict):
+        by_id = {}
+    # If load returned flat map already
+    if data and "by_id" not in data and all(isinstance(v, dict) for v in data.values()):
+        by_id = dict(data)
+    by_id[canonical_id] = si
+    return save_supplier_intel_index(by_id)
 
 def _title_blob(row: dict[str, Any]) -> str:
     parts = [str(row.get("title") or ""), str(row.get("description") or "")[:1500]]
@@ -881,13 +953,14 @@ def analyze_supplier_top_opportunities(
     products_identified = 0
     manufacturers = set()
     distributors = set()
+    index_updates: dict[str, Any] = {}
 
     for row in targets:
         si = build_supplier_intelligence(row, allow_paid_web=allow_paid_web)
         paid_total += int((si.get("web_research") or {}).get("paid") or 0)
         openai_total += int((si.get("web_research") or {}).get("OpenAI") or 0)
 
-        # Persist
+        # Persist on row + durable SI index (pipeline concurrent saves cannot wipe index)
         full = {**(store.get(row["canonical_id"]) or row)}
         full["supplier_intelligence"] = si
         # Keep price research fingerprint for idempotency
@@ -900,6 +973,7 @@ def analyze_supplier_top_opportunities(
                 "at": _utc(),
             }
         store._rows[row["canonical_id"]] = full
+        index_updates[row["canonical_id"]] = si
 
         product = si.get("Product") or {}
         if product.get("sufficient_for_pricing_research"):
@@ -939,12 +1013,30 @@ def analyze_supplier_top_opportunities(
             }
         )
 
+    # Batch durable SI index write
+    try:
+        existing = load_supplier_intel_index()
+        by_id = existing.get("by_id") if isinstance(existing.get("by_id"), dict) else {}
+        if not by_id and existing and "by_id" not in existing:
+            by_id = {k: v for k, v in existing.items() if isinstance(v, dict)}
+        by_id.update(index_updates)
+        save_supplier_intel_index(by_id)
+    except Exception:
+        log.exception("Batch SI index save failed")
+
     save_ok = False
     save_error = None
+    index_count = 0
     try:
         store.save()
-        # Confirm at least one persisted
-        save_ok = any(
+        # Confirm at least one persisted on row or durable index
+        idx = load_supplier_intel_index()
+        by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else idx
+        if isinstance(by_id, dict):
+            index_count = len([v for v in by_id.values() if isinstance(v, dict) and v.get("kind") == "M3SupplierIntelligence"])
+            if index_count == 0 and isinstance(by_id, dict):
+                index_count = len(by_id)
+        save_ok = index_count > 0 or any(
             bool((store.get(r["canonical_id"]) or {}).get("supplier_intelligence"))
             for r in results
             if r.get("canonical_id")
@@ -970,6 +1062,7 @@ def analyze_supplier_top_opportunities(
         "paid": paid_total,
         "persist_ok": save_ok,
         "persist_error": save_error,
+        "index_count": index_count,
         "DEVELOPMENT_NO_OUTREACH": True,
         "commercial_outreach": False,
     }
@@ -978,7 +1071,11 @@ def analyze_supplier_top_opportunities(
 def deal_room_supplier_section(row: dict[str, Any]) -> dict[str, Any]:
     si = row.get("supplier_intelligence")
     if not isinstance(si, dict) or si.get("kind") != "M3SupplierIntelligence":
-        si = build_supplier_intelligence(row, allow_paid_web=False)
+        persisted = get_persisted_supplier_intelligence(str(row.get("canonical_id") or ""))
+        if isinstance(persisted, dict) and persisted.get("kind") == "M3SupplierIntelligence":
+            si = persisted
+        else:
+            si = build_supplier_intelligence(row, allow_paid_web=False)
     product = si.get("Product") or {}
     supply = si.get("Supply_chain") or {}
     pricing = si.get("Pricing_evidence") or {}

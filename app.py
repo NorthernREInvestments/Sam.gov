@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-supplier-intelligence-v2"
+APP_BUILD_VERSION = "20260917-m3-supplier-intelligence-v3"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1141,11 +1141,24 @@ def api_m3_supplier_analyze(body: dict | None = None):
 def api_m3_supplier_status():
     from m3_pipeline_store import M3PipelineStore
     from m3_discovery_service import restore_pipeline_store_from_db
-    from m3_supplier_intelligence import PRICE_LEVEL_4_UNKNOWN
+    from m3_supplier_intelligence import (
+        PRICE_LEVEL_4_UNKNOWN,
+        load_supplier_intel_index,
+    )
 
     store = M3PipelineStore()
     restore_pipeline_store_from_db(store)
-    rows = [r for r in store.all() if r.get("supplier_intelligence")]
+    idx = load_supplier_intel_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    if not by_id and isinstance(idx, dict):
+        # tolerate flat map
+        by_id = {k: v for k, v in idx.items() if isinstance(v, dict) and v.get("kind") == "M3SupplierIntelligence"}
+    rows = []
+    for cid, si in by_id.items():
+        if isinstance(si, dict):
+            rows.append({"canonical_id": cid, "supplier_intelligence": si})
+    if not rows:
+        rows = [r for r in store.all() if r.get("supplier_intelligence")]
     levels = {"LEVEL_1": 0, "LEVEL_2": 0, "LEVEL_3": 0, "LEVEL_4": 0}
     for r in rows:
         si = r.get("supplier_intelligence") or {}
