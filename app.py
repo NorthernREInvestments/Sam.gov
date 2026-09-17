@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-supplier-intelligence-v5"
+APP_BUILD_VERSION = "20260917-m3-competitive-intelligence"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1175,6 +1175,48 @@ def api_m3_supplier_status():
         "kind": "M3SupplierStatus",
         "researched": len(rows),
         "pricing_levels": levels,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.post("/api/m3/competitive/analyze")
+def api_m3_competitive_analyze(body: dict | None = None):
+    """TOP N new-entrant / competitive scoring — local only, no paid research."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_competitive_intelligence import analyze_competitive_top_opportunities
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_competitive_top_opportunities(store, limit=limit)
+
+
+@app.get("/api/m3/competitive/status")
+def api_m3_competitive_status():
+    from m3_competitive_intelligence import load_competitive_index, BUCKET_A
+
+    idx = load_competitive_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    buckets = {"A": 0, "B": 0, "C": 0, "D": 0}
+    for si in by_id.values():
+        if not isinstance(si, dict):
+            continue
+        b = str(si.get("BUCKET") or "")
+        if "FIRST_DEAL" in b:
+            buckets["A"] += 1
+        elif "GROWTH" in b:
+            buckets["B"] += 1
+        elif "WATCH" in b:
+            buckets["C"] += 1
+        else:
+            buckets["D"] += 1
+    return {
+        "kind": "M3CompetitiveStatus",
+        "researched": len(by_id),
+        "buckets": buckets,
+        "bucket_a_first_deal": buckets["A"],
         "DEVELOPMENT_NO_OUTREACH": True,
     }
 

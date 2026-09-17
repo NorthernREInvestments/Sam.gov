@@ -296,6 +296,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         },
         "commercial_intelligence": _deal_commercial(row),
         "supplier_intelligence": _deal_supplier(row),
+        "competitive_intelligence": _deal_competitive(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -334,6 +335,20 @@ def _deal_supplier(row: dict[str, Any]) -> dict[str, Any]:
             "Cost_Confidence": "UNKNOWN",
             "Margin_Status": "MARGIN_PENDING_SUPPLIER_VERIFICATION",
             "Next_Action": "Supplier intelligence unavailable",
+        }
+
+
+def _deal_competitive(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_competitive_intelligence import deal_room_competitive_section
+
+        return deal_room_competitive_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomCompetitiveIntelligence",
+            "Competition": "UNKNOWN",
+            "First_deal_priority": "LOW_PRIORITY",
+            "Next_Action": "Competitive intelligence unavailable",
         }
 
 

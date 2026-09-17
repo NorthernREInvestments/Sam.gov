@@ -840,6 +840,7 @@
       const commercial = deal.commercial_research || {};
       const ci = deal.commercial_intelligence || {};
       const si = deal.supplier_intelligence || {};
+      const compInt = deal.competitive_intelligence || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -911,6 +912,22 @@
             <p class="muted">Pricing evidence</p>
             <ul class="m3-bom">${priceItems}</ul>
             <p class="muted">Research only · no supplier outreach · no invented margins</p>`
+          ),
+          sectionCard(
+            "Competitive Intelligence",
+            `<dl class="m3-kv">
+              <div><dt>Competition</dt><dd>${esc(compInt.Competition ?? "UNKNOWN")}</dd></div>
+              <div><dt>Historical bidders</dt><dd>${esc(compInt.Historical_bidders ?? "UNKNOWN")}</dd></div>
+              <div><dt>Winner concentration</dt><dd>${esc(compInt.Winner_concentration ?? "UNKNOWN")}</dd></div>
+              <div><dt>Incumbent risk</dt><dd>${esc(compInt.Incumbent_risk ?? "UNKNOWN")} <span class="muted">(${esc(compInt.Incumbent_market || "")})</span></dd></div>
+              <div><dt>New entrant advantage</dt><dd>${esc(compInt.New_entrant_advantage ?? "UNKNOWN")}</dd></div>
+              <div><dt>First deal score</dt><dd><strong>${esc(compInt.First_deal_score ?? "UNKNOWN")}</strong> · ${esc(compInt.First_deal_priority ?? "")}</dd></div>
+              <div><dt>Bucket</dt><dd>${esc(compInt.BUCKET ?? "UNKNOWN")}</dd></div>
+              <div><dt>Financeability</dt><dd>${esc(compInt.Financeability ?? "UNKNOWN")}</dd></div>
+              <div><dt>Why</dt><dd>${esc(((compInt.Why || []).slice(0, 5).join("; ")) || "—")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(compInt.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">Competition ≠ auto-reject · bidder count alone never rejects</p>`
           ),
           sectionCard(
             "Evidence",
