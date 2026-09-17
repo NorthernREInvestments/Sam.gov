@@ -50,7 +50,7 @@ FIN_MODERATE = "MODERATE"
 FIN_DIFFICULT = "DIFFICULT"
 
 SERVICE_RE = re.compile(
-    r"\b(service|services|construction|installation|install|restoration|design.?bid.?build|janitorial|consulting)\b",
+    r"\b(service|services|construction|installation|install|restoration|design.?bid.?build|janitorial|consulting|repair|assess and)\b",
     re.I,
 )
 TANGIBLE_RE = re.compile(
