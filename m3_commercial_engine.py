@@ -828,9 +828,22 @@ def build_commercial_research_queue(
     for row in opportunities:
         if not isinstance(row, dict) or not row.get("canonical_id"):
             continue
-        # Skip hard rejects
+        # Skip hard rejects and non-solicitation noise
         lc = str(row.get("lifecycle") or "").upper()
         if lc in {"REJECTED", "REJECTED_CHEAP_SCREEN", "CANCELLED", "CLOSED", "AWARDED", "ARCHIVED", "LOST"}:
+            continue
+        title_l = str(row.get("title") or "").lower()
+        if any(
+            x in title_l
+            for x in (
+                "how to protest",
+                "how to register",
+                "login",
+                "vendor registration",
+                "terms of use",
+                "privacy policy",
+            )
+        ):
             continue
         ci = row.get("commercial_intelligence")
         if not isinstance(ci, dict) or ci.get("kind") != "M3CommercialIntelligence":
