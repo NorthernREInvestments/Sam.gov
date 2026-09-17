@@ -297,6 +297,25 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         if c.get("lifecycle")
         not in {"REJECTED", "REJECTED_CHEAP_SCREEN", "CANCELLED", "CLOSED", "AWARDED", "ARCHIVED", "LOST"}
     ]
+    try:
+        from m3_procurement_profile import load_m3_procurement_profile
+
+        profile = load_m3_procurement_profile()
+        profile_summary = {
+            "kind": profile.get("kind"),
+            "primary_purpose": profile.get("primary_purpose"),
+            "naics_is_primary_filter": (profile.get("discovery") or {}).get("naics_is_primary_filter"),
+            "isolated_from_legacy_acquisition": profile.get("isolated_from_legacy_acquisition"),
+            "target_product_types": (profile.get("target_product_types") or [])[:8],
+            "procurement_types": profile.get("procurement_types"),
+        }
+    except Exception:
+        profile_summary = {
+            "kind": "M3ProcurementProfile",
+            "primary_purpose": "Government product-resale opportunities",
+            "naics_is_primary_filter": False,
+            "isolated_from_legacy_acquisition": True,
+        }
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
@@ -305,6 +324,7 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "top_actions": actions["actions"][:15],
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
+        "procurement_profile": profile_summary,
     }
 
 

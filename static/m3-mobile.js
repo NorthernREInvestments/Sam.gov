@@ -1,7 +1,7 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
-  const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "deal-room"];
-  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null };
+  const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room"];
+  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null };
   let lastDealId = null;
   let activeLearningRecordId = null;
 
@@ -39,28 +39,36 @@
 
   function showM3View(name) {
     hideLegacyViews();
+    const dash = document.getElementById("view-dashboard");
+    if (dash) dash.hidden = true;
     M3_VIEWS.forEach((v) => {
       const el = document.getElementById("view-m3-" + v);
       if (el) el.hidden = v !== name;
     });
-    if (name === "settings") {
-      const settings = document.getElementById("view-settings");
-      if (settings) settings.hidden = false;
-      M3_VIEWS.forEach((v) => {
-        const el = document.getElementById("view-m3-" + v);
-        if (el) el.hidden = true;
-      });
-      if (typeof loadSettingsPage === "function") loadSettingsPage();
-    }
+    const legacySettings = document.getElementById("view-settings");
+    if (legacySettings) legacySettings.hidden = true;
     document.querySelectorAll(".m3-nav-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.m3View === name || (name === "deal-room" && btn.dataset.m3View === "opportunities"));
+      const isActive =
+        btn.dataset.m3View === name ||
+        (name === "deal-room" && btn.dataset.m3View === "opportunities") ||
+        (name === "verify" && btn.dataset.m3View === "settings");
+      btn.classList.toggle("active", isActive);
     });
-    document.body.classList.add("m3-mobile-active");
+    document.body.classList.add("m3-mobile-active", "m3-only-app");
+    try {
+      const hash = name === "home" ? "m3-home" : "m3-" + name;
+      if (location.hash.replace("#", "") !== hash) {
+        history.replaceState(null, "", "#" + hash);
+      }
+    } catch (_) {
+      /* ignore */
+    }
     if (name === "home") loadHome();
     if (name === "opportunities") loadOpportunities();
     if (name === "actions") loadActions();
     if (name === "sources") loadSources();
     if (name === "verify") loadVerify();
+    if (name === "settings") loadM3Settings();
   }
 
   function oppCard(o) {
@@ -133,16 +141,44 @@
 
   async function loadHome(force) {
     try {
+      const health = await fetchJson("/api/m3/health").catch(() => null);
+      if (health) {
+        const badge = document.getElementById("m3-build-badge");
+        const modeBadge = document.getElementById("m3-mode-badge");
+        if (badge) badge.textContent = health.build_version || "unknown";
+        if (modeBadge) {
+          modeBadge.textContent = health.DEVELOPMENT_NO_OUTREACH
+            ? "DEV_NO_OUTREACH"
+            : health.operating_mode || "MODE";
+        }
+      }
       if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
       const d = cache.dashboard;
+      const attention = document.getElementById("m3-home-attention");
+      const profile = d.procurement_profile || {};
+      const actions = d.top_actions || [];
+      const opps = d.active_opportunities || [];
+      const fundingWait = opps.filter((o) => String(o.funding_state || "").includes("FUNDING") || String(o.lifecycle || "").includes("FUNDING")).length;
+      const commercialWait = opps.filter((o) => String(o.lifecycle || "").includes("COMMERCIAL") || String(o.next_action || "").includes("COMMERCIAL")).length;
+      if (attention) {
+        attention.innerHTML = `<article class="m3-info-card m3-attention-card">
+          <dl class="m3-kv">
+            <div><dt>Active</dt><dd>${esc(d.active_count || opps.length)}</dd></div>
+            <div><dt>Actions</dt><dd>${esc(d.action_count || actions.length)}</dd></div>
+            <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
+            <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
+          </dl>
+          <p class="m3-next"><strong>Do next:</strong> ${esc((actions[0] && (actions[0].need || actions[0].opportunity_title)) || "Review opportunities")}</p>
+          <p class="muted">${esc(profile.primary_purpose || "Government product-resale")} · NAICS primary filter: ${profile.naics_is_primary_filter ? "yes" : "no"}</p>
+          <p class="muted">Outreach blocked · build ${esc((health && health.build_version) || "")}</p>
+        </article>`;
+      }
       const actionsEl = document.getElementById("m3-home-actions");
       const oppsEl = document.getElementById("m3-home-opps");
       const empty = document.getElementById("m3-home-empty");
-      const topActions = d.top_actions || [];
-      const opps = d.active_opportunities || [];
-      if (actionsEl) actionsEl.innerHTML = topActions.slice(0, 5).map(actionCard).join("") || "<p class='muted'>No actions</p>";
+      if (actionsEl) actionsEl.innerHTML = actions.slice(0, 5).map(actionCard).join("") || "<p class='muted'>No actions</p>";
       if (oppsEl) oppsEl.innerHTML = opps.slice(0, 12).map(oppCard).join("");
-      if (empty) empty.hidden = opps.length > 0 || topActions.length > 0;
+      if (empty) empty.hidden = opps.length > 0 || actions.length > 0;
       wireCardClicks(actionsEl);
       wireCardClicks(oppsEl);
     } catch (e) {
@@ -236,6 +272,43 @@
     } catch (e) {
       const list = document.getElementById("m3-first-pursuits");
       if (list) list.innerHTML = `<p class="m3-empty">${esc(e.message || "Unable to load verify")}</p>`;
+    }
+  }
+
+  async function loadM3Settings(force) {
+    try {
+      if (!cache.profile || force) cache.profile = await fetchJson("/api/m3/procurement-profile");
+      const body = document.getElementById("m3-settings-body");
+      if (!body) return;
+      const p = cache.profile.profile || {};
+      const iso = cache.profile.isolation || {};
+      const disc = p.discovery || {};
+      const types = (p.target_product_types || []).slice(0, 12).map((t) => `<li>${esc(t)}</li>`).join("");
+      const proc = (p.procurement_types || []).map((t) => `<li>${esc(t)}</li>`).join("");
+      body.innerHTML = `
+        <article class="m3-info-card">
+          <h3>Procurement profile</h3>
+          <p><strong>${esc(p.primary_purpose || "Government product-resale")}</strong></p>
+          <p class="muted">Isolated from legacy acquisition: ${p.isolated_from_legacy_acquisition ? "yes" : "no"}</p>
+          <p class="muted">NAICS as primary discovery filter: ${disc.naics_is_primary_filter ? "yes" : "no"}</p>
+          <p class="muted">Isolation check: ${iso.ok ? "PASS" : "FAIL"}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>Target product types</h3>
+          <ul class="m3-bom">${types || "<li class='muted'>UNKNOWN</li>"}</ul>
+        </article>
+        <article class="m3-info-card">
+          <h3>Procurement types</h3>
+          <ul class="m3-bom">${proc}</ul>
+          <p class="muted">Primary signals: ${esc((disc.primary_signals || []).join(", "))}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>What M3 does not use</h3>
+          <p class="muted">Legacy facilities-service NAICS (561720 janitorial, 238220 HVAC maintenance, etc.), subcontracting screening scores, owner/operator acquisition criteria.</p>
+        </article>`;
+    } catch (e) {
+      const body = document.getElementById("m3-settings-body");
+      if (body) body.innerHTML = `<p class="m3-empty">${esc(e.message || "Unable to load M3 profile")}</p>`;
     }
   }
 
@@ -373,11 +446,11 @@
     document.querySelectorAll(".m3-nav-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const v = btn.dataset.m3View;
-        if (v === "settings") showM3View("settings");
-        else showM3View(v);
+        showM3View(v);
       });
     });
     document.getElementById("m3-deal-back")?.addEventListener("click", () => showM3View("opportunities"));
+    document.getElementById("m3-open-verify")?.addEventListener("click", () => showM3View("verify"));
     document.getElementById("m3-enable-controlled")?.addEventListener("click", async () => {
       try {
         await postJson("/api/m3/controlled/enable", {
@@ -477,12 +550,19 @@
 
   function boot() {
     wireNav();
-    const narrow = window.matchMedia("(max-width: 900px)").matches;
-    if (narrow) {
-      showM3View("home");
+    document.body.classList.add("m3-only-app", "m3-mobile-active");
+    const h = (location.hash || "").replace("#", "");
+    if (h.startsWith("m3-")) {
+      const view = h.replace(/^m3-/, "") || "home";
+      showM3View(M3_VIEWS.includes(view) ? view : "home");
     } else {
-      document.body.classList.add("m3-desktop-ready");
-      loadHome(false).catch(() => {});
+      // Clear legacy gos-* hashes that previously hijacked navigation
+      if (/^gos-/.test(h) || h === "dashboard" || h === "today") {
+        try {
+          history.replaceState(null, "", "#m3-home");
+        } catch (_) {}
+      }
+      showM3View("home");
     }
   }
 
@@ -492,7 +572,7 @@
     loadHome,
     loadVerify,
     refresh: () => {
-      cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null };
+      cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null };
       return loadHome(true);
     },
   };

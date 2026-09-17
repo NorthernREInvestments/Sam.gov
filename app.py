@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260914-openai-migration"
+APP_BUILD_VERSION = "20260917-m3-primary"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -423,15 +423,42 @@ def health():
     with _startup_lock:
         state = dict(_startup_state)
     status = "ok" if state.get("ready") else "starting"
+    from operating_mode import mode_snapshot
+    from legacy_runtime import is_m3_only_production, legacy_retirement_snapshot
+
     payload = {
         "status": status,
-        "service": "GovTracker",
+        "service": "M3",
+        "application": "M3",
+        "parent_holding": "Northern RE Investments",
+        "m3_only_production": is_m3_only_production(),
         "auth_enabled": auth_enabled(),
         "build_version": APP_BUILD_VERSION,
         "startup_ready": state.get("ready", False),
+        "operating_mode": mode_snapshot(),
     }
     if state.get("error"):
         payload["startup_error"] = state["error"]
+    try:
+        from m3_procurement_profile import assert_m3_isolated_from_legacy, load_m3_procurement_profile
+
+        payload["procurement_profile"] = {
+            "kind": load_m3_procurement_profile().get("kind"),
+            "isolated": assert_m3_isolated_from_legacy().get("ok"),
+        }
+    except Exception as exc:
+        payload["procurement_profile"] = {"error": str(exc)}
+    try:
+        from m3_pipeline_store import M3PipelineStore
+
+        store = M3PipelineStore()
+        payload["pipeline_store"] = {
+            "available": True,
+            "opportunity_count": len(store.all()),
+            "path": str(store.path),
+        }
+    except Exception as exc:
+        payload["pipeline_store"] = {"available": False, "error": str(exc)}
     try:
         from gs_watchlist_service import watchlist_status
 
@@ -442,7 +469,47 @@ def health():
         }
     except Exception:
         payload["watchlist"] = {"table": None, "priority_target_count": 0}
+    payload["legacy_retirement"] = {
+        "m3_only_production": is_m3_only_production(),
+        "active_application": "M3",
+    }
     return payload
+
+
+@app.get("/api/m3/health")
+def api_m3_health():
+    """Lightweight M3 readiness — no secrets."""
+    from operating_mode import is_controlled_verification, is_development_no_outreach, mode_snapshot
+    from legacy_runtime import is_m3_only_production, legacy_retirement_snapshot
+    from m3_procurement_profile import assert_m3_isolated_from_legacy, load_m3_procurement_profile
+    from m3_pipeline_store import M3PipelineStore
+
+    with _startup_lock:
+        state = dict(_startup_state)
+    profile = load_m3_procurement_profile()
+    store = M3PipelineStore()
+    return {
+        "kind": "M3Health",
+        "ok": True,
+        "backend_running": True,
+        "m3_application_loaded": True,
+        "m3_only_production": is_m3_only_production(),
+        "build_version": APP_BUILD_VERSION,
+        "startup_ready": bool(state.get("ready")),
+        "operating_mode": mode_snapshot().get("operating_mode"),
+        "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
+        "controlled_verification_active": is_controlled_verification(),
+        "procurement_profile_available": profile.get("kind") == "M3ProcurementProfile",
+        "procurement_isolation_ok": assert_m3_isolated_from_legacy().get("ok"),
+        "pipeline_store_available": True,
+        "pipeline_opportunity_count": len(store.all()),
+        "legacy_runtime": legacy_retirement_snapshot(),
+        "external_action_safety": {
+            "emails_sent": 0,
+            "bids_submitted": 0,
+            "network_transmitted": False,
+        },
+    }
 
 
 @app.get("/api/watchlist/priority-targets")
@@ -935,6 +1002,40 @@ def api_m3_learning_first_five():
     from learning_feedback import first_five_contract_learning_report
 
     return first_five_contract_learning_report()
+
+
+@app.get("/api/m3/procurement-profile")
+def api_m3_procurement_profile():
+    from m3_procurement_profile import assert_m3_isolated_from_legacy, env_separation_notes, load_m3_procurement_profile
+
+    profile = load_m3_procurement_profile()
+    return {
+        "profile": profile,
+        "isolation": assert_m3_isolated_from_legacy(),
+        "env_separation": env_separation_notes(),
+    }
+
+
+@app.get("/api/m3/configuration-separation")
+def api_m3_configuration_separation():
+    """Read-only audit snapshot for operators — legacy vs M3 config."""
+    from m3_procurement_profile import (
+        LEGACY_SERVICE_NAICS,
+        assert_m3_isolated_from_legacy,
+        env_separation_notes,
+        legacy_naics_codes,
+        load_m3_procurement_profile,
+    )
+
+    return {
+        "kind": "M3ConfigurationSeparation",
+        "m3_profile": load_m3_procurement_profile(),
+        "legacy_service_naics": sorted(LEGACY_SERVICE_NAICS),
+        "legacy_naics_from_catalog": legacy_naics_codes(),
+        "isolation": assert_m3_isolated_from_legacy(),
+        "env_separation": env_separation_notes(),
+        "note": "Legacy NAICS_CODES / gt_app_settings.naics_codes remain for Northern RE facilities sync; M3 does not read them",
+    }
 
 
 @app.get("/api/cost-governor/dashboard")

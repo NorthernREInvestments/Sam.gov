@@ -17,6 +17,13 @@ async function apiFetch(url, options = {}) {
 }
 
 function showView(name) {
+  if (document.body && document.body.classList.contains("m3-only-app")) {
+    if (window.M3Mobile && typeof window.M3Mobile.showM3View === "function") {
+      const map = { dashboard: "home", settings: "settings", help: "settings", performance: "home", "m3-home": "home" };
+      window.M3Mobile.showM3View(map[name] || "home");
+    }
+    return;
+  }
   document.getElementById("view-dashboard").hidden = name !== "dashboard";
   document.getElementById("view-settings").hidden = name !== "settings";
   const perfView = document.getElementById("view-performance");
@@ -26,7 +33,7 @@ function showView(name) {
   const detailView = document.getElementById("view-contract-detail");
   if (detailView) detailView.hidden = name !== "contract-detail";
   // Preserve desktop flows: hide M3 mobile shells unless explicitly opened
-  ["view-m3-home", "view-m3-opportunities", "view-m3-actions", "view-m3-sources", "view-m3-verify", "view-m3-deal-room"].forEach((id) => {
+  ["view-m3-home", "view-m3-opportunities", "view-m3-actions", "view-m3-sources", "view-m3-verify", "view-m3-settings", "view-m3-deal-room"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   });
@@ -3085,8 +3092,15 @@ initCsvOpportunityFilters();
 bindSlider("settings-min-days", "settings-min-days-value");
 bindSlider("settings-min-score", "settings-min-score-value");
 
-loadConfig().then(async () => {
-  await loadContracts();
-  resumeCsvUploadIfProcessing();
-  resumeCsvPricingIfProcessing();
-});
+// M3-only production: do not boot legacy contracts dashboard (causes UI mash / dead nav)
+if (document.body && document.body.classList.contains("m3-only-app")) {
+  document.getElementById("view-dashboard") && (document.getElementById("view-dashboard").hidden = true);
+  // Keep logout working; skip loadContracts/loadConfig dashboard init
+  loadConfig().catch(() => {});
+} else {
+  loadConfig().then(async () => {
+    await loadContracts();
+    resumeCsvUploadIfProcessing();
+    resumeCsvPricingIfProcessing();
+  });
+}

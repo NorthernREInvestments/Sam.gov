@@ -11,6 +11,9 @@ venv/
 
 # Generated validation/runtime artifacts (not source)
 artifacts/
+!artifacts/m3_operator_day_one_checklist.md
+!artifacts/m3_primary_application_operational_report.json
+!artifacts/m3_configuration_separation_audit.json
 _opp*_report.json
 _opp*_*.json
 *_full_pytest.txt

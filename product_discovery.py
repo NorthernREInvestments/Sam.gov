@@ -166,6 +166,15 @@ def classify_product_discovery_hit(raw_or_opp: dict[str, Any]) -> dict[str, Any]
 
 def build_product_sam_query(*, limit_per_naics: int = 50, naics_codes: list[str] | None = None) -> dict[str, Any]:
     codes = list(naics_codes or PRODUCT_DISCOVERY_NAICS)
+    # Hard separation: never accept legacy facilities-service NAICS on product path
+    try:
+        from m3_procurement_profile import LEGACY_SERVICE_NAICS
+
+        codes = [c for c in codes if str(c) not in LEGACY_SERVICE_NAICS]
+    except Exception:
+        pass
+    if not codes:
+        codes = list(PRODUCT_DISCOVERY_NAICS)
     return {
         "mode": "PRODUCT_DISCOVERY",
         "endpoint": "https://api.sam.gov/opportunities/v2/search",
@@ -177,7 +186,7 @@ def build_product_sam_query(*, limit_per_naics: int = 50, naics_codes: list[str]
             "set_aside": "total_small_business_or_small_business_existing_rule",
             "post_filter": "classify_product_discovery_hit.is_product_candidate",
         },
-        "note": "Uses existing sam_client.fetch_naics_from_sam — no new SAM client",
+        "note": "Uses PRODUCT_DISCOVERY_NAICS only — never settings_store.get_naics_codes / legacy service NAICS",
     }
 
 

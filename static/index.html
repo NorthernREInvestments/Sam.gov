@@ -3,15 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>GovTracker</title>
-  <link rel="stylesheet" href="/style.css?v=20260916-mobile-ops">
+  <meta name="m3-build" content="20260917-m3-primary">
+  <title>M3 — GovCon Operating System</title>
+  <link rel="stylesheet" href="/style.css?v=20260917-m3-primary">
 </head>
-<body>
-  <header class="header">
+<body class="m3-only-app">
+  <header class="header m3-app-header">
     <div class="header-brand">
-      <h1>GovTracker</h1>
+      <h1>M3</h1>
+      <p class="m3-header-tagline">GovCon product-resale OS · Northern RE Holdings</p>
     </div>
-    <nav class="main-nav">
+    <div class="m3-header-meta">
+      <span id="m3-build-badge" class="m3-build-badge" title="Build version">…</span>
+      <span id="m3-mode-badge" class="m3-mode-badge">MODE…</span>
+      <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
+    </div>
+    <!-- Legacy acquisition/GOS navigation retired from active runtime (DOM archived below, hidden). -->
+    <nav class="main-nav legacy-retired-nav" hidden aria-hidden="true">
       <button id="tab-gos-dashboard" class="tab gos-nav" data-gos="dashboard" type="button">Dashboard</button>
       <button id="tab-m3-home" class="tab" type="button">M3 Home</button>
       <button id="tab-gos-today" class="tab gos-nav" data-gos="today" type="button">Today</button>
@@ -23,20 +31,18 @@
       <button id="tab-gos-awards" class="tab gos-nav" data-gos="awards" type="button">Awards</button>
       <button id="tab-product" class="tab" type="button">Opportunities</button>
       <button id="tab-contracts" class="tab" type="button">Contracts</button>
-      <button id="tab-changes-review" class="tab nav-changes-review" type="button" hidden aria-live="polite">
-        <span class="nav-changes-icon" aria-hidden="true">⚠</span>
+      <button id="tab-changes-review" class="tab nav-changes-review" type="button" hidden>
         <span id="changes-review-label">Changes requiring review: 0</span>
       </button>
       <button id="tab-performance" class="tab" type="button">Performance</button>
       <button id="tab-settings" class="tab" type="button">Settings</button>
       <button id="tab-help" class="tab" type="button">Help</button>
-      <button id="logout-btn" class="btn btn-secondary-header" type="button">Logout</button>
     </nav>
   </header>
 
-  <div id="status-bar" class="status-bar">Loading…</div>
+  <div id="status-bar" class="status-bar" hidden>M3 ready</div>
   <div id="sync-status" class="sync-status" hidden></div>
-  <div id="dashboard-perf-alerts" class="dashboard-perf-alerts"></div>
+  <div id="dashboard-perf-alerts" class="dashboard-perf-alerts" hidden></div>
 
   <!-- GovCon OS -->
   <div id="view-gos-dashboard" hidden>
@@ -73,8 +79,8 @@
     <div class="settings-page"><h2>Awards</h2><div id="gos-awards-body">Loading…</div></div>
   </div>
 
-  <!-- Contracts dashboard -->
-  <div id="view-dashboard">
+  <!-- Contracts dashboard — LEGACY RETIRED from active runtime (preserved DOM) -->
+  <div id="view-dashboard" hidden>
     <div id="changes-review-banner" class="changes-review-banner" hidden role="status">
       <span class="changes-review-banner-icon" aria-hidden="true">⚠</span>
       <strong id="changes-review-banner-text">Changes requiring review: 0</strong>
@@ -464,13 +470,14 @@
     </div>
   </div>
 
-  <!-- M3 Mobile Operator Experience -->
-  <div id="view-m3-home" hidden>
+  <!-- M3 Mobile Operator Experience — PRIMARY APPLICATION -->
+  <div id="view-m3-home">
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
         <h2>Home</h2>
-        <p class="m3-mobile-sub">What needs attention</p>
+        <p class="m3-mobile-sub">What is new · What matters · What needs attention · What next</p>
       </header>
+      <div id="m3-home-attention" class="m3-attention-band"></div>
       <section class="m3-mobile-section">
         <h3 class="m3-section-label">Actions first</h3>
         <div id="m3-home-actions" class="m3-card-stack"></div>
@@ -542,6 +549,20 @@
     </div>
   </div>
 
+  <div id="view-m3-settings" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>M3 Settings</h2>
+        <p class="m3-mobile-sub">Product-resale procurement profile (not legacy NAICS)</p>
+      </header>
+      <div id="m3-settings-body" class="m3-card-stack"></div>
+      <p class="muted m3-legacy-note">Legacy Northern RE facilities-service NAICS/sync UI is retired from this app. Controlled verification is available below.</p>
+      <div class="m3-btn-row">
+        <button type="button" id="m3-open-verify" class="m3-back-btn">Open controlled verify</button>
+      </div>
+    </div>
+  </div>
+
   <div id="view-m3-deal-room" hidden>
     <div class="m3-mobile-page m3-deal-room">
       <header class="m3-mobile-header m3-deal-header">
@@ -580,11 +601,11 @@
     </div>
   </div>
 
-  <nav id="m3-bottom-nav" class="m3-bottom-nav" aria-label="M3 mobile navigation">
-    <button type="button" class="m3-nav-btn" data-m3-view="home">Home</button>
+  <nav id="m3-bottom-nav" class="m3-bottom-nav" aria-label="M3 navigation">
+    <button type="button" class="m3-nav-btn active" data-m3-view="home">Home</button>
     <button type="button" class="m3-nav-btn" data-m3-view="opportunities">Opps</button>
     <button type="button" class="m3-nav-btn" data-m3-view="actions">Actions</button>
-    <button type="button" class="m3-nav-btn" data-m3-view="verify">Verify</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="sources">Sources</button>
     <button type="button" class="m3-nav-btn" data-m3-view="settings">Settings</button>
   </nav>
 
@@ -600,16 +621,16 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260704-csv-pricing-batch"></script>
-  <script src="/m3-mobile.js?v=20260916-controlled-verify"></script>
-  <script src="/gos-app.js?v=20260915-gos-os"></script>
-  <script src="/product-pipeline.js?v=20260915-product-beta"></script>
-  <script src="/deal-workspace.js?v=20260915-deal-ws"></script>
-  <script src="/contract-detail.js?v=20260703-manual-attachment-upload"></script>
-  <script src="/subs.js?v=20260702-playwright"></script>
-  <script src="/pricing.js?v=20260701-desktop-layout"></script>
-  <script src="/proposal.js?v=20260701-desktop-layout"></script>
-  <script src="/submission.js?v=20260701-desktop-layout"></script>
-  <script src="/performance.js?v=20260701-desktop-layout"></script>
+  <script src="/app.js?v=20260917-m3-primary"></script>
+  <script src="/m3-mobile.js?v=20260917-m3-primary"></script>
+  <script src="/gos-app.js?v=20260917-m3-primary"></script>
+  <script src="/product-pipeline.js?v=20260917-m3-primary"></script>
+  <script src="/deal-workspace.js?v=20260917-m3-primary"></script>
+  <script src="/contract-detail.js?v=20260917-m3-primary"></script>
+  <script src="/subs.js?v=20260917-m3-primary"></script>
+  <script src="/pricing.js?v=20260917-m3-primary"></script>
+  <script src="/proposal.js?v=20260917-m3-primary"></script>
+  <script src="/submission.js?v=20260917-m3-primary"></script>
+  <script src="/performance.js?v=20260917-m3-primary"></script>
 </body>
 </html>

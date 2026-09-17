@@ -1,5 +1,9 @@
 /** GovCon OS — dashboard, today, pipeline, global CRM views (GET only). */
 (function () {
+  // M3-only production: do not hijack hash routing or hide M3 views
+  if (document.body && document.body.classList.contains("m3-only-app")) {
+    return;
+  }
   const views = {
     dashboard: document.getElementById("view-gos-dashboard"),
     today: document.getElementById("view-gos-today"),

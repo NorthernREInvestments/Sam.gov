@@ -16,6 +16,7 @@ PUBLIC_PATHS = {
     "/style.css",
     "/api/login",
     "/api/health",
+    "/api/m3/health",
 }
 
 
