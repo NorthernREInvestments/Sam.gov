@@ -37,7 +37,8 @@ TRIGGER_CATCH_UP = "CATCH_UP"
 
 DEFAULT_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_discovery_run_state.json"
 SETTINGS_KEY = "m3_discovery_run_state"
-PIPELINE_SETTINGS_KEY = "m3_pipeline_store_v1"
+PIPELINE_SETTINGS_KEY = "m3_pipeline_store_v1"  # kept for compatibility; store owns persistence
+
 STALE_HEARTBEAT_MINUTES = 20
 FRESHNESS_MULTIPLIER = 1.5
 
@@ -150,47 +151,28 @@ def _save_state(state: dict[str, Any]) -> None:
 
 def _persist_pipeline_store(store: Any) -> None:
     try:
-        store.save()
-        raw = store.path.read_text(encoding="utf-8") if store.path.exists() else ""
-        if not raw:
-            return
-        from database import SessionLocal
-        from models import AppSetting
-
-        db = SessionLocal()
-        try:
-            row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
-            if row:
-                row.value = raw
-            else:
-                db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=raw))
-            db.commit()
-        finally:
-            db.close()
+        store.save()  # durable AppSetting + file when store.durable
     except Exception:
         log.exception("Failed dual-writing M3 pipeline store")
 
 
 def restore_pipeline_store_from_db(store: Any) -> bool:
+    """Reload authoritative pipeline from AppSetting into the store/file cache."""
     try:
-        if store.path.exists():
-            data = json.loads(store.path.read_text(encoding="utf-8"))
-            if data.get("opportunities"):
-                return False
-        from database import SessionLocal
-        from models import AppSetting
+        before = len(store.all())
+        if hasattr(store, "reload_from_durable"):
+            after = store.reload_from_durable()
+            return after > before or after > 0
+        # Legacy path
+        from m3_pipeline_store import PIPELINE_SETTINGS_KEY, _read_durable_payload
 
-        db = SessionLocal()
-        try:
-            row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
-            if not row or not row.value:
-                return False
-            store.path.parent.mkdir(parents=True, exist_ok=True)
-            store.path.write_text(row.value, encoding="utf-8")
-            store._load()
-            return True
-        finally:
-            db.close()
+        data = _read_durable_payload()
+        if not data:
+            return False
+        store.path.parent.mkdir(parents=True, exist_ok=True)
+        store.path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        store._load()
+        return True
     except Exception:
         log.exception("Failed restoring M3 pipeline from DB")
         return False

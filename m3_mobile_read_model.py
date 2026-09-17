@@ -288,9 +288,12 @@ def _priority_label(priority: Any) -> str:
 def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, Any]:
     store = store or M3PipelineStore()
     try:
-        from m3_discovery_service import restore_pipeline_store_from_db
+        if hasattr(store, "reload_from_durable"):
+            store.reload_from_durable()
+        else:
+            from m3_discovery_service import restore_pipeline_store_from_db
 
-        restore_pipeline_store_from_db(store)
+            restore_pipeline_store_from_db(store)
     except Exception:
         pass
     rows = store.all()

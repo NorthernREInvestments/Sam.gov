@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260917-m3-discovery5">
+      <meta name="m3-build" content="20260917-m3-persist1">
       <title>M3 — GovCon Operating System</title>
-      <link rel="stylesheet" href="/style.css?v=20260917-m3-discovery5">
+      <link rel="stylesheet" href="/style.css?v=20260917-m3-persist1">
 </head>
 <body class="m3-only-app">
   <header class="header m3-app-header">
@@ -477,7 +477,16 @@
         <h2>Home</h2>
         <p class="m3-mobile-sub">What is new · What matters · What needs attention · What next</p>
       </header>
-      <div id="m3-discovery-status" class="m3-discovery-status" aria-live="polite"></div>
+      <div id="m3-discovery-status" class="m3-discovery-status m3-disc-current" aria-live="polite">
+        <div class="m3-disc-main">
+          <div class="m3-disc-head"><span class="m3-disc-title">DISCOVERY</span><span class="m3-disc-pct">…</span></div>
+          <div class="m3-disc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span style="width:0%"></span></div>
+          <p class="m3-disc-line muted">Loading discovery status…</p>
+        </div>
+        <div class="m3-disc-actions">
+          <button type="button" class="btn m3-disc-run-now" id="m3-discovery-run-now" disabled>RUN NOW</button>
+        </div>
+      </div>
       <div id="m3-home-attention" class="m3-attention-band"></div>
       <section class="m3-mobile-section">
         <h3 class="m3-section-label">Actions first</h3>
@@ -622,16 +631,16 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260917-m3-discovery5"></script>
-  <script src="/m3-mobile.js?v=20260917-m3-discovery5"></script>
-  <script src="/gos-app.js?v=20260917-m3-discovery5"></script>
-  <script src="/product-pipeline.js?v=20260917-m3-discovery5"></script>
-  <script src="/deal-workspace.js?v=20260917-m3-discovery5"></script>
-  <script src="/contract-detail.js?v=20260917-m3-discovery5"></script>
-  <script src="/subs.js?v=20260917-m3-discovery5"></script>
-  <script src="/pricing.js?v=20260917-m3-discovery5"></script>
-  <script src="/proposal.js?v=20260917-m3-discovery5"></script>
-  <script src="/submission.js?v=20260917-m3-discovery5"></script>
-  <script src="/performance.js?v=20260917-m3-discovery5"></script>
+  <script src="/app.js?v=20260917-m3-persist1"></script>
+  <script src="/m3-mobile.js?v=20260917-m3-persist1"></script>
+  <script src="/gos-app.js?v=20260917-m3-persist1"></script>
+  <script src="/product-pipeline.js?v=20260917-m3-persist1"></script>
+  <script src="/deal-workspace.js?v=20260917-m3-persist1"></script>
+  <script src="/contract-detail.js?v=20260917-m3-persist1"></script>
+  <script src="/subs.js?v=20260917-m3-persist1"></script>
+  <script src="/pricing.js?v=20260917-m3-persist1"></script>
+  <script src="/proposal.js?v=20260917-m3-persist1"></script>
+  <script src="/submission.js?v=20260917-m3-persist1"></script>
+  <script src="/performance.js?v=20260917-m3-persist1"></script>
 </body>
 </html>

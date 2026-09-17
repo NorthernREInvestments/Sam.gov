@@ -1,9 +1,13 @@
-"""Durable M3 opportunity pipeline store — restart-safe, idempotent."""
+"""Durable M3 opportunity pipeline store — Postgres AppSetting authoritative on Railway.
+
+Local JSON file is a cache only. Production restarts must reload from AppSetting.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -12,7 +16,11 @@ from application_clock import now_utc
 from m3_lifecycle import derive_lifecycle, determine_next_action, readiness_summary
 from solicitation_identity import fingerprint_record, identity_key
 
+log = logging.getLogger("govtracker.m3_pipeline_store")
+
 DEFAULT_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_pipeline_store.json"
+CANONICAL_DURABLE_PATH = DEFAULT_PATH
+PIPELINE_SETTINGS_KEY = "m3_pipeline_store_v1"
 
 
 def _utc() -> str:
@@ -23,34 +31,144 @@ def _evidence_hash(record: dict[str, Any]) -> str:
     return fingerprint_record(record)
 
 
-class M3PipelineStore:
-    """JSON-backed durable store for canonical opportunity pipeline state."""
+def _payload_from_rows(rows: dict[str, dict[str, Any]], audit: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "kind": "M3PipelineStore",
+        "updated_at": _utc(),
+        "opportunity_count": len(rows),
+        "opportunities": sorted(rows.values(), key=lambda r: r["canonical_id"]),
+        "audit": audit[-500:],
+    }
 
-    def __init__(self, path: Path | None = None) -> None:
+
+def _rows_from_payload(data: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    rows: dict[str, dict[str, Any]] = {}
+    for row in data.get("opportunities") or []:
+        if isinstance(row, dict) and row.get("canonical_id"):
+            rows[row["canonical_id"]] = row
+    return rows, list(data.get("audit") or [])
+
+
+def _read_durable_payload() -> dict[str, Any] | None:
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
+            if not row or not row.value:
+                return None
+            data = json.loads(row.value)
+            return data if isinstance(data, dict) else None
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed reading durable M3 pipeline from AppSetting")
+        return None
+
+
+def _write_durable_payload(payload: dict[str, Any]) -> None:
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        raw = json.dumps(payload, default=str)
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
+            if row:
+                row.value = raw
+            else:
+                db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=raw))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed writing durable M3 pipeline to AppSetting")
+
+
+class M3PipelineStore:
+    """Canonical opportunity pipeline — AppSetting durable, file is local cache."""
+
+    def __init__(self, path: Path | None = None, *, durable: bool | None = None) -> None:
         self.path = path or DEFAULT_PATH
+        # Production canonical path ⇒ AppSetting durable. Test tmp paths stay file-only.
+        if durable is not None:
+            self.durable = bool(durable)
+        else:
+            try:
+                self.durable = self.path.resolve() == CANONICAL_DURABLE_PATH.resolve()
+            except Exception:
+                self.durable = path is None
         self._rows: dict[str, dict[str, Any]] = {}
         self._audit: list[dict[str, Any]] = []
         self._load()
 
-    def _load(self) -> None:
-        if self.path.exists():
+    def _apply_payload(self, data: dict[str, Any]) -> None:
+        self._rows, self._audit = _rows_from_payload(data)
+
+    def _load_file_payload(self) -> dict[str, Any] | None:
+        if not self.path.exists():
+            return None
+        try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
-            for row in data.get("opportunities") or []:
-                if isinstance(row, dict) and row.get("canonical_id"):
-                    self._rows[row["canonical_id"]] = row
-            self._audit = list(data.get("audit") or [])
+            return data if isinstance(data, dict) else None
+        except Exception:
+            return None
+
+    def _load(self) -> None:
+        file_data = self._load_file_payload()
+        db_data = _read_durable_payload() if self.durable else None
+
+        file_count = len((file_data or {}).get("opportunities") or [])
+        db_count = len((db_data or {}).get("opportunities") or [])
+
+        # Prefer durable DB whenever it has equal/more opportunities (survives Railway restart)
+        chosen: dict[str, Any] | None = None
+        if db_data and db_count >= file_count and db_count > 0:
+            chosen = db_data
+        elif file_data and file_count > 0:
+            chosen = file_data
+        elif db_data and db_count > 0:
+            chosen = db_data
+        elif file_data:
+            chosen = file_data
+
+        if chosen:
+            self._apply_payload(chosen)
+            # Refresh ephemeral file cache from durable when DB won
+            if self.durable and chosen is db_data:
+                try:
+                    self.path.parent.mkdir(parents=True, exist_ok=True)
+                    self.path.write_text(json.dumps(chosen, indent=2, default=str), encoding="utf-8")
+                except Exception:
+                    pass
 
     def save(self) -> Path:
+        payload = _payload_from_rows(self._rows, self._audit)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "kind": "M3PipelineStore",
-            "updated_at": _utc(),
-            "opportunity_count": len(self._rows),
-            "opportunities": sorted(self._rows.values(), key=lambda r: r["canonical_id"]),
-            "audit": self._audit[-500:],
-        }
         self.path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        if self.durable:
+            _write_durable_payload(payload)
         return self.path
+
+    def reload_from_durable(self) -> int:
+        """Force reload from AppSetting (authoritative). Returns opportunity count."""
+        if not self.durable:
+            self._load()
+            return len(self._rows)
+        db_data = _read_durable_payload()
+        if db_data:
+            self._apply_payload(db_data)
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                self.path.write_text(json.dumps(db_data, indent=2, default=str), encoding="utf-8")
+            except Exception:
+                pass
+        else:
+            self._load()
+        return len(self._rows)
 
     def canonical_id_for(self, record: dict[str, Any]) -> str:
         return identity_key(record)

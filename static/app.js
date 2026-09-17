@@ -8,7 +8,8 @@ let activeDetailId = null;
 let detailPollTimer = null;
 
 async function apiFetch(url, options = {}) {
-  const res = await fetch(url, options);
+  const opts = { credentials: "same-origin", ...options };
+  const res = await fetch(url, opts);
   if (res.status === 401) {
     window.location.href = "/login.html";
     throw new Error("Login required");

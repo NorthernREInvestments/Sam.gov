@@ -281,7 +281,8 @@
   }
 
   async function fetchJson(url, options) {
-    const res = await (typeof apiFetch === "function" ? apiFetch(url, options) : fetch(url, options));
+    const opts = { credentials: "same-origin", ...(options || {}) };
+    const res = await (typeof apiFetch === "function" ? apiFetch(url, opts) : fetch(url, opts));
     if (!res.ok) {
       let detail = "HTTP " + res.status;
       try {
@@ -314,11 +315,12 @@
             : health.operating_mode || "MODE";
         }
       }
-      if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
+      // Always refresh Home from authoritative APIs (do not trust stale empty cache)
+      cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
       const d = cache.dashboard;
-      if (!cache.discovery || force || (cache.discovery && cache.discovery.running)) {
-        cache.discovery = d.discovery || (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
-      }
+      cache.discovery =
+        d.discovery ||
+        (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
       renderDiscoveryStatus(cache.discovery || d.discovery);
       scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
       const attention = document.getElementById("m3-home-attention");
@@ -327,10 +329,11 @@
       const opps = d.active_opportunities || [];
       const fundingWait = opps.filter((o) => String(o.funding_state || "").includes("FUNDING") || String(o.lifecycle || "").includes("FUNDING")).length;
       const commercialWait = opps.filter((o) => String(o.lifecycle || "").includes("COMMERCIAL") || String(o.next_action || "").includes("COMMERCIAL")).length;
+      const activeCount = Number(d.active_count != null ? d.active_count : opps.length) || 0;
       if (attention) {
         attention.innerHTML = `<article class="m3-info-card m3-attention-card">
           <dl class="m3-kv">
-            <div><dt>Active</dt><dd>${esc(d.active_count || opps.length)}</dd></div>
+            <div><dt>Active</dt><dd>${esc(activeCount)}</dd></div>
             <div><dt>Actions</dt><dd>${esc(d.action_count || actions.length)}</dd></div>
             <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
             <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
@@ -345,12 +348,20 @@
       const empty = document.getElementById("m3-home-empty");
       if (actionsEl) actionsEl.innerHTML = actions.slice(0, 5).map(actionCard).join("") || "<p class='muted'>No actions</p>";
       if (oppsEl) oppsEl.innerHTML = opps.slice(0, 12).map(oppCard).join("");
-      if (empty) empty.hidden = opps.length > 0 || actions.length > 0;
+      if (empty) empty.hidden = activeCount > 0 || opps.length > 0 || actions.length > 0;
       wireCardClicks(actionsEl);
       wireCardClicks(oppsEl);
     } catch (e) {
       const oppsEl = document.getElementById("m3-home-opps");
-      if (oppsEl) oppsEl.innerHTML = `<p class="m3-empty">Unable to load dashboard.</p>`;
+      if (oppsEl) oppsEl.innerHTML = `<p class="m3-empty">Unable to load dashboard. ${esc(e && e.message ? e.message : "")}</p>`;
+      // Still try to paint discovery status so the bar is never blank
+      try {
+        const st = await fetchJson("/api/m3/discovery/status");
+        cache.discovery = st;
+        renderDiscoveryStatus(st);
+      } catch (_) {
+        renderDiscoveryStatus({ status: "IDLE", progress_percent: 0 });
+      }
     }
   }
 

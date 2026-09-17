@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-discovery5"
+APP_BUILD_VERSION = "20260917-m3-persist1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -494,6 +494,10 @@ def api_m3_health():
         state = dict(_startup_state)
     profile = load_m3_procurement_profile()
     store = M3PipelineStore()
+    try:
+        store.reload_from_durable()
+    except Exception:
+        pass
     return {
         "kind": "M3Health",
         "ok": True,
