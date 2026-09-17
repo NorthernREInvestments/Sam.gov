@@ -301,17 +301,31 @@ def _needs_research(row: dict[str, Any]) -> bool:
     last_at = _parse(row.get("research_last_attempt_at"))
     inv_at = _parse((row.get("invalidation") or {}).get("at"))
     invalidated_since = bool(inv_at and (not last_at or inv_at > last_at))
+    evidence_inv = _parse(row.get("evidence_invalidated_at"))
+    evidence_invalidated = bool(evidence_inv and (not last_at or evidence_inv > last_at))
 
-    # Idempotency: same evidence fingerprint already researched → skip unless invalidated or in-progress
+    # Evidence ladder incomplete → allow acquisition-driven reprocess even if researched
+    ea = row.get("evidence_acquisition") or {}
+    tiers = ea.get("tiers_attempted") or []
+    ladder_incomplete = False
+    if lc in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "CHEAP_SCREENED", "PACKAGE_REQUIRED"}:
+        if not tiers or "TIER_1_DIRECT" not in tiers:
+            ladder_incomplete = True
+
+    # Idempotency: same evidence fingerprint already researched → skip unless invalidated / ladder gap
     if (
         fp
         and completed_fp
         and completed_fp == fp
         and not invalidated_since
+        and not evidence_invalidated
+        and not ladder_incomplete
         and not row.get("research_in_progress")
     ):
         return False
 
+    if ladder_incomplete or evidence_invalidated:
+        return True
     if row.get("research_in_progress"):
         return True
     if action == NA_QUEUE_RESEARCH:

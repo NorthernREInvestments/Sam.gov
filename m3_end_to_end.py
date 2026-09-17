@@ -100,6 +100,7 @@ class M3EndToEndOrchestrator:
             "bids_submitted": 0,
             "purchases": 0,
             "real_external_spend": 0.0,
+            "evidence_acquisitions": 0,
         }
 
     def ingest_discovery_record(self, record: dict[str, Any]) -> dict[str, Any]:
@@ -254,6 +255,35 @@ class M3EndToEndOrchestrator:
             if action in {NA_QUEUE_RESEARCH, NA_AUTO_CONTINUE}:
                 row["research_in_progress"] = True
                 row["research_queued"] = True
+                # Progressive evidence acquisition before executable pipeline
+                if not (row.get("line_items") or row.get("bom")):
+                    try:
+                        from m3_evidence_acquisition import acquire_evidence
+
+                        allow_paid = not self._budget_blocks_paid(estimated_cost=0.15)
+                        acq = acquire_evidence(row, allow_paid=allow_paid)
+                        row = acq["row"]
+                        self.store._rows[canonical_id] = row
+                        self.store.save()
+                        self.metrics["evidence_acquisitions"] = int(self.metrics.get("evidence_acquisitions") or 0) + 1
+                        if row.get("rejected"):
+                            row["lifecycle"] = derive_lifecycle(row)
+                            row["pending_next_action"] = determine_next_action(row)
+                            self.store._rows[canonical_id] = row
+                            self.store.save()
+                            steps.append(
+                                {
+                                    "next_action": "NO_ACTION_REJECTED",
+                                    "lifecycle": row.get("lifecycle"),
+                                    "reason": row.get("stop_reason"),
+                                }
+                            )
+                            break
+                    except Exception as exc:  # noqa: BLE001
+                        row["subsystem_failures"] = {
+                            **(row.get("subsystem_failures") or {}),
+                            "evidence_acquisition": str(exc)[:200],
+                        }
                 # Attempt public package fill when accessible and BOM empty
                 if not (row.get("line_items") or row.get("bom")) and row.get("package_access") not in {
                     "AUTH_GATED",
@@ -261,13 +291,21 @@ class M3EndToEndOrchestrator:
                 }:
                     row = self._try_public_package(row)
                 # Reclassify product with any richer evidence
-                if row.get("description") or row.get("line_items"):
+                if row.get("description") or row.get("line_items") or row.get("evidence_text_excerpt"):
                     cat = classify_product_category(
                         str(row.get("title") or ""),
-                        str(row.get("description") or ""),
+                        str(row.get("description") or row.get("evidence_text_excerpt") or ""),
                     )
                     row["product_category"] = cat["category"]
                     row["product_audit"] = audit_survivor(row)
+
+                # Commercial panel (wholesale vs public — no false reject)
+                try:
+                    from m3_commercial_intelligence import build_commercial_research_panel
+
+                    row["commercial_research"] = build_commercial_research_panel(row)
+                except Exception:
+                    pass
 
                 result = self._run_executable(row)
                 row = self.store.apply_pipeline_result(canonical_id, result)

@@ -54,6 +54,7 @@ def test_needs_research_idempotent_fingerprint(research_env):
         "evidence_fingerprint": "fp1",
         "research_completed_fingerprint": "fp1",
         "research_last_attempt_at": now_utc().isoformat(),
+        "evidence_acquisition": {"tiers_attempted": ["TIER_0_EXISTING", "TIER_1_DIRECT"]},
     }
     assert _needs_research(row) is False
 
@@ -64,6 +65,11 @@ def test_needs_research_idempotent_fingerprint(research_env):
     row3 = dict(row)
     row3["evidence_fingerprint"] = "fp2"
     assert _needs_research(row3) is True
+
+    # Ladder never attempted → still needs research despite fingerprint
+    row4 = dict(row)
+    row4.pop("evidence_acquisition", None)
+    assert _needs_research(row4) is True
 
 
 def test_classify_outcome(research_env):

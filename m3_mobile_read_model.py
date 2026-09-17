@@ -221,9 +221,71 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
                 if isinstance(a, dict)
             ],
         },
+        "evidence": {
+            "package_completeness": "COMPLETE"
+            if bom
+            else ("PARTIAL" if row.get("documents") or row.get("evidence_text_excerpt") else "INSUFFICIENT"),
+            "governing_documents": bool(row.get("governing_documents") or row.get("solicitation_package_map")),
+            "document_count": len(row.get("documents") or []) if isinstance(row.get("documents"), list) else 0,
+            "missing_evidence": readiness.get("what_we_dont_know") or [],
+            "recovery_attempts": [
+                {"tier": a.get("tier"), "at": a.get("at"), "items": a.get("items")}
+                for a in (row.get("evidence_recovery_attempts") or [])[-8:]
+                if isinstance(a, dict)
+            ],
+            "recovered_sources": [
+                {"url": e.get("source_url"), "type": e.get("source_type"), "authority": e.get("authority")}
+                for e in (row.get("recovered_evidence") or [])[-8:]
+                if isinstance(e, dict)
+            ],
+            "primary_failure": (row.get("evidence_failure") or {}).get("primary_reason")
+            or row.get("stop_reason")
+            or "UNKNOWN",
+            "auth_requirements": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
+            "next_evidence_action": (
+                "AUTHENTICATED_ACCESS_OR_REGISTRATION"
+                if str(row.get("source_access_state") or "").upper()
+                in {"AUTH_REQUIRED", "REGISTRATION_REQUIRED"}
+                else (
+                    "CONTINUE_PUBLIC_RECOVERY"
+                    if not bom
+                    else "REQUIREMENTS_EXTRACTED"
+                )
+            ),
+            "deal_type": row.get("deal_type") or "UNKNOWN",
+        },
+        "commercial_research": row.get("commercial_research")
+        or {
+            "msrp_list": "UNKNOWN",
+            "lowest_public_new_price": "UNKNOWN",
+            "government_historical_price": "UNKNOWN",
+            "acquisition_target": "UNKNOWN",
+            "wholesale_verification_status": "PUBLIC_RESEARCH_INCOMPLETE",
+            "historical_winners": {"signal": "COMPETITION_HISTORY_UNKNOWN", "auto_reject": False},
+            "note": "UNKNOWN until evidence supports commercial research",
+        },
+        "source_access": {
+            "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
+            "credentials_available": _credentials_available(row),
+            "registration_required": str(row.get("source_access_state") or row.get("package_access") or "").upper()
+            in {"REGISTRATION_REQUIRED", "AUTH_REQUIRED", "AUTH_GATED"},
+            "login_status": "UNKNOWN",
+            "detail_url": row.get("detail_url") or row.get("source_url"),
+        },
         "readiness": readiness,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
     }
+
+
+def _credentials_available(row: dict[str, Any]) -> bool:
+    try:
+        from m3_source_credentials import get_credential
+
+        src = str(row.get("source_id") or "")
+        cred = get_credential(src) if src else None
+        return bool(cred and (cred.get("password_set") or cred.get("username")))
+    except Exception:
+        return False
 
 
 def action_queue_mobile(store: M3PipelineStore | None = None) -> dict[str, Any]:
@@ -337,6 +399,12 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         research = research_status()
     except Exception:
         research = {"status": "UNKNOWN", "enabled": False}
+    try:
+        from m3_evidence_acquisition import evidence_access_summary
+
+        evidence = evidence_access_summary(rows)
+    except Exception:
+        evidence = {"kind": "M3EvidenceAccessSummary", "deferred": 0}
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
@@ -345,6 +413,7 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "top_actions": actions["actions"][:15],
         "discovery": discovery,
         "research": research,
+        "evidence": evidence,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,

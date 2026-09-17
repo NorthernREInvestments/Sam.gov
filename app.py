@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-research1"
+APP_BUILD_VERSION = "20260917-m3-evidence1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -528,6 +528,10 @@ def api_m3_health():
             "enabled": True,
             "note": "see /api/m3/research/status",
         },
+        "evidence": {
+            "enabled": True,
+            "note": "see /api/m3/evidence/status",
+        },
         "external_action_safety": {
             "emails_sent": 0,
             "bids_submitted": 0,
@@ -764,6 +768,108 @@ def api_m3_research_run():
     from m3_research_service import TRIGGER_MANUAL, request_research_run
 
     return request_research_run(trigger_type=TRIGGER_MANUAL)
+
+
+@app.get("/api/m3/evidence/status")
+def api_m3_evidence_status():
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_evidence_acquisition import evidence_access_summary, classify_evidence_failure
+    from m3_source_access import source_access_queue
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    rows = store.all()
+    summary = evidence_access_summary(rows)
+    reasons = {}
+    for r in rows:
+        fail = r.get("evidence_failure") or classify_evidence_failure(r)
+        pr = fail.get("primary_reason") or "OTHER"
+        reasons[pr] = reasons.get(pr, 0) + 1
+    return {
+        **summary,
+        "primary_reason_counts": reasons,
+        "source_access_queue": source_access_queue(rows),
+        "openai_web_search_integration": True,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.post("/api/m3/evidence/acquire")
+def api_m3_evidence_acquire(canonical_id: str | None = None, body: dict | None = None):
+    """Run evidence ladder for one opportunity or all deferred (manual)."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_evidence_acquisition import acquire_evidence
+    from m3_end_to_end import M3EndToEndOrchestrator
+    from m3_lifecycle import derive_lifecycle, determine_next_action
+    from operating_mode import MODE_DEVELOPMENT_NO_OUTREACH, set_operating_mode
+
+    set_operating_mode(MODE_DEVELOPMENT_NO_OUTREACH)
+    body = body or {}
+    cid = canonical_id or body.get("canonical_id")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    if cid:
+        row = store.get(cid)
+        if not row:
+            raise HTTPException(status_code=404, detail="opportunity not found")
+        acq = acquire_evidence(row, allow_paid=bool(body.get("allow_paid", True)))
+        row = acq["row"]
+        row["lifecycle"] = derive_lifecycle(row)
+        row["pending_next_action"] = determine_next_action(row)
+        store._rows[cid] = row
+        store.save()
+        # Re-advance if improved
+        if acq["result"].get("improved") and not row.get("rejected"):
+            orch = M3EndToEndOrchestrator(store=store)
+            adv = orch.advance(cid)
+            return {"acquisition": acq["result"], "failure": acq["failure"], "advance": adv}
+        return {"acquisition": acq["result"], "failure": acq["failure"], "opportunity": row}
+    # Kick research runner which now includes evidence ladder
+    from m3_research_service import TRIGGER_MANUAL, request_research_run
+
+    # Clear research fingerprints for deferred without ladder so they re-enter queue
+    cleared = 0
+    for row in store.all():
+        lc = str(row.get("lifecycle") or "")
+        if lc not in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "CHEAP_SCREENED"}:
+            continue
+        ea = row.get("evidence_acquisition") or {}
+        if "TIER_1_DIRECT" not in (ea.get("tiers_attempted") or []):
+            row.pop("research_completed_fingerprint", None)
+            row["research_queued"] = True
+            store._rows[row["canonical_id"]] = row
+            cleared += 1
+    store.save()
+    run = request_research_run(trigger_type=TRIGGER_MANUAL)
+    return {"cleared_for_evidence_pass": cleared, "research_run": run}
+
+
+@app.get("/api/m3/source-access/queue")
+def api_m3_source_access_queue():
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_source_access import source_access_queue
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return source_access_queue(store.all())
+
+
+@app.get("/api/m3/credentials")
+def api_m3_credentials_list():
+    from m3_source_credentials import list_credentials
+
+    return list_credentials(include_secrets=False)
+
+
+@app.post("/api/m3/credentials")
+def api_m3_credentials_upsert(body: dict):
+    from m3_source_credentials import upsert_credential
+
+    portal = body.get("portal") or body.get("source_id")
+    return upsert_credential(str(portal or ""), body)
 
 
 @app.get("/api/m3/pipeline/status")

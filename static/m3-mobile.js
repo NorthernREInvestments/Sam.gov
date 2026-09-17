@@ -1,7 +1,7 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
   const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room"];
-  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null, research: null };
+  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null, research: null, evidence: null };
   let lastDealId = null;
   let activeLearningRecordId = null;
   let discoveryPollTimer = null;
@@ -272,6 +272,55 @@
     }, ms);
   }
 
+  function renderEvidenceStatus(st) {
+    const el = document.getElementById("m3-evidence-status");
+    if (!el) return;
+    st = st || {};
+    const deferred = Number(st.deferred || 0);
+    const publicCand = Number(st.public_recovery_candidates || 0);
+    const packages = Number(st.packages_recovered || 0);
+    const auth = Number(st.auth_registration_blocked || 0);
+    const web = Number(st.web_research_pending || 0);
+    const unresolved = Number(st.genuinely_unresolved || 0);
+    const queue = ((st.source_access_queue || {}).portals || []).slice(0, 3);
+    el.className = "m3-evidence-status m3-ev-idle";
+    el.innerHTML = `<div class="m3-ev-main">
+        <div class="m3-ev-head"><span class="m3-ev-title">EVIDENCE ACCESS</span></div>
+        <p class="m3-ev-line"><strong>${esc(deferred)}</strong> deferred · <strong>${esc(publicCand)}</strong> public recovery · <strong>${esc(packages)}</strong> packages recovered</p>
+        <p class="m3-ev-line muted">${esc(auth)} auth/registration blocked · ${esc(web)} web research pending · ${esc(unresolved)} unresolved</p>
+        ${queue.length ? `<p class="m3-ev-line muted">Top source access: ${esc(queue.map((p) => p.portal + " (" + p.blocked_opportunities + ")").join(", "))}</p>` : ""}
+      </div>
+      <div class="m3-ev-actions">
+        <button type="button" class="btn m3-ev-run-now" id="m3-evidence-run-now">RECOVER</button>
+        <p class="m3-ev-msg muted" id="m3-evidence-run-msg" hidden></p>
+      </div>`;
+    const btn = document.getElementById("m3-evidence-run-now");
+    if (btn) btn.addEventListener("click", onEvidenceRecover);
+  }
+
+  async function onEvidenceRecover() {
+    const msg = document.getElementById("m3-evidence-run-msg");
+    const btn = document.getElementById("m3-evidence-run-now");
+    try {
+      if (btn) btn.disabled = true;
+      const res = await postJson("/api/m3/evidence/acquire", { allow_paid: true });
+      if (msg) {
+        msg.hidden = false;
+        msg.textContent = "Evidence recovery started (" + (res.cleared_for_evidence_pass || 0) + " requeued).";
+      }
+      cache.dashboard = null;
+      await loadHome(true);
+      scheduleResearchPoll(true);
+    } catch (_) {
+      if (msg) {
+        msg.hidden = false;
+        msg.textContent = "Unable to start evidence recovery.";
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function onRunNow() {
     const msg = document.getElementById("m3-discovery-run-msg");
     const btn = document.getElementById("m3-discovery-run-now");
@@ -480,6 +529,10 @@
         (await fetchJson("/api/m3/research/status").catch(() => cache.research));
       renderResearchStatus(cache.research || d.research);
       scheduleResearchPoll(!!(cache.research && cache.research.running));
+      cache.evidence =
+        d.evidence ||
+        (await fetchJson("/api/m3/evidence/status").catch(() => cache.evidence));
+      renderEvidenceStatus(cache.evidence || d.evidence);
       const attention = document.getElementById("m3-home-attention");
       const profile = d.procurement_profile || {};
       const actions = d.top_actions || [];
@@ -627,6 +680,22 @@
       const disc = p.discovery || {};
       const types = (p.target_product_types || []).slice(0, 12).map((t) => `<li>${esc(t)}</li>`).join("");
       const proc = (p.procurement_types || []).map((t) => `<li>${esc(t)}</li>`).join("");
+      let credHtml = "<p class='muted'>No portal credentials stored.</p>";
+      try {
+        const creds = await fetchJson("/api/m3/credentials");
+        const portals = Object.values(creds.portals || {});
+        if (portals.length) {
+          credHtml = portals
+            .map(
+              (c) =>
+                `<li><strong>${esc(c.portal)}</strong> — ${esc(c.username || "—")} · ${c.password_set ? "password set" : "no password"} · ${esc(c.account_status || "")}</li>`
+            )
+            .join("");
+          credHtml = `<ul class="m3-bom">${credHtml}</ul>`;
+        }
+      } catch (_) {
+        /* non-fatal */
+      }
       body.innerHTML = `
         <article class="m3-info-card">
           <h3>Procurement profile</h3>
@@ -634,6 +703,20 @@
           <p class="muted">Isolated from legacy acquisition: ${p.isolated_from_legacy_acquisition ? "yes" : "no"}</p>
           <p class="muted">NAICS as primary discovery filter: ${disc.naics_is_primary_filter ? "yes" : "no"}</p>
           <p class="muted">Isolation check: ${iso.ok ? "PASS" : "FAIL"}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>Portal credentials</h3>
+          ${credHtml}
+          <form id="m3-cred-form" class="m3-cred-form">
+            <label>Portal / source<input name="portal" required placeholder="state_ia"></label>
+            <label>Login URL<input name="login_url" placeholder="https://..."></label>
+            <label>Username / email<input name="username" autocomplete="username"></label>
+            <label>Password<input name="password" type="password" autocomplete="current-password"></label>
+            <label class="m3-check"><input name="mfa" type="checkbox"> MFA / manual browser login required</label>
+            <button type="submit" class="btn">Save credential</button>
+            <p class="muted" id="m3-cred-msg"></p>
+          </form>
+          <p class="muted">No CAPTCHA bypass. No autonomous registration. Stronger encryption can be added later without rewriting source logic.</p>
         </article>
         <article class="m3-info-card">
           <h3>Target product types</h3>
@@ -648,6 +731,27 @@
           <h3>What M3 does not use</h3>
           <p class="muted">Legacy facilities-service NAICS (561720 janitorial, 238220 HVAC maintenance, etc.), subcontracting screening scores, owner/operator acquisition criteria.</p>
         </article>`;
+      const form = document.getElementById("m3-cred-form");
+      if (form) {
+        form.addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const fd = new FormData(form);
+          const msg = document.getElementById("m3-cred-msg");
+          try {
+            await postJson("/api/m3/credentials", {
+              portal: fd.get("portal"),
+              login_url: fd.get("login_url"),
+              username: fd.get("username"),
+              password: fd.get("password"),
+              mfa_or_manual_login_required: !!fd.get("mfa"),
+            });
+            if (msg) msg.textContent = "Credential saved.";
+            await loadM3Settings(true);
+          } catch (_) {
+            if (msg) msg.textContent = "Unable to save credential.";
+          }
+        });
+      }
     } catch (e) {
       const body = document.getElementById("m3-settings-body");
       if (body) body.innerHTML = `<p class="m3-empty">${esc(e.message || "Unable to load M3 profile")}</p>`;
@@ -685,6 +789,9 @@
       const comp = deal.compliance || {};
       const price = deal.pricing || {};
       const act = deal.actions || {};
+      const ev = deal.evidence || {};
+      const commercial = deal.commercial_research || {};
+      const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
           .slice(0, 12)
@@ -706,6 +813,18 @@
             </dl>`
           ),
           sectionCard(
+            "Evidence",
+            `<dl class="m3-kv">
+              <div><dt>Package</dt><dd>${esc(ev.package_completeness)}</dd></div>
+              <div><dt>Documents</dt><dd>${esc(ev.document_count)}</dd></div>
+              <div><dt>Deal type</dt><dd>${esc(ev.deal_type)}</dd></div>
+              <div><dt>Failure</dt><dd>${esc(ev.primary_failure)}</dd></div>
+              <div><dt>Auth</dt><dd>${esc(ev.auth_requirements)}</dd></div>
+              <div><dt>Next</dt><dd>${esc(ev.next_evidence_action)}</dd></div>
+            </dl>
+            <p class="muted">Recovery tiers: ${esc(((ev.recovery_attempts || []).map((a) => a.tier).join(", ")) || "none yet")}</p>`
+          ),
+          sectionCard(
             "Product Fit",
             `<dl class="m3-kv">
               <div><dt>Category</dt><dd>${esc(fit.category)}</dd></div>
@@ -717,6 +836,27 @@
             "Requirements",
             `<p class="muted">Package: ${esc(req.package_access)}</p><ul class="m3-bom">${bomHtml}</ul>
              <p class="muted">Missing: ${esc((req.missing_information || []).join(", ") || "none listed")}</p>`
+          ),
+          sectionCard(
+            "Commercial Research",
+            `<dl class="m3-kv">
+              <div><dt>MSRP/list</dt><dd>${esc(commercial.msrp_list)}</dd></div>
+              <div><dt>Lowest public new</dt><dd>${esc(commercial.lowest_public_new_price)}</dd></div>
+              <div><dt>Gov historical</dt><dd>${esc(commercial.government_historical_price)}</dd></div>
+              <div><dt>Acquisition target</dt><dd>${esc(commercial.acquisition_target)}</dd></div>
+              <div><dt>Wholesale status</dt><dd>${esc(commercial.wholesale_verification_status)}</dd></div>
+              <div><dt>Competition</dt><dd>${esc(((commercial.historical_winners || {}).signal) || "UNKNOWN")}</dd></div>
+            </dl>
+            <p class="muted">Public price failure ≠ economic failure. Wholesale verification may be required.</p>`
+          ),
+          sectionCard(
+            "Source Access",
+            `<dl class="m3-kv">
+              <div><dt>State</dt><dd>${esc(srcAccess.state)}</dd></div>
+              <div><dt>Credentials</dt><dd>${srcAccess.credentials_available ? "yes" : "no"}</dd></div>
+              <div><dt>Registration</dt><dd>${srcAccess.registration_required ? "required" : "not required"}</dd></div>
+              <div><dt>Login</dt><dd>${esc(srcAccess.login_status)}</dd></div>
+            </dl>`
           ),
           sectionCard(
             "Economics",
