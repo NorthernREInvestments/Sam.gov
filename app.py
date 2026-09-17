@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-document-evidence-2"
+APP_BUILD_VERSION = "20260917-m3-evidence-chain"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1617,6 +1617,46 @@ def api_m3_evidence_va_update(body: dict | None = None):
         status=payload.get("status"),
         attached_document=payload.get("attached_document") if isinstance(payload.get("attached_document"), dict) else None,
     )
+
+
+@app.post("/api/m3/evidence-chain/validate")
+def api_m3_evidence_chain_validate(body: dict | None = None):
+    """Validate evidence chain preservation across pipeline opportunities."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_evidence_chain import analyze_evidence_chain_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_evidence_chain_top(store, limit=limit)
+
+
+@app.get("/api/m3/evidence-chain/status")
+def api_m3_evidence_chain_status():
+    from m3_evidence_chain import load_chain_index
+
+    idx = load_chain_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    urls = 0
+    loss = 0
+    for snap in by_id.values():
+        if not isinstance(snap, dict):
+            continue
+        chain = snap.get("chain") or {}
+        der = chain.get("DISCOVERY_EVIDENCE_RECORD") or {}
+        if der.get("Source_URL") not in {None, "", "UNKNOWN"}:
+            urls += 1
+        if (snap.get("loss") or {}).get("lost_count"):
+            loss += 1
+    return {
+        "kind": "M3EvidenceChainStatus",
+        "researched": len(by_id),
+        "source_urls_preserved": urls,
+        "with_data_loss": loss,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
 
 
 @app.get("/api/m3/mobile/sources")

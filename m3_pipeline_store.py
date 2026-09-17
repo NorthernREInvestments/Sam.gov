@@ -276,18 +276,29 @@ class M3PipelineStore:
         return [deepcopy(r) for r in sorted(self._rows.values(), key=lambda x: x["canonical_id"])]
 
     def upsert_from_discovery(self, record: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-        """Idempotent ingest. Returns (row, created_new)."""
+        """Idempotent ingest. Returns (row, created_new). Preserves evidence trail."""
+        from m3_evidence_chain import (
+            enrich_discovery_record_for_pipeline,
+            ensure_evidence_chain_on_row,
+            merge_preserve_evidence,
+        )
+
+        record = enrich_discovery_record_for_pipeline(
+            record, discovery_run_id=record.get("discovery_run_id")
+        )
         cid = self.canonical_id_for(record)
         existing = self._rows.get(cid)
         fp = _evidence_hash(record)
         if existing and existing.get("evidence_fingerprint") == fp:
-            # unchanged — no duplicate work marker
+            # unchanged — no duplicate work marker; still refresh evidence chain visibility
             existing["last_seen_at"] = _utc()
             refs = list(existing.get("source_references") or [])
             src = record.get("source_id")
             if src and not any(r.get("source_id") == src for r in refs):
                 refs.append({"source_id": src, "url": record.get("detail_url")})
                 existing["source_references"] = refs
+            existing = merge_preserve_evidence(existing, record)
+            existing = ensure_evidence_chain_on_row(existing)
             self._rows[cid] = existing
             return deepcopy(existing), False
 
@@ -319,6 +330,10 @@ class M3PipelineStore:
                 "paid_research_charge_id": None,
                 "line_items": record.get("line_items") or record.get("bom"),
                 "documents": record.get("documents"),
+                "raw_metadata": record.get("raw_metadata"),
+                "discovery_evidence": record.get("discovery_evidence"),
+                "discovery_run_id": record.get("discovery_run_id"),
+                "discovered_at": record.get("discovered_at"),
                 "subsystem": {},
                 "pending_next_action": None,
                 "invalidation": {},
@@ -332,6 +347,7 @@ class M3PipelineStore:
             for k, v in record.items():
                 if k not in row and v is not None:
                     row.setdefault(k, v)
+            row = ensure_evidence_chain_on_row(row)
             row["lifecycle"] = derive_lifecycle(row)
             row["pending_next_action"] = determine_next_action(row)
             self._audit_event(cid, None, row["lifecycle"], "discovery_ingest", automated=True)
@@ -339,7 +355,9 @@ class M3PipelineStore:
             return deepcopy(row), True
 
         # Material update — merge without regressing completed lifecycle unless invalidated
+        # and WITHOUT discarding source URLs / document refs / raw metadata
         prev_lc = existing.get("lifecycle")
+        existing = merge_preserve_evidence(existing, record)
         existing["last_seen_at"] = _utc()
         existing["evidence_fingerprint"] = fp
         for field in (
@@ -348,15 +366,16 @@ class M3PipelineStore:
             "deadline",
             "status",
             "description",
-            "detail_url",
             "package_access",
             "product_classification",
-            "line_items",
-            "documents",
             "product_category",
         ):
             if record.get(field) is not None:
                 existing[field] = record[field]
+        # Prefer incoming line_items only when present (never wipe with empty)
+        if record.get("line_items") or record.get("bom"):
+            existing["line_items"] = record.get("line_items") or record.get("bom")
+        existing = ensure_evidence_chain_on_row(existing)
         existing["lifecycle"] = derive_lifecycle(existing)
         existing["pending_next_action"] = determine_next_action(existing)
         if existing["lifecycle"] != prev_lc:

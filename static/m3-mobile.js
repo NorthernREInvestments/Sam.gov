@@ -846,6 +846,7 @@
       const prodInt = deal.product_intelligence || {};
       const pkgInt = deal.procurement_package || {};
       const evRec = deal.evidence_recovery || {};
+      const evChain = deal.evidence_chain || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -1032,6 +1033,23 @@
               <div><dt>Next Action</dt><dd>${esc(evRec.Next_Action ?? "—")}</dd></div>
             </dl>
             <p class="muted">${esc(evRec.Readiness_explanation || "VA may attach evidence / escalate — no bids, outreach, or scoring changes")}</p>`
+          ),
+          sectionCard(
+            "Evidence Chain",
+            `<dl class="m3-kv">
+              <div><dt>Original source</dt><dd>${esc(evChain.Original_source ?? "UNKNOWN")}</dd></div>
+              <div><dt>Source id</dt><dd>${esc(evChain.Source_id ?? "UNKNOWN")}</dd></div>
+              <div><dt>Discovery date</dt><dd>${esc(evChain.Discovery_date ?? "UNKNOWN")}</dd></div>
+              <div><dt>Discovery run</dt><dd>${esc(evChain.Discovery_run_ID ?? "UNKNOWN")}</dd></div>
+              <div><dt>Evidence confidence</dt><dd><strong>${esc(evChain.Evidence_confidence ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Evidence status</dt><dd>${esc(evChain.Evidence_status ?? "UNKNOWN")}</dd></div>
+              <div><dt>Documents found</dt><dd>${esc(((evChain.Documents_found || []).length) || 0)}</dd></div>
+              <div><dt>Documents missing</dt><dd>${esc(((evChain.Documents_missing || []).join(", ")) || "none listed")}</dd></div>
+              <div><dt>Last recovery attempt</dt><dd>${esc(evChain.Last_recovery_attempt ?? "UNKNOWN")}</dd></div>
+              <div><dt>Handoff</dt><dd>${esc(((evChain.Handoff_validation || {}).Discovery_to_Pipeline) ?? "UNKNOWN")} · loss ${esc(((evChain.Data_loss || {}).lost_count) ?? 0)}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(evChain.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">VA can review/attach/update/note — cannot bid, contact suppliers, or change scoring</p>`
           ),
           sectionCard(
             "Evidence",

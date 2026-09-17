@@ -581,7 +581,10 @@ def _finalize_run(run_id: str, *, status: str, error: str | None = None) -> None
         _save_state(state)
 
 
-def _records_from_live_result(result: dict[str, Any]) -> list[dict[str, Any]]:
+def _records_from_live_result(result: dict[str, Any], *, discovery_run_id: str | None = None) -> list[dict[str, Any]]:
+    """Normalize discovery survivors while preserving raw evidence for the chain."""
+    from m3_evidence_chain import enrich_discovery_record_for_pipeline
+
     records = []
     raw = (
         result.get("handoff_records")
@@ -590,6 +593,7 @@ def _records_from_live_result(result: dict[str, Any]) -> list[dict[str, Any]]:
         or result.get("records")
         or []
     )
+    run_id = discovery_run_id or result.get("run_id")
     for item in raw:
         if not isinstance(item, dict):
             continue
@@ -597,23 +601,27 @@ def _records_from_live_result(result: dict[str, Any]) -> list[dict[str, Any]]:
         rd = item.get("response_deadline")
         if hasattr(rd, "isoformat"):
             deadline = deadline or rd.isoformat()
-        rec = {
-            "title": item.get("title"),
-            "solicitation_number": item.get("solicitation_number") or item.get("external_id"),
-            "external_id": item.get("external_id") or item.get("solicitation_number"),
-            "agency": item.get("agency"),
-            "source_id": item.get("source_id") or item.get("preferred_source_id"),
-            "status": item.get("status") or "OPEN",
-            "deadline": deadline,
-            "detail_url": item.get("detail_url") or item.get("preferred_source_url"),
-            "description": item.get("description"),
-            "product_classification": item.get("product_classification") or item.get("classification"),
-            "naics": item.get("naics"),
-            "package_access": "PUBLIC",
-            "source_modified_at": item.get("source_modified_at") or item.get("posted_at") or item.get("last_seen_at"),
-        }
+        # Start from full item so document links / raw metadata are not stripped
+        rec = dict(item)
+        rec.update(
+            {
+                "title": item.get("title"),
+                "solicitation_number": item.get("solicitation_number") or item.get("external_id"),
+                "external_id": item.get("external_id") or item.get("solicitation_number"),
+                "agency": item.get("agency"),
+                "source_id": item.get("source_id") or item.get("preferred_source_id"),
+                "status": item.get("status") or "OPEN",
+                "deadline": deadline,
+                "detail_url": item.get("detail_url") or item.get("preferred_source_url") or item.get("source_url") or item.get("url"),
+                "description": item.get("description"),
+                "product_classification": item.get("product_classification") or item.get("classification"),
+                "naics": item.get("naics"),
+                "package_access": item.get("package_access") or item.get("document_access") or "PUBLIC",
+                "source_modified_at": item.get("source_modified_at") or item.get("posted_at") or item.get("last_seen_at"),
+            }
+        )
         if rec.get("title"):
-            records.append(rec)
+            records.append(enrich_discovery_record_for_pipeline(rec, discovery_run_id=run_id))
     return records
 
 
@@ -869,7 +877,7 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         except Exception:
             log.exception("Source checkpoint update failed")
 
-        records = _apply_incremental_filter(_records_from_live_result(live))
+        records = _apply_incremental_filter(_records_from_live_result(live, discovery_run_id=run_id))
         _update_run(run_id, phase="DEDUPLICATING", unique_records=len(records))
         open_current = [
             r
