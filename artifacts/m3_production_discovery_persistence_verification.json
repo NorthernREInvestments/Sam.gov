@@ -1,3 +1,35 @@
 {
-  "note": "pre-persist2 snapshot; pipeline survived persist1 redeploy with 73 opps"
+  "kind": "M3ProductionDiscoveryPersistenceVerification",
+  "verified_at": "2026-09-17T04:49:29+00:00",
+  "root_cause": "Pipeline and discovery status were primarily file-backed under artifacts/ on ephemeral Railway disk. After redeploy the local JSON could be empty/missing while Home/health sometimes read the file before AppSetting restore. Partial AppSetting writes could also clobber last_successful_completion. Frontend could also paint empty Home if dashboard fetch failed while public health still updated the build badge.",
+  "fix": "M3PipelineStore now treats Postgres AppSetting as authoritative (file is cache). Dashboard/health always reload_from_durable. Discovery _save_state preserves last_successful_completion. Home always refetches dashboard with credentials same-origin and always renders discovery status placeholder.",
+  "build_id": "20260917-m3-persist2",
+  "discovery_status": "CURRENT",
+  "running": false,
+  "last_successful_discovery": {
+    "run_id": "MDR-007036bb9541",
+    "completed_at": "2026-09-17T04:45:33.621646+00:00",
+    "product_screen_survivors": 73,
+    "pipeline_new": 0,
+    "pipeline_updated": 73
+  },
+  "status_api_contains_completed_run": true,
+  "authoritative_pipeline_count": 73,
+  "home_active_count": 69,
+  "home_opportunities_returned": 40,
+  "opportunities_page_count": 69,
+  "pipeline_status_count": 73,
+  "html_discovery_status_bar_present": true,
+  "dashboard_includes_discovery": true,
+  "survived_redeploy_pipeline_count": 73,
+  "controlled_redeploy_test": "persist1→persist2 redeploy kept pipeline_opportunity_count=73",
+  "DEVELOPMENT_NO_OUTREACH": true,
+  "commercial_actions": 0,
+  "real_spend_usd": 0,
+  "full_pytest": "1001 passed",
+  "git_commits": [
+    "415c059 Make M3 pipeline AppSetting-authoritative",
+    "80028e1 Preserve last successful discovery state across boot",
+    "98dd806 Add live production persistence verification artifact"
+  ]
 }
