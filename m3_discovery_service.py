@@ -432,6 +432,7 @@ def _dispatch_discovery_job(run_id: str, trigger_type: str) -> None:
         daemon=True,
     )
     _worker.start()
+    print(f"govtracker: discovery thread started {run_id} alive={_worker.is_alive()}", flush=True)
     log.info("Dispatched M3 discovery %s via thread (alive=%s)", run_id, _worker.is_alive())
 
 
@@ -646,6 +647,7 @@ def _check_tracked_changes(store: Any, survivors: list[dict[str, Any]]) -> int:
 
 
 def _execute_run(run_id: str, trigger_type: str) -> None:
+    print(f"govtracker: discovery execute begin {run_id} trigger={trigger_type}", flush=True)
     _update_run(run_id, status=STATUS_RUNNING, phase="PREPARING", progress_percent=2)
     try:
         from database import SessionLocal
@@ -656,9 +658,11 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         from models import DiscoveryRun
     except Exception as exc:
         log.exception("M3 discovery imports failed")
+        print(f"govtracker: discovery import failure {exc}", flush=True)
         _finalize_run(run_id, status=STATUS_FAILED, error=f"import_failure: {exc}")
         return
 
+    print(f"govtracker: discovery imports ok {run_id}", flush=True)
     _update_run(run_id, phase="PREPARING", progress_percent=5)
     session = None
     try:
