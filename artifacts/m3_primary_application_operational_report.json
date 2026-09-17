@@ -1,0 +1,8 @@
+{
+  "kind": "M3PrimaryApplicationOperationalReport",
+  "state": "M3_PRIMARY_APPLICATION_OPERATIONAL",
+  "build_version": "20260917-m3-primary",
+  "production_url": "https://samgov-production.up.railway.app",
+  "deployment_architecture": "Railway (GitHub NorthernREInvestments/Sam.gov → production) via Procfile/railway.toml uvicorn",
+  "validated_at": "2026-09-16"
+}

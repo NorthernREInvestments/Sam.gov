@@ -1,0 +1,112 @@
+{
+  "kind": "M3ConfigurationSeparationAudit",
+  "audited_at": "2026-09-16",
+  "current_state_note": "Shared SPA shell mixed legacy facilities-service NAICS with M3; M3 APIs already largely isolated.",
+  "contamination_types_present": ["A", "B", "C", "D", "E", "F"],
+  "issue_classification": {
+    "A_code_defaults": true,
+    "B_environment": true,
+    "C_frontend_display": true,
+    "D_database_records": true,
+    "E_shared_model": "partial_intentional_company_profile",
+    "F_discovery_logic": "legacy_sync_only_not_m3_path",
+    "primary_user_visible_cause": "C_frontend_plus_B_env_legacy_NAICS_CODES_in_settings"
+  },
+  "legacy_dependencies": [
+    {
+      "file": "naics_labels.py",
+      "module": "naics_labels",
+      "function_class": "ALL_NAICS_CODES",
+      "database_table_field": null,
+      "current_behavior": "19 facilities-service NAICS (janitorial/HVAC maintenance/remediation)",
+      "why_it_exists": "Legacy SAM sync + sub finder",
+      "m3_should_use": false,
+      "recommended_action": "isolate",
+      "status_after_fix": "isolated_via_m3_procurement_profile.LEGACY_SERVICE_NAICS"
+    },
+    {
+      "file": "settings_store.py",
+      "module": "settings_store",
+      "function_class": "get_naics_codes",
+      "database_table_field": "gt_app_settings.naics_codes",
+      "current_behavior": "Active NAICS for legacy dashboard",
+      "why_it_exists": "Operator-configurable legacy sync",
+      "m3_should_use": false,
+      "recommended_action": "isolate",
+      "status_after_fix": "M3 does not call get_naics_codes"
+    },
+    {
+      "file": ".env / .env.example",
+      "module": "env",
+      "function_class": "NAICS_CODES",
+      "database_table_field": null,
+      "current_behavior": "Bootstrap legacy service NAICS",
+      "why_it_exists": "Fallback when DB empty",
+      "m3_should_use": false,
+      "recommended_action": "env_separate",
+      "status_after_fix": "documented LEGACY ONLY in .env.example"
+    },
+    {
+      "file": "static/m3-mobile.js",
+      "module": "static",
+      "function_class": "showM3View(settings)",
+      "database_table_field": null,
+      "current_behavior": "Previously opened legacy NAICS settings",
+      "why_it_exists": "Reuse settings page",
+      "m3_should_use": false,
+      "recommended_action": "frontend_separate",
+      "status_after_fix": "loads view-m3-settings + /api/m3/procurement-profile"
+    },
+    {
+      "file": "sync.py / openai_client.py / screening_pipeline.py",
+      "module": "legacy_intake",
+      "function_class": "sync_from_sam / DEFAULT_SCREENING_PROMPT",
+      "database_table_field": "gt_contracts",
+      "current_behavior": "Service subcontract intake scoring",
+      "why_it_exists": "Northern RE facilities model",
+      "m3_should_use": false,
+      "recommended_action": "remove_from_m3_path",
+      "status_after_fix": "unchanged_preserved_for_legacy_dashboard"
+    }
+  ],
+  "m3_dependencies": [
+    "m3_procurement_profile.py",
+    "product_discovery.PRODUCT_DISCOVERY_NAICS (metadata)",
+    "m3_pipeline_store / m3_lifecycle / m3_end_to_end",
+    "first_pursuit_selection",
+    "pursuit_ranking (product fit/econ/deadline)",
+    "m3_mobile_read_model",
+    "company_profile (capabilities — intentional shared)",
+    "Cost Governor / external_action_control"
+  ],
+  "migration_requirements": {
+    "database_schema_change_required": false,
+    "opportunity_records_migration": false,
+    "legacy_naics_rows_deletion": false,
+    "optional_settings_key": "m3_procurement_profile",
+    "safe_changes": [
+      "Add M3 procurement profile module + APIs",
+      "Separate M3 settings UI from legacy NAICS",
+      "Strip legacy service NAICS from product discovery allowlists",
+      "Document NAICS_CODES as legacy-only"
+    ],
+    "dangerous_changes_avoided": [
+      "Deleting/changing ALL_NAICS_CODES while legacy sync runs",
+      "Pointing M3 at get_naics_codes()",
+      "Deleting gt_contracts or AppSetting naics_codes",
+      "Rewriting discovery engines"
+    ]
+  },
+  "naics_origin": {
+    "old_codes_from": [
+      "naics_labels.ALL_NAICS_CODES",
+      "env NAICS_CODES",
+      "gt_app_settings.naics_codes",
+      "legacy /api/settings UI"
+    ],
+    "affects_discovery": "legacy SAM sync only — not M3 product discovery path",
+    "affects_ranking": "legacy screening score only — not M3 pursuit_ranking / first_pursuit",
+    "affects_ui": "yes — shared settings previously opened from M3 mobile",
+    "affects_display_only": "partially — primary visible leak was UI/settings; discovery already separate"
+  }
+}
