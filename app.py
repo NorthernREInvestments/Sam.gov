@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-source-access-breakthrough"
+APP_BUILD_VERSION = "20260917-m3-discovery-pipeline-stabilized"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -760,6 +760,61 @@ def api_m3_discovery_runs(limit: int = Query(10, ge=1, le=50)):
     from m3_discovery_service import list_recent_runs
 
     return list_recent_runs(limit=limit)
+
+
+@app.get("/api/m3/coverage")
+def api_m3_coverage():
+    """Coverage dashboard: discovery + pipeline handoff + source recovery top 10."""
+    from m3_discovery_service import discovery_status
+    from source_recovery_priority import coverage_dashboard_payload
+
+    st = discovery_status()
+    # Prefer last-run per_source from successful completion metrics if present
+    per = None
+    try:
+        focus = st.get("last_successful_completion") or st.get("last_attempt") or {}
+        metrics = focus.get("metrics") if isinstance(focus.get("metrics"), dict) else {}
+        per = metrics.get("per_source")
+    except Exception:
+        per = None
+    return coverage_dashboard_payload(per_source_metrics=per, discovery_status=st)
+
+
+@app.get("/api/m3/source-recovery")
+def api_m3_source_recovery(limit: int = Query(25, ge=1, le=100)):
+    """TOP_SOURCE_RECOVERY_QUEUE — highest-return blocked source fixes."""
+    from source_recovery_priority import build_source_recovery_queue
+
+    return build_source_recovery_queue(limit=limit)
+
+
+@app.get("/api/m3/handoff/status")
+def api_m3_handoff_status():
+    from m3_pipeline_handoff import load_handoff_checkpoint, pending_handoff_for_resume
+
+    ckpt = load_handoff_checkpoint()
+    return {
+        "kind": "M3HandoffStatus",
+        "checkpoint": {
+            k: ckpt.get(k)
+            for k in (
+                "status",
+                "run_id",
+                "discovery_count",
+                "transferred",
+                "failed",
+                "retries",
+                "reconciliation",
+                "updated_at",
+                "completed_at",
+            )
+            if ckpt
+        }
+        if ckpt
+        else None,
+        "pending_resume": bool(pending_handoff_for_resume()),
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
 
 
 @app.get("/api/m3/research/status")

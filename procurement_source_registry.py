@@ -345,6 +345,7 @@ class ProcurementSourceRegistry:
     def apply_discovery_health(self, per_source: dict[str, Any]) -> None:
         from discovery.source_backoff import compute_backoff_until
         from discovery.source_failure_taxonomy import classify_root_cause
+        from source_recovery_priority import map_health_state
 
         for sid, metrics in (per_source or {}).items():
             if sid not in self._sources:
@@ -352,7 +353,10 @@ class ProcurementSourceRegistry:
             row_m = metrics if isinstance(metrics, dict) else {}
             ftype = classify_source_failure(row_m)
             # Prefer precise taxonomy when present
-            precise = row_m.get("root_cause") or classify_root_cause(row_m).get("primary")
+            classified = classify_root_cause(row_m)
+            precise = row_m.get("root_cause") or classified.get("primary")
+            health = map_health_state(classified, row_m)
+            self._sources[sid]["operator_health_state"] = health
             if ftype == "OK" or (row_m.get("ok") and int(row_m.get("raw") or 0) > 0):
                 self.record_attempt(
                     sid,
@@ -365,6 +369,8 @@ class ProcurementSourceRegistry:
                 self._sources[sid]["backoff_until"] = None
                 self._sources[sid]["root_cause"] = "OK"
                 self._sources[sid]["productive"] = True
+                self._sources[sid]["health_state"] = SRC_HEALTHY
+                self._sources[sid]["operator_health_state"] = "PRODUCTIVE"
             else:
                 fail_class = precise if precise and precise != "OK" else ftype
                 self.record_attempt(
@@ -377,7 +383,18 @@ class ProcurementSourceRegistry:
                 self._sources[sid]["recommended_retry"] = recommend_retry(ftype)
                 self._sources[sid]["root_cause"] = fail_class
                 self._sources[sid]["productive"] = False
-                self._sources[sid]["access_outcome"] = row_m.get("access_outcome")
+                self._sources[sid]["access_outcome"] = row_m.get("access_outcome") or classified.get(
+                    "access_outcome"
+                )
+                # Map vague failures to precise operator-facing states
+                if health == "AUTH_REQUIRED":
+                    self._sources[sid]["health_state"] = SRC_AUTH
+                elif health == "HEALTHY_ZERO":
+                    self._sources[sid]["health_state"] = SRC_HEALTHY
+                elif health in {"BOT_PROTECTED", "REGISTRATION_REQUIRED"}:
+                    self._sources[sid]["health_state"] = SRC_AUTH
+                else:
+                    self._sources[sid]["health_state"] = SRC_DEGRADED
                 try:
                     self._sources[sid]["backoff_until"] = compute_backoff_until(str(fail_class))
                     self._sources[sid]["backoff_hours"] = row_m.get("backoff_hours")

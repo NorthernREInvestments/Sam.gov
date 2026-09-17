@@ -69,13 +69,15 @@ def search_sam_dla_product_opportunities(
     attempts = [
         {"organizationName": "DEFENSE LOGISTICS AGENCY", "label": "org_dla"},
         {"keyword": "SPE", "label": "keyword_spe"},
+        {"keyword": "SPR", "label": "keyword_spr"},
+        {"keyword": "DIBBS", "label": "keyword_dibbs"},
     ]
     all_raw: list[dict[str, Any]] = []
-    used_label = None
+    used_labels: list[str] = []
     calls = 0
     with httpx.Client(timeout=60.0) as client:
         for att in attempts:
-            if calls >= 2:
+            if calls >= 4:
                 break
             if not can_spend_sam(1):
                 break
@@ -98,13 +100,18 @@ def search_sam_dla_product_opportunities(
             batch = resp.json().get("opportunitiesData") or []
             if batch:
                 all_raw.extend(batch)
-                used_label = att["label"]
-                break
+                used_labels.append(att["label"])
+                # Keep collecting across query families for breadth; dedupe later
+                if len(all_raw) >= max_results * 2:
+                    break
 
     from sam_client import normalize_opportunity
 
     opps: list[CanonicalOpportunity] = []
     seen: set[str] = set()
+    nsn_count = 0
+    spe_count = 0
+    spr_count = 0
     for raw in all_raw:
         sol = str(raw.get("solicitationNumber") or "")
         title = str(raw.get("title") or "")
@@ -115,6 +122,7 @@ def search_sam_dla_product_opportunities(
             or SPE_RE.search(blob)
             or SPR_RE.search(blob)
             or "DIBBS" in blob
+            or "DLA " in blob
         )
         if not is_dla:
             continue
@@ -124,6 +132,14 @@ def search_sam_dla_product_opportunities(
             continue
         seen.add(ext)
         nsn_m = NSN_RE.search(title) or NSN_RE.search(str(raw.get("description") or ""))
+        spe_m = SPE_RE.search(blob)
+        spr_m = SPR_RE.search(blob)
+        if nsn_m:
+            nsn_count += 1
+        if spe_m:
+            spe_count += 1
+        if spr_m:
+            spr_count += 1
         opps.append(
             CanonicalOpportunity(
                 external_id=ext,
@@ -144,9 +160,13 @@ def search_sam_dla_product_opportunities(
                     "discovery_route": "SAM_DLA_CROSS_PUBLISH",
                     "provenance_tier": TIER_A_AUTHORITATIVE,
                     "authority_verification_state": "SAM_AUTHORITATIVE",
-                    "sam_query": used_label,
+                    "sam_query": ",".join(used_labels) if used_labels else None,
                     "nsn": nsn_m.group(1) if nsn_m else None,
+                    "spe_id": spe_m.group(1) if spe_m else None,
+                    "spr_id": spr_m.group(1) if spr_m else None,
                     "notice_type": raw.get("type") or "Solicitation",
+                    "authoritative_source": "SAM_GOV",
+                    "fallback_source": "DIBBS_PUBLIC_BLOCKED",
                 },
             )
         )
@@ -155,7 +175,8 @@ def search_sam_dla_product_opportunities(
 
     return {
         "executed": True,
-        "query_label": used_label,
+        "query_label": ",".join(used_labels) if used_labels else None,
+        "query_labels": used_labels,
         "opportunities": opps,
         "raw_count": len(all_raw),
         "kept": len(opps),
@@ -164,6 +185,15 @@ def search_sam_dla_product_opportunities(
         "OpenAI": 0,
         "provenance_tier": TIER_A_AUTHORITATIVE,
         "source_id": "fed_dla_sam_cross_publish",
+        "dla_metrics": {
+            "DLA_opportunities_found": len(opps),
+            "DLA_authoritative_source": "SAM_GOV",
+            "DLA_fallback_source": "OPENAI_WEB_SEARCH_IF_EMPTY",
+            "DLA_blocked_routes": ["DIBBS_DIRECT", "PIEE_UNAUTHENTICATED"],
+            "nsn_extracted": nsn_count,
+            "spe_extracted": spe_count,
+            "spr_extracted": spr_count,
+        },
     }
 
 

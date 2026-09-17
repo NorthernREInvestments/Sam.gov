@@ -61,6 +61,9 @@
     const running = !!st.running;
     const pct = Math.max(0, Math.min(100, Number(st.progress_percent || 0)));
     const status = st.status || "IDLE";
+    const disc = st.DISCOVERY || {};
+    const handoff = st.PIPELINE_HANDOFF || {};
+    const research = st.RESEARCH || {};
     let title = "DISCOVERY";
     let tone = "current";
     if (running) {
@@ -69,6 +72,9 @@
     } else if (status === "FAILED") {
       title = "DISCOVERY FAILED";
       tone = "failed";
+    } else if (handoff.status === "MISMATCH" || lastAttempt.handoff_status === "MISMATCH") {
+      title = "PIPELINE HANDOFF MISMATCH";
+      tone = "failed";
     } else if (status === "STALE" || status === "NO_SUCCESSFUL_RUN") {
       title = "DISCOVERY DATA STALE";
       tone = "stale";
@@ -76,22 +82,28 @@
       title = "DISCOVERY";
       tone = "current";
     }
-    const srcDone = run.sources_completed || run.sources_attempted || lastOk.sources_successful;
+    const srcDone = run.sources_completed || run.sources_attempted || disc.sources_attempted || lastOk.sources_successful;
     const srcTotal = run.sources_total || lastOk.sources_attempted;
-    const survivors = running ? run.product_screen_survivors : lastOk.product_screen_survivors;
-    const records = running ? run.records_retrieved : lastOk.records_retrieved;
-    const unique = running ? run.unique_records : lastOk.unique_records;
+    const survivors = running ? run.product_screen_survivors : (disc.product_survivors ?? lastOk.product_screen_survivors);
+    const records = running ? run.records_retrieved : (disc.records_fetched ?? lastOk.records_retrieved);
+    const unique = running ? run.unique_records : (disc.unique_records ?? lastOk.unique_records);
+    const transferred = handoff.transferred ?? lastOk.handoff_transferred;
+    const discovered = handoff.discovered ?? survivors;
+    const handoffFailed = handoff.failed ?? 0;
     const pipelineDelta = (Number(lastOk.pipeline_new || 0) + Number(lastOk.pipeline_updated || 0));
     const bar = `<div class="m3-disc-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>`;
     let body = "";
     if (running) {
       body = `<p class="m3-disc-line"><strong>Running · ${pct}%</strong> · Elapsed: ${esc(fmtElapsed(st.elapsed_hint_started_at || run.started_at))}</p>
         <p class="m3-disc-line">Phase: ${esc(phaseLabel(st.phase || run.phase))}${srcTotal ? ` · Sources: ${esc(srcDone)} / ${esc(srcTotal)}` : ""}</p>
-        <p class="m3-disc-line muted">Records: ${esc(records ?? "—")} · Unique: ${esc(unique ?? "—")} · Product survivors: ${esc(survivors ?? "—")}</p>`;
-    } else if (status === "FAILED") {
+        <p class="m3-disc-line muted">DISCOVERY · Records: ${esc(records ?? "—")} · Unique: ${esc(unique ?? "—")} · Survivors: ${esc(survivors ?? "—")}</p>
+        <p class="m3-disc-line muted">PIPELINE HANDOFF · ${esc(handoff.status || "—")} · transferred ${esc(transferred ?? run.handoff_transferred ?? "—")} / ${esc(discovered ?? "—")}${handoffFailed ? ` · failed ${esc(handoffFailed)}` : ""}${handoff.retrying ? " · retrying" : ""}</p>
+        <p class="m3-disc-line muted">RESEARCH · queued ${esc(research.queued ?? run.deep_research_queued ?? "—")}</p>`;
+    } else if (status === "FAILED" || handoff.status === "MISMATCH") {
       body = `<p class="m3-disc-line">Last attempt: ${esc(fmtWhen(lastAttempt.completed_at))}</p>
         <p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at))}</p>
-        <p class="m3-disc-line muted">${esc(lastAttempt.error_summary || "Discovery failed")}</p>`;
+        <p class="m3-disc-line muted">${esc(lastAttempt.error_summary || "Discovery/handoff issue")}</p>
+        <p class="m3-disc-line muted">PIPELINE · discovered ${esc(discovered ?? "—")} · stored ${esc(transferred ?? "—")} · failed ${esc(handoffFailed)}</p>`;
     } else if (status === "STALE" || status === "NO_SUCCESSFUL_RUN") {
       body = `<p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at) || "never")}</p>
         <p class="m3-disc-line muted">Scheduled discovery has not successfully completed within the expected freshness window.</p>
@@ -99,9 +111,14 @@
     } else {
       body = `<p class="m3-disc-line"><strong>Discovery stage current</strong> · last run ${pct}%</p>
         <p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at))} · Next run: ${esc(fmtWhen(st.next_scheduled_run))}</p>
-        <p class="m3-disc-line muted">${esc(survivors ?? records ?? 0)} opportunities screened · ${esc(pipelineDelta)} added/updated</p>`;
+        <p class="m3-disc-line muted">DISCOVERY · ${esc(survivors ?? records ?? 0)} screened · Unique ${esc(unique ?? "—")}</p>
+        <p class="m3-disc-line muted">PIPELINE HANDOFF · ${esc(handoff.status || "COMPLETE")} · stored ${esc(transferred ?? pipelineDelta)} / discovered ${esc(discovered ?? "—")}</p>
+        <p class="m3-disc-line muted">RESEARCH · queued ${esc(research.queued ?? lastOk.deep_research_queued ?? 0)}</p>`;
       if (lastOk.sources_failed) {
         body += `<p class="m3-disc-line muted">${esc(lastOk.sources_successful)} / ${esc(lastOk.sources_attempted)} sources successful · ${esc(lastOk.sources_failed)} source warnings</p>`;
+      }
+      if (st.pending_handoff_resume) {
+        body += `<p class="m3-disc-line muted">Pending handoff resume: ${esc(st.pending_handoff_run_id)}</p>`;
       }
     }
     el.className = "m3-discovery-status m3-disc-" + tone;
@@ -622,9 +639,39 @@
       const rows = Object.keys(by)
         .map((k) => `<div class="m3-kv-row"><span>${esc(k)}</span><strong>${esc(by[k])}</strong></div>`)
         .join("");
-      body.innerHTML = `<article class="m3-info-card">
+      let coverageHtml = "";
+      try {
+        const cov = await fetchJson("/api/m3/coverage");
+        const tot = cov.TOTAL_SOURCES || {};
+        const disc = cov.DISCOVERY || {};
+        const pipe = cov.PIPELINE || {};
+        const top = ((cov.SOURCE_RECOVERY || {}).Top_10 || []).slice(0, 8);
+        const ops = (cov.operator_action_queue || []).slice(0, 5);
+        coverageHtml = `<article class="m3-info-card">
+          <h3>Coverage</h3>
+          <dl class="m3-kv">
+            <div><dt>Eligible</dt><dd>${esc(tot.Eligible ?? "—")}</dd></div>
+            <div><dt>Productive</dt><dd>${esc(tot.Productive ?? "—")}</dd></div>
+            <div><dt>Blocked</dt><dd>${esc(tot.Blocked ?? "—")}</dd></div>
+            <div><dt>Needs operator</dt><dd>${esc(tot.Needs_operator ?? "—")}</dd></div>
+          </dl>
+          <p class="muted">Discovery raw ${esc(disc.Raw ?? "—")} · unique ${esc(disc.Unique ?? "—")} · survivors ${esc(disc.Product_survivors ?? "—")}</p>
+          <p class="muted">Pipeline discovered ${esc(pipe.Discovered ?? "—")} · stored ${esc(pipe.Stored ?? "—")} · failed ${esc(pipe.Failed ?? 0)}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>Top source recovery</h3>
+          ${top.map((t) => `<p class="m3-ev-line"><strong>${esc(t.source_name || t.source)}</strong> · ${esc(t.portal_family)} · score ${esc(t.SOURCE_RECOVERY_SCORE)} · ${esc(t.recovery_bucket)} · ~${esc(t.estimated_opportunities_unlocked)} opps</p>`).join("") || "<p class='muted'>No recovery targets</p>"}
+        </article>
+        <article class="m3-info-card">
+          <h3>Operator action queue</h3>
+          ${ops.map((o) => `<p class="m3-ev-line"><strong>${esc(o.SOURCE)}</strong> · ${esc(o.STATUS)}<br/><span class="muted">${esc(o.ACTION)} — ${esc(o.WHY_IT_MATTERS)}</span></p>`).join("") || "<p class='muted'>No operator credential actions queued</p>"}
+        </article>`;
+      } catch (_) {
+        coverageHtml = "";
+      }
+      body.innerHTML = coverageHtml + `<article class="m3-info-card">
         <h3>Source health</h3>
-        <p><strong>${esc(s.healthy_production)}</strong> / ${esc(s.registered)} HEALTHY_PRODUCTION</p>
+        <p><strong>${esc(s.healthy_production)}</strong> / ${esc(s.registered)} HEALTHY_PRODUCTION · productive ${esc(s.productive_discovery_sources)}</p>
         <div class="m3-kv-list">${rows}</div>
         <p class="muted">${esc(s.note)}</p>
       </article>`;

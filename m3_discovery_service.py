@@ -305,6 +305,81 @@ def discovery_status() -> dict[str, Any]:
     elif fresh:
         progress = 100
 
+    focus = cur if running else (last_ok or last_attempt or {})
+    recon = (focus or {}).get("reconciliation") or {}
+    handoff_block = {
+        "discovered": (focus or {}).get("handoff_discovered")
+        or (focus or {}).get("product_screen_survivors")
+        or recon.get("DISCOVERY_COUNT"),
+        "transferred": (focus or {}).get("handoff_transferred") or recon.get("PIPELINE_COUNT"),
+        "failed": (focus or {}).get("handoff_failed") or recon.get("MISSING_FROM_PIPELINE") or 0,
+        "retrying": (focus or {}).get("handoff_status") == "RETRYING",
+        "retries": (focus or {}).get("handoff_retries") or recon.get("retries") or 0,
+        "status": (focus or {}).get("handoff_status")
+        or ("COMPLETE" if (last_ok and not running) else None),
+        "match": recon.get("match"),
+        "MISSING_FROM_PIPELINE": recon.get("MISSING_FROM_PIPELINE"),
+        "FAILED_UPSERTS": recon.get("FAILED_UPSERTS"),
+        "DUPLICATE_HANDOFFS": recon.get("DUPLICATE_HANDOFFS"),
+    }
+    discovery_block = {
+        "sources_attempted": (focus or {}).get("sources_attempted"),
+        "sources_successful": (focus or {}).get("sources_successful"),
+        "sources_failed": (focus or {}).get("sources_failed"),
+        "records_fetched": (focus or {}).get("records_retrieved"),
+        "unique_records": (focus or {}).get("unique_records"),
+        "product_survivors": (focus or {}).get("product_screen_survivors"),
+        "completed": (not running)
+        and (focus or {}).get("status")
+        in {STATUS_COMPLETED, STATUS_COMPLETED_WITH_WARNINGS, STATUS_STALE_RECOVERED},
+        "failed": (focus or {}).get("status") == STATUS_FAILED,
+        "status": (focus or {}).get("status"),
+    }
+    research_block = {
+        "queued": (focus or {}).get("research_queue_count")
+        or (focus or {}).get("deep_research_queued")
+        or recon.get("RESEARCH_QUEUE_COUNT"),
+        "processing": None,
+        "completed": None,
+    }
+    try:
+        from m3_pipeline_store import M3PipelineStore
+
+        store = M3PipelineStore()
+        rows = store.all()
+        research_block["queued"] = sum(
+            1
+            for r in rows
+            if r.get("research_queued") or str(r.get("lifecycle") or "") in {"RESEARCH_QUEUED", "CHEAP_SCREENED"}
+        )
+        research_block["processing"] = sum(
+            1 for r in rows if r.get("research_in_progress") or str(r.get("lifecycle") or "") == "RESEARCH_IN_PROGRESS"
+        )
+        research_block["completed"] = sum(
+            1
+            for r in rows
+            if str(r.get("lifecycle") or "")
+            not in {
+                "RESEARCH_QUEUED",
+                "RESEARCH_IN_PROGRESS",
+                "CHEAP_SCREENED",
+                "DISCOVERED",
+                "REJECTED",
+                "REJECTED_CHEAP_SCREEN",
+            }
+            and not r.get("research_queued")
+        )
+    except Exception:
+        pass
+
+    pending_ckpt = None
+    try:
+        from m3_pipeline_handoff import pending_handoff_for_resume
+
+        pending_ckpt = pending_handoff_for_resume()
+    except Exception:
+        pass
+
     return {
         "kind": "M3DiscoveryStatus",
         "enabled": discovery_enabled(),
@@ -320,6 +395,11 @@ def discovery_status() -> dict[str, Any]:
         "last_successful_completion": last_ok,
         "last_attempt": last_attempt,
         "next_scheduled_run": next_run,
+        "DISCOVERY": discovery_block,
+        "PIPELINE_HANDOFF": handoff_block,
+        "RESEARCH": research_block,
+        "pending_handoff_resume": bool(pending_ckpt),
+        "pending_handoff_run_id": (pending_ckpt or {}).get("run_id"),
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "mode": mode_snapshot(),
         "commercial_outreach": False,
@@ -694,6 +774,12 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         session = SessionLocal()
         print(f"govtracker: discovery DB session open {run_id}", flush=True)
         _update_run(run_id, phase="PREPARING", progress_percent=8)
+        try:
+            from cost_governor import get_cost_governor
+
+            get_cost_governor().dashboard_payload()
+        except Exception:
+            pass
         profile = discovery_profile()
         # Operator/bootstrap override wins over env default
         try:
@@ -809,18 +895,48 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             phase="PIPELINE_UPDATE",
             product_screen_survivors=len(survivors),
             pipeline_rejected=rejected,
+            handoff_status="PENDING",
+            handoff_discovered=len(survivors),
+            handoff_transferred=0,
+            handoff_failed=0,
         )
 
         store = M3PipelineStore()
         restore_pipeline_store_from_db(store)
         orch = M3EndToEndOrchestrator(store=store)
-        # advance=True queues research but Cost Governor gates paid spend; no outreach
-        batch = orch.run_from_discovery_batch(survivors, advance=True)
-        pipeline_new = sum(1 for x in batch.get("results") or [] if x.get("created"))
-        pipeline_updated = sum(
-            1 for x in batch.get("results") or [] if x.get("duplicate") or (not x.get("created") and x.get("survived"))
+
+        def _on_handoff_progress(patch: dict[str, Any]) -> None:
+            _update_run(
+                run_id,
+                phase=patch.get("phase") or "PIPELINE_UPDATE",
+                progress_percent=patch.get("progress_percent"),
+                handoff_status=patch.get("handoff_status"),
+                handoff_discovered=patch.get("discovered"),
+                handoff_transferred=patch.get("transferred"),
+                handoff_failed=patch.get("failed"),
+                handoff_retries=patch.get("retries"),
+                pipeline_new=patch.get("pipeline_new"),
+                pipeline_updated=patch.get("pipeline_updated"),
+                deep_research_queued=patch.get("deep_research_queued"),
+                reconciliation=patch.get("reconciliation"),
+            )
+
+        from m3_pipeline_handoff import run_durable_handoff
+
+        # Durable checkpoint → idempotent upserts → reconcile (no advance during discovery)
+        batch = run_durable_handoff(
+            run_id=run_id,
+            survivors=survivors,
+            store=store,
+            orch=orch,
+            discovery_metrics=metrics,
+            on_progress=_on_handoff_progress,
+            resume=True,
         )
-        deep_queued = int((batch.get("metrics") or {}).get("research_queued") or 0)
+        pipeline_new = int(batch.get("pipeline_new") or 0)
+        pipeline_updated = int(batch.get("pipeline_updated") or 0)
+        deep_queued = int(batch.get("research_queued") or 0)
+        recon = batch.get("reconciliation") or {}
         _persist_pipeline_store(store)
 
         _update_run(
@@ -829,6 +945,13 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             pipeline_new=pipeline_new,
             pipeline_updated=pipeline_updated,
             deep_research_queued=deep_queued,
+            handoff_status=batch.get("status"),
+            handoff_discovered=int(recon.get("DISCOVERY_COUNT") or len(survivors)),
+            handoff_transferred=int(recon.get("PIPELINE_COUNT") or 0),
+            handoff_failed=int(recon.get("MISSING_FROM_PIPELINE") or 0),
+            handoff_retries=int(batch.get("retries") or 0),
+            reconciliation=recon,
+            research_queue_count=int(recon.get("RESEARCH_QUEUE_COUNT") or deep_queued),
         )
         try:
             _check_tracked_changes(store, survivors)
@@ -854,7 +977,7 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 service_count=int(metrics.get("SERVICE") or 0),
                 rejected_count=rejected,
                 dry_run=False,
-                notes=f"trigger={trigger_type};profile={profile};run_status={run_status}",
+                notes=f"trigger={trigger_type};profile={profile};run_status={run_status};handoff={batch.get('status')}",
                 metrics_json={
                     "trigger_type": trigger_type,
                     "profile": profile,
@@ -883,6 +1006,12 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                     "authoritative_productive_sources": (live.get("completeness") or {}).get(
                         "authoritative_productive_sources"
                     ),
+                    "handoff": {
+                        "status": batch.get("status"),
+                        "reconciliation": recon,
+                        "retries": batch.get("retries"),
+                        "failed_upserts": len(batch.get("failed_upserts") or []),
+                    },
                 },
                 finished_at=now_utc(),
             )
@@ -891,6 +1020,53 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         except Exception:
             log.exception("DiscoveryRun DB insert failed")
             session.rollback()
+
+        handoff_ok = batch.get("status") == "COMPLETE" and bool(recon.get("match", False))
+        if not handoff_ok:
+            # Do not silently succeed — expose mismatch and keep checkpoint for resume
+            final_status = STATUS_COMPLETED_WITH_WARNINGS
+            _update_run(
+                run_id,
+                sources_successful=sources_successful,
+                sources_failed=sources_failed,
+                product_screen_survivors=len(survivors),
+                pipeline_new=pipeline_new,
+                pipeline_updated=pipeline_updated,
+                pipeline_rejected=rejected,
+                deep_research_queued=deep_queued,
+                records_retrieved=int(metrics.get("raw_records") or len(records)),
+                unique_records=len(records),
+                open_current_records=len(open_current),
+                handoff_status="MISMATCH",
+                reconciliation=recon,
+                error_summary=(
+                    f"PIPELINE_HANDOFF_MISMATCH discovery={recon.get('DISCOVERY_COUNT')} "
+                    f"pipeline={recon.get('PIPELINE_COUNT')} missing={recon.get('MISSING_FROM_PIPELINE')}"
+                ),
+                source_warnings=[
+                    f"HANDOFF_MISMATCH missing={recon.get('MISSING_FROM_PIPELINE')}",
+                    *(
+                        [f"PARTIAL: {live.get('partial_reason')}"]
+                        if run_status == "PARTIAL_DISCOVERY_RUN"
+                        else ([f"{sources_failed} source(s) failed"] if sources_failed else [])
+                    ),
+                ],
+            )
+            _finalize_run(
+                run_id,
+                status=final_status,
+                error=(
+                    f"PIPELINE_HANDOFF_MISMATCH discovery={recon.get('DISCOVERY_COUNT')} "
+                    f"pipeline={recon.get('PIPELINE_COUNT')} missing={recon.get('MISSING_FROM_PIPELINE')}"
+                ),
+            )
+            log.warning(
+                "M3 discovery %s handoff mismatch discovery=%s pipeline=%s",
+                run_id,
+                recon.get("DISCOVERY_COUNT"),
+                recon.get("PIPELINE_COUNT"),
+            )
+            return
 
         if run_status == "PARTIAL_DISCOVERY_RUN":
             final_status = STATUS_COMPLETED_WITH_WARNINGS
@@ -910,19 +1086,33 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             records_retrieved=int(metrics.get("raw_records") or len(records)),
             unique_records=len(records),
             open_current_records=len(open_current),
+            handoff_status="COMPLETE",
+            handoff_discovered=int(recon.get("DISCOVERY_COUNT") or len(survivors)),
+            handoff_transferred=int(recon.get("PIPELINE_COUNT") or 0),
+            handoff_failed=0,
+            reconciliation=recon,
+            research_queue_count=int(recon.get("RESEARCH_QUEUE_COUNT") or deep_queued),
             source_warnings=(
                 [f"PARTIAL: {live.get('partial_reason')}"]
                 if run_status == "PARTIAL_DISCOVERY_RUN"
                 else ([f"{sources_failed} source(s) failed"] if sources_failed else [])
             ),
         )
+        # Clear durable survivors only after verified match
+        try:
+            from m3_pipeline_handoff import clear_handoff_checkpoint
+
+            clear_handoff_checkpoint()
+        except Exception:
+            log.exception("Failed clearing handoff checkpoint")
         _finalize_run(run_id, status=final_status)
         log.info(
-            "M3 discovery %s done status=%s survivors=%s new=%s",
+            "M3 discovery %s done status=%s survivors=%s new=%s transferred=%s",
             run_id,
             final_status,
             len(survivors),
             pipeline_new,
+            recon.get("PIPELINE_COUNT"),
         )
         # Drain RESEARCH_QUEUED automatically after discovery feeds the pipeline
         try:
@@ -958,6 +1148,19 @@ def maybe_startup_discovery() -> dict[str, Any]:
         restore_pipeline_store_from_db(store)
     except Exception:
         pass
+    # Resume incomplete handoff before starting a new discovery run
+    try:
+        from m3_pipeline_handoff import resume_incomplete_handoff
+
+        resumed = resume_incomplete_handoff()
+        if resumed:
+            print(
+                f"govtracker: boot resumed handoff status={resumed.get('status')} "
+                f"match={(resumed.get('reconciliation') or {}).get('match')}",
+                flush=True,
+            )
+    except Exception:
+        log.exception("Boot handoff resume failed")
     if is_data_fresh(state):
         print("govtracker: discovery data already fresh — skip startup run", flush=True)
         return {"queued": False, "reason": "already_fresh", "status": discovery_status()}

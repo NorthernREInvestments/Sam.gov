@@ -435,6 +435,13 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         evidence = evidence_access_summary(rows)
     except Exception:
         evidence = {"kind": "M3EvidenceAccessSummary", "deferred": 0}
+    coverage = None
+    try:
+        from source_recovery_priority import coverage_dashboard_payload
+
+        coverage = coverage_dashboard_payload(discovery_status=discovery)
+    except Exception:
+        coverage = None
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
@@ -444,6 +451,7 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "discovery": discovery,
         "research": research,
         "evidence": evidence,
+        "coverage": coverage,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,
@@ -464,6 +472,13 @@ def mobile_sources_summary() -> dict[str, Any]:
     for s in all_s:
         rc = str(s.get("root_cause") or s.get("failure_class") or s.get("health_state") or "UNKNOWN")
         by_cause[rc] = by_cause.get(rc, 0) + 1
+    recovery = None
+    try:
+        from source_recovery_priority import build_source_recovery_queue
+
+        recovery = build_source_recovery_queue(limit=10)
+    except Exception:
+        recovery = None
     return {
         "kind": "M3MobileSources",
         "registered": len(all_s),
@@ -479,7 +494,9 @@ def mobile_sources_summary() -> dict[str, Any]:
             "BOT_PROTECTED": by_cause.get("BOT_CHALLENGE", 0) + by_cause.get("BOT_PROTECTED", 0) + by_cause.get("CAPTCHA", 0),
             "PARSER_FAILURE": by_cause.get("PARSER_FAILURE", 0),
             "TECHNICAL_FAILURE": by_cause.get("UNKNOWN_FAILURE", 0) + by_cause.get("TIMEOUT", 0) + by_cause.get("HTTP_5XX", 0),
+            "STALE_ROUTE": by_cause.get("STALE_URL", 0) + by_cause.get("HTTP_404", 0) + by_cause.get("PORTAL_MIGRATED", 0),
         },
+        "source_recovery": recovery,
         "claim_100_percent_coverage": False,
         "note": "attempted≠productive≠market coverage — Source health ≠ 100% national coverage",
     }

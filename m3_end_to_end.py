@@ -103,19 +103,26 @@ class M3EndToEndOrchestrator:
             "evidence_acquisitions": 0,
         }
 
-    def ingest_discovery_record(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Normalize + dedupe + cheap screen + queue if survivor."""
+    def ingest_discovery_record(
+        self, record: dict[str, Any], *, persist: bool = True
+    ) -> dict[str, Any]:
+        """Normalize + dedupe + cheap screen + queue if survivor.
+
+        persist=False defers store.save() to the caller (batch handoff checkpoints).
+        """
         row, created = self.store.upsert_from_discovery(record)
         self.metrics["ingested"] += 1
         if not created:
             self.metrics["duplicates_skipped"] += 1
-            self.store.save()
+            if persist:
+                self.store.save()
             return {
                 "canonical_id": row["canonical_id"],
                 "created": False,
                 "lifecycle": row.get("lifecycle"),
                 "next_action": row.get("pending_next_action"),
                 "duplicate": True,
+                "survived": bool(row.get("research_queued") or row.get("cheap_screen_survive")),
             }
 
         # Deadline
@@ -137,7 +144,8 @@ class M3EndToEndOrchestrator:
                 row["lifecycle"] = derive_lifecycle(row)
                 row["pending_next_action"] = determine_next_action(row)
                 self.store._rows[row["canonical_id"]] = row
-                self.store.save()
+                if persist:
+                    self.store.save()
                 return {
                     "canonical_id": row["canonical_id"],
                     "created": True,
@@ -167,7 +175,8 @@ class M3EndToEndOrchestrator:
             row["pending_next_action"] = determine_next_action(row)
             self.store._rows[row["canonical_id"]] = row
             self.metrics["cheap_rejected"] += 1
-            self.store.save()
+            if persist:
+                self.store.save()
             return {
                 "canonical_id": row["canonical_id"],
                 "created": True,
@@ -182,7 +191,8 @@ class M3EndToEndOrchestrator:
         row["pending_next_action"] = determine_next_action(row)
         self.store._rows[row["canonical_id"]] = row
         self.metrics["research_queued"] += 1
-        self.store.save()
+        if persist:
+            self.store.save()
         return {
             "canonical_id": row["canonical_id"],
             "created": True,
@@ -595,15 +605,35 @@ class M3EndToEndOrchestrator:
         self.metrics["external_actions_executed"] = 0
         return row
 
-    def run_from_discovery_batch(self, records: list[dict[str, Any]], *, advance: bool = True) -> dict[str, Any]:
+    def run_from_discovery_batch(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        advance: bool = False,
+        persist_every: int = 25,
+    ) -> dict[str, Any]:
+        """Batch ingest discovery survivors.
+
+        Default advance=False: discovery handoff only upserts + queues research.
+        Expensive evidence/pipeline advance runs via the research worker so
+        large batches cannot stall discovery finalization (PIPELINE_UPDATE_STALE).
+        """
         results = []
+        since_save = 0
         for r in records:
-            ing = self.ingest_discovery_record(r)
-            if advance and ing.get("survived"):
+            ing = self.ingest_discovery_record(r, persist=False)
+            since_save += 1
+            if advance and ing.get("survived") and ing.get("canonical_id"):
+                # Persist before advance so partial progress survives interruption
+                self.store.save()
+                since_save = 0
                 adv = self.advance(ing["canonical_id"])
                 results.append({**ing, "advance": adv})
             else:
                 results.append(ing)
+                if persist_every and since_save >= persist_every:
+                    self.store.save()
+                    since_save = 0
         self.store.save()
         return {
             "kind": "M3EndToEndBatch",
@@ -612,6 +642,7 @@ class M3EndToEndOrchestrator:
             "results": results,
             "operator_queue": self.store.operator_queue(),
             "DEVELOPMENT_NO_OUTREACH": True,
+            "advance": bool(advance),
         }
 
     def resume_after_restart(self, canonical_id: str) -> dict[str, Any]:

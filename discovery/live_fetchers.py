@@ -686,6 +686,30 @@ class BonfireLiveFetcher(JsonLiveFetcher):
                             trust_tier=self.trust_tier,
                         )
                     )
+            if not opps:
+                # Bonfire public ProjectPublic / opportunity cards
+                for m in re.finditer(
+                    r'href="([^"]*(?:ProjectPublic|projects/public|PublicPortal)[^"]*)"[^>]*>([^<]{8,220})</a>',
+                    body or "",
+                    re.I,
+                ):
+                    href, title = m.group(1), re.sub(r"\s+", " ", m.group(2)).strip()
+                    if title.lower() in {"login", "register", "home", "about"}:
+                        continue
+                    from urllib.parse import urljoin
+
+                    detail = urljoin(list_url, href) if list_url else href
+                    opps.append(
+                        CanonicalOpportunity(
+                            external_id=title[:160],
+                            source_id=self.source_id,
+                            source_url=list_url,
+                            detail_url=detail,
+                            title=title,
+                            trust_tier=self.trust_tier,
+                            raw_metadata={"platform": "Bonfire"},
+                        )
+                    )
         for o in opps:
             o.source_id = self.source_id
         return opps
@@ -866,17 +890,20 @@ class BidNetLiveFetcher(LiveFetcher):
         if not out:
             # Florida-style title links without mets-table-row wrapper
             for m in re.finditer(
-                r'href="([^"]*solicitations/open-bids/[^"]+)"[^>]*>([^<]{8,200})</a>',
+                r'href="([^"]*solicitations/(?:statewide/)?(?:open-bids/)?[^"]+)"[^>]*>([^<]{8,200})</a>',
                 body or "",
                 re.I,
             ):
                 href, title = m.group(1), re.sub(r"\s+", " ", m.group(2)).strip()
-                if title.lower() in {"open solicitations", "closed solicitations"}:
+                if title.lower() in {"open solicitations", "closed solicitations", "login", "register"}:
+                    continue
+                if "javascript:" in href.lower():
                     continue
                 detail = urljoin(list_url, href) if list_url else href
+                sid_m = re.search(r"/solicitations/(?:statewide/)?(\d+)", href, re.I)
                 out.append(
                     CanonicalOpportunity(
-                        external_id=title[:160],
+                        external_id=(sid_m.group(1) if sid_m else title)[:160],
                         source_id=self.source_id,
                         source_url=list_url,
                         detail_url=detail,
@@ -890,7 +917,16 @@ class BidNetLiveFetcher(LiveFetcher):
                         },
                     )
                 )
-        return out
+        # Deduplicate by external_id
+        seen_ids: set[str] = set()
+        deduped: list[CanonicalOpportunity] = []
+        for o in out:
+            key = str(o.external_id or o.title or "")[:160]
+            if not key or key in seen_ids:
+                continue
+            seen_ids.add(key)
+            deduped.append(o)
+        return deduped
 
 
 class JaggaerPublicLiveFetcher(LiveFetcher):
