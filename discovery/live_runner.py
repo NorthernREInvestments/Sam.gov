@@ -41,10 +41,12 @@ def run_live_discovery(
     max_sources: int | None = None,
     fetch_details: bool | None = None,
     fetch_documents: bool | None = None,
+    on_source_complete: Any | None = None,
 ) -> dict[str, Any]:
     """
     Controlled live/preview discovery — listing-first by default for TINY/BROAD.
     Per-source budget exhaustion continues to next source.
+    Optional on_source_complete(metrics, source_id) for coarse progress heartbeats.
     """
     if persist:
         preview = False
@@ -387,6 +389,12 @@ def run_live_discovery(
             }
             continue
 
+        if callable(on_source_complete):
+            try:
+                on_source_complete(dict(metrics), sid)
+            except Exception:
+                pass
+
         if metrics["global_budget_exhausted"] or metrics["runtime_budget_exhausted"]:
             break
 
@@ -410,6 +418,7 @@ def run_live_discovery(
         "analytics": analytics,
         "quality_samples": samples if not persist else {"note": "available in preview"},
         "opportunities": collected if not persist else [],
+        "handoff_records": list(collected),
         "opportunity_count_persisted": len(collected) if persist else 0,
         "accounting": client.accounting(),
         "sources_contacted": sources_contacted,

@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-primary"
+APP_BUILD_VERSION = "20260917-m3-discovery"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -71,6 +71,12 @@ def _run_background_startup() -> None:
 
         start_background_pricing_backfill()
         threading.Thread(target=_deferred_background_startup, name="govtracker-startup-deferred", daemon=True).start()
+        try:
+            from m3_discovery_service import maybe_startup_discovery
+
+            maybe_startup_discovery()
+        except Exception:
+            log.exception("M3 startup discovery check failed")
     except Exception as exc:
         log.exception("Background startup failed")
         with _startup_lock:
@@ -504,6 +510,10 @@ def api_m3_health():
         "pipeline_store_available": True,
         "pipeline_opportunity_count": len(store.all()),
         "legacy_runtime": legacy_retirement_snapshot(),
+        "discovery": {
+            "enabled": True,
+            "note": "see /api/m3/discovery/status",
+        },
         "external_action_safety": {
             "emails_sent": 0,
             "bids_submitted": 0,
@@ -705,12 +715,36 @@ def api_live_product_examples():
     return {"examples": [], "note": "No example set yet"}
 
 
+@app.get("/api/m3/discovery/status")
+def api_m3_discovery_status():
+    from m3_discovery_service import discovery_status
+
+    return discovery_status()
+
+
+@app.post("/api/m3/discovery/run")
+def api_m3_discovery_run():
+    """Operator RUN NOW — same incremental pipeline; no overlap; no outreach."""
+    from m3_discovery_service import TRIGGER_MANUAL, request_discovery_run
+
+    return request_discovery_run(trigger_type=TRIGGER_MANUAL)
+
+
+@app.get("/api/m3/discovery/runs")
+def api_m3_discovery_runs(limit: int = Query(10, ge=1, le=50)):
+    from m3_discovery_service import list_recent_runs
+
+    return list_recent_runs(limit=limit)
+
+
 @app.get("/api/m3/pipeline/status")
 def api_m3_pipeline_status(canonical_id: str | None = None):
     from m3_pipeline_store import M3PipelineStore
     from m3_lifecycle import readiness_summary
+    from m3_discovery_service import restore_pipeline_store_from_db
 
     store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
     if canonical_id:
         row = store.get(canonical_id)
         if not row:

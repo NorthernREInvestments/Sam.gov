@@ -1,4 +1,4 @@
-"""Tiered SAM.gov sync scheduler."""
+"""Tiered SAM.gov sync scheduler + M3 incremental discovery cadence."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger("govtracker.scheduler")
 
@@ -90,6 +91,33 @@ def run_amendment_check() -> None:
         session.close()
 
 
+def configure_m3_discovery_job() -> None:
+    """Interval discovery inside the web process — no separate Railway worker required."""
+    from m3_discovery_service import discovery_enabled, discovery_interval_minutes, scheduled_discovery_tick
+
+    if not discovery_enabled():
+        if scheduler.running:
+            job = scheduler.get_job("m3_incremental_discovery")
+            if job:
+                scheduler.remove_job("m3_incremental_discovery")
+        logger.info("M3 discovery scheduler disabled (M3_DISCOVERY_ENABLED=false)")
+        return
+
+    minutes = discovery_interval_minutes()
+    trigger = IntervalTrigger(minutes=minutes)
+    if not scheduler.running:
+        scheduler.start()
+    scheduler.add_job(
+        scheduled_discovery_tick,
+        trigger,
+        id="m3_incremental_discovery",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("M3 discovery scheduler: every %s minutes (server-side)", minutes)
+
+
 def configure_scheduler() -> None:
     from settings_store import get_scheduler_settings
 
@@ -100,7 +128,9 @@ def configure_scheduler() -> None:
                 job = scheduler.get_job(job_id)
                 if job:
                     scheduler.remove_job(job_id)
-        logger.info("Scheduler disabled in settings")
+        logger.info("Legacy SAM scheduler disabled in settings")
+        # M3 discovery still runs independently of legacy SAM sync toggle
+        configure_m3_discovery_job()
         return
 
     hour = settings["hour"]
@@ -140,6 +170,8 @@ def configure_scheduler() -> None:
         )
         scheduler.start()
 
+    configure_m3_discovery_job()
+
     logger.info(
         "Scheduler configured: tiered sync at %02d:%02d %s (T1 daily, T2 Mon/Wed/Fri, T3 Sun)",
         hour,
@@ -162,8 +194,22 @@ def scheduler_status() -> dict:
     from settings_store import get_naics_codes_for_tiers, get_scheduler_settings
 
     settings = get_scheduler_settings()
+    m3_job = scheduler.get_job("m3_incremental_discovery") if scheduler.running else None
+    m3_info = {}
+    try:
+        from m3_discovery_service import discovery_enabled, discovery_interval_minutes, discovery_status
+
+        m3_info = {
+            "m3_discovery_enabled": discovery_enabled(),
+            "m3_discovery_interval_minutes": discovery_interval_minutes(),
+            "m3_discovery_next_run": m3_job.next_run_time.isoformat() if m3_job and m3_job.next_run_time else None,
+            "m3_discovery_status": discovery_status().get("status"),
+        }
+    except Exception:
+        m3_info = {"m3_discovery_enabled": False}
+
     if not settings["enabled"]:
-        return {"enabled": False, "running": False, **settings}
+        return {"enabled": False, "running": scheduler.running, **settings, **m3_info}
 
     scheduled_tiers = tiers_for_scheduled_sync()
     scheduled_pool = get_naics_codes_for_tiers(scheduled_tiers)
@@ -181,4 +227,5 @@ def scheduler_status() -> dict:
         "scheduled_pool_size": len(scheduled_pool),
         "scheduled_per_sync": scheduled_naics_per_sync(),
         "tier_schedule": "Tier 1 daily · Tier 2 Mon/Wed/Fri · Tier 3 Sunday · rotates a few codes per run",
+        **m3_info,
     }

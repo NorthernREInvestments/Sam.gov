@@ -287,6 +287,12 @@ def _priority_label(priority: Any) -> str:
 
 def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, Any]:
     store = store or M3PipelineStore()
+    try:
+        from m3_discovery_service import restore_pipeline_store_from_db
+
+        restore_pipeline_store_from_db(store)
+    except Exception:
+        pass
     rows = store.all()
     cards = [opportunity_card_summary(r) for r in rows]
     cards.sort(key=lambda c: (c.get("priority", 50), str(c.get("deadline") or "9999")))
@@ -316,12 +322,19 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
             "naics_is_primary_filter": False,
             "isolated_from_legacy_acquisition": True,
         }
+    try:
+        from m3_discovery_service import discovery_status
+
+        discovery = discovery_status()
+    except Exception:
+        discovery = {"status": "UNKNOWN", "enabled": False}
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
         "action_count": actions["count"],
         "active_opportunities": active[:40],
         "top_actions": actions["actions"][:15],
+        "discovery": discovery,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,

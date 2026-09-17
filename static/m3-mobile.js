@@ -1,9 +1,10 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
   const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room"];
-  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null };
+  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null };
   let lastDealId = null;
   let activeLearningRecordId = null;
+  let discoveryPollTimer = null;
 
   function esc(s) {
     if (typeof escapeHtml === "function") return escapeHtml(String(s ?? ""));
@@ -12,6 +13,167 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function fmtWhen(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+    } catch (_) {
+      return String(iso);
+    }
+  }
+
+  function fmtElapsed(startedAt) {
+    if (!startedAt) return "";
+    const t = new Date(startedAt).getTime();
+    if (Number.isNaN(t)) return "";
+    const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + "m " + String(s).padStart(2, "0") + "s";
+  }
+
+  function phaseLabel(phase) {
+    const map = {
+      PREPARING: "Preparing",
+      DISCOVERING: "Discovering sources",
+      NORMALIZING: "Normalizing",
+      DEDUPLICATING: "Deduplicating",
+      CHEAP_SCREENING: "Product screening",
+      PIPELINE_UPDATE: "Updating pipeline",
+      TRACKED_CHANGE_CHECK: "Tracked change check",
+      FINALIZING: "Finalizing",
+    };
+    return map[phase] || phase || "—";
+  }
+
+  function renderDiscoveryStatus(st) {
+    const el = document.getElementById("m3-discovery-status");
+    if (!el) return;
+    st = st || {};
+    const run = st.current_run || {};
+    const lastOk = st.last_successful_completion || {};
+    const lastAttempt = st.last_attempt || {};
+    const running = !!st.running;
+    const pct = Math.max(0, Math.min(100, Number(st.progress_percent || 0)));
+    const status = st.status || "IDLE";
+    let title = "DISCOVERY";
+    let tone = "current";
+    if (running) {
+      title = "DISCOVERY";
+      tone = "running";
+    } else if (status === "FAILED") {
+      title = "DISCOVERY FAILED";
+      tone = "failed";
+    } else if (status === "STALE" || status === "NO_SUCCESSFUL_RUN") {
+      title = "DISCOVERY DATA STALE";
+      tone = "stale";
+    } else if (status === "CURRENT") {
+      title = "DISCOVERY";
+      tone = "current";
+    }
+    const srcDone = run.sources_completed || run.sources_attempted || lastOk.sources_successful;
+    const srcTotal = run.sources_total || lastOk.sources_attempted;
+    const survivors = running ? run.product_screen_survivors : lastOk.product_screen_survivors;
+    const records = running ? run.records_retrieved : lastOk.records_retrieved;
+    const unique = running ? run.unique_records : lastOk.unique_records;
+    const pipelineDelta = (Number(lastOk.pipeline_new || 0) + Number(lastOk.pipeline_updated || 0));
+    const bar = `<div class="m3-disc-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>`;
+    let body = "";
+    if (running) {
+      body = `<p class="m3-disc-line"><strong>Running · ${pct}%</strong> · Elapsed: ${esc(fmtElapsed(st.elapsed_hint_started_at || run.started_at))}</p>
+        <p class="m3-disc-line">Phase: ${esc(phaseLabel(st.phase || run.phase))}${srcTotal ? ` · Sources: ${esc(srcDone)} / ${esc(srcTotal)}` : ""}</p>
+        <p class="m3-disc-line muted">Records: ${esc(records ?? "—")} · Unique: ${esc(unique ?? "—")} · Product survivors: ${esc(survivors ?? "—")}</p>`;
+    } else if (status === "FAILED") {
+      body = `<p class="m3-disc-line">Last attempt: ${esc(fmtWhen(lastAttempt.completed_at))}</p>
+        <p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at))}</p>
+        <p class="m3-disc-line muted">${esc(lastAttempt.error_summary || "Discovery failed")}</p>`;
+    } else if (status === "STALE" || status === "NO_SUCCESSFUL_RUN") {
+      body = `<p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at) || "never")}</p>
+        <p class="m3-disc-line muted">Scheduled discovery has not successfully completed within the expected freshness window.</p>
+        <p class="m3-disc-line muted">Next run: ${esc(fmtWhen(st.next_scheduled_run))}</p>`;
+    } else {
+      body = `<p class="m3-disc-line"><strong>Current</strong> · ${pct}%</p>
+        <p class="m3-disc-line">Last successful: ${esc(fmtWhen(lastOk.completed_at))} · Next run: ${esc(fmtWhen(st.next_scheduled_run))}</p>
+        <p class="m3-disc-line muted">${esc(survivors ?? records ?? 0)} opportunities screened · ${esc(pipelineDelta)} added/updated</p>`;
+      if (lastOk.sources_failed) {
+        body += `<p class="m3-disc-line muted">${esc(lastOk.sources_successful)} / ${esc(lastOk.sources_attempted)} sources successful · ${esc(lastOk.sources_failed)} source warnings</p>`;
+      }
+    }
+    el.className = "m3-discovery-status m3-disc-" + tone;
+    el.innerHTML = `<div class="m3-disc-main">
+        <div class="m3-disc-head"><span class="m3-disc-title">${esc(title)}</span><span class="m3-disc-pct">${pct}%</span></div>
+        ${bar}
+        ${body}
+      </div>
+      <div class="m3-disc-actions">
+        <button type="button" class="btn m3-disc-run-now" id="m3-discovery-run-now">RUN NOW</button>
+        <p class="m3-disc-msg muted" id="m3-discovery-run-msg" hidden></p>
+      </div>`;
+    const btn = document.getElementById("m3-discovery-run-now");
+    if (btn) {
+      btn.addEventListener("click", onRunNow);
+      if (running) btn.disabled = false;
+    }
+  }
+
+  async function onRunNow() {
+    const msg = document.getElementById("m3-discovery-run-msg");
+    const btn = document.getElementById("m3-discovery-run-now");
+    try {
+      if (btn) btn.disabled = true;
+      const res = await postJson("/api/m3/discovery/run", {});
+      if (res.already_running) {
+        if (msg) {
+          msg.hidden = false;
+          msg.textContent = res.message || "Discovery already running.";
+        }
+        cache.discovery = res.status || res.run || cache.discovery;
+        renderDiscoveryStatus(cache.discovery);
+      } else {
+        if (msg) {
+          msg.hidden = false;
+          msg.textContent = "Discovery started.";
+        }
+        cache.discovery = res.status || cache.discovery;
+        renderDiscoveryStatus(cache.discovery);
+      }
+      scheduleDiscoveryPoll(true);
+    } catch (e) {
+      if (msg) {
+        msg.hidden = false;
+        msg.textContent = "Unable to start discovery.";
+      }
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function scheduleDiscoveryPoll(forceFast) {
+    if (discoveryPollTimer) {
+      clearTimeout(discoveryPollTimer);
+      discoveryPollTimer = null;
+    }
+    const running = !!(cache.discovery && cache.discovery.running);
+    const ms = forceFast || running ? 7000 : 45000;
+    discoveryPollTimer = setTimeout(async () => {
+      try {
+        const st = await fetchJson("/api/m3/discovery/status");
+        cache.discovery = st;
+        renderDiscoveryStatus(st);
+        if (st.running) {
+          // refresh counts while a run is active
+          cache.dashboard = null;
+          await loadHome(true);
+          return;
+        }
+      } catch (_) {
+        /* non-fatal */
+      }
+      scheduleDiscoveryPoll(false);
+    }, ms);
   }
 
   function fmtMoney(v) {
@@ -154,6 +316,11 @@
       }
       if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
       const d = cache.dashboard;
+      if (!cache.discovery || force || (cache.discovery && cache.discovery.running)) {
+        cache.discovery = d.discovery || (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
+      }
+      renderDiscoveryStatus(cache.discovery || d.discovery);
+      scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
       const attention = document.getElementById("m3-home-attention");
       const profile = d.procurement_profile || {};
       const actions = d.top_actions || [];
