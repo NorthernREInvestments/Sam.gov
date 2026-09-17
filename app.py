@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-discovery-pipeline-stabilized"
+APP_BUILD_VERSION = "20260917-m3-commercial-intelligence"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1046,11 +1046,69 @@ def api_m3_mobile_actions():
 def api_m3_mobile_deal(canonical_id: str):
     from m3_pipeline_store import M3PipelineStore
     from m3_mobile_read_model import deal_room_summary
+    from m3_discovery_service import restore_pipeline_store_from_db
 
-    row = M3PipelineStore().get(canonical_id)
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    row = store.get(canonical_id)
     if not row:
         raise HTTPException(status_code=404, detail="opportunity not found")
     return deal_room_summary(row)
+
+
+@app.get("/api/m3/commercial/queue")
+def api_m3_commercial_queue(limit: int = Query(25, ge=1, le=100)):
+    """COMMERCIAL_RESEARCH_QUEUE — ranked by profit candidacy, not contract value alone."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_commercial_engine import build_commercial_research_queue
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return build_commercial_research_queue(store.all(), limit=limit)
+
+
+@app.post("/api/m3/commercial/analyze")
+def api_m3_commercial_analyze(body: dict | None = None):
+    """Analyze top N research candidates — research only, no outreach."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_commercial_engine import analyze_top_commercial_opportunities
+
+    payload = body or {}
+    limit = int(payload.get("limit") or 25)
+    limit = max(1, min(50, limit))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_top_commercial_opportunities(store, limit=limit)
+
+
+@app.get("/api/m3/commercial/status")
+def api_m3_commercial_status():
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_commercial_engine import build_commercial_research_queue
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    rows = store.all()
+    scored = [r for r in rows if r.get("commercial_intelligence") or r.get("commercial_opportunity_score")]
+    bands = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    for r in scored:
+        b = r.get("commercial_opportunity_score") or (r.get("commercial_intelligence") or {}).get(
+            "COMMERCIAL_OPPORTUNITY_SCORE"
+        )
+        if b in bands:
+            bands[b] += 1
+    queue = build_commercial_research_queue(rows, limit=10)
+    return {
+        "kind": "M3CommercialStatus",
+        "scored_opportunities": len(scored),
+        "bands": bands,
+        "TOP_10": queue.get("TOP_25", [])[:10],
+        "DEVELOPMENT_NO_OUTREACH": True,
+        "commercial_outreach": False,
+    }
 
 
 @app.get("/api/m3/mobile/sources")

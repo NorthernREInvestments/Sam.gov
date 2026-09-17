@@ -294,6 +294,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
             "historical_winners": {"signal": "COMPETITION_HISTORY_UNKNOWN", "auto_reject": False},
             "note": "UNKNOWN until evidence supports commercial research",
         },
+        "commercial_intelligence": _deal_commercial(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -305,6 +306,20 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "readiness": readiness,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
     }
+
+
+def _deal_commercial(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_commercial_engine import deal_room_commercial_section
+
+        return deal_room_commercial_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomCommercial",
+            "Commercial_Confidence": "UNKNOWN",
+            "Next_Action": "Commercial intelligence unavailable",
+            "Estimated_Acquisition": {"status": "UNKNOWN"},
+        }
 
 
 def _credentials_available(row: dict[str, Any]) -> bool:

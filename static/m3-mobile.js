@@ -838,6 +838,7 @@
       const act = deal.actions || {};
       const ev = deal.evidence || {};
       const commercial = deal.commercial_research || {};
+      const ci = deal.commercial_intelligence || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -847,6 +848,10 @@
               `<li><strong>${esc(li.quantity)} ${esc(li.unit)}</strong> — ${esc(li.description)} <span class="muted">(${esc(li.specification)})</span></li>`
           )
           .join("") || "<li class='muted'>UNKNOWN / no BOM yet</li>";
+      const winnersHtml = (ci.Historical_Winners || [])
+        .map((w) => esc(w))
+        .join(", ") || "UNKNOWN";
+      const acq = ci.Estimated_Acquisition || {};
       if (sections) {
         sections.innerHTML = [
           sectionCard(
@@ -858,6 +863,22 @@
               <div><dt>Deadline</dt><dd>${esc(o.deadline)} (${esc(fmtDays(o.days_remaining))})</dd></div>
               <div><dt>Lifecycle</dt><dd>${esc(o.lifecycle)}</dd></div>
             </dl>`
+          ),
+          sectionCard(
+            "Commercial Intelligence",
+            `<dl class="m3-kv">
+              <div><dt>Government Value</dt><dd>${esc(ci.Government_Value ?? "UNKNOWN")}</dd></div>
+              <div><dt>Historical Winners</dt><dd>${winnersHtml}</dd></div>
+              <div><dt>Known Manufacturer</dt><dd>${esc(ci.Known_Manufacturer ?? "UNKNOWN")}</dd></div>
+              <div><dt>Supply Confidence</dt><dd>${esc(ci.Supply_Confidence ?? "UNKNOWN")}</dd></div>
+              <div><dt>Estimated Acquisition</dt><dd>${esc(acq.low ?? "UNKNOWN")} – ${esc(acq.high ?? "UNKNOWN")} <span class="muted">(${esc(acq.level || acq.status || "")})</span></dd></div>
+              <div><dt>Margin Potential</dt><dd>${esc(ci.Margin_Potential ?? "UNKNOWN")}</dd></div>
+              <div><dt>Commercial Confidence</dt><dd><strong>${esc(ci.Commercial_Confidence ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Financing Difficulty</dt><dd>${esc(ci.Financing_Difficulty ?? "UNKNOWN")}</dd></div>
+              <div><dt>Reseller Fit</dt><dd>${esc(ci.RESELLER_FIT_SCORE ?? "—")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(ci.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">Government price ≠ profit · research only · no supplier contact</p>`
           ),
           sectionCard(
             "Evidence",

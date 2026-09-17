@@ -309,13 +309,22 @@ class M3EndToEndOrchestrator:
                     row["product_category"] = cat["category"]
                     row["product_audit"] = audit_survivor(row)
 
-                # Commercial panel (wholesale vs public — no false reject)
+                # Commercial intelligence (wholesale vs public — no false reject / no fabricated margin)
                 try:
+                    from m3_commercial_engine import build_commercial_intelligence
                     from m3_commercial_intelligence import build_commercial_research_panel
 
-                    row["commercial_research"] = build_commercial_research_panel(row)
+                    ci = build_commercial_intelligence(row)
+                    row["commercial_intelligence"] = ci
+                    row["commercial_opportunity_score"] = ci.get("COMMERCIAL_OPPORTUNITY_SCORE")
+                    row["commercial_research"] = ci.get("legacy_panel") or build_commercial_research_panel(row)
                 except Exception:
-                    pass
+                    try:
+                        from m3_commercial_intelligence import build_commercial_research_panel
+
+                        row["commercial_research"] = build_commercial_research_panel(row)
+                    except Exception:
+                        pass
 
                 result = self._run_executable(row)
                 row = self.store.apply_pipeline_result(canonical_id, result)

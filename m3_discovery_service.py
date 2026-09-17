@@ -1133,6 +1133,16 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             maybe_request_research_after_discovery()
         except Exception:
             log.exception("Post-discovery research kick failed")
+        # Commercial intelligence on top candidates (research only — no outreach)
+        try:
+            from m3_commercial_engine import analyze_top_commercial_opportunities
+            from m3_pipeline_store import M3PipelineStore
+
+            cstore = M3PipelineStore()
+            restore_pipeline_store_from_db(cstore)
+            analyze_top_commercial_opportunities(cstore, limit=25)
+        except Exception:
+            log.exception("Post-discovery commercial analysis failed")
     except Exception as exc:
         log.exception("M3 discovery run failed")
         _finalize_run(run_id, status=STATUS_FAILED, error=str(exc))
