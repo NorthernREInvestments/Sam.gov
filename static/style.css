@@ -4238,6 +4238,70 @@ body.m3-only-app #dashboard-perf-alerts {
   padding: 0.65rem 0.9rem;
 }
 .m3-disc-msg { margin: 0; font-size: 0.75rem; max-width: 10rem; }
+.m3-research-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 0 0 0.95rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d9d4c8;
+  background: linear-gradient(180deg, #fbf8f1 0%, #f3eee3 100%);
+  border-radius: 10px;
+}
+.m3-res-main { flex: 1 1 16rem; min-width: 0; }
+.m3-res-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+.m3-res-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #3a2f1a;
+}
+.m3-res-pct { font-size: 0.85rem; font-weight: 700; color: #4a3b22; }
+.m3-res-bar {
+  height: 0.55rem;
+  background: #e4dccb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.45rem;
+}
+.m3-res-bar > span {
+  display: block;
+  height: 100%;
+  background: #a86b1e;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+.m3-res-running .m3-res-bar > span { background: #8a5514; }
+.m3-res-stalled .m3-res-title,
+.m3-res-failed .m3-res-title { color: #8a3b12; }
+.m3-res-failed .m3-res-bar > span { background: #b33b2b; }
+.m3-res-stalled .m3-res-bar > span { background: #c47a1a; }
+.m3-res-backlog .m3-res-bar > span { background: #b8831f; }
+.m3-res-line { margin: 0.15rem 0; font-size: 0.86rem; line-height: 1.35; }
+.m3-res-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 7.5rem;
+}
+.m3-res-run-now {
+  min-height: 44px;
+  min-width: 7.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 0.9rem;
+}
+.m3-res-msg { margin: 0; font-size: 0.75rem; max-width: 10rem; }
 @media (max-width: 700px) {
   .m3-discovery-status {
     flex-direction: column;
@@ -4246,6 +4310,13 @@ body.m3-only-app #dashboard-perf-alerts {
     width: 100%;
   }
   .m3-disc-run-now { width: 100%; }
+  .m3-research-status {
+    flex-direction: column;
+  }
+  .m3-res-actions {
+    width: 100%;
+  }
+  .m3-res-run-now { width: 100%; }
 }
 @media (max-width: 900px) {
   body.m3-only-app .m3-app-header h1 { font-size: 1.25rem; }

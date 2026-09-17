@@ -118,6 +118,33 @@ def configure_m3_discovery_job() -> None:
     logger.info("M3 discovery scheduler: every %s minutes (server-side)", minutes)
 
 
+def configure_m3_research_job() -> None:
+    """Interval research queue drain — reuses M3EndToEndOrchestrator.advance."""
+    from m3_research_service import research_enabled, research_interval_minutes, scheduled_research_tick
+
+    if not research_enabled():
+        if scheduler.running:
+            job = scheduler.get_job("m3_research_queue")
+            if job:
+                scheduler.remove_job("m3_research_queue")
+        logger.info("M3 research scheduler disabled (M3_RESEARCH_ENABLED=false)")
+        return
+
+    minutes = research_interval_minutes()
+    trigger = IntervalTrigger(minutes=minutes)
+    if not scheduler.running:
+        scheduler.start()
+    scheduler.add_job(
+        scheduled_research_tick,
+        trigger,
+        id="m3_research_queue",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("M3 research scheduler: every %s minutes (server-side)", minutes)
+
+
 def configure_scheduler() -> None:
     from settings_store import get_scheduler_settings
 
@@ -129,8 +156,9 @@ def configure_scheduler() -> None:
                 if job:
                     scheduler.remove_job(job_id)
         logger.info("Legacy SAM scheduler disabled in settings")
-        # M3 discovery still runs independently of legacy SAM sync toggle
+        # M3 discovery/research still run independently of legacy SAM sync toggle
         configure_m3_discovery_job()
+        configure_m3_research_job()
         return
 
     hour = settings["hour"]
@@ -171,6 +199,7 @@ def configure_scheduler() -> None:
         scheduler.start()
 
     configure_m3_discovery_job()
+    configure_m3_research_job()
 
     logger.info(
         "Scheduler configured: tiered sync at %02d:%02d %s (T1 daily, T2 Mon/Wed/Fri, T3 Sun)",
@@ -195,6 +224,7 @@ def scheduler_status() -> dict:
 
     settings = get_scheduler_settings()
     m3_job = scheduler.get_job("m3_incremental_discovery") if scheduler.running else None
+    m3_research_job = scheduler.get_job("m3_research_queue") if scheduler.running else None
     m3_info = {}
     try:
         from m3_discovery_service import discovery_enabled, discovery_interval_minutes, discovery_status
@@ -207,6 +237,23 @@ def scheduler_status() -> dict:
         }
     except Exception:
         m3_info = {"m3_discovery_enabled": False}
+    try:
+        from m3_research_service import research_enabled, research_interval_minutes, research_status
+
+        m3_info.update(
+            {
+                "m3_research_enabled": research_enabled(),
+                "m3_research_interval_minutes": research_interval_minutes(),
+                "m3_research_next_run": (
+                    m3_research_job.next_run_time.isoformat()
+                    if m3_research_job and m3_research_job.next_run_time
+                    else None
+                ),
+                "m3_research_status": research_status().get("status"),
+            }
+        )
+    except Exception:
+        m3_info["m3_research_enabled"] = False
 
     if not settings["enabled"]:
         return {"enabled": False, "running": scheduler.running, **settings, **m3_info}

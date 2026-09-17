@@ -1,10 +1,11 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
   const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room"];
-  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null };
+  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null, research: null };
   let lastDealId = null;
   let activeLearningRecordId = null;
   let discoveryPollTimer = null;
+  let researchPollTimer = null;
 
   function esc(s) {
     if (typeof escapeHtml === "function") return escapeHtml(String(s ?? ""));
@@ -118,6 +119,157 @@
       btn.addEventListener("click", onRunNow);
       if (running) btn.disabled = false;
     }
+  }
+
+  function fmtMoneySpend(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "$0.00";
+    return "$" + n.toFixed(2);
+  }
+
+  function renderResearchStatus(st) {
+    const el = document.getElementById("m3-research-status");
+    if (!el) return;
+    st = st || {};
+    const run = st.current_run || {};
+    const disp = st.display || {};
+    const lastOk = st.last_successful_completion || {};
+    const lastAttempt = st.last_attempt || {};
+    const running = !!st.running;
+    const stalled = !!st.stalled;
+    const pct = Math.max(0, Math.min(100, Number(st.progress_percent || 0)));
+    const status = st.status || "IDLE";
+    let title = "RESEARCH";
+    let tone = "idle";
+    if (stalled) {
+      title = "RESEARCH STALLED";
+      tone = "stalled";
+    } else if (running) {
+      title = "RESEARCH";
+      tone = "running";
+    } else if (status === "FAILED") {
+      title = "RESEARCH FAILED";
+      tone = "failed";
+    } else if (status === "BACKLOG") {
+      title = "RESEARCH BACKLOG";
+      tone = "backlog";
+    } else if (status === "CURRENT") {
+      title = "RESEARCH";
+      tone = "idle";
+    }
+    const processed = Number(disp.processed != null ? disp.processed : run.processed || 0);
+    const total = Number(disp.total_candidates != null ? disp.total_candidates : run.total_candidates || 0);
+    const queued = Number(disp.queued != null ? disp.queued : st.backlog || 0);
+    const rejected = Number(disp.rejected != null ? disp.rejected : run.rejected || lastOk.rejected || 0);
+    const advanced = Number(disp.advanced != null ? disp.advanced : run.advanced || lastOk.advanced || 0);
+    const deferred = Number(disp.deferred != null ? disp.deferred : run.deferred || lastOk.deferred || 0);
+    const failed = Number(disp.failed != null ? disp.failed : run.failed || lastOk.failed || 0);
+    const currentTitle = disp.currently_processing_title || run.currently_processing_title || "";
+    const etaLabel = running ? (disp.eta_label || run.eta_label || "Estimating...") : null;
+    const spend = disp.actual_external_spend != null ? disp.actual_external_spend : run.actual_external_spend || lastOk.actual_external_spend || 0;
+    const bar = `<div class="m3-res-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>`;
+    let body = "";
+    if (stalled) {
+      body = `<p class="m3-res-line"><strong>STALLED</strong> · Last heartbeat: ${esc(fmtWhen(disp.heartbeat_at || run.heartbeat_at || run.last_heartbeat_at))}</p>
+        <p class="m3-res-line muted">Currently: ${esc(currentTitle || "—")} · Queue will resume after recovery</p>`;
+    } else if (running) {
+      const frac = total ? `${processed} / ${total}` : `${processed}`;
+      body = `<p class="m3-res-line"><strong>Research — ${esc(frac)} — ${pct}%</strong></p>
+        <p class="m3-res-line">Currently: ${esc(currentTitle || "Preparing…")}</p>
+        <p class="m3-res-line">Elapsed: ${esc(fmtElapsed(st.elapsed_hint_started_at || run.started_at))} · Estimated remaining: ${esc(etaLabel || "Estimating...")}</p>
+        <p class="m3-res-line muted">Rejected: ${esc(rejected)} · Advanced: ${esc(advanced)} · Deferred: ${esc(deferred)}${failed ? ` · Failed: ${esc(failed)}` : ""}</p>
+        <p class="m3-res-line muted">Queued: ${esc(queued)} · Paid spend: ${esc(fmtMoneySpend(spend))}</p>`;
+    } else if (status === "FAILED") {
+      body = `<p class="m3-res-line">Last attempt: ${esc(fmtWhen(lastAttempt.completed_at))}</p>
+        <p class="m3-res-line muted">${esc(lastAttempt.error_summary || "Research run failed")}</p>
+        <p class="m3-res-line muted">Backlog: ${esc(st.backlog || 0)}</p>`;
+    } else if (status === "BACKLOG") {
+      body = `<p class="m3-res-line"><strong>Queued: ${esc(st.backlog || queued)}</strong> · Waiting for automatic research drain</p>
+        <p class="m3-res-line muted">${esc(st.idle_reason || "Research backlog pending")}</p>
+        <p class="m3-res-line muted">Next tick: ${esc(fmtWhen(st.next_scheduled_run))}</p>`;
+    } else {
+      body = `<p class="m3-res-line"><strong>${status === "CURRENT" ? "Idle" : "Idle"}</strong>${total ? ` · Last run ${esc(processed)} / ${esc(total)}` : ""}</p>
+        <p class="m3-res-line muted">${esc(st.idle_reason || "No research work in progress")}</p>
+        <p class="m3-res-line muted">Rejected: ${esc(rejected)} · Advanced: ${esc(advanced)} · Deferred: ${esc(deferred)} · Spend: ${esc(fmtMoneySpend(spend))}</p>`;
+    }
+    el.className = "m3-research-status m3-res-" + tone;
+    el.innerHTML = `<div class="m3-res-main">
+        <div class="m3-res-head"><span class="m3-res-title">${esc(title)}</span><span class="m3-res-pct">${pct}%</span></div>
+        ${bar}
+        ${body}
+      </div>
+      <div class="m3-res-actions">
+        <button type="button" class="btn m3-res-run-now" id="m3-research-run-now">RUN NOW</button>
+        <p class="m3-res-msg muted" id="m3-research-run-msg" hidden></p>
+      </div>`;
+    const btn = document.getElementById("m3-research-run-now");
+    if (btn) {
+      btn.addEventListener("click", onResearchRunNow);
+      btn.disabled = false;
+    }
+  }
+
+  async function onResearchRunNow() {
+    const msg = document.getElementById("m3-research-run-msg");
+    const btn = document.getElementById("m3-research-run-now");
+    try {
+      if (btn) btn.disabled = true;
+      const res = await postJson("/api/m3/research/run", {});
+      if (res.already_running) {
+        if (msg) {
+          msg.hidden = false;
+          msg.textContent = res.message || "Research already running.";
+        }
+        cache.research = res.status || cache.research;
+        renderResearchStatus(cache.research);
+      } else if (res.accepted === false) {
+        if (msg) {
+          msg.hidden = false;
+          msg.textContent = res.message || res.reason || "Unable to start research.";
+        }
+        cache.research = res.status || cache.research;
+        renderResearchStatus(cache.research);
+        if (btn) btn.disabled = false;
+      } else {
+        if (msg) {
+          msg.hidden = false;
+          msg.textContent = "Research started.";
+        }
+        cache.research = res.status || cache.research;
+        renderResearchStatus(cache.research);
+      }
+      scheduleResearchPoll(true);
+    } catch (e) {
+      if (msg) {
+        msg.hidden = false;
+        msg.textContent = "Unable to start research.";
+      }
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function scheduleResearchPoll(forceFast) {
+    if (researchPollTimer) {
+      clearTimeout(researchPollTimer);
+      researchPollTimer = null;
+    }
+    const running = !!(cache.research && cache.research.running);
+    const ms = forceFast || running ? 5000 : 45000;
+    researchPollTimer = setTimeout(async () => {
+      try {
+        const st = await fetchJson("/api/m3/research/status");
+        cache.research = st;
+        renderResearchStatus(st);
+        if (st.running) {
+          cache.dashboard = null;
+          await loadHome(true);
+          return;
+        }
+      } catch (_) {
+        /* non-fatal */
+      }
+      scheduleResearchPoll(false);
+    }, ms);
   }
 
   async function onRunNow() {
@@ -323,6 +475,11 @@
         (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
       renderDiscoveryStatus(cache.discovery || d.discovery);
       scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
+      cache.research =
+        d.research ||
+        (await fetchJson("/api/m3/research/status").catch(() => cache.research));
+      renderResearchStatus(cache.research || d.research);
+      scheduleResearchPoll(!!(cache.research && cache.research.running));
       const attention = document.getElementById("m3-home-attention");
       const profile = d.procurement_profile || {};
       const actions = d.top_actions || [];
@@ -361,6 +518,13 @@
         renderDiscoveryStatus(st);
       } catch (_) {
         renderDiscoveryStatus({ status: "IDLE", progress_percent: 0 });
+      }
+      try {
+        const rst = await fetchJson("/api/m3/research/status");
+        cache.research = rst;
+        renderResearchStatus(rst);
+      } catch (_) {
+        renderResearchStatus({ status: "IDLE", progress_percent: 0 });
       }
     }
   }

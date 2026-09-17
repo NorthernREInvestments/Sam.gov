@@ -331,6 +331,12 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         discovery = discovery_status()
     except Exception:
         discovery = {"status": "UNKNOWN", "enabled": False}
+    try:
+        from m3_research_service import research_status
+
+        research = research_status()
+    except Exception:
+        research = {"status": "UNKNOWN", "enabled": False}
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
@@ -338,6 +344,7 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "active_opportunities": active[:40],
         "top_actions": actions["actions"][:15],
         "discovery": discovery,
+        "research": research,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,

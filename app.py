@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-persist2"
+APP_BUILD_VERSION = "20260917-m3-research1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -77,6 +77,12 @@ def _run_background_startup() -> None:
             maybe_startup_discovery()
         except Exception:
             log.exception("M3 startup discovery check failed")
+        try:
+            from m3_research_service import maybe_startup_research
+
+            maybe_startup_research()
+        except Exception:
+            log.exception("M3 startup research check failed")
     except Exception as exc:
         log.exception("Background startup failed")
         with _startup_lock:
@@ -518,6 +524,10 @@ def api_m3_health():
             "enabled": True,
             "note": "see /api/m3/discovery/status",
         },
+        "research": {
+            "enabled": True,
+            "note": "see /api/m3/research/status",
+        },
         "external_action_safety": {
             "emails_sent": 0,
             "bids_submitted": 0,
@@ -739,6 +749,21 @@ def api_m3_discovery_runs(limit: int = Query(10, ge=1, le=50)):
     from m3_discovery_service import list_recent_runs
 
     return list_recent_runs(limit=limit)
+
+
+@app.get("/api/m3/research/status")
+def api_m3_research_status():
+    from m3_research_service import research_status
+
+    return research_status()
+
+
+@app.post("/api/m3/research/run")
+def api_m3_research_run():
+    """Operator RUN NOW — drain RESEARCH_QUEUED via existing advance() engines."""
+    from m3_research_service import TRIGGER_MANUAL, request_research_run
+
+    return request_research_run(trigger_type=TRIGGER_MANUAL)
 
 
 @app.get("/api/m3/pipeline/status")

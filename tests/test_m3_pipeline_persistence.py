@@ -118,5 +118,7 @@ def test_ui_has_discovery_status_placeholder():
     js = (Path(__file__).resolve().parents[1] / "static" / "m3-mobile.js").read_text(encoding="utf-8")
     assert 'id="m3-discovery-status"' in html
     assert "Loading discovery status" in html
+    assert 'id="m3-research-status"' in html
+    assert "Loading research status" in html
     assert "credentials: \"same-origin\"" in js or "credentials: 'same-origin'" in js
     assert "reload_from_durable" in (Path(__file__).resolve().parents[1] / "m3_pipeline_store.py").read_text(encoding="utf-8")

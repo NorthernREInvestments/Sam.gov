@@ -861,6 +861,13 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             len(survivors),
             pipeline_new,
         )
+        # Drain RESEARCH_QUEUED automatically after discovery feeds the pipeline
+        try:
+            from m3_research_service import maybe_request_research_after_discovery
+
+            maybe_request_research_after_discovery()
+        except Exception:
+            log.exception("Post-discovery research kick failed")
     except Exception as exc:
         log.exception("M3 discovery run failed")
         _finalize_run(run_id, status=STATUS_FAILED, error=str(exc))
