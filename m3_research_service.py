@@ -311,6 +311,11 @@ def _needs_research(row: dict[str, Any]) -> bool:
     if lc in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "CHEAP_SCREENED", "PACKAGE_REQUIRED"}:
         if not tiers or "TIER_1_DIRECT" not in tiers:
             ladder_incomplete = True
+        # Portal package resolver never attempted → allow retrieval breakthrough pass
+        if "PORTAL_DOCUMENT_RESOLVER" not in tiers and not (
+            row.get("line_items") or row.get("bom")
+        ):
+            ladder_incomplete = True
 
     # Idempotency: same evidence fingerprint already researched → skip unless invalidated / ladder gap
     if (

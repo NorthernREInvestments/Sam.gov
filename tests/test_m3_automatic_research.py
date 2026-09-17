@@ -54,7 +54,9 @@ def test_needs_research_idempotent_fingerprint(research_env):
         "evidence_fingerprint": "fp1",
         "research_completed_fingerprint": "fp1",
         "research_last_attempt_at": now_utc().isoformat(),
-        "evidence_acquisition": {"tiers_attempted": ["TIER_0_EXISTING", "TIER_1_DIRECT"]},
+        "evidence_acquisition": {
+            "tiers_attempted": ["TIER_0_EXISTING", "PORTAL_DOCUMENT_RESOLVER", "TIER_1_DIRECT"]
+        },
     }
     assert _needs_research(row) is False
 

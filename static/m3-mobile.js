@@ -286,8 +286,8 @@
     el.className = "m3-evidence-status m3-ev-idle";
     el.innerHTML = `<div class="m3-ev-main">
         <div class="m3-ev-head"><span class="m3-ev-title">EVIDENCE ACCESS</span></div>
-        <p class="m3-ev-line"><strong>${esc(deferred)}</strong> deferred · <strong>${esc(publicCand)}</strong> public recovery · <strong>${esc(packages)}</strong> packages recovered</p>
-        <p class="m3-ev-line muted">${esc(auth)} auth/registration blocked · ${esc(web)} web research pending · ${esc(unresolved)} unresolved</p>
+        <p class="m3-ev-line"><strong>${esc(deferred)}</strong> deferred · <strong>${esc(Number(st.documents_recovered || 0))}</strong> docs · <strong>${esc(Number(st.boms_recovered || 0))}</strong> BOMs · <strong>${esc(packages)}</strong> packages improved</p>
+        <p class="m3-ev-line muted">${esc(auth)} auth blocked · ${esc(Number(st.registration_required || 0))} registration · ${esc(unresolved)} unresolved</p>
         ${queue.length ? `<p class="m3-ev-line muted">Top source access: ${esc(queue.map((p) => p.portal + " (" + p.blocked_opportunities + ")").join(", "))}</p>` : ""}
       </div>
       <div class="m3-ev-actions">
@@ -816,10 +816,13 @@
             "Evidence",
             `<dl class="m3-kv">
               <div><dt>Package</dt><dd>${esc(ev.package_completeness)}</dd></div>
-              <div><dt>Documents</dt><dd>${esc(ev.document_count)}</dd></div>
+              <div><dt>Docs / bytes</dt><dd>${esc(ev.document_count)} / ${esc(ev.documents_with_bytes)}</dd></div>
+              <div><dt>Governing</dt><dd>${esc(ev.governing_document)}</dd></div>
+              <div><dt>BOM lines</dt><dd>${esc(ev.line_item_count)}</dd></div>
+              <div><dt>Portal</dt><dd>${esc(ev.portal_family)}</dd></div>
               <div><dt>Deal type</dt><dd>${esc(ev.deal_type)}</dd></div>
               <div><dt>Failure</dt><dd>${esc(ev.primary_failure)}</dd></div>
-              <div><dt>Auth</dt><dd>${esc(ev.auth_requirements)}</dd></div>
+              <div><dt>Access</dt><dd>${esc(ev.auth_requirements)}</dd></div>
               <div><dt>Next</dt><dd>${esc(ev.next_evidence_action)}</dd></div>
             </dl>
             <p class="muted">Recovery tiers: ${esc(((ev.recovery_attempts || []).map((a) => a.tier).join(", ")) || "none yet")}</p>`

@@ -94,6 +94,18 @@ def test_acquire_evidence_tier0_and_mock_http(monkeypatch):
         "m3_evidence_acquisition._tier4_openai_web",
         lambda *a, **k: {"tier": "TIER_4_OPENAI_WEB", "items": [], "attempted": False, "reason": "skip_test"},
     )
+    # Prevent live portal resolver from short-circuiting the ladder in unit tests
+    monkeypatch.setattr(
+        "portal_document_resolver.resolve_portal_documents",
+        lambda row: {
+            "family": "GENERIC",
+            "ok": False,
+            "failure": "SKIP_TEST",
+            "documents": [],
+            "line_items": [],
+            "attempts": [],
+        },
+    )
     out = acquire_evidence(row, allow_paid=False, max_tier=TIER_1_DIRECT)
     assert out["result"]["improved"] is True
     assert "TIER_1_DIRECT" in out["result"]["tiers_attempted"]

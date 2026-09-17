@@ -222,14 +222,34 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
             ],
         },
         "evidence": {
-            "package_completeness": "COMPLETE"
-            if bom
-            else ("PARTIAL" if row.get("documents") or row.get("evidence_text_excerpt") else "INSUFFICIENT"),
+            "package_completeness": row.get("package_completeness")
+            or (
+                "COMPLETE"
+                if bom
+                else ("PARTIAL" if row.get("documents") or row.get("evidence_text_excerpt") else "INSUFFICIENT")
+            ),
             "governing_documents": bool(row.get("governing_documents") or row.get("solicitation_package_map")),
+            "governing_document": bool(
+                row.get("governing_documents")
+                or any(
+                    isinstance(d, dict) and d.get("document_type") in {"SOLICITATION", "EVENT_PDF", "GOVERNING"}
+                    for d in (row.get("documents") or [])
+                    if isinstance(row.get("documents"), list)
+                )
+            ),
             "document_count": len(row.get("documents") or []) if isinstance(row.get("documents"), list) else 0,
+            "documents_with_bytes": sum(
+                1
+                for d in (row.get("documents") or [])
+                if isinstance(d, dict) and d.get("bytes_recovered")
+            )
+            if isinstance(row.get("documents"), list)
+            else 0,
+            "bom_recovered": bool(bom),
+            "line_item_count": len(bom) if isinstance(bom, list) else 0,
             "missing_evidence": readiness.get("what_we_dont_know") or [],
             "recovery_attempts": [
-                {"tier": a.get("tier"), "at": a.get("at"), "items": a.get("items")}
+                {"tier": a.get("tier"), "at": a.get("at"), "items": a.get("items"), "ok": a.get("ok"), "failure": a.get("failure")}
                 for a in (row.get("evidence_recovery_attempts") or [])[-8:]
                 if isinstance(a, dict)
             ],
@@ -239,13 +259,17 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
                 if isinstance(e, dict)
             ],
             "primary_failure": (row.get("evidence_failure") or {}).get("primary_reason")
+            or (row.get("portal_resolution") or {}).get("failure")
             or row.get("stop_reason")
             or "UNKNOWN",
             "auth_requirements": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
+            "registration_url": row.get("registration_url") or (row.get("portal_resolution") or {}).get("registration_url"),
+            "login_url": row.get("login_url") or (row.get("portal_resolution") or {}).get("login_url"),
+            "portal_family": (row.get("portal_resolution") or {}).get("family"),
             "next_evidence_action": (
                 "AUTHENTICATED_ACCESS_OR_REGISTRATION"
                 if str(row.get("source_access_state") or "").upper()
-                in {"AUTH_REQUIRED", "REGISTRATION_REQUIRED"}
+                in {"AUTH_REQUIRED", "REGISTRATION_REQUIRED", "BOT_PROTECTED"}
                 else (
                     "CONTINUE_PUBLIC_RECOVERY"
                     if not bom

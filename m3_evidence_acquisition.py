@@ -194,6 +194,28 @@ def classify_deal_type(row: dict[str, Any], *, evidence_text: str = "") -> dict[
             "evidence": "policy_form_template",
         }
 
+    # Authoritative product BOM/line items → product unless purely labor UOMs
+    if has_line_items(row):
+        lines = row.get("line_items") or row.get("bom") or []
+        productish = 0
+        for li in lines if isinstance(lines, list) else []:
+            if not isinstance(li, dict):
+                continue
+            unit = str(li.get("unit") or "").upper()
+            if unit in {"LB", "EA", "EACH", "LS", "GAL", "TON", "FT", "YD", "BAG", "BOX", "SET", "KIT", "ROLL"}:
+                productish += 1
+            desc_l = str(li.get("description") or "").lower()
+            if any(x in desc_l for x in ("seed", "lift", "badge", "blade", "equipment", "supply", "material", "part")):
+                productish += 1
+        if productish >= 1 or re.search(r"\b(seed|badge|lift|blade|equipment|supply|material)\b", title, re.I):
+            cat = classify_product_category(title, f"{desc}\n{evidence_text}")
+            return {
+                "deal_type": DT_PRODUCT_RESALE,
+                "confidence": "HIGH",
+                "product_category": cat,
+                "evidence": "authoritative_line_items",
+            }
+
     construction = bool(_CONSTRUCTION.search(blob))
     service = bool(_SERVICE.search(blob))
     cat = classify_product_category(title, f"{desc}\n{evidence_text}")
@@ -204,6 +226,9 @@ def classify_deal_type(row: dict[str, Any], *, evidence_text: str = "") -> dict[
             return {"deal_type": DT_CONSTRUCTION, "confidence": "HIGH" if len(evidence_text) > 80 else "MEDIUM", "product_category": cat, "evidence": "construction_phrase"}
 
     if cat["category"] == "LIKELY_SERVICE_FALSE_POSITIVE" or (service and not construction):
+        # Title product signals override generic "services" boilerplate in PDFs
+        if re.search(r"\b(seed|badge|lift|blade|equipment|goods|materials?|supplies)\b", title, re.I):
+            return {"deal_type": DT_PRODUCT_RESALE, "confidence": "MEDIUM", "product_category": cat, "evidence": "title_product_override"}
         return {"deal_type": DT_SERVICE, "confidence": cat.get("confidence") or "MEDIUM", "product_category": cat, "evidence": "service_phrase"}
 
     if cat["category"] == "MIXED_GOODS_SERVICES" or (construction and ("supply" in title.lower() or "equipment" in title.lower())):
@@ -249,35 +274,28 @@ def _evidence_item(
 
 
 def _http_get(url: str, *, source_id: str = "m3_evidence") -> dict[str, Any]:
-    try:
-        from discovery.http_client import PublicProcurementHttpClient, RequestBudget
+    from portal_document_resolver import live_http_get
 
-        client = PublicProcurementHttpClient(budget=RequestBudget(max_requests=8, max_bytes=2_000_000))
-        resp = client.get(url, source_id=source_id)
-        text = resp.text or ""
-        code = int(resp.status_code or 0)
-        final = getattr(resp.meta, "url", url) if resp.meta else url
-        blocked = False
-        auth = False
-        if code in {401, 403}:
-            auth = True
-        if code == 403 and _BOT_HINT.search(text):
-            blocked = True
-        if _AUTH_HINT.search(text[:4000]) and code in {200, 401, 403}:
-            # soft hint — page may still be public listing
-            if code in {401, 403} or "login" in text[:2000].lower():
-                auth = auth or code in {401, 403}
-        return {
-            "ok": 200 <= code < 400,
-            "status_code": code,
-            "text": text,
-            "url": url,
-            "final_url": final,
-            "auth_required": auth,
-            "bot_protected": blocked,
-        }
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "status_code": None, "text": "", "url": url, "error": str(exc)[:300]}
+    hit = live_http_get(url, source_id=source_id)
+    text = hit.get("text") or ""
+    code = hit.get("status_code")
+    auth = bool(hit.get("failure") in {"LOGIN_REQUIRED", "HTTP_403"} or (code in {401, 403}))
+    blocked = bool(hit.get("failure") == "BOT_CHALLENGE" or _BOT_HINT.search(text[:4000]))
+    if _AUTH_HINT.search(text[:4000]) and code in {200, 401, 403}:
+        if code in {401, 403} or "login" in text[:2000].lower():
+            auth = auth or code in {401, 403}
+    return {
+        "ok": bool(hit.get("ok")),
+        "status_code": code,
+        "text": text,
+        "url": url,
+        "final_url": hit.get("final_url") or url,
+        "auth_required": auth,
+        "bot_protected": blocked,
+        "content": hit.get("content") or b"",
+        "failure": hit.get("failure"),
+        "error": hit.get("error"),
+    }
 
 
 def _extract_links(html: str, base: str) -> list[dict[str, str]]:
@@ -804,6 +822,103 @@ def acquire_evidence(
         if it.get("text_preview"):
             text_corpus.append(it["text_preview"])
 
+    # Portal-specific authoritative package resolution (Iowa/Montana/Phoenix/Sourcewell)
+    portal_result = None
+    try:
+        from portal_document_resolver import assess_package_completeness, resolve_portal_documents
+
+        portal_result = resolve_portal_documents(row)
+        attempts.append(
+            {
+                "tier": "PORTAL_DOCUMENT_RESOLVER",
+                "at": _utc(),
+                "family": portal_result.get("family"),
+                "ok": portal_result.get("ok"),
+                "failure": portal_result.get("failure"),
+                "documents": len(portal_result.get("documents") or []),
+                "line_items": len(portal_result.get("line_items") or []),
+                "retrieval_method": portal_result.get("retrieval_method"),
+            }
+        )
+        row["portal_resolution"] = {
+            k: portal_result.get(k)
+            for k in (
+                "family",
+                "ok",
+                "failure",
+                "retrieval_method",
+                "matched_title",
+                "matched_solicitation",
+                "detail_url",
+                "list_url",
+                "access_state",
+                "status",
+                "awarded_or_informational",
+                "status_note",
+                "registration_url",
+                "login_url",
+                "opengov_url",
+                "proportal_required",
+            )
+        }
+        row["portal_resolution_attempts"] = portal_result.get("attempts") or []
+        if portal_result.get("access_state"):
+            access = str(portal_result["access_state"])
+            if access == "BOT_PROTECTED":
+                access = SA_BOT_PROTECTED
+            elif access == "AUTH_REQUIRED":
+                access = SA_AUTH_REQUIRED
+            elif access == "REGISTRATION_REQUIRED":
+                access = SA_REGISTRATION_REQUIRED
+            row["source_access_state"] = access
+            if access in {SA_AUTH_REQUIRED, SA_REGISTRATION_REQUIRED}:
+                row["package_access"] = (
+                    "REGISTRATION_REQUIRED"
+                    if access == SA_REGISTRATION_REQUIRED
+                    else "AUTH_GATED"
+                )
+                row["auth_required_for_spec"] = True
+            elif access == SA_BOT_PROTECTED:
+                row["package_access"] = "BOT_PROTECTED"
+            if portal_result.get("registration_url"):
+                row["registration_url"] = portal_result["registration_url"]
+            if portal_result.get("login_url"):
+                row["login_url"] = portal_result["login_url"]
+            if portal_result.get("opengov_url"):
+                row["opengov_url"] = portal_result["opengov_url"]
+        for doc in portal_result.get("documents") or []:
+            docs.append(doc)
+            if doc.get("extracted_text"):
+                text_corpus.append(doc["extracted_text"])
+            elif doc.get("text_preview"):
+                text_corpus.append(doc["text_preview"])
+            recovered.append(
+                _evidence_item(
+                    row=row,
+                    source_url=doc.get("url") or doc.get("download_url"),
+                    source_type="portal_document_bytes",
+                    authority=AUTH_AUTHORITATIVE if doc.get("authority") == "authoritative" else AUTH_SECONDARY,
+                    title=doc.get("title"),
+                    document_type=doc.get("document_type"),
+                    text=doc.get("extracted_text") or doc.get("text_preview"),
+                    confidence="HIGH" if doc.get("bytes_recovered") else "MEDIUM",
+                    relevance="CONFIRMED",
+                    tier=TIER_1_DIRECT,
+                )
+            )
+        if portal_result.get("line_items") and not has_line_items(row):
+            row["line_items"] = portal_result["line_items"]
+            row["bom"] = portal_result["line_items"]
+            row["requirements_insufficient"] = False
+            row["package_acquired"] = True
+            row["line_items_confidence"] = "HIGH"
+        if portal_result.get("detail_url") and not detail_url(row):
+            row["detail_url"] = portal_result["detail_url"]
+        row["package_completeness"] = assess_package_completeness(row, documents=docs)
+    except Exception as exc:  # noqa: BLE001
+        attempts.append({"tier": "PORTAL_DOCUMENT_RESOLVER", "at": _utc(), "error": str(exc)[:300]})
+        log.exception("portal document resolver failed")
+
     if stop_at >= 1 and not _enough():
         t1 = _tier1_direct(row)
         attempts.append(
@@ -817,18 +932,30 @@ def acquire_evidence(
         )
         recovered.extend(t1.get("items") or [])
         if t1.get("documents"):
-            docs = t1["documents"]
+            # Merge — never discard portal-recovered authoritative bytes
+            existing_urls = {d.get("url") for d in docs if isinstance(d, dict)}
+            for d in t1["documents"]:
+                if isinstance(d, dict) and d.get("url") not in existing_urls:
+                    docs.append(d)
+                    existing_urls.add(d.get("url"))
         if t1.get("fetched_text"):
             text_corpus.append(t1["fetched_text"])
         if t1.get("source_access_state"):
-            row["source_access_state"] = t1["source_access_state"]
-            if t1["source_access_state"] in {SA_AUTH_REQUIRED, SA_REGISTRATION_REQUIRED}:
-                row["package_access"] = (
-                    "REGISTRATION_REQUIRED"
-                    if t1["source_access_state"] == SA_REGISTRATION_REQUIRED
-                    else "AUTH_GATED"
-                )
-                row["auth_required_for_spec"] = True
+            # Never downgrade registration/auth/bot walls discovered by portal resolver
+            prior = str(row.get("source_access_state") or "")
+            incoming = str(t1["source_access_state"])
+            protected = {SA_AUTH_REQUIRED, SA_REGISTRATION_REQUIRED, SA_BOT_PROTECTED}
+            if prior in protected and incoming not in protected:
+                pass
+            else:
+                row["source_access_state"] = incoming
+                if incoming in {SA_AUTH_REQUIRED, SA_REGISTRATION_REQUIRED}:
+                    row["package_access"] = (
+                        "REGISTRATION_REQUIRED"
+                        if incoming == SA_REGISTRATION_REQUIRED
+                        else "AUTH_GATED"
+                    )
+                    row["auth_required_for_spec"] = True
 
     if stop_at >= 2 and not _enough() and row.get("source_access_state") not in {SA_BOT_PROTECTED}:
         t2 = _tier2_alternate(row)
@@ -843,7 +970,11 @@ def acquire_evidence(
         )
         recovered.extend(t2.get("items") or [])
         if t2.get("documents"):
-            docs = t2["documents"]
+            existing_urls = {d.get("url") for d in docs if isinstance(d, dict)}
+            for d in t2["documents"]:
+                if isinstance(d, dict) and d.get("url") not in existing_urls:
+                    docs.append(d)
+                    existing_urls.add(d.get("url"))
         if t2.get("fetched_text"):
             text_corpus.append(t2["fetched_text"])
         if t2.get("package_found_alternate"):
@@ -944,7 +1075,13 @@ def acquire_evidence(
         row["product_audit"] = deal["product_category"]
 
     # Reject / deprioritize when evidence proves non-product
-    if deal.get("not_transactional_solicitation"):
+    pr = row.get("portal_resolution") or {}
+    if pr.get("awarded_or_informational") and pr.get("family") == "PHOENIX":
+        row["rejected"] = True
+        row["stop_reason"] = "phoenix_awards_tabulation_not_open_solicitation"
+        row["lifecycle"] = "REJECTED"
+        row["deal_type"] = "NON_TRANSACTIONAL_AWARD_RECORD"
+    elif deal.get("not_transactional_solicitation"):
         row["rejected"] = True
         row["stop_reason"] = "not_transactional_solicitation"
         row["lifecycle"] = "REJECTED"
@@ -958,7 +1095,13 @@ def acquire_evidence(
         row["lifecycle"] = "REJECTED"
 
     if not row.get("source_access_state"):
-        if detail_url(row) and not docs and not combined:
+        if str(row.get("package_access") or "").upper() in {"REGISTRATION_REQUIRED", "AUTH_GATED", "BOT_PROTECTED"}:
+            row["source_access_state"] = {
+                "REGISTRATION_REQUIRED": SA_REGISTRATION_REQUIRED,
+                "AUTH_GATED": SA_AUTH_REQUIRED,
+                "BOT_PROTECTED": SA_BOT_PROTECTED,
+            }.get(str(row.get("package_access") or "").upper(), SA_PUBLIC)
+        elif detail_url(row) and not docs and not combined:
             row["source_access_state"] = SA_PUBLIC_METADATA_ONLY
         elif detail_url(row):
             row["source_access_state"] = SA_PUBLIC
@@ -973,12 +1116,21 @@ def acquire_evidence(
         "tiers_attempted": [a.get("tier") for a in attempts],
         "recovered_count": len(recovered),
         "document_count": len(docs),
+        "documents_with_bytes": sum(1 for d in docs if isinstance(d, dict) and d.get("bytes_recovered")),
         "has_line_items": has_line_items(row),
+        "line_item_count": len(row.get("line_items") or row.get("bom") or []) if has_line_items(row) else 0,
+        "package_completeness": row.get("package_completeness"),
+        "portal_family": (portal_result or {}).get("family") if portal_result else None,
         "paid_actions": paid_actions,
         "primary_failure": failure.get("primary_reason"),
         "deal_type": row.get("deal_type"),
         "source_access_state": row.get("source_access_state"),
-        "improved": bool(has_line_items(row) or row.get("rejected") or len(combined) > 500),
+        "improved": bool(
+            has_line_items(row)
+            or row.get("rejected")
+            or len(combined) > 500
+            or any(isinstance(d, dict) and d.get("bytes_recovered") for d in docs)
+        ),
     }
     # Allow research re-run after new evidence: clear prior research fingerprint when improved
     if row["evidence_acquisition"]["improved"]:
@@ -999,36 +1151,46 @@ def evidence_access_summary(opportunities: list[dict[str, Any]]) -> dict[str, An
     deferred = 0
     public_recovery = 0
     packages_recovered = 0
+    documents_recovered = 0
+    boms_recovered = 0
     auth_blocked = 0
+    registration_required = 0
     web_pending = 0
     unresolved = 0
     rejected_evidence = 0
     advanced = 0
     for row in opportunities:
         lc = str(row.get("lifecycle") or "")
+        ea = row.get("evidence_acquisition") or {}
+        docs = row.get("documents") if isinstance(row.get("documents"), list) else []
+        byte_docs = sum(1 for d in docs if isinstance(d, dict) and d.get("bytes_recovered"))
+        documents_recovered += byte_docs
+        if has_line_items(row):
+            boms_recovered += 1
         if lc in {"REJECTED", "REJECTED_CHEAP_SCREEN"}:
-            if (row.get("evidence_acquisition") or {}).get("improved"):
+            if ea.get("improved") or byte_docs:
                 rejected_evidence += 1
             continue
+        if has_line_items(row) or ea.get("package_completeness") in {
+            "BOM_RECOVERED",
+            "COMPLETE_ENOUGH_FOR_RESEARCH",
+            "PACKAGE_COMPLETE",
+            "GOVERNING_SOLICITATION_RECOVERED",
+        }:
+            if lc not in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "PACKAGE_REQUIRED", "CHEAP_SCREENED"}:
+                advanced += 1
+                continue
+            packages_recovered += 1
         if lc not in {"RESEARCH_QUEUED", "RESEARCH_IN_PROGRESS", "PACKAGE_REQUIRED", "CHEAP_SCREENED"}:
-            if has_line_items(row) or lc not in {"DISCOVERED", "NORMALIZED"}:
-                if has_line_items(row) or lc in {
-                    "BOM_READY",
-                    "REQUIREMENTS_PARSED",
-                    "ECONOMICS_IN_PROGRESS",
-                    "ECONOMICS_PRELIMINARY",
-                    "ECONOMICS_ATTRACTIVE",
-                    "READY_FOR_OPERATOR_ACTION",
-                }:
-                    advanced += 1
             continue
         deferred += 1
-        ea = row.get("evidence_acquisition") or {}
         fail = (row.get("evidence_failure") or {}).get("primary_reason") or ""
-        access = str(row.get("source_access_state") or "")
-        if access in {SA_AUTH_REQUIRED, SA_REGISTRATION_REQUIRED} or fail in {AUTH_REQUIRED, REGISTRATION_REQUIRED}:
+        access = str(row.get("source_access_state") or row.get("package_access") or "")
+        if access in {SA_AUTH_REQUIRED, "AUTH_GATED"} or fail in {AUTH_REQUIRED}:
             auth_blocked += 1
-        elif ea.get("has_line_items") or row.get("package_acquired"):
+        elif access == SA_REGISTRATION_REQUIRED or fail == REGISTRATION_REQUIRED:
+            registration_required += 1
+        elif ea.get("has_line_items") or row.get("package_acquired") or byte_docs:
             packages_recovered += 1
         elif WEB_SEARCH_NOT_TRIED in ((row.get("evidence_failure") or {}).get("reasons") or []):
             web_pending += 1
@@ -1049,7 +1211,11 @@ def evidence_access_summary(opportunities: list[dict[str, Any]]) -> dict[str, An
         "deferred": deferred,
         "public_recovery_candidates": public_recovery,
         "packages_recovered": packages_recovered,
-        "auth_registration_blocked": auth_blocked,
+        "documents_recovered": documents_recovered,
+        "boms_recovered": boms_recovered,
+        "auth_registration_blocked": auth_blocked + registration_required,
+        "auth_blocked": auth_blocked,
+        "registration_required": registration_required,
         "web_research_pending": web_pending,
         "genuinely_unresolved": unresolved,
         "rejected_via_evidence": rejected_evidence,
