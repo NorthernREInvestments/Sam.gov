@@ -997,7 +997,59 @@ def analyze_document_evidence_top(
     recovery_limit: int = 10,
 ) -> dict[str, Any]:
     rows = store.all() if hasattr(store, "all") else list(store)
-    targets = _priority_seed(rows, limit)
+
+    # Attach persisted commercial layers so recovery scoring sees prior identity/value
+    try:
+        from m3_product_pricing import get_persisted_product
+        from m3_procurement_package import get_persisted_package
+        from m3_supplier_intelligence import get_persisted_supplier_intelligence
+    except Exception:
+        get_persisted_product = get_persisted_package = get_persisted_supplier_intelligence = None  # type: ignore
+
+    enriched_rows = []
+    for r in rows:
+        row = dict(r)
+        cid = str(row.get("canonical_id") or "")
+        for key, loader in (
+            ("product_pricing_intelligence", get_persisted_product),
+            ("procurement_package_intelligence", get_persisted_package),
+            ("supplier_intelligence", get_persisted_supplier_intelligence),
+        ):
+            if not row.get(key) and callable(loader):
+                try:
+                    got = loader(cid)
+                    if got:
+                        row[key] = got
+                        # Lift known value/qty/part from package into row for extraction
+                        if key == "procurement_package_intelligence":
+                            cr = got.get("COMMERCIAL_REQUIREMENT") or {}
+                            ident = got.get("PRODUCT_IDENTITY") or {}
+                            if not _num(row.get("estimated_value")) and _known(cr.get("Estimated_contract_value")):
+                                row["estimated_value"] = cr.get("Estimated_contract_value")
+                            if not (row.get("line_items") or row.get("bom")) and _known(ident.get("Quantity")):
+                                row["line_items"] = [
+                                    {
+                                        "description": ident.get("Description") or row.get("title"),
+                                        "part_number": ident.get("Manufacturer_part_number")
+                                        if _known(ident.get("Manufacturer_part_number"))
+                                        else None,
+                                        "manufacturer": ident.get("Manufacturer")
+                                        if _known(ident.get("Manufacturer"))
+                                        else None,
+                                        "quantity": ident.get("Quantity"),
+                                        "unit": "EA",
+                                        "source": "persisted_package",
+                                    }
+                                ]
+                        if key == "product_pricing_intelligence":
+                            cv = got.get("CONTRACT_VALUE") or {}
+                            if not _num(row.get("estimated_value")) and _known(cv.get("contract_value")):
+                                row["estimated_value"] = cv.get("contract_value")
+                except Exception:
+                    pass
+        enriched_rows.append(row)
+
+    targets = _priority_seed(enriched_rows, limit)
 
     results = []
     index_updates: dict[str, Any] = {}
