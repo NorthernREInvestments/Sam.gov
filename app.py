@@ -1195,7 +1195,7 @@ def api_m3_competitive_analyze(body: dict | None = None):
 
 @app.get("/api/m3/competitive/status")
 def api_m3_competitive_status():
-    from m3_competitive_intelligence import load_competitive_index, BUCKET_A
+    from m3_competitive_intelligence import load_competitive_index
 
     idx = load_competitive_index()
     by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
