@@ -343,28 +343,47 @@ class ProcurementSourceRegistry:
         return deepcopy(row)
 
     def apply_discovery_health(self, per_source: dict[str, Any]) -> None:
+        from discovery.source_backoff import compute_backoff_until
+        from discovery.source_failure_taxonomy import classify_root_cause
+
         for sid, metrics in (per_source or {}).items():
             if sid not in self._sources:
                 continue
-            ftype = classify_source_failure(metrics if isinstance(metrics, dict) else {})
-            if ftype == "OK":
+            row_m = metrics if isinstance(metrics, dict) else {}
+            ftype = classify_source_failure(row_m)
+            # Prefer precise taxonomy when present
+            precise = row_m.get("root_cause") or classify_root_cause(row_m).get("primary")
+            if ftype == "OK" or (row_m.get("ok") and int(row_m.get("raw") or 0) > 0):
                 self.record_attempt(
                     sid,
                     attempted_checkpoint=_utc(),
                     success=True,
                     successful_checkpoint=_utc(),
                     cycle_complete=True,
-                    records_seen=int((metrics or {}).get("unique") or 0),
+                    records_seen=int(row_m.get("unique") or 0),
                 )
+                self._sources[sid]["backoff_until"] = None
+                self._sources[sid]["root_cause"] = "OK"
+                self._sources[sid]["productive"] = True
             else:
+                fail_class = precise if precise and precise != "OK" else ftype
                 self.record_attempt(
                     sid,
                     attempted_checkpoint=_utc(),
                     success=False,
-                    failure_class=ftype,
+                    failure_class=str(fail_class),
                     cycle_complete=True,
                 )
                 self._sources[sid]["recommended_retry"] = recommend_retry(ftype)
+                self._sources[sid]["root_cause"] = fail_class
+                self._sources[sid]["productive"] = False
+                self._sources[sid]["access_outcome"] = row_m.get("access_outcome")
+                try:
+                    self._sources[sid]["backoff_until"] = compute_backoff_until(str(fail_class))
+                    self._sources[sid]["backoff_hours"] = row_m.get("backoff_hours")
+                except Exception:
+                    pass
+
 
     def coverage_summary(self) -> dict[str, Any]:
         by_entity: dict[str, int] = {}

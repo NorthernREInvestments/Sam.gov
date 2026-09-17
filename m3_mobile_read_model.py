@@ -452,14 +452,34 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
 
 def mobile_sources_summary() -> dict[str, Any]:
     reg = ProcurementSourceRegistry()
+    try:
+        reg.seed_from_discovery_pool()
+    except Exception:
+        pass
     summary = reg.coverage_summary()
+    all_s = reg.all_sources()
     healthy = len(reg.by_health("HEALTHY_PRODUCTION"))
+    productive = sum(1 for s in all_s if s.get("productive") or s.get("health_state") == "HEALTHY_PRODUCTION")
+    by_cause: dict[str, int] = {}
+    for s in all_s:
+        rc = str(s.get("root_cause") or s.get("failure_class") or s.get("health_state") or "UNKNOWN")
+        by_cause[rc] = by_cause.get(rc, 0) + 1
     return {
         "kind": "M3MobileSources",
-        "registered": len(reg.all_sources()),
+        "registered": len(all_s),
+        "eligible": len([s for s in all_s if s.get("list_url") or s.get("discovery_url")]),
         "healthy_production": healthy,
+        "productive_discovery_sources": productive,
         "by_health": (summary.get("KNOWN_SOURCE_COVERAGE") or {}).get("by_health_state")
         or summary.get("by_health_state"),
+        "by_root_cause": by_cause,
+        "buckets": {
+            "PRODUCTIVE": productive,
+            "AUTH_REGISTRATION": by_cause.get("AUTH_REQUIRED", 0) + by_cause.get("REGISTRATION_REQUIRED", 0),
+            "BOT_PROTECTED": by_cause.get("BOT_CHALLENGE", 0) + by_cause.get("BOT_PROTECTED", 0) + by_cause.get("CAPTCHA", 0),
+            "PARSER_FAILURE": by_cause.get("PARSER_FAILURE", 0),
+            "TECHNICAL_FAILURE": by_cause.get("UNKNOWN_FAILURE", 0) + by_cause.get("TIMEOUT", 0) + by_cause.get("HTTP_5XX", 0),
+        },
         "claim_100_percent_coverage": False,
-        "note": "Source health ≠ national market coverage",
+        "note": "attempted≠productive≠market coverage — Source health ≠ 100% national coverage",
     }

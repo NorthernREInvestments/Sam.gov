@@ -880,6 +880,14 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                     "unattempted_eligible": metrics.get("unattempted_eligible"),
                     "OpenAI": live.get("OpenAI") or 0,
                     "paid": live.get("paid") or 0,
+                    "SAM": live.get("SAM") or 0,
+                    "dla_fallback": live.get("dla_fallback"),
+                    "productive_discovery_sources": (live.get("completeness") or {}).get(
+                        "productive_discovery_sources"
+                    ),
+                    "authoritative_productive_sources": (live.get("completeness") or {}).get(
+                        "authoritative_productive_sources"
+                    ),
                 },
                 finished_at=now_utc(),
             )

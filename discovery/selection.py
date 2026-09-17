@@ -109,6 +109,32 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "validation_candidate": bool(f.get("list_url")),
             "platform_family": f.get("platform_family") or "FederalPublic",
         }
+
+    # Apply verified alternate official routes (canonical may be stale/gated)
+    try:
+        from alternate_authoritative_routes import ALTERNATE_ROUTES
+
+        for sid, route in ALTERNATE_ROUTES.items():
+            row = out.get(sid)
+            if not row:
+                continue
+            url = route.get("discovery_url")
+            if not url:
+                continue
+            row["list_url"] = url
+            row["alternate_route"] = route
+            row["discovery_source"] = route.get("discovery_source")
+            if route.get("adapter_family_override"):
+                row["adapter_family"] = route["adapter_family_override"]
+            if route.get("platform_family_override"):
+                row["platform_family"] = route["platform_family_override"]
+            expected = str(route.get("expected_access") or "").upper()
+            if "REGISTRATION" in expected:
+                row["expected_access"] = "REGISTRATION_REQUIRED"
+            elif "AUTH" in expected:
+                row["expected_access"] = "AUTH_REQUIRED"
+    except Exception:
+        pass
     return out
 
 

@@ -77,7 +77,8 @@ def test_health_and_m3_health_endpoints(monkeypatch):
     body = h.json()
     assert body["build_version"] == APP_BUILD_VERSION
     assert body["application"] == "M3"
-    assert "20260917-m3-package1b" in body["build_version"]
+    assert APP_BUILD_VERSION in body["build_version"]
+    assert "source-access" in body["build_version"] or "m3-" in body["build_version"]
 
     m = client.get("/api/m3/health")
     assert m.status_code == 200
@@ -91,10 +92,12 @@ def test_health_and_m3_health_endpoints(monkeypatch):
 
 
 def test_cache_bust_matches_build():
+    from app import APP_BUILD_VERSION
+
     html = (Path(__file__).resolve().parents[1] / "static" / "index.html").read_text(encoding="utf-8")
-    assert "20260917-m3-package1b" in html
-    assert 'meta name="m3-build" content="20260917-m3-package1b"' in html
-    assert "/m3-mobile.js?v=20260917-m3-package1b" in html
+    assert APP_BUILD_VERSION in html
+    assert f'meta name="m3-build" content="{APP_BUILD_VERSION}"' in html
+    assert f"/m3-mobile.js?v={APP_BUILD_VERSION}" in html
 
 
 def test_no_external_action_regression():

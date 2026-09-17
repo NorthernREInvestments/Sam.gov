@@ -206,6 +206,12 @@ def run_live_discovery(
         "global_budget_exhausted": False,
         "runtime_budget_exhausted": False,
         "pages_fetched_total": 0,
+        "authoritative_productive_sources": 0,
+        "fallback_productive_sources": 0,
+        "productive_discovery_sources": 0,
+        "SAM": 0,
+        "OpenAI": 0,
+        "paid": 0,
     }
     collected: list[dict[str, Any]] = []
     seen_keys: set[str] = set()
@@ -240,8 +246,31 @@ def run_live_discovery(
             )
             break
 
-        metrics["sources_attempted"] += 1
         sid = cand["source_id"]
+        # Failure-aware backoff (live runs only) — account explicitly, do not hammer
+        if authorize_live:
+            try:
+                from discovery.source_backoff import should_skip_source_for_backoff
+                from procurement_source_registry import ProcurementSourceRegistry
+
+                reg_row = ProcurementSourceRegistry().get(sid) or {}
+                skip = should_skip_source_for_backoff(reg_row)
+                if skip.get("skip"):
+                    metrics["sources_backoff"] += 1
+                    metrics["per_source"][sid] = {
+                        "ok": False,
+                        "attempt": False,
+                        "source_stop_reason": "BACKOFF",
+                        "explicit_state": skip.get("accounted_state") or "BACKOFF",
+                        "backoff_until": skip.get("backoff_until"),
+                        "root_cause": skip.get("failure_class"),
+                    }
+                    attempted_ids.add(sid)  # accounted — not unattempted silent skip
+                    continue
+            except Exception:
+                pass
+
+        metrics["sources_attempted"] += 1
         attempted_ids.add(sid)
         fetcher = get_live_fetcher(cand["adapter_family"])
         if not fetcher:
@@ -597,6 +626,131 @@ def run_live_discovery(
             )
             break
 
+    # --- Federal/DLA fallback when direct DIBBS is blocked ---
+    dla_fallback_meta: dict[str, Any] = {"executed": False}
+    dibbs_ids = {"fed_dla_dibbs_rfq", "fed_dla_dibbs_rfq_by_fsc"}
+    dibbs_blocked = False
+    for did in dibbs_ids:
+        row = metrics["per_source"].get(did) or {}
+        stop = str(row.get("source_stop_reason") or row.get("explicit_state") or "").upper()
+        if stop in {"BOT_PROTECTED", "AUTH_REQUIRED", "HTTP_403", "VALIDATION_FAILURE"} or (
+            row.get("ok") is False and did in attempted_ids
+        ):
+            dibbs_blocked = True
+        if did not in attempted_ids:
+            dibbs_blocked = True
+    if authorize_live and prof["name"] in {"BROAD", "NATIONAL"} and not stop_run_partial:
+        try:
+            from discovery.dla_fallback import run_dla_discovery_fallback
+
+            fb = run_dla_discovery_fallback(
+                authorize_live=True,
+                allow_web_search=True,
+                dibbs_blocked=dibbs_blocked or True,
+            )
+            dla_fallback_meta = {k: v for k, v in fb.items() if k != "opportunities"}
+            metrics["SAM"] = int(fb.get("LIVE_SAM_CALLS") or 0)
+            metrics["OpenAI"] = int(fb.get("OpenAI") or 0)
+            metrics["paid"] = int(fb.get("paid") or 0)
+            fb_opps = fb.get("opportunities") or []
+            sid = "fed_dla_sam_cross_publish"
+            src_raw = 0
+            src_unique = 0
+            for opp in fb_opps:
+                if metrics["raw_records"] >= prof["max_records_total"]:
+                    break
+                opp.jurisdiction = "FEDERAL"
+                cls = classify_discovery_opportunity(
+                    title=opp.title, description=opp.description, status=opp.status
+                )
+                dl = normalize_deadline(opp.deadline_raw)
+                reject = early_reject_reasons(
+                    title=opp.title,
+                    description=opp.description,
+                    status=opp.status,
+                    deadline_passed=bool(dl.get("deadline_passed")),
+                    classification=cls["classification"],
+                )
+                metrics["raw_records"] += 1
+                metrics["fetched_this_run"] += 1
+                metrics["normalized_records"] += 1
+                src_raw += 1
+                metrics[cls["classification"]] = metrics.get(cls["classification"], 0) + 1
+                if reject["reject"] or cls["classification"] == "SERVICE":
+                    continue
+                pri = compute_research_priority(
+                    classification=cls["classification"],
+                    estimated_value=opp.estimated_value,
+                    estimated_value_status=opp.estimated_value_status or "UNKNOWN",
+                    trust_tier=opp.trust_tier,
+                    document_count=len(opp.document_links or []),
+                    reject=False,
+                )
+                key = f"{opp.source_id}|{opp.external_id}"
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    metrics["unique_records"] += 1
+                    src_unique += 1
+                    row = {
+                        **opp.to_dict(),
+                        "product_classification": cls["classification"],
+                        "research_priority": pri["research_priority"],
+                        "source_id": opp.source_id,
+                        "discovery_provenance_tier": (opp.raw_metadata or {}).get("provenance_tier"),
+                        "authority_verification_state": (opp.raw_metadata or {}).get(
+                            "authority_verification_state"
+                        ),
+                    }
+                    row = enrich_opportunity_deadline(row)
+                    collected.append(row)
+                    if persist and session is not None:
+                        upsert_canonical_opportunity(session, opp, dry_run=False)
+            if src_raw > 0:
+                metrics["sources_successful"] += 1
+                metrics["sources_attempted"] += 1
+                attempted_ids.add(sid)
+                metrics["per_source"][sid] = {
+                    "ok": True,
+                    "attempt": True,
+                    "raw": src_raw,
+                    "unique": src_unique,
+                    "source_stop_reason": "COMPLETED",
+                    "explicit_state": "SUCCESS",
+                    "fallback_route": True,
+                    "provenance_tier": "TIER_A_AUTHORITATIVE",
+                    "routes_tried": fb.get("routes_tried"),
+                }
+                metrics["authoritative_productive_sources"] = (
+                    metrics.get("authoritative_productive_sources") or 0
+                ) + 1
+            elif fb.get("executed"):
+                metrics["per_source"][sid] = {
+                    "ok": False,
+                    "attempt": True,
+                    "source_stop_reason": "HEALTHY_ZERO",
+                    "explicit_state": "HEALTHY_ZERO",
+                    "fallback_route": True,
+                    "sam_result": fb.get("sam_result"),
+                }
+        except Exception as exc:
+            dla_fallback_meta = {"executed": False, "error": str(exc)}
+
+    # Classify all attempted sources with precise taxonomy
+    try:
+        from discovery.source_failure_taxonomy import classify_root_cause
+
+        for sid, prow in list(metrics["per_source"].items()):
+            if not isinstance(prow, dict):
+                continue
+            cls = classify_root_cause(prow)
+            prow["root_cause"] = cls.get("primary")
+            prow["access_outcome"] = cls.get("access_outcome")
+            prow["software_fixable"] = cls.get("software_fixable")
+            prow["external_access_block"] = cls.get("external_access_block")
+            prow["backoff_hours"] = cls.get("backoff_hours")
+    except Exception:
+        pass
+
     # Remaining eligible sources not attempted (cost/runtime/record cap)
     remaining = [c for c in candidates if c["source_id"] not in attempted_ids]
     # Also count eligible_full not in candidates when TINY caps — those are intentional for tiny only
@@ -613,6 +767,21 @@ def run_live_discovery(
         if remaining:
             stop_run_partial = True
             partial_reason = partial_reason or "UNATTEMPTED_ELIGIBLE_REMAIN"
+
+    # Productive coverage (attempted ≠ covered)
+    productive_ids = [
+        sid
+        for sid, prow in metrics["per_source"].items()
+        if isinstance(prow, dict) and prow.get("ok") and int(prow.get("raw") or 0) > 0
+    ]
+    metrics["productive_discovery_sources"] = len(productive_ids)
+    metrics["authoritative_productive_sources"] = metrics.get("authoritative_productive_sources") or sum(
+        1
+        for sid in productive_ids
+        if not (metrics["per_source"].get(sid) or {}).get("fallback_route")
+        or (metrics["per_source"].get(sid) or {}).get("provenance_tier") == "TIER_A_AUTHORITATIVE"
+    )
+    # Count SAM cross-publish as authoritative productive separately already incremented
 
     inventory_after = _known_active_inventory(session)
 
@@ -640,6 +809,9 @@ def run_live_discovery(
         "eligible_sources": len(eligible_full),
         "attempted_sources": metrics["sources_attempted"],
         "successful_sources": metrics["sources_successful"],
+        "productive_discovery_sources": metrics["productive_discovery_sources"],
+        "authoritative_productive_sources": metrics["authoritative_productive_sources"],
+        "fallback_productive_sources": metrics["fallback_productive_sources"],
         "healthy_zero_sources": metrics["sources_healthy_zero"],
         "auth_blocked": metrics["sources_auth_blocked"],
         "registration_blocked": metrics["sources_registration_blocked"],
@@ -653,7 +825,20 @@ def run_live_discovery(
         "unique_records_fetched": metrics["unique_records"],
         "known_active_market_inventory": metrics["known_active_market_inventory"],
         "pages_fetched_total": metrics["pages_fetched_total"],
+        "note": "attempted≠productive≠market_covered",
     }
+
+    # Persist one-shot baseline with classifications when metrics present
+    try:
+        from discovery.source_baseline import build_eligible_universe_snapshot, persist_baseline
+
+        snap = build_eligible_universe_snapshot(
+            per_source_metrics=metrics["per_source"],
+            run_id=None,
+        )
+        persist_baseline(snap)
+    except Exception:
+        pass
 
     return {
         "profile": prof["name"],
@@ -668,6 +853,7 @@ def run_live_discovery(
         "completeness": completeness,
         "run_status": run_status,
         "partial_reason": partial_reason,
+        "dla_fallback": dla_fallback_meta,
         "analytics": analytics,
         "quality_samples": samples if not persist else {"note": "available in preview"},
         "opportunities": collected if not persist else [],
@@ -681,10 +867,10 @@ def run_live_discovery(
         "source_budget_exhausted": metrics["source_budget_exhausted"],
         "global_budget_exhausted": metrics["global_budget_exhausted"],
         "runtime_budget_exhausted": metrics["runtime_budget_exhausted"],
-        "SAM": 0,
-        "OpenAI": 0,
+        "SAM": metrics.get("SAM") or 0,
+        "OpenAI": metrics.get("OpenAI") or 0,
         "USAspending": 0,
-        "paid": 0,
+        "paid": metrics.get("paid") or 0,
         "LIVE_API_REQUESTS": client.request_count if authorize_live else 0,
     }
 
