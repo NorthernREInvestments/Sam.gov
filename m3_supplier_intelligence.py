@@ -1086,13 +1086,29 @@ def analyze_supplier_top_opportunities(
 
 
 def deal_room_supplier_section(row: dict[str, Any]) -> dict[str, Any]:
-    si = row.get("supplier_intelligence")
-    if not isinstance(si, dict) or si.get("kind") != "M3SupplierIntelligence":
-        persisted = get_persisted_supplier_intelligence(str(row.get("canonical_id") or ""))
-        if isinstance(persisted, dict) and persisted.get("kind") == "M3SupplierIntelligence":
-            si = persisted
+    cid = str(row.get("canonical_id") or "")
+    row_si = row.get("supplier_intelligence") if isinstance(row.get("supplier_intelligence"), dict) else None
+    persisted = get_persisted_supplier_intelligence(cid)
+    si = None
+    if isinstance(persisted, dict) and persisted.get("kind") == "M3SupplierIntelligence":
+        si = persisted
+    if isinstance(row_si, dict) and row_si.get("kind") == "M3SupplierIntelligence":
+        # Prefer whichever has price evidence or newer generated_at
+        if si is None:
+            si = row_si
         else:
-            si = build_supplier_intelligence(row, allow_paid_web=False)
+            row_lvl = ((row_si.get("Pricing_evidence") or {}).get("primary_level") or PRICE_LEVEL_4_UNKNOWN)
+            per_lvl = ((si.get("Pricing_evidence") or {}).get("primary_level") or PRICE_LEVEL_4_UNKNOWN)
+            row_web = bool((row_si.get("web_research") or {}).get("executed"))
+            per_web = bool((si.get("web_research") or {}).get("executed"))
+            if row_lvl != PRICE_LEVEL_4_UNKNOWN and per_lvl == PRICE_LEVEL_4_UNKNOWN:
+                si = row_si
+            elif row_web and not per_web:
+                si = row_si
+            elif str(row_si.get("generated_at") or "") > str(si.get("generated_at") or ""):
+                si = row_si
+    if not isinstance(si, dict) or si.get("kind") != "M3SupplierIntelligence":
+        si = build_supplier_intelligence(row, allow_paid_web=False)
     product = si.get("Product") or {}
     supply = si.get("Supply_chain") or {}
     pricing = si.get("Pricing_evidence") or {}
