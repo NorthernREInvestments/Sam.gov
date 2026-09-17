@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-product-pricing"
+APP_BUILD_VERSION = "20260917-m3-procurement-package"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1407,6 +1407,86 @@ def api_m3_product_status():
         "researched": len(by_id),
         "matches": matches,
         "pricing_levels": levels,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.post("/api/m3/package/analyze")
+def api_m3_package_analyze(body: dict | None = None):
+    """TOP N complete procurement package intelligence."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_procurement_package import analyze_procurement_packages_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    allow_paid = bool(payload.get("allow_paid_web", False))
+    paid_limit = max(0, min(10, int(payload.get("paid_limit") or 3)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_procurement_packages_top(
+        store, limit=limit, allow_paid_web=allow_paid, paid_limit=paid_limit
+    )
+
+
+@app.get("/api/m3/package/status")
+def api_m3_package_status():
+    from m3_procurement_package import (
+        load_package_index,
+        MATCH_HIGH,
+        MATCH_MEDIUM,
+        MATCH_LOW,
+        MATCH_UNKNOWN,
+        READY_FOR_ECONOMICS,
+        READY_FOR_PRICING,
+        PARTIAL,
+        NEEDS_DOCUMENTS,
+        INSUFFICIENT_DATA,
+    )
+
+    idx = load_package_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    matches = {MATCH_HIGH: 0, MATCH_MEDIUM: 0, MATCH_LOW: 0, MATCH_UNKNOWN: 0}
+    completeness = {
+        READY_FOR_ECONOMICS: 0,
+        READY_FOR_PRICING: 0,
+        PARTIAL: 0,
+        NEEDS_DOCUMENTS: 0,
+        INSUFFICIENT_DATA: 0,
+    }
+    levels = {"LEVEL_1": 0, "LEVEL_2": 0, "LEVEL_3": 0, "LEVEL_4": 0}
+    queues: dict[str, int] = {}
+    for pkg in by_id.values():
+        if not isinstance(pkg, dict):
+            continue
+        m = ((pkg.get("PRODUCT_IDENTITY") or {}).get("Identity_confidence") or MATCH_UNKNOWN)
+        if m in matches:
+            matches[m] += 1
+        else:
+            matches[MATCH_UNKNOWN] += 1
+        st = ((pkg.get("COMMERCIAL_COMPLETENESS") or {}).get("COMMERCIAL_COMPLETENESS") or INSUFFICIENT_DATA)
+        if st in completeness:
+            completeness[st] += 1
+        else:
+            completeness[INSUFFICIENT_DATA] += 1
+        lvl = str(((pkg.get("MARKET_PRICING") or {}).get("primary_level") or "LEVEL_4"))
+        if "LEVEL_1" in lvl:
+            levels["LEVEL_1"] += 1
+        elif "LEVEL_2" in lvl:
+            levels["LEVEL_2"] += 1
+        elif "LEVEL_3" in lvl:
+            levels["LEVEL_3"] += 1
+        else:
+            levels["LEVEL_4"] += 1
+        q = str(((pkg.get("RESEARCH_READINESS") or {}).get("RESEARCH_QUEUE") or "UNKNOWN"))
+        queues[q] = queues.get(q, 0) + 1
+    return {
+        "kind": "M3ProcurementPackageStatus",
+        "researched": len(by_id),
+        "identity": matches,
+        "completeness": completeness,
+        "pricing_levels": levels,
+        "research_queues": queues,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
 

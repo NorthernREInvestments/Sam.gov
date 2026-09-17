@@ -844,6 +844,7 @@
       const execInt = deal.execution_intelligence || {};
       const dealEcon = deal.deal_economics || {};
       const prodInt = deal.product_intelligence || {};
+      const pkgInt = deal.procurement_package || {};
       const srcAccess = deal.source_access || {};
       const bomHtml =
         (req.bom_lines || [])
@@ -853,6 +854,14 @@
               `<li><strong>${esc(li.quantity)} ${esc(li.unit)}</strong> — ${esc(li.description)} <span class="muted">(${esc(li.specification)})</span></li>`
           )
           .join("") || "<li class='muted'>UNKNOWN / no BOM yet</li>";
+      const pkgBomHtml =
+        ((pkgInt.BOM || [])
+          .slice(0, 12)
+          .map(
+            (li) =>
+              `<li><strong>#${esc(li.Line_number)}</strong> ${esc(li.config_type)} · ${esc(li.Quantity)} ${esc(li.Unit)} — ${esc(li.Description)} <span class="muted">${esc(li.Part_number)} · ${esc(li.Confidence)}</span></li>`
+          )
+          .join("")) || "<li class='muted'>No procurement BOM yet</li>";
       const winnersHtml = (ci.Historical_Winners || [])
         .map((w) => esc(w))
         .join(", ") || "UNKNOWN";
@@ -980,6 +989,30 @@
               <div><dt>Next Action</dt><dd>${esc(prodInt.Next_Action ?? "—")}</dd></div>
             </dl>
             <p class="muted">${esc(prodInt.Economics_message || "Pricing research only after identity confidence is known")}</p>`
+          ),
+          sectionCard(
+            "Complete Procurement Package",
+            `<dl class="m3-kv">
+              <div><dt>Solicitation</dt><dd>${esc(((pkgInt.Contract_information || {}).Solicitation_ID) ?? "UNKNOWN")}</dd></div>
+              <div><dt>Agency / Buyer</dt><dd>${esc(((pkgInt.Contract_information || {}).Agency) ?? "UNKNOWN")} / ${esc(((pkgInt.Contract_information || {}).Buyer) ?? "UNKNOWN")}</dd></div>
+              <div><dt>Contract value</dt><dd>${esc(((pkgInt.Contract_information || {}).Estimated_value) ?? "UNKNOWN")} <span class="muted">(${esc(((pkgInt.Contract_information || {}).Confidence) || "")})</span></dd></div>
+              <div><dt>Required products</dt><dd>${esc(((pkgInt.Required_products || []).join("; ")) || "UNKNOWN")}</dd></div>
+              <div><dt>Manufacturer</dt><dd>${esc(pkgInt.Manufacturer ?? "UNKNOWN")}</dd></div>
+              <div><dt>Exact model</dt><dd>${esc(pkgInt.Exact_models ?? "UNKNOWN")}</dd></div>
+              <div><dt>Part number / NSN</dt><dd>${esc(pkgInt.Part_numbers ?? "UNKNOWN")} / ${esc(pkgInt.NSN ?? "UNKNOWN")}</dd></div>
+              <div><dt>Quantity</dt><dd>${esc(pkgInt.Quantity ?? "UNKNOWN")}</dd></div>
+              <div><dt>Accessories</dt><dd>${esc(((pkgInt.Accessories || []).join("; ")) || "NONE_EVIDENCED")}</dd></div>
+              <div><dt>Configuration</dt><dd>${esc(pkgInt.Configuration_completeness ?? "INCOMPLETE")}</dd></div>
+              <div><dt>BOM completeness</dt><dd>${esc(pkgInt.BOM_completeness_pct ?? "UNKNOWN")}%</dd></div>
+              <div><dt>Pricing readiness</dt><dd>${esc(pkgInt.Pricing_readiness ?? "UNKNOWN")}</dd></div>
+              <div><dt>Economics readiness</dt><dd><strong>${esc(pkgInt.Economics_readiness ?? "UNKNOWN")}</strong></dd></div>
+              <div><dt>Research queue</dt><dd>${esc(pkgInt.Research_queue ?? "UNKNOWN")} · score ${esc(pkgInt.Research_score ?? "—")}</dd></div>
+              <div><dt>Missing information</dt><dd>${esc(((pkgInt.Missing_information || []).join(", ")) || "none listed")}</dd></div>
+              <div><dt>Next Action</dt><dd>${esc(pkgInt.Next_Action ?? "—")}</dd></div>
+            </dl>
+            <p class="muted">Procurement BOM</p>
+            <ul class="m3-bom">${pkgBomHtml}</ul>
+            <p class="muted">${esc(pkgInt.Economics_message || "Do not invent accessories, compatibility, or prices")}</p>`
           ),
           sectionCard(
             "Evidence",

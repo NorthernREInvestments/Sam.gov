@@ -300,6 +300,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "execution_intelligence": _deal_execution(row),
         "deal_economics": _deal_economics(row),
         "product_intelligence": _deal_product(row),
+        "procurement_package": _deal_procurement_package(row),
         "source_access": {
             "state": row.get("source_access_state") or row.get("package_access") or "UNKNOWN",
             "credentials_available": _credentials_available(row),
@@ -391,6 +392,20 @@ def _deal_product(row: dict[str, Any]) -> dict[str, Any]:
             "kind": "M3DealRoomProductIntelligence",
             "Identity_confidence": "UNKNOWN",
             "Next_Action": "Product intelligence unavailable",
+        }
+
+
+def _deal_procurement_package(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_procurement_package import deal_room_procurement_package_section
+
+        return deal_room_procurement_package_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomProcurementPackage",
+            "Identity_confidence": "UNKNOWN",
+            "Configuration_completeness": "INCOMPLETE",
+            "Next_Action": "Procurement package intelligence unavailable",
         }
 
 
