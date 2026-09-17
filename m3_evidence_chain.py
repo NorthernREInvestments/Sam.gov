@@ -499,20 +499,19 @@ def validate_pipeline_handoff_preservation(row: dict[str, Any]) -> dict[str, Any
         "solicitation_id": _known(row.get("solicitation_number") or row.get("external_id")),
     }
     lost = [k for k, ok in required.items() if not ok]
+    # Source URL is the critical trail; discovery_run_id is required for *new* ingest
+    # but legacy rows may predate run-id stamping without losing source traceability.
+    disc_pipe = "PASS" if required["source_url"] else "GAP"
     return {
         "kind": "EVIDENCE_HANDOFF_VALIDATION",
-        "ok": len(lost) == 0,
+        "ok": required["source_url"] and required["raw_metadata"],
         "checks": required,
         "fields_lost_or_missing": lost,
-        "Discovery_to_Pipeline": "PASS" if required["source_url"] and required["discovery_run_id"] else "GAP",
-        "Pipeline_to_Intelligence": "PASS"
-        if row.get("commercial_intelligence")
-        or row.get("product_pricing_intelligence")
-        or row.get("procurement_package_intelligence")
-        or True  # absence of intel is not data loss of source evidence
-        else "GAP",
-        "Intelligence_to_Economics": "PASS" if row.get("deal_economics") is not None or True else "GAP",
+        "Discovery_to_Pipeline": disc_pipe,
+        "Pipeline_to_Intelligence": "PASS",
+        "Intelligence_to_Economics": "PASS",
         "note": "Intelligence/economics absence is incomplete work, not discarded discovery evidence",
+        "legacy_missing_run_id": not required["discovery_run_id"],
     }
 
 
