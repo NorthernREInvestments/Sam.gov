@@ -94,8 +94,7 @@ def _empty_state() -> dict[str, Any]:
     }
 
 
-def _load_state() -> dict[str, Any]:
-    state = _empty_state()
+def _load_state_from_db() -> dict[str, Any] | None:
     try:
         from database import SessionLocal
         from models import AppSetting
@@ -105,17 +104,27 @@ def _load_state() -> dict[str, Any]:
             row = db.query(AppSetting).filter(AppSetting.key == SETTINGS_KEY).one_or_none()
             if row and row.value:
                 data = json.loads(row.value)
-                if isinstance(data, dict):
-                    state.update(data)
+                return data if isinstance(data, dict) else None
         finally:
             db.close()
     except Exception:
-        pass
+        return None
+    return None
+
+
+def _load_state() -> dict[str, Any]:
+    state = _empty_state()
+    db_data = _load_state_from_db()
+    if db_data:
+        state.update(db_data)
     if DEFAULT_PATH.exists():
         try:
             data = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
             if isinstance(data, dict):
-                if not state.get("last_successful_completion") and not state.get("current_run"):
+                # File may be ephemeral; only fill gaps, never wipe durable success
+                if not state.get("last_successful_completion") and data.get("last_successful_completion"):
+                    state["last_successful_completion"] = data["last_successful_completion"]
+                if not state.get("current_run") and not state.get("last_successful_completion") and not state.get("last_attempt"):
                     state.update(data)
         except Exception:
             pass
@@ -124,6 +133,17 @@ def _load_state() -> dict[str, Any]:
 
 def _save_state(state: dict[str, Any]) -> None:
     state = deepcopy(state)
+    # Never clobber a durable last_successful_completion with a partial write
+    prior = _load_state_from_db() or {}
+    if prior.get("last_successful_completion") and not state.get("last_successful_completion"):
+        state["last_successful_completion"] = prior["last_successful_completion"]
+    if (
+        state.get("last_successful_completion")
+        and prior.get("last_successful_completion")
+        and not state.get("last_successful_completion", {}).get("completed_at")
+        and prior["last_successful_completion"].get("completed_at")
+    ):
+        state["last_successful_completion"] = prior["last_successful_completion"]
     state["updated_at"] = _utc()
     try:
         DEFAULT_PATH.parent.mkdir(parents=True, exist_ok=True)
