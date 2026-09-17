@@ -1,0 +1,37 @@
+{
+  "final_status": "CURRENT",
+  "run": {
+    "run_id": "MDR-cba6c2edad93",
+    "trigger_type": "STARTUP",
+    "started_at": "2026-09-17T03:49:47.608405+00:00",
+    "completed_at": "2026-09-17T03:51:02.879898+00:00",
+    "last_heartbeat_at": "2026-09-17T03:51:01.658889+00:00",
+    "status": "COMPLETED_WITH_WARNINGS",
+    "phase": "FINALIZING",
+    "progress_percent": 100,
+    "sources_total": 24,
+    "sources_attempted": 24,
+    "sources_completed": 24,
+    "sources_successful": 8,
+    "sources_failed": 16,
+    "records_retrieved": 124,
+    "unique_records": 74,
+    "open_current_records": 74,
+    "product_screen_survivors": 73,
+    "pipeline_new": 73,
+    "pipeline_updated": 0,
+    "pipeline_rejected": 1,
+    "deep_research_queued": 73,
+    "error_summary": null,
+    "source_warnings": [
+      "16 source(s) failed"
+    ]
+  },
+  "home": {
+    "active": 69,
+    "actions": 0,
+    "shown": 40
+  },
+  "pipeline_count": 73,
+  "build": "20260917-m3-discovery5"
+}
