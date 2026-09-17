@@ -86,6 +86,25 @@ def _prefer_row(local: dict[str, Any], remote: dict[str, Any]) -> dict[str, Any]
             out[key] = loc_v
         elif rem_v and not loc_v:
             out[key] = rem_v
+    # Prefer richer intelligence packages (never drop research already computed)
+    for key in (
+        "commercial_intelligence",
+        "supplier_intelligence",
+        "supplier_price_research",
+        "commercial_pricing",
+        "public_pricing",
+    ):
+        loc_v = local.get(key)
+        rem_v = remote.get(key)
+        if isinstance(loc_v, dict) and loc_v and not (isinstance(rem_v, dict) and rem_v):
+            out[key] = loc_v
+        elif isinstance(rem_v, dict) and rem_v and not (isinstance(loc_v, dict) and loc_v):
+            out[key] = rem_v
+        elif isinstance(loc_v, dict) and isinstance(rem_v, dict) and loc_v and rem_v:
+            # Keep local if it has newer generated_at / more keys
+            loc_at = str(loc_v.get("generated_at") or "")
+            rem_at = str(rem_v.get("generated_at") or "")
+            out[key] = loc_v if loc_at >= rem_at or len(loc_v) >= len(rem_v) else rem_v
     # Lifecycle: don't regress from researched/advanced back to discovered-only
     loc_lc = str(local.get("lifecycle") or "")
     rem_lc = str(remote.get("lifecycle") or "")

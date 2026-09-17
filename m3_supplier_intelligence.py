@@ -377,23 +377,32 @@ def research_public_pricing_web(
         }
 
     try:
-        from cost_governor import get_cost_governor
+        from cost_governor import get_cost_governor, TIER_1_ACTIVE
 
         gov = get_cost_governor()
         if hasattr(gov, "authorize"):
+            oid = str(row.get("canonical_id") or "")
             auth = gov.authorize(
                 {
-                    "action_type": "DEEP_RESEARCH",
-                    "estimated_cost_usd": 0.12,
-                    "priority_tier": 3,
-                    "voi_score": 0.75,
-                    "opportunity_id": row.get("canonical_id"),
+                    "provider": "openai",
+                    "action_type": "AI_COMPLETION",
+                    "estimated_max_cost": 0.15,
+                    "priority_tier": TIER_1_ACTIVE,
+                    "tracked": True,
+                    "question": (
+                        f"Public distributor/list price for "
+                        f"{product.get('Manufacturer')} {product.get('Model') or product.get('Part_number') or product.get('NSN')}"
+                    ),
+                    "could_change_decision": True,
+                    "deal_id": oid,
+                    "opportunity_id": oid,
+                    "idempotency_key": f"supplier_price_v1:{fp}",
                 }
             )
             if isinstance(auth, dict) and not auth.get("authorized", True):
                 return {
                     "executed": False,
-                    "reason": "cost_governor_blocked",
+                    "reason": f"cost_governor_blocked:{auth.get('cost_status') or auth.get('reason')}",
                     "evidence": [],
                     "OpenAI": 0,
                     "paid": 0,
@@ -752,6 +761,18 @@ def build_supplier_intelligence(
     }
 
 
+def _is_branded_it(row: dict[str, Any], product: dict[str, Any] | None = None) -> bool:
+    title = str(row.get("title") or "").lower()
+    mfr = str((product or {}).get("Manufacturer") or row.get("manufacturer") or "").lower()
+    return any(b in title or mfr == b for b in ("cisco", "dell", "hp", "lenovo", "hewlett"))
+
+
+def _is_dla_parts(row: dict[str, Any]) -> bool:
+    agency = str(row.get("agency") or "").lower()
+    title = str(row.get("title") or "")
+    return "defense logistics" in agency or bool(FSC_TITLE_RE.match(title.strip()))
+
+
 def build_supplier_research_queue(
     opportunities: list[dict[str, Any]],
     *,
@@ -782,7 +803,36 @@ def build_supplier_research_queue(
                 ci = {}
         ranked.append((supplier_research_priority(row, ci), row, ci))
     ranked.sort(key=lambda x: x[0])
-    top = ranked[:limit]
+
+    # Balance: ensure branded IT is not crowded out by DLA FSC flood
+    branded, dla, other = [], [], []
+    for item in ranked:
+        row = item[1]
+        product = build_product_identity(row)
+        if _is_branded_it(row, product):
+            branded.append(item)
+        elif _is_dla_parts(row):
+            dla.append(item)
+        else:
+            other.append(item)
+
+    branded_slots = min(len(branded), max(3, limit // 3))
+    dla_slots = min(len(dla), max(3, limit // 3))
+    top: list = []
+    top.extend(branded[:branded_slots])
+    top.extend(dla[:dla_slots])
+    top.extend(other)
+    # Fill remaining from full ranked order without dupes
+    seen_ids = {t[1]["canonical_id"] for t in top}
+    for item in ranked:
+        if len(top) >= limit:
+            break
+        cid = item[1]["canonical_id"]
+        if cid in seen_ids:
+            continue
+        top.append(item)
+        seen_ids.add(cid)
+    top = top[:limit]
 
     queue = []
     for _, row, ci in top:
@@ -880,6 +930,8 @@ def analyze_supplier_top_opportunities(
                 "First_deal_fit": (si.get("FIRST_DEAL_FIT") or {}).get("band"),
                 "First_deal_score": (si.get("FIRST_DEAL_FIT") or {}).get("FIRST_DEAL_FIT_SCORE"),
                 "Next_Action": si.get("Next_Action"),
+                "web_research_reason": (si.get("web_research") or {}).get("reason"),
+                "web_executed": (si.get("web_research") or {}).get("executed"),
                 "channels": [
                     c.get("company")
                     for c in ((si.get("Supply_chain") or {}).get("all_channels") or [])[:6]
@@ -887,10 +939,18 @@ def analyze_supplier_top_opportunities(
             }
         )
 
+    save_ok = False
+    save_error = None
     try:
         store.save()
-    except Exception:
-        pass
+        # Confirm at least one persisted
+        save_ok = any(
+            bool((store.get(r["canonical_id"]) or {}).get("supplier_intelligence"))
+            for r in results
+            if r.get("canonical_id")
+        )
+    except Exception as exc:
+        save_error = str(exc)
 
     return {
         "kind": "M3SupplierAnalysisRun",
@@ -908,6 +968,8 @@ def analyze_supplier_top_opportunities(
         "TOP_OPPORTUNITIES": results,
         "OpenAI": openai_total,
         "paid": paid_total,
+        "persist_ok": save_ok,
+        "persist_error": save_error,
         "DEVELOPMENT_NO_OUTREACH": True,
         "commercial_outreach": False,
     }
