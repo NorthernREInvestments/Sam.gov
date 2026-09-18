@@ -423,7 +423,17 @@ def discovery_status() -> dict[str, Any]:
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "mode": mode_snapshot(),
         "commercial_outreach": False,
+        "federal_dla": _federal_dla_status_block(),
     }
+
+
+def _federal_dla_status_block() -> dict[str, Any]:
+    try:
+        from discovery.federal_dla_coverage import federal_dla_home_block
+
+        return federal_dla_home_block()
+    except Exception as exc:  # noqa: BLE001
+        return {"available": False, "error": str(exc)[:120]}
 
 
 def list_recent_runs(limit: int = 10) -> dict[str, Any]:

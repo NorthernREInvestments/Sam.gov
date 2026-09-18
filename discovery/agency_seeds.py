@@ -154,6 +154,21 @@ def all_coops_enriched() -> list[dict[str, Any]]:
 
 FEDERAL_NON_SAM_LIVE: list[dict[str, Any]] = [
     {
+        "source_id": "fed_sam_contract_opportunities",
+        "name": "SAM.gov Contract Opportunities (official API v2)",
+        "list_url": "https://api.sam.gov/opportunities/v2/search",
+        "adapter_family": "live_sam_api",
+        "platform_family": "SAM_GOV",
+        "note": (
+            "Authoritative Federal Contract Opportunities via Get Opportunities Public API. "
+            "Ingested by federal_sam_ingest (not HTML scrape). Broad enumeration — no DLA/NAICS prefilter. "
+            "Requires SAM_GOV_API_KEY; gated by SAM_API_CALL_LIMIT / Cost Governor."
+        ),
+        "live_capable": True,
+        "notice_type": "CONTRACT_OPPORTUNITY",
+        "api_source": True,
+    },
+    {
         "source_id": "fed_dla_dibbs_rfq",
         "name": "DLA DIBBS Public Recent RFQs",
         "list_url": "https://www.dibbs.bsm.dla.mil/RFQ/RfqRecents.aspx",

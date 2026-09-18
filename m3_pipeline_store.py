@@ -215,10 +215,10 @@ class M3PipelineStore:
                 except Exception:
                     pass
 
-    def save(self) -> Path:
+    def save(self, *, durable_write: bool = True) -> Path:
         # Merge durable DB rows before write so concurrent research/discovery workers
         # cannot clobber opportunities the other worker just upserted.
-        if self.durable:
+        if self.durable and durable_write:
             try:
                 db_data = _read_durable_payload()
                 if db_data:
@@ -238,8 +238,12 @@ class M3PipelineStore:
 
         payload = _payload_from_rows(self._rows, self._audit)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-        if self.durable:
+        if durable_write:
+            self.path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        else:
+            # Fast mid-batch checkpoint — compact JSON, no durable DB round-trip
+            self.path.write_text(json.dumps(payload, separators=(",", ":"), default=str), encoding="utf-8")
+        if self.durable and durable_write:
             ok = _write_durable_payload(payload)
             if not ok:
                 log.error(

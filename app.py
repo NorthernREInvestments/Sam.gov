@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260918-m3-national-discovery-scale-1"
+APP_BUILD_VERSION = "20260918-m3-federal-dla-ironclad-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -740,6 +740,14 @@ def api_m3_discovery_status():
     from m3_discovery_service import discovery_status
 
     return discovery_status()
+
+
+@app.get("/api/m3/federal-dla/coverage")
+def api_m3_federal_dla_coverage():
+    """Federal + DLA coverage snapshot, reconciliation, gap queue (minimal operator surface)."""
+    from discovery.federal_dla_coverage import load_federal_dla_coverage
+
+    return load_federal_dla_coverage()
 
 
 @app.post("/api/m3/discovery/run")

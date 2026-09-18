@@ -109,6 +109,7 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "adapter_status": ADAPTER_UNVERIFIED_LIVE if f.get("live_capable") else "PARTIAL",
             "validation_candidate": bool(f.get("list_url")),
             "platform_family": f.get("platform_family") or "FederalPublic",
+            "api_source": bool(f.get("api_source")),
         }
 
     # BidNet Direct statewide networks — one listing unlocks many local agencies

@@ -20,7 +20,10 @@ log = logging.getLogger("govtracker.m3_pipeline_handoff")
 HANDOFF_SETTINGS_KEY = "m3_discovery_handoff_checkpoint_v1"
 DEFAULT_CHECKPOINT_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_handoff_checkpoint.json"
 CHECKPOINT_EVERY = 25
+CHECKPOINT_EVERY_LARGE = 500  # large national/federal batches
+LARGE_BATCH_THRESHOLD = 500
 MAX_HANDOFF_RETRIES = 2
+SURVIVORS_BLOB_KEY = "m3_discovery_handoff_survivors_v1"
 
 
 def _utc() -> str:
@@ -66,36 +69,77 @@ def _write_checkpoint_db(payload: dict[str, Any]) -> None:
         log.exception("Failed writing handoff checkpoint to AppSetting")
 
 
-def save_handoff_checkpoint(payload: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
-    payload = deepcopy(payload)
-    payload["updated_at"] = _utc()
-    path = path or DEFAULT_CHECKPOINT_PATH
+def _write_survivors_blob(run_id: str, survivors: list[dict[str, Any]]) -> None:
+    """Persist full survivors once (separate from progress cursor checkpoint)."""
+    payload = {
+        "kind": "M3HandoffSurvivorsBlob",
+        "run_id": run_id,
+        "updated_at": _utc(),
+        "count": len(survivors),
+        "survivors": survivors,
+    }
+    path = DEFAULT_CHECKPOINT_PATH.parent / f"m3_handoff_survivors_{run_id}.json"
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        path.write_text(json.dumps(payload, default=str), encoding="utf-8")
     except Exception:
-        log.exception("Failed writing handoff checkpoint file")
-    _write_checkpoint_db(payload)
-    return payload
+        log.exception("Failed writing survivors blob file")
+    try:
+        from database import SessionLocal
+        from models import AppSetting
 
-
-def load_handoff_checkpoint(path: Path | None = None) -> dict[str, Any] | None:
-    db_data = _read_checkpoint_db()
-    if db_data:
-        return db_data
-    path = path or DEFAULT_CHECKPOINT_PATH
-    if path.exists():
+        raw = json.dumps(payload, default=str)
+        db = SessionLocal()
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else None
-        except Exception:
-            return None
+            row = db.query(AppSetting).filter(AppSetting.key == SURVIVORS_BLOB_KEY).one_or_none()
+            if row:
+                row.value = raw
+            else:
+                db.add(AppSetting(key=SURVIVORS_BLOB_KEY, value=raw))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed writing survivors blob to AppSetting")
+
+
+def _read_survivors_blob(run_id: str | None = None) -> list[dict[str, Any]] | None:
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == SURVIVORS_BLOB_KEY).one_or_none()
+            if row and row.value:
+                data = json.loads(row.value)
+                if isinstance(data, dict) and (not run_id or data.get("run_id") == run_id):
+                    surv = data.get("survivors")
+                    return surv if isinstance(surv, list) else None
+        finally:
+            db.close()
+    except Exception:
+        log.exception("Failed reading survivors blob")
     return None
 
 
-def clear_handoff_checkpoint(path: Path | None = None) -> None:
-    empty = {"kind": "M3HandoffCheckpoint", "status": "CLEARED", "updated_at": _utc()}
-    save_handoff_checkpoint(empty, path=path)
+def save_handoff_checkpoint(payload: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
+    """Save progress checkpoint — survivors stored separately for large batches."""
+    payload = deepcopy(payload)
+    payload["updated_at"] = _utc()
+    # Strip bulky survivors from frequent progress writes when blob flag set
+    slim = payload
+    if payload.get("survivors_externalized") and "survivors" in payload:
+        slim = {k: v for k, v in payload.items() if k != "survivors"}
+        slim["survivors_count"] = payload.get("discovery_count") or payload.get("survivors_count")
+    path = path or DEFAULT_CHECKPOINT_PATH
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(slim, indent=2, default=str), encoding="utf-8")
+    except Exception:
+        log.exception("Failed writing handoff checkpoint file")
+    _write_checkpoint_db(slim)
+    return payload
 
 
 def begin_handoff_checkpoint(
@@ -113,6 +157,9 @@ def begin_handoff_checkpoint(
         cid = identity_key(r)
         keys.append(cid)
         compact.append(r)
+    large = len(compact) >= LARGE_BATCH_THRESHOLD
+    if large:
+        _write_survivors_blob(run_id, compact)
     payload = {
         "kind": "M3HandoffCheckpoint",
         "status": "PENDING",
@@ -120,7 +167,8 @@ def begin_handoff_checkpoint(
         "started_at": _utc(),
         "discovery_count": len(compact),
         "survivor_keys": keys,
-        "survivors": compact,
+        "survivors": compact if not large else [],
+        "survivors_externalized": large,
         "processed_keys": [],
         "failed_keys": [],
         "failed_upserts": [],
@@ -148,13 +196,55 @@ def begin_handoff_checkpoint(
     return save_handoff_checkpoint(payload)
 
 
+def load_handoff_checkpoint(path: Path | None = None) -> dict[str, Any] | None:
+    db_data = _read_checkpoint_db()
+    if db_data:
+        return db_data
+    path = path or DEFAULT_CHECKPOINT_PATH
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else None
+        except Exception:
+            return None
+    return None
+
+
+def clear_handoff_checkpoint(path: Path | None = None) -> None:
+    empty = {"kind": "M3HandoffCheckpoint", "status": "CLEARED", "updated_at": _utc()}
+    save_handoff_checkpoint(empty, path=path)
+    try:
+        from database import SessionLocal
+        from models import AppSetting
+
+        db = SessionLocal()
+        try:
+            row = db.query(AppSetting).filter(AppSetting.key == SURVIVORS_BLOB_KEY).one_or_none()
+            if row:
+                row.value = json.dumps({"kind": "M3HandoffSurvivorsBlob", "status": "CLEARED", "updated_at": _utc()})
+                db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
 def reconcile_handoff(
     *,
     survivors: list[dict[str, Any]],
     store: Any,
 ) -> dict[str, Any]:
     """Verify every survivor identity exists in the pipeline store."""
-    pipeline_ids = {r.get("canonical_id") for r in store.all() if r.get("canonical_id")}
+    # Prefer O(1) key set without deepcopying all rows
+    pipeline_ids: set[str] = set()
+    try:
+        rows_map = getattr(store, "_rows", None)
+        if isinstance(rows_map, dict):
+            pipeline_ids = {str(k) for k in rows_map.keys()}
+        else:
+            pipeline_ids = {r.get("canonical_id") for r in store.all() if r.get("canonical_id")}
+    except Exception:
+        pipeline_ids = {r.get("canonical_id") for r in store.all() if r.get("canonical_id")}
     discovered = 0
     present = 0
     missing: list[str] = []
@@ -203,16 +293,28 @@ def run_durable_handoff(
     advance is deferred — research_queued is set by ingest; research worker drains.
     Individual record failures do not abort the batch.
     """
+    # Auto-scale checkpoint cadence for large national/federal batches
+    if checkpoint_every == CHECKPOINT_EVERY and len(survivors) >= LARGE_BATCH_THRESHOLD:
+        checkpoint_every = CHECKPOINT_EVERY_LARGE
+    if len(survivors) >= 2000:
+        checkpoint_every = max(checkpoint_every, 1000)
+
     ckpt = load_handoff_checkpoint() if resume else None
     if (
         resume
         and ckpt
         and ckpt.get("run_id") == run_id
         and ckpt.get("status") in {"PENDING", "IN_PROGRESS", "RETRYING"}
-        and isinstance(ckpt.get("survivors"), list)
-        and ckpt.get("survivors")
+        and (
+            (isinstance(ckpt.get("survivors"), list) and ckpt.get("survivors"))
+            or ckpt.get("survivors_externalized")
+        )
     ):
-        work = list(ckpt["survivors"])
+        if ckpt.get("survivors_externalized") and not ckpt.get("survivors"):
+            blob = _read_survivors_blob(run_id)
+            work = list(blob or survivors)
+        else:
+            work = list(ckpt.get("survivors") or survivors)
         processed = set(ckpt.get("processed_keys") or [])
         failed_keys = list(ckpt.get("failed_keys") or [])
         failed_upserts = list(ckpt.get("failed_upserts") or [])
@@ -227,7 +329,10 @@ def run_durable_handoff(
             survivors=survivors,
             discovery_metrics=discovery_metrics,
         )
-        work = list(ckpt["survivors"])
+        if ckpt.get("survivors_externalized"):
+            work = list(survivors)
+        else:
+            work = list(ckpt["survivors"])
         processed = set()
         failed_keys = []
         failed_upserts = []
@@ -238,16 +343,23 @@ def run_durable_handoff(
         retries = 0
 
     ckpt["status"] = "IN_PROGRESS"
+    # Keep survivors out of frequent progress checkpoints
+    if ckpt.get("survivors_externalized"):
+        ckpt["survivors"] = []
     save_handoff_checkpoint(ckpt)
 
     results: list[dict[str, Any]] = []
     since_save = 0
+    t0 = now_utc()
 
     def _flush_progress(*, force: bool = False) -> None:
         nonlocal since_save
         if not force and since_save < checkpoint_every:
             return
         try:
+            # Mid-batch: file cache only (no durable DB merge/read). Final flush is durable.
+            store.save(durable_write=force)
+        except TypeError:
             store.save()
         except Exception:
             log.exception("Handoff checkpoint store.save failed")
@@ -255,8 +367,8 @@ def run_durable_handoff(
             {
                 "status": "IN_PROGRESS",
                 "cursor": cursor,
-                "processed_keys": sorted(processed),
-                "failed_keys": failed_keys,
+                "processed_keys": list(processed)[-20000:] if len(processed) > 20000 else list(processed),
+                "failed_keys": failed_keys[-500:],
                 "failed_upserts": failed_upserts[-100:],
                 "pipeline_new": pipeline_new,
                 "pipeline_updated": pipeline_updated,
@@ -265,6 +377,8 @@ def run_durable_handoff(
                 "transferred": len(processed),
                 "discovered": len(work),
                 "failed": len(failed_keys),
+                "survivors_externalized": bool(ckpt.get("survivors_externalized")),
+                "survivors": [],
             }
         )
         save_handoff_checkpoint(ckpt)
@@ -322,9 +436,13 @@ def run_durable_handoff(
 
     _flush_progress(force=True)
 
-    # Retry missing safely
+    # Fast reconcile using identity set (avoid full deepcopy of store.all when possible)
     recon = reconcile_handoff(survivors=work, store=store)
     recon["FAILED_UPSERTS"] = len(failed_upserts)
+    elapsed = (now_utc() - t0).total_seconds()
+    recon["records_per_sec"] = round(len(processed) / elapsed, 3) if elapsed > 0 else None
+    recon["elapsed_seconds"] = round(elapsed, 2)
+    recon["checkpoint_every"] = checkpoint_every
     attempt = 0
     while not recon["match"] and attempt < MAX_HANDOFF_RETRIES:
         attempt += 1

@@ -40,7 +40,7 @@ def _utc() -> str:
 def search_sam_dla_product_opportunities(
     *,
     authorize_live: bool = False,
-    max_results: int = 50,
+    max_results: int = 200,
     posted_days: int = 21,
 ) -> dict[str, Any]:
     """Targeted SAM search for DLA product RFQs (SPE*/SPR*). Not broad NAICS discovery."""

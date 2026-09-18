@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from discovery.analytics import analyze_run_results, quality_sample
@@ -255,6 +256,17 @@ def run_live_discovery(
             break
 
         sid = cand["source_id"]
+        # Authoritative SAM API sources are handled by federal_sam_ingest — not HTML fetchers
+        if cand.get("api_source") or cand.get("adapter_family") == "live_sam_api" or sid == "fed_sam_contract_opportunities":
+            metrics["per_source"][sid] = {
+                "ok": False,
+                "attempt": False,
+                "selection_state": "DEFERRED_TO_FEDERAL_SAM_INGEST",
+                "source_stop_reason": "DEFERRED_TO_FEDERAL_SAM_INGEST",
+                "explicit_state": "DEFERRED_API",
+            }
+            continue
+
         # Failure-aware backoff (live runs only) — account explicitly, do not hammer
         if authorize_live:
             try:
@@ -655,6 +667,159 @@ def run_live_discovery(
             )
             break
 
+    # --- Federal SAM authoritative enumeration (opt-in; scarcity-gated separately) ---
+    federal_sam_meta: dict[str, Any] = {"executed": False}
+    if authorize_live and prof["name"] in {"BROAD", "NATIONAL"} and not stop_run_partial:
+        try:
+            from discovery.federal_sam_ingest import (
+                federal_sam_discovery_enabled,
+                reconcile_sam_page_counts,
+                run_federal_sam_bootstrap,
+            )
+            from discovery.dla_product_extract import enrich_with_dla_structure, classify_federal_product_cheap
+
+            # NATIONAL/BROAD: Federal SAM is first-class when API key present (opt-out via SAM_FEDERAL_DISCOVERY_ENABLED=0)
+            _fed_env = (os.environ.get("SAM_FEDERAL_DISCOVERY_ENABLED") or "").strip().lower()
+            _fed_opt_out = _fed_env in {"0", "false", "no", "off"}
+            _fed_on = (
+                (not _fed_opt_out)
+                and (
+                    federal_sam_discovery_enabled(authorize=False)
+                    or _fed_env in {"1", "true", "yes"}
+                    or bool((os.environ.get("SAM_GOV_API_KEY") or "").strip())
+                )
+            )
+            if _fed_on:
+                # Use remaining budget; NATIONAL may raise SAM_API_CALL_LIMIT in env for bootstrap
+                fb_sam = run_federal_sam_bootstrap(
+                    authorize_live=True,
+                    authorize_federal_sam=True,
+                    max_api_calls=None,
+                    days_back=int(os.environ.get("SAM_FEDERAL_DAYS_BACK") or "30"),
+                    chunk_days=int(os.environ.get("SAM_FEDERAL_CHUNK_DAYS") or "7"),
+                    resume=True,
+                )
+                federal_sam_meta = {k: v for k, v in fb_sam.items() if k != "opportunities"}
+                federal_sam_meta["count_reconciliation"] = reconcile_sam_page_counts(
+                    fb_sam.get("authoritative_window_totals") or [],
+                    int(fb_sam.get("unique_new") or 0),
+                )
+                metrics["SAM"] = int(metrics.get("SAM") or 0) + int(fb_sam.get("LIVE_SAM_CALLS") or 0)
+                sid = "fed_sam_contract_opportunities"
+                src_raw = 0
+                src_unique = 0
+                for raw_row in fb_sam.get("opportunities") or []:
+                    if metrics["raw_records"] >= prof["max_records_total"]:
+                        break
+                    row = enrich_with_dla_structure(dict(raw_row))
+                    screen = classify_federal_product_cheap(row)
+                    row.update(screen)
+                    cls_label = screen.get("product_classification") or "UNKNOWN"
+                    # Do not early-reject UNKNOWN Federal notices
+                    dl = normalize_deadline(row.get("deadline_raw"))
+                    if dl.get("deadline_passed") and row.get("notice_semantic_class") != "AWARD_OR_HISTORY":
+                        metrics["expired"] = metrics.get("expired", 0) + 1
+                        # Awards/historical already classified — skip bid pipeline
+                    if row.get("notice_semantic_class") == "AWARD_OR_HISTORY":
+                        # Keep in Federal metrics but do not inflate bid-ready survivors
+                        metrics["raw_records"] += 1
+                        src_raw += 1
+                        metrics["AWARD_OR_HISTORY"] = metrics.get("AWARD_OR_HISTORY", 0) + 1
+                        continue
+                    metrics["raw_records"] += 1
+                    metrics["fetched_this_run"] += 1
+                    metrics["normalized_records"] += 1
+                    src_raw += 1
+                    metrics[cls_label] = metrics.get(cls_label, 0) + 1
+                    if cls_label == "SERVICE":
+                        continue
+                    key = f"{sid}|{row.get('external_id') or row.get('notice_id')}"
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        metrics["unique_records"] += 1
+                        src_unique += 1
+                        row["source_id"] = sid
+                        row["jurisdiction"] = "FEDERAL"
+                        row = enrich_opportunity_deadline(row)
+                        collected.append(row)
+                metrics["per_source"][sid] = {
+                    "ok": bool(fb_sam.get("executed")) and src_raw > 0,
+                    "attempt": True,
+                    "raw": src_raw,
+                    "unique": src_unique,
+                    "source_stop_reason": fb_sam.get("stop_reason")
+                    or ("COMPLETED" if fb_sam.get("pagination_complete") else "PAGINATION_INCOMPLETE"),
+                    "pagination_complete": bool(fb_sam.get("pagination_complete")),
+                    "explicit_state": "SUCCESS" if src_unique > 0 else "HEALTHY_ZERO",
+                    "coverage_state": fb_sam.get("coverage_state"),
+                }
+                if src_unique > 0:
+                    metrics["sources_successful"] += 1
+                    metrics["productive_discovery_sources"] += 1
+                    metrics["authoritative_productive_sources"] += 1
+        except Exception as exc:  # noqa: BLE001
+            federal_sam_meta = {"executed": False, "error": str(exc)[:300]}
+
+    # Persist Federal/DLA coverage snapshot when SAM enumeration ran
+    if federal_sam_meta.get("executed"):
+        try:
+            from discovery.dla_reconciliation import (
+                build_dla_coverage_matrix,
+                build_dla_from_sam,
+                build_dla_source_reconciliation,
+                build_federal_discovery_gap_queue,
+            )
+            from discovery.dla_source_map import build_dla_source_map_report, classify_dibbs_access_from_metrics
+            from discovery.federal_dla_coverage import build_coverage_snapshot
+
+            sam_opps = []
+            # Re-collect Federal rows already in collected for this source
+            sam_opps = [r for r in collected if r.get("source_id") == "fed_sam_contract_opportunities"]
+            dla_pack = build_dla_from_sam(sam_opps)
+            dibbs_metrics = metrics["per_source"].get("fed_dla_dibbs_rfq") or {}
+            dibbs_state = classify_dibbs_access_from_metrics(dibbs_metrics)
+            recon = build_dla_source_reconciliation(sam_dla=dla_pack.get("opportunities") or [], dibbs_rows=[])
+            matrix = build_dla_coverage_matrix(
+                sam_dla=dla_pack.get("opportunities") or [],
+                dibbs_access_state=dibbs_state,
+            )
+            gaps = build_federal_discovery_gap_queue(
+                sam_result=federal_sam_meta,
+                dibbs_probe={"access_state": dibbs_state},
+                recon=recon,
+                matrix=matrix,
+            )
+            # Product class counts across all federal
+            from collections import Counter
+
+            fed_prod = Counter(
+                str(r.get("federal_product_class") or r.get("product_classification") or "UNKNOWN")
+                for r in sam_opps
+            )
+            federal_sam_meta["federal_product_counts"] = dict(fed_prod)
+            federal_sam_meta["by_semantic"] = federal_sam_meta.get("by_semantic") or {}
+            snap = build_coverage_snapshot(
+                federal_sam={**federal_sam_meta, "unique_new": len(sam_opps)},
+                dla_from_sam=dla_pack,
+                dibbs_probe={"access_state": dibbs_state},
+                reconciliation=recon,
+                coverage_matrix=matrix,
+                gap_queue=gaps,
+            )
+            snap["federal_product_likely"] = fed_prod.get("FEDERAL_PRODUCT_LIKELY", 0) + fed_prod.get(
+                "CORE_PRODUCT", 0
+            )
+            snap["federal_unknown"] = fed_prod.get("FEDERAL_UNKNOWN", 0) + fed_prod.get("UNKNOWN", 0)
+            from discovery.federal_dla_coverage import save_federal_dla_coverage
+
+            save_federal_dla_coverage(snap)
+            federal_sam_meta["dla_source_map"] = build_dla_source_map_report(
+                dibbs_probe={"access_state": dibbs_state},
+                sam_dla_count=int(dla_pack.get("current_unique") or 0),
+            )
+        except Exception as exc:  # noqa: BLE001
+            federal_sam_meta["coverage_persist_error"] = str(exc)[:200]
+
     # --- Federal/DLA fallback when direct DIBBS is blocked ---
     dla_fallback_meta: dict[str, Any] = {"executed": False}
     dibbs_ids = {"fed_dla_dibbs_rfq", "fed_dla_dibbs_rfq_by_fsc"}
@@ -883,6 +1048,7 @@ def run_live_discovery(
         "run_status": run_status,
         "partial_reason": partial_reason,
         "dla_fallback": dla_fallback_meta,
+        "federal_sam": federal_sam_meta,
         "analytics": analytics,
         "quality_samples": samples if not persist else {"note": "available in preview"},
         "opportunities": collected if not persist else [],

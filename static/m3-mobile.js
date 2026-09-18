@@ -638,6 +638,11 @@
             <div><dt>Product survivors</dt><dd>${esc(nat.PRODUCT_RESALE_SURVIVORS != null ? nat.PRODUCT_RESALE_SURVIVORS : "—")}</dd></div>
             <div><dt>Sources productive</dt><dd>${esc(nat.SOURCES_PRODUCTIVE != null ? nat.SOURCES_PRODUCTIVE : "—")}</dd></div>
             <div><dt>Statewide covered</dt><dd>${esc(nat.STATES_WITH_STATEWIDE_COVERAGE != null ? nat.STATES_WITH_STATEWIDE_COVERAGE : "—")}</dd></div>
+            <div><dt>Federal current</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.federal_current_notices) != null ? cache.discovery.federal_dla.federal_current_notices : "—")}</dd></div>
+            <div><dt>Federal bid-ready</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.federal_bid_ready) != null ? cache.discovery.federal_dla.federal_bid_ready : "—")}</dd></div>
+            <div><dt>DLA current</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_current) != null ? cache.discovery.federal_dla.dla_current : "—")}</dd></div>
+            <div><dt>DLA NSN</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_exact_nsn) != null ? cache.discovery.federal_dla.dla_exact_nsn : "—")}</dd></div>
+            <div><dt>DIBBS mode</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dibbs_access_mode) || "—")}</dd></div>
             <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
             <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
           </dl>
