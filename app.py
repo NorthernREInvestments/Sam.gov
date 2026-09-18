@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-acquisition-target-1"
+APP_BUILD_VERSION = "20260917-m3-acquisition-target-2"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
