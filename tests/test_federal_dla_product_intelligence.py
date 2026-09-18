@@ -231,7 +231,8 @@ def test_compact_nsn_qty_ui_from_sam_noticedesc_style():
 def test_build_version_bump():
     from app import APP_BUILD_VERSION
 
-    assert APP_BUILD_VERSION == "20260918-m3-federal-dla-product-intelligence-1"
+    # Superseded by product-resale discovery intelligence build; keep prior modules intact.
+    assert APP_BUILD_VERSION == "20260918-m3-product-resale-discovery-intelligence-1"
 
 
 def test_sam_checkpoint_save_never_shrinks(tmp_path, monkeypatch):

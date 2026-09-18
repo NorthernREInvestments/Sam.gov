@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260918-m3-federal-dla-product-intelligence-1"
+APP_BUILD_VERSION = "20260918-m3-product-resale-discovery-intelligence-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -776,6 +776,17 @@ def api_m3_federal_dla_enrichment_detail(notice_id: str):
         "enrichment": row,
         "DEVELOPMENT_NO_OUTREACH": True,
     }
+
+
+@app.get("/api/m3/product-resale/source-intelligence")
+def api_m3_product_resale_source_intelligence():
+    """Source recipes, ROI, categories, price paths, gaps — no bulk solicitations."""
+    from product_resale_source_intelligence import load_source_intelligence, build_persisted_payload
+
+    loaded = load_source_intelligence()
+    if loaded:
+        return loaded
+    return build_persisted_payload()
 
 
 @app.post("/api/m3/discovery/run")
