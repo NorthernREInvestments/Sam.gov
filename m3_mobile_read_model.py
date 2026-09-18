@@ -304,6 +304,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "document_intelligence": _deal_document_intelligence(row),
         "product_identity_resolution": _deal_product_identity_resolution(row),
         "acquisition_intelligence": _deal_acquisition_intelligence(row),
+        "commercial_market_research": _deal_commercial_market_research(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -453,6 +454,20 @@ def _deal_acquisition_intelligence(row: dict[str, Any]) -> dict[str, Any]:
             "Profit_target_status": "UNKNOWN",
             "Wholesale_access_status": "UNKNOWN",
             "Next_Action": "Acquisition intelligence unavailable",
+        }
+
+
+def _deal_commercial_market_research(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_commercial_product_matching import deal_room_commercial_market_section
+
+        return deal_room_commercial_market_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomCommercialMarketResearch",
+            "Acquisition_status": "UNKNOWN",
+            "Pricing_confidence": "UNKNOWN",
+            "Next_Action": "Commercial market research unavailable",
         }
 
 

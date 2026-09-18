@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-acquisition-target-2"
+APP_BUILD_VERSION = "20260917-m3-commercial-matching-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1951,6 +1951,80 @@ def api_m3_acquisition_targets_va_update(body: dict | None = None):
     store = M3PipelineStore()
     restore_pipeline_store_from_db(store)
     return apply_va_acquisition_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
+        status=payload.get("status"),
+    )
+
+
+@app.post("/api/m3/commercial-matching/analyze")
+def api_m3_commercial_matching_analyze(body: dict | None = None):
+    """Specification → commercial product candidates → suppliers → pricing → economics handoff."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_commercial_product_matching import analyze_commercial_matching_top
+
+    payload = body or {}
+    limit = max(1, min(40, int(payload.get("limit") or 20)))
+    paid_limit = max(0, min(8, int(payload.get("paid_limit") or 0)))
+    allow_paid = bool(payload.get("allow_paid_web")) and paid_limit > 0
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_commercial_matching_top(
+        store,
+        limit=limit,
+        allow_paid_web=allow_paid,
+        paid_limit=paid_limit,
+        persist=True,
+    )
+
+
+@app.get("/api/m3/commercial-matching/status")
+def api_m3_commercial_matching_status():
+    from m3_commercial_product_matching import load_match_index
+
+    idx = load_match_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    return {
+        "kind": "M3CommercialMatchingStatus",
+        "researched": len(by_id),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "COMMERCIAL_PRODUCT_MATCHING_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/commercial-matching/queues")
+def api_m3_commercial_matching_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_commercial_product_matching import build_va_matching_queues
+
+    return build_va_matching_queues(limit=limit)
+
+
+@app.get("/api/m3/commercial-matching/learning")
+def api_m3_commercial_matching_learning():
+    from m3_commercial_product_matching import load_search_learning
+
+    return load_search_learning()
+
+
+@app.post("/api/m3/commercial-matching/va/update")
+def api_m3_commercial_matching_va_update(body: dict | None = None):
+    """VA research/attach pricing/sources/notes — no compliance approval, outreach, or bidding."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_commercial_product_matching import apply_va_matching_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_matching_update(
         store,
         cid,
         action=str(payload.get("action") or ""),
