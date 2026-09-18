@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger("govtracker.scheduler")
 
@@ -92,8 +91,9 @@ def run_amendment_check() -> None:
 
 
 def configure_m3_discovery_job() -> None:
-    """Interval discovery inside the web process — no separate Railway worker required."""
-    from m3_discovery_service import discovery_enabled, discovery_interval_minutes, scheduled_discovery_tick
+    """Discovery at 06:00 and 14:00 in configured timezone — not hourly."""
+    from m3_discovery_service import discovery_enabled, scheduled_discovery_tick
+    from settings_store import get_scheduler_settings
 
     if not discovery_enabled():
         if scheduler.running:
@@ -103,8 +103,10 @@ def configure_m3_discovery_job() -> None:
         logger.info("M3 discovery scheduler disabled (M3_DISCOVERY_ENABLED=false)")
         return
 
-    minutes = discovery_interval_minutes()
-    trigger = IntervalTrigger(minutes=minutes)
+    settings = get_scheduler_settings()
+    tz = _timezone(settings["timezone"])
+    # Explicit dual daily runs — replaces previous hourly IntervalTrigger
+    trigger = CronTrigger(hour="6,14", minute=0, timezone=tz)
     if not scheduler.running:
         scheduler.start()
     scheduler.add_job(
@@ -115,34 +117,61 @@ def configure_m3_discovery_job() -> None:
         max_instances=1,
         coalesce=True,
     )
-    logger.info("M3 discovery scheduler: every %s minutes (server-side)", minutes)
+    logger.info("M3 discovery scheduler: 06:00 and 14:00 %s (hourly disabled)", tz)
 
 
 def configure_m3_research_job() -> None:
-    """Interval research queue drain — reuses M3EndToEndOrchestrator.advance."""
-    from m3_research_service import research_enabled, research_interval_minutes, scheduled_research_tick
+    """Portfolio deal analysis at 06:05 and 14:05 — progressive research, not equal-depth."""
+    from settings_store import get_scheduler_settings
+
+    try:
+        from m3_research_service import research_enabled
+    except Exception:
+        research_enabled = lambda: True  # noqa: E731
+
+    # Remove legacy interval research queue if present
+    if scheduler.running:
+        legacy = scheduler.get_job("m3_research_queue")
+        if legacy:
+            scheduler.remove_job("m3_research_queue")
 
     if not research_enabled():
         if scheduler.running:
-            job = scheduler.get_job("m3_research_queue")
+            job = scheduler.get_job("m3_portfolio_cycle")
             if job:
-                scheduler.remove_job("m3_research_queue")
-        logger.info("M3 research scheduler disabled (M3_RESEARCH_ENABLED=false)")
+                scheduler.remove_job("m3_portfolio_cycle")
+        logger.info("M3 portfolio/research scheduler disabled")
         return
 
-    minutes = research_interval_minutes()
-    trigger = IntervalTrigger(minutes=minutes)
+    settings = get_scheduler_settings()
+    tz = _timezone(settings["timezone"])
+    trigger = CronTrigger(hour="6,14", minute=5, timezone=tz)
+
+    def _portfolio_tick() -> None:
+        try:
+            from m3_portfolio_deal_analysis import scheduled_portfolio_tick
+
+            result = scheduled_portfolio_tick()
+            logger.info(
+                "M3 portfolio cycle: promotions=%s cvw=%s ftx=%s",
+                (result.get("SUMMARY") or {}).get("Research_promotions"),
+                (result.get("AFTER") or {}).get("commercial_verification_worthy"),
+                (result.get("AFTER") or {}).get("first_transaction_candidates"),
+            )
+        except Exception:
+            logger.exception("M3 portfolio cycle failed")
+
     if not scheduler.running:
         scheduler.start()
     scheduler.add_job(
-        scheduled_research_tick,
+        _portfolio_tick,
         trigger,
-        id="m3_research_queue",
+        id="m3_portfolio_cycle",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
-    logger.info("M3 research scheduler: every %s minutes (server-side)", minutes)
+    logger.info("M3 portfolio scheduler: 06:05 and 14:05 %s (hourly research disabled)", tz)
 
 
 def configure_scheduler() -> None:
@@ -224,32 +253,35 @@ def scheduler_status() -> dict:
 
     settings = get_scheduler_settings()
     m3_job = scheduler.get_job("m3_incremental_discovery") if scheduler.running else None
-    m3_research_job = scheduler.get_job("m3_research_queue") if scheduler.running else None
+    m3_research_job = scheduler.get_job("m3_portfolio_cycle") if scheduler.running else None
     m3_info = {}
     try:
-        from m3_discovery_service import discovery_enabled, discovery_interval_minutes, discovery_status
+        from m3_discovery_service import discovery_enabled, discovery_status
 
         m3_info = {
             "m3_discovery_enabled": discovery_enabled(),
-            "m3_discovery_interval_minutes": discovery_interval_minutes(),
+            "m3_discovery_schedule": "06:00,14:00",
+            "m3_discovery_interval_minutes": None,
+            "m3_hourly_schedule_disabled": True,
             "m3_discovery_next_run": m3_job.next_run_time.isoformat() if m3_job and m3_job.next_run_time else None,
             "m3_discovery_status": discovery_status().get("status"),
         }
     except Exception:
         m3_info = {"m3_discovery_enabled": False}
     try:
-        from m3_research_service import research_enabled, research_interval_minutes, research_status
+        from m3_research_service import research_enabled
 
         m3_info.update(
             {
                 "m3_research_enabled": research_enabled(),
-                "m3_research_interval_minutes": research_interval_minutes(),
+                "m3_portfolio_schedule": "06:05,14:05",
+                "m3_research_interval_minutes": None,
                 "m3_research_next_run": (
                     m3_research_job.next_run_time.isoformat()
                     if m3_research_job and m3_research_job.next_run_time
                     else None
                 ),
-                "m3_research_status": research_status().get("status"),
+                "m3_portfolio_job": "m3_portfolio_cycle",
             }
         )
     except Exception:

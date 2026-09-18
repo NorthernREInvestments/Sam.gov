@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260918-m3-material-acq-gaps-2"
+APP_BUILD_VERSION = "20260918-m3-portfolio-deals-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1005,6 +1005,44 @@ def api_m3_operator_queue():
     return {"queue": M3PipelineStore().operator_queue(), "DEVELOPMENT_NO_OUTREACH": True}
 
 
+@app.get("/api/m3/portfolio/deals")
+def api_m3_portfolio_deals():
+    """Operator portfolio view — ranked deals with economics classes."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_portfolio_deal_analysis import portfolio_operator_view
+
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return portfolio_operator_view(store)
+
+
+@app.post("/api/m3/portfolio/analyze")
+def api_m3_portfolio_analyze(body: dict | None = None):
+    """Bounded autonomous portfolio cycle (progressive tiers)."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_portfolio_deal_analysis import run_portfolio_cycle
+
+    payload = body or {}
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return run_portfolio_cycle(
+        store,
+        persist=True,
+        max_promote=max(1, min(25, int(payload.get("max_promote") or 12))),
+        include_discovery_tick=bool(payload.get("include_discovery_tick")),
+        resume=payload.get("resume", True) is not False,
+    )
+
+
+@app.get("/api/m3/portfolio/summary")
+def api_m3_portfolio_summary():
+    from m3_portfolio_deal_analysis import SUMMARY_KEY, _load_setting
+
+    return _load_setting(SUMMARY_KEY) or {"kind": "PORTFOLIO_RUN_SUMMARY", "empty": True}
+
+
 @app.get("/api/m3/readiness/{canonical_id}")
 def api_m3_readiness(canonical_id: str):
     from m3_pipeline_store import M3PipelineStore
@@ -1026,12 +1064,21 @@ def api_m3_mobile_dashboard():
 @app.get("/api/m3/mobile/opportunities")
 def api_m3_mobile_opportunities():
     from m3_mobile_read_model import mobile_dashboard_summary
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_portfolio_deal_analysis import portfolio_operator_view
 
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    portfolio = portfolio_operator_view(store)
     dash = mobile_dashboard_summary()
     return {
-        "opportunities": dash.get("active_opportunities") or [],
-        "count": dash.get("active_count") or 0,
-        "DEVELOPMENT_NO_OUTREACH": dash.get("DEVELOPMENT_NO_OUTREACH"),
+        "opportunities": portfolio.get("deals") or dash.get("active_opportunities") or [],
+        "top_cards": portfolio.get("top_cards") or [],
+        "counts": portfolio.get("counts") or {},
+        "count": len(portfolio.get("deals") or []),
+        "filters_supported": portfolio.get("filters_supported"),
+        "DEVELOPMENT_NO_OUTREACH": True,
     }
 
 

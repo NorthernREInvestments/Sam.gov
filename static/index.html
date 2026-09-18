@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260918-m3-material-acq-gaps-2">
+      <meta name="m3-build" content="20260918-m3-portfolio-deals-1">
       <title>M3 — GovCon Operating System</title>
       <link rel="stylesheet" href="/style.css?v=20260917-m3-product-identity-1">
 </head>
@@ -523,8 +523,15 @@
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
         <h2>Opportunities</h2>
-        <p class="m3-mobile-sub">Priority deals</p>
+        <p class="m3-mobile-sub">Portfolio deals · ranked by executable economics</p>
       </header>
+      <div id="m3-opps-filters" class="m3-btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="all">All</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="cvw">Verification worthy</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="ftx">First tx</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="partial">Partial economics</button>
+      </div>
+      <div id="m3-opps-top-cards" class="m3-card-stack"></div>
       <div id="m3-opps-list" class="m3-card-stack"></div>
     </div>
   </div>
@@ -651,7 +658,7 @@
   </div>
 
   <script src="/app.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/m3-mobile.js?v=20260918-m3-material-acq-gaps-2"></script>
+  <script src="/m3-mobile.js?v=20260918-m3-portfolio-deals-1"></script>
   <script src="/gos-app.js?v=20260917-m3-product-identity-1"></script>
   <script src="/product-pipeline.js?v=20260917-m3-product-identity-1"></script>
   <script src="/deal-workspace.js?v=20260917-m3-product-identity-1"></script>

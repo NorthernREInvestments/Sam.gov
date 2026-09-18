@@ -72,10 +72,11 @@ def discovery_enabled() -> bool:
 
 
 def discovery_interval_minutes() -> int:
+    """Legacy helper — schedule is now 06:00/14:00. Kept for callers; defaults to 480 (8h)."""
     try:
-        return max(5, int(os.environ.get("M3_DISCOVERY_INTERVAL_MINUTES") or "60"))
+        return max(60, int(os.environ.get("M3_DISCOVERY_INTERVAL_MINUTES") or "480"))
     except ValueError:
-        return 60
+        return 480
 
 
 def discovery_profile() -> str:
@@ -92,6 +93,16 @@ def _empty_state() -> dict[str, Any]:
         "lock": {"held": False, "run_id": None, "since": None},
         "updated_at": _utc(),
     }
+
+
+def is_data_fresh(state: dict[str, Any] | None = None) -> bool:
+    state = state or _load_state()
+    last = _parse((state.get("last_successful_completion") or {}).get("completed_at"))
+    if not last:
+        return False
+    # Twice-daily cadence: treat fresh if completed within ~10 hours
+    threshold = timedelta(hours=10)
+    return now_utc() - last <= threshold
 
 
 def _load_state_from_db() -> dict[str, Any] | None:
@@ -259,17 +270,26 @@ def recover_stale_runs(state: dict[str, Any] | None = None) -> dict[str, Any]:
 
 
 def compute_next_scheduled_run(from_time: datetime | None = None) -> str:
+    """Next 06:00 or 14:00 in configured scheduler timezone (not hourly)."""
+    from datetime import timedelta as _td
+    from zoneinfo import ZoneInfo
+
+    from settings_store import get_scheduler_settings
+
+    settings = get_scheduler_settings()
+    try:
+        tz = ZoneInfo(settings.get("timezone") or "America/Denver")
+    except Exception:
+        tz = ZoneInfo("America/Denver")
     from_time = from_time or now_utc()
-    return (from_time + timedelta(minutes=discovery_interval_minutes())).isoformat()
-
-
-def is_data_fresh(state: dict[str, Any] | None = None) -> bool:
-    state = state or _load_state()
-    last = _parse((state.get("last_successful_completion") or {}).get("completed_at"))
-    if not last:
-        return False
-    threshold = timedelta(minutes=discovery_interval_minutes() * FRESHNESS_MULTIPLIER)
-    return now_utc() - last <= threshold
+    local = from_time.astimezone(tz)
+    for day_offset in (0, 1, 2):
+        day = (local + _td(days=day_offset)).replace(second=0, microsecond=0)
+        for hour in (6, 14):
+            run = day.replace(hour=hour, minute=0)
+            if run > local:
+                return run.astimezone(timezone.utc).isoformat()
+    return (local + _td(days=1)).replace(hour=6, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
 
 
 def discovery_status() -> dict[str, Any]:

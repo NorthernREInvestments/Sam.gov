@@ -45,24 +45,36 @@ def test_scheduler_enable_disable(monkeypatch, discovery_env):
     from m3_discovery_service import discovery_enabled, discovery_interval_minutes
 
     assert discovery_enabled() is True
-    assert discovery_interval_minutes() == 60
+    assert discovery_interval_minutes() == 60  # env override from fixture
     monkeypatch.setenv("M3_DISCOVERY_ENABLED", "false")
     assert discovery_enabled() is False
     monkeypatch.setenv("M3_DISCOVERY_INTERVAL_MINUTES", "90")
     assert discovery_interval_minutes() == 90
 
 
-def test_hourly_cadence_calculation(discovery_env):
+def test_twice_daily_cadence_calculation(discovery_env, monkeypatch):
     from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
 
     from m3_discovery_service import compute_next_scheduled_run
 
-    start = now_utc()
-    nxt = datetime.fromisoformat(compute_next_scheduled_run(start))
-    if nxt.tzinfo is None:
-        nxt = nxt.replace(tzinfo=timezone.utc)
-    delta = nxt - start
-    assert 59 * 60 <= delta.total_seconds() <= 61 * 60
+    monkeypatch.setattr(
+        "settings_store.get_scheduler_settings",
+        lambda: {"enabled": True, "hour": 6, "minute": 0, "timezone": "America/Denver"},
+    )
+    denver = ZoneInfo("America/Denver")
+    # Before 06:00 local → next is 06:00 same day
+    morning = datetime(2026, 9, 18, 5, 0, tzinfo=denver).astimezone(timezone.utc)
+    nxt = datetime.fromisoformat(compute_next_scheduled_run(morning)).astimezone(denver)
+    assert nxt.hour == 6 and nxt.minute == 0
+    # Between 06 and 14 → next is 14:00
+    midday = datetime(2026, 9, 18, 10, 0, tzinfo=denver).astimezone(timezone.utc)
+    nxt2 = datetime.fromisoformat(compute_next_scheduled_run(midday)).astimezone(denver)
+    assert nxt2.hour == 14
+    # After 14:00 → next is tomorrow 06:00
+    evening = datetime(2026, 9, 18, 15, 0, tzinfo=denver).astimezone(timezone.utc)
+    nxt3 = datetime.fromisoformat(compute_next_scheduled_run(evening)).astimezone(denver)
+    assert nxt3.hour == 6 and nxt3.day == 19
 
 
 def test_startup_stale_and_fresh(monkeypatch, discovery_env):
@@ -94,8 +106,8 @@ def test_startup_stale_and_fresh(monkeypatch, discovery_env):
         assert out.get("reason") == "already_fresh"
         assert not req.called
 
-    # stale
-    state["last_successful_completion"]["completed_at"] = (now_utc() - timedelta(hours=5)).isoformat()
+    # stale under twice-daily cadence (~10h freshness window)
+    state["last_successful_completion"]["completed_at"] = (now_utc() - timedelta(hours=11)).isoformat()
     _save_state(state)
     assert is_data_fresh() is False
 

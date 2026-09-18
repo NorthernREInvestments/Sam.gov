@@ -452,20 +452,91 @@
   }
 
   function oppCard(o) {
+    const title = o.Opportunity || o.title || o.canonical_id;
+    const buyer = o.Agency || o.buyer || "";
+    const deadline = o.Deadline || o.deadline || fmtDays(o.days_remaining);
+    const revenue = o.Government_benchmark != null && o.Government_benchmark !== "UNKNOWN"
+      ? o.Government_benchmark
+      : o.Revenue_basis != null && o.Revenue_basis !== "UNKNOWN"
+        ? o.Revenue_basis
+        : o.supported_revenue;
+    const gross = o.Known_gross_spread;
+    const status = o.Status || o.Deal_state || o.lifecycle;
+    const next = o.NEXT || o.next_action || "—";
+    const cov = o.Coverage != null && o.Coverage !== "UNKNOWN" ? o.Coverage : o.Economic_coverage_pct;
     return `<article class="m3-opp-card" data-cid="${esc(o.canonical_id)}" role="button" tabindex="0">
-      <div class="m3-opp-buyer">${esc(o.buyer)}</div>
-      <h3 class="m3-opp-title">${esc(o.title)}</h3>
+      <div class="m3-opp-buyer">${esc(buyer)}</div>
+      <h3 class="m3-opp-title">${esc(title)}</h3>
       <dl class="m3-kv">
-        <div><dt>Deadline</dt><dd>${esc(fmtDays(o.days_remaining))}</dd></div>
-        <div><dt>Revenue</dt><dd>${esc(fmtMoney(o.supported_revenue))}</dd></div>
-        <div><dt>Supported Profit</dt><dd>${esc(fmtMoney(o.supported_profit))}</dd></div>
-        <div><dt>Confidence</dt><dd>${esc(o.profit_confidence)}</dd></div>
-        <div><dt>Status</dt><dd>${esc(o.lifecycle)}</dd></div>
-        <div><dt>Funding</dt><dd>${esc(o.funding_state)}</dd></div>
+        <div><dt>Deadline</dt><dd>${esc(deadline)}</dd></div>
+        <div><dt>Gov revenue</dt><dd>${esc(fmtMoney(revenue))}</dd></div>
+        <div><dt>Gross spread</dt><dd>${esc(gross != null && gross !== "UNKNOWN" ? fmtMoney(gross) : fmtMoney(o.supported_profit))}</dd></div>
+        <div><dt>Coverage</dt><dd>${esc(cov != null && cov !== "UNKNOWN" ? cov + (String(cov).includes("%") ? "" : "%") : o.profit_confidence || "—")}</dd></div>
+        <div><dt>Status</dt><dd>${esc(status)}</dd></div>
+        <div><dt>Funding</dt><dd>${esc(o.Funding || o.funding_state || "VERIFY")}</dd></div>
       </dl>
-      <p class="m3-next"><strong>Next:</strong> ${esc(o.next_action || "—")}</p>
-      <p class="m3-why muted">Why waiting: ${esc(o.why_waiting || "UNKNOWN")}</p>
+      <p class="m3-next"><strong>Next:</strong> ${esc(next)}</p>
+      ${o.FIRST_TRANSACTION_CANDIDATE ? '<p class="m3-priority">FIRST_TRANSACTION_CANDIDATE</p>' : ""}
+      <p class="m3-why muted">Economics: ${esc(o.Economics_class || o.why_waiting || "UNKNOWN")}</p>
     </article>`;
+  }
+
+  function portfolioTopCard(c) {
+    return `<article class="m3-info-card m3-opp-card" data-cid="${esc(c.canonical_id)}" role="button" tabindex="0">
+      <h3>${esc(c.Opportunity)}</h3>
+      <p class="muted">${esc(c.Agency)} · ${esc(c.Product_BOM)}</p>
+      <dl class="m3-kv">
+        <div><dt>Gov benchmark</dt><dd>${esc(fmtMoney(c.Government_benchmark))}</dd></div>
+        <div><dt>Acquisition</dt><dd>${esc(fmtMoney(c.Observed_acquisition))}</dd></div>
+        <div><dt>Gross spread</dt><dd>${esc(fmtMoney(c.Known_gross_spread))}</dd></div>
+        <div><dt>Coverage</dt><dd>${esc(c.Coverage)}</dd></div>
+        <div><dt>Capital</dt><dd>${esc(fmtMoney(c.Capital))}</dd></div>
+        <div><dt>Status</dt><dd>${esc(c.Status)}</dd></div>
+      </dl>
+      <p class="m3-next"><strong>NEXT:</strong> ${esc(c.NEXT)}</p>
+    </article>`;
+  }
+
+  let portfolioFilter = "all";
+
+  async function loadOpportunities(force) {
+    try {
+      if (!cache.portfolio || force) {
+        cache.portfolio = await fetchJson("/api/m3/mobile/opportunities");
+      }
+      const list = document.getElementById("m3-opps-list");
+      const topEl = document.getElementById("m3-opps-top-cards");
+      let opps = cache.portfolio.opportunities || cache.portfolio.deals || [];
+      if (portfolioFilter === "cvw") {
+        opps = opps.filter((o) => o.Deal_state === "COMMERCIAL_VERIFICATION_WORTHY" || o.Commercial_verification === "COMMERCIAL_VERIFICATION_WORTHY" || o.Status === "COMMERCIAL_VERIFICATION_WORTHY");
+      } else if (portfolioFilter === "ftx") {
+        opps = opps.filter((o) => o.FIRST_TRANSACTION_CANDIDATE);
+      } else if (portfolioFilter === "partial") {
+        opps = opps.filter((o) => o.Economics_class === "PARTIAL_ECONOMICS" || o.Deal_state === "PARTIAL_ECONOMICS");
+      }
+      if (topEl) {
+        const tops = (cache.portfolio.top_cards || []).slice(0, 4);
+        topEl.innerHTML = tops.map(portfolioTopCard).join("");
+        wireCardClicks(topEl);
+      }
+      if (list) {
+        list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No opportunities match filter.</p>";
+        wireCardClicks(list);
+      }
+    } catch (_) {
+      /* non-fatal — fall back to dashboard */
+      try {
+        if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
+        const list = document.getElementById("m3-opps-list");
+        const opps = cache.dashboard.active_opportunities || [];
+        if (list) {
+          list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No active opportunities.</p>";
+          wireCardClicks(list);
+        }
+      } catch (__) {
+        /* non-fatal */
+      }
+    }
   }
 
   function actionCard(a) {
@@ -596,20 +667,6 @@
       } catch (_) {
         renderResearchStatus({ status: "IDLE", progress_percent: 0 });
       }
-    }
-  }
-
-  async function loadOpportunities(force) {
-    try {
-      if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
-      const list = document.getElementById("m3-opps-list");
-      const opps = cache.dashboard.active_opportunities || [];
-      if (list) {
-        list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No active opportunities.</p>";
-        wireCardClicks(list);
-      }
-    } catch (_) {
-      /* non-fatal */
     }
   }
 
@@ -1175,6 +1232,12 @@
     });
     document.getElementById("m3-deal-back")?.addEventListener("click", () => showM3View("opportunities"));
     document.getElementById("m3-open-verify")?.addEventListener("click", () => showM3View("verify"));
+    document.querySelectorAll(".m3-opp-filter").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        portfolioFilter = btn.getAttribute("data-filter") || "all";
+        loadOpportunities(false);
+      });
+    });
     document.getElementById("m3-enable-controlled")?.addEventListener("click", async () => {
       try {
         await postJson("/api/m3/controlled/enable", {
