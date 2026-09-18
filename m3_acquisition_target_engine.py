@@ -1041,7 +1041,8 @@ def build_first_transaction_profile(
         state = NOT_ATTRACTIVE
         reasons.append("non_positive_expected_profit_at_observed_price")
     elif status == STATUS_UNKNOWN:
-        state = FIRST_TRANSACTION_CANDIDATE if channel_status.get("wholesale_unverified") else NORMAL_PROFIT_TARGET
+        # Unknown economics stay queued for research — not first-tx or track-record labels
+        state = NORMAL_PROFIT_TARGET
         reasons.append("economics_unknown_not_rejected")
 
     return {
