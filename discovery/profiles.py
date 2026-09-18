@@ -31,25 +31,26 @@ PROFILE_TINY = {
 }
 
 # BROAD = production scheduled discovery — ALL eligible sources, real pagination
+# Caps are capacity/safety headroom — NOT discovery targets. Prefer false positives.
 PROFILE_BROAD = {
     "name": "BROAD",
     "max_sources": None,  # None = no coverage cap; registry determines eligible set
     "all_eligible_sources": True,
     "budget": RequestBudget(
-        max_total_requests=2500,
-        max_requests_per_source=40,
-        max_pages_per_source=25,  # soft request budget per source; exhaustion stops earlier
-        max_records_per_source=500,
-        max_runtime_seconds=3600,
+        max_total_requests=8000,
+        max_requests_per_source=120,
+        max_pages_per_source=80,  # soft request budget per source; exhaustion stops earlier
+        max_records_per_source=5000,
+        max_runtime_seconds=5400,
         max_retries=1,
-        min_interval_seconds=0.75,
+        min_interval_seconds=0.5,
         timeout_seconds=25.0,
     ),
-    "max_records_total": 25000,  # capacity headroom, not a target
+    "max_records_total": 50000,  # capacity headroom, not a target
     "fetch_details": False,
     "fetch_documents": False,
     "pagination_exhaust": True,
-    "pagination_safety_max_pages": 40,  # hitting this ⇒ PAGINATION_INCOMPLETE, not SUCCESS
+    "pagination_safety_max_pages": 120,  # hitting this ⇒ PAGINATION_INCOMPLETE, not SUCCESS
     "SAM": 0,
     "OpenAI": 0,
     "USAspending": 0,
@@ -62,22 +63,22 @@ PROFILE_NATIONAL = {
     "max_sources": None,
     "all_eligible_sources": True,
     "budget": RequestBudget(
-        max_total_requests=4000,
-        max_requests_per_source=60,
-        max_pages_per_source=40,
-        max_records_per_source=1000,
-        max_runtime_seconds=7200,
+        max_total_requests=12000,
+        max_requests_per_source=180,
+        max_pages_per_source=120,
+        max_records_per_source=10000,
+        max_runtime_seconds=10800,
         max_retries=1,
-        min_interval_seconds=0.6,
+        min_interval_seconds=0.4,
         timeout_seconds=25.0,
     ),
-    "max_records_total": 25000,
+    "max_records_total": 50000,
     "incremental": True,
     "bootstrap": True,
     "fetch_details": True,  # staged/gated — still subject to should_fetch_detail
     "fetch_documents": False,
     "pagination_exhaust": True,
-    "pagination_safety_max_pages": 60,
+    "pagination_safety_max_pages": 200,
     "SAM": 0,
     "OpenAI": 0,
     "USAspending": 0,

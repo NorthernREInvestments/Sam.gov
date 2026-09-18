@@ -62,6 +62,7 @@ class LiveFetcher(ABC):
         sid = source_id or self.source_id
         from family_adapter_contract import (
             PAGINATION_NONE,
+            PAGINATION_PATH_PAGE,
             PAGINATION_UNKNOWN,
             detect_pagination_model,
             next_page_url,
@@ -104,23 +105,31 @@ class LiveFetcher(ABC):
             last_meta = resp.meta.to_dict()
             body = resp.text or ""
 
-            # Access blockers
-            if resp.status_code in {401, 403} or _is_cloudflare_challenge(body):
-                pagination_stop_reason = (
-                    "BOT_PROTECTED" if _is_cloudflare_challenge(body) else "AUTH_REQUIRED"
-                )
-                pagination_complete = False
-                last_validation = validate_listing_response(
-                    status_code=resp.status_code,
-                    content_type=resp.meta.content_type,
-                    body=body,
-                    records_found=0,
-                    expected_kind=self.expected_kind,
-                    structure_recognized=False,
-                )
-                last_validation["failure_type"] = pagination_stop_reason
-                last_validation["valid"] = False
-                break
+            # Access blockers — but keep parsing when public listing structure is still present
+            # (some portals return soft 403 chrome while open-bids metadata remains public)
+            cloudflare = _is_cloudflare_challenge(body)
+            hard_auth = resp.status_code in {401, 403}
+            if hard_auth or cloudflare:
+                still_public = False
+                try:
+                    still_public = bool(self.structure_recognized(body, list_url=page_url))
+                except Exception:
+                    still_public = False
+                if cloudflare or (hard_auth and not still_public):
+                    pagination_stop_reason = "BOT_PROTECTED" if cloudflare else "AUTH_REQUIRED"
+                    pagination_complete = False
+                    last_validation = validate_listing_response(
+                        status_code=resp.status_code,
+                        content_type=resp.meta.content_type,
+                        body=body,
+                        records_found=0,
+                        expected_kind=self.expected_kind,
+                        structure_recognized=False,
+                    )
+                    last_validation["failure_type"] = pagination_stop_reason
+                    last_validation["valid"] = False
+                    break
+                # Soft 403 with recognizable public listings → continue parsing
 
             fp = hashlib.sha256(body.encode("utf-8", errors="ignore")).hexdigest()[:24]
             if fp in page_fingerprints:
@@ -144,22 +153,52 @@ class LiveFetcher(ABC):
                 except Exception:
                     pass
                 if hard_cap > 1 and pag_model not in {PAGINATION_NONE, PAGINATION_UNKNOWN, "NO_PAGINATION"}:
-                    for p in range(2, hard_cap + 1):
-                        model = "PAGE_NUMBER" if pag_model in {"BOUNDED_WINDOW", "PAGE_NUMBER"} else pag_model
+                    hint = int(pag.get("max_page_hint") or 0) or hard_cap
+                    page_budget = min(hard_cap, max(hint, 2))
+                    for p in range(2, page_budget + 1):
+                        if pag_model == PAGINATION_PATH_PAGE:
+                            model = PAGINATION_PATH_PAGE
+                        elif pag_model in {"BOUNDED_WINDOW", "PAGE_NUMBER"}:
+                            model = "PAGE_NUMBER"
+                        else:
+                            model = pag_model
                         nxt = next_page_url(list_url, page=p, model=model)
                         if nxt and nxt not in seen_page_urls:
                             page_urls.append(nxt)
                             seen_page_urls.add(nxt)
 
-            # Continuation / next link from HTML
+            # Continuation / next link from HTML (allow "Next page" text)
             if pagination_exhaust and pages_fetched < hard_cap:
                 next_href = None
                 m = re.search(
-                    r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*(?:Next|»|›|Load\s*more)\s*<',
+                    r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*(?:Next(?:\s*page)?|»|›|Load\s*more)\b',
                     body,
                     re.I,
                 )
-                if m:
+                if not m:
+                    # BidNet path pager without "Next" label
+                    m = re.search(
+                        r'href=["\']([^"\']*?/solicitations/open-bids/page(\d+))["\']',
+                        body,
+                        re.I,
+                    )
+                    if m and int(m.group(2)) == pages_fetched + 1:
+                        next_href = m.group(1)
+                    else:
+                        # Prefer the smallest page number greater than current
+                        candidates = []
+                        for hm in re.finditer(
+                            r'href=["\']([^"\']*?/solicitations/open-bids/page(\d+))["\']',
+                            body,
+                            re.I,
+                        ):
+                            pn = int(hm.group(2))
+                            if pn > pages_fetched:
+                                candidates.append((pn, hm.group(1)))
+                        if candidates:
+                            candidates.sort()
+                            next_href = candidates[0][1]
+                else:
                     next_href = m.group(1)
                 if next_href:
                     from urllib.parse import urljoin
@@ -806,6 +845,28 @@ class BidNetLiveFetcher(LiveFetcher):
     source_name = "BidNet Direct Platform Family"
     platform_family = "BidNet"
     expected_kind = "html"
+
+    def fetch_listing(
+        self,
+        client: PublicProcurementHttpClient,
+        *,
+        list_url: str,
+        source_id: str | None = None,
+        max_pages: int = 1,
+        pagination_exhaust: bool = False,
+        pagination_safety_max_pages: int | None = None,
+    ) -> dict[str, Any]:
+        from family_adapter_contract import normalize_bidnet_open_bids_url
+
+        normalized = normalize_bidnet_open_bids_url(list_url) or list_url
+        return super().fetch_listing(
+            client,
+            list_url=normalized,
+            source_id=source_id,
+            max_pages=max_pages,
+            pagination_exhaust=pagination_exhaust,
+            pagination_safety_max_pages=pagination_safety_max_pages,
+        )
 
     def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
         text = (body or "").lower()

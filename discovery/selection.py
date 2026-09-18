@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from discovery.agency_seeds import all_agencies_enriched, all_coops_enriched, FEDERAL_NON_SAM_LIVE
+from discovery.bidnet_network import all_bidnet_networks_enriched
 from discovery.constants import (
     ADAPTER_LIVE_VERIFIED,
     ADAPTER_UNVERIFIED_LIVE,
@@ -110,6 +111,23 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "platform_family": f.get("platform_family") or "FederalPublic",
         }
 
+    # BidNet Direct statewide networks — one listing unlocks many local agencies
+    for n in all_bidnet_networks_enriched():
+        if not n.get("list_url"):
+            continue
+        out[n["source_id"]] = {
+            "source_id": n["source_id"],
+            "name": n["name"],
+            "list_url": n["list_url"],
+            "adapter_family": n["adapter_family"],
+            "platform_family": n.get("platform_family"),
+            "kind": "NETWORK",
+            "state_code": n.get("state_code"),
+            "coverage_class": n.get("coverage_class") or "LOCAL_NETWORK",
+            "adapter_status": n.get("adapter_status"),
+            "validation_candidate": n.get("validation_candidate", True),
+        }
+
     # Apply verified alternate official routes (canonical may be stale/gated)
     try:
         from alternate_authoritative_routes import ALTERNATE_ROUTES
@@ -133,6 +151,20 @@ def _pool_map() -> dict[str, dict[str, Any]]:
                 row["expected_access"] = "REGISTRATION_REQUIRED"
             elif "AUTH" in expected:
                 row["expected_access"] = "AUTH_REQUIRED"
+    except Exception:
+        pass
+
+    # Normalize BidNet landing pages → open-bids wherever present
+    try:
+        from family_adapter_contract import normalize_bidnet_open_bids_url
+
+        for row in out.values():
+            if "bidnet" in str(row.get("adapter_family") or "").lower() or "bidnet" in str(
+                row.get("platform_family") or ""
+            ).lower():
+                row["list_url"] = normalize_bidnet_open_bids_url(row.get("list_url")) or row.get("list_url")
+            elif "bidnetdirect.com" in str(row.get("list_url") or "").lower():
+                row["list_url"] = normalize_bidnet_open_bids_url(row.get("list_url")) or row.get("list_url")
     except Exception:
         pass
     return out
@@ -169,6 +201,9 @@ def _priority_rank(source_id: str) -> int:
     for i, sid in enumerate(fed_ids):
         if sid == source_id:
             return 50 + i
+    # BidNet statewide networks — high yield; run before sparse agency duplicates
+    if source_id.startswith("network_bidnet_"):
+        return 40
     return 1000
 
 

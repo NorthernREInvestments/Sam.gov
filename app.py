@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260918-m3-portfolio-deals-1"
+APP_BUILD_VERSION = "20260918-m3-national-discovery-scale-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -781,6 +781,44 @@ def api_m3_coverage():
     except Exception:
         per = None
     return coverage_dashboard_payload(per_source_metrics=per, discovery_status=st)
+
+
+@app.get("/api/m3/discovery/coverage-map")
+def api_m3_discovery_coverage_map():
+    """NATIONAL_PROCUREMENT_COVERAGE_MAP + yield + gaps + survivor funnel facts."""
+    from m3_discovery_service import discovery_status
+    from national_procurement_coverage_map import (
+        build_discovery_coverage_health,
+        build_discovery_gap_queue,
+        build_national_procurement_coverage_map,
+        build_product_survivor_universe,
+        build_source_yield_analytics,
+    )
+    from m3_pipeline_store import M3PipelineStore
+
+    st = discovery_status()
+    per = None
+    try:
+        focus = st.get("last_successful_completion") or st.get("last_attempt") or {}
+        metrics = focus.get("metrics") if isinstance(focus.get("metrics"), dict) else {}
+        per = focus.get("per_source_summary") or metrics.get("per_source")
+    except Exception:
+        per = None
+    store = M3PipelineStore()
+    rows = store.all()
+    cmap = build_national_procurement_coverage_map(per_source=per)
+    yields = build_source_yield_analytics(per_source=per, opportunities=rows)
+    survivors = build_product_survivor_universe(rows)
+    gaps = build_discovery_gap_queue(coverage_map=cmap, yield_rows=yields, per_source=per)
+    health = build_discovery_coverage_health(coverage_map=cmap, yield_rows=yields, funnel=survivors)
+    return {
+        "kind": "M3DiscoveryCoverageBundle",
+        "coverage_map": cmap,
+        "yield_analytics": yields[:80],
+        "discovery_gaps": gaps,
+        "coverage_health": health,
+        "product_survivor_universe": survivors,
+    }
 
 
 @app.get("/api/m3/source-recovery")

@@ -692,6 +692,38 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         coverage = coverage_dashboard_payload(discovery_status=discovery)
     except Exception:
         coverage = None
+    national = None
+    try:
+        from national_procurement_coverage_map import (
+            build_discovery_coverage_health,
+            build_discovery_gap_queue,
+            build_national_procurement_coverage_map,
+            build_product_survivor_universe,
+        )
+
+        per = None
+        if isinstance(discovery, dict):
+            focus = discovery.get("last_successful_completion") or discovery.get("last_attempt") or {}
+            metrics = focus.get("metrics") if isinstance(focus.get("metrics"), dict) else {}
+            per = focus.get("per_source_summary") or metrics.get("per_source")
+        cmap = build_national_procurement_coverage_map(per_source=per)
+        survivors = build_product_survivor_universe(rows)
+        health = build_discovery_coverage_health(
+            coverage_map=cmap,
+            funnel=survivors,
+        )
+        gaps = build_discovery_gap_queue(coverage_map=cmap, per_source=per, limit=8)
+        national = {
+            "CURRENT_UNIQUE_OPPORTUNITIES": survivors.get("TOTAL_CURRENT_UNIQUE_DISCOVERED"),
+            "PRODUCT_RESALE_SURVIVORS": survivors.get("LIKELY_PRODUCT_RESALE"),
+            "PRODUCT_PLUS_MINOR_SERVICE": survivors.get("PRODUCT_PLUS_MINOR_SERVICE"),
+            "SOURCES_PRODUCTIVE": health.get("productive_sources"),
+            "STATES_WITH_STATEWIDE_COVERAGE": health.get("states_statewide_covered"),
+            "DISCOVERY_GAPS": gaps[:5],
+            "coverage_health": health,
+        }
+    except Exception:
+        national = None
     return {
         "kind": "M3MobileDashboard",
         "active_count": len(active),
@@ -702,6 +734,7 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "research": research,
         "evidence": evidence,
         "coverage": coverage,
+        "national_discovery": national,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,
@@ -729,7 +762,7 @@ def mobile_sources_summary() -> dict[str, Any]:
         recovery = build_source_recovery_queue(limit=10)
     except Exception:
         recovery = None
-    return {
+    out = {
         "kind": "M3MobileSources",
         "registered": len(all_s),
         "eligible": len([s for s in all_s if s.get("list_url") or s.get("discovery_url")]),
@@ -750,3 +783,32 @@ def mobile_sources_summary() -> dict[str, Any]:
         "claim_100_percent_coverage": False,
         "note": "attempted≠productive≠market coverage — Source health ≠ 100% national coverage",
     }
+    try:
+        from national_procurement_coverage_map import (
+            build_discovery_gap_queue,
+            build_national_procurement_coverage_map,
+            build_source_yield_analytics,
+        )
+
+        cmap = build_national_procurement_coverage_map()
+        yields = build_source_yield_analytics()
+        gaps = build_discovery_gap_queue(coverage_map=cmap, yield_rows=yields, limit=10)
+        out["coverage_map"] = {
+            "states_statewide": (cmap.get("geographic") or {}).get("states", {}).get("STATEWIDE_SOURCE_VERIFIED"),
+            "states_missing": (cmap.get("geographic") or {}).get("states", {}).get("NO_VERIFIED_SOURCE"),
+            "portal_family_distribution": cmap.get("portal_family_distribution"),
+            "level_counts": cmap.get("level_counts"),
+        }
+        out["yield_top"] = [
+            {
+                "source": y["source_id"],
+                "family": y["portal_family"],
+                "current_records": y["current_records"],
+                "health": y["access_state"],
+            }
+            for y in yields[:15]
+        ]
+        out["discovery_gaps"] = gaps[:8]
+    except Exception:
+        pass
+    return out

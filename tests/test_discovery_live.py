@@ -359,10 +359,10 @@ def test_profiles_configured():
     assert PROFILE_BROAD["max_sources"] is None
     assert PROFILE_BROAD["all_eligible_sources"] is True
     assert PROFILE_BROAD["pagination_exhaust"] is True
-    assert PROFILE_BROAD["max_records_total"] == 25000
+    assert PROFILE_BROAD["max_records_total"] == 50000
     assert PROFILE_NATIONAL["max_sources"] is None
     assert PROFILE_NATIONAL["all_eligible_sources"] is True
-    assert PROFILE_NATIONAL["max_records_total"] == 25000
+    assert PROFILE_NATIONAL["max_records_total"] == 50000
     assert PROFILE_NATIONAL["pagination_exhaust"] is True
     assert PROFILE_TINY["fetch_details"] is False
     assert PROFILE_TINY["fetch_documents"] is False

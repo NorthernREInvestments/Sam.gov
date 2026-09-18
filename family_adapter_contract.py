@@ -19,6 +19,7 @@ DOC_UNAVAILABLE = "UNAVAILABLE"
 DOC_UNKNOWN = "UNKNOWN"
 
 PAGINATION_PAGE = "PAGE_NUMBER"
+PAGINATION_PATH_PAGE = "PATH_PAGE"  # e.g. BidNet /open-bids/page2
 PAGINATION_OFFSET = "OFFSET"
 PAGINATION_CURSOR = "CURSOR"
 PAGINATION_LOAD_MORE = "LOAD_MORE"
@@ -67,6 +68,23 @@ def fingerprint_platform(
 def detect_pagination_model(html: str | None, url: str | None = None) -> dict[str, Any]:
     text = (html or "").lower()
     qs = parse_qs(urlparse(url or "").query) if url else {}
+    # BidNet Direct / similar: /solicitations/open-bids/page2
+    path_pages = re.findall(
+        r'href=["\']([^"\']*?/solicitations/open-bids/page\d+)["\']',
+        html or "",
+        re.I,
+    )
+    if path_pages or re.search(r"/solicitations/open-bids/page\d+", url or "", re.I):
+        max_page = 1
+        for href in path_pages:
+            m = re.search(r"/page(\d+)\s*$", href, re.I)
+            if m:
+                max_page = max(max_page, int(m.group(1)))
+        return {
+            "model": PAGINATION_PATH_PAGE,
+            "evidence": "bidnet_path_page",
+            "max_page_hint": max_page,
+        }
     if "page" in qs or "pagenumber" in {k.lower() for k in qs} or re.search(r"[?&]page=\d+", url or "", re.I):
         return {"model": PAGINATION_PAGE, "evidence": "url_query"}
     if "offset" in qs or "start" in qs:
@@ -85,24 +103,52 @@ def detect_pagination_model(html: str | None, url: str | None = None) -> dict[st
 
 
 def next_page_url(list_url: str, *, page: int, model: str = PAGINATION_PAGE) -> str | None:
-    """Build next listing URL for page-number / offset pagination. page is 1-indexed."""
+    """Build next listing URL for page-number / offset / path pagination. page is 1-indexed."""
     if page <= 1:
         return list_url
     parsed = urlparse(list_url)
+    if model == PAGINATION_PATH_PAGE:
+        path = re.sub(r"/page\d+/?$", "", parsed.path or "", flags=re.I).rstrip("/")
+        if "bidnetdirect.com" in (parsed.netloc or "").lower() and "/solicitations/" not in path.lower():
+            path = f"{path}/solicitations/open-bids"
+        new_path = f"{path}/page{page}"
+        return urlunparse((parsed.scheme, parsed.netloc, new_path, "", "", ""))
     qs = parse_qs(parsed.query, keep_blank_values=True)
     if model == PAGINATION_OFFSET:
         page_size = int((qs.get("limit") or qs.get("pageSize") or ["25"])[0] or 25)
         qs["offset"] = [str((page - 1) * page_size)]
     else:
-        # page number
-        if "page" in qs or not qs:
+        if "pageNumber" in qs or "PageNumber" in qs:
+            key = "pageNumber" if "pageNumber" in qs else "PageNumber"
+            qs[key] = [str(page)]
+        elif "page" in qs or not qs:
             qs["page"] = [str(page)]
-        elif "PageNumber" in qs:
-            qs["PageNumber"] = [str(page)]
         else:
             qs["page"] = [str(page)]
     new_q = urlencode({k: v[0] if len(v) == 1 else v for k, v in qs.items()}, doseq=True)
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_q, parsed.fragment))
+
+
+def normalize_bidnet_open_bids_url(url: str | None) -> str | None:
+    """Map BidNet Direct landing URLs to public open-bids listing."""
+    if not url:
+        return url
+    parsed = urlparse(url)
+    host = (parsed.netloc or "").lower()
+    if "bidnetdirect.com" not in host:
+        return url
+    path = (parsed.path or "").rstrip("/")
+    if re.search(r"/solicitations/open-bids(?:/page\d+)?$", path, re.I):
+        base_path = re.sub(r"/page\d+$", "", path, flags=re.I)
+        return urlunparse((parsed.scheme or "https", parsed.netloc, base_path, "", "", ""))
+    m = re.match(r"^/([a-z0-9\-]+)$", path, re.I)
+    if m:
+        slug = m.group(1).lower()
+        if slug not in {"public", "cms", "jawr", "login", "register"}:
+            return urlunparse(
+                (parsed.scheme or "https", parsed.netloc, f"/{slug}/solicitations/open-bids", "", "", "")
+            )
+    return url
 
 
 def classify_document_access(

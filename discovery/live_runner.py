@@ -111,12 +111,14 @@ def run_live_discovery(
     fetch_details: bool | None = None,
     fetch_documents: bool | None = None,
     on_source_complete: Any | None = None,
+    candidates_override: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Controlled live/preview discovery — listing-first by default for TINY/BROAD.
     BROAD/NATIONAL: ALL eligible sources (priority = order only).
     Per-source budget exhaustion continues to next source.
     Optional on_source_complete(metrics, source_id) for coarse progress heartbeats.
+    Optional candidates_override for tests (exact candidate list).
     """
     if persist:
         preview = False
@@ -155,7 +157,12 @@ def run_live_discovery(
     accounted_non_attempt = list(selection_bundle["accounted_non_attempt"])
 
     source_cap = max_sources if max_sources is not None else prof.get("max_sources")
-    if source_ids:
+    if candidates_override is not None:
+        candidates = list(candidates_override)
+        eligible_full = list(candidates_override)
+        accounted_non_attempt = []
+        registered_sources = max(registered_sources, len(candidates))
+    elif source_ids:
         pool = {c["source_id"]: c for c in _candidate_sources(999, all_eligible=True)}
         pool.update(_pool_map())
         candidates = [pool[s] for s in source_ids if s in pool]
@@ -217,6 +224,7 @@ def run_live_discovery(
     seen_keys: set[str] = set()
     sources_contacted: list[dict[str, Any]] = []
     attempted_ids: set[str] = set()
+    shared_list_urls: dict[str, str] = {}  # normalized list_url → first productive source_id
 
     # Pre-account blocked/ineligible so they never appear as silent omissions
     for row in accounted_non_attempt:
@@ -269,6 +277,22 @@ def run_live_discovery(
                     continue
             except Exception:
                 pass
+
+        # Same public listing URL already exhausted this cycle — do not re-download
+        list_key = str(cand.get("list_url") or "").rstrip("/").lower()
+        if list_key and list_key in shared_list_urls:
+            metrics["sources_attempted"] += 1
+            attempted_ids.add(sid)
+            metrics["per_source"][sid] = {
+                "ok": True,
+                "attempt": True,
+                "raw": 0,
+                "unique": 0,
+                "source_stop_reason": "SHARED_LIST_URL",
+                "explicit_state": "SHARED_WITH_" + shared_list_urls[list_key],
+                "shared_with": shared_list_urls[list_key],
+            }
+            continue
 
         metrics["sources_attempted"] += 1
         attempted_ids.add(sid)
@@ -377,6 +401,9 @@ def run_live_discovery(
                     opp.buyer_type = "COOPERATIVE"
                 elif cand["kind"] == "FEDERAL":
                     opp.jurisdiction = "FEDERAL"
+                elif cand["kind"] == "NETWORK":
+                    opp.jurisdiction = opp.jurisdiction or "MULTI_AGENCY_NETWORK"
+                    opp.buyer_type = opp.buyer_type or "MULTI_AGENCY_NETWORK"
 
                 for d in opp.document_links or []:
                     if d.get("url"):
@@ -521,6 +548,8 @@ def run_live_discovery(
                 "bootstrap_complete": bool(pag_complete)
                 and explicit in {"SUCCESS", "HEALTHY_ZERO"},
             }
+            if list_key and (src_raw > 0 or pages_fetched > 0):
+                shared_list_urls[list_key] = sid
 
         except SourceBudgetExhausted as exc:
             metrics["source_budget_exhausted"] = True

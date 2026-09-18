@@ -628,11 +628,16 @@
       const fundingWait = opps.filter((o) => String(o.funding_state || "").includes("FUNDING") || String(o.lifecycle || "").includes("FUNDING")).length;
       const commercialWait = opps.filter((o) => String(o.lifecycle || "").includes("COMMERCIAL") || String(o.next_action || "").includes("COMMERCIAL")).length;
       const activeCount = Number(d.active_count != null ? d.active_count : opps.length) || 0;
+      const nat = d.national_discovery || {};
       if (attention) {
         attention.innerHTML = `<article class="m3-info-card m3-attention-card">
           <dl class="m3-kv">
             <div><dt>Active</dt><dd>${esc(activeCount)}</dd></div>
             <div><dt>Actions</dt><dd>${esc(d.action_count || actions.length)}</dd></div>
+            <div><dt>Current unique</dt><dd>${esc(nat.CURRENT_UNIQUE_OPPORTUNITIES != null ? nat.CURRENT_UNIQUE_OPPORTUNITIES : "—")}</dd></div>
+            <div><dt>Product survivors</dt><dd>${esc(nat.PRODUCT_RESALE_SURVIVORS != null ? nat.PRODUCT_RESALE_SURVIVORS : "—")}</dd></div>
+            <div><dt>Sources productive</dt><dd>${esc(nat.SOURCES_PRODUCTIVE != null ? nat.SOURCES_PRODUCTIVE : "—")}</dd></div>
+            <div><dt>Statewide covered</dt><dd>${esc(nat.STATES_WITH_STATEWIDE_COVERAGE != null ? nat.STATES_WITH_STATEWIDE_COVERAGE : "—")}</dd></div>
             <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
             <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
           </dl>
@@ -731,6 +736,14 @@
         <p><strong>${esc(s.healthy_production)}</strong> / ${esc(s.registered)} HEALTHY_PRODUCTION · productive ${esc(s.productive_discovery_sources)}</p>
         <div class="m3-kv-list">${rows}</div>
         <p class="muted">${esc(s.note)}</p>
+      </article>
+      <article class="m3-info-card">
+        <h3>Yield / family</h3>
+        ${(s.yield_top || []).slice(0, 10).map((y) => `<p class="m3-ev-line"><strong>${esc(y.source)}</strong> · ${esc(y.family)} · ${esc(y.current_records)} records · ${esc(y.health)}</p>`).join("") || "<p class='muted'>Yield populates after discovery cycles</p>"}
+      </article>
+      <article class="m3-info-card">
+        <h3>Discovery gaps</h3>
+        ${(s.discovery_gaps || []).slice(0, 8).map((g) => `<p class="m3-ev-line"><strong>${esc(g.gap_type)}</strong> · ${esc(g.target)} · yield ${esc(g.expected_yield)}<br/><span class="muted">${esc(g.detail || "")}</span></p>`).join("") || "<p class='muted'>No ranked gaps</p>"}
       </article>`;
     } catch (_) {
       /* non-fatal */
