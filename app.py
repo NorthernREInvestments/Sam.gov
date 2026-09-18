@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-document-intelligence-1"
+APP_BUILD_VERSION = "20260917-m3-product-identity-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1810,6 +1810,86 @@ def api_m3_document_intelligence_va_update(body: dict | None = None):
         note=payload.get("note"),
         correction=payload.get("correction") if isinstance(payload.get("correction"), dict) else None,
         status=payload.get("status"),
+    )
+
+
+@app.post("/api/m3/product-identity/analyze")
+def api_m3_product_identity_analyze(body: dict | None = None):
+    """Resolve extracted descriptions into validated researchable product identities."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_product_identity_resolution import analyze_product_identity_resolution_top
+
+    payload = body or {}
+    limit = max(1, min(50, int(payload.get("limit") or 25)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_product_identity_resolution_top(store, limit=limit, persist=True)
+
+
+@app.get("/api/m3/product-identity/status")
+def api_m3_product_identity_status():
+    from m3_product_identity_resolution import load_resolution_index
+
+    idx = load_resolution_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    types: dict[str, int] = {}
+    ready: dict[str, int] = {}
+    for snap in by_id.values():
+        if not isinstance(snap, dict):
+            continue
+        summary = snap.get("summary") or {}
+        itype = str(summary.get("primary_Identity_type") or "UNKNOWN")
+        types[itype] = types.get(itype, 0) + 1
+        sr = summary.get("SUPPLIER_READINESS") or {}
+        for k, v in sr.items():
+            ready[k] = ready.get(k, 0) + int(v or 0)
+    return {
+        "kind": "M3ProductIdentityResolutionStatus",
+        "researched": len(by_id),
+        "identity_types": types,
+        "supplier_readiness": ready,
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "PRODUCT_IDENTITY_RESOLUTION_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/product-identity/queues")
+def api_m3_product_identity_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_product_identity_resolution import build_va_identity_queues
+
+    return build_va_identity_queues(limit=limit)
+
+
+@app.get("/api/m3/product-identity/learning")
+def api_m3_product_identity_learning():
+    from m3_product_identity_resolution import load_learning_index
+
+    return load_learning_index()
+
+
+@app.post("/api/m3/product-identity/va/update")
+def api_m3_product_identity_va_update(body: dict | None = None):
+    """VA identity research/attach/validate/notes — no invent, substitute, bid, or scoring."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_product_identity_resolution import apply_va_identity_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_identity_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
+        status=payload.get("status"),
+        line_index=int(payload["line_index"]) if payload.get("line_index") is not None else None,
     )
 
 

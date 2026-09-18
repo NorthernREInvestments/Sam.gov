@@ -302,6 +302,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "product_intelligence": _deal_product(row),
         "procurement_package": _deal_procurement_package(row),
         "document_intelligence": _deal_document_intelligence(row),
+        "product_identity_resolution": _deal_product_identity_resolution(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -423,6 +424,20 @@ def _deal_document_intelligence(row: dict[str, Any]) -> dict[str, Any]:
             "Documents_processed": 0,
             "Economics_readiness": "BLOCKED",
             "Next_Action": "Document intelligence unavailable",
+        }
+
+
+def _deal_product_identity_resolution(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_product_identity_resolution import deal_room_product_identity_resolution_section
+
+        return deal_room_product_identity_resolution_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomProductIdentityResolution",
+            "Identity_type": "UNKNOWN",
+            "Supplier_readiness": "UNKNOWN",
+            "Next_Action": "Product identity resolution unavailable",
         }
 
 
