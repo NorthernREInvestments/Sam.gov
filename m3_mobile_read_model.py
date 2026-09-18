@@ -306,6 +306,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "acquisition_intelligence": _deal_acquisition_intelligence(row),
         "commercial_market_research": _deal_commercial_market_research(row),
         "public_pricing_evidence": _deal_public_pricing_evidence(row),
+        "government_price_history": _deal_government_price_history(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -469,6 +470,20 @@ def _deal_commercial_market_research(row: dict[str, Any]) -> dict[str, Any]:
             "Acquisition_status": "UNKNOWN",
             "Pricing_confidence": "UNKNOWN",
             "Next_Action": "Commercial market research unavailable",
+        }
+
+
+def _deal_government_price_history(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_government_revenue_benchmark import deal_room_government_price_history_section
+
+        return deal_room_government_price_history_section(row)
+    except Exception as exc:
+        return {
+            "kind": "DealRoomGovernmentPriceHistory",
+            "available": False,
+            "error": str(exc)[:160],
+            "DEVELOPMENT_NO_OUTREACH": True,
         }
 
 

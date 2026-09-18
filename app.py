@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-public-pricing-evidence-1"
+APP_BUILD_VERSION = "20260917-m3-gov-revenue-benchmark-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2091,6 +2091,74 @@ def api_m3_public_pricing_evidence_va_update(body: dict | None = None):
     store = M3PipelineStore()
     restore_pipeline_store_from_db(store)
     return apply_va_evidence_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
+    )
+
+
+@app.post("/api/m3/government-revenue/analyze")
+def api_m3_government_revenue_analyze(body: dict | None = None):
+    """Retrieve government award/bid-tab history and build revenue benchmarks."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_government_revenue_benchmark import analyze_government_revenue_top
+
+    payload = body or {}
+    limit = max(1, min(12, int(payload.get("limit") or 4)))
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_government_revenue_top(
+        store,
+        limit=limit,
+        persist=True,
+        max_lines_per_opp=max(1, min(20, int(payload.get("max_lines_per_opp") or 8))),
+    )
+
+
+@app.get("/api/m3/government-revenue/status")
+def api_m3_government_revenue_status():
+    from m3_government_revenue_benchmark import load_revenue_index
+
+    idx = load_revenue_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    ready = sum(
+        1
+        for v in by_id.values()
+        if isinstance(v, dict) and (v.get("summary") or {}).get("ECONOMICS_SCENARIO_READY")
+    )
+    return {
+        "kind": "M3GovernmentRevenueStatus",
+        "researched": len(by_id),
+        "economics_scenario_ready": ready,
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "GOVERNMENT_REVENUE_AND_DEAL_ECONOMICS_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/government-revenue/queues")
+def api_m3_government_revenue_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_government_revenue_benchmark import build_va_revenue_queues
+
+    return build_va_revenue_queues(limit=limit)
+
+
+@app.post("/api/m3/government-revenue/va/update")
+def api_m3_government_revenue_va_update(body: dict | None = None):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_government_revenue_benchmark import apply_va_revenue_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_revenue_update(
         store,
         cid,
         action=str(payload.get("action") or ""),
