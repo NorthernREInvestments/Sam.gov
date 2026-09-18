@@ -303,6 +303,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "procurement_package": _deal_procurement_package(row),
         "document_intelligence": _deal_document_intelligence(row),
         "product_identity_resolution": _deal_product_identity_resolution(row),
+        "acquisition_intelligence": _deal_acquisition_intelligence(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -438,6 +439,20 @@ def _deal_product_identity_resolution(row: dict[str, Any]) -> dict[str, Any]:
             "Identity_type": "UNKNOWN",
             "Supplier_readiness": "UNKNOWN",
             "Next_Action": "Product identity resolution unavailable",
+        }
+
+
+def _deal_acquisition_intelligence(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_acquisition_target_engine import deal_room_acquisition_section
+
+        return deal_room_acquisition_section(row)
+    except Exception:
+        return {
+            "kind": "M3DealRoomAcquisitionIntelligence",
+            "Profit_target_status": "UNKNOWN",
+            "Wholesale_access_status": "UNKNOWN",
+            "Next_Action": "Acquisition intelligence unavailable",
         }
 
 

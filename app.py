@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-product-identity-1"
+APP_BUILD_VERSION = "20260917-m3-acquisition-target-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1890,6 +1890,73 @@ def api_m3_product_identity_va_update(body: dict | None = None):
         evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
         status=payload.get("status"),
         line_index=int(payload["line_index"]) if payload.get("line_index") is not None else None,
+    )
+
+
+@app.post("/api/m3/acquisition-targets/analyze")
+def api_m3_acquisition_targets_analyze(body: dict | None = None):
+    """Specification → commercial candidates → compliance → pricing → acquisition targets."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_acquisition_target_engine import analyze_acquisition_targets_top
+
+    payload = body or {}
+    limit = max(1, min(40, int(payload.get("limit") or 25)))
+    paid_limit = max(0, min(5, int(payload.get("paid_limit") or 0)))
+    allow_paid = bool(payload.get("allow_paid_web")) and paid_limit > 0
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_acquisition_targets_top(
+        store,
+        limit=limit,
+        allow_paid_web=allow_paid,
+        paid_limit=paid_limit,
+        persist=True,
+    )
+
+
+@app.get("/api/m3/acquisition-targets/status")
+def api_m3_acquisition_targets_status():
+    from m3_acquisition_target_engine import load_acq_index
+
+    idx = load_acq_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    return {
+        "kind": "M3AcquisitionTargetStatus",
+        "researched": len(by_id),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "SPECIFICATION_TO_ACQUISITION_ECONOMICS_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/acquisition-targets/queues")
+def api_m3_acquisition_targets_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_acquisition_target_engine import build_va_acquisition_queues
+
+    return build_va_acquisition_queues(limit=limit)
+
+
+@app.post("/api/m3/acquisition-targets/va/update")
+def api_m3_acquisition_targets_va_update(body: dict | None = None):
+    """VA public research / attach evidence / notes — no outreach, accounts, bids, or scoring."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_acquisition_target_engine import apply_va_acquisition_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_acquisition_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
+        status=payload.get("status"),
     )
 
 
