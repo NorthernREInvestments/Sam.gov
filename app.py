@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-commercial-matching-1"
+APP_BUILD_VERSION = "20260917-m3-public-pricing-evidence-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2031,6 +2031,71 @@ def api_m3_commercial_matching_va_update(body: dict | None = None):
         note=payload.get("note"),
         evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
         status=payload.get("status"),
+    )
+
+
+@app.post("/api/m3/public-pricing-evidence/analyze")
+def api_m3_public_pricing_evidence_analyze(body: dict | None = None):
+    """Retrieve public commercial + government pricing evidence for real opportunities."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_public_pricing_evidence import analyze_public_pricing_evidence_top
+
+    payload = body or {}
+    limit = max(1, min(20, int(payload.get("limit") or 8)))
+    paid_limit = max(0, min(4, int(payload.get("paid_limit") or 0)))
+    allow_paid = bool(payload.get("allow_paid_web")) and paid_limit > 0
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_public_pricing_evidence_top(
+        store,
+        limit=limit,
+        allow_paid_web=allow_paid,
+        paid_limit=paid_limit,
+        persist=True,
+    )
+
+
+@app.get("/api/m3/public-pricing-evidence/status")
+def api_m3_public_pricing_evidence_status():
+    from m3_public_pricing_evidence import load_evidence_index
+
+    idx = load_evidence_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    return {
+        "kind": "M3PublicPricingEvidenceStatus",
+        "researched": len(by_id),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "PUBLIC_PRICING_AND_REVENUE_EVIDENCE_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/public-pricing-evidence/queues")
+def api_m3_public_pricing_evidence_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_public_pricing_evidence import build_va_evidence_queues
+
+    return build_va_evidence_queues(limit=limit)
+
+
+@app.post("/api/m3/public-pricing-evidence/va/update")
+def api_m3_public_pricing_evidence_va_update(body: dict | None = None):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_public_pricing_evidence import apply_va_evidence_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_evidence_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
     )
 
 
