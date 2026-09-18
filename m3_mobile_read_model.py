@@ -307,6 +307,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "commercial_market_research": _deal_commercial_market_research(row),
         "public_pricing_evidence": _deal_public_pricing_evidence(row),
         "government_price_history": _deal_government_price_history(row),
+        "seed_basket_economics": _deal_seed_basket_economics(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -470,6 +471,20 @@ def _deal_commercial_market_research(row: dict[str, Any]) -> dict[str, Any]:
             "Acquisition_status": "UNKNOWN",
             "Pricing_confidence": "UNKNOWN",
             "Next_Action": "Commercial market research unavailable",
+        }
+
+
+def _deal_seed_basket_economics(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_seed_basket_economics import deal_room_seed_basket_section
+
+        return deal_room_seed_basket_section(row)
+    except Exception as exc:
+        return {
+            "kind": "DealRoomSeedBasketEconomics",
+            "available": False,
+            "error": str(exc)[:160],
+            "DEVELOPMENT_NO_OUTREACH": True,
         }
 
 

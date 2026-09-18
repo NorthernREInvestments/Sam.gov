@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-gov-revenue-benchmark-1"
+APP_BUILD_VERSION = "20260917-m3-seed-basket-economics-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2159,6 +2159,68 @@ def api_m3_government_revenue_va_update(body: dict | None = None):
     store = M3PipelineStore()
     restore_pipeline_store_from_db(store)
     return apply_va_revenue_update(
+        store,
+        cid,
+        action=str(payload.get("action") or ""),
+        note=payload.get("note"),
+        evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
+    )
+
+
+@app.post("/api/m3/seed-basket/analyze")
+def api_m3_seed_basket_analyze(body: dict | None = None):
+    """Multi-line seed BOM acquisition pricing + basket economics (narrow solicitation)."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_seed_basket_economics import analyze_seed_basket
+
+    payload = body or {}
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_seed_basket(
+        store,
+        persist=True,
+        max_species_research=max(1, min(30, int(payload.get("max_species_research") or 18))),
+        max_pages_per_species=max(1, min(6, int(payload.get("max_pages_per_species") or 3))),
+        second_pass_species=max(0, min(15, int(payload.get("second_pass_species") or 8))),
+    )
+
+
+@app.get("/api/m3/seed-basket/status")
+def api_m3_seed_basket_status():
+    from m3_seed_basket_economics import load_basket_index
+
+    idx = load_basket_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    return {
+        "kind": "M3SeedBasketStatus",
+        "researched": len(by_id),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": "MULTI_LINE_BASKET_ECONOMICS_OPERATIONAL",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
+
+
+@app.get("/api/m3/seed-basket/queues")
+def api_m3_seed_basket_queues(limit: int = Query(25, ge=1, le=100)):
+    from m3_seed_basket_economics import build_va_basket_queues
+
+    return build_va_basket_queues(limit=limit)
+
+
+@app.post("/api/m3/seed-basket/va/update")
+def api_m3_seed_basket_va_update(body: dict | None = None):
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_seed_basket_economics import apply_va_basket_update
+
+    payload = body or {}
+    cid = str(payload.get("canonical_id") or "")
+    if not cid:
+        raise HTTPException(status_code=400, detail="canonical_id required")
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return apply_va_basket_update(
         store,
         cid,
         action=str(payload.get("action") or ""),
