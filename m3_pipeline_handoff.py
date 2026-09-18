@@ -358,9 +358,12 @@ def run_durable_handoff(
             return
         try:
             # Mid-batch: file cache only (no durable DB merge/read). Final flush is durable.
-            store.save(durable_write=force)
+            store.save(durable_write=force, skip_remote_merge=True)
         except TypeError:
-            store.save()
+            try:
+                store.save(durable_write=force)
+            except TypeError:
+                store.save()
         except Exception:
             log.exception("Handoff checkpoint store.save failed")
         ckpt.update(

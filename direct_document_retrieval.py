@@ -78,11 +78,20 @@ def collect_stored_public_urls(contract: Contract) -> list[dict[str, str]]:
 
 
 def _with_api_key_if_sam_file(url: str) -> str:
-    """Authenticate SAM file download URL without counting as SAM search/enrich API."""
+    """Authenticate SAM file/description download URL without counting as SAM search API."""
     parsed = urlparse(url)
-    if "sam.gov" not in (parsed.netloc or "").lower():
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    if "sam.gov" not in host:
         return url
-    if "/resources/files/" not in (parsed.path or "") and "/download" not in (parsed.path or ""):
+    # File downloads OR official notice description endpoints
+    needs_key = (
+        "/resources/files/" in path
+        or "/download" in path
+        or "noticedesc" in path
+        or "noticedesc" in (parsed.query or "").lower()
+    )
+    if not needs_key:
         return url
     key = (os.getenv("SAM_GOV_API_KEY") or "").strip()
     if not key:

@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260918-m3-federal-dla-ironclad-1"
+APP_BUILD_VERSION = "20260918-m3-federal-dla-product-intelligence-1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -746,8 +746,36 @@ def api_m3_discovery_status():
 def api_m3_federal_dla_coverage():
     """Federal + DLA coverage snapshot, reconciliation, gap queue (minimal operator surface)."""
     from discovery.federal_dla_coverage import load_federal_dla_coverage
+    from discovery.federal_dla_enrichment import load_enrichment_checkpoint
 
-    return load_federal_dla_coverage()
+    cov = load_federal_dla_coverage()
+    try:
+        enk = load_enrichment_checkpoint()
+        cov["enrichment"] = {
+            "version": enk.get("version"),
+            "checkpoint_ids": len(enk.get("by_id") or {}),
+            "last_campaign_metrics": enk.get("last_campaign_metrics"),
+            "updated_at": enk.get("updated_at"),
+        }
+    except Exception as exc:  # noqa: BLE001
+        cov["enrichment"] = {"error": str(exc)[:120]}
+    return cov
+
+
+@app.get("/api/m3/federal-dla/enrichment/{notice_id}")
+def api_m3_federal_dla_enrichment_detail(notice_id: str):
+    """Inspect enrichment checkpoint + readiness for one notice id."""
+    from discovery.federal_dla_enrichment import load_enrichment_checkpoint
+
+    ck = load_enrichment_checkpoint()
+    row = (ck.get("by_id") or {}).get(notice_id) or (ck.get("by_id") or {}).get(notice_id.upper())
+    return {
+        "kind": "M3FederalDlaEnrichmentDetail",
+        "notice_id": notice_id,
+        "found": bool(row),
+        "enrichment": row,
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
 
 
 @app.post("/api/m3/discovery/run")

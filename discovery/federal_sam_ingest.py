@@ -186,6 +186,44 @@ def load_sam_checkpoint() -> dict[str, Any]:
 def save_sam_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
     payload = dict(payload)
     payload["updated_at"] = _utc()
+    # Hard guard: never shrink the durable seen set
+    try:
+        path = _checkpoint_file()
+        prior: dict[str, Any] = {}
+        if path.exists():
+            prior = json.loads(path.read_text(encoding="utf-8"))
+        # Also consult DB if available
+        try:
+            from database import SessionLocal
+            from models import AppSetting
+
+            db = SessionLocal()
+            try:
+                row = db.query(AppSetting).filter(AppSetting.key == SAM_CHECKPOINT_KEY).one_or_none()
+                if row and row.value:
+                    db_prior = json.loads(row.value)
+                    if isinstance(db_prior, dict) and len(db_prior.get("seen_notice_ids") or []) >= len(
+                        prior.get("seen_notice_ids") or []
+                    ):
+                        prior = db_prior
+            finally:
+                db.close()
+        except Exception:
+            pass
+        prior_ids = set(prior.get("seen_notice_ids") or [])
+        new_ids = set(payload.get("seen_notice_ids") or [])
+        merged = prior_ids | new_ids
+        if len(merged) < len(prior_ids):
+            merged = prior_ids
+        payload["seen_notice_ids"] = sorted(merged)[-50000:]
+        payload["seen_count"] = len(merged)
+        # Preserve strongest coverage_state
+        prior_state = str(prior.get("coverage_state") or "")
+        new_state = str(payload.get("coverage_state") or "")
+        if "COMPLETE" in prior_state and "COMPLETE" not in new_state:
+            payload["coverage_state"] = prior_state
+    except Exception:
+        pass
     path = _checkpoint_file()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -383,7 +421,7 @@ def run_federal_sam_bootstrap(
             "coverage_state": FEDERAL_SOURCE_ACCESS_CONSTRAINED,
         }
 
-    ckpt = load_sam_checkpoint() if resume else {}
+    ckpt = load_sam_checkpoint()
     prior_seen = set(ckpt.get("seen_notice_ids") or [])
     # Never discard historically seen IDs — resume=False still merges into durable set
     seen_ids: set[str] = set(prior_seen)

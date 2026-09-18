@@ -610,6 +610,12 @@
       cache.discovery =
         d.discovery ||
         (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
+      try {
+        const fed = await fetchJson("/api/m3/federal-dla/coverage");
+        cache.federalEnrich = (fed && fed.enrichment && fed.enrichment.last_campaign_metrics) || fed || {};
+      } catch (_) {
+        cache.federalEnrich = cache.federalEnrich || {};
+      }
       renderDiscoveryStatus(cache.discovery || d.discovery);
       scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
       cache.research =
@@ -643,6 +649,7 @@
             <div><dt>DLA current</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_current) != null ? cache.discovery.federal_dla.dla_current : "—")}</dd></div>
             <div><dt>DLA NSN</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_exact_nsn) != null ? cache.discovery.federal_dla.dla_exact_nsn : "—")}</dd></div>
             <div><dt>DIBBS mode</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dibbs_access_mode) || "—")}</dd></div>
+            <div><dt>Fed enrich ready</dt><dd>${esc((cache.federalEnrich && cache.federalEnrich.commercial_research_ready) != null ? cache.federalEnrich.commercial_research_ready : "—")}</dd></div>
             <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
             <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
           </dl>

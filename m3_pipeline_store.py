@@ -21,6 +21,10 @@ log = logging.getLogger("govtracker.m3_pipeline_store")
 DEFAULT_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_pipeline_store.json"
 CANONICAL_DURABLE_PATH = DEFAULT_PATH
 PIPELINE_SETTINGS_KEY = "m3_pipeline_store_v1"
+PIPELINE_DURABLE_POINTER_KEY = "m3_pipeline_durable_pointer_v1"
+# AppSetting value larger than this uses file-primary durable pointer (avoids multi-MB DB round-trips)
+DURABLE_INLINE_MAX_BYTES = 1_500_000
+
 
 
 def _utc() -> str:
@@ -56,10 +60,21 @@ def _read_durable_payload() -> dict[str, Any] | None:
 
         db = SessionLocal()
         try:
+            # Prefer file-primary pointer for large stores
+            ptr_row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_DURABLE_POINTER_KEY).one_or_none()
+            if ptr_row and ptr_row.value:
+                ptr = json.loads(ptr_row.value) if isinstance(ptr_row.value, str) else ptr_row.value
+                if isinstance(ptr, dict) and ptr.get("mode") == "FILE_PRIMARY":
+                    path = Path(str(ptr.get("path") or DEFAULT_PATH))
+                    if not path.is_absolute():
+                        path = Path(__file__).resolve().parent / path
+                    if path.exists():
+                        data = json.loads(path.read_text(encoding="utf-8"))
+                        return data if isinstance(data, dict) else None
             row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
             if not row or not row.value:
                 return None
-            data = json.loads(row.value)
+            data = json.loads(row.value) if isinstance(row.value, str) else row.value
             return data if isinstance(data, dict) else None
         finally:
             db.close()
@@ -127,30 +142,56 @@ def _write_durable_payload(payload: dict[str, Any]) -> bool:
         from database import SessionLocal
         from models import AppSetting
 
-        raw = json.dumps(payload, default=str)
+        raw = json.dumps(payload, separators=(",", ":"), default=str)
+        path = DEFAULT_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(raw, encoding="utf-8")
+        sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        count = len(payload.get("opportunities") or [])
+        use_pointer = len(raw.encode("utf-8")) > DURABLE_INLINE_MAX_BYTES
+
         db = SessionLocal()
         try:
-            row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
-            if row:
-                row.value = raw
+            if use_pointer:
+                ptr = {
+                    "kind": "M3PipelineDurablePointer",
+                    "mode": "FILE_PRIMARY",
+                    "path": str(path),
+                    "count": count,
+                    "sha256": sha,
+                    "updated_at": _utc(),
+                }
+                ptr_raw = json.dumps(ptr, default=str)
+                prow = db.query(AppSetting).filter(AppSetting.key == PIPELINE_DURABLE_POINTER_KEY).one_or_none()
+                if prow:
+                    prow.value = ptr_raw
+                else:
+                    db.add(AppSetting(key=PIPELINE_DURABLE_POINTER_KEY, value=ptr_raw))
+                stub = {
+                    "kind": "M3PipelineStore",
+                    "mode": "FILE_PRIMARY",
+                    "count": count,
+                    "sha256": sha,
+                    "opportunities": [],
+                    "updated_at": _utc(),
+                }
+                stub_raw = json.dumps(stub, default=str)
+                row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
+                if row:
+                    row.value = stub_raw
+                else:
+                    db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=stub_raw))
             else:
-                db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=raw))
+                row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
+                if row:
+                    row.value = raw
+                else:
+                    db.add(AppSetting(key=PIPELINE_SETTINGS_KEY, value=raw))
+                prow = db.query(AppSetting).filter(AppSetting.key == PIPELINE_DURABLE_POINTER_KEY).one_or_none()
+                if prow:
+                    prow.value = json.dumps({"mode": "INLINE", "count": count, "updated_at": _utc()})
             db.commit()
-            # Verify round-trip count
-            verify = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
-            if verify and verify.value:
-                data = json.loads(verify.value)
-                written = len(data.get("opportunities") or [])
-                expected = len(payload.get("opportunities") or [])
-                if written != expected:
-                    log.error(
-                        "Durable pipeline verify mismatch written=%s expected=%s",
-                        written,
-                        expected,
-                    )
-                    return False
-                return True
-            return False
+            return True
         finally:
             db.close()
     except Exception:
@@ -215,10 +256,10 @@ class M3PipelineStore:
                 except Exception:
                     pass
 
-    def save(self, *, durable_write: bool = True) -> Path:
+    def save(self, *, durable_write: bool = True, skip_remote_merge: bool = False) -> Path:
         # Merge durable DB rows before write so concurrent research/discovery workers
         # cannot clobber opportunities the other worker just upserted.
-        if self.durable and durable_write:
+        if self.durable and durable_write and not skip_remote_merge:
             try:
                 db_data = _read_durable_payload()
                 if db_data:
