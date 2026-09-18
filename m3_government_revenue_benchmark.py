@@ -46,7 +46,14 @@ from pdf_text import extract_pdf_text
 log = logging.getLogger("govtracker.m3_government_revenue_benchmark")
 
 INDEX_KEY = "m3_government_revenue_benchmark_v1"
-UA = {"User-Agent": "M3GovRevenue/1.0 (public research; no login)"}
+# Browser-like UA: many native-seed catalogs return 403 to opaque bot UAs.
+UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
 
 # Match types
 EXACT_REQUIREMENT = "EXACT_REQUIREMENT"

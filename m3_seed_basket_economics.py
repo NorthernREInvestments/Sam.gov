@@ -379,7 +379,8 @@ def match_gov_price_to_line(line: dict[str, Any], gov_rows: list[dict[str, Any]]
 def validate_species_match(line: dict[str, Any], product_name: str, page_text: str = "") -> str:
     sci = str(line.get("Scientific_name") or "").lower()
     common = str(line.get("Common_name") or "").lower()
-    blob = f"{product_name} {page_text[:2000]}".lower()
+    # Large window: SPA/catalog pages often put latin names below the fold / in JSON.
+    blob = f"{product_name} {page_text[:80000]}".lower()
     if sci != "unknown" and sci in blob:
         return EXACT_MATCH
     if sci != "unknown" and sci.split()[0] in blob and (sci.split()[-1] in blob if len(sci.split()) > 1 else False):

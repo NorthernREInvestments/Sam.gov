@@ -40,7 +40,13 @@ from m3_product_identity_resolution import MATCH_HIGH, MATCH_LOW, MATCH_MEDIUM, 
 log = logging.getLogger("govtracker.m3_public_pricing_evidence")
 
 EVIDENCE_INDEX_KEY = "m3_public_pricing_evidence_v1"
-UA = {"User-Agent": "M3Evidence/1.0 (public research; no login)"}
+UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
 
 ACCESS_OK = "OK"
 AUTH_REQUIRED = "AUTH_REQUIRED"

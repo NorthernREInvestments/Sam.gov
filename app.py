@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260917-m3-seed-basket-economics-1"
+APP_BUILD_VERSION = "20260918-m3-material-acq-gaps-2"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2227,6 +2227,40 @@ def api_m3_seed_basket_va_update(body: dict | None = None):
         note=payload.get("note"),
         evidence=payload.get("evidence") if isinstance(payload.get("evidence"), dict) else None,
     )
+
+
+@app.post("/api/m3/material-acquisition-gaps/analyze")
+def api_m3_material_acquisition_gaps_analyze(body: dict | None = None):
+    """Close economically material seed BOM acquisition gaps; recalc basket."""
+    from m3_pipeline_store import M3PipelineStore
+    from m3_discovery_service import restore_pipeline_store_from_db
+    from m3_material_acquisition_gap import analyze_material_acquisition_gaps
+
+    payload = body or {}
+    store = M3PipelineStore()
+    restore_pipeline_store_from_db(store)
+    return analyze_material_acquisition_gaps(
+        store,
+        persist=True,
+        max_gaps=max(1, min(15, int(payload.get("max_gaps") or 10))),
+        max_pages_per_gap=max(1, min(10, int(payload.get("max_pages_per_gap") or 6))),
+    )
+
+
+@app.get("/api/m3/material-acquisition-gaps/status")
+def api_m3_material_acquisition_gaps_status():
+    from m3_material_acquisition_gap import load_gap_index
+
+    idx = load_gap_index()
+    by_id = idx.get("by_id") if isinstance(idx.get("by_id"), dict) else {}
+    return {
+        "kind": "M3MaterialAcquisitionGapStatus",
+        "researched": len(by_id),
+        "updated_at": idx.get("updated_at"),
+        "NEXT_STATE": ((next(iter(by_id.values()), {}) or {}).get("summary") or {}).get("NEXT_STATE")
+        or "MATERIAL_GAPS_PARTIALLY_CLOSED",
+        "DEVELOPMENT_NO_OUTREACH": True,
+    }
 
 
 @app.get("/api/m3/mobile/sources")

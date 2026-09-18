@@ -308,6 +308,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "public_pricing_evidence": _deal_public_pricing_evidence(row),
         "government_price_history": _deal_government_price_history(row),
         "seed_basket_economics": _deal_seed_basket_economics(row),
+        "material_acquisition_gaps": _deal_material_acquisition_gaps(row),
         "evidence_recovery": _deal_evidence_recovery(row),
         "evidence_chain": _deal_evidence_chain(row),
         "source_access": {
@@ -471,6 +472,20 @@ def _deal_commercial_market_research(row: dict[str, Any]) -> dict[str, Any]:
             "Acquisition_status": "UNKNOWN",
             "Pricing_confidence": "UNKNOWN",
             "Next_Action": "Commercial market research unavailable",
+        }
+
+
+def _deal_material_acquisition_gaps(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from m3_material_acquisition_gap import deal_room_material_gap_section
+
+        return deal_room_material_gap_section(row)
+    except Exception as exc:
+        return {
+            "kind": "DealRoomMaterialAcquisitionGaps",
+            "available": False,
+            "error": str(exc)[:160],
+            "DEVELOPMENT_NO_OUTREACH": True,
         }
 
 
