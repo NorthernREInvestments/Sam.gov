@@ -4390,3 +4390,41 @@ body.m3-only-app #dashboard-perf-alerts {
     max-width: 100vw;
   }
 }
+
+/* Micro-Purchase Economics Lab */
+.mpl-tabs { display: flex; gap: 0.35rem; margin: 0.5rem 0 0.75rem; flex-wrap: wrap; }
+.mpl-tab {
+  border: 1px solid var(--m3-border, #2a3344);
+  background: transparent;
+  color: var(--m3-muted, #9aa4b2);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mpl-tab.active { color: var(--m3-accent, #7dd3fc); background: var(--m3-accent-soft, rgba(125,211,252,0.12)); }
+.mpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 0.6rem; margin-bottom: 0.75rem; }
+@media (max-width: 640px) { .mpl-grid { grid-template-columns: 1fr; } }
+.mpl-status { font-weight: 700; margin: 0.25rem 0 0.75rem; }
+.mpl-pricing { background: rgba(125,211,252,0.06); border-radius: 10px; padding: 0.65rem 0.75rem; margin-bottom: 0.85rem; }
+.mpl-summary-list { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
+.mpl-pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--m3-accent-soft, rgba(125,211,252,0.15));
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.mpl-quote-block {
+  white-space: pre-wrap;
+  font-size: 0.75rem;
+  background: #0f141c;
+  border-radius: 8px;
+  padding: 0.75rem;
+  overflow: auto;
+}
+.mpl-progress { font-size: 1.05rem; font-weight: 700; }
+.mpl-editor .m3-field.check { display: flex; align-items: center; gap: 0.4rem; }
+.m3-bottom-nav .m3-nav-btn { font-size: 0.65rem; padding: 0.3rem 0.1rem; }

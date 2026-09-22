@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260918-m3-product-resale-discovery-intelligence-1">
+      <meta name="m3-build" content="20260922-m3-micro-lab-1">
       <title>M3 — GovCon Operating System</title>
       <link rel="stylesheet" href="/style.css?v=20260917-m3-product-identity-1">
 </head>
@@ -599,6 +599,117 @@
     </div>
   </div>
 
+  <div id="view-m3-micro-lab" hidden>
+    <div class="m3-mobile-page mpl-page">
+      <header class="m3-mobile-header">
+        <h2>Micro-Purchase Economics Lab</h2>
+        <p class="m3-mobile-sub">Evidence-first reseller economics — government ≠ market ≠ our cost ≠ bid</p>
+      </header>
+      <div class="mpl-tabs" role="tablist">
+        <button type="button" class="mpl-tab active" data-mpl-tab="queue">Test Queue</button>
+        <button type="button" class="mpl-tab" data-mpl-tab="tests">Validation Tests</button>
+        <button type="button" class="mpl-tab" data-mpl-tab="dashboard">Experiment Dashboard</button>
+      </div>
+      <div id="mpl-panel-queue" class="mpl-panel">
+        <div class="m3-btn-row">
+          <button type="button" id="mpl-refresh-queue" class="m3-back-btn">Refresh queue</button>
+          <button type="button" id="mpl-new-manual" class="m3-back-btn">New manual test</button>
+        </div>
+        <p id="mpl-queue-meta" class="muted"></p>
+        <div id="mpl-queue-list" class="m3-card-stack"></div>
+      </div>
+      <div id="mpl-panel-tests" class="mpl-panel" hidden>
+        <div class="m3-btn-row">
+          <button type="button" id="mpl-refresh-tests" class="m3-back-btn">Refresh</button>
+          <button type="button" id="mpl-load-opp" class="m3-back-btn">Load opportunity</button>
+        </div>
+        <div id="mpl-tests-list" class="m3-card-stack"></div>
+        <article id="mpl-editor" class="m3-info-card mpl-editor" hidden>
+          <h3 id="mpl-editor-title">Test editor</h3>
+          <p id="mpl-editor-status" class="mpl-status"></p>
+          <div id="mpl-pricing-summary" class="mpl-pricing"></div>
+          <div class="mpl-grid">
+            <label class="m3-field">Solicitation <input id="mpl-f-solicitation" type="text"></label>
+            <label class="m3-field">Source <input id="mpl-f-source" type="text"></label>
+            <label class="m3-field">Agency <input id="mpl-f-agency" type="text"></label>
+            <label class="m3-field">Product <input id="mpl-f-product" type="text"></label>
+            <label class="m3-field">Manufacturer <input id="mpl-f-manufacturer" type="text"></label>
+            <label class="m3-field">Part number <input id="mpl-f-part" type="text"></label>
+            <label class="m3-field">NSN <input id="mpl-f-nsn" type="text"></label>
+            <label class="m3-field">Qty <input id="mpl-f-qty" type="text"></label>
+            <label class="m3-field">Gov unit <input id="mpl-f-unit" type="text" value="EA"></label>
+            <label class="m3-field">Commercial units / gov unit <input id="mpl-f-factor" type="text" value="1"></label>
+            <label class="m3-field">Deadline <input id="mpl-f-deadline" type="text"></label>
+            <label class="m3-field">Delivery <input id="mpl-f-delivery" type="text"></label>
+            <label class="m3-field">URL <input id="mpl-f-url" type="text"></label>
+            <label class="m3-field">Est. size $ <input id="mpl-f-size" type="text"></label>
+            <label class="m3-field">Identity confidence
+              <select id="mpl-f-identity">
+                <option>UNKNOWN</option><option>POSSIBLE</option><option>STRONG</option><option>EXACT</option>
+              </select>
+            </label>
+            <label class="m3-field">Min gross profit $ <input id="mpl-f-min-profit" type="text" value="0"></label>
+            <label class="m3-field">Min margin % <input id="mpl-f-min-margin" type="text"></label>
+            <label class="m3-field">Freight $ <input id="mpl-f-freight" type="text" value="0"></label>
+            <label class="m3-field">Financing $ <input id="mpl-f-financing" type="text" value="0"></label>
+            <label class="m3-field">Other costs $ <input id="mpl-f-other" type="text" value="0"></label>
+            <label class="m3-field">Candidate bid $/unit <input id="mpl-f-candidate" type="text"></label>
+          </div>
+          <h4>Historical government award</h4>
+          <div class="mpl-grid">
+            <label class="m3-field">Award date <input id="mpl-ha-date" type="text" placeholder="YYYY-MM-DD"></label>
+            <label class="m3-field">Unit price <input id="mpl-ha-price" type="text"></label>
+            <label class="m3-field">Source URL <input id="mpl-ha-url" type="text"></label>
+            <label class="m3-field">Confidence
+              <select id="mpl-ha-conf"><option>MODERATE</option><option>VERIFIED</option><option>STRONG</option><option>WEAK</option><option>UNKNOWN</option></select>
+            </label>
+          </div>
+          <h4>Historical market cost (manual + URL)</h4>
+          <div class="mpl-grid">
+            <label class="m3-field">Evidence date <input id="mpl-hm-date" type="text" placeholder="YYYY-MM-DD"></label>
+            <label class="m3-field">Unit cost <input id="mpl-hm-price" type="text"></label>
+            <label class="m3-field">Seller <input id="mpl-hm-seller" type="text"></label>
+            <label class="m3-field">URL <input id="mpl-hm-url" type="text"></label>
+          </div>
+          <h4>Current market price</h4>
+          <div class="mpl-grid">
+            <label class="m3-field">Date <input id="mpl-cm-date" type="text" placeholder="YYYY-MM-DD"></label>
+            <label class="m3-field">Price <input id="mpl-cm-price" type="text"></label>
+            <label class="m3-field">Seller <input id="mpl-cm-seller" type="text"></label>
+            <label class="m3-field">URL <input id="mpl-cm-url" type="text"></label>
+          </div>
+          <h4>Our supplier quote</h4>
+          <div class="mpl-grid">
+            <label class="m3-field">Supplier <input id="mpl-sq-supplier" type="text"></label>
+            <label class="m3-field">Unit cost <input id="mpl-sq-cost" type="text"></label>
+            <label class="m3-field">Freight <input id="mpl-sq-freight" type="text" value="0"></label>
+            <label class="m3-field">Payment terms
+              <select id="mpl-sq-terms">
+                <option>UNKNOWN</option><option>PREPAID</option><option>CREDIT_CARD</option><option>NET_30</option><option>NET_15</option><option>NET_45</option><option>NET_60</option><option>ACH</option><option>OTHER</option>
+              </select>
+            </label>
+            <label class="m3-field">Quote expiration <input id="mpl-sq-exp" type="text" placeholder="YYYY-MM-DD"></label>
+            <label class="m3-field check"><input id="mpl-sq-pg" type="checkbox"> Personal guarantee required</label>
+            <label class="m3-field check"><input id="mpl-sq-pc" type="checkbox"> Personal credit required</label>
+            <label class="m3-field check"><input id="mpl-sq-prepay" type="checkbox"> Full prepayment required</label>
+          </div>
+          <label class="m3-field">Notes <textarea id="mpl-f-notes" rows="2"></textarea></label>
+          <div class="m3-btn-row">
+            <button type="button" id="mpl-save" class="m3-back-btn">Save + Calculate</button>
+            <button type="button" id="mpl-copy-quote" class="m3-back-btn">Copy quote request</button>
+            <button type="button" id="mpl-duplicate" class="m3-back-btn">Duplicate</button>
+            <button type="button" id="mpl-archive" class="m3-back-btn">Archive</button>
+          </div>
+          <pre id="mpl-quote-text" class="mpl-quote-block" hidden></pre>
+          <p id="mpl-editor-msg" class="muted"></p>
+        </article>
+      </div>
+      <div id="mpl-panel-dashboard" class="mpl-panel" hidden>
+        <div id="mpl-dashboard-body" class="m3-card-stack"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="view-m3-deal-room" hidden>
     <div class="m3-mobile-page m3-deal-room">
       <header class="m3-mobile-header m3-deal-header">
@@ -641,6 +752,7 @@
     <button type="button" class="m3-nav-btn active" data-m3-view="home">Home</button>
     <button type="button" class="m3-nav-btn" data-m3-view="opportunities">Opps</button>
     <button type="button" class="m3-nav-btn" data-m3-view="actions">Actions</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="micro-lab">µLab</button>
     <button type="button" class="m3-nav-btn" data-m3-view="sources">Sources</button>
     <button type="button" class="m3-nav-btn" data-m3-view="settings">Settings</button>
   </nav>
@@ -657,16 +769,17 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/m3-mobile.js?v=20260918-m3-product-resale-discovery-intelligence-1"></script>
-  <script src="/gos-app.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/product-pipeline.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/deal-workspace.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/contract-detail.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/subs.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/pricing.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/proposal.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/submission.js?v=20260917-m3-product-identity-1"></script>
-  <script src="/performance.js?v=20260917-m3-product-identity-1"></script>
+  <script src="/app.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/gos-app.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/contract-detail.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/subs.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/pricing.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/proposal.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/submission.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/performance.js?v=20260922-m3-micro-lab-1"></script>
 </body>
 </html>

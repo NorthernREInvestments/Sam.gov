@@ -1,6 +1,6 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
-  const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room"];
+  const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room", "micro-lab"];
   let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null, research: null, evidence: null };
   let lastDealId = null;
   let activeLearningRecordId = null;
@@ -449,6 +449,7 @@
     if (name === "sources") loadSources();
     if (name === "verify") loadVerify();
     if (name === "settings") loadM3Settings();
+    if (name === "micro-lab" && window.MicroPurchaseLab) window.MicroPurchaseLab.open();
   }
 
   function oppCard(o) {
