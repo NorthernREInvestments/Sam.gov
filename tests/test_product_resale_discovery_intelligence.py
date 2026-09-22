@@ -137,5 +137,5 @@ def test_gap_diagnostic_names_biggest():
 def test_build_version_bump():
     from app import APP_BUILD_VERSION
 
-    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-pipeline-1"
+    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-integrity-1"
     

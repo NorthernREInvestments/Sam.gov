@@ -26,7 +26,7 @@ from micro_purchase_lab_config import (
     funnel_config,
 )
 
-BUILD_TAG = "20260922-m3-micro-lab-pipeline-1"
+BUILD_TAG = "20260922-m3-micro-lab-integrity-1"
 
 # Operator-facing research states
 STATE_RAW = "RAW_UNRESOLVED"
@@ -896,6 +896,23 @@ def evaluate_opportunity(row: dict[str, Any], *, cfg: dict[str, Any] | None = No
     hist_ok = hist.get("status") in {HISTORY_EXACT, HISTORY_STRONG}
     market_ok = bool(market.get("best"))
 
+    # Integrity layer (quantity/CLIN/actionability/path/max-acq) — does not loosen prior gates
+    from micro_purchase_lab_integrity import evaluate_integrity
+
+    integrity = evaluate_integrity(
+        row,
+        pipeline_partial={
+            "identity": identity.get("identity"),
+            "identity_confidence": identity.get("confidence"),
+            "historical_evidence": hist.get("evidence") or [],
+            "last_government_unit_price": (hist.get("best") or {}).get("unit_price"),
+            "current_public_price": (market.get("best") or {}).get("unit_price"),
+            "current_market_seller": (market.get("best") or {}).get("seller"),
+            "current_market_pack": (market.get("best") or {}).get("pack_quantity"),
+            "current_market_uom": (market.get("best") or {}).get("unit") or "EA",
+        },
+    )
+
     if not value_ok:
         state = STATE_VALUE_UNKNOWN
         reason = UNRESOLVED_VALUE
@@ -909,17 +926,13 @@ def evaluate_opportunity(row: dict[str, Any], *, cfg: dict[str, Any] | None = No
         state = STATE_RESEARCHABLE
         reason = None
     else:
-        # Size band: COMPLETE prefers micro/near/small; above-micro goes researchable
-        if klass in {CLASS_MICRO, CLASS_NEAR, CLASS_SMALL_SA} or (
-            klass == CLASS_UNKNOWN and value_ok is False
-        ):
+        if klass in {CLASS_MICRO, CLASS_NEAR, CLASS_SMALL_SA}:
             state = STATE_COMPLETE
             reason = None
         elif klass == CLASS_ABOVE:
             state = STATE_RESEARCHABLE
             reason = None
         else:
-            # value resolved into micro bands already covered; UNKNOWN value handled above
             state = STATE_COMPLETE if klass != CLASS_ABOVE else STATE_RESEARCHABLE
             reason = None
 
@@ -927,6 +940,32 @@ def evaluate_opportunity(row: dict[str, Any], *, cfg: dict[str, Any] | None = No
     if state == STATE_COMPLETE and hist.get("status") == HISTORY_WEAK:
         state = STATE_NO_HISTORY
         reason = NO_HISTORY_FOUND
+
+    # Integrity blockers demote COMPLETE (never invent COMPLETE)
+    if state == STATE_COMPLETE and not integrity.get("integrity_allows_complete"):
+        blockers = integrity.get("complete_blockers") or []
+        primary = blockers[0] if blockers else "IDENTITY_UNRESOLVED"
+        reason = primary
+        if primary in {"VARIANT_CONFLICT", "IDENTITY_UNRESOLVED", "PART_NUMBER_CONFLICT"}:
+            state = STATE_WEAK_IDENTITY
+        elif primary in {"EXPIRED", "CANCELLED"}:
+            state = STATE_REJECTED
+        elif primary in {
+            "NON_TRANSACTIONAL",
+            "AGGREGATOR_LEAD_ONLY",
+            "UNDERLYING_SOLICITATION_NOT_RESOLVED",
+            "DEADLINE_SUSPICIOUS",
+            "SOURCE_ACCESS_BLOCKED",
+        }:
+            state = STATE_RAW
+        elif primary in {"HISTORY_NOT_FOUND", "HISTORY_IDENTITY_MISMATCH", "HISTORY_UOM_MISMATCH"}:
+            state = STATE_NO_HISTORY
+            reason = NO_HISTORY_FOUND if primary == "HISTORY_NOT_FOUND" else primary
+        elif primary in {"CURRENT_PRICE_NOT_FOUND", "UOM_CONFLICT", "MARKET_IDENTITY_MISMATCH"}:
+            state = STATE_NO_MARKET
+        else:
+            # Quantity / pack / IDIQ / path / approved-source / funding — researchable incomplete
+            state = STATE_RESEARCHABLE
 
     return _result(
         row,
@@ -941,6 +980,7 @@ def evaluate_opportunity(row: dict[str, Any], *, cfg: dict[str, Any] | None = No
         economics=econ,
         quote_status=quote_status,
         product_resale=pr,
+        integrity=integrity,
     )
 
 
@@ -958,12 +998,22 @@ def _result(
     economics: dict[str, Any] | None = None,
     quote_status: str | None = None,
     product_resale: dict[str, Any] | None = None,
+    integrity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ident = (identity or {}).get("identity") or {}
     best_hist = (hist or {}).get("best") or {}
     best_mkt = (market or {}).get("best") or {}
     econ = economics or {}
+    integ = integrity or {}
     title = str(row.get("title") or "")
+    qty_block = integ.get("quantity") or {}
+    max_acq = integ.get("max_acquisition_cost") or {}
+    variant = integ.get("variant_identity") or {}
+    path = integ.get("procurement_path") or {}
+    action = integ.get("actionability") or {}
+    competitor = integ.get("supplier_competitor_risk") or {}
+    execf = integ.get("execution") or {}
+    approved = integ.get("approved_source") or {}
     return {
         "build": BUILD_TAG,
         "canonical_id": row.get("canonical_id"),
@@ -991,16 +1041,35 @@ def _result(
         "last_government_unit_price": best_hist.get("unit_price"),
         "historical_match": best_hist.get("identity_match_strength"),
         "historical_evidence": (hist or {}).get("evidence") or [],
+        "historical_range": integ.get("historical_range"),
         "current_market_status": (market or {}).get("status") or PRICE_UNKNOWN,
         "current_public_price": best_mkt.get("unit_price"),
         "current_market_seller": best_mkt.get("seller"),
         "current_market_price_type": best_mkt.get("price_type"),
         "current_market_observations": (market or {}).get("observations") or [],
+        "commercial_normalization": integ.get("commercial_normalization"),
         "quote_status": quote_status or QUOTE_NONE,
         "preliminary_economics": econ,
-        "manufacturer": ident.get("manufacturer") or row.get("manufacturer"),
-        "part_number": ident.get("manufacturer_part_number") or row.get("exact_part_number") or row.get("part_number"),
-        "nsn": ident.get("nsn") or row.get("exact_nsn") or row.get("nsn"),
+        "max_acquisition_cost": max_acq,
+        "quantity_integrity": qty_block,
+        "variant_identity": variant,
+        "approved_source": approved,
+        "actionability": action,
+        "procurement_path": path,
+        "supplier_competitor_risk": competitor,
+        "execution": execf,
+        "complete_blockers": integ.get("complete_blockers") or [],
+        "integrity_allows_complete": bool(integ.get("integrity_allows_complete")),
+        "source_route_plan": integ.get("source_route_plan"),
+        "signal_class": integ.get("signal_class"),
+        "manufacturer": ident.get("manufacturer") or variant.get("manufacturer") or row.get("manufacturer"),
+        "part_number": (
+            variant.get("normalized_part_number")
+            or ident.get("manufacturer_part_number")
+            or row.get("exact_part_number")
+            or row.get("part_number")
+        ),
+        "nsn": variant.get("nsn") or ident.get("nsn") or row.get("exact_nsn") or row.get("nsn"),
         "quantity": ident.get("quantity") or row.get("quantity"),
         "unit_of_issue": ident.get("unit_of_measure") or row.get("unit_of_issue") or "EA",
         "queue_score": score_candidate(
@@ -1012,6 +1081,7 @@ def _result(
             runway=(deadline or {}).get("runway_days"),
             classification=(value or {}).get("classification"),
             product_class=product_class,
+            competitor_state=competitor.get("state"),
         ),
         "badge": _badge(state),
         "next_action": _next_action(state),
@@ -1056,6 +1126,7 @@ def score_candidate(
     runway: int | None,
     classification: str | None,
     product_class: str | None,
+    competitor_state: str | None = None,
 ) -> int:
     """Deterministic ranking. UNKNOWN never receives positive points."""
     if state == STATE_REJECTED:
@@ -1107,6 +1178,12 @@ def score_candidate(
         elif runway >= 3:
             score += 5
         # insufficient already rejected
+
+    # Competitor risk surfaces ranking pressure — never automatic reject
+    if competitor_state in {"MANUFACTURER_DIRECT_COMPETITOR", "INCUMBENT_SUPPLIER"}:
+        score -= 12
+    elif competitor_state in {"HISTORICAL_AWARDEE", "HISTORICAL_GOVERNMENT_BIDDER"}:
+        score -= 6
 
     return score
 

@@ -102,7 +102,25 @@
              · score ${esc(it.queue_score ?? "—")}</p>
           <p class="muted">Source: ${esc(it.source || "—")} · ${esc(it.solicitation || "—")}</p>
           <p>Deadline: ${esc(it.deadline || "UNKNOWN")} · Runway: ${esc(it.deadline_runway ?? "—")} days</p>
-          <p>Product identity: ${esc(productLabel)} · Confidence: ${esc(it.identity_confidence || "—")}</p>
+          <p>Product identity: ${esc(productLabel)} · Confidence: ${esc(it.identity_confidence || "—")}
+             ${it.variant_identity && it.variant_identity.identity_state ? " · Variant: " + esc(it.variant_identity.identity_state) : ""}
+             ${it.nsn ? " · NSN " + esc(it.nsn) : ""}</p>
+          <p>Approved source: ${esc((it.approved_source && it.approved_source.state) || "—")}
+             · Path: ${esc((it.procurement_path && it.procurement_path.path) || "—")}
+             · Access: ${esc((it.procurement_path && it.procurement_path.access) || "—")}
+             · Actionability: ${esc((it.actionability && it.actionability.state) || "—")}</p>
+          <p>Quantity: ${
+            it.quantity_integrity
+              ? esc(it.quantity_integrity.overall_quantity_confidence || "—") +
+                (it.quantity_integrity.aggregate_piece_equivalent
+                  ? " · " + esc(it.quantity_integrity.aggregate_piece_equivalent) + " pieces"
+                  : "") +
+                (it.quantity_integrity.multiple_destinations ? " · MULTI-DEST (line economics kept separate)" : "") +
+                (it.quantity_integrity.quantity_basis && it.quantity_integrity.quantity_basis.basis
+                  ? " · Basis " + esc(it.quantity_integrity.quantity_basis.basis)
+                  : "")
+              : esc(it.quantity || "—") + " " + esc(it.unit_of_issue || "")
+          }</p>
           <p>Estimated procurement: ${it.estimated_opportunity_size && it.estimated_opportunity_size !== "UNKNOWN" ? "$" + esc(it.estimated_opportunity_size) : "UNKNOWN"}
              ${it.value_status === "UNKNOWN" ? " · VALUE UNKNOWN" : ""}</p>
           <p>Government history: ${
@@ -112,7 +130,13 @@
                 " · " +
                 esc(it.historical_comparable_count || 0) +
                 " comparable · Match: " +
-                esc(it.historical_match || it.historical_status)
+                esc(it.historical_match || it.historical_status) +
+                (it.historical_range && it.historical_range.sample_count > 1
+                  ? " · Range $" +
+                    esc(it.historical_range.recent_low) +
+                    "–$" +
+                    esc(it.historical_range.recent_high)
+                  : "")
               : esc(it.historical_status || "HISTORY_NOT_FOUND")
           }</p>
           <p>Current market: ${
@@ -122,9 +146,25 @@
                 "/unit · Seller: " +
                 esc(it.current_market_seller || "—") +
                 " · " +
-                esc(it.current_market_price_type || "")
+                esc(it.current_market_price_type || "") +
+                (it.commercial_normalization && it.commercial_normalization.normalized_unit_price
+                  ? " · Normalized $" + esc(it.commercial_normalization.normalized_unit_price)
+                  : "")
               : "NO MARKET PRICE"
           }</p>
+          ${
+            it.supplier_competitor_risk && it.supplier_competitor_risk.state && it.supplier_competitor_risk.state !== "NO_COMPETITOR_SIGNAL"
+              ? `<p class="muted">Supplier competitor risk: ${esc(it.supplier_competitor_risk.state)} — surfaces risk, not auto-reject</p>`
+              : ""
+          }
+          ${
+            it.max_acquisition_cost && it.max_acquisition_cost.ok
+              ? `<p>Max landed supplier cost: $${esc(it.max_acquisition_cost.max_landed_unit_cost)}/unit
+                   · Target bid $${esc(it.max_acquisition_cost.target_unit_bid)}
+                   · Margin target ${esc(it.max_acquisition_cost.required_gross_margin_pct)}%
+                   <span class="mpl-pill">PRELIMINARY</span></p>`
+              : ""
+          }
           ${
             econ.ok
               ? `<p>Preliminary economics: Revenue $${esc(econ.estimated_revenue)} · Product cost $${esc(
@@ -135,10 +175,21 @@
                  <p class="muted">${esc(econ.note || "PRELIMINARY")}</p>`
               : `<p class="muted">Preliminary economics: incomplete</p>`
           }
+          ${
+            it.execution
+              ? `<p class="muted">Execution: FOB ${esc(it.execution.fob || "—")} · ${esc(it.execution.executability || "—")}
+                   ${(it.execution.flags || []).length ? " · " + esc((it.execution.flags || []).join(", ")) : ""}</p>`
+              : ""
+          }
           <p>Quote status: ${esc(it.quote_status || "NONE")} · Next: ${esc(it.next_action || "—")}</p>
           ${
             it.reject_reason || it.unresolved_reason
               ? `<p class="muted">Reason: ${esc(it.reject_reason || it.unresolved_reason)}</p>`
+              : ""
+          }
+          ${
+            (it.complete_blockers || []).length
+              ? `<p class="muted">COMPLETE blockers: ${esc((it.complete_blockers || []).join(", "))}</p>`
               : ""
           }
           <div class="m3-btn-row">
