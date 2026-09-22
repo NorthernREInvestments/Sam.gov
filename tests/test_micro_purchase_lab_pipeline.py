@@ -281,6 +281,16 @@ def test_no_history_and_no_market_buckets():
     assert no_mkt["research_state"] == STATE_NO_MARKET
 
 
+def test_tangible_seal_kit_not_unknown_class():
+    row = _open(title="Hydraulic seal kit", description="Hydraulic seal kit for loader")
+    cls = classify_product_resale(row)
+    assert cls["class"] == "PRODUCT_RESALE"
+    out = evaluate_opportunity(row)
+    # May be weak identity / incomplete, but must not silently appear COMPLETE
+    assert out["research_state"] != STATE_COMPLETE
+    assert out["research_state"] in {STATE_WEAK_IDENTITY, STATE_VALUE_UNKNOWN, STATE_NO_HISTORY, STATE_NO_MARKET, STATE_RAW}
+
+
 def test_classify_product_resale_helpers():
     assert classify_product_resale(_open(title="Office Building Remodel Phase 2"))["class"] == "CONSTRUCTION"
     assert classify_product_resale(_open(title="Janitorial Services Nights"))["reason"] == REJECT_SERVICE

@@ -139,7 +139,8 @@ _WEAK_DESC = re.compile(
 )
 _PRODUCT_SUPPLY = re.compile(
     r"\b(purchase|procurement|supply|furnish|delivery|equipment|supplies|materials|"
-    r"hardware|parts?|commodit|NSN|NIIN|laptop|server|drill|printer|monitor)\b",
+    r"hardware|parts?|commodit|NSN|NIIN|laptop|server|drill|printer|monitor|"
+    r"seal\s+kit|hydraulic|gasket|bearing|fastener|valve|hose|filter|kit)\b",
     re.I,
 )
 
@@ -312,6 +313,10 @@ def classify_product_resale(row: dict[str, Any]) -> dict[str, Any]:
     # DLA / NSN structured product
     if row.get("exact_nsn") or row.get("nsn") or (row.get("dla_product_structure") or {}).get("has_exact_nsn"):
         return {"class": CLS_PRODUCT_RESALE, "reason": None, "confidence": "HIGH", "source": "nsn_structure"}
+
+    # Clear tangible-goods language without service/construction dominance
+    if _PRODUCT_SUPPLY.search(title) and not _SERVICE_HARD.search(title) and not _CONSTRUCTION_HARD.search(title):
+        return {"class": CLS_PRODUCT_RESALE, "reason": None, "confidence": "MEDIUM", "source": "product_supply_language"}
 
     return {"class": CLS_UNKNOWN, "reason": UNRESOLVED_PRODUCT_IDENTITY, "confidence": "LOW", "source": "insufficient"}
 
