@@ -43,29 +43,110 @@
   async function loadQueue() {
     const list = document.getElementById("mpl-queue-list");
     const meta = document.getElementById("mpl-queue-meta");
-    if (list) list.innerHTML = "<p class='muted'>Loading queue…</p>";
+    const funnelEl = document.getElementById("mpl-funnel-stats");
+    const filter = document.getElementById("mpl-queue-filter")?.value || "COMPLETE";
+    if (list) list.innerHTML = "<p class='muted'>Running µLab funnel…</p>";
     try {
-      const data = await api("/api/m3/micro-purchase-lab/queue?limit=40");
-      if (meta) meta.textContent = (data.count || 0) + " candidates · " + (data.note || "");
+      const data = await api(
+        "/api/m3/micro-purchase-lab/queue?limit=40&filter_state=" + encodeURIComponent(filter)
+      );
+      const f = data.funnel || {};
+      if (meta) {
+        meta.textContent =
+          (data.count || 0) +
+          " shown · filter " +
+          (data.filter_state || filter) +
+          " · raw examined " +
+          (f.raw_examined ?? "—") +
+          " · complete " +
+          (f.complete_candidates ?? "—") +
+          " · " +
+          (data.stopped_reason || "");
+      }
+      if (funnelEl) {
+        funnelEl.hidden = false;
+        funnelEl.textContent = [
+          "Raw examined: " + (f.raw_examined ?? 0),
+          "Expired/deadline rejected: " + (f.expired_deadline_rejected ?? 0),
+          "Service/construction rejected: " + (f.service_construction_rejected ?? 0),
+          "Perishable rejected: " + (f.perishable_rejected ?? 0),
+          "Product identity too weak: " + (f.product_identity_too_weak ?? 0),
+          "Dollar/value unresolved: " + (f.dollar_value_unresolved ?? 0),
+          "Product candidates researched: " + (f.product_candidates_researched ?? 0),
+          "Historical pricing found: " + (f.historical_pricing_found ?? 0),
+          "Current market pricing found: " + (f.current_market_pricing_found ?? 0),
+          "Both price sides found: " + (f.both_price_sides_found ?? 0),
+          "Complete candidates: " + (f.complete_candidates ?? 0),
+        ].join("\n");
+      }
       if (!list) return;
       if (!(data.items || []).length) {
-        list.innerHTML = "<p class='muted'>No micro/near-micro product candidates in pipeline yet. Create a manual test.</p>";
+        list.innerHTML =
+          "<p class='muted'>No " +
+          esc(filter) +
+          " candidates in this funnel pass. Try RESEARCH INCOMPLETE or expand discovery pool.</p>";
         return;
       }
       list.innerHTML = data.items
-        .map(
-          (it) => `<article class="m3-info-card">
-          <h3>${esc(it.product_title)}</h3>
-          <p class="muted">${esc(it.source)} · ${esc(it.solicitation || "—")} · ${esc(it.classification)}</p>
-          <p>Agency: ${esc(it.agency || "—")} · NSN: ${esc(it.nsn || "—")} · P/N: ${esc(it.part_number || "—")}</p>
-          <p>Size: ${esc(it.estimated_opportunity_size)} · Deadline: ${esc(it.deadline || "UNKNOWN")} · Runway: ${esc(it.deadline_runway ?? "—")}</p>
-          <p>Hist $: ${esc(it.last_government_award_price)} · Quotes: ${esc(it.quote_status)} · ${esc(it.next_action)}</p>
+        .map((it) => {
+          const econ = it.preliminary_economics || {};
+          const ident = it.identity || {};
+          const productLabel =
+            [ident.manufacturer || it.manufacturer, ident.model || ident.manufacturer_part_number || it.part_number]
+              .filter(Boolean)
+              .join(" ") || it.product_title;
+          return `<article class="m3-info-card">
+          <h3>${esc(productLabel)}${it.quantity ? " — Qty " + esc(it.quantity) : ""}</h3>
+          <p><span class="mpl-pill">${esc(it.badge || it.research_state || "—")}</span>
+             · ${esc(it.product_resale_class || "")}
+             · score ${esc(it.queue_score ?? "—")}</p>
+          <p class="muted">Source: ${esc(it.source || "—")} · ${esc(it.solicitation || "—")}</p>
+          <p>Deadline: ${esc(it.deadline || "UNKNOWN")} · Runway: ${esc(it.deadline_runway ?? "—")} days</p>
+          <p>Product identity: ${esc(productLabel)} · Confidence: ${esc(it.identity_confidence || "—")}</p>
+          <p>Estimated procurement: ${it.estimated_opportunity_size && it.estimated_opportunity_size !== "UNKNOWN" ? "$" + esc(it.estimated_opportunity_size) : "UNKNOWN"}
+             ${it.value_status === "UNKNOWN" ? " · VALUE UNKNOWN" : ""}</p>
+          <p>Government history: ${
+            it.last_government_unit_price
+              ? "Prior comparable unit price: $" +
+                esc(it.last_government_unit_price) +
+                " · " +
+                esc(it.historical_comparable_count || 0) +
+                " comparable · Match: " +
+                esc(it.historical_match || it.historical_status)
+              : esc(it.historical_status || "HISTORY_NOT_FOUND")
+          }</p>
+          <p>Current market: ${
+            it.current_public_price
+              ? "Best public acquisition price: $" +
+                esc(it.current_public_price) +
+                "/unit · Seller: " +
+                esc(it.current_market_seller || "—") +
+                " · " +
+                esc(it.current_market_price_type || "")
+              : "NO MARKET PRICE"
+          }</p>
+          ${
+            econ.ok
+              ? `<p>Preliminary economics: Revenue $${esc(econ.estimated_revenue)} · Product cost $${esc(
+                  econ.estimated_product_cost
+                )} · Gross spread $${esc(econ.gross_spread)} · Gross margin ${esc(econ.gross_margin_pct)}% · Markup ${esc(
+                  econ.markup_pct
+                )}%</p>
+                 <p class="muted">${esc(econ.note || "PRELIMINARY")}</p>`
+              : `<p class="muted">Preliminary economics: incomplete</p>`
+          }
+          <p>Quote status: ${esc(it.quote_status || "NONE")} · Next: ${esc(it.next_action || "—")}</p>
+          ${
+            it.reject_reason || it.unresolved_reason
+              ? `<p class="muted">Reason: ${esc(it.reject_reason || it.unresolved_reason)}</p>`
+              : ""
+          }
           <div class="m3-btn-row">
             <button type="button" class="m3-back-btn mpl-load-cid" data-cid="${esc(it.canonical_id)}">Load into Lab</button>
             ${it.detail_url ? `<a class="m3-back-btn" href="${esc(it.detail_url)}" target="_blank" rel="noopener">Open source</a>` : ""}
           </div>
-        </article>`
-        )
+        </article>`;
+        })
         .join("");
       list.querySelectorAll(".mpl-load-cid").forEach((btn) => {
         btn.addEventListener("click", async () => {
@@ -521,6 +602,7 @@
       btn.addEventListener("click", () => showTab(btn.dataset.mplTab));
     });
     document.getElementById("mpl-refresh-queue")?.addEventListener("click", loadQueue);
+    document.getElementById("mpl-queue-filter")?.addEventListener("change", loadQueue);
     document.getElementById("mpl-refresh-tests")?.addEventListener("click", loadTests);
     document.getElementById("mpl-refresh-quotes")?.addEventListener("click", loadQuoteQueue);
     document.getElementById("mpl-refresh-today")?.addEventListener("click", loadToday);

@@ -20,6 +20,13 @@ CLASS_UNKNOWN = "UNKNOWN"
 HISTORICAL_MARKET_WINDOW_DAYS = int(os.environ.get("M3_HISTORICAL_MARKET_WINDOW_DAYS") or "90")
 CURRENT_MARKET_STALE_DAYS = int(os.environ.get("M3_CURRENT_MARKET_STALE_DAYS") or "30")
 
+# µLab funnel experiment thresholds (configurable — not FAR legal determinations)
+MICRO_LAB_MAX_VALUE = Decimal(os.environ.get("MICRO_LAB_MAX_VALUE") or str(DEFAULT_SMALL_SA_MAX))
+MICRO_LAB_MIN_VALUE = Decimal(os.environ.get("MICRO_LAB_MIN_VALUE") or "0")
+MICRO_LAB_TARGET_RESULT_COUNT = int(os.environ.get("MICRO_LAB_TARGET_RESULT_COUNT") or "15")
+MICRO_LAB_RAW_SEARCH_TARGET = int(os.environ.get("MICRO_LAB_RAW_SEARCH_TARGET") or "2000")
+MICRO_LAB_MIN_DEADLINE_RUNWAY_DAYS = int(os.environ.get("MICRO_LAB_MIN_DEADLINE_RUNWAY_DAYS") or "2")
+
 
 def threshold_config() -> dict[str, Any]:
     return {
@@ -28,7 +35,22 @@ def threshold_config() -> dict[str, Any]:
         "small_simplified_acq_max_usd": str(DEFAULT_SMALL_SA_MAX),
         "historical_market_window_days": HISTORICAL_MARKET_WINDOW_DAYS,
         "current_market_stale_days": CURRENT_MARKET_STALE_DAYS,
+        "micro_lab_max_value": str(MICRO_LAB_MAX_VALUE),
+        "micro_lab_min_value": str(MICRO_LAB_MIN_VALUE),
+        "micro_lab_target_result_count": MICRO_LAB_TARGET_RESULT_COUNT,
+        "micro_lab_raw_search_target": MICRO_LAB_RAW_SEARCH_TARGET,
+        "micro_lab_min_deadline_runway_days": MICRO_LAB_MIN_DEADLINE_RUNWAY_DAYS,
         "note": "Configurable defaults — not a legal determination of FAR thresholds",
+    }
+
+
+def funnel_config() -> dict[str, Any]:
+    return {
+        "raw_search_target": MICRO_LAB_RAW_SEARCH_TARGET,
+        "complete_target": MICRO_LAB_TARGET_RESULT_COUNT,
+        "min_value": str(MICRO_LAB_MIN_VALUE),
+        "max_value": str(MICRO_LAB_MAX_VALUE),
+        "min_deadline_runway_days": MICRO_LAB_MIN_DEADLINE_RUNWAY_DAYS,
     }
 
 

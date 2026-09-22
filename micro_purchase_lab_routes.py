@@ -13,10 +13,20 @@ def register_micro_purchase_lab_routes(app: FastAPI) -> None:
         return threshold_config()
 
     @app.get("/api/m3/micro-purchase-lab/queue")
-    def api_mpl_queue(limit: int = 40):
+    def api_mpl_queue(
+        limit: int = 40,
+        filter_state: str = "COMPLETE",
+        raw_search_target: int | None = None,
+        complete_target: int | None = None,
+    ):
         from micro_purchase_lab_service import build_test_queue
 
-        return build_test_queue(limit=max(1, min(limit, 100)))
+        return build_test_queue(
+            limit=max(1, min(limit, 100)),
+            filter_state=filter_state or "COMPLETE",
+            raw_search_target=raw_search_target,
+            complete_target=complete_target,
+        )
 
     @app.get("/api/m3/micro-purchase-lab/tests")
     def api_mpl_tests(classification: str | None = None, status: str | None = None):

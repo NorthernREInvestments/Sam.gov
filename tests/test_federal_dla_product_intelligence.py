@@ -232,7 +232,7 @@ def test_build_version_bump():
     from app import APP_BUILD_VERSION
 
     # Superseded by product-resale discovery intelligence build; keep prior modules intact.
-    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-automation-1"
+    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-pipeline-1"
 
 
 def test_sam_checkpoint_save_never_shrinks(tmp_path, monkeypatch):

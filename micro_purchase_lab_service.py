@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from micro_purchase_lab_config import (
@@ -12,7 +11,6 @@ from micro_purchase_lab_config import (
     CLASS_SMALL_SA,
     CLASS_UNKNOWN,
     classify_opportunity_size,
-    is_micro_experiment_band,
     threshold_config,
 )
 from micro_purchase_lab_economics import (
@@ -20,18 +18,6 @@ from micro_purchase_lab_economics import (
     enrich_test,
 )
 from micro_purchase_lab_store import MicroPurchaseLabStore
-
-_PRODUCT_HINT = re.compile(
-    r"\b(NSN|NIIN|supply|supplies|equipment|hardware|tool|tools|parts?|PPE|safety|"
-    r"pump|motor|filter|cable|hose|valve|fastener|meter|scanner|printer|laptop|"
-    r"monitor|server|janitorial|consumable|kit|bearing|gasket|battery)\b",
-    re.I,
-)
-_SERVICE_HINT = re.compile(
-    r"\b(services?|consulting|staffing|janitorial\s+services|landscap|mowing|"
-    r"construction|installation\s+only|professional\s+services)\b",
-    re.I,
-)
 
 
 def get_store() -> MicroPurchaseLabStore:
@@ -145,71 +131,49 @@ def load_from_opportunity(canonical_id: str) -> dict[str, Any]:
     return create_manual_test(payload)
 
 
-def build_test_queue(*, limit: int = 40) -> dict[str, Any]:
+def build_test_queue(
+    *,
+    limit: int = 40,
+    filter_state: str = "COMPLETE",
+    raw_search_target: int | None = None,
+    complete_target: int | None = None,
+) -> dict[str, Any]:
+    """Large-pool µLab funnel → operator-facing candidates.
+
+    Default filter_state=COMPLETE. UNKNOWN never auto-qualifies.
+    """
     from m3_discovery_service import restore_pipeline_store_from_db
     from m3_pipeline_store import M3PipelineStore
+    from micro_purchase_lab_pipeline import run_micro_lab_funnel
 
     store = M3PipelineStore()
     restore_pipeline_store_from_db(store)
     existing = {t.get("linked_opportunity_id") for t in get_store().all() if t.get("linked_opportunity_id")}
-    scored: list[tuple[int, dict[str, Any]]] = []
-    for row in store.all():
-        title = str(row.get("title") or "")
-        if _SERVICE_HINT.search(title) and not _PRODUCT_HINT.search(title):
-            continue
-        if not _PRODUCT_HINT.search(title) and not row.get("exact_nsn") and not row.get("nsn"):
-            # keep UNKNOWN small-dollar DLA-ish
-            sid = str(row.get("source_id") or "")
-            if "dla" not in sid and "dibbs" not in sid and not str(row.get("solicitation_number") or "").upper().startswith(("SPE", "SPR")):
-                continue
-        est = row.get("estimated_value") or row.get("government_revenue") or row.get("historical_award_amount")
-        klass = classify_opportunity_size(est)
-        if klass == CLASS_ABOVE:
-            # secondary only — still show but low priority
-            pass
-        score = _queue_score(row, klass)
-        cid = row.get("canonical_id")
-        scored.append(
-            (
-                score,
-                {
-                    "canonical_id": cid,
-                    "source": row.get("source_id"),
-                    "solicitation": row.get("solicitation_number") or row.get("external_id"),
-                    "agency": row.get("agency"),
-                    "classification": klass,
-                    "product_title": title,
-                    "manufacturer": row.get("manufacturer"),
-                    "part_number": row.get("exact_part_number") or row.get("part_number"),
-                    "nsn": row.get("exact_nsn") or row.get("nsn"),
-                    "quantity": row.get("quantity"),
-                    "unit_of_issue": row.get("unit_of_issue") or "EA",
-                    "estimated_opportunity_size": est if est is not None else "UNKNOWN",
-                    "deadline": row.get("deadline") or row.get("response_deadline"),
-                    "deadline_runway": (row.get("deadline_evaluation") or {}).get("calendar_days_remaining"),
-                    "last_government_award_price": row.get("historical_award_amount") or "UNKNOWN",
-                    "historical_award_count": len(row.get("government_price_history") or row.get("historical_awards") or [])
-                    or (1 if row.get("historical_award_amount") else 0),
-                    "current_public_price": "UNKNOWN",
-                    "supplier_channel_identified": bool(row.get("supplier_candidates") or row.get("suppliers")),
-                    "quote_status": "LOADED" if cid in existing else "NONE",
-                    "validation_status": "IN_LAB" if cid in existing else "NOT_TESTED",
-                    "next_action": "Open Economics Lab test" if cid in existing else "Load into Lab",
-                    "detail_url": row.get("detail_url") or row.get("source_url"),
-                    "is_dla": bool(row.get("is_dla"))
-                    or "dla" in str(row.get("source_id") or "").lower()
-                    or "dibbs" in str(row.get("source_id") or "").lower(),
-                    "queue_score": score,
-                },
-            )
-        )
-    scored.sort(key=lambda x: (-x[0], str(x[1].get("deadline") or "9999")))
-    items = [x[1] for x in scored[:limit]]
+    rows = list(store.all())
+    out = run_micro_lab_funnel(
+        rows,
+        raw_search_target=raw_search_target,
+        complete_target=complete_target or max(limit, 15),
+        filter_state=filter_state,
+    )
+    items = []
+    for it in out.get("items") or []:
+        cid = it.get("canonical_id")
+        card = dict(it)
+        card["quote_status"] = "LOADED" if cid in existing else it.get("quote_status") or "NONE"
+        card["validation_status"] = "IN_LAB" if cid in existing else "NOT_TESTED"
+        if cid in existing:
+            card["next_action"] = "Open Economics Lab test"
+        items.append(card)
     return {
         "count": len(items),
-        "items": items,
-        "thresholds": threshold_config(),
-        "note": "Priority favors micro/near-micro tangible products with identity + history — not max gross profit",
+        "items": items[:limit],
+        "funnel": out.get("funnel"),
+        "thresholds": out.get("thresholds") or threshold_config(),
+        "filter_state": out.get("filter_state"),
+        "stopped_reason": out.get("stopped_reason"),
+        "build": out.get("build"),
+        "note": out.get("note"),
     }
 
 
@@ -479,63 +443,53 @@ def _awards_from_row(row: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(hist, dict):
         for a in hist.get("awards") or hist.get("observations") or []:
             if isinstance(a, dict):
+                qty = a.get("quantity")
+                unit = a.get("unit_price") or a.get("price")
+                total = a.get("amount") or a.get("total")
+                # Never present total contract value as unit price without quantity
+                if unit is None and total is not None and qty not in (None, "", 0, "0"):
+                    try:
+                        from decimal import Decimal
+
+                        unit = Decimal(str(total)) / Decimal(str(qty))
+                    except Exception:
+                        unit = None
                 awards.append(
                     {
                         "award_date": a.get("date") or a.get("award_date"),
                         "awarded_vendor": a.get("vendor") or a.get("awardee"),
-                        "unit_price": a.get("unit_price") or a.get("price"),
-                        "total_award": a.get("amount") or a.get("total"),
-                        "quantity": a.get("quantity"),
+                        "unit_price": unit,
+                        "total_award": total,
+                        "quantity": qty,
                         "source_url": a.get("url"),
                         "source_type": a.get("source") or "M3",
                         "confidence": a.get("confidence") or "MODERATE",
+                        "unit_price_status": "EXPLICIT_UNIT"
+                        if a.get("unit_price") is not None
+                        else ("INFERRED_FROM_TOTAL_QTY" if unit is not None else "TOTAL_ONLY_NOT_UNIT"),
                     }
                 )
-    if row.get("historical_award_amount") and not awards:
+    ham = row.get("historical_award_amount")
+    if ham is not None and not awards:
+        qty = row.get("quantity")
+        unit = None
+        if qty not in (None, "", 0, "0"):
+            try:
+                from decimal import Decimal
+
+                unit = Decimal(str(ham)) / Decimal(str(qty))
+            except Exception:
+                unit = None
         awards.append(
             {
                 "award_date": row.get("historical_award_date"),
-                "unit_price": row.get("historical_award_amount"),
-                "total_award": row.get("historical_award_amount"),
+                "unit_price": unit,
+                "total_award": ham,
+                "quantity": qty,
                 "source_type": "M3_PIPELINE",
-                "confidence": "MODERATE",
+                "confidence": "WEAK" if unit is None else "MODERATE",
+                "unit_price_status": "INFERRED_FROM_TOTAL_QTY" if unit is not None else "TOTAL_ONLY_NOT_UNIT",
+                "notes": "historical_award_amount is total — not assumed unit price",
             }
         )
     return awards
-
-
-def _queue_score(row: dict[str, Any], klass: str) -> int:
-    score = 0
-    status = str(row.get("status") or "OPEN").upper()
-    if status in {"OPEN", "ACTIVE", "NEW"}:
-        score += 40
-    runway = (row.get("deadline_evaluation") or {}).get("calendar_days_remaining")
-    try:
-        if runway is not None and int(runway) >= 3:
-            score += 20
-        if runway is not None and int(runway) >= 7:
-            score += 10
-    except (TypeError, ValueError):
-        pass
-    if klass == CLASS_MICRO:
-        score += 35
-    elif klass == CLASS_NEAR:
-        score += 28
-    elif klass == CLASS_SMALL_SA:
-        score += 12
-    elif klass == CLASS_UNKNOWN:
-        score += 15
-    else:
-        score += 2
-    if row.get("exact_nsn") or row.get("nsn"):
-        score += 20
-    if row.get("exact_part_number") or row.get("part_number"):
-        score += 15
-    if row.get("historical_award_amount") or row.get("government_price_history"):
-        score += 15
-    sid = str(row.get("source_id") or "").lower()
-    if "dla" in sid or "dibbs" in sid or str(row.get("solicitation_number") or "").upper().startswith(("SPE", "SPR")):
-        score += 25
-    if _PRODUCT_HINT.search(str(row.get("title") or "")):
-        score += 10
-    return score

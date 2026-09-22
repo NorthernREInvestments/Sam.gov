@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260922-m3-micro-lab-automation-1">
+      <meta name="m3-build" content="20260922-m3-micro-lab-pipeline-1">
       <title>M3 — GovCon Operating System</title>
       <link rel="stylesheet" href="/style.css?v=20260917-m3-product-identity-1">
 </head>
@@ -618,7 +618,19 @@
           <button type="button" id="mpl-new-manual" class="m3-back-btn">New manual test</button>
           <button type="button" id="mpl-research-batch" class="m3-back-btn">Research Queue (5)</button>
         </div>
+        <div class="m3-btn-row mpl-filter-row">
+          <label class="m3-field">Filter
+            <select id="mpl-queue-filter">
+              <option value="COMPLETE" selected>COMPLETE</option>
+              <option value="RESEARCH_INCOMPLETE">RESEARCH INCOMPLETE</option>
+              <option value="RESEARCHABLE">RESEARCHABLE</option>
+              <option value="REJECTED">REJECTED</option>
+              <option value="ALL">ALL</option>
+            </select>
+          </label>
+        </div>
         <p id="mpl-queue-meta" class="muted"></p>
+        <pre id="mpl-funnel-stats" class="mpl-funnel" hidden></pre>
         <div id="mpl-queue-list" class="m3-card-stack"></div>
       </div>
       <div id="mpl-panel-tests" class="mpl-panel" hidden>
@@ -788,17 +800,17 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/gos-app.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/contract-detail.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/subs.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/pricing.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/proposal.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/submission.js?v=20260922-m3-micro-lab-automation-1"></script>
-  <script src="/performance.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/app.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/gos-app.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/contract-detail.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/subs.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/pricing.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/proposal.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/submission.js?v=20260922-m3-micro-lab-pipeline-1"></script>
+  <script src="/performance.js?v=20260922-m3-micro-lab-pipeline-1"></script>
 </body>
 </html>
