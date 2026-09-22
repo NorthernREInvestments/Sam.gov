@@ -114,3 +114,55 @@ def register_micro_purchase_lab_routes(app: FastAPI) -> None:
         if body:
             row.update(body)
         return save_test(row)
+
+    @app.post("/api/m3/micro-purchase-lab/tests/{test_id}/research")
+    def api_mpl_research(test_id: str, body: dict | None = None):
+        from micro_purchase_lab_service import research_test
+
+        allow = bool((body or {}).get("allow_paid_research"))
+        try:
+            return research_test(test_id, allow_paid_research=allow)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="test not found")
+
+    @app.post("/api/m3/micro-purchase-lab/tests/{test_id}/prepare-quotes")
+    def api_mpl_prepare_quotes(test_id: str, body: dict | None = None):
+        from micro_purchase_lab_service import prepare_quotes
+
+        top_n = int((body or {}).get("top_n") or 4)
+        try:
+            return prepare_quotes(test_id, top_n=max(1, min(top_n, 8)))
+        except KeyError:
+            raise HTTPException(status_code=404, detail="test not found")
+
+    @app.get("/api/m3/micro-purchase-lab/quote-queue")
+    def api_mpl_quote_queue():
+        from micro_purchase_lab_service import build_quote_queue
+
+        return build_quote_queue()
+
+    @app.get("/api/m3/micro-purchase-lab/todays-quote-work")
+    def api_mpl_todays_work():
+        from micro_purchase_lab_service import todays_quote_work
+
+        return todays_quote_work()
+
+    @app.post("/api/m3/micro-purchase-lab/quote-queue/{item_id}/status")
+    def api_mpl_queue_status(item_id: str, body: dict):
+        from micro_purchase_lab_service import update_queue_item_status
+
+        status = str((body or {}).get("quote_status") or (body or {}).get("status") or "").strip()
+        if not status:
+            raise HTTPException(status_code=400, detail="quote_status required")
+        try:
+            return update_queue_item_status(item_id, status)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="queue item not found")
+
+    @app.post("/api/m3/micro-purchase-lab/research-queue")
+    def api_mpl_research_queue(body: dict | None = None):
+        from micro_purchase_lab_service import research_queue_batch
+
+        limit = int((body or {}).get("limit") or 5)
+        allow = bool((body or {}).get("allow_paid_research"))
+        return research_queue_batch(limit=limit, allow_paid_research=allow)

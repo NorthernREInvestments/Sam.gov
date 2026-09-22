@@ -137,5 +137,5 @@ def test_gap_diagnostic_names_biggest():
 def test_build_version_bump():
     from app import APP_BUILD_VERSION
 
-    assert APP_BUILD_VERSION == BUILD_TAG
-    assert "product-resale-discovery-intelligence" in APP_BUILD_VERSION
+    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-automation-1"
+    

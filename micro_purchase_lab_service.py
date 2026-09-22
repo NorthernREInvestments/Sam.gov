@@ -55,7 +55,19 @@ def get_test(test_id: str) -> dict[str, Any] | None:
 def save_test(payload: dict[str, Any]) -> dict[str, Any]:
     store = get_store()
     row = enrich_test(dict(payload))
-    return enrich_test(store.upsert(row))
+    # Record real supplier quotes into internal intelligence (never estimated)
+    try:
+        from micro_purchase_lab_quote_intel import ingest_quotes_from_test
+
+        ingest_quotes_from_test(row)
+    except Exception:
+        pass
+    saved = enrich_test(store.upsert(row))
+    try:
+        store.merge_quote_queue_from_test(saved)
+    except Exception:
+        pass
+    return saved
 
 
 def create_manual_test(payload: dict[str, Any]) -> dict[str, Any]:
@@ -205,15 +217,24 @@ def experiment_dashboard() -> dict[str, Any]:
     tests = [enrich_test(t) for t in get_store().all() if not t.get("archived")]
     micro = [t for t in tests if t.get("classification") in {CLASS_MICRO, CLASS_NEAR, CLASS_UNKNOWN}]
     larger = [t for t in tests if t.get("classification") in {CLASS_SMALL_SA, CLASS_ABOVE}]
+    queue = get_store().all_quote_queue()
 
     def _stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        quotes_req = sum(1 for t in rows if str(t.get("quote_status") or "").upper() in {"REQUESTED", "RECEIVED"} or (t.get("supplier_quotes")))
+        quotes_req = sum(
+            1
+            for t in rows
+            if str(t.get("quote_status") or "").upper() in {"REQUESTED", "RECEIVED", "READY_TO_REQUEST"}
+            or (t.get("supplier_quotes"))
+            or (t.get("quote_queue_items"))
+        )
         quotes_recv = sum(1 for t in rows if (t.get("supplier_quotes") or []))
         econ_pass = sum(1 for t in rows if t.get("status") in {"ECONOMIC_PASS", "BID_CANDIDATE"})
         econ_fail = sum(1 for t in rows if t.get("status") == "ECONOMIC_FAIL")
         exec_fail = sum(1 for t in rows if t.get("status") == "EXECUTION_FAIL")
         bid_cand = sum(1 for t in rows if t.get("status") == "BID_CANDIDATE")
         hist_recon = sum(1 for t in rows if (t.get("historical_awards") and t.get("historical_market_costs")))
+        researched = sum(1 for t in rows if t.get("automated_research") or t.get("research_completed_at"))
+        prepared = sum(1 for t in rows if t.get("quote_packets") or t.get("quote_queue_items"))
         profits = []
         margins = []
         for t in rows:
@@ -232,12 +253,16 @@ def experiment_dashboard() -> dict[str, Any]:
         return {
             "opportunities_tested": len(rows),
             "historical_economics_reconstructed": hist_recon,
+            "automated_research_completed": researched,
+            "research_to_quote_conversion": round(prepared / researched, 4) if researched else None,
             "supplier_quotes_requested": quotes_req,
             "supplier_quotes_received": quotes_recv,
             "economic_passes": econ_pass,
             "economic_fails": econ_fail,
             "execution_fails": exec_fail,
             "bid_candidates": bid_cand,
+            "economic_pass_rate": round(econ_pass / quotes_recv, 4) if quotes_recv else None,
+            "execution_pass_rate": round((quotes_recv - exec_fail) / quotes_recv, 4) if quotes_recv else None,
             "quote_pass_rate": round(econ_pass / quotes_recv, 4) if quotes_recv else None,
             "overall_bid_candidate_rate": round(bid_cand / len(rows), 4) if rows else None,
             "median_gross_profit": med_p,
@@ -246,6 +271,14 @@ def experiment_dashboard() -> dict[str, Any]:
         }
 
     quotes_completed = sum(1 for t in tests if t.get("supplier_quotes"))
+    discount_stats = _supplier_discount_dashboard()
+    try:
+        from micro_purchase_lab_quote_intel import supplier_performance_stats
+
+        supplier_perf = supplier_performance_stats(min_sample=1)
+    except Exception:
+        supplier_perf = []
+
     return {
         "go_no_go": {
             "target_supplier_quotes": 10,
@@ -257,11 +290,143 @@ def experiment_dashboard() -> dict[str, Any]:
             "executable_bid_candidates": sum(1 for t in tests if t.get("status") == "BID_CANDIDATE"),
             "note": "Factual progress only — does not auto-pronounce business viability",
         },
+        "automation": {
+            "automated_research_completed": sum(1 for t in tests if t.get("research_completed_at")),
+            "research_to_quote_conversion": _stats(tests).get("research_to_quote_conversion"),
+            "quotes_requested": sum(
+                1 for q in queue if str(q.get("quote_status") or "").upper() in {"REQUESTED", "RECEIVED", "READY_TO_REQUEST"}
+            ),
+            "quotes_received": sum(1 for q in queue if str(q.get("quote_status") or "").upper() == "RECEIVED")
+            + sum(1 for t in tests if t.get("supplier_quotes")),
+            "average_supplier_discount_vs_public": discount_stats.get("average"),
+            "median_supplier_discount": discount_stats.get("median"),
+            "economic_pass_rate": _stats(tests).get("economic_pass_rate"),
+            "execution_pass_rate": _stats(tests).get("execution_pass_rate"),
+            "bid_candidate_rate": _stats(tests).get("overall_bid_candidate_rate"),
+            "median_gross_profit": _stats(tests).get("median_gross_profit"),
+            "median_gross_margin": _stats(tests).get("median_gross_margin_pct"),
+            "supplier_performance": supplier_perf,
+        },
         "micro_purchase_results": _stats(micro),
         "larger_comparison_results": _stats(larger),
         "all_results": _stats(tests),
         "thresholds": threshold_config(),
     }
+
+
+def _supplier_discount_dashboard() -> dict[str, Any]:
+    try:
+        from micro_purchase_lab_quote_intel import get_quote_intel_store
+        from micro_purchase_lab_economics import D
+
+        discounts = []
+        for q in get_quote_intel_store().all():
+            d = D(q.get("quote_discount_vs_public_pct"))
+            if d is not None:
+                discounts.append(float(d))
+        if not discounts:
+            return {"average": None, "median": None, "count": 0}
+        discounts.sort()
+        return {
+            "average": round(sum(discounts) / len(discounts), 2),
+            "median": discounts[len(discounts) // 2],
+            "count": len(discounts),
+        }
+    except Exception:
+        return {"average": None, "median": None, "count": 0}
+
+
+def research_test(test_id: str, *, allow_paid_research: bool = False) -> dict[str, Any]:
+    from micro_purchase_lab_research import research_opportunity
+
+    row = get_test(test_id)
+    if not row:
+        raise KeyError(test_id)
+    out = research_opportunity(row, allow_paid_research=allow_paid_research)
+    return save_test(out)
+
+
+def prepare_quotes(test_id: str, *, top_n: int = 4) -> dict[str, Any]:
+    from micro_purchase_lab_research import prepare_quotes_for_test
+
+    row = get_test(test_id)
+    if not row:
+        raise KeyError(test_id)
+    out = prepare_quotes_for_test(row, top_n=top_n)
+    saved = save_test(out)
+    get_store().merge_quote_queue_from_test(saved)
+    return saved
+
+
+def build_quote_queue() -> dict[str, Any]:
+    store = get_store()
+    items = store.all_quote_queue()
+    # Also surface in-test queue items not yet merged
+    for t in store.all():
+        if t.get("archived"):
+            continue
+        for qi in t.get("quote_queue_items") or []:
+            if not isinstance(qi, dict):
+                continue
+            if not any(x.get("id") == qi.get("id") for x in items):
+                items.append(qi)
+
+    def _priority(it: dict[str, Any]) -> tuple:
+        runway = None
+        try:
+            from micro_purchase_lab_research import _days_until
+
+            runway = _days_until(it.get("deadline"))
+        except Exception:
+            pass
+        # sooner deadline first (but viable)
+        r = runway if runway is not None else 9999
+        he = 0.0
+        try:
+            he = -float(it.get("historical_equivalent_price") or 0)
+        except (TypeError, ValueError):
+            pass
+        return (r if r >= 0 else 9999, he, str(it.get("supplier") or ""))
+
+    items = sorted(items, key=_priority)
+    return {"count": len(items), "items": items}
+
+
+def todays_quote_work() -> dict[str, Any]:
+    q = build_quote_queue()
+    today = []
+    for it in q.get("items") or []:
+        st = str(it.get("quote_status") or "").upper()
+        if st in {"READY_TO_REQUEST", "REQUESTED", "NOT_PREPARED"}:
+            today.append(
+                {
+                    "supplier": it.get("supplier"),
+                    "part_number": it.get("part_number"),
+                    "quantity": it.get("quantity"),
+                    "opportunity": it.get("opportunity"),
+                    "deadline": it.get("deadline"),
+                    "next_action": it.get("next_action") or "REQUEST_SUPPLIER_QUOTE",
+                    "quote_status": st,
+                    "test_id": it.get("test_id"),
+                    "id": it.get("id"),
+                }
+            )
+    return {"count": len(today), "items": today[:40], "label": "Today's Quote Work"}
+
+
+def update_queue_item_status(item_id: str, status: str) -> dict[str, Any]:
+    row = get_store().update_quote_queue_status(item_id, status)
+    if not row:
+        raise KeyError(item_id)
+    return row
+
+
+def research_queue_batch(*, limit: int = 5, allow_paid_research: bool = False) -> dict[str, Any]:
+    from micro_purchase_lab_research import research_batch
+
+    tests = [t for t in get_store().all() if not t.get("archived") and not t.get("research_completed_at")]
+    ids = [t["id"] for t in tests[: max(1, min(limit, 5))]]
+    return research_batch(ids, limit=limit, allow_paid_research=allow_paid_research)
 
 
 def quote_request_for(test_id: str) -> dict[str, Any]:

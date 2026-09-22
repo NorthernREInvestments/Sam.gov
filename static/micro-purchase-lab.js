@@ -29,12 +29,14 @@
 
   function showTab(name) {
     document.querySelectorAll(".mpl-tab").forEach((b) => b.classList.toggle("active", b.dataset.mplTab === name));
-    ["queue", "tests", "dashboard"].forEach((t) => {
+    ["queue", "tests", "quotes", "today", "dashboard"].forEach((t) => {
       const el = document.getElementById("mpl-panel-" + t);
       if (el) el.hidden = t !== name;
     });
     if (name === "queue") loadQueue();
     if (name === "tests") loadTests();
+    if (name === "quotes") loadQuoteQueue();
+    if (name === "today") loadToday();
     if (name === "dashboard") loadDashboard();
   }
 
@@ -121,6 +123,13 @@
       const g = d.go_no_go || {};
       const m = d.micro_purchase_results || {};
       const a = d.all_results || {};
+      const auto = d.automation || {};
+      const perf = (auto.supplier_performance || [])
+        .map(
+          (s) =>
+            `<li>${esc(s.supplier)} · n=${esc(s.observation_count)} · med disc ${esc(s.median_discount_pct ?? "—")}% · exec ${esc(s.executable_quote_count)}${s.statistically_meaningful ? "" : " · (sample small)"}</li>`
+        )
+        .join("");
       if (!body) return;
       body.innerHTML = `
         <article class="m3-info-card">
@@ -128,6 +137,16 @@
           <p class="mpl-progress">${esc(g.progress_label)}</p>
           <p>Profitable: ${esc(g.profitable_quotes)} · Unprofitable: ${esc(g.unprofitable_quotes)} · Execution fails: ${esc(g.execution_failures)} · Bid candidates: ${esc(g.executable_bid_candidates)}</p>
           <p class="muted">${esc(g.note)}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>Automated research</h3>
+          <p>Research completed: ${esc(auto.automated_research_completed ?? 0)} · Research→Quote: ${esc(auto.research_to_quote_conversion ?? "—")}</p>
+          <p>Quotes requested: ${esc(auto.quotes_requested ?? 0)} · Quotes received: ${esc(auto.quotes_received ?? 0)}</p>
+          <p>Avg supplier discount vs public: ${esc(auto.average_supplier_discount_vs_public ?? "—")}% · Median: ${esc(auto.median_supplier_discount ?? "—")}%</p>
+          <p>Econ pass rate: ${esc(auto.economic_pass_rate ?? "—")} · Exec pass: ${esc(auto.execution_pass_rate ?? "—")} · BID_CANDIDATE rate: ${esc(auto.bid_candidate_rate ?? "—")}</p>
+          <p>Median GP: ${esc(auto.median_gross_profit ?? "—")} · Median margin: ${esc(auto.median_gross_margin ?? "—")}%</p>
+          <h4>Supplier performance</h4>
+          <ul>${perf || "<li class='muted'>No quote intelligence yet</li>"}</ul>
         </article>
         <article class="m3-info-card">
           <h3>Micro-Purchase Results</h3>
@@ -142,6 +161,84 @@
         </article>`;
     } catch (e) {
       if (body) body.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
+    }
+  }
+
+  async function loadQuoteQueue() {
+    const list = document.getElementById("mpl-quote-queue-list");
+    if (list) list.innerHTML = "<p class='muted'>Loading quote queue…</p>";
+    try {
+      const data = await api("/api/m3/micro-purchase-lab/quote-queue");
+      if (!list) return;
+      if (!(data.items || []).length) {
+        list.innerHTML = "<p class='muted'>No prepared quote requests yet. Research an opportunity, then Prepare Quotes.</p>";
+        return;
+      }
+      list.innerHTML = data.items
+        .map(
+          (it) => `<article class="m3-info-card">
+          <h3>${esc(it.supplier)} · ${esc(it.part_number || it.product || "—")}</h3>
+          <p><span class="mpl-pill">${esc(it.quote_status)}</span> · Qty ${esc(it.quantity || "—")} · Deadline ${esc(it.deadline || "—")}</p>
+          <p>HE bid: ${esc(it.historical_equivalent_price ?? "—")} · Public: ${esc(it.current_public_price ?? "—")} · Est band: ${esc(it.estimated_quote_value_band ?? "—")}</p>
+          <p class="muted">${esc(it.opportunity || it.solicitation || "")} · Next: ${esc(it.next_action || "—")}</p>
+          <div class="m3-btn-row">
+            <button type="button" class="m3-back-btn mpl-qq-copy" data-text="${esc(it.quote_request_text || "")}">Copy request</button>
+            <button type="button" class="m3-back-btn mpl-qq-req" data-id="${esc(it.id)}">Mark requested</button>
+            ${it.test_id ? `<button type="button" class="m3-back-btn mpl-qq-open" data-id="${esc(it.test_id)}">Open test</button>` : ""}
+          </div>
+        </article>`
+        )
+        .join("");
+      list.querySelectorAll(".mpl-qq-copy").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(btn.dataset.text || "");
+          } catch (_) {}
+        });
+      });
+      list.querySelectorAll(".mpl-qq-req").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          await api("/api/m3/micro-purchase-lab/quote-queue/" + encodeURIComponent(btn.dataset.id) + "/status", {
+            method: "POST",
+            body: JSON.stringify({ quote_status: "REQUESTED" }),
+          });
+          loadQuoteQueue();
+        });
+      });
+      list.querySelectorAll(".mpl-qq-open").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const row = await api("/api/m3/micro-purchase-lab/tests/" + encodeURIComponent(btn.dataset.id));
+          current = row;
+          showTab("tests");
+          openEditor(row);
+        });
+      });
+    } catch (e) {
+      if (list) list.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
+    }
+  }
+
+  async function loadToday() {
+    const list = document.getElementById("mpl-today-list");
+    if (list) list.innerHTML = "<p class='muted'>Loading…</p>";
+    try {
+      const data = await api("/api/m3/micro-purchase-lab/todays-quote-work");
+      if (!list) return;
+      if (!(data.items || []).length) {
+        list.innerHTML = "<p class='muted'>No quote work ready today.</p>";
+        return;
+      }
+      list.innerHTML =
+        "<ol class='mpl-today-ol'>" +
+        data.items
+          .map(
+            (it, i) =>
+              `<li><strong>${esc(it.supplier)}</strong> — P/N ${esc(it.part_number || "—")} — qty ${esc(it.quantity || "—")} · ${esc(it.quote_status)} · ${esc(it.next_action)}</li>`
+          )
+          .join("") +
+        "</ol>";
+    } catch (e) {
+      if (list) list.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
     }
   }
 
@@ -213,6 +310,56 @@
     setChecked("mpl-sq-pc", sq.personal_credit_required);
     setChecked("mpl-sq-prepay", sq.requires_full_prepayment);
     renderSummary(row);
+    renderResearch(row);
+  }
+
+  function renderResearch(row) {
+    const stagesEl = document.getElementById("mpl-research-stages");
+    const sumEl = document.getElementById("mpl-research-summary");
+    const ar = row.automated_research;
+    if (!ar || !stagesEl || !sumEl) {
+      if (stagesEl) stagesEl.hidden = true;
+      if (sumEl) sumEl.hidden = true;
+      return;
+    }
+    stagesEl.hidden = false;
+    sumEl.hidden = false;
+    const stages = ar.stages || {};
+    const order = [
+      "opportunity",
+      "product_identity",
+      "government_history",
+      "historical_market",
+      "current_market",
+      "supplier_channels",
+      "pricing_model",
+      "quote_prep",
+    ];
+    stagesEl.innerHTML =
+      "<h4>Research stages</h4><ul class='mpl-summary-list'>" +
+      order
+        .map((k) => {
+          const s = stages[k] || {};
+          return `<li><strong>${esc(k)}:</strong> ${esc(s.status || "NOT_RUN")} · ${esc(s.confidence || "UNKNOWN")}</li>`;
+        })
+        .join("") +
+      "</ul>";
+    const sm = ar.summary || {};
+    const est = row.estimated_supplier_cost || {};
+    sumEl.innerHTML = `<h4>Research Complete</h4>
+      <ul class="mpl-summary-list">
+        <li>Product identity: ${esc(sm.product_identity || "—")}</li>
+        <li>Historical awards: ${esc(sm.historical_awards ?? 0)}</li>
+        <li>Historical market observations: ${esc(sm.historical_market_observations ?? 0)}</li>
+        <li>Current market observations: ${esc(sm.current_market_observations ?? 0)}</li>
+        <li>Supplier candidates: ${esc(sm.supplier_candidates ?? 0)}</li>
+        <li>Best historical-equivalent bid: ${esc(sm.best_historical_equivalent_bid ?? "—")}</li>
+        <li>Current public market: ${esc(sm.current_public_market ?? "—")}</li>
+        <li>Actual reseller quote: ${esc(sm.actual_reseller_quote || "NEEDED")}</li>
+        <li>Next action: ${esc(ar.next_action || row.lab_next_action || "—")}</li>
+        ${est.available ? `<li class="muted">${esc(est.label)} · ${esc(est.band_label)} · ${esc(est.estimation_label)}</li>` : ""}
+      </ul>
+      <p><strong>${esc(sm.recommended_next || "Review evidence, then Prepare Quotes")}</strong></p>`;
   }
 
   function renderSummary(row) {
@@ -317,6 +464,18 @@
           ]
         : (current && current.supplier_quotes) || [],
       quote_status: sqCost ? "RECEIVED" : current && current.quote_status,
+      automated_research: current && current.automated_research,
+      research_completed_at: current && current.research_completed_at,
+      supplier_candidates: current && current.supplier_candidates,
+      recommended_quote_targets: current && current.recommended_quote_targets,
+      quote_packets: current && current.quote_packets,
+      quote_queue_items: current && current.quote_queue_items,
+      recommended_historical_market: current && current.recommended_historical_market,
+      recommended_current_market: current && current.recommended_current_market,
+      estimated_supplier_cost: current && current.estimated_supplier_cost,
+      research_pricing_model: current && current.research_pricing_model,
+      lab_next_action: current && current.lab_next_action,
+      identity_candidates: current && current.identity_candidates,
     };
     return payload;
   }
@@ -363,8 +522,58 @@
     });
     document.getElementById("mpl-refresh-queue")?.addEventListener("click", loadQueue);
     document.getElementById("mpl-refresh-tests")?.addEventListener("click", loadTests);
+    document.getElementById("mpl-refresh-quotes")?.addEventListener("click", loadQuoteQueue);
+    document.getElementById("mpl-refresh-today")?.addEventListener("click", loadToday);
     document.getElementById("mpl-new-manual")?.addEventListener("click", blankTest);
     document.getElementById("mpl-save")?.addEventListener("click", saveCurrent);
+    document.getElementById("mpl-research-batch")?.addEventListener("click", async () => {
+      const msg = document.getElementById("mpl-queue-meta");
+      if (msg) msg.textContent = "Running bounded research batch (max 5)…";
+      try {
+        const r = await api("/api/m3/micro-purchase-lab/research-queue", {
+          method: "POST",
+          body: JSON.stringify({ limit: 5 }),
+        });
+        if (msg) msg.textContent = "Batch done: " + JSON.stringify(r.results || r);
+        loadTests();
+      } catch (e) {
+        if (msg) msg.textContent = String(e.message || e);
+      }
+    });
+    document.getElementById("mpl-research")?.addEventListener("click", async () => {
+      const msg = document.getElementById("mpl-editor-msg");
+      try {
+        if (!current || !current.id) await saveCurrent();
+        if (!current || !current.id) return;
+        if (msg) msg.textContent = "Researching…";
+        const row = await api(
+          "/api/m3/micro-purchase-lab/tests/" + encodeURIComponent(current.id) + "/research",
+          { method: "POST", body: JSON.stringify({ allow_paid_research: false }) }
+        );
+        current = row;
+        openEditor(row);
+        if (msg) msg.textContent = "Research complete · status " + row.status + " · next " + (row.lab_next_action || "");
+      } catch (e) {
+        if (msg) msg.textContent = String(e.message || e);
+      }
+    });
+    document.getElementById("mpl-prepare-quotes")?.addEventListener("click", async () => {
+      const msg = document.getElementById("mpl-editor-msg");
+      try {
+        if (!current || !current.id) await saveCurrent();
+        if (!current || !current.id) return;
+        const row = await api(
+          "/api/m3/micro-purchase-lab/tests/" + encodeURIComponent(current.id) + "/prepare-quotes",
+          { method: "POST", body: JSON.stringify({ top_n: 4 }) }
+        );
+        current = row;
+        openEditor(row);
+        if (msg) msg.textContent = "Quotes prepared · " + ((row.quote_queue_items || []).length) + " queue items";
+        showTab("quotes");
+      } catch (e) {
+        if (msg) msg.textContent = String(e.message || e);
+      }
+    });
     document.getElementById("mpl-load-opp")?.addEventListener("click", async () => {
       const q = window.prompt("Search opportunity (title / solicitation / id):");
       if (!q) return;
@@ -386,14 +595,21 @@
         await saveCurrent();
       }
       if (!current || !current.id) return;
-      const q = await api("/api/m3/micro-purchase-lab/tests/" + encodeURIComponent(current.id) + "/quote-request");
+      const packets = current.quote_packets || [];
+      let text;
+      if (packets.length) {
+        text = packets.map((p) => "=== " + (p.supplier || "Supplier") + " ===\n" + (p.quote_request_text || "")).join("\n\n");
+      } else {
+        const q = await api("/api/m3/micro-purchase-lab/tests/" + encodeURIComponent(current.id) + "/quote-request");
+        text = q.text;
+      }
       const pre = document.getElementById("mpl-quote-text");
       if (pre) {
         pre.hidden = false;
-        pre.textContent = q.text;
+        pre.textContent = text;
       }
       try {
-        await navigator.clipboard.writeText(q.text);
+        await navigator.clipboard.writeText(text);
       } catch (_) {}
     });
     document.getElementById("mpl-duplicate")?.addEventListener("click", async () => {

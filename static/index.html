@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260922-m3-micro-lab-1">
+      <meta name="m3-build" content="20260922-m3-micro-lab-automation-1">
       <title>M3 — GovCon Operating System</title>
       <link rel="stylesheet" href="/style.css?v=20260917-m3-product-identity-1">
 </head>
@@ -608,12 +608,15 @@
       <div class="mpl-tabs" role="tablist">
         <button type="button" class="mpl-tab active" data-mpl-tab="queue">Test Queue</button>
         <button type="button" class="mpl-tab" data-mpl-tab="tests">Validation Tests</button>
+        <button type="button" class="mpl-tab" data-mpl-tab="quotes">Quote Queue</button>
+        <button type="button" class="mpl-tab" data-mpl-tab="today">Today's Quotes</button>
         <button type="button" class="mpl-tab" data-mpl-tab="dashboard">Experiment Dashboard</button>
       </div>
       <div id="mpl-panel-queue" class="mpl-panel">
         <div class="m3-btn-row">
           <button type="button" id="mpl-refresh-queue" class="m3-back-btn">Refresh queue</button>
           <button type="button" id="mpl-new-manual" class="m3-back-btn">New manual test</button>
+          <button type="button" id="mpl-research-batch" class="m3-back-btn">Research Queue (5)</button>
         </div>
         <p id="mpl-queue-meta" class="muted"></p>
         <div id="mpl-queue-list" class="m3-card-stack"></div>
@@ -627,6 +630,8 @@
         <article id="mpl-editor" class="m3-info-card mpl-editor" hidden>
           <h3 id="mpl-editor-title">Test editor</h3>
           <p id="mpl-editor-status" class="mpl-status"></p>
+          <div id="mpl-research-stages" class="mpl-research" hidden></div>
+          <div id="mpl-research-summary" class="mpl-research-summary" hidden></div>
           <div id="mpl-pricing-summary" class="mpl-pricing"></div>
           <div class="mpl-grid">
             <label class="m3-field">Solicitation <input id="mpl-f-solicitation" type="text"></label>
@@ -695,6 +700,8 @@
           </div>
           <label class="m3-field">Notes <textarea id="mpl-f-notes" rows="2"></textarea></label>
           <div class="m3-btn-row">
+            <button type="button" id="mpl-research" class="m3-back-btn">Research Opportunity</button>
+            <button type="button" id="mpl-prepare-quotes" class="m3-back-btn">Prepare Quotes</button>
             <button type="button" id="mpl-save" class="m3-back-btn">Save + Calculate</button>
             <button type="button" id="mpl-copy-quote" class="m3-back-btn">Copy quote request</button>
             <button type="button" id="mpl-duplicate" class="m3-back-btn">Duplicate</button>
@@ -703,6 +710,18 @@
           <pre id="mpl-quote-text" class="mpl-quote-block" hidden></pre>
           <p id="mpl-editor-msg" class="muted"></p>
         </article>
+      </div>
+      <div id="mpl-panel-quotes" class="mpl-panel" hidden>
+        <div class="m3-btn-row">
+          <button type="button" id="mpl-refresh-quotes" class="m3-back-btn">Refresh Quote Queue</button>
+        </div>
+        <div id="mpl-quote-queue-list" class="m3-card-stack"></div>
+      </div>
+      <div id="mpl-panel-today" class="mpl-panel" hidden>
+        <div class="m3-btn-row">
+          <button type="button" id="mpl-refresh-today" class="m3-back-btn">Refresh</button>
+        </div>
+        <div id="mpl-today-list" class="m3-card-stack"></div>
       </div>
       <div id="mpl-panel-dashboard" class="mpl-panel" hidden>
         <div id="mpl-dashboard-body" class="m3-card-stack"></div>
@@ -769,17 +788,17 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/gos-app.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/contract-detail.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/subs.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/pricing.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/proposal.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/submission.js?v=20260922-m3-micro-lab-1"></script>
-  <script src="/performance.js?v=20260922-m3-micro-lab-1"></script>
+  <script src="/app.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/gos-app.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/contract-detail.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/subs.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/pricing.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/proposal.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/submission.js?v=20260922-m3-micro-lab-automation-1"></script>
+  <script src="/performance.js?v=20260922-m3-micro-lab-automation-1"></script>
 </body>
 </html>

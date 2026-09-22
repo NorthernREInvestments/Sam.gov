@@ -4408,6 +4408,13 @@ body.m3-only-app #dashboard-perf-alerts {
 @media (max-width: 640px) { .mpl-grid { grid-template-columns: 1fr; } }
 .mpl-status { font-weight: 700; margin: 0.25rem 0 0.75rem; }
 .mpl-pricing { background: rgba(125,211,252,0.06); border-radius: 10px; padding: 0.65rem 0.75rem; margin-bottom: 0.85rem; }
+.mpl-research, .mpl-research-summary {
+  background: rgba(52,211,153,0.06);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.mpl-today-ol { margin: 0.5rem 0 0 1.1rem; padding: 0; line-height: 1.55; }
 .mpl-summary-list { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
 .mpl-pill {
   display: inline-block;
