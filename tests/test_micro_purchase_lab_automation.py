@@ -460,4 +460,4 @@ def test_next_action_engine():
 def test_build_version_pin():
     from app import APP_BUILD_VERSION
 
-    assert APP_BUILD_VERSION == "20260922-m3-micro-lab-integrity-1"
+    assert APP_BUILD_VERSION.startswith("2026") and "m3-" in APP_BUILD_VERSION

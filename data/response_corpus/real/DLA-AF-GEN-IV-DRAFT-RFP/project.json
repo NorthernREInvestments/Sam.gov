@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "DLA-AF-GEN-IV-DRAFT-RFP",
+  "documents": [
+    {
+      "filename": "AF_GEN_IV_IPV_DRAFT_RFP.txt",
+      "stored_as": "a7f15b41efc28eb0_AF_GEN_IV_IPV_DRAFT_RFP.txt",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-AF-GEN-IV-DRAFT-RFP\\a7f15b41efc28eb0_AF_GEN_IV_IPV_DRAFT_RFP.txt",
+      "sha256": "a7f15b41efc28eb0595f57a92de07a2ee6c3a279685572677acf7fc2799e8e6d",
+      "bytes": 223809,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\AF_GEN_IV_IPV_DRAFT_RFP.txt",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:47:03.727465+00:00"
+    }
+  ],
+  "hashes": [
+    "a7f15b41efc28eb0595f57a92de07a2ee6c3a279685572677acf7fc2799e8e6d"
+  ],
+  "tags": [
+    "FEDERAL",
+    "DLA",
+    "RFP",
+    "EXACT_PART"
+  ],
+  "created_at": "2026-09-29T22:42:04.962701+00:00",
+  "buyer": "Defense Logistics Agency Aviation",
+  "agency": "DLA",
+  "solicitation_number": "AF-GEN-IV-IPV-DRAFT",
+  "title": "Air Force GEN IV IPV Draft RFP",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://www.dla.mil/Portals/104/Documents/Aviation/Commodities/AF%20Gen%20IV/DRAFT%20RFP%20AF%20GEN%20IV%20IPV.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+  "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+  "updated_at": "2026-09-29T22:47:03.727483+00:00"
+}

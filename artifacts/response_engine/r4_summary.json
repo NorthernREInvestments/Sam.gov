@@ -1,0 +1,32 @@
+{
+  "build": "20260929-m3-r4-buyer-forms-response-generation",
+  "verdict": "PHASE_R4_RESPONSE_DOCUMENT_GENERATION_READY",
+  "projects_analyzed": 32,
+  "status_counts": {
+    "DRAFT_INCOMPLETE": 32
+  },
+  "readiness_counts": {
+    "OWNER_ATTESTATION_REQUIRED": 7,
+    "OWNER_SIGNATURE_REQUIRED": 22,
+    "GENERATION_BLOCKED": 3
+  },
+  "fully_draftable": 0,
+  "partially_draftable": 32,
+  "blocked": 0,
+  "documents_generated_total": 766,
+  "signatures_pending": 32,
+  "auto_signed": 0,
+  "firewall_leaks_total": 0,
+  "sam_api_calls": 0,
+  "canonical_path": "response_engine.r4_service.run_r4_generation",
+  "max_state": "READY_FOR_R5_PREFLIGHT",
+  "never_ready_to_submit": true,
+  "next_phase": "R5 \u2014 SUBMISSION ADAPTERS / FINAL PREFLIGHT / OWNER APPROVAL / RECEIPT AUDIT",
+  "limitations": [
+    "Many corpus projects remain DRAFT_INCOMPLETE due to UNKNOWN R2/R3 inputs (expected)",
+    "PDF AcroForm fill requires pypdf; otherwise MANUAL/DOCX fallback",
+    "Buyer XLSX fill requires retained binary_path + cell maps",
+    "AI narrative limited to deterministic verified-fact templates in R4",
+    "No portal/email/physical submission executed"
+  ]
+}

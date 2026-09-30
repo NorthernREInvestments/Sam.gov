@@ -1,0 +1,36 @@
+{
+  "build": "20260929-m3-r11-production-intake-legacy-cutover",
+  "verdict_candidate": "PHASE_R11_PRODUCTION_SOLICITATION_INTAKE_PARTIAL",
+  "real_production_projects": 4,
+  "synthetic_projects": 6,
+  "total_projects": 10,
+  "limitation": "Only 4 unique real solicitation PDFs available under artifacts/transactional_procurement_evidence; remainder are multi-format fixtures. No live portal/auth packages ingested (0 network SAM).",
+  "intake": {
+    "documents_found": 19,
+    "documents_parsed": 19,
+    "fetch_success_pct": 100.0,
+    "missing_referenced_docs_projects": 3
+  },
+  "parsing": {
+    "pdfs": 4,
+    "native_text": 4,
+    "ocr_required": 0,
+    "ocr_failures": 0
+  },
+  "spreadsheets": {
+    "workbooks_parsed": 1,
+    "buyer_templates": 5,
+    "pricing_sheets": 4
+  },
+  "sam_api_calls": 0,
+  "legacy_cutover": {
+    "canonical_readiness_source": "response_engine_r1",
+    "legacy_ready_cannot_override": true,
+    "sample_wrap": {
+      "ladder": "BLOCKED",
+      "ready_to_submit": false,
+      "canonical_source": "response_engine_r1"
+    }
+  },
+  "clean_room": "No supplier/economics fields written into ResponseProject government namespace during intake."
+}

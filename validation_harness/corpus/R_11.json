@@ -1,0 +1,82 @@
+{
+  "case_id": "R_11",
+  "case_name": "GOOD DEAL \u2014 fully executable READY FOR OWNER APPROVAL",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ GOOD-R11\nAgency: Fixture Agency\nManufacturer: AcmeCorp Model: X100\nPart Number: ACME-X100-R11\nQuantity: 25 EA\nFOB DESTINATION Delivery within 20 days after award\nCommercial packaging ASTM D3951 acceptable.\nSubmit quotes via email to buying@example.invalid\nSubject line: GOOD-R11 Quote\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "AcmeCorp Authorized Distributor",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "acquisition_cost": 450,
+    "supported_profit": 18400,
+    "government_revenue": 52000,
+    "economics_complete": true,
+    "financing_compatible": true,
+    "funding_state": "COMPATIBLE",
+    "owner_cash_required_before_payment": 0,
+    "personal_guarantee_required": false,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true,
+    "product_classification": "COMMERCIAL_HARDWARE"
+  },
+  "expected": {
+    "classification": {
+      "product_classification": "COMMERCIAL_HARDWARE"
+    },
+    "product_identity": {
+      "part_number_detected": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "supplier": {
+      "supplier_validated": true,
+      "quote_executable": true,
+      "state": "QUOTE_EXECUTABLE"
+    },
+    "economics": {
+      "economics_complete": true
+    },
+    "financing": {
+      "financing_compatible": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": true
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": true,
+  "tags": [
+    "reality",
+    "positive_ready",
+    "good_deal",
+    "R11",
+    "REGRESSION_READY"
+  ],
+  "notes": "R11 \u2014 proves M3 can let a genuinely executable deal through",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": true,
+    "dashboard_and_deep_dive_agree": true,
+    "pipeline_consistent": true
+  },
+  "next_action_quality": "Present READY package to owner for bid approval decision.",
+  "blocker_quality": null
+}

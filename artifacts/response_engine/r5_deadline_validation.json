@@ -1,0 +1,9 @@
+{
+  "timezone_aware": true,
+  "late_blocks": true,
+  "internal_target_supported": true,
+  "fixture_late_status": {
+    "name": "late_deadline_block",
+    "preflight": "FAIL"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "corpus_project_id": "NE-6829-OF-CAMERAS",
+  "documents": [
+    {
+      "filename": "6829_20OF.html",
+      "stored_as": "2d34440b444a298a_6829_20OF.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\2d34440b444a298a_6829_20OF.html",
+      "sha256": "2d34440b444a298a5c81f768581970488a7f1187b1f173b15af2e0a91ae6512c",
+      "bytes": 18380,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF.html",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:21.465907+00:00"
+    },
+    {
+      "filename": "6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+      "stored_as": "3524073426dbc388_6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\3524073426dbc388_6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+      "sha256": "3524073426dbc388ace3273ae8aa07d35177b7b8775f4456b9ba99d5745ead83",
+      "bytes": 687376,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF,%20117110%20OR%20%20ITB%20stacked.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:22.108272+00:00"
+    },
+    {
+      "filename": "6829_20OF_20QUESTIONS_20FINAL.pdf",
+      "stored_as": "427ef472fbc46fe8_6829_20OF_20QUESTIONS_20FINAL.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\427ef472fbc46fe8_6829_20OF_20QUESTIONS_20FINAL.pdf",
+      "sha256": "427ef472fbc46fe83695eec4af6168525b2c96b53bdb51a8ba236e9595e92f02",
+      "bytes": 120820,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF%20QUESTIONS%20FINAL.pdf",
+      "role": "Q_AND_A",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:22.831991+00:00"
+    },
+    {
+      "filename": "6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+      "stored_as": "8cddab119cd4d7e5_6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\8cddab119cd4d7e5_6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+      "sha256": "8cddab119cd4d7e55e69c8483afff8a0391b374c6b751531b60de438a3c13dc8",
+      "bytes": 85050,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF%20Addendum%20Two-Revised%20Schedule%20of%20Events-REV%2005.20.22.pdf",
+      "role": "ADDENDUM",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:23.224910+00:00"
+    }
+  ],
+  "hashes": [
+    "2d34440b444a298a5c81f768581970488a7f1187b1f173b15af2e0a91ae6512c",
+    "3524073426dbc388ace3273ae8aa07d35177b7b8775f4456b9ba99d5745ead83",
+    "427ef472fbc46fe83695eec4af6168525b2c96b53bdb51a8ba236e9595e92f02",
+    "8cddab119cd4d7e55e69c8483afff8a0391b374c6b751531b60de438a3c13dc8"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "Q_AND_A",
+    "MULTI_AMENDMENT",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:47:21.111044+00:00",
+  "buyer": "Nebraska DAS / NDOT",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "6829 OF",
+  "title": "Traffic Classification Camera System",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:23.224934+00:00"
+}

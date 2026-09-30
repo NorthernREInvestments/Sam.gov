@@ -1,0 +1,39 @@
+{
+  "corpus_project_id": "NE-119949-O8B-GM-ZIP",
+  "documents": [
+    {
+      "filename": "NE_119949_O8B_package.zip",
+      "stored_as": "877f0202e345c8ab_NE_119949_O8B_package.zip",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM-ZIP\\877f0202e345c8ab_NE_119949_O8B_package.zip",
+      "sha256": "877f0202e345c8ab9c327eeeb44e82db44334dc68feb2959a80f41c755db89d2",
+      "bytes": 559529,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\NE_119949_O8B_package.zip",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:47:28.032004+00:00"
+    }
+  ],
+  "hashes": [
+    "877f0202e345c8ab9c327eeeb44e82db44334dc68feb2959a80f41c755db89d2"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "BUYER_XLSX",
+    "Q_AND_A",
+    "ZIP_PACKAGE"
+  ],
+  "created_at": "2026-09-29T22:47:27.883568+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "119949 O8 B-ZIP",
+  "title": "GM Vehicle Market Baskets commodity ITB (ZIP package)",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": "ZIP assembled from authoritative Nebraska buyer files for archive-handling validation",
+  "updated_at": "2026-09-29T22:47:28.032025+00:00"
+}

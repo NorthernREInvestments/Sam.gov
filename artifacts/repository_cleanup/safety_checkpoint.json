@@ -1,0 +1,32 @@
+﻿{
+    "created_at_utc":  "2026-09-30T02:27:32.1844629Z",
+    "branch":  "cleanup/m3-r5-production-consolidation",
+    "starting_commit_subject":  "feat: add µLab product-transaction integrity and source routing.",
+    "destructive_cleanup_allowed":  false,
+    "next_required_actions":  [
+                                  "Owner approve commit of known-good R5 state onto cleanup/m3-r5-production-consolidation",
+                                  "Record post-commit hash as r5_known_good_commit in this report",
+                                  "Only then begin proven-redundancy inventory (no deletes under uncertainty)"
+                              ],
+    "working_tree":  {
+                         "porcelain_line_count":  678,
+                         "clean":  false,
+                         "note":  "R5 response_engine, phase_l, docs, tests, artifacts are UNCOMMITTED. Known-good R5 state is NOT fully represented by starting_commit alone."
+                     },
+    "rules":  [
+                  "No business data deletion",
+                  "No live-consumer module deletion",
+                  "Migrate+test before delete when unique behavior exists",
+                  "KEEP uncertain files",
+                  "Any boot/route/regression failure =\u003e M3_PRODUCTION_REPOSITORY_CONSOLIDATED_FAILED"
+              ],
+    "starting_commit":  "0d5c08c717298888b013af1badba702999241419",
+    "repo":  "govtracker",
+    "checkpoint":  "CRITICAL_SAFETY_CHECKPOINT",
+    "blockers":  [
+                     "Working tree not committed — R5 state must be committed (or otherwise snapshot) before any delete/overwrite.",
+                     "Do not delete modules with live runtime consumers.",
+                     "Do not delete/overwrite real business data under data/.",
+                     "Uncertainty =\u003e KEEP + remaining_compatibility.json"
+                 ]
+}

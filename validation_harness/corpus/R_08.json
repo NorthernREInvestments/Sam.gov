@@ -1,0 +1,35 @@
+{
+  "case_id": "R_08",
+  "case_name": "FIRST ARTICLE / TEST \u2014 production hold until acceptance",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ FAT-R08\nPart Number: FAT-1 Quantity: 15 EA\nFirst Article Test (FAT) required prior to production.\nSource inspection may apply for FAT.\nDestination acceptance after FAT approval.\nFOB DESTINATION. Submit via email.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "inspection_acceptance": {
+      "first_article": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "fat",
+    "inspection",
+    "post_award",
+    "R08"
+  ],
+  "notes": "R08 \u2014 post-award workflow must reflect testing hold; not normal production start",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": "Document First Article Test requirements and confirm supplier can support FAT for PN FAT-1 before treating production as unlocked.",
+  "blocker_quality": null
+}

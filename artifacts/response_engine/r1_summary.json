@@ -1,0 +1,205 @@
+{
+  "kind": "R1CorpusValidationSummary",
+  "build": "20260929-m3-r1-solicitation-response-compiler-foundation",
+  "sam_api_calls": 0,
+  "cases": 7,
+  "results": [
+    {
+      "case_id": "federal-commercial-rfq",
+      "buyer": "Federal Agency Example",
+      "solicitation": "RFQ-PIEE-001",
+      "response_project_id": "RP-da41063c43be",
+      "response_type": "FEDERAL_PIEE_OFFER",
+      "evaluation_method": [
+        "LPTA",
+        "LOW_PRICE"
+      ],
+      "documents": 1,
+      "amendments": 0,
+      "requirements": 19,
+      "mandatory": 19,
+      "PASS": 0,
+      "UNKNOWN": 19,
+      "REVIEW": 0,
+      "hard_blockers": 17,
+      "clarifications": 0,
+      "deliverables": {
+        "SIGNATURE": 2,
+        "AMENDMENT_ACKNOWLEDGMENT": 1,
+        "FORM": 5,
+        "DOCUMENT_UPLOAD": 2,
+        "PORTAL_FIELD": 1
+      },
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "SAM",
+      "authoritative_source": "PIEE",
+      "submission_system": "PIEE"
+    },
+    {
+      "case_id": "state-brand-or-equal",
+      "buyer": "State of Nebraska",
+      "solicitation": "ITB-NE-88",
+      "response_project_id": "RP-4d7b7a381cc9",
+      "response_type": "STATE_LOCAL_PORTAL_QUOTE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "documents": 1,
+      "amendments": 0,
+      "requirements": 5,
+      "mandatory": 5,
+      "PASS": 0,
+      "UNKNOWN": 5,
+      "REVIEW": 0,
+      "hard_blockers": 5,
+      "clarifications": 0,
+      "deliverables": {},
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "BidNet",
+      "authoritative_source": "OpenGov",
+      "submission_system": "OpenGov"
+    },
+    {
+      "case_id": "exact-brand",
+      "buyer": "City Procurement",
+      "solicitation": "RFQ-EXACT-1",
+      "response_project_id": "RP-6397c3d927e0",
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "documents": 1,
+      "amendments": 0,
+      "requirements": 4,
+      "mandatory": 4,
+      "PASS": 0,
+      "UNKNOWN": 4,
+      "REVIEW": 0,
+      "hard_blockers": 4,
+      "clarifications": 0,
+      "deliverables": {
+        "PORTAL_FIELD": 1,
+        "EMAIL_ATTACHMENT": 1
+      },
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "agency mirror",
+      "authoritative_source": "agency procurement page",
+      "submission_system": "EMAIL"
+    },
+    {
+      "case_id": "amendment-quantity",
+      "buyer": "County Schools",
+      "solicitation": "RFQ-100",
+      "response_project_id": "RP-a8212303cf34",
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "documents": 2,
+      "amendments": 1,
+      "requirements": 2,
+      "mandatory": 2,
+      "PASS": 0,
+      "UNKNOWN": 2,
+      "REVIEW": 0,
+      "hard_blockers": 3,
+      "clarifications": 0,
+      "deliverables": {},
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "Bonfire",
+      "authoritative_source": "Bonfire",
+      "submission_system": "Bonfire"
+    },
+    {
+      "case_id": "dibbs-like",
+      "buyer": "DLA",
+      "solicitation": "SPE7M1-26-T-0001",
+      "response_project_id": "RP-58b3da0f6e2d",
+      "response_type": "FEDERAL_DIBBS_WEB_QUOTE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "documents": 2,
+      "amendments": 0,
+      "requirements": 1,
+      "mandatory": 1,
+      "PASS": 0,
+      "UNKNOWN": 1,
+      "REVIEW": 0,
+      "hard_blockers": 1,
+      "clarifications": 0,
+      "deliverables": {
+        "PORTAL_FIELD": 1
+      },
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "SAM",
+      "authoritative_source": "DIBBS",
+      "submission_system": "DIBBS"
+    },
+    {
+      "case_id": "format-rules-rfp",
+      "buyer": "Federal RFP Office",
+      "solicitation": "RFP-FMT-1",
+      "response_project_id": "RP-391089c35bf5",
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "documents": 1,
+      "amendments": 0,
+      "requirements": 5,
+      "mandatory": 5,
+      "PASS": 0,
+      "UNKNOWN": 5,
+      "REVIEW": 0,
+      "hard_blockers": 5,
+      "clarifications": 0,
+      "deliverables": {
+        "DOCUMENT_UPLOAD": 3,
+        "EMAIL_ATTACHMENT": 1
+      },
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "SAM",
+      "authoritative_source": "agency page",
+      "submission_system": "EMAIL"
+    },
+    {
+      "case_id": "buyer-template",
+      "buyer": "Los Angeles County",
+      "solicitation": "232178",
+      "response_project_id": "RP-682518ae26e9",
+      "response_type": "STATE_LOCAL_IFB",
+      "evaluation_method": [
+        "LOWEST_RESPONSIVE_RESPONSIBLE"
+      ],
+      "documents": 2,
+      "amendments": 0,
+      "requirements": 6,
+      "mandatory": 6,
+      "PASS": 0,
+      "UNKNOWN": 6,
+      "REVIEW": 0,
+      "hard_blockers": 6,
+      "clarifications": 0,
+      "deliverables": {
+        "FORM": 1,
+        "PORTAL_FIELD": 1,
+        "CLIN_PRICE": 1,
+        "BUYER_TEMPLATE": 1
+      },
+      "status": "BLOCKED",
+      "firewall_clean": true,
+      "discovery_source": "BidNet",
+      "authoritative_source": "county portal",
+      "submission_system": "portal"
+    }
+  ],
+  "store_dir": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_projects",
+  "verdict_hint": "PHASE_R1_SOLICITATION_COMPILER_FOUNDATION_READY"
+}

@@ -1,0 +1,60 @@
+{
+  "kind": "PhaseL21ManualProofCorpus",
+  "note": "Identity fixtures for regression — prices not hard-coded into production research.",
+  "cases": [
+    {
+      "id": "dell_mpn",
+      "title": "Dell Latitude 5540 Laptop P/N: 210-BFZX",
+      "description": "Brand name Dell Latitude. Manufacturer part number 210-BFZX. Qty 25 EA.",
+      "mpn": "210-BFZX",
+      "manufacturer": "Dell",
+      "family": "IT",
+      "expect_mpn_queries": true
+    },
+    {
+      "id": "asus_monitor",
+      "title": "ASUS VG27AQ Monitor",
+      "description": "ASUS model VG27AQ 27-inch gaming monitor or equal. Qty 40 EA.",
+      "model": "VG27AQ",
+      "manufacturer": "ASUS",
+      "family": "IT",
+      "expect_mpn_queries": true
+    },
+    {
+      "id": "bobcat_toolcat",
+      "title": "Brand Name Bobcat ToolCat UW56 Utility Work Machine",
+      "description": "Bobcat ToolCat UW56. Brand name. Qty 1 EA.",
+      "model": "UW56",
+      "manufacturer": "Bobcat",
+      "family": "EQUIPMENT",
+      "expect_mpn_queries": true
+    },
+    {
+      "id": "canon_ir",
+      "title": "Canon imageRUNNER ADVANCE DX C5860i",
+      "description": "Canon imageRUNNER C5860i multifunction printer. Qty 2 EA.",
+      "model": "C5860i",
+      "manufacturer": "Canon",
+      "family": "OFFICE",
+      "expect_mpn_queries": true
+    },
+    {
+      "id": "flir_t540",
+      "title": "FLIR T540 Thermal Camera",
+      "description": "FLIR T540 infrared camera. Qty 3 EA.",
+      "model": "T540",
+      "manufacturer": "FLIR",
+      "family": "LAB",
+      "expect_mpn_queries": true
+    },
+    {
+      "id": "nsn_to_mpn",
+      "title": "NSN 5930-01-215-4689 Switch P/N: 1274M99P01",
+      "description": "NSN 5930-01-215-4689. Part number 1274M99P01. Eaton. Qty 10 EA.",
+      "nsn": "5930-01-215-4689",
+      "mpn": "1274M99P01",
+      "manufacturer": "Eaton",
+      "expect_mpn_before_nsn_alone": true
+    }
+  ]
+}

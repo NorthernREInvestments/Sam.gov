@@ -1,0 +1,411 @@
+{
+  "build": "20260929-m3-r11-production-intake-legacy-cutover",
+  "projects": [
+    {
+      "project_id": "RP-07cb0a5a1aea",
+      "canonical_opportunity_id": "r11-corpus-real-005-RFB-3030-2027",
+      "kind": "REAL_PDF",
+      "source_types": [
+        "local_artifact",
+        "state_portal_pdf"
+      ],
+      "file_types": [
+        ".pdf"
+      ],
+      "docs_expected": 1,
+      "docs_found": 1,
+      "docs_parsed": 1,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 0,
+      "requirements": 22,
+      "material_requirements": 20,
+      "unknown_review": 22,
+      "missing_references": [
+        {
+          "label": "Amendment\n1",
+          "excerpt": "ructions for Responding to an Amendment 1.      Review the amendment in the solicitation. 2.      Com",
+          "source_span": [
+            2741,
+            2752
+          ]
+        },
+        {
+          "label": "Question and Answer",
+          "excerpt": " submit an question(s) in the Question and Answer Section with your exception(s). 1.1  Enter the Bidder's con",
+          "source_span": [
+            4857,
+            4876
+          ]
+        }
+      ],
+      "parse_confidence": [
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\005-RFB-3030-2027\\005-RFB-3030-2027__005-RFB-3030-2027-event.pdf"
+    },
+    {
+      "project_id": "RP-c90eeca63cef",
+      "canonical_opportunity_id": "r11-corpus-real-645-DOTRFB-2975-2027",
+      "kind": "REAL_PDF",
+      "source_types": [
+        "local_artifact",
+        "state_portal_pdf"
+      ],
+      "file_types": [
+        ".pdf"
+      ],
+      "docs_expected": 1,
+      "docs_found": 3,
+      "docs_parsed": 3,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 16,
+      "material_requirements": 8,
+      "unknown_review": 16,
+      "missing_references": [],
+      "parse_confidence": [
+        "HIGH",
+        "HIGH",
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-2975-2027\\645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf"
+    },
+    {
+      "project_id": "RP-cd6c1a553d7c",
+      "canonical_opportunity_id": "r11-corpus-real-645-DOTRFB-3042-2027",
+      "kind": "REAL_PDF",
+      "source_types": [
+        "local_artifact",
+        "state_portal_pdf"
+      ],
+      "file_types": [
+        ".pdf"
+      ],
+      "docs_expected": 1,
+      "docs_found": 3,
+      "docs_parsed": 3,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 16,
+      "material_requirements": 8,
+      "unknown_review": 16,
+      "missing_references": [],
+      "parse_confidence": [
+        "HIGH",
+        "HIGH",
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-3042-2027\\645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf"
+    },
+    {
+      "project_id": "RP-de3193428405",
+      "canonical_opportunity_id": "r11-corpus-real-645-DOTRFB-3046-2027",
+      "kind": "REAL_PDF",
+      "source_types": [
+        "local_artifact",
+        "state_portal_pdf"
+      ],
+      "file_types": [
+        ".pdf"
+      ],
+      "docs_expected": 1,
+      "docs_found": 3,
+      "docs_parsed": 3,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 16,
+      "material_requirements": 8,
+      "unknown_review": 16,
+      "missing_references": [],
+      "parse_confidence": [
+        "HIGH",
+        "HIGH",
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-3046-2027\\645-DOTRFB-3046-2027__645-DOTRFB-3046-2027-event.pdf"
+    },
+    {
+      "project_id": "RP-f63a7eab82a2",
+      "canonical_opportunity_id": "r11-syn-xlsx",
+      "kind": "SYNTHETIC:federal commercial RFQ + buyer Excel",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".xlsx"
+      ],
+      "docs_expected": 1,
+      "docs_found": 1,
+      "docs_parsed": 1,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 0,
+      "material_requirements": 0,
+      "unknown_review": 0,
+      "missing_references": [],
+      "parse_confidence": [
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    },
+    {
+      "project_id": "RP-719361c238a5",
+      "canonical_opportunity_id": "r11-syn-docx",
+      "kind": "SYNTHETIC:state commodity ITB DOCX",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".docx"
+      ],
+      "docs_expected": 1,
+      "docs_found": 1,
+      "docs_parsed": 1,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 4,
+      "material_requirements": 4,
+      "unknown_review": 4,
+      "missing_references": [
+        {
+          "label": "Attachment C",
+          "excerpt": "knowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            96,
+            108
+          ]
+        },
+        {
+          "label": "Amendment 0001",
+          "excerpt": "nd name or equal. Acknowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet require",
+          "source_span": [
+            76,
+            90
+          ]
+        },
+        {
+          "label": "See Attachment C",
+          "excerpt": ". Acknowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            92,
+            108
+          ]
+        },
+        {
+          "label": "Pricing Sheet",
+          "excerpt": "achment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            129,
+            142
+          ]
+        }
+      ],
+      "parse_confidence": [
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    },
+    {
+      "project_id": "RP-b3b36565f357",
+      "canonical_opportunity_id": "r11-syn-html",
+      "kind": "SYNTHETIC:portal-based RFQ HTML",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".html"
+      ],
+      "docs_expected": 1,
+      "docs_found": 1,
+      "docs_parsed": 1,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 2,
+      "material_requirements": 1,
+      "unknown_review": 2,
+      "missing_references": [],
+      "parse_confidence": [
+        "MEDIUM"
+      ],
+      "response_classification": "FEDERAL_SIMPLIFIED_RFQ",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    },
+    {
+      "project_id": "RP-782157c051b7",
+      "canonical_opportunity_id": "r11-syn-zip",
+      "kind": "SYNTHETIC:ZIP solicitation package",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".csv",
+        ".txt",
+        ".zip"
+      ],
+      "docs_expected": 1,
+      "docs_found": 3,
+      "docs_parsed": 3,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 4,
+      "material_requirements": 4,
+      "unknown_review": 4,
+      "missing_references": [],
+      "parse_confidence": [
+        "LOW",
+        "HIGH",
+        "HIGH"
+      ],
+      "response_classification": "FEDERAL_COMMERCIAL_RFQ",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "PARSE_REVIEW_REQUIRED",
+      "document_package_complete": false,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    },
+    {
+      "project_id": "RP-d9b1500564b8",
+      "canonical_opportunity_id": "r11-syn-qa-master",
+      "kind": "SYNTHETIC:DLA master + Q&A",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".txt"
+      ],
+      "docs_expected": 2,
+      "docs_found": 2,
+      "docs_parsed": 2,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 1,
+      "requirements": 0,
+      "material_requirements": 0,
+      "unknown_review": 0,
+      "missing_references": [],
+      "parse_confidence": [
+        "HIGH",
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    },
+    {
+      "project_id": "RP-ba483fbc55ac",
+      "canonical_opportunity_id": "r11-syn-missing",
+      "kind": "SYNTHETIC:missing Attachment C",
+      "source_types": [
+        "fixture"
+      ],
+      "file_types": [
+        ".txt"
+      ],
+      "docs_expected": 1,
+      "docs_found": 1,
+      "docs_parsed": 1,
+      "docs_failed": 0,
+      "amendments": 0,
+      "templates": 0,
+      "requirements": 1,
+      "material_requirements": 1,
+      "unknown_review": 1,
+      "missing_references": [
+        {
+          "label": "Attachment C",
+          "excerpt": "tation. Quantity: 5 each. See Attachment C for specifications. Signed form required.",
+          "source_span": [
+            41,
+            53
+          ]
+        },
+        {
+          "label": "See Attachment C",
+          "excerpt": "licitation. Quantity: 5 each. See Attachment C for specifications. Signed form required.",
+          "source_span": [
+            37,
+            53
+          ]
+        }
+      ],
+      "parse_confidence": [
+        "HIGH"
+      ],
+      "response_classification": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_classification": [
+        "UNKNOWN"
+      ],
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "provenance_coverage": 1.0,
+      "sam_api_calls": 0
+    }
+  ]
+}

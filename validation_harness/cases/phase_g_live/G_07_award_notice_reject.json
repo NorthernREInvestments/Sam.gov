@@ -1,0 +1,43 @@
+{
+  "case_id": "G_07_award_notice_reject",
+  "case_name": "Award Notice SWIMMING POOL REHABILITATION WORK",
+  "description": "Phase G LIVE_SOURCE frozen after supervised run. Retrieved 2026-09-24T18:03:13.634709+00:00. Original provenance LIVE_SOURCE \u2192 stored as REAL_SOURCE_FIXTURE / FROZEN_REAL_SOURCE.",
+  "source_type": "REAL_SOURCE_FIXTURE",
+  "source_fixture": "",
+  "documents": [],
+  "row_overrides": {
+    "canonical_id": "b38efb0a8ff54413a9a707dcfc591de7",
+    "title": "Award Notice SWIMMING POOL REHABILITATION WORK",
+    "solicitation_number": "19SA4026C0010",
+    "source_id": "fed_sam_contract_opportunities",
+    "ui_link": null,
+    "deadline": null,
+    "phase_g_provenance_at_capture": "LIVE_SOURCE",
+    "phase_g_frozen_as": "FROZEN_REAL_SOURCE",
+    "live_retrieval_timestamp": "2026-09-24T18:03:13.634709+00:00",
+    "is_dla": false,
+    "ready_for_owner_approval_observed": false,
+    "execution_critical_blockers_observed": [],
+    "operator_next_action_observed": null
+  },
+  "expected": {
+    "ready_for_owner_approval": false,
+    "phase_g_note": "Listing-only capture; must not be labeled LIVE_SOURCE in future runs"
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "phase_g",
+    "LIVE_PROMOTED",
+    "award_notice_reject"
+  ],
+  "notes": "Promoted from Phase G live batch without altering facts. Not a READY path.",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": "REAL_SOURCE_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

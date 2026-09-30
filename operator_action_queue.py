@@ -12,6 +12,7 @@ from executable_deal_constants import (
     ACTION_CALL_SUPPLIER,
     ACTION_DOWNLOAD_AUTH,
     ACTION_OBTAIN_FREIGHT,
+    ACTION_REGISTER_PORTAL,
     ACTION_REVIEW_PG,
 )
 from operating_mode import classify_action_timing, future_action_phrasing, is_development_no_outreach
@@ -90,6 +91,11 @@ def build_supplier_call_sheet(
     supplier: dict[str, Any],
     line_items: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Compatibility helper for deal-queue actions.
+
+    Canonical live call desk for L.21+ quote outreach is
+    ``phase_l.l22_supplier_call_desk.build_supplier_call_sheet``.
+    """
     dest = deal.get("delivery_destination") or deal.get("ship_to") or "delivery location per solicitation"
     deadline = deal.get("bid_deadline") or deal.get("deadline")
     qs = [
@@ -104,6 +110,8 @@ def build_supplier_call_sheet(
     ]
     return {
         "kind": "SupplierCallSheet",
+        "phase": "legacy_compat",
+        "canonical": "phase_l.l22_supplier_call_desk",
         "deal_id": deal.get("solicitation_number") or deal.get("deal_id"),
         "supplier": supplier.get("name") or supplier.get("supplier"),
         "contact": supplier.get("contact") or supplier.get("url"),
@@ -117,7 +125,7 @@ def build_supplier_call_sheet(
             for li in (line_items or [])[:20]
         ],
         "auto_send": False,
-        "note": "Operator-controlled communication only",
+        "note": "Operator-controlled communication only — use L.22 call desk for full answer capture",
     }
 
 
@@ -229,4 +237,52 @@ def enqueue_financier_action(
         priority=40,
     )
     action["call_sheet"] = sheet
+    return queue.add(action)
+
+
+def enqueue_portal_registration_action(
+    queue: OperatorActionQueue,
+    *,
+    deal: dict[str, Any],
+    portal_source: str,
+    registration_url: str | None = None,
+    registration_action: str = "REGISTER_BEFORE_BID",
+    why: str | None = None,
+    priority: int | None = None,
+) -> dict[str, Any]:
+    """Owner action to complete ordinary vendor/portal registration. No auto-register."""
+    deal_id = str(
+        deal.get("solicitation_number")
+        or deal.get("solicitation_id")
+        or deal.get("external_id")
+        or deal.get("deal_id")
+        or portal_source
+    )
+    recurring = registration_action == "REGISTER_NOW_RECURRING_BUYER"
+    pri = priority if priority is not None else (25 if recurring else 45)
+    action = operator_action(
+        ACTION_REGISTER_PORTAL,
+        deal_id=deal_id,
+        why=why
+        or (
+            "Recurring relevant buyer — complete easy portal registration now"
+            if recurring
+            else "Ordinary vendor registration required before bid submission"
+        ),
+        who_where=registration_url or portal_source,
+        questions=[
+            f"Register / confirm vendor account on {portal_source}",
+            "Upload W-9 / tax / contact information if requested",
+            "Confirm commodity codes / categories for product bids",
+            "Record vendor number in company eligibility profile when issued",
+        ],
+        information_expected=["vendor_number", "registration_status", "approval_date"],
+        unlocks_stage="SUBMISSION_READINESS",
+        priority=pri,
+        force_timing="NOW" if recurring else None,
+    )
+    action["registration_action"] = registration_action
+    action["portal_source"] = portal_source
+    action["registration_url"] = registration_url
+    action["auto_register"] = False
     return queue.add(action)

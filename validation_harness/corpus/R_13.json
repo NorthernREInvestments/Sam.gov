@@ -1,0 +1,60 @@
+{
+  "case_id": "R_13",
+  "case_name": "REAL_SOURCE Opp199 \u2014 SAM 47QACA26Q0439 Dell PowerEdge R670",
+  "description": "",
+  "source_type": "REAL_SOURCE_FIXTURE",
+  "source_fixture": "REAL_SOURCE_FIXTURE\nSource: fixtures/opp199.py + _opp199_stage3_report.json (frozen local)\nSolicitation: 47QACA26Q0439\nNotice: 610bea2df5c1436994e316259e29a9a6\nAgency: GSA / FAS\nPart Number: 210-BNZH\nDell PowerEdge R670 Server brand-name basis\nQuantity: 14 EA\nShip to: 2415 Eisenhower Avenue, Alexandria, VA 22314\nDelivery within 30 days ARO\nFOB DESTINATION\nOn-Site Installation Declined\nMemory: 16GB RDIMM 6400MT/s \u2014 8 per server (112 total)\nStorage: 2.4TB SAS \u2014 6 per server (84 total)\nSubmit per solicitation package.\n",
+  "documents": [],
+  "row_overrides": {
+    "canonical_id": "opp199:47QACA26Q0439",
+    "solicitation_number": "47QACA26Q0439",
+    "product_classification": "IT_SERVER",
+    "preferred_supplier": "Dell Technologies Federal / Dell Federal Systems L.P.",
+    "line_items": [
+      {
+        "clin": "0001",
+        "description": "Dell PowerEdge R670 / 210-BNZH",
+        "quantity": 14,
+        "uom": "EA",
+        "destination": "Alexandria VA",
+        "fob": "DESTINATION"
+      }
+    ]
+  },
+  "expected": {
+    "product_identity": {
+      "part_number_detected": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "shipping_delivery": {
+      "fob_destination": true,
+      "delivery_aro_detected": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "real_source",
+    "opp199",
+    "sam",
+    "R13"
+  ],
+  "notes": "R13 \u2014 REAL_SOURCE from local Opp199 frozen reports/fixtures. Incomplete supplier/econ/finance \u2192 not READY (expected).",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REAL_SOURCE_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false,
+    "real_source_labeled": true
+  },
+  "next_action_quality": "Request a formal quote from Dell Federal / authorized reseller for 14 EA of PN 210-BNZH (PowerEdge R670) delivered to Alexandria VA within 30 days ARO; confirm memory and storage BOM quantities match the solicitation.",
+  "blocker_quality": null
+}

@@ -1,0 +1,6841 @@
+{
+  "kind": "BuyerHistoryProfileRegistry",
+  "build": "20260928-m3-phase-l19-buyer-specific-history-recovery",
+  "profiles": {
+    "CITY OF AUSTIN": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "CITY OF AUSTIN",
+      "buyer": "City of Austin",
+      "jurisdiction": "TX",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.austin.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.austin.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/search?q=IFB-2024-100+F-150+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/search?q=IFB-2024-100+F-150+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/search?q=IFB-1+F-150+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://austin.gov/search?q=IFB-1+F-150+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.austin.gov/agendas/award.pdf",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_austin_contracts",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": "https://www.austin.gov/agendas/award.pdf",
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": "2026-09-28T18:14:25.740621+00:00",
+      "history_sources": [
+        {
+          "url": "https://www.austin.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/search?q=IFB-2024-100+F-150+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/search?q=IFB-2024-100+F-150+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/search?q=IFB-1+F-150+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://austin.gov/search?q=IFB-1+F-150+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.austin.gov/agendas/award.pdf",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_austin_contracts",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T05:00:49.589444+00:00"
+    },
+    "MAYOR'S OFFICE OF CRIMINAL JUSTICE": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "MAYOR'S OFFICE OF CRIMINAL JUSTICE",
+      "buyer": "Mayor's Office of Criminal Justice",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.mayorsofficecriminal.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.mayorsofficecriminal.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/search?q=12826Y0017+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/search?q=12826Y0017+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.mayorsofficecriminal.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.mayorsofficecriminal.gov/search?q=12826Y0017+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://mayorsofficecriminal.gov/search?q=12826Y0017+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:27:27.391082+00:00"
+    },
+    "ENVIRONMENTAL PROTECTION": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "ENVIRONMENTAL PROTECTION",
+      "buyer": "Environmental Protection",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.environmentalprotection.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.environmentalprotection.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/search?q=82626B0018+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://environmentalprotection.gov/search?q=82626B0018+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.environmentalprotection.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.environmentalprotection.gov/search?q=82626B0018+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://environmentalprotection.gov/search?q=82626B0018+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 9,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:55.423101+00:00"
+    },
+    "CITY UNIVERSITY": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "CITY UNIVERSITY",
+      "buyer": "City University",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.cityuniversity.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.cityuniversity.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/search?q=BMCC266703+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://cityuniversity.gov/search?q=BMCC266703+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.cityuniversity.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.cityuniversity.gov/search?q=BMCC266703+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://cityuniversity.gov/search?q=BMCC266703+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:27:41.815755+00:00"
+    },
+    "LOS ANGELES COUNTY": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "LOS ANGELES COUNTY",
+      "buyer": "Los Angeles County",
+      "jurisdiction": "CA",
+      "buyer_type": "COUNTY",
+      "procurement_portal": "https://www.losangelescounty.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.losangelescounty.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/search?q=232011+Chromebox+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://losangelescounty.gov/search?q=232011+Chromebox+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": "structured_socrata_brla_po",
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": "2026-09-29T04:28:27.012598+00:00",
+      "history_sources": [
+        {
+          "url": "https://www.losangelescounty.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.losangelescounty.gov/search?q=232011+Chromebox+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://losangelescounty.gov/search?q=232011+Chromebox+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 15,
+      "matches": 1,
+      "exact_matches": 1,
+      "gov_upgrades": 1,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:15.418499+00:00"
+    },
+    "HARBOR DEPARTMENT, PORT OF LOS ANGELES": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "HARBOR DEPARTMENT, PORT OF LOS ANGELES",
+      "buyer": "Harbor Department, Port of Los Angeles",
+      "jurisdiction": "CA",
+      "buyer_type": "COUNTY",
+      "procurement_portal": "https://www.harborportlos.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.harborportlos.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.harborportlos.gov/search?q=231972+c18+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://harborportlos.gov/search?q=231972+c18+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": "structured_socrata_chicago_contracts",
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": "2026-09-29T04:28:13.733209+00:00",
+      "history_sources": [
+        {
+          "url": "https://www.harborportlos.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.harborportlos.gov/search?q=231972+c18+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://harborportlos.gov/search?q=231972+c18+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 1,
+      "exact_matches": 0,
+      "gov_upgrades": 1,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:13.734407+00:00"
+    },
+    "DEPARTMENT OF TRANSPORTATION": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "DEPARTMENT OF TRANSPORTATION",
+      "buyer": "Department of Transportation",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.transportation.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.transportation.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.transportation.gov/search?q=1200627+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://transportation.gov/search?q=1200627+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.transportation.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.transportation.gov/search?q=1200627+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://transportation.gov/search?q=1200627+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:30.697111+00:00"
+    },
+    "SOURCEWELL": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "SOURCEWELL",
+      "buyer": "Sourcewell",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.sourcewell.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.sourcewell.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.sourcewell.gov/search?q=11351+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://sourcewell.gov/search?q=11351+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.sourcewell.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.sourcewell.gov/search?q=11351+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://sourcewell.gov/search?q=11351+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:35.693346+00:00"
+    },
+    "NYC M/WBE UPCOMING PROCUREMENTS": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "NYC M/WBE UPCOMING PROCUREMENTS",
+      "buyer": "NYC M/WBE Upcoming Procurements",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.nycmwbeupcoming.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.nycmwbeupcoming.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/search?q=IT+Security+Hardware+%28Cisco+Catayst+9600+series+24+ports+and+100GBASE+SR4+QSFP+transceivers+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/search?q=IT+Security+Hardware+%28Cisco+Catayst+9600+series+24+ports+and+100GBASE+SR4+QSFP+transceivers+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.nycmwbeupcoming.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.nycmwbeupcoming.gov/search?q=IT+Security+Hardware+%28Cisco+Catayst+9600+series+24+ports+and+100GBASE+SR4+QSFP+transceivers+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://nycmwbeupcoming.gov/search?q=IT+Security+Hardware+%28Cisco+Catayst+9600+series+24+ports+and+100GBASE+SR4+QSFP+transceivers+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:32.296555+00:00"
+    },
+    "1060 COUNTY TREASURER": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "1060 COUNTY TREASURER",
+      "buyer": "1060 COUNTY TREASURER",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.1060countytreasurer.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.1060countytreasurer.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/search?q=BP+2026-18+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/search?q=BP+2026-18+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.1060countytreasurer.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1060countytreasurer.gov/search?q=BP+2026-18+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://1060countytreasurer.gov/search?q=BP+2026-18+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:43.417591+00:00"
+    },
+    "1280 ADULT PROBATION": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "1280 ADULT PROBATION",
+      "buyer": "1280 ADULT PROBATION",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.1280adultprobation.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.1280adultprobation.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/search?q=BP+2026-62+Police+Pursuit+Interceptor+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1280adultprobation.gov/search?q=BP+2026-62+Police+Pursuit+Interceptor+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": "structured_socrata_brla_po",
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": "2026-09-29T04:28:50.850981+00:00",
+      "history_sources": [
+        {
+          "url": "https://www.1280adultprobation.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1280adultprobation.gov/search?q=BP+2026-62+Police+Pursuit+Interceptor+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://1280adultprobation.gov/search?q=BP+2026-62+Police+Pursuit+Interceptor+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 1,
+      "exact_matches": 0,
+      "gov_upgrades": 1,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:50.852548+00:00"
+    },
+    "ILLINOIS": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "ILLINOIS",
+      "buyer": "Illinois",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.illinois.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.illinois.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/search?q=444171205790+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/search?q=444171205790+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.illinois.gov/search?q=444171205790+Bridge+Inspection+Crane+Truck+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://illinois.gov/search?q=444171205790+Bridge+Inspection+Crane+Truck+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.illinois.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/search?q=444171205790+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/search?q=444171205790+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.illinois.gov/search?q=444171205790+Bridge+Inspection+Crane+Truck+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://illinois.gov/search?q=444171205790+Bridge+Inspection+Crane+Truck+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:50.961421+00:00"
+    },
+    "IOWA": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "IOWA",
+      "buyer": "Iowa",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.iowa.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.iowa.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/search?q=2653998992+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/search?q=2653998992+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.iowa.gov/search?q=444170535344+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://iowa.gov/search?q=444170535344+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.iowa.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/search?q=2653998992+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/search?q=2653998992+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.iowa.gov/search?q=444170535344+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://iowa.gov/search?q=444170535344+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:28:54.602121+00:00"
+    },
+    "KENTUCKY": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "KENTUCKY",
+      "buyer": "Kentucky",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.kentucky.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.kentucky.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/search?q=2716566047+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/search?q=2716566047+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.kentucky.gov/search?q=444170645843+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://kentucky.gov/search?q=444170645843+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.kentucky.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/search?q=2716566047+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/search?q=2716566047+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.kentucky.gov/search?q=444170645843+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://kentucky.gov/search?q=444170645843+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:37.775409+00:00"
+    },
+    "MISSOURI": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "MISSOURI",
+      "buyer": "Missouri",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.missouri.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.missouri.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.missouri.gov/search?q=444177076367+0549701+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://missouri.gov/search?q=444177076367+0549701+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.missouri.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.missouri.gov/search?q=444177076367+0549701+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://missouri.gov/search?q=444177076367+0549701+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:01.284511+00:00"
+    },
+    "OHIO": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "OHIO",
+      "buyer": "Ohio",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.ohio.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.ohio.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.ohio.gov/search?q=444176825577+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://ohio.gov/search?q=444176825577+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.ohio.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.ohio.gov/search?q=444176825577+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://ohio.gov/search?q=444176825577+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:08.957326+00:00"
+    },
+    "VIRGINIA": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "VIRGINIA",
+      "buyer": "Virginia",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.virginia.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.virginia.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.virginia.gov/search?q=444176689907+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://virginia.gov/search?q=444176689907+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.virginia.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.virginia.gov/search?q=444176689907+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://virginia.gov/search?q=444176689907+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:16.662498+00:00"
+    },
+    "OREGON": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "OREGON",
+      "buyer": "Oregon",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.oregon.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.oregon.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.oregon.gov/search?q=444176736699+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://oregon.gov/search?q=444176736699+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.oregon.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.oregon.gov/search?q=444176736699+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://oregon.gov/search?q=444176736699+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:19.941325+00:00"
+    },
+    "PENNSYLVANIA": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "PENNSYLVANIA",
+      "buyer": "Pennsylvania",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.pennsylvania.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.pennsylvania.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/search?q=444176672424+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://pennsylvania.gov/search?q=444176672424+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.pennsylvania.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.pennsylvania.gov/search?q=444176672424+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://pennsylvania.gov/search?q=444176672424+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:42.918535+00:00"
+    },
+    "HOUSING AUTHORITY": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "HOUSING AUTHORITY",
+      "buyer": "Housing Authority",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.housingauthority.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.housingauthority.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.housingauthority.gov/search?q=518131+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://housingauthority.gov/search?q=518131+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.housingauthority.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.housingauthority.gov/search?q=518131+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://housingauthority.gov/search?q=518131+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 9,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:10.523414+00:00"
+    },
+    "1200.DEPT OF FACILITIES MGMT": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "1200.DEPT OF FACILITIES MGMT",
+      "buyer": "1200.DEPT OF FACILITIES MGMT",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.1200deptfacilitiesmgmt.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/search?q=BP+2026-32+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/search?q=BP+2026-32+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1200deptfacilitiesmgmt.gov/search?q=BP+2026-32+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://1200deptfacilitiesmgmt.gov/search?q=BP+2026-32+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:29:51.856332+00:00"
+    },
+    "CITYWIDE ADMINISTRATIVE SERVICES": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "CITYWIDE ADMINISTRATIVE SERVICES",
+      "buyer": "Citywide Administrative Services",
+      "jurisdiction": "NY",
+      "buyer_type": "CITY",
+      "procurement_portal": "https://www.citywideadministrativese.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.citywideadministrativese.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/search?q=85726B0060+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/search?q=85726B0060+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.citywideadministrativese.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.citywideadministrativese.gov/search?q=85726B0060+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://citywideadministrativese.gov/search?q=85726B0060+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_nyc_discretionary_awards",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:00.514228+00:00"
+    },
+    "AIRPORTS, LOS ANGELES WORLD": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "AIRPORTS, LOS ANGELES WORLD",
+      "buyer": "Airports, Los Angeles World",
+      "jurisdiction": "CA",
+      "buyer_type": "COUNTY",
+      "procurement_portal": "https://www.airportslosangeles.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.airportslosangeles.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/search?q=231872+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://airportslosangeles.gov/search?q=231872+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "type": "structured_open_data"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.airportslosangeles.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.airportslosangeles.gov/search?q=231872+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://airportslosangeles.gov/search?q=231872+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "source_id": "structured_socrata_la_county",
+          "role": "structured_open_data",
+          "preferred": true
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:19.038609+00:00"
+    },
+    "1001 COUNTYWIDE": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "1001 COUNTYWIDE",
+      "buyer": "1001 COUNTYWIDE",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.1001countywide.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.1001countywide.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.1001countywide.gov/search?q=BP+2026-63+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://1001countywide.gov/search?q=BP+2026-63+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.1001countywide.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.1001countywide.gov/search?q=BP+2026-63+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://1001countywide.gov/search?q=BP+2026-63+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:22.684927+00:00"
+    },
+    "DEPARTMENT OF GENERAL SERVICES, DIVISION OF FLEET MANAGEMENT SERVICES": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "DEPARTMENT OF GENERAL SERVICES, DIVISION OF FLEET MANAGEMENT SERVICES",
+      "buyer": "Department of General Services, Division of Fleet Management Services",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.generalservicesdivision.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.generalservicesdivision.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/search?q=1201886+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/search?q=1201886+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.generalservicesdivision.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.generalservicesdivision.gov/search?q=1201886+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://generalservicesdivision.gov/search?q=1201886+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 3,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:26.294902+00:00"
+    },
+    "GEORGIA": {
+      "kind": "BuyerHistoryProfile",
+      "buyer_id": "GEORGIA",
+      "buyer": "Georgia",
+      "jurisdiction": null,
+      "buyer_type": null,
+      "procurement_portal": "https://www.georgia.gov/",
+      "official_history_sources": [
+        {
+          "url": "https://www.georgia.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/search?q=444161979707+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/bids",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/purchasing",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/procurement",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/finance",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/agendas",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/council",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/board",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/contracts",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/opendata",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/open-data",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/check-register",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/vendor",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/search?q=444161979707+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://www.georgia.gov/search?q=444162588482+bid+tabulation+award",
+          "type": "discovered"
+        },
+        {
+          "url": "https://georgia.gov/search?q=444162588482+bid+tabulation+award",
+          "type": "discovered"
+        }
+      ],
+      "award_archive": null,
+      "bid_tab_source": null,
+      "po_source": null,
+      "payment_source": null,
+      "contract_register_source": null,
+      "board_council_source": null,
+      "open_data_source": null,
+      "recurring_buy_evidence": [],
+      "history_source_health": {
+        "discovery": "HISTORY_SOURCE_FOUND"
+      },
+      "last_successful_recovery": null,
+      "history_sources": [
+        {
+          "url": "https://www.georgia.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/search?q=444161979707+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/bids",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/purchasing",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/procurement",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/finance",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/agendas",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/council",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/board",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/contracts",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/opendata",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/open-data",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/check-register",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/vendor",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/search?q=444161979707+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://www.georgia.gov/search?q=444162588482+bid+tabulation+award",
+          "role": "history"
+        },
+        {
+          "url": "https://georgia.gov/search?q=444162588482+bid+tabulation+award",
+          "role": "history"
+        }
+      ],
+      "live_sources": [],
+      "queries_attempted": 6,
+      "matches": 0,
+      "exact_matches": 0,
+      "gov_upgrades": 0,
+      "competition_evidence": 0,
+      "recurring_buy_signals": 0,
+      "updated_at": "2026-09-29T04:30:33.741739+00:00"
+    }
+  },
+  "updated_at": "2026-09-29T05:00:49.589697+00:00"
+}

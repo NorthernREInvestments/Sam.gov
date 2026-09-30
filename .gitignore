@@ -1,4 +1,5 @@
 .env
+.env.local
 .cache/
 __pycache__/
 *.pyc
@@ -9,11 +10,89 @@ __pycache__/
 .venv/
 venv/
 
-# Generated validation/runtime artifacts (not source)
+# Generated validation/runtime artifacts (not source) — allowlist permanent ops + R5 baseline
 artifacts/
 !artifacts/m3_operator_day_one_checklist.md
 !artifacts/m3_primary_application_operational_report.json
 !artifacts/m3_configuration_separation_audit.json
+!artifacts/m3_automatic_discovery_operational_report.json
+!artifacts/m3_initial_production_discovery_run.json
+!artifacts/m3_production_discovery_persistence_verification.json
+!artifacts/response_engine/
+!artifacts/response_engine/**
+!artifacts/repository_cleanup/
+!artifacts/repository_cleanup/**
 _opp*_report.json
 _opp*_*.json
 *_full_pytest.txt
+_full_pytest_*.txt
+
+# --- M3 fat-trim additions (20260929) ---
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+_wip_backup*/
+artifacts/_t/
+artifacts/_temp*/
+artifacts/live_inspect/
+**/_probe_*
+**/_phoenix_*
+**/_ne_*
+*_full_pytest.txt
+.DS_Store
+Thumbs.db
+*.egg-info/
+.venv/
+venv/
+# Local secrets
+.env
+.env.local
+# Build-time gazetteers (regenerate offline)
+_gaz_*.zip
+
+# --- Data classification (R5 baseline) ---
+# Default: ignore mutable/generated operational data under data/
+data/**
+# Canonical / intentionally version-controlled application + corpus data
+!data/response_corpus/
+!data/response_corpus/real/
+!data/response_corpus/real/**
+!data/shared_master_documents/
+!data/shared_master_documents/**
+!data/company_eligibility_profile.json
+!data/lower48_counties.json
+!data/lower48_municipalities.json
+!data/jurisdiction_procurement_registry.json
+!data/opengov_agency_mirror_registry.json
+!data/manufacturer_channel_profiles.json
+!data/supplier_profiles.json
+!data/buyer_history_profiles.json
+!data/buyer_portal_registration_tracker.json
+!data/phase_l11_buyer_registry.json
+!data/phase_l12_buyer_history_paths.json
+!data/phase_l13_url_patterns.json
+!data/phase_l13_public_artifact_index.json
+!data/phase_l14_bidnet_auth_history_parked.json
+!data/source_expansion_queue.json
+!data/bidnet_network_discovery_validation.json
+!data/national_discovery_scale_validation.json
+# Explicit re-ignore of mutable / live / cache under otherwise-allowed trees
+data/response_corpus/cache/
+data/response_projects/
+
+# Local debug / temp scripts output
+scripts/_award_probe_out/
+scripts/_debug_*.py
+scripts/_full_pytest*.txt
+scripts/_material_gaps_out*.txt
+scripts/_status_once.py
+scripts/_poll_prod_discovery.py
+scripts/_run_gov_revenue.py
+scripts/_run_seed_basket.py
+scripts/_inventory_*.py
+scripts/_fix_build_pins_for_micro_lab.py
+scripts/_check_nde_parse.py

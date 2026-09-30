@@ -44,11 +44,35 @@ def test_nav_includes_core_m3_tabs_not_legacy_gos():
     nav = html.split('id="m3-bottom-nav"')[1].split("</nav>")[0]
     assert 'data-m3-view="home"' in nav
     assert 'data-m3-view="opportunities"' in nav
-    assert 'data-m3-view="actions"' in nav
-    assert 'data-m3-view="sources"' in nav
+    assert 'data-m3-view="deep-dive"' in nav
+    assert 'data-m3-view="pipeline"' in nav
+    assert 'data-m3-view="history"' in nav
     assert 'data-m3-view="settings"' in nav
+    assert 'data-m3-view="actions"' not in nav
+    assert 'data-m3-view="sources"' not in nav
     assert "Active Deals" not in nav
     assert "Contracts" not in nav
+    assert "Dashboard" in nav
+    assert "New Opps" in nav
+
+
+def test_operator_ui_shell_present():
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "static" / "index.html").read_text(encoding="utf-8")
+    js = (root / "static" / "m3-mobile.js").read_text(encoding="utf-8")
+    audit = root / "docs" / "operator_ui_audit.md"
+    assert audit.exists()
+    assert 'id="view-m3-pipeline"' in html
+    assert 'id="view-m3-history"' in html
+    assert 'id="view-m3-deep-dive"' in html
+    assert 'id="m3-deal-checklist"' in html
+    assert 'id="view-m3-advanced"' in html
+    assert "What requires my attention today?" in html
+    assert "owLabel" in js
+    assert "renderDealChecklist" in js
+    assert "loadPipeline" in js
+    assert "READY FOR OWNER APPROVAL" in js
+    assert 'ROLE_KEY = "m3_operator_role"' in js
 
 
 def test_naics_metadata_preserved_legacy_targets_gone():

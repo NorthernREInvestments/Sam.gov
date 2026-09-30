@@ -29,6 +29,33 @@ _CUSTOMER_ORG = {
 }
 
 
+def _deadline_payload_from_matched(matched: Any) -> dict[str, Any]:
+    """Carry listing Close (response deadline) — never Open/posted as close."""
+    if matched is None:
+        return {}
+    meta = getattr(matched, "raw_metadata", None) or {}
+    close_raw = getattr(matched, "deadline_raw", None) or meta.get("close_date_raw")
+    posted_raw = meta.get("posted_raw") or meta.get("open_date_raw")
+    if not close_raw and not posted_raw:
+        return {}
+    return {
+        "deadline_raw": close_raw,
+        "response_deadline": close_raw,
+        "deadline": close_raw,
+        "deadline_timezone": getattr(matched, "deadline_timezone", None),
+        "deadline_tz_confidence": getattr(matched, "deadline_tz_confidence", None),
+        "posted_raw": posted_raw,
+        "open_date_raw": posted_raw,
+        "open_is_not_response_deadline": True if posted_raw else None,
+        "listing_dates": {
+            "posted_date": posted_raw,
+            "open_date": posted_raw,
+            "closing_date": close_raw,
+            "response_deadline": close_raw,
+        },
+    }
+
+
 def _list_url_for(family: str, row: dict[str, Any]) -> str | None:
     org = _CUSTOMER_ORG.get(family)
     if not org:
@@ -160,7 +187,9 @@ def resolve_jaggaer_documents(row: dict[str, Any], *, family: str = "JAGGAER") -
             "detail_url": detail,
             "list_url": list_url,
             "matched_title": getattr(matched, "title", None) if matched else None,
+            "matched_solicitation": getattr(matched, "solicitation_number", None) if matched else None,
             "retrieval_method": "jaggaer_public_event_signed_pdf",
+            **_deadline_payload_from_matched(matched),
         }
 
     # Download first valid PDF
@@ -237,4 +266,5 @@ def resolve_jaggaer_documents(row: dict[str, Any], *, family: str = "JAGGAER") -
         "matched_solicitation": getattr(matched, "solicitation_number", None) if matched else None,
         "retrieval_method": "jaggaer_public_event_signed_pdf",
         "status": DOCUMENT_BYTES_RECOVERED if documents else (failure or DOWNLOAD_ENDPOINT_UNRESOLVED),
+        **_deadline_payload_from_matched(matched),
     }

@@ -1,0 +1,16 @@
+{
+  "adapter_counts": {
+    "PORTAL": 26,
+    "PIEE": 3,
+    "EMAIL": 3
+  },
+  "dry_run_default": true,
+  "types": [
+    "PORTAL",
+    "DIBBS",
+    "PIEE",
+    "EMAIL",
+    "PHYSICAL"
+  ],
+  "live_submit": false
+}

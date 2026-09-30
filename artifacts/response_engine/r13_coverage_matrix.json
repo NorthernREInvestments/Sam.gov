@@ -1,0 +1,119 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "matrix": [
+    {
+      "scenario": "FEDERAL",
+      "target": 4,
+      "actual": 10,
+      "met": true
+    },
+    {
+      "scenario": "DLA",
+      "target": 3,
+      "actual": 4,
+      "met": true
+    },
+    {
+      "scenario": "PIEE",
+      "target": 2,
+      "actual": 3,
+      "met": true
+    },
+    {
+      "scenario": "STATE",
+      "target": 5,
+      "actual": 18,
+      "met": true
+    },
+    {
+      "scenario": "LOCAL",
+      "target": 1,
+      "actual": 5,
+      "met": true
+    },
+    {
+      "scenario": "NEBRASKA",
+      "target": 2,
+      "actual": 10,
+      "met": true
+    },
+    {
+      "scenario": "SF1449",
+      "target": 2,
+      "actual": 5,
+      "met": true
+    },
+    {
+      "scenario": "IFB",
+      "target": 1,
+      "actual": 4,
+      "met": true
+    },
+    {
+      "scenario": "RFP",
+      "target": 1,
+      "actual": 3,
+      "met": true
+    },
+    {
+      "scenario": "RFQ",
+      "target": 4,
+      "actual": 19,
+      "met": true
+    },
+    {
+      "scenario": "EXACT_PART",
+      "target": 2,
+      "actual": 7,
+      "met": true
+    },
+    {
+      "scenario": "BRAND_OR_EQUAL",
+      "target": 2,
+      "actual": 11,
+      "met": true
+    },
+    {
+      "scenario": "BUYER_XLSX",
+      "target": 2,
+      "actual": 9,
+      "met": true
+    },
+    {
+      "scenario": "MULTI_AMENDMENT",
+      "target": 2,
+      "actual": 5,
+      "met": true
+    },
+    {
+      "scenario": "OCR",
+      "target": 2,
+      "actual": 2,
+      "met": true
+    },
+    {
+      "scenario": "Q_AND_A",
+      "target": 2,
+      "actual": 6,
+      "met": true
+    },
+    {
+      "scenario": "ZIP_PACKAGE",
+      "target": 1,
+      "actual": 4,
+      "met": true
+    },
+    {
+      "scenario": "EMAIL_SUBMISSION",
+      "target": 1,
+      "actual": 6,
+      "met": true
+    },
+    {
+      "scenario": "PORTAL_SUBMISSION",
+      "target": 1,
+      "actual": 7,
+      "met": true
+    }
+  ]
+}

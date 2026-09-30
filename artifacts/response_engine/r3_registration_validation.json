@@ -1,0 +1,4 @@
+{
+  "note": "REGISTER_BEFORE_BID retained for easy state/local; CAGE/DIBBS hard-block when required",
+  "canonical": "response_engine.registrations_r3 + phase_l.registration_tracker (UI)"
+}

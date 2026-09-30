@@ -1,0 +1,4 @@
+{
+  "note": "AcroForm fill when pypdf available; else MANUAL_GENERATION_REQUIRED / bidder DOCX fallback",
+  "auto_signed": 0
+}

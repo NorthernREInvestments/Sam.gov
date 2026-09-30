@@ -117,7 +117,8 @@ def compute_deadline_runway(
     if now_utc.tzinfo is None:
         now_utc = now_utc.replace(tzinfo=timezone.utc)
 
-    tz_known = (deadline_tz_confidence or "").upper() == "KNOWN" and bool(deadline_timezone)
+    explicit_tz_conf = (deadline_tz_confidence or "").upper() or None
+    tz_known = explicit_tz_conf == "KNOWN" and bool(deadline_timezone)
     raw_text = deadline_raw
 
     # Prefer explicit aware datetime
@@ -149,12 +150,21 @@ def compute_deadline_runway(
         )
         raw_text = norm.get("deadline_raw") or deadline_raw
         if not tz_known:
-            tz_known = (norm.get("timezone_confidence") or "").upper() == "KNOWN" and bool(norm.get("timezone"))
-            if tz_known:
-                deadline_timezone = norm.get("timezone")
+            # Honor explicit UNKNOWN — do not upgrade from raw TZ abbrev normalize
+            if explicit_tz_conf != "UNKNOWN":
+                tz_known = (norm.get("timezone_confidence") or "").upper() == "KNOWN" and bool(
+                    norm.get("timezone")
+                )
+                if tz_known:
+                    deadline_timezone = norm.get("timezone")
         if norm.get("utc_deadline"):
             deadline_aware = datetime.fromisoformat(norm["utc_deadline"])
-            precision = "DATETIME_TZ" if tz_known else "DATETIME_CONVERTED"
+            # If caller forced UNKNOWN confidence, drop UTC instant certainty
+            if explicit_tz_conf == "UNKNOWN":
+                deadline_aware = None
+                tz_known = False
+            else:
+                precision = "DATETIME_TZ" if tz_known else "DATETIME_CONVERTED"
         if norm.get("parsed_local"):
             parsed_local = datetime.fromisoformat(norm["parsed_local"])
             # Detect date-only sources (defaulted 17:00 from normalize without time in raw)

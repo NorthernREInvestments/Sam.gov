@@ -1,0 +1,37 @@
+{
+  "case_id": "CASE_011",
+  "case_name": "Amendment changes quantity and deadline",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ AMD-011\nQuantity: 100 EA\nBid deadline: 2026-10-10\nPart Number: AMD-9\nFOB DESTINATION\nAcknowledge all amendments.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "amendment": {
+      "amendment_applied": true
+    },
+    "submission": {
+      "amendment_ack_required": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "amendment",
+    "quantity",
+    "submission"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null,
+  "amendment_text": "SYNTHETIC_VALIDATION_FIXTURE Amendment 0001\nQuantity changed to 150 EA.\nBid deadline extended to 2026-10-14.\nFOB DESTINATION unchanged.\nAcknowledge amendment.\n"
+}

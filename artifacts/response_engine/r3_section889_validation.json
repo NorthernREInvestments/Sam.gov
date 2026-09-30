@@ -1,0 +1,9 @@
+{
+  "counts": {
+    "NOT_APPLICABLE": 18,
+    "REVIEW_REQUIRED": 9,
+    "OWNER_CONFIRMATION_REQUIRED": 5
+  },
+  "engine": "response_engine.section889.evaluate_section_889",
+  "rule": "never answer no from absence of evidence; owner must confirm company-use"
+}

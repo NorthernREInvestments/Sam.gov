@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "DOS-19N10226Q0007",
+  "documents": [
+    {
+      "filename": "19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+      "stored_as": "d304bc5369310a08_19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19N10226Q0007\\d304bc5369310a08_19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+      "sha256": "d304bc5369310a0898272f8003adbc72e48315f1a0e440df02698a52f3e41db5",
+      "bytes": 875979,
+      "source_url": "https://ng.usembassy.gov/wp-content/uploads/sites/43/2026/04/19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:15.848377+00:00"
+    }
+  ],
+  "hashes": [
+    "d304bc5369310a0898272f8003adbc72e48315f1a0e440df02698a52f3e41db5"
+  ],
+  "tags": [
+    "FEDERAL",
+    "SF1449",
+    "RFQ",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:42:07.705034+00:00",
+  "buyer": "U.S. Embassy Abuja",
+  "agency": "Department of State",
+  "solicitation_number": "19N10226Q0007",
+  "title": "Gardening power tools maintenance/parts RFQ (SF1449)",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://ng.usembassy.gov/wp-content/uploads/sites/43/2026/04/19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+  "discovery_source": null,
+  "submission_system": "EMAIL",
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:15.848403+00:00"
+}

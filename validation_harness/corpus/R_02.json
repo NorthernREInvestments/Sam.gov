@@ -1,0 +1,53 @@
+{
+  "case_id": "R_02",
+  "case_name": "DIBBS NSN / APPROVED SOURCE \u2014 incomplete blocks READY",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nDIBBS RFQ SPE7M1-26-Q-R02\nNSN: 5310-00-123-4567\nApproved source CAGE 12345 required. No substitutes.\nQuantity: 100 EA\nFOB ORIGIN\nMIL-STD-2073 packaging required.\nInspection at destination. Destination acceptance.\nSubmit via DIBBS.\n",
+  "documents": [],
+  "row_overrides": {
+    "product_classification": "DIBBS_HARDWARE",
+    "current_public_price": 12.5
+  },
+  "expected": {
+    "product_identity": {
+      "nsn_detected": true
+    },
+    "shipping_delivery": {
+      "fob_origin": true
+    },
+    "packaging": {
+      "mil_std_2073_detected": true
+    },
+    "inspection_acceptance": {
+      "destination_acceptance": true
+    },
+    "supplier": {
+      "supplier_validated": false
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "dibbs",
+    "nsn",
+    "negative",
+    "R02"
+  ],
+  "notes": "R02 \u2014 public price must not clear approved-source / supplier validation",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false,
+    "supplier_unresolved_visible": true
+  },
+  "next_action_quality": "Confirm an approved-source supplier (CAGE 12345 or equivalent) will quote 100 EA of NSN 5310-00-123-4567 and provide a formal written quote.",
+  "blocker_quality": null
+}

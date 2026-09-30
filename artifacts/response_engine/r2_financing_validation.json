@@ -1,0 +1,4 @@
+{
+  "default_rate": "0.05",
+  "pg_prepay_gates": true
+}

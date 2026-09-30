@@ -1,0 +1,18 @@
+{
+  "canonical_path": "response_engine.r5_service",
+  "reused": [
+    "R4 SubmissionHandoff",
+    "R4 generated_package",
+    "owner_ui Bid Prep",
+    "operator console /ops"
+  ],
+  "deprecated_competing": [
+    "legacy bid-ready-to-submit flags as sole truth",
+    "duplicate readiness engines for operator status"
+  ],
+  "kept_compat": [
+    "phase_l owner_ui_service Today/Home",
+    "L.22 call queue"
+  ],
+  "ui_entrypoint": "/ops"
+}

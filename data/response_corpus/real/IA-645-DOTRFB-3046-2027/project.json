@@ -1,0 +1,49 @@
+{
+  "corpus_project_id": "IA-645-DOTRFB-3046-2027",
+  "documents": [
+    {
+      "filename": "iowa_wildflower_event.pdf",
+      "stored_as": "78df42e0eddfcd4c_iowa_wildflower_event.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3046-2027\\78df42e0eddfcd4c_iowa_wildflower_event.pdf",
+      "sha256": "78df42e0eddfcd4c63f0d10e6534a850e74035c43855aceca6f4e7e9b2a879e2",
+      "bytes": 977930,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\iowa_wildflower_event.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.571300+00:00"
+    },
+    {
+      "filename": "645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+      "stored_as": "e26d848b71733f19_645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3046-2027\\e26d848b71733f19_645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+      "sha256": "e26d848b71733f19fa9eb3ae2904b77a98998664d92d34c4701b974a2a74ef3a",
+      "bytes": 35963,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-3046-2027\\645-DOTRFB-3046-2027__ViewSourcingEvent",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.582241+00:00"
+    }
+  ],
+  "hashes": [
+    "78df42e0eddfcd4c63f0d10e6534a850e74035c43855aceca6f4e7e9b2a879e2",
+    "e26d848b71733f19fa9eb3ae2904b77a98998664d92d34c4701b974a2a74ef3a"
+  ],
+  "tags": [
+    "STATE",
+    "RFQ",
+    "PORTAL_SUBMISSION",
+    "OCR"
+  ],
+  "created_at": "2026-09-29T22:41:54.561940+00:00",
+  "buyer": "Iowa DOT",
+  "agency": null,
+  "solicitation_number": "645-DOTRFB-3046-2027",
+  "title": "645-DOTRFB-3046-2027",
+  "jurisdiction": "STATE",
+  "authoritative_source": "local:645-DOTRFB-3046-2027",
+  "discovery_source": "SciQuest/local_artifact",
+  "submission_system": null,
+  "solicitation_status": "HISTORICAL_OR_CACHED",
+  "notes": null,
+  "updated_at": "2026-09-29T22:41:54.582256+00:00"
+}

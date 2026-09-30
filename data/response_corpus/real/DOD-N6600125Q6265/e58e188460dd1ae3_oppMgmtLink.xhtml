@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=ISO-8859-1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="msapplication-config" content="none" />
+    <title>Solicitation</title>
+    <meta name="description" content="SOL" />
+    <meta name="viewport" content="width=device-width" />
+    
+    <link rel="icon" type="image/png" href="/resources/img/favicon/tsolicitation.png" />
+    
+    <link rel="stylesheet" href="/sol/resources/css/bootstrap.min.css" charset="UTF-8" />
+
+    <link rel="stylesheet" href="/resources/css/datatables.min.css" />
+
+    <link rel="stylesheet" href="/sol/resources/css/final.min.css" charset="UTF-8" />
+
+    
+    <link rel="stylesheet" href="/sol/resources/css/footable.core.min.css" />
+
+    <link rel="stylesheet" href="/resources/css/chatbot.css???projectVersion???" charset="UTF-8" /><script type="text/javascript" src="/sol/javax.faces.resource/jsf.js.xhtml?ln=javax.faces"></script></head><body>
+
+        <div class="main">
+            <div><form id="form" name="form" method="post" action="/sol/xhtml/unauth/search/viewPublicNotice.xhtml" enctype="application/x-www-form-urlencoded" onsubmit="pleaseWait()">
+    <nav class="navbar navbar-default navbar-custom" role="navigation">
+        
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" onclick="pleaseWait()" title="Click this link to return to the Solicitation Home page." href="/sol/xhtml/unauth/index.xhtml">
+                Solicitation
+            </a>
+        </div>
+        
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+
+                <li><a href="#" onclick="return myfaces.oam.submitForm('form','searchSolicitation');" id="searchSolicitation">Search</a>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Lookup <strong class="caret"></strong></a>
+                    <ul class="dropdown-menu multi-level">
+                        <li><a href="#" onclick="return myfaces.oam.submitForm('form','lookupProductServiceCodes');" id="lookupProductServiceCodes">Product/Service Codes</a>
+                        </li>
+                        <li><a href="#" onclick="return myfaces.oam.submitForm('form','lookupNaics');" id="lookupNaics">NAICS</a>
+                        </li>
+
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" title="Click this button to display the Documentation menu options (access key O)." accesskey="O" data-toggle="dropdown">Documentation
+                        <strong class="caret"></strong></a>
+                    <ul class="dropdown-menu multi-level" role="menu" aria-label="Documention Dropdown Menu">
+                        <li role="menuitem"><a href="#" onclick="return myfaces.oam.submitForm('form','trainingResources');" id="trainingResources" title="Training and Resources">Training and Resources</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+            
+            <ul class="nav navbar-nav navbar-right">
+
+                <li>
+                    <a href="/sol/logout" class="whiteLink">
+                        <span class="glyphicon glyphicon-remove"></span>Exit</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="downloadOverlay" class="downloadOverlay">
+        <div id="downloading-popup" class="download-popup" tabindex="-1">
+            <div class="panel panel-default download-popup-panel">
+                <div class="panel-heading">
+                    <span class="glyphicon glyphicon-download-alt"></span><strong> Downloading</strong>
+                </div>
+                <div class="panel-body">
+                    <p style="text-align:left">Please wait until the download process completes before closing this popup.</p>
+                    <p style="text-align:left">Closing this popup before the download process completes will terminate the download.</p>
+                </div>
+                <div class="panel-footer"><a href="#" onclick="return jsf.util.chain(this, event,'hideDownloadPopup();return false;', 'return myfaces.oam.submitForm(\'form\',\'j_id_h:j_id_j\');');" id="j_id_h:j_id_j" name="j_id_h:j_id_j" title="Close" class="btn btn-primary">
+                        <span class="glyphicon glyphicon-minus-sign"></span> Close
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+                    <div class="container-fluid" id="content-body">
+        
+        <input type="hidden" id="tableId" value="questionAnswerTable" />
+        <input type="hidden" id="ajaxUrl" value="/sol/questionAndAnswer" />
+        <input type="hidden" id="defaultSortColumn" value="2" />
+        <input type="hidden" id="defaultSortDirection" value="asc" />
+        <input type="hidden" id="columnConfigJson" value="" />
+            <ul class="nav nav-tabs" role="tablist">
+                <li id="homeTab"><a href="#" onclick="return myfaces.oam.submitForm('form','j_id_q');">Notice</a>
+                </li>
+                <li id="qaTab"><a href="#" onclick="return myfaces.oam.submitForm('form','j_id_s');">Q&amp;A</a>
+                </li>
+            </ul>
+        <div class="tab-content">
+                    <div class="tab-pane fade in active" id="solicitation">
+                        <div class="container-fluid">
+                            <br />
+    <h4><b>: </b></h4>
+   <div class="panel-group" id="accordion1">
+       <div class="panel panel-primary">
+           <div class="panel-heading">
+               <h4 class="panel-title">
+                   <a class="accordion-toggle" data-toggle="collapse" href="#collapseOne">
+                       
+                   </a>
+               </h4>
+           </div>
+           <div id="collapseOne" class="panel-collapse collapse in x">
+               <div class="panel-body">
+                   <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Notice ID
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="noticeId" name="noticeId" type="text" value="" maxlength="13" readonly="readonly" class="form-control" title="Notice ID" disabled="disabled" />
+    </div>
+                   </div>
+                   <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Public Posting Link
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="publicPostingLink" name="publicPostingLink" type="text" value="https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml?noticeId=null&amp;noticeType=null" maxlength="100" readonly="readonly" class="form-control" title="Public Posting Link" disabled="disabled" />
+    </div>
+                       <button id="copyLink" type="button" class="btn btn-primary" onclick="copyLinkToClipboard()">
+                           <span class="glyphicon"></span>Copy To Clipboard
+                       </button>
+                   </div>
+                       <div class="row hr">
+                           <div class="col-md-4 col-lg-4">
+                               <label class="control-label">Response Date</label>
+                           </div>
+                           <div class="col-md-6 col-lg-6"><input id="datetimepicker" name="datetimepicker" type="text" value="" maxlength="100" class="form-control" title="Response Date" disabled="disabled" autocomplete="off" />
+                           </div>
+                       </div>
+                       <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Response Date Time Zone 
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><select id="responseDateTimeZone" name="responseDateTimeZone" size="1" class="form-control" title="Response Date Time Zone" disabled="disabled" readonly="readonly">	<option value="" selected="selected"></option></select>
+    </div>
+                       </div>
+                       <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Set Aside Code 
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><select id="setAsideCode" name="setAsideCode" size="1" class="form-control" title="Set Aside Code" disabled="disabled" readonly="readonly">	<option value="N/A">N/A</option>	<option value="Total Small Business Set-Aside">Total Small Business Set-Aside</option>	<option value="Partial Small Business Set-Aside">Partial Small Business Set-Aside</option>	<option value="8(a) Set-Aside">8(a) Set-Aside</option>	<option value="Historically Underutilized Business (HUBZone) Set-Aside">Historically Underutilized Business (HUBZone) Set-Aside</option>	<option value="Service-Disabled Veteran-Owned Small Business (SDVOSB) Set-Aside">Service-Disabled Veteran-Owned Small Business (SDVOSB) Set-Aside</option>	<option value="Women-Owned Small Business (WOSB) Program Set-Aside">Women-Owned Small Business (WOSB) Program Set-Aside</option>	<option value="Economically Disadvantaged WOSB (EDWOSB) Program Set-Aside">Economically Disadvantaged WOSB (EDWOSB) Program Set-Aside</option>	<option value="8(a) Sole Source">8(a) Sole Source</option>	<option value="Historically Underutilized Business (HUBZone) Sole Source">Historically Underutilized Business (HUBZone) Sole Source</option>	<option value="Service-Disabled Veteran-Owned Small Business (SDVOSB) Sole Source">Service-Disabled Veteran-Owned Small Business (SDVOSB) Sole Source</option>	<option value="Women-Owned Small Business (WOSB) Program Sole Source">Women-Owned Small Business (WOSB) Program Sole Source</option>	<option value="Economically Disadvantaged WOSB (EDWOSB) Program Sole Source">Economically Disadvantaged WOSB (EDWOSB) Program Sole Source</option>	<option value="Local Area Set-Aside">Local Area Set-Aside</option>	<option value="Competitive 8(a)">Competitive 8(a)</option>	<option value="Economically Disadvantaged Woman Owned Small Business">Economically Disadvantaged Woman Owned Small Business</option>	<option value="Emerging Small Business">Emerging Small Business</option>	<option value="HUBZone">HUBZone</option>	<option value="Partial HBCU / MI">Partial HBCU / MI</option>	<option value="Partial Small Business">Partial Small Business</option>	<option value="Service-Disabled Veteran-Owned Small Business">Service-Disabled Veteran-Owned Small Business</option>	<option value="Total HBCU / MI">Total HBCU / MI</option>	<option value="Total Small Business">Total Small Business</option>	<option value="Veteran-Owned Small Business">Veteran-Owned Small Business</option>	<option value="Woman Owned Small Business">Woman Owned Small Business</option>	<option value="Indian Economic Enterprise (Department of Interior and Indian Health Services)">Indian Economic Enterprise (Department of Interior and Indian Health Services)</option>	<option value="Indian Small Business Economic Enterprise (Department of Interior and Indian Health Services)">Indian Small Business Economic Enterprise (Department of Interior and Indian Health Services)</option>	<option value="Buy Indian Set-Aside (Department of Health and Human Services, Indian Health Services)">Buy Indian Set-Aside (Department of Health and Human Services, Indian Health Services)</option></select>
+    </div>
+                       </div>
+
+                   <div class="row hr">
+
+    <div class="col-md-12 col-lg-12">
+        <label class="control-label">
+            Description 
+            
+            
+        </label>
+    </div>
+    <div class="col-md-12 col-lg-12"><textarea id="description" name="description" class="form-control" title="Description" cols="10" readonly="readonly" rows="12"></textarea>
+    </div>
+                   </div><span id="pocTemplate">
+        <div class="panel-group" id="accordion9">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a class="accordion-toggle" data-toggle="collapse" href="#collapseNine">
+                            Points of Contact
+                        </a>
+                    </h4>
+                </div>
+
+                <div id="collapseNine" class="panel-collapse collapse in x">
+                    <div class="panel-body">
+                    </div>
+                </div>
+            </div>
+        </div></span>
+
+                   
+                    <div class="panel-group" id="accordion2">
+                        <div class="panel panel-primary">
+                            <div class="panel-heading">
+                                <h4 class="panel-title">
+                                    <a class="accordion-toggle" data-toggle="collapse" href="#collapseTwo">
+                                        Solicitation Details
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="collapseTwo" class="panel-collapse collapse in x">
+                                <div class="panel-body">
+                                    <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Subject
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="subject" name="subject" type="text" value="" maxlength="255" readonly="readonly" class="form-control" title="Subject" disabled="disabled" />
+    </div>
+                                    </div>
+                                    <div class="row hr">
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Posting Date
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="postingDate" name="postingDate" type="text" value="" maxlength="100" readonly="readonly" class="form-control datepicker" title="Posting Date" disabled="disabled" autocomplete="off" />
+    </div>
+                                    </div>
+                                    <div class="row hr">
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Archive Date
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="archiveDate" name="archiveDate" type="text" value="" maxlength="100" readonly="readonly" class="form-control datepicker" title="Archive Date" disabled="disabled" autocomplete="off" />
+    </div>
+                                    </div>
+                                    <div class="row hr">
+                                        <div class="col-md-4 col-lg-4">
+                                            <label class="control-label">Product or Service Code</label>
+                                        </div>
+                                        <div class="col-md-6 col-lg-6"><input id="productOrServiceCode" name="productOrServiceCode" type="text" value="  " maxlength="100" readonly="readonly" class="form-control" title="Product or Service Code" disabled="disabled" />
+                                        </div>
+                                    </div>
+                                    <div class="row hr">
+                                        <div class="col-md-4 col-lg-4">
+                                            <label class="control-label">NAICS</label>
+                                        </div>
+                                        <div class="col-md-6 col-lg-6"><input id="naics" name="naics" type="text" value="  " maxlength="100" readonly="readonly" class="form-control" title="NAICS" disabled="disabled" />
+                                        </div>
+                                    </div>
+                                        <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Place of Performance Zip Code
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="placeOfPerformanceZipCode" name="placeOfPerformanceZipCode" type="text" value="" maxlength="5" readonly="readonly" class="form-control" title="Place of Performance Zip Code" disabled="disabled" />
+    </div>
+                                        </div>
+                                        <div class="row hr">
+
+    <div class="col-md-12 col-lg-12">
+        <label class="control-label">
+            Place of Performance Address 
+            
+            
+        </label>
+    </div>
+    <div class="col-md-12 col-lg-12"><textarea id="placeOfPerformance" name="placeOfPerformance" class="form-control" title="Place of Performance Address" cols="10" readonly="readonly" rows="4"></textarea>
+    </div>
+                                        </div>
+                                    <div class="row hr">
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">Recovery Act</label>
+    </div>
+    <div class="col-md-4 col-lg-4"><table class="selectOneRadioTable" id="recoveryAct"><tr><td><input id="recoveryAct:0" type="radio" name="recoveryAct" value="Y" readonly="readonly" disabled="disabled" /><label for="recoveryAct:0"> Yes</label></td><td><input id="recoveryAct:1" type="radio" name="recoveryAct" value="N" readonly="readonly" disabled="disabled" /><label for="recoveryAct:1"> No</label></td></tr></table>
+    </div>
+                                    </div>
+                                    
+                                    <div class="panel-group" id="accordion3">
+                                        <div class="panel panel-primary">
+                                            <div class="panel-heading">
+                                                <h4 class="panel-title">
+                                                    <a class="accordion-toggle" data-toggle="collapse" href="#collapseThree">
+                                                        Contract Information
+                                                    </a>
+                                                </h4>
+                                            </div>
+                                            <div id="collapseThree" class="panel-collapse collapse in x">
+                                                <div class="panel-body">
+                                                    <div class="row hr">
+                                                        <div class="col-md-4 col-lg-4">
+                                                            <label class="control-label">Contracting Office DoDAAC</label>
+                                                        </div>
+                                                        <div class="col-md-6 col-lg-6"><select id="contractingOfficeDodaac" name="contractingOfficeDodaac" size="1" class="form-control" title="Contracting Office DoDAAC" disabled="disabled"></select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row hr">
+
+    <div class="col-md-4 col-lg-4">
+        <label class="control-label">
+            Contracting Office Name
+            
+            
+        </label>
+    </div>
+    <div class="col-md-6 col-lg-6"><input id="contractingOfficeName" name="contractingOfficeName" type="text" value="" maxlength="100" readonly="readonly" class="form-control" title="Contracting Office Name" disabled="disabled" />
+    </div>
+                                                    </div>
+                                                    <div class="row hr">
+
+    <div class="col-md-12 col-lg-12">
+        <label class="control-label">
+            Contracting Office Address 
+            
+            
+        </label>
+    </div>
+    <div class="col-md-12 col-lg-12"><textarea id="contractingOfficeAddress" name="contractingOfficeAddress" class="form-control" title="Contracting Office Address" cols="10" readonly="readonly" rows="4"></textarea>
+    </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+    
+    <div class="panel-group" id="accordion4">
+        <div class="panel panel-primary">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a class="accordion-toggle" data-toggle="collapse" href="#collapseFour">
+                        Attachments
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseFour" class="panel-collapse collapse in x">
+                <div class="panel-body">
+                    <div id="collapseSevenB" class="table-responsive">
+                        <table class="table table-hover table-striped resp-table">
+                            <thead>
+                            <tr>
+                                <th>
+                                    Name
+                                </th>
+                                <th>
+                                    Number
+                                </th>
+                                <th>
+                                    File/URL
+                                </th>
+                                <th>
+                                    Date
+                                </th>
+                                <th>
+                                    Document Type
+                                </th>
+                                <th>
+                                    Include in Response
+                                </th>
+                            </tr>
+                            </thead>
+                            <tbody>
+
+
+                            </tbody>
+                        </table>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+                        </div>
+                    </div>
+        </div>
+                    </div>
+                    <br /><br />
+
+                    <div class="footer">
+                        <div class="container">
+                            <div class="col-md-9 col-lg-9"><a href="#" onclick="return myfaces.oam.submitForm('form','previous');" id="previous" class="btn btn-primary">
+            <span class="glyphicon glyphicon-chevron-left"></span> Previous
+        </a>
+    <a class="btn btn-primary" onclick="pleaseWait()" title="Click this link to return to the Solicitation Home page." accesskey="H" href="/sol/xhtml/unauth/index.xhtml">
+        <span class="glyphicon glyphicon-home"></span> Home
+    </a><a href="#" onclick="return jsf.util.chain(this, event,'showOverlay = false;showDownloadPopup()', 'return myfaces.oam.submitForm(\'form\',\'savePDF\');');" id="savePDF" name="savePDF" type="button" class="btn btn-primary">
+            <span class="glyphicon glyphicon-save"></span> Save as PDF
+        </a><a href="#" onclick="return jsf.util.chain(this, event,'viewAttachment();', 'return myfaces.oam.submitForm(\'form\',\'downloadAllAttachments\');');" id="downloadAllAttachments" name="downloadAllAttachments" class="btn btn-primary">
+            <span class="glyphicon glyphicon-download-alt"></span> Download All Attachments
+        </a>
+    <a class="btn btn-info helpBtn" onclick="openSOLHelpPage('ViewSolicitationHelp', 'unauth');" href="#">
+        <span class="glyphicon glyphicon-info-sign"></span> Help
+    </a>
+                            </div>
+                        </div>
+                    </div><input type="hidden" id="scrollTopPosition" name="scrollTopPosition" value="" /><input type="hidden" id="scrollFocusField" name="scrollFocusField" value="" /><input type="hidden" name="form_SUBMIT" value="1" /><input type="hidden" name="javax.faces.ViewState" id="j_id__v_0:javax.faces.ViewState:1" value="ODM5NUQ4NkUzMUY1MUQxRjAwMDAwMDAx" autocomplete="off" /></form>
+            </div>
+        </div>
+
+    <div class="pleaseWait">
+        <div id="pleaseWait-body">
+            <div id="spinBlock"></div>
+            <label class="pleaseWait-text text-primary"><strong>Please Wait</strong></label>
+        </div>
+    </div>
+    <input type="hidden" id="invalidationTimeout" value="1800" />
+    <input type="hidden" id="contextRoot" value="/sol" />
+    <input type="hidden" id="appName" value="sol" />
+    
+    
+    <script type="text/javascript" src="/resources/js/vendor/portal-jquery.js"></script>
+
+    
+    <script type="text/javascript" src="/resources/js/vendor/portal-bootstrap.js"></script>
+
+    
+    <script type="text/javascript" src="/resources/js/vendor/datatables.min.js"></script>
+
+
+    
+    
+    
+    <script type="text/javascript" src="/sol/resources/js/final.min.js"></script>
+
+    
+    
+    <script type="text/javascript" src="/resources/js/session.final.js"></script>
+        <script type="text/javascript">
+            //this gets called on document ready
+            jQuery(document).ready(function () {
+                //Set focus on the page for 508 compliance
+                autoFocus();
+
+                //this function converts text input (with class ='datepicker') to date field
+                convertInputToDate();
+
+                hidePleaseWait();
+
+                //Iterate through buttons and links
+                iterateButtons()
+
+                onFileSelect();
+
+                jQuery('.footable').footable();
+
+                //binds the keydown events (block enter, and backspace keys) Also checks for alt key.
+                keydown();
+
+                //Binds the keyup events (checks for alt key)
+                keyup();
+
+                //set the timezone - this is the local timezone of the user's machine
+                $("#timeZone").val(jstz.determine().name());
+
+                // Initialize chatbot with fallback URL logic: try applicationMap first, then sessionMap, then empty string
+                addChatbot(('https://albert-piee.eb.mil'.trim() || ''.trim() || ''), '');
+            });
+        </script>
+        <script language="javascript" type="text/javascript">
+            startSessionInterval('/sso/globalsession/user', 'YJArzI5ZCLgjwNJj36sX8_WI2cevnqgR-Jl4fwnQ4N9yEoBfJRjcZuwTj9yMzCV7', '', '0.5');
+        </script><input type="hidden" id="currentTab" name="currentTab" value="homeTab" />
+        <script type="text/javascript" src="/resources/js/vendor/datatables.min.js"></script>
+        <script>
+            $(document).ready(function () {
+                //change the active tab
+                documentEvents();
+            });
+            createDataTables();
+
+        </script></body>
+</html>

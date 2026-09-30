@@ -1,0 +1,777 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "golden": [
+    "NE-123131-OR-POP",
+    "NE-119951-O8-CAMERAS",
+    "NE-119949-O8B-GM",
+    "NE-119949-O8B-GM-ZIP",
+    "NE-6829-OF-CAMERAS",
+    "NE-6908-OF-DASDEC",
+    "NE-121604-OR-LEICA",
+    "DLA-SPE4A7-23-R-0105",
+    "NASA-SEWP-80TECH24R0001-A14",
+    "NE-121756-OR",
+    "DOD-N6600125Q6337",
+    "DOD-N6600125Q6265",
+    "DOS-19VM3026Q0024",
+    "DLA-MASTER-ASA-REV102",
+    "IA-645-DOTRFB-3046-2027",
+    "NE-6305-OF",
+    "IA-645-DOTRFB-2975-2027",
+    "IA-645-DOTRFB-3042-2027",
+    "AZ-PHX-_phoenix_detail_1742",
+    "AZ-PHX-_phoenix_detail_1850"
+  ],
+  "results": [
+    {
+      "corpus_project_id": "IA-645-DOTRFB-2975-2027",
+      "response_project_id": "RP-adb1c979e80a",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-2975-2027",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 37,
+      "material": 29,
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 3,
+      "gt_total": 3
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3042-2027",
+      "response_project_id": "RP-6609b7d4459a",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-3042-2027",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 37,
+      "material": 29,
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 3,
+      "gt_total": 3
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3046-2027",
+      "response_project_id": "RP-37bd4e727bb2",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-3046-2027",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "OCR",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 37,
+      "material": 29,
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 3,
+      "gt_total": 3
+    },
+    {
+      "corpus_project_id": "NE-121604-OR-LEICA",
+      "response_project_id": "RP-b357f7493316",
+      "buyer": "Nebraska DAS / NDOT",
+      "solicitation_number": "121604 OR",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "RFQ",
+        "BUYER_XLSX",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 2,
+      "file_types": [
+        ".pdf"
+      ],
+      "requirements": 2017,
+      "material": 2003,
+      "response_type": "STATE_LOCAL_RFQ",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    },
+    {
+      "corpus_project_id": "NE-121756-OR",
+      "response_project_id": "RP-e7dc9b7bd2ee",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "121756 OR",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 1,
+      "file_types": [
+        ".pdf"
+      ],
+      "requirements": 82,
+      "material": 76,
+      "response_type": "STATE_LOCAL_RFP",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 4,
+      "gt_total": 4
+    },
+    {
+      "corpus_project_id": "NE-6305-OF",
+      "response_project_id": "RP-1e701a4da803",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "6305 OF",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 2,
+      "file_types": [
+        ".csv",
+        ".pdf"
+      ],
+      "requirements": 46,
+      "material": 36,
+      "response_type": "STATE_LOCAL_RFP",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 4,
+      "gt_total": 4
+    },
+    {
+      "corpus_project_id": "NE-123131-OR-POP",
+      "response_project_id": "RP-7af043756434",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "123131 OR",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EXACT_PART",
+        "Q_AND_A",
+        "BUYER_XLSX",
+        "MULTI_AMENDMENT",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".docx",
+        ".html",
+        ".pdf",
+        ".xlsx"
+      ],
+      "requirements": 89,
+      "material": 82,
+      "response_type": "UNKNOWN_RESPONSE_TYPE",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    },
+    {
+      "corpus_project_id": "DLA-MASTER-ASA-REV102",
+      "response_project_id": "RP-5b0b43393595",
+      "buyer": "Defense Logistics Agency",
+      "solicitation_number": "MASTER-ASA-REV-102",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFQ",
+        "GOLDEN_CORPUS",
+        "OCR"
+      ],
+      "documents": 5,
+      "file_types": [
+        ".csv",
+        ".pdf",
+        ".txt",
+        ".zip"
+      ],
+      "requirements": 5,
+      "material": 5,
+      "response_type": "FEDERAL_COMMERCIAL_RFQ",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 4,
+      "gt_total": 4
+    },
+    {
+      "corpus_project_id": "DLA-SPE4A7-23-R-0105",
+      "response_project_id": "RP-1404cfcdd8fb",
+      "buyer": "Defense Logistics Agency Aviation",
+      "solicitation_number": "SPE4A7-23-R-0105",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFP",
+        "EXACT_PART",
+        "MULTI_AMENDMENT",
+        "PIEE",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 1,
+      "file_types": [
+        ".txt"
+      ],
+      "requirements": 211,
+      "material": 148,
+      "response_type": "FEDERAL_DIBBS_WEB_QUOTE",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "BRAND_NAME_OR_EQUAL",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 8,
+      "gt_total": 8
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6337",
+      "response_project_id": "RP-0f9d3f6ef4cd",
+      "buyer": "Department of the Navy / NIWC",
+      "solicitation_number": "N66001-25-Q-6337",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "PIEE",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "SF1449",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 1,
+      "file_types": [
+        ".xhtml"
+      ],
+      "requirements": 0,
+      "material": 0,
+      "response_type": "FEDERAL_PIEE_OFFER",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 0,
+      "gt_total": 0
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6265",
+      "response_project_id": "RP-7ce846ee141d",
+      "buyer": "Department of the Navy / NIWC",
+      "solicitation_number": "N66001-25-Q-6265",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "PIEE",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "EXACT_PART",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 1,
+      "file_types": [
+        ".xhtml"
+      ],
+      "requirements": 0,
+      "material": 0,
+      "response_type": "FEDERAL_PIEE_OFFER",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 0,
+      "gt_total": 0
+    },
+    {
+      "corpus_project_id": "DOS-19VM3026Q0024",
+      "response_project_id": "RP-09962c7a6e09",
+      "buyer": "U.S. Embassy Hanoi",
+      "solicitation_number": "19VM3026Q0024",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "SF1449",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 1,
+      "file_types": [
+        ".pdf"
+      ],
+      "requirements": 12,
+      "material": 9,
+      "response_type": "FEDERAL_SIMPLIFIED_RFQ",
+      "evaluation_method": [
+        "UNKNOWN"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 3,
+      "gt_total": 3
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1742",
+      "response_project_id": "RP-17d6fa60e3af",
+      "buyer": "Phoenix",
+      "solicitation_number": "_phoenix_detail_1742.html",
+      "jurisdiction": "LOCAL",
+      "tags": [
+        "LOCAL",
+        "PORTAL_SUBMISSION",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html"
+      ],
+      "requirements": 3,
+      "material": 1,
+      "response_type": "STATE_LOCAL_PORTAL_QUOTE",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 1,
+      "gt_total": 1
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1850",
+      "response_project_id": "RP-a7d3043b06c6",
+      "buyer": "Phoenix",
+      "solicitation_number": "_phoenix_detail_1850.html",
+      "jurisdiction": "LOCAL",
+      "tags": [
+        "LOCAL",
+        "PORTAL_SUBMISSION",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html"
+      ],
+      "requirements": 3,
+      "material": 1,
+      "response_type": "STATE_LOCAL_PORTAL_QUOTE",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "COMPLETE",
+      "document_package_complete": true,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 1,
+      "gt_total": 1
+    },
+    {
+      "corpus_project_id": "NE-119951-O8-CAMERAS",
+      "response_project_id": "RP-d23ff2b8f6d9",
+      "buyer": "Nebraska DAS / NDOT",
+      "solicitation_number": "119951 O8",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "Q_AND_A",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".docx",
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 85,
+      "material": 76,
+      "response_type": "STATE_LOCAL_RFP",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 6,
+      "gt_total": 6
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM",
+      "response_project_id": "RP-3b9e4889fcb2",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "119949 O8 B",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "Q_AND_A",
+        "EXACT_PART",
+        "MULTI_AMENDMENT",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html",
+        ".pdf",
+        ".xlsx"
+      ],
+      "requirements": 91,
+      "material": 82,
+      "response_type": "STATE_LOCAL_RFP",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    },
+    {
+      "corpus_project_id": "NE-6908-OF-DASDEC",
+      "response_project_id": "RP-6728513ae516",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "6908 OF",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EXACT_PART",
+        "Q_AND_A",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 3,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 62,
+      "material": 51,
+      "response_type": "STATE_LOCAL_RFQ",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    },
+    {
+      "corpus_project_id": "NE-6829-OF-CAMERAS",
+      "response_project_id": "RP-86e07af8742a",
+      "buyer": "Nebraska DAS / NDOT",
+      "solicitation_number": "6829 OF",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "Q_AND_A",
+        "MULTI_AMENDMENT",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ],
+      "requirements": 65,
+      "material": 57,
+      "response_type": "STATE_LOCAL_RFQ",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    },
+    {
+      "corpus_project_id": "NASA-SEWP-80TECH24R0001-A14",
+      "response_project_id": "RP-f287dac487b6",
+      "buyer": "NASA SEWP",
+      "solicitation_number": "80TECH24R0001",
+      "jurisdiction": "FEDERAL",
+      "tags": [
+        "FEDERAL",
+        "RFP",
+        "SF1449",
+        "MULTI_AMENDMENT",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 2,
+      "file_types": [
+        ".csv",
+        ".pdf"
+      ],
+      "requirements": 168,
+      "material": 111,
+      "response_type": "FEDERAL_RFP",
+      "evaluation_method": [
+        "MULTIPLE_AWARD"
+      ],
+      "product_mode": "BRAND_NAME_OR_EQUAL",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 8,
+      "gt_total": 8
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM-ZIP",
+      "response_project_id": "RP-a788d45bc446",
+      "buyer": "Nebraska DAS",
+      "solicitation_number": "119949 O8 B-ZIP",
+      "jurisdiction": "STATE",
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "Q_AND_A",
+        "ZIP_PACKAGE",
+        "GOLDEN_CORPUS"
+      ],
+      "documents": 5,
+      "file_types": [
+        ".html",
+        ".pdf",
+        ".xlsx",
+        ".zip"
+      ],
+      "requirements": 178,
+      "material": 162,
+      "response_type": "STATE_LOCAL_RFP",
+      "evaluation_method": [
+        "BEST_VALUE_TRADEOFF",
+        "LOW_PRICE"
+      ],
+      "product_mode": "UNKNOWN_PRODUCT_MODE",
+      "package_status": "MISSING_REFERENCED_DOCUMENT",
+      "document_package_complete": false,
+      "false_complete": false,
+      "provenance_coverage": 1.0,
+      "firewall_clean": true,
+      "firewall_leaks": 0,
+      "sam_api_calls": 0,
+      "gt_missed": [],
+      "gt_captured": 5,
+      "gt_total": 5
+    }
+  ]
+}

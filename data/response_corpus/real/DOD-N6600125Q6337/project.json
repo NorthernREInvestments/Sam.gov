@@ -1,0 +1,64 @@
+{
+  "corpus_project_id": "DOD-N6600125Q6337",
+  "documents": [
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "605d3b62331383d3_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\605d3b62331383d3_oppMgmtLink.xhtml",
+      "sha256": "605d3b62331383d3659206c478c7d518622b594e5825b66fade6b47acab9796f",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:06.291141+00:00"
+    },
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "f19461411f1bf697_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\f19461411f1bf697_oppMgmtLink.xhtml",
+      "sha256": "f19461411f1bf697835b1f70ef61890f58b8aff24f7b5a4b499a9556bb9cb586",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:13.789946+00:00"
+    },
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "228d72e908dfe1b4_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\228d72e908dfe1b4_oppMgmtLink.xhtml",
+      "sha256": "228d72e908dfe1b47b6d800d128888428b0eb1ed02189c89dd6c80a696a0e68e",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:51:46.405768+00:00"
+    }
+  ],
+  "hashes": [
+    "605d3b62331383d3659206c478c7d518622b594e5825b66fade6b47acab9796f",
+    "f19461411f1bf697835b1f70ef61890f58b8aff24f7b5a4b499a9556bb9cb586",
+    "228d72e908dfe1b47b6d800d128888428b0eb1ed02189c89dd6c80a696a0e68e"
+  ],
+  "tags": [
+    "FEDERAL",
+    "PIEE",
+    "RFQ",
+    "BRAND_OR_EQUAL",
+    "SF1449",
+    "GOLDEN_CORPUS"
+  ],
+  "created_at": "2026-09-29T22:42:05.211545+00:00",
+  "buyer": "Department of the Navy / NIWC",
+  "agency": "DoD",
+  "solicitation_number": "N66001-25-Q-6337",
+  "title": "Brand Name or Equal Leach International Relays",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml?noticeId=N6600125Q6337&noticeType=CombinedSynopsisSolicitation",
+  "discovery_source": null,
+  "submission_system": "PIEE",
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:51:46.405789+00:00",
+  "golden": true
+}

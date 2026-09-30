@@ -1,0 +1,38 @@
+{
+  "case_id": "R_06",
+  "case_name": "AMENDMENT \u2014 latest quantity and deadline authoritative",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ AMD-R06\nPart Number: AMD-9\nQuantity: 100 EA\nBid deadline: 2026-10-10\nFOB DESTINATION\nAcknowledge all amendments.\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "amendment": {
+      "amendment_applied": true
+    },
+    "submission": {
+      "amendment_ack_required": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "amendment",
+    "R06",
+    "REGRESSION_AMENDMENT"
+  ],
+  "notes": "R06 \u2014 downstream logic must use 150 EA / 2026-10-14 after amendment",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": "Resolve whether the amendment dated for RFQ AMD-R06 supersedes the original quantity (150 EA) before requesting supplier pricing.",
+  "blocker_quality": null,
+  "amendment_text": "REALISTIC_FROZEN_FIXTURE Amendment 0001\nQuantity changed to 150 EA.\nBid deadline extended to 2026-10-14.\nFOB DESTINATION unchanged.\nAcknowledge amendment.\n"
+}

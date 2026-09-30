@@ -1,0 +1,257 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "candidates_attempted": 37,
+  "accepted": 33,
+  "rejected": 0,
+  "auth_blocked": 0,
+  "unavailable": 0,
+  "duplicates": 46,
+  "projects_in_manifest": 33,
+  "log": [
+    {
+      "id": "IA-005-RFB-3030-2027",
+      "result": "ACCEPTED",
+      "files": 2,
+      "source": "local"
+    },
+    {
+      "id": "IA-645-DOTRFB-2975-2027",
+      "result": "ACCEPTED",
+      "files": 2,
+      "source": "local"
+    },
+    {
+      "id": "IA-645-DOTRFB-3042-2027",
+      "result": "ACCEPTED",
+      "files": 2,
+      "source": "local"
+    },
+    {
+      "id": "IA-645-DOTRFB-3046-2027",
+      "result": "ACCEPTED",
+      "files": 2,
+      "source": "local"
+    },
+    {
+      "id": "MT-DPHHS-IFB-2027-0703BP",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local"
+    },
+    {
+      "id": "IA-RFB947601-02",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local"
+    },
+    {
+      "id": "IA-RFB952200-01",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local"
+    },
+    {
+      "id": "IA-RFB952400-01",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local"
+    },
+    {
+      "id": "DLA-MASTER-ASA-REV102",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache"
+    },
+    {
+      "id": "DLA-MASTER-ASA-REV99",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache"
+    },
+    {
+      "id": "DLA-SPE4A7-23-R-0105",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache"
+    },
+    {
+      "id": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache"
+    },
+    {
+      "id": "NE-121604-OR-LEICA",
+      "result": "ACCEPTED",
+      "files": 2,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-121756-OR",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-6305-OF",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-123131-OR-POP",
+      "result": "ACCEPTED",
+      "files": 5,
+      "details": [
+        "optional:CONTENT_TYPE_MISMATCH",
+        "optional:CONTENT_TYPE_MISMATCH"
+      ],
+      "source": "public"
+    },
+    {
+      "id": "DLA-MASTER-ASA-REV102",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache_reuse"
+    },
+    {
+      "id": "DLA-MASTER-ASA-REV99",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache_reuse"
+    },
+    {
+      "id": "DLA-SPE4A7-23-R-0105",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache_reuse"
+    },
+    {
+      "id": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_cache_reuse"
+    },
+    {
+      "id": "DOD-N6600125Q6337",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "DOD-N6600125Q6265",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "DOS-19VM3026Q0024",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "DOS-19N10226Q0007",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "DOS-19CV1025Q0001",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-119951-O8-CAMERAS",
+      "result": "ACCEPTED",
+      "files": 4,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-119949-O8B-GM",
+      "result": "ACCEPTED",
+      "files": 4,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-6908-OF-DASDEC",
+      "result": "ACCEPTED",
+      "files": 3,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-6829-OF-CAMERAS",
+      "result": "ACCEPTED",
+      "files": 4,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "SC-FLORENCE-2024-21-CAMERAS",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NASA-SEWP-80TECH24R0001-A14",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-SPB-FORM16-ITB-REQS",
+      "result": "ACCEPTED",
+      "files": 1,
+      "details": [],
+      "source": "public"
+    },
+    {
+      "id": "NE-119949-O8B-GM-ZIP",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "zip_from_buyer_files",
+      "member_count": 4
+    },
+    {
+      "id": "AZ-PHX-_phoenix_detail_1742",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_html"
+    },
+    {
+      "id": "AZ-PHX-_phoenix_detail_1850",
+      "result": "ACCEPTED",
+      "files": 1,
+      "source": "local_html"
+    }
+  ],
+  "sam_api_calls": 0
+}

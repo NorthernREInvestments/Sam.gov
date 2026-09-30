@@ -1,0 +1,782 @@
+{
+  "build": "20260929-m3-r3-company-compliance-reps-certs-trade",
+  "projects_analyzed": 32,
+  "readiness_counts": {
+    "TRADE_COMPLIANCE_REVIEW": 22,
+    "ELIGIBILITY_BLOCKED": 10
+  },
+  "set_asides": {
+    "unknown": 25,
+    "to a service-disabled veteran-owned small bu": 1,
+    "% FOR:": 1,
+    "Code N/A Total Small Business Set-Aside Partial Small Busine": 2,
+    "(52": 1,
+    "____ % FOR:": 2
+  },
+  "federal_projects": 10,
+  "dla_projects": 0,
+  "rows": [
+    {
+      "corpus_project_id": "IA-005-RFB-3030-2027",
+      "response_project_id": "RP-28757a3e6a23",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 4,
+      "matrix_rows": 17,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-2975-2027",
+      "response_project_id": "RP-6840a249988f",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3042-2027",
+      "response_project_id": "RP-dff1741c62f8",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3046-2027",
+      "response_project_id": "RP-aab5c700416c",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "MT-DPHHS-IFB-2027-0703BP",
+      "response_project_id": "RP-9679eb9ce120",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB947601-02",
+      "response_project_id": "RP-bdc120866cd2",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB952200-01",
+      "response_project_id": "RP-488fa552f77d",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB952400-01",
+      "response_project_id": "RP-5a4ef827a6b6",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-121604-OR-LEICA",
+      "response_project_id": "RP-722afddee0f4",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-121756-OR",
+      "response_project_id": "RP-265b835c17dd",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6305-OF",
+      "response_project_id": "RP-e73e810c4c70",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-123131-OR-POP",
+      "response_project_id": "RP-72443393d8da",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-MASTER-ASA-REV102",
+      "response_project_id": "RP-2a2a02180316",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "unknown",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 12,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-MASTER-ASA-REV99",
+      "response_project_id": "RP-e7b7a7015c32",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "to a service-disabled veteran-owned small bu",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "OWNER_CONFIRMATION_REQUIRED",
+      "cyber": "REQUIRED_UNKNOWN",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable",
+        "DIBBS unavailable until CAGE"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 7,
+      "matrix_rows": 21,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-SPE4A7-23-R-0105",
+      "response_project_id": "RP-b7b84b19ff59",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "% FOR:",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "OWNER_CONFIRMATION_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable",
+        "DIBBS unavailable until CAGE"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 18,
+      "matrix_rows": 31,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "response_project_id": "RP-a0b4dd257672",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "unknown",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable",
+        "DIBBS unavailable until CAGE"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 1,
+      "matrix_rows": 14,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6337",
+      "response_project_id": "RP-39a4d249eb52",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "Code N/A Total Small Business Set-Aside Partial Small Business Set-Aside 8(a) Se",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_REVIEW_REQUIRED",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 12,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6265",
+      "response_project_id": "RP-5cf4fe7a7271",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "Code N/A Total Small Business Set-Aside Partial Small Business Set-Aside 8(a) Se",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_REVIEW_REQUIRED",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 12,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19VM3026Q0024",
+      "response_project_id": "RP-a5010862b1f7",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "(52",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 12,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19N10226Q0007",
+      "response_project_id": "RP-739c75fce5dc",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "____ % FOR:",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "OWNER_CONFIRMATION_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 24,
+      "matrix_rows": 36,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19CV1025Q0001",
+      "response_project_id": "RP-5e2c680b8b80",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "____ % FOR:",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "OWNER_CONFIRMATION_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 21,
+      "matrix_rows": 33,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1742",
+      "response_project_id": "RP-0c629d65cc70",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "LOCAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1850",
+      "response_project_id": "RP-0292e148df9d",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "LOCAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "REVIEW_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119951-O8-CAMERAS",
+      "response_project_id": "RP-7025aceeadd5",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM",
+      "response_project_id": "RP-7a8314dcb655",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6908-OF-DASDEC",
+      "response_project_id": "RP-a1413c37fa28",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6829-OF-CAMERAS",
+      "response_project_id": "RP-60067d5d57f2",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "response_project_id": "RP-bb61c31609f1",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "LOCAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "response_project_id": "RP-87b534dcf7bf",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "LOCAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "SC-FLORENCE-2024-21-CAMERAS",
+      "response_project_id": "RP-65c593f8ff94",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "LOCAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NASA-SEWP-80TECH24R0001-A14",
+      "response_project_id": "RP-b526edcacb26",
+      "readiness": "ELIGIBILITY_BLOCKED",
+      "recommendation": "DO_NOT_BID",
+      "next_action": "RESOLVE CAGE",
+      "set_aside": "unknown",
+      "jurisdiction": "FEDERAL",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "OWNER_CONFIRMATION_REQUIRED",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "CAGE not active \u2014 DIBBS unavailable"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN"
+      ],
+      "owner_attestations_open": 6,
+      "matrix_rows": 18,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM-ZIP",
+      "response_project_id": "RP-fd97ef1166d7",
+      "readiness": "TRADE_COMPLIANCE_REVIEW",
+      "recommendation": "REVIEW TRADE",
+      "next_action": "VERIFY COUNTRY OF ORIGIN",
+      "set_aside": "unknown",
+      "jurisdiction": "STATE",
+      "nmr": "NMR_UNKNOWN",
+      "trade": "UNKNOWN",
+      "section_889": "NOT_APPLICABLE",
+      "cyber": "NOT_APPLICABLE",
+      "cage": "UNKNOWN",
+      "blockers": [
+        "Country of origin unknown"
+      ],
+      "warnings": [
+        "Company profile incomplete \u2014 many fields UNKNOWN",
+        "Trade/COO needs review"
+      ],
+      "owner_attestations_open": 0,
+      "matrix_rows": 13,
+      "sam_api_calls": 0
+    }
+  ],
+  "sam_api_calls": 0
+}

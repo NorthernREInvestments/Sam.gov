@@ -1,0 +1,65 @@
+{
+  "case_id": "CASE_021",
+  "case_name": "POSITIVE C \u2014 Commercial with minor incidental requirement",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ POS-C-021\nHP EliteBook 840 brand name or equal\nQuantity: 12 EA\nFOB DESTINATION\nDelivery within 45 days after award\nCertificate of Conformance required (incidental).\nCommercial packaging ASTM D3951 acceptable.\nSubmit quotes via email to buying@example.invalid\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "Validated Wholesale LLC",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "acquisition_cost": 450,
+    "supported_profit": 18400,
+    "government_revenue": 52000,
+    "economics_complete": true,
+    "financing_compatible": true,
+    "funding_state": "COMPATIBLE",
+    "owner_cash_required_before_payment": 0,
+    "personal_guarantee_required": false,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true
+  },
+  "expected": {
+    "product_identity": {
+      "brand_or_equal_detected": true
+    },
+    "packaging": {
+      "commercial_packaging_detected": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": true
+    },
+    "supplier": {
+      "supplier_validated": true,
+      "quote_executable": true
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": true,
+  "tags": [
+    "positive_ready",
+    "commercial",
+    "incidental"
+  ],
+  "notes": "POSITIVE CASE C \u2014 minor incidental CoC must not over-reject when fixture confirms execution",
+  "adversarial": false,
+  "validation_depth": "positive_ready",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

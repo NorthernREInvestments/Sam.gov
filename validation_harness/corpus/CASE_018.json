@@ -1,0 +1,34 @@
+{
+  "case_id": "CASE_018",
+  "case_name": "Specialist packaging house",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ SPI-018 Quantity: 7 EA Part Number: P-9\nMIL-STD-2073 packaging required. Specialist packaging house may be required. SPI required.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "packaging": {
+      "mil_std_2073_detected": true,
+      "specialist_packaging_flagged": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "packaging",
+    "specialist",
+    "false_rejection"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

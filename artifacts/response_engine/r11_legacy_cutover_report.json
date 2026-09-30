@@ -1,0 +1,14 @@
+{
+  "build": "20260929-m3-r11-production-intake-legacy-cutover",
+  "disposition": {
+    "bid_compliance_engine": "deprecated_compatibility \u2014 still callable; operator Bid Prep readiness wrapped by legacy_bridge (R1 wins)",
+    "bid_requirement_extraction": "deprecated \u2014 R1 requirements.py is canonical for Bid Prep",
+    "governing_documents": "adapted \u2014 R1 document_graph supersedes for ResponseProject",
+    "legacy_compliance_matrix": "compatibility wrapper via wrap_legacy_compliance_matrix",
+    "proposal_service": "superseded \u2014 not in normal operator Bid Prep flow",
+    "old_bid_package_draft": "retained for future R4/R5; not operator-facing readiness",
+    "old_bid_prep_endpoints": "adapted \u2014 /api/opportunities/.../bid-readiness returns R1-wrapped shape"
+  },
+  "canonical_source_of_truth": "ResponseProject + SolicitationDocument + SolicitationRequirement + ComplianceMatrix",
+  "operator_facing_readiness": "response_engine_r1 via legacy_bridge / bid_prep_card_for_opportunity"
+}

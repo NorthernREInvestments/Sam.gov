@@ -1264,6 +1264,182 @@ class PieePublicLiveFetcher(SimpleHtmlLiveFetcher):
         return out
 
 
+class IonWaveLiveFetcher(SimpleHtmlLiveFetcher):
+    """IonWave public portal — parse public listings; AUTH when login wall."""
+
+    source_id = "live_ionwave"
+    source_name = "IonWave Platform Family"
+    platform_family = "IonWave"
+
+    def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
+        text = (body or "").lower()
+        if "ionwave" not in text and "ionwave" not in (list_url or "").lower():
+            return False
+        if re.search(r"log\s*in|sign\s*in|username|password", text) and not re.search(
+            r"solicitation|bid\s*#|open\s+bid|public\s+portal", text
+        ):
+            return False
+        return bool(re.search(r"solicitation|bid|rfp|rfq|public\s+portal|opportunity", text, re.I))
+
+    def parse_listing(self, body: str, *, list_url: str, meta: dict[str, Any] | None = None) -> list[CanonicalOpportunity]:
+        text = (body or "").lower()
+        if "log in" in text and "public" not in text and "solicitation" not in text:
+            return []
+        opps = super().parse_listing(body, list_url=list_url, meta=meta)
+        for o in opps:
+            o.source_id = self.source_id
+            o.raw_metadata = {
+                **(o.raw_metadata or {}),
+                "downstream_platform": "IonWave",
+                "document_access": "PUBLIC_OR_REGISTER",
+            }
+        return opps
+
+
+class StructuredOpenDataLiveFetcher(LiveFetcher):
+    """Tier-1/2 structured open-data fetcher (Socrata/CKAN/ArcGIS/REST/CSV/RSS).
+
+    Field maps come from structured_source_registry via source_id or meta.
+    """
+
+    source_id = "live_structured"
+    source_name = "Structured Open-Data / API"
+    platform_family = "StructuredOpenData"
+    expected_kind = "json"
+    trust_tier = TIER_2
+
+    def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
+        text = (body or "").lstrip()
+        if text.startswith("[") or text.startswith("{"):
+            return True
+        if text.startswith("<?xml") or "<rss" in text[:200].lower() or "<feed" in text[:200].lower():
+            return True
+        if "," in text[:200] and "\n" in text[:500]:  # CSV-ish
+            return True
+        return False
+
+    def _resolve_map(self, list_url: str, meta: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any], str]:
+        from discovery.structured_source_registry import registry_by_source_id
+
+        meta = meta or {}
+        structured = meta.get("structured_meta") or meta
+        field_map = structured.get("field_map") or {}
+        defaults = structured.get("defaults") or {}
+        role = str(structured.get("role") or "LIVE")
+        sid = str(meta.get("source_id") or structured.get("source_id") or "")
+        if not field_map and sid:
+            reg = registry_by_source_id().get(sid) or {}
+            field_map = reg.get("field_map") or {}
+            defaults = reg.get("defaults") or defaults
+            role = str(reg.get("role") or role)
+        if not field_map:
+            # URL match against registry
+            for reg in registry_by_source_id().values():
+                if reg.get("list_url") and reg["list_url"].split("?")[0] in (list_url or ""):
+                    field_map = reg.get("field_map") or {}
+                    defaults = reg.get("defaults") or defaults
+                    role = str(reg.get("role") or role)
+                    break
+        return field_map, defaults, role
+
+    def parse_listing(self, body: str, *, list_url: str, meta: dict[str, Any] | None = None) -> list[CanonicalOpportunity]:
+        from discovery.structured_adapters import (
+            parse_arcgis_features,
+            parse_csv_feed,
+            parse_rss_atom,
+            parse_socrata_json,
+        )
+
+        meta = meta or {}
+        field_map, defaults, role = self._resolve_map(list_url, meta)
+        sid = str(meta.get("source_id") or self.source_id)
+        kind = str((meta.get("structured_meta") or meta).get("adapter_kind") or "socrata")
+        text = (body or "").lstrip()
+
+        # History role returns history dicts — convert lightly to opportunity shells for runner
+        if role.upper() == "HISTORY":
+            rows = parse_socrata_json(
+                body,
+                field_map=field_map or {"product": "description", "title": "description"},
+                source_id=sid,
+                list_url=list_url,
+                role="HISTORY",
+                defaults=defaults,
+            )
+            # Do not inject history as live inventory
+            return []
+
+        if kind == "rss" or text.startswith("<?xml") or "<rss" in text[:120].lower():
+            return parse_rss_atom(body, source_id=sid, list_url=list_url, defaults=defaults)
+        if kind == "csv" or (not text.startswith(("[", "{")) and "," in text[:120]):
+            if field_map:
+                return parse_csv_feed(
+                    body, field_map=field_map, source_id=sid, list_url=list_url, defaults=defaults  # type: ignore[return-value]
+                )
+            return []
+        if kind == "arcgis" or '"features"' in text[:500]:
+            if field_map:
+                return parse_arcgis_features(
+                    body, field_map=field_map, source_id=sid, list_url=list_url, defaults=defaults  # type: ignore[return-value]
+                )
+            return []
+
+        if not field_map:
+            # Fallback: generic JSON list via JsonLiveFetcher field names
+            return JsonLiveFetcher().parse_listing(body, list_url=list_url, meta=meta)
+
+        opps = parse_socrata_json(
+            body,
+            field_map=field_map,
+            source_id=sid,
+            list_url=list_url,
+            role="LIVE",
+            defaults=defaults,
+            trust_tier=self.trust_tier,
+        )
+        out: list[CanonicalOpportunity] = []
+        for o in opps:
+            if isinstance(o, CanonicalOpportunity):
+                o.source_id = sid
+                o.raw_metadata = {**(o.raw_metadata or {}), "structured_tier2": True, "adapter_kind": kind}
+                out.append(o)
+        return out
+
+
+class DemandStarLiveFetcher(SimpleHtmlLiveFetcher):
+    """DemandStar public agency/open-bid surfaces when listable without auth."""
+
+    source_id = "live_demandstar"
+    source_name = "DemandStar Platform Family"
+    platform_family = "DemandStar"
+
+    def structure_recognized(self, body: str, *, list_url: str | None = None) -> bool:
+        text = (body or "").lower()
+        if "demandstar" not in text and "demandstar" not in (list_url or "").lower():
+            return False
+        if re.search(r"create\s+an\s+account|sign\s*in\s+required", text) and not re.search(
+            r"open\s+bid|solicitation|agency", text
+        ):
+            return False
+        return bool(re.search(r"agency|solicitation|bid|rfp|opportunity", text, re.I))
+
+    def parse_listing(self, body: str, *, list_url: str, meta: dict[str, Any] | None = None) -> list[CanonicalOpportunity]:
+        opps = super().parse_listing(body, list_url=list_url, meta=meta)
+        cleaned: list[CanonicalOpportunity] = []
+        for o in opps:
+            title_l = (o.title or "").lower()
+            if any(x in title_l for x in ("create an account", "sign in", "subscribe", "pricing plan")):
+                continue
+            o.source_id = self.source_id
+            o.raw_metadata = {
+                **(o.raw_metadata or {}),
+                "downstream_platform": "DemandStar",
+                "document_access": "PUBLIC_OR_REGISTER",
+            }
+            cleaned.append(o)
+        return cleaned
+
+
 LIVE_FETCHERS: dict[str, LiveFetcher] = {
     SimpleHtmlLiveFetcher.source_id: SimpleHtmlLiveFetcher(),
     JsonLiveFetcher.source_id: JsonLiveFetcher(),
@@ -1279,6 +1455,9 @@ LIVE_FETCHERS: dict[str, LiveFetcher] = {
     FederalPublicPageLiveFetcher.source_id: FederalPublicPageLiveFetcher(),
     DibbsLiveFetcher.source_id: DibbsLiveFetcher(),
     PieePublicLiveFetcher.source_id: PieePublicLiveFetcher(),
+    IonWaveLiveFetcher.source_id: IonWaveLiveFetcher(),
+    DemandStarLiveFetcher.source_id: DemandStarLiveFetcher(),
+    StructuredOpenDataLiveFetcher.source_id: StructuredOpenDataLiveFetcher(),
 }
 
 PLATFORM_TO_FETCHER = {
@@ -1295,6 +1474,12 @@ PLATFORM_TO_FETCHER = {
     "DIBBS": "live_dibbs",
     "PIEE": "live_piee_public",
     "FederalPublic": "live_federal_public",
+    "IonWave": "live_ionwave",
+    "DemandStar": "live_demandstar",
+    "StructuredOpenData": "live_structured",
+    "Socrata": "live_structured",
+    "CKAN": "live_structured",
+    "ArcGIS": "live_structured",
 }
 
 

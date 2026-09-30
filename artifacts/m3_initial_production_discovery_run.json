@@ -1,37 +1,1614 @@
 {
-  "final_status": "CURRENT",
-  "run": {
-    "run_id": "MDR-cba6c2edad93",
-    "trigger_type": "STARTUP",
-    "started_at": "2026-09-17T03:49:47.608405+00:00",
-    "completed_at": "2026-09-17T03:51:02.879898+00:00",
-    "last_heartbeat_at": "2026-09-17T03:51:01.658889+00:00",
+  "kind": "M3InitialProductionDiscoveryRun",
+  "base": "https://samgov-production.up.railway.app",
+  "elapsed_poll_seconds": 1187.1,
+  "trigger": {
+    "accepted": true,
+    "already_running": false,
+    "run_id": "MDR-6edf751554c2",
+    "message": null
+  },
+  "status_before": {
+    "status": "CURRENT",
+    "running": false,
+    "last_successful_completion": {
+      "run_id": "MDR-1929ab4ea73c",
+      "trigger_type": "SCHEDULED",
+      "started_at": "2026-09-18T06:52:35.223109+00:00",
+      "completed_at": "2026-09-18T06:56:30.144824+00:00",
+      "last_heartbeat_at": "2026-09-18T06:56:28.711190+00:00",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "phase": "FINALIZING",
+      "progress_percent": 100,
+      "sources_total": 77,
+      "sources_attempted": 77,
+      "sources_completed": 77,
+      "sources_successful": 17,
+      "sources_failed": 60,
+      "records_retrieved": 275,
+      "unique_records": 225,
+      "open_current_records": 225,
+      "product_screen_survivors": 225,
+      "pipeline_new": 0,
+      "pipeline_updated": 175,
+      "pipeline_rejected": 0,
+      "deep_research_queued": 175,
+      "error_summary": null,
+      "source_warnings": [
+        "60 source(s) failed"
+      ],
+      "profile_override": null,
+      "bootstrap": false,
+      "handoff_status": "COMPLETE",
+      "handoff_discovered": 225,
+      "handoff_transferred": 225,
+      "handoff_failed": 0,
+      "handoff_retries": 0,
+      "reconciliation": {
+        "kind": "M3HandoffReconciliation",
+        "checked_at": "2026-09-18T06:55:56.892300+00:00",
+        "DISCOVERY_COUNT": 225,
+        "PIPELINE_COUNT": 225,
+        "PIPELINE_STORE_TOTAL": 275,
+        "MISSING_FROM_PIPELINE": 0,
+        "missing_keys": [],
+        "DUPLICATE_HANDOFFS": 50,
+        "FAILED_UPSERTS": 0,
+        "match": true,
+        "RESEARCH_QUEUE_COUNT": 211
+      },
+      "research_queue_count": 211,
+      "per_source_summary": {
+        "state_al": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ak": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_az": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ca": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "BLOCKED",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wv": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wy": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_cheyenne_wy": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ia": {
+          "ok": true,
+          "raw": 20,
+          "unique": 19,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_mt": {
+          "ok": true,
+          "raw": 20,
+          "unique": 20,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ne": {
+          "ok": true,
+          "raw": 56,
+          "unique": 16,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_nh": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_id": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_nc": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_pa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ga": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ar": {
+          "ok": true,
+          "raw": 9,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_la": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ms": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ok": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "fed_dla_dibbs_rfq": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "fed_dla_dibbs_rfq_by_fsc": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "fed_piee_public_solicitations": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_airport_dfw_tx": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_houston_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_county_harris_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_city_phoenix_az": {
+          "ok": false,
+          "raw": 32,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_denver_co": {
+          "ok": false,
+          "raw": 1,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_sourcewell_live": {
+          "ok": true,
+          "raw": 9,
+          "unique": 8,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "coop_hgac_live": {
+          "ok": false,
+          "raw": 5,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_naspo_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "coop_buyboard_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_omnia_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_1gpa_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_airport_lax_ca": {
+          "ok": false,
+          "raw": 2,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_atlanta_ga": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_boston_ma": {
+          "ok": false,
+          "raw": 1,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_city_chicago_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_city_los_angeles_ca": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_seattle_wa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BOT_PROTECTED",
+          "root_cause": "BOT_CHALLENGE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_county_cook_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_county_king_wa": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_county_maricopa_az": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_county_miami_dade_fl": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_isd_houston_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_transit_cta_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_transit_mta_ny": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_michigan": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BOT_PROTECTED",
+          "root_cause": "BOT_CHALLENGE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_texas_austin": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_uc_system": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_usd_la_ca": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_utility_ladwp_ca": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_co": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ct": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_de": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_fl": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_hi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_il": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_in": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ks": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ky": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ma": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_md": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_me": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_mi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_mn": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_mo": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_nd": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_nj": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_nm": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_nv": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ny": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_oh": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_or": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ri": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_sc": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_sd": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_tn": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ut": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_va": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BLOCKED",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_vt": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_wa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "fed_dla_sam_cross_publish": {
+          "ok": true,
+          "raw": 50,
+          "unique": 50,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        }
+      }
+    }
+  },
+  "final_status": {
+    "kind": "M3DiscoveryStatus",
+    "enabled": true,
+    "interval_minutes": 480,
+    "profile": "broad",
+    "status": "RUNNING",
+    "running": true,
+    "fresh": true,
+    "progress_percent": 29,
+    "phase": "DISCOVERING",
+    "elapsed_hint_started_at": "2026-09-18T09:43:25.434385+00:00",
+    "current_run": {
+      "run_id": "MDR-6edf751554c2",
+      "trigger_type": "MANUAL",
+      "started_at": "2026-09-18T09:43:25.434385+00:00",
+      "completed_at": null,
+      "last_heartbeat_at": "2026-09-18T10:02:44.269557+00:00",
+      "status": "RUNNING",
+      "phase": "DISCOVERING",
+      "progress_percent": 29,
+      "sources_total": 127,
+      "sources_attempted": 56,
+      "sources_completed": 56,
+      "sources_successful": 44,
+      "sources_failed": 12,
+      "records_retrieved": 10935,
+      "unique_records": 10478,
+      "open_current_records": 0,
+      "product_screen_survivors": 0,
+      "pipeline_new": 0,
+      "pipeline_updated": 0,
+      "pipeline_rejected": 0,
+      "deep_research_queued": 0,
+      "error_summary": null,
+      "source_warnings": [],
+      "profile_override": null,
+      "bootstrap": false
+    },
+    "last_successful_completion": {
+      "run_id": "MDR-1929ab4ea73c",
+      "trigger_type": "SCHEDULED",
+      "started_at": "2026-09-18T06:52:35.223109+00:00",
+      "completed_at": "2026-09-18T06:56:30.144824+00:00",
+      "last_heartbeat_at": "2026-09-18T06:56:28.711190+00:00",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "phase": "FINALIZING",
+      "progress_percent": 100,
+      "sources_total": 77,
+      "sources_attempted": 77,
+      "sources_completed": 77,
+      "sources_successful": 17,
+      "sources_failed": 60,
+      "records_retrieved": 275,
+      "unique_records": 225,
+      "open_current_records": 225,
+      "product_screen_survivors": 225,
+      "pipeline_new": 0,
+      "pipeline_updated": 175,
+      "pipeline_rejected": 0,
+      "deep_research_queued": 175,
+      "error_summary": null,
+      "source_warnings": [
+        "60 source(s) failed"
+      ],
+      "profile_override": null,
+      "bootstrap": false,
+      "handoff_status": "COMPLETE",
+      "handoff_discovered": 225,
+      "handoff_transferred": 225,
+      "handoff_failed": 0,
+      "handoff_retries": 0,
+      "reconciliation": {
+        "kind": "M3HandoffReconciliation",
+        "checked_at": "2026-09-18T06:55:56.892300+00:00",
+        "DISCOVERY_COUNT": 225,
+        "PIPELINE_COUNT": 225,
+        "PIPELINE_STORE_TOTAL": 275,
+        "MISSING_FROM_PIPELINE": 0,
+        "missing_keys": [],
+        "DUPLICATE_HANDOFFS": 50,
+        "FAILED_UPSERTS": 0,
+        "match": true,
+        "RESEARCH_QUEUE_COUNT": 211
+      },
+      "research_queue_count": 211,
+      "per_source_summary": {
+        "state_al": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ak": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_az": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ca": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "BLOCKED",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wv": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wy": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_cheyenne_wy": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ia": {
+          "ok": true,
+          "raw": 20,
+          "unique": 19,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_mt": {
+          "ok": true,
+          "raw": 20,
+          "unique": 20,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ne": {
+          "ok": true,
+          "raw": 56,
+          "unique": 16,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_nh": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_id": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_nc": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_pa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ga": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ar": {
+          "ok": true,
+          "raw": 9,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_la": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ms": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ok": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "fed_dla_dibbs_rfq": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "fed_dla_dibbs_rfq_by_fsc": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "fed_piee_public_solicitations": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_airport_dfw_tx": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_houston_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_county_harris_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_city_phoenix_az": {
+          "ok": false,
+          "raw": 32,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_denver_co": {
+          "ok": false,
+          "raw": 1,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_sourcewell_live": {
+          "ok": true,
+          "raw": 9,
+          "unique": 8,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "coop_hgac_live": {
+          "ok": false,
+          "raw": 5,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_naspo_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "coop_buyboard_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_omnia_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "coop_1gpa_live": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_airport_lax_ca": {
+          "ok": false,
+          "raw": 2,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_atlanta_ga": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_boston_ma": {
+          "ok": false,
+          "raw": 1,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "agency_city_chicago_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_city_los_angeles_ca": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_city_seattle_wa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BOT_PROTECTED",
+          "root_cause": "BOT_CHALLENGE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_county_cook_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_county_king_wa": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_county_maricopa_az": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_county_miami_dade_fl": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_isd_houston_tx": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_transit_cta_il": {
+          "ok": true,
+          "raw": 25,
+          "unique": 25,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "agency_transit_mta_ny": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_michigan": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BOT_PROTECTED",
+          "root_cause": "BOT_CHALLENGE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_texas_austin": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_univ_uc_system": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_usd_la_ca": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "AUTH_REQUIRED",
+          "root_cause": "AUTH_REQUIRED",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "agency_utility_ladwp_ca": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_co": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ct": {
+          "ok": true,
+          "raw": 1,
+          "unique": 1,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_de": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_fl": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_hi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_il": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_in": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ks": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ky": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ma": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_md": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_me": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_mi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_mn": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_mo": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_nd": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_nj": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_nm": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_nv": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_ny": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_oh": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_or": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_ri": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "HTTP_404",
+          "root_cause": "HTTP_404",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_sc": {
+          "ok": false,
+          "raw": null,
+          "unique": null,
+          "source_stop_reason": "SOURCE_EXCEPTION",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_sd": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_tn": {
+          "ok": true,
+          "raw": 2,
+          "unique": 2,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        },
+        "state_ut": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "CAPTCHA",
+          "root_cause": "CAPTCHA",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_va": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "BLOCKED",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_vt": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_FAILURE",
+          "root_cause": "PARSER_FAILURE",
+          "access_outcome": "ACCESS_SUCCEEDED_PARSE_FAILED"
+        },
+        "state_wa": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "state_wi": {
+          "ok": false,
+          "raw": 0,
+          "unique": null,
+          "source_stop_reason": "PARSER_SCHEMA_CHANGE",
+          "root_cause": "UNKNOWN_FAILURE",
+          "access_outcome": "ACCESS_FAILED"
+        },
+        "fed_dla_sam_cross_publish": {
+          "ok": true,
+          "raw": 50,
+          "unique": 50,
+          "source_stop_reason": "COMPLETED",
+          "root_cause": "OK",
+          "access_outcome": "ACCESS_SUCCEEDED_PRODUCTIVE"
+        }
+      }
+    },
+    "last_attempt": {
+      "run_id": "MDR-ef3a8add3e57",
+      "trigger_type": "MANUAL",
+      "started_at": "2026-09-18T09:34:30.020421+00:00",
+      "completed_at": "2026-09-18T09:42:57.119073+00:00",
+      "last_heartbeat_at": "2026-09-18T09:34:30.020426+00:00",
+      "status": "STALE_RECOVERED",
+      "phase": "FINALIZING",
+      "progress_percent": 2,
+      "sources_total": 0,
+      "sources_attempted": 0,
+      "sources_completed": 0,
+      "sources_successful": 0,
+      "sources_failed": 0,
+      "records_retrieved": 0,
+      "unique_records": 0,
+      "open_current_records": 0,
+      "product_screen_survivors": 0,
+      "pipeline_new": 0,
+      "pipeline_updated": 0,
+      "pipeline_rejected": 0,
+      "deep_research_queued": 0,
+      "error_summary": "Orphan discovery lock cleared on process start",
+      "source_warnings": [],
+      "profile_override": null,
+      "bootstrap": false
+    },
+    "next_scheduled_run": "2026-09-18T12:00:00+00:00",
+    "DISCOVERY": {
+      "sources_attempted": 56,
+      "sources_successful": 44,
+      "sources_failed": 12,
+      "records_fetched": 10935,
+      "unique_records": 10478,
+      "product_survivors": 0,
+      "completed": false,
+      "failed": false,
+      "status": "RUNNING"
+    },
+    "PIPELINE_HANDOFF": {
+      "discovered": null,
+      "transferred": null,
+      "failed": 0,
+      "retrying": false,
+      "retries": 0,
+      "status": null,
+      "match": null,
+      "MISSING_FROM_PIPELINE": null,
+      "FAILED_UPSERTS": null,
+      "DUPLICATE_HANDOFFS": null
+    },
+    "RESEARCH": {
+      "queued": 210,
+      "processing": 6,
+      "completed": 16
+    },
+    "pending_handoff_resume": false,
+    "pending_handoff_run_id": null,
+    "DEVELOPMENT_NO_OUTREACH": true,
+    "mode": {
+      "operating_mode": "DEVELOPMENT_NO_OUTREACH",
+      "outreach_allowed": false,
+      "automatic_external_actions_allowed": false,
+      "controlled_verification_active": false,
+      "controlled_session": {
+        "mode": "DEVELOPMENT_NO_OUTREACH",
+        "active": false,
+        "authorized_by": null,
+        "authorized_at": null,
+        "acknowledgment": null
+      },
+      "emails_sent": 0,
+      "calls_placed": 0,
+      "supplier_contacts": 0,
+      "financier_contacts": 0,
+      "agency_contacts": 0,
+      "portal_registrations": 0,
+      "bids_submitted": 0,
+      "financing_applications": 0,
+      "signatures": 0,
+      "network_transmitted": false
+    },
+    "commercial_outreach": false
+  },
+  "run_metrics": {
+    "started_at": "2026-09-18T06:52:35.223109+00:00",
+    "completed_at": "2026-09-18T06:56:30.144824+00:00",
     "status": "COMPLETED_WITH_WARNINGS",
-    "phase": "FINALIZING",
-    "progress_percent": 100,
-    "sources_total": 24,
-    "sources_attempted": 24,
-    "sources_completed": 24,
-    "sources_successful": 8,
-    "sources_failed": 16,
-    "records_retrieved": 124,
-    "unique_records": 74,
-    "open_current_records": 74,
-    "product_screen_survivors": 73,
-    "pipeline_new": 73,
-    "pipeline_updated": 0,
-    "pipeline_rejected": 1,
-    "deep_research_queued": 73,
+    "trigger_type": "SCHEDULED",
+    "sources_attempted": 77,
+    "sources_successful": 17,
+    "sources_failed": 60,
+    "records_retrieved": 275,
+    "unique_records": 225,
+    "open_current_records": 225,
+    "product_screen_survivors": 225,
+    "pipeline_new": 0,
+    "pipeline_updated": 175,
+    "pipeline_rejected": 0,
+    "deep_research_queued": 175,
     "error_summary": null,
     "source_warnings": [
-      "16 source(s) failed"
+      "60 source(s) failed"
     ]
   },
-  "home": {
-    "active": 69,
-    "actions": 0,
-    "shown": 40
+  "home_counts": {
+    "active_count": 221,
+    "action_count": 34,
+    "opportunities_shown": 40
   },
-  "pipeline_count": 73,
-  "build": "20260917-m3-discovery5"
+  "health": {
+    "build_version": "20260918-m3-national-discovery-scale-1",
+    "pipeline_opportunity_count": 275,
+    "DEVELOPMENT_NO_OUTREACH": true
+  },
+  "commercial_outreach": false,
+  "real_external_spend_usd": 0
 }

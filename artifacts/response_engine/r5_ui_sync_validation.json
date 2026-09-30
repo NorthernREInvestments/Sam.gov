@@ -1,0 +1,19 @@
+{
+  "DEAD_END_DEALS": 0,
+  "plain_language": true,
+  "owner_vs_operator_queues": true,
+  "canonical_presenter": "response_engine.operator_state_service",
+  "today_sections": [
+    "call_today",
+    "follow_up",
+    "quotes",
+    "registrations",
+    "owner_actions",
+    "responses",
+    "bid_prep",
+    "submissions",
+    "awaiting_result",
+    "blocked"
+  ],
+  "no_r_labels_in_normal_ui": true
+}

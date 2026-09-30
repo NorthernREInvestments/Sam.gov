@@ -1,0 +1,24 @@
+{
+  "case_id": "H_BOAST_6110_01_082_8958",
+  "case_name": "BOAST RFOP Power Distribution Panel NSN 6110-01-082-8958",
+  "description": "Phase H P0 false-actionability regression. LIVE_SOURCE RFOP restricted to BOAST BOA holders. Must NOT be READY_FOR_QUOTE_OUTREACH unless company holds BOAST_BOA.",
+  "source_type": "REAL_SOURCE_FIXTURE",
+  "reality_class": "REAL_SOURCE_FIXTURE",
+  "tags": ["phase_h", "eligibility", "BOAST", "P0_REGRESSION", "REGRESSION_ELIGIBILITY"],
+  "row_overrides": {
+    "canonical_id": "a907d7a2e92c4db898b353d91ed00b3c",
+    "title": "BOAST RFOP - Panel, Power Distribution - NSN: 6110-01-082-8958",
+    "solicitation_number": "PANDTA-26-P-0000_029863",
+    "description": "This Request for Order Proposal (RFOP) is limited to active BOAST Basic Ordering Agreement holders. Offerors must hold an active BOAST BOA by the closing date. NSN: 6110-01-082-8958.",
+    "phase_g_provenance_at_capture": "LIVE_SOURCE",
+    "nsn": "6110-01-082-8958"
+  },
+  "expected": {
+    "ready_for_quote_outreach": false,
+    "eligibility_overall_status_in": ["NOT_CURRENTLY_ELIGIBLE", "ELIGIBLE_CONDITIONAL", "ELIGIBILITY_UNKNOWN"],
+    "boa_required": true,
+    "next_action_mentions_eligibility": true
+  },
+  "expected_owner_readiness": false,
+  "notes": "Do not alter facts to make tests easier. Quote-ready only if vehicles_held includes BOAST_BOA."
+}

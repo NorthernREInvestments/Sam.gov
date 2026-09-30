@@ -1,0 +1,55 @@
+{
+  "case_id": "R_12",
+  "case_name": "BAD DEAL THAT LOOKS GOOD \u2014 public price + MIL pack + missing submission",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ LOOKS-GOOD-R12\nPart Number: SHINY-99 brand name or equal\nQuantity: 30 EA\nApparent high margin opportunity.\nMIL-STD-2073 packaging required. Approved source traceability required.\nFOB DESTINATION Delivery 15 days.\nSigned representations and certifications required. Acknowledge all amendments.\nSubmit via portal with mandatory attachments.\n",
+  "documents": [],
+  "row_overrides": {
+    "current_public_price": 99.0,
+    "supported_profit": 50000,
+    "government_revenue": 80000,
+    "preferred_supplier": "Online Marketplace Seller",
+    "economics_complete": true,
+    "acquisition_cost": 40
+  },
+  "expected": {
+    "packaging": {
+      "mil_std_2073_detected": true
+    },
+    "supplier": {
+      "supplier_validated": false,
+      "has_public_market_price": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    },
+    "execution_blockers_include_any": [
+      "SUPPLIER_NOT_VALIDATED",
+      "QUOTE_NOT_EXECUTABLE",
+      "PACKAGING_UNRESOLVED",
+      "SUBMISSION_INCOMPLETE_OR_UNKNOWN",
+      "FINANCING_INCOMPATIBLE_OR_UNKNOWN"
+    ]
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "false_readiness",
+    "looks_good",
+    "R12",
+    "REGRESSION_SUPPLIER"
+  ],
+  "notes": "R12 \u2014 public price + high margin must not create READY",
+  "adversarial": true,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false
+  },
+  "next_action_quality": "Do not escalate. Resolve approved-source / traceability, obtain a formal supplier quote (not public web price), confirm MIL-STD-2073 packaging cost, and complete mandatory submission attachments.",
+  "blocker_quality": null
+}

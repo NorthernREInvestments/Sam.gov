@@ -1,0 +1,20 @@
+{
+  "fixture_tag": "no_ready_path_observed",
+  "canonical_id": "PHASE_G_NO_READY",
+  "title": "No LIVE_SOURCE reached READY in Phase G batch",
+  "solicitation_number": null,
+  "source": null,
+  "listing_url": null,
+  "deadline": null,
+  "phase_g_provenance": "LIVE_SOURCE",
+  "listing_retrieval_timestamp": null,
+  "operator_action": null,
+  "operator_next_action": null,
+  "execution_critical_blockers": null,
+  "has_nsn": null,
+  "is_dla": null,
+  "funding_status": null,
+  "history_class": null,
+  "ready_for_owner_approval": false,
+  "product_class": null
+}

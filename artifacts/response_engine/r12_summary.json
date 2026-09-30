@@ -1,0 +1,34 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "verdict_candidate": "PHASE_R12_RESPONSE_COMPILER_HARDENED_PARTIAL",
+  "real_projects": 11,
+  "total_validation_rows": 11,
+  "unique_real_pdfs": 8,
+  "ocr_engine_available": true,
+  "ocr_engine": "rapidocr_onnxruntime",
+  "false_complete_count": 0,
+  "provenance_100": true,
+  "firewall_leakage": 0,
+  "sam_api_calls": 0,
+  "manually_audited_projects": 10,
+  "material_misses": [],
+  "dla_master": {
+    "versions_stored": 1,
+    "master_id": "MASTER-5ae934856ab0",
+    "project_refs": [
+      {
+        "master_id": "MASTER-5ae934856ab0",
+        "authority": "DLA",
+        "title": "DLA Master Solicitation SPE4A1-19-R-0001",
+        "version": "2024",
+        "file_hash": "2bd59a8751072ce1d4cd9472b709e2a955ad891d9e65fab6f7f201e71de83d29",
+        "applicability_confirmed": false,
+        "status": "MASTER_VERSION_REVIEW_REQUIRED",
+        "attached_at": "2026-09-29T21:19:48.246406+00:00"
+      }
+    ],
+    "unresolved_applicability": true
+  },
+  "limitation": "Unique real solicitation PDFs available: 8. Supplemental REAL_HTML from stored portal/listing artifacts. No live SAM / no portal login bypass.",
+  "r2_ready": false
+}

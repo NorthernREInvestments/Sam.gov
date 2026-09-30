@@ -1,0 +1,21 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "cases": [
+    {
+      "change_count": 3,
+      "categories": [
+        "deadline",
+        "quantity",
+        "submission_method"
+      ],
+      "owner_review_required": true,
+      "stale": true
+    }
+  ],
+  "xlsx_revision": {
+    "versions": 2,
+    "superseded": 1,
+    "controlling": 1,
+    "diffs": 1
+  }
+}

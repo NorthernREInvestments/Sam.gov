@@ -1,0 +1,31 @@
+{
+  "profile_version": "cp-28cc8ff0004c1708",
+  "fields": {
+    "UEI": "UNKNOWN",
+    "CAGE": "UNKNOWN",
+    "SAM": "UNKNOWN",
+    "small_business_status": "UNKNOWN"
+  },
+  "completeness": {
+    "required_known": [],
+    "required_unknown": [
+      "UEI",
+      "CAGE",
+      "SAM_registration_status",
+      "small_business_status"
+    ],
+    "stale": [],
+    "incomplete": true
+  },
+  "conflicts": [],
+  "verified": [],
+  "owner_entered": [],
+  "stale": [],
+  "unknown": [
+    "UEI",
+    "CAGE",
+    "SAM_registration_status",
+    "small_business_status"
+  ],
+  "note": "Default profile is UNKNOWN-heavy \u2014 do not fabricate PASS"
+}

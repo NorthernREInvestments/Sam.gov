@@ -1,0 +1,38 @@
+{
+  "case_id": "R_07",
+  "case_name": "IDIQ / ESTIMATE VS MINIMUM \u2014 estimate not guaranteed revenue",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ IDIQ-R07\nPart Number: IDIQ-22\nEstimated annual quantity: 10,000 EA (estimate only \u2014 not a guaranteed order quantity).\nMinimum order quantity: 50 EA.\nContract ceiling: $2,000,000.\nFOB DESTINATION.\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "quantity_uom": {
+      "estimate_flagged_not_guaranteed": true,
+      "has_quantity": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    },
+    "financing": {
+      "financing_assumed": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "idiq",
+    "quantity",
+    "R07"
+  ],
+  "notes": "R07 \u2014 estimated annual qty \u2260 guaranteed order; ceiling \u2260 revenue",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": "Treat 10,000 EA as an estimate only; price supplier quotes against the 50 EA minimum (or confirmed release quantity), not the ceiling.",
+  "blocker_quality": null
+}

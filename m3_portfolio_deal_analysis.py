@@ -914,7 +914,7 @@ def build_deal_card(row: dict[str, Any]) -> dict[str, Any]:
     elif pri["priority"] == PRI_DEFER:
         next_action = "Deferred — not product-resale priority"
 
-    return {
+    card = {
         "kind": "TOP_DEAL_CARD",
         "Opportunity": row.get("title") or UNKNOWN,
         "Agency": row.get("agency") or UNKNOWN,
@@ -939,18 +939,36 @@ def build_deal_card(row: dict[str, Any]) -> dict[str, Any]:
         "PORTFOLIO_RESEARCH_PRIORITY": pri["priority"],
         "NEXT": next_action,
         "canonical_id": row.get("canonical_id"),
+        "Deal_state": snap.get("Deal_state"),
     }
+    try:
+        from operator_workflow.summary import attach_operator_workflow
+
+        return attach_operator_workflow(card, row, include_summary=True)
+    except Exception:
+        return card
 
 
 def portfolio_operator_view(store: M3PipelineStore | None = None) -> dict[str, Any]:
     store = store or M3PipelineStore()
     inv = inventory_portfolio(store)
     queue = build_operator_deal_priority(inv["opportunities"])
+    enriched_deals = []
+    for d in queue[:50]:
+        if not isinstance(d, dict):
+            continue
+        row = store.get(str(d.get("canonical_id") or "")) or d
+        try:
+            from operator_workflow.summary import attach_operator_workflow
+
+            enriched_deals.append(attach_operator_workflow(dict(d), row, include_summary=True))
+        except Exception:
+            enriched_deals.append(d)
     last = _load_setting(SUMMARY_KEY)
     return {
         "kind": "M3PortfolioOperatorView",
         "counts": inv["counts"],
-        "deals": queue[:50],
+        "deals": enriched_deals,
         "top_cards": [build_deal_card(store.get(str(c["canonical_id"])) or {}) for c in queue[:6]],
         "filters_supported": [
             "commercial_verification_worthy",

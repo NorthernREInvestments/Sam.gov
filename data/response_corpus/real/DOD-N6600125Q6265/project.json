@@ -1,0 +1,64 @@
+{
+  "corpus_project_id": "DOD-N6600125Q6265",
+  "documents": [
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "e58e188460dd1ae3_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e58e188460dd1ae3_oppMgmtLink.xhtml",
+      "sha256": "e58e188460dd1ae3a8ada50eb4ef133ea22755126b3258bc66560163b1523b5f",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:07.325641+00:00"
+    },
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "e370b1a9e8da478c_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e370b1a9e8da478c_oppMgmtLink.xhtml",
+      "sha256": "e370b1a9e8da478cfd4a2ee2de0df12b544b8cf2b8e125063c8bfc78c337fae1",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:14.800876+00:00"
+    },
+    {
+      "filename": "oppMgmtLink.xhtml",
+      "stored_as": "e97394da1e54e1bc_oppMgmtLink.xhtml",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e97394da1e54e1bc_oppMgmtLink.xhtml",
+      "sha256": "e97394da1e54e1bcb986e2398d1ac445b78b337fe8b90cb2be3240494e929d31",
+      "bytes": 27696,
+      "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:51:47.485031+00:00"
+    }
+  ],
+  "hashes": [
+    "e58e188460dd1ae3a8ada50eb4ef133ea22755126b3258bc66560163b1523b5f",
+    "e370b1a9e8da478cfd4a2ee2de0df12b544b8cf2b8e125063c8bfc78c337fae1",
+    "e97394da1e54e1bcb986e2398d1ac445b78b337fe8b90cb2be3240494e929d31"
+  ],
+  "tags": [
+    "FEDERAL",
+    "PIEE",
+    "RFQ",
+    "BRAND_OR_EQUAL",
+    "EXACT_PART",
+    "GOLDEN_CORPUS"
+  ],
+  "created_at": "2026-09-29T22:42:06.307597+00:00",
+  "buyer": "Department of the Navy / NIWC",
+  "agency": "DoD",
+  "solicitation_number": "N66001-25-Q-6265",
+  "title": "COTS Brand Name and Brand Name or Equal Materials/IT Equipment",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml?noticeId=N6600125Q6265&noticeType=CombinedSynopsisSolicitation",
+  "discovery_source": null,
+  "submission_system": "PIEE",
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:51:47.485045+00:00",
+  "golden": true
+}

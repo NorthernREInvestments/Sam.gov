@@ -1,0 +1,8 @@
+{
+  "counts": {
+    "NOT_APPLICABLE": 31,
+    "REQUIRED_UNKNOWN": 1
+  },
+  "rule": "CMMC not inferred from DoD alone",
+  "engine": "response_engine.cyber_dod"
+}

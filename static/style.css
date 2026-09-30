@@ -4445,3 +4445,100 @@ body.m3-only-app #dashboard-perf-alerts {
 .mpl-progress { font-size: 1.05rem; font-weight: 700; }
 .mpl-editor .m3-field.check { display: flex; align-items: center; gap: 0.4rem; }
 .m3-bottom-nav .m3-nav-btn { font-size: 0.65rem; padding: 0.3rem 0.1rem; }
+
+/* Phase C — Operator OS */
+.m3-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+.m3-kpi {
+  background: rgba(15, 20, 28, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+.m3-kpi-label {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin-bottom: 0.2rem;
+}
+.m3-kpi strong { font-size: 1.05rem; }
+.m3-role-banner { font-size: 0.8rem; margin: 0.25rem 0 0; }
+.m3-stage-pill {
+  display: inline-block;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.m3-why-block { margin: 0.5rem 0; }
+.m3-why-label { font-size: 0.75rem; font-weight: 700; margin: 0 0 0.25rem; }
+.m3-why-list { margin: 0; padding-left: 0; list-style: none; }
+.m3-why-item { font-size: 0.82rem; margin: 0.15rem 0; color: #cbd5e1; }
+.m3-blockers { font-size: 0.8rem; color: #fbbf24; }
+.m3-card-actions { margin-top: 0.5rem; }
+.m3-pipeline-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(15, 20, 28, 0.4);
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+.m3-pipe-step { font-weight: 600; color: #e2e8f0; }
+.m3-pipe-arrow { color: #64748b; padding-left: 0.35rem; }
+.m3-checklist-section .m3-check-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.m3-check-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+.m3-check-status-complete { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+.m3-check-status-missing { background: rgba(251, 191, 36, 0.15); color: #fde68a; }
+.m3-check-status-blocked { background: rgba(248, 113, 113, 0.18); color: #fca5a5; }
+.m3-check-list { margin: 0; padding-left: 0; list-style: none; }
+.m3-check-list li { font-size: 0.82rem; margin: 0.2rem 0; }
+.m3-check-mark { display: inline-block; width: 1.1rem; }
+.m3-ready-banner {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.m3-tech-details {
+  margin: 1rem 0;
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+.m3-tech-details summary {
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.m3-role-btn.active {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 1px;
+}
+.m3-rejected { opacity: 0.7; }

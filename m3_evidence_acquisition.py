@@ -940,6 +940,38 @@ def acquire_evidence(
             row["line_items_confidence"] = "HIGH"
         if portal_result.get("detail_url") and not detail_url(row):
             row["detail_url"] = portal_result["detail_url"]
+        # Persist listing Close as response deadline when portal resolver recovered it.
+        # Never invent; never use Open/posted as the response deadline.
+        close_from_portal = portal_result.get("deadline_raw") or portal_result.get("response_deadline")
+        posted_from_portal = portal_result.get("posted_raw") or portal_result.get("open_date_raw")
+        if close_from_portal or posted_from_portal:
+            try:
+                from deadline_runtime import apply_response_deadline_to_row
+
+                existing_close = row.get("deadline_raw") or row.get("response_deadline") or row.get("deadline")
+                if not existing_close or (close_from_portal and existing_close != close_from_portal):
+                    updated = apply_response_deadline_to_row(
+                        row,
+                        close_raw=close_from_portal,
+                        posted_raw=posted_from_portal,
+                        source_url=portal_result.get("list_url") or portal_result.get("detail_url"),
+                        is_amendment=bool(
+                            existing_close
+                            and close_from_portal
+                            and existing_close != close_from_portal
+                        ),
+                    )
+                    row.update(updated)
+            except Exception as exc:  # noqa: BLE001
+                attempts.append(
+                    {
+                        "tier": "PORTAL_DEADLINE_PERSIST",
+                        "at": _utc(),
+                        "error": str(exc)[:200],
+                    }
+                )
+        if portal_result.get("listing_dates") and not row.get("listing_dates"):
+            row["listing_dates"] = portal_result["listing_dates"]
         row["package_completeness"] = assess_package_completeness(row, documents=docs)
     except Exception as exc:  # noqa: BLE001
         attempts.append({"tier": "PORTAL_DOCUMENT_RESOLVER", "at": _utc(), "error": str(exc)[:300]})

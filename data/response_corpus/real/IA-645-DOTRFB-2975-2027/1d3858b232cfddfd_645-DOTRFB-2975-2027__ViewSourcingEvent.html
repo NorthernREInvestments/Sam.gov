@@ -1,0 +1,814 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE HTML>
+<html lang="en">	<head>
+		<META http-equiv="Content-Language" content="en-US">
+		<META http-equiv="Content-Script-Type" content="text/javascript" >
+<meta id="viewport" name="viewport" content ="width=device-width, minimum-scale=1.0, user-scalable=yes" />
+		<title>Supplier Login or Join JAGGAER Supplier Network</title>
+		<script type="text/javascript">
+			var timestamp = '1789515145163503'
+			var _showDocEditLink = false
+		</script>
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/bootstrap.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/mdb_custom.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/StyleSheet_Legacy_isolation.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="StyleSheet?JSP=%2Flooknfeel%2Fstylesheet%2Fmaterial%2FStyleSheet_MDB.jsp&lastBuildTime=1789156076130&NavigationColorThemeId=16903&lastNavColorThemeUpdateTime=1771017887102&UIStyle=5&LimitedAnimationMode=false&AccessibilityMode=false&FontSize=Medium">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/fontawesome-free-5.0.4/web-fonts-with-css/css/fontawesome-all.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="StyleSheet?JSP=%2Flooknfeel%2Fstylesheet%2Fphoenix%2FStyleSheetPhoenixNavBodyMargin.jsp&lastBuildTime=1789156076130&NavigationColorThemeId=16903&lastNavColorThemeUpdateTime=1771017887102&UIStyle=5&LimitedAnimationMode=false&AccessibilityMode=false&FontSize=Medium">
+		<link rel="stylesheet" type="text/css" href="StyleSheet?JSP=%2Flooknfeel%2Fstylesheet%2Fphoenix%2FStyleSheetPhoenixNav.jsp&lastBuildTime=1789156076130&NavigationColorThemeId=16903&lastNavColorThemeUpdateTime=1771017887102&UIStyle=5&LimitedAnimationMode=false&AccessibilityMode=false&FontSize=Medium">
+		<link rel="stylesheet" type="text/css" href="StyleSheet?JSP=%2Flooknfeel%2Fstylesheet%2Fcommon%2FStyleSheetJ1PMicrofrontend.jsp&lastBuildTime=1789156076130&NavigationColorThemeId=16903&lastNavColorThemeUpdateTime=1771017887102&UIStyle=5&LimitedAnimationMode=false&AccessibilityMode=false&FontSize=Medium">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/glyphicons_pro/glyphicons/web/html_css/css/glyphicons.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/glyphicons_pro/glyphicons_halflings/web/html_css/css/glyphicons-halflings.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/glyphicons_pro/glyphicons_filetypes/web/html_css/css/glyphicons-filetypes.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/glyphicons_pro/glyphicons_social/web/html_css/css/glyphicons-social.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/art/scicons/stylesheet.css?lastBuildTime=1789156076130">
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/jQuery/jquery-2.2.4.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/js/CombinedJavascript.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="https://app01.jaggaer.com/apps/Router/CommonJavaScript?OrgId=30004435&UserId=&country=&language=&UIStyle=5&AccessibilityMode=false&LimitedAnimationMode=false&material=true&materialOverLegacy=false&lastBuildTime=1789156076130"></script>
+		<script type="text/javascript" src="PhoenixJavaScript?OrgId=30004435&UserId=&country=&language=&UIStyle=5&material=true&AccessibilityMode=false&LimitedAnimationMode=false&lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/jQuery/jquery-2.2.4.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="MaterialJavascript?OrgId=30004435&UserId=&country=&language=&UIStyle=5&material=true&AccessibilityMode=false&LimitedAnimationMode=false&lastBuildTime=1789156076130"></script>
+<script type="text/javascript">
+SQ.Env.servletUrl = 'https://app01.jaggaer.com/apps/Router';
+</script>
+	</head>
+
+	<body id="SupplierLogin_body" onload="redirectToJ1PLoginIfNeeded();" menu-display = "default-view"  class="page--portrait page--splash">
+<input id="LimitedAnimationMode" type="hidden" name="LimitedAnimationMode" value="false"><input id="AccessibilityMode" type="hidden" name="AccessibilityMode" value="false"><div class="container">
+<div class="row">
+<div class="col-12">
+
+	<div class="card"><a href="SupplierLogin?AuthToken=1%3AAES2%23CLgdtSyQ%2FmY5S98IvvEuf%2B4KdSREkXUh8PJWsxnfwIkCKgpf2MQ92ShoxdssMSNO63TBleXC1rLTkfKXKOuuh%2BLnXST3Z6Y01O0FMFXid0kjEqExCkmCJ0TL%2BmyFyNfiwEKrBKlNM6fJ0yDidSzzrqTp05uJVdy6jg%3D%3D&CustOrg=DASIowa&tmstmp=1789515145166" class="h-100" role="banner">
+<img class="card-img-top" id="headerImg" height="auto" width="100%" title="Supplier Login or Join JAGGAER Supplier Network" alt="<center>State of Iowa</center>" src="/app_docs/pics/orgimages/30004435/805126.jpg" />
+</a>
+<div class="card-body card-body--padded">
+	
+ 
+		  	<div class="row">
+				 <div class="col">
+		 			<br/>
+		 			<div id="PhxGenId30" class="phx phxText">This serves as an invitation to register to become a vendor for the State of Iowa. If you have registered, please login.</div>
+					<hr class="full-bleed"/>
+				</div>
+		  	</div>
+
+				
+
+	<div class="row">
+		<div class="col">
+
+				
+				<form method="post" name="ActiveForm" action="https://app01.jaggaer.com/apps/Router/SupplierLogin?CustOrg=DASIowa" class="PreventMultipleSubmit PreventMultipleEnter form-horizontal right">
+
+					<input type="hidden" name="ParamAction" value="supplierLogin" />
+
+					<input type="hidden" name="AuthToken" value="1:AES2#CLgdtSyQ/mY5S98IvvEuf+4KdSREkXUh8PJWsxnfwIkCKgpf2MQ92ShoxdssMSNO63TBleXC1rLTkfKXKOuuh+LnXST3Z6Y01O0FMFXid0kjEqExCkmCJ0TL+myFyNfiwEKrBKlNM6fJ0yDidSzzrqTp05uJVdy6jg==" />
+
+					<input type="hidden" name="idmActionColdRegRedirectURL" value="" />
+
+					<input type="hidden" name="URL" value="ViewSourcingEvent?AuthToken=1%3AAES2%23CLgdtSyQ%2FmY5S98IvvEuf%2B4KdSREkXUh8PJWsxnfwIkCKgpf2MQ92ShoxdssMSNO63TBleXC1rLTkfKXKOuuh%2BLnXST3Z6Y01O0FMFXid0kjEqExCkmCJ0TL%2BmyFyNfiwEKrBKlNM6fJ0yDidSzzrqTp05uJVdy6jg%3D%3D&amp;CustOrg=DASIowa&amp;EventId=1423842&amp;SupplierId=&amp;tmstmp=1789515145082" />
+
+					<input type="hidden" name="linksource" value="" />
+
+					<input type="hidden" name="idmLoginFlowContext" value="" />
+
+					
+					<div class="mb-3">
+						
+					</div>
+							
+								<table cellpadding='3px;'>
+									<tr>
+										<td width='5%;'>
+											<img src="/app_docs/art/cart/round_ok_24x24.png" border="0" alt="" />
+										</td>
+										<td style="font-size:1.2em;font-weight:bold;vertical-align:middle;">
+											Please login to view the sourcing event.
+										</td>
+									</tr>
+								</table>
+								
+							
+							<div class="d-flex justify-content-between">
+								<div id="GSPSupplier_Login_EnterYourEmail" class="phx phxText">Enter your email to Login/Create Account</div>
+								<div class="btn-group preferred-dropdown"><button type="button" class="btn waves-effect waves-light btn-sm withIcons preserveDirtyData dropdown-toggle" id="en" tabindex="0" data-toggle="dropdown" aria-haspopup="true" aria-controls="en_groupMenu" aria-expanded="false" aria-label="English" name="en"><span class="linkText">English</span>&nbsp;<svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 32 32" class="phx"><path d="M15.8,19.9l-7.2-7.4C8.4,12.3,8.5,12,8.8,12h14.4c0.3,0,0.4,0.3,0.2,0.5l-7.2,7.4C16.1,20,15.9,20,15.8,19.9z"/></svg></button> <div id="en_groupMenu_0" role="menu" class="dropdown-menu dropup z-depth-1 btn-mini pre-scrollable scroll "><a class="withIcons dropdown-item" id="English" tabindex="0" onclick="onExtLanguageSelect('en',onSelectLanguage);" href="javascript:void(0);" name="English" data-bind-enter="true" data-bind-space="true"><img src="/app_docs/3rdPartyLibraries/gosquared_flags/16/US.png" border="0" alt="English" />&nbsp;<span class="linkText">English</span></a> </div>
+</div>
+							</div>
+							<div class="no-gutters mt-2 row">
+								<div id="GSPSupplier_Login_Email_CtrlGrp" class="control-group form-group row col-10">
+									<div class="d-flex align-items-center w-100">
+										<input type="text" id="GSPSupplier_Login_Email" name="GSPSupplier_Login_Email" value="" tabindex="0" maxlength="100" size="35" class="phx input-xlarge form-control" onkeyup="removeEmailStatus();" autocomplete="off" />
+									</div>
+									<div id="PhxGenId" class="visibility-controller start-hidden">
+										<div class="mt-2">
+											<div class="alert alert-info alert-material"><div class="message-container"><div>Looks like you don't have an account yet. Click 'Create Account' to register.</div></div></div>
+										</div>
+									</div>
+									<input type="hidden" name="emailexists" value="" />
+
+								<div class="col-form-label d-flex col-12 pl-0"><label for="GSPSupplier_Login_Email" id="GSPSupplier_Login_Email_CtrlGrpLabel">Email</label></div></div>
+								<div class="col-2">
+								<div id="PhxGenId_2" class="visibility-controller start-hidden">
+										<button type="button" class="btn waves-effect waves-light btn-primary" id="Button_Next" tabindex="0" onclick="checkEmailExistsAjax(true);" href="javascript:void(0);" name="Button_Next">Next</button>
+								</div>
+								</div>
+							</div>
+
+							<div id="PhxGenId_3" class="visibility-controller start-hidden">
+							<div id="PhxGenId_4" class="visibility-controller start-hidden">
+								
+								<div id="GSPSupplier_Login_Password_CtrlGrp" class="control-group form-group row">
+									<input type="password" id="GSPSupplier_Login_Password" name="GSPSupplier_Login_Password" value="" tabindex="0" maxlength="100" size="35" class="phx input-xlarge form-control" autocomplete="off" />
+								<div class="col-form-label d-flex col-12 pl-0"><label for="GSPSupplier_Login_Password" id="GSPSupplier_Login_Password_CtrlGrpLabel">Password</label></div></div>
+								
+							</div>
+							<div class="btn-group dropdown">
+								<div id="PhxGenId_5" class="visibility-controller start-hidden">
+									<a class="btn btn-flat" id="Button_Back" tabindex="0" href="javascript:void(0);" onclick="backClick();" name="Button_Back" data-bind-enter="true" data-bind-space="true">Back</a>
+								</div>
+								<div id="PhxGenId_6" class="visibility-controller start-hidden">
+
+									<button type="submit" class="btn waves-effect waves-light btn-primary" id="GSPSupplier_Login_LoginButton" tabindex="0" onclick="javascript:PhoenixUtils.showInlineLoading(this.id,false,true);" name="GSPSupplier_Login_LoginButton">Login</button>
+	
+										<a class="btn btn-flat btn-sm" id="GSPSupplier_Login_ForgotPassowrdLink" tabindex="0" href="javascript:void(0);" onclick="forgotPassword();" name="GSPSupplier_Login_ForgotPassowrdLink" data-bind-enter="true" data-bind-space="true">Trouble logging in?</a>
+	
+
+								</div>
+							</div>
+						</div>
+				</form>
+
+				<hr class="space-only"/>
+		
+
+
+							<div id="NewSupplierLoginMessage">
+								<div id="PhxGenId31" class="phx phxText">If you have not previously registered, please create an account. Otherwise, login as normal.</div>
+								<hr class="space-only"/>
+							</div>
+
+				<div id="PhxGenId_7" class="visibility-controller start-hidden">
+					<div class="ButtonRow">
+					
+
+								<button type="button" class="btn waves-effect waves-light" id="CreateAccount" tabindex="0" onclick="registrationFAQ();" href="javascript:void(0);" name="GSPSupplier_Login_CreateAccount">Create Account</button>
+
+					
+</div>
+
+				</div>
+
+			</div>
+	</div>
+	</div>
+</div>
+
+
+
+
+
+
+
+
+
+
+				<div class="no-gutters justify-content-center margin20 row">
+					<div class="col-10 col-md-9">
+						<span class="InlineHelp">Please contact IMPACS Support  at <a href="mailto:impacs@das.iowa.gov">impacs@das.iowa.gov</a> or +1 515-823-9083 for assistance.</span>
+						<p></p>
+					</div>
+					<div class="offset-md-1 col-3 col-md-1">
+						<a class="imageLink" href="ExternalSiteTransition?url=http%3A%2F%2Fwww.jaggaer.com&amp;token=MTpBRVMyI0NLWXd1cjEvOEVzVlFnRnhOeDdtR3pJei9YUmp4aTczQkE9PQ%3D%3D&amp;tmstmp=1789515145168" target="_new" title="Powered By JAGGAER" tabindex="0"  data-bind-space='true'  role="button"><img src="/app_docs/art/tsm/PoweredBySciQuest@2x.png" border="0" alt="Powered By JAGGAER" style="vertical-align:middle;" /></a> 
+					</div>
+				</div>
+
+
+
+
+
+<script type="text/javascript">
+
+function onExtLanguageSelect(langIsoCode,pageRefreshFunc) {
+	
+	setClientConfigCookie("ExtLangSelect",langIsoCode);
+	
+	if (pageRefreshFunc) {
+		pageRefreshFunc();
+	}
+}
+
+function extLanguageSelectSubmitNoValidation(formId) {
+	var btn = jQuery("#extLanguageSelect_NoValidationButton");
+	if (btn.length == 0) {
+		jQuery("#"+formId).append(
+			jQuery("<input/>", {
+				id: 'extLanguageSelect_NoValidationButton',
+				type: 'submit',
+				formnovalidate: 'formnovalidate',
+				style: 'display:none'
+			})
+		);
+		btn = jQuery("#extLanguageSelect_NoValidationButton");
+	}
+	btn.click();
+}
+</script>
+
+
+<script type="text/javascript">
+
+function StringUtils() {}
+
+StringUtils.isEmpty = function(text) {
+	return text == null || text == "";
+}
+
+StringUtils.isJsonArrayStringEmpty = function(text) {
+	return text == null || text == "" || text == "[]";
+}
+
+StringUtils.isNotEmpty = function(text) {
+	return text != null && text != "";
+}
+
+StringUtils.nullToBlank = function(text) {
+	if(text) {
+		return text;
+	} else {
+		return "";
+	}
+}
+
+StringUtils.safeEquals = function(text1, text2) {
+	return String(text1) == String(text2);
+}
+
+StringUtils.safeEqualsIgnoreCase = function(text1, text2) {
+	var upper1 = null;
+	var upper2 = null;
+	if(text1) {
+		upper1 = String(text1).toUpperCase();
+	}
+	if(text2) {
+		upper2 = String(text2).toUpperCase();
+	}
+	return upper1 == upper2;
+}
+
+StringUtils.safeContains = function(text, contains) {
+	var containsText = false;
+	if(text) {
+		containsText = text.indexOf(contains) >= 0;
+	}
+	return containsText;
+}
+
+StringUtils.trim = function(text) {
+	var result = null;
+	if(null != text) {
+		result = text.trim();
+	}
+	return result;
+}
+
+StringUtils.reduceWhitespace = function(text) {
+	var result = null;
+	if(null != text) {
+		result = text.trim();
+		result = result.replace(/[\t\n\s]+/g,' ');
+	}
+	return result;
+}
+
+StringUtils.safeTruncate = function(text, length, overflow) {
+	var result = null;
+	if(null != text) {
+		if (length < 0 || length >= text.length) {
+			result = text;
+		} else {
+			result = text.substring(0,length);
+			if (overflow) {
+				result += overflow;
+			}
+		}
+	}
+	return result;
+}
+
+StringUtils.endsWith = function(text, suffix) {
+	return text.indexOf(suffix, text.length - suffix.length) !== -1;
+}
+
+StringUtils.isTooLongInUTF8Bytes = function(text, maximumBytes) {
+	if (text == null) {
+		return false;
+	}
+
+	var byteCount = 0;
+	for (var i = 0; i < text.length; i++) {
+		var code = text.charCodeAt(i);
+		if (code <= 0x7F) {
+			byteCount += 1;
+		} else if (code >= 0x80 && code <= 0x7FF) {
+			byteCount += 2;
+		} else if (code >= 0x800 && code <= 0xFFFF) {
+			byteCount += 3;
+		} else if (code >= 0x10000 && code <= 0x10FFFF) {
+			byteCount += 4;
+		}
+	}
+
+	return byteCount > maximumBytes;
+}
+</script>
+
+
+<script type="text/javascript">
+
+
+		function registrationFAQ() {
+			var urlBuilder = UrlBuilder.getUrlBuilderFromUrl("SourcingSupplierRegistration?CustOrg=DASIowa&AuthToken=1%3AAES2%23CMdgxUIw%2FSAbYTlC%2F44i8A76BVl8l3lYt5ougkbzSNen0k0RaxxIz1Zq%2BZhnuMNsBaWu6MgdWyg4PxsNB07pbpWx0cGw5YAP2Pzh0JnQcYrpZ%2BN7nFlqAvofRTFfN6cYRCR4JGoIpDmDzM9ucTyFezWdgqfiskAeig%3D%3D&tmstmp=1789515145168");
+			var email = jQuery('#GSPSupplier_Login_Email').val();
+			urlBuilder.addParameter('GSPSupplier_RegistrationRequest_Email', email);
+			window.location.href = urlBuilder.getTarget();
+		}
+
+	function onSelectLanguage() {
+		window.location.href = window.location.href;
+	}
+
+	function forgotPassword(){
+		var urlBuilder = UrlBuilder.getUrlBuilderFromUrl("SupplierPasswordReset?CustOrg=DASIowa&tmstmp=1789515145168");
+		var email = jQuery('#GSPSupplier_Login_Email').val();
+		urlBuilder.addParameter('GSPSupplier_PasswordReset_Email', email);
+		window.location.href = urlBuilder.getTarget();
+	}
+
+	function redirectToJ1PLoginIfNeeded(){
+		var redirectURL = true ? null: 'null';
+		if (redirectURL) {
+			SQ.Effects.showPleaseWaitPageTransition('Loading...');
+			var urlBuilder = UrlBuilder.getUrlBuilderFromUrl("null");
+			window.location.href = urlBuilder.getTarget();
+			SQ.Effects.hidePleaseWaitPageTransition();
+		}
+	}
+
+	function checkEmailExistsAjax(handleIDMCheck) {
+		
+		
+		SQ.Effects.showPleaseWaitPageTransition('Loading...');
+		var phoenixConnection = new PhoenixConnection();
+		var parameters = new Object();
+
+		parameters['searchString'] = jQuery('#GSPSupplier_Login_Email').val();
+		
+			parameters['CustOrg'] = 'DASIowa';
+		
+		
+			parameters['tokenType'] = '13';
+		
+		phoenixConnection.send("AjaxGSPUserSearch?tmstmp=1789515145168", parameters,
+			function(){
+				var results = phoenixConnection.getResponseObject();
+				var exists = results.exists;
+				var confirmMessage = results.confirmMessage;
+				var redirectUrl = results.redirectUrl;
+				var directLoginPossible = results.directLogin;
+				var idmLoginFlowContext = results.idmLoginFlowContext;
+				showHideActionButtons(exists, confirmMessage, redirectUrl, directLoginPossible, handleIDMCheck, idmLoginFlowContext);
+				SQ.Effects.hidePleaseWaitPageTransition();
+			},
+			function(){
+				//failure
+				SQ.Effects.hidePleaseWaitPageTransition();
+			}
+		);
+	}
+
+	function showHideActionButtons(exists, confirmMessage, redirectUrl, directLoginPossible, handleIDMCheck, idmLoginFlowContext) {
+		if(confirmMessage) {
+			var pConfirm = new PhoenixConfirm();
+			pConfirm.message = confirmMessage;
+			if(redirectUrl){
+				pConfirm.onYesCallback = function() {
+														if (idmLoginFlowContext) {
+															handleIDMCheckAction(redirectUrl, idmLoginFlowContext);
+														} else {
+															window.location.href = redirectUrl;
+														}
+													};
+				pConfirm.yesText = "Continue";
+			} else {
+				pConfirm.onYesCallback = function() {jQuery('#'+pConfirm.id).find('button.close').click()}; //cancel button stops working after the first time
+				pConfirm.yesText = "OK";
+			}
+			pConfirm.onNoCallback = function() {jQuery('#'+pConfirm.id).find('button.close').click()}; //cancel button stops working after the first time
+			pConfirm.noText = "Cancel";
+			pConfirm.title = "Create Account";
+			pConfirm.show();
+		} else {
+			if (handleIDMCheck) {
+				handleIDMCheckAction();
+			} else {
+				jQuery('#Button_Next').hide();
+				jQuery('#Button_Back').show();
+				setEmailExists(exists && directLoginPossible);
+				if(exists) {
+					jQuery('#GSPSupplier_Login_Email').after('<span class="inputbox-status"><i class="phx phxGlyph halflings halflings-ok phoenixColor-webGreen-level4" id="halflingshalflings-ok" role="img"></i></span>')
+					if(directLoginPossible){
+						jQuery('#GSPSupplier_Login_Password').focus();
+					}
+				} else {
+					jQuery('#GSPSupplier_Login_Email').after('<span class="inputbox-status"><i class="phx phxGlyph halflings halflings-remove phoenixColor-red-level4" id="halflingshalflings-remove" role="img"></i></span>')
+					jQuery('#GSPSupplier_Login_Email').focus();
+				}
+				jQuery('span.inputbox-status i').hide().fadeIn(2000);
+			}
+		}
+	}
+
+	function handleIDMCheckAction(redirectURL, idmLoginFlowContext) {
+		if (idmLoginFlowContext === 'ColdReg') {
+			document.ActiveForm.idmActionColdRegRedirectURL.value = redirectURL;
+		}
+		document.ActiveForm.ParamAction.value = 'checkUserInIdP';
+		document.ActiveForm.submit();
+	}
+
+	function backClick() {
+		jQuery('#Button_Next').show();
+		setEmailExists("");
+	}
+
+	function setEmailExists(exists){
+		document.ActiveForm.emailexists.value = exists;
+		if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+		removeEmailStatus();
+	}
+
+	function removeEmailStatus(){
+		jQuery('span.inputbox-status').remove();
+	}
+
+	jQuery(document).ready(function() {
+	  jQuery('#GSPSupplier_Login_Email').keydown(function(event){
+	    if(event.keyCode == 13) {
+	      event.preventDefault();
+	      
+	    	  checkEmailExistsAjax(true);
+	      
+	      return false;
+	    }
+	  });
+	});
+
+	function callShowHideActionButtons() {
+		var exists = false;
+		var confirmMessage = true ? null: 'null';
+		var redirectUrl = false ? null: 'ViewSourcingEvent?AuthToken=1%3AAES2%23CLgdtSyQ%2FmY5S98IvvEuf%2B4KdSREkXUh8PJWsxnfwIkCKgpf2MQ92ShoxdssMSNO63TBleXC1rLTkfKXKOuuh%2BLnXST3Z6Y01O0FMFXid0kjEqExCkmCJ0TL%2BmyFyNfiwEKrBKlNM6fJ0yDidSzzrqTp05uJVdy6jg%3D%3D&CustOrg=DASIowa&EventId=1423842&SupplierId=&tmstmp=1789515145082';
+		var directLoginPossible = false;
+		showHideActionButtons(exists, confirmMessage,redirectUrl, directLoginPossible);
+	}
+	
+	
+</script>
+
+
+
+
+
+</div>
+</div>
+</div>
+<div class="modal fade" id="materialDefaultModalId" role="dialog" aria-modal="true" aria-hidden="true" data-phoenix-type="material" data-backdrop="static" tabindex="-1"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-body"><div class="preloader-container text-center"><div class="preloader-wrapper active normal"><div class="spinner-layer spinner-blue-only"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div></div><div class="pleaseWait">Please wait while your page is loaded.</div></div></div></div></div></div><div></div><footer class="siteFooterFixed no-print">Powered by JAGGAER&nbsp;|&nbsp;<a href="https://www.jaggaer.com/service-privacy-policy/" target="_blank">JAGGAER Service Privacy Policy</a></footer>		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/lightbox/lity.min.css?lastBuildTime=1789156076130">
+		<link rel="stylesheet" type="text/css" href="/app_docs/3rdPartyLibraries/jquery-ui/jquery-ui.min.css?lastBuildTime=1789156076130">
+<script type="text/javascript">
+try {
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JQueryJavascriptLibrary','/app_docs/3rdPartyLibraries/jQuery/jquery-2.2.4.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('BootstrapJQueryPlugin','/app_docs/3rdPartyLibraries/bootstrap/js/bootstrap.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('LightboxJQueryPlugin','/app_docs/3rdPartyLibraries/lightbox/lity.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JQueryUiJavascriptLibrary','/app_docs/3rdPartyLibraries/jquery-ui/jquery-ui.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JavascriptLibrary','/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/popper.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JavascriptLibrary','/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/bootstrap.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JavascriptLibrary','/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/mdb.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+JavascriptLibraryManager.registerLibrary(JavascriptLibrary.create('JavascriptLibrary','/app_docs/3rdPartyLibraries/eqcss/EQCSS.min.js?lastBuildTime=1789156076130',true),'183296ac-089d-48a5-87c8-02a663633c14');
+} catch(exception) {
+  SQ.Log.error('Error when registering javascript libraries.',exception);
+}
+</script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/jQuery/jquery-2.2.4.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/lightbox/lity.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/jquery-ui/jquery-ui.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/popper.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/bootstrap.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/mdb_bs_4-4-1/mdb.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript" src="/app_docs/3rdPartyLibraries/eqcss/EQCSS.min.js?lastBuildTime=1789156076130"></script>
+<script type="text/javascript">
+try {
+jQuery.fn.exists = function () {
+  return this.length !== 0;
+}
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JQueryJavascriptLibrary',exception);
+}
+try {
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JQueryUiJavascriptLibrary',exception);
+}
+try {
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JavascriptLibrary',exception);
+}
+try {
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JavascriptLibrary',exception);
+}
+try {
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JavascriptLibrary',exception);
+}
+try {
+} catch(exception) {
+SQ.Log.error('Exception occured during library initialization: JavascriptLibrary',exception);
+}
+jQuery(document).ready(function($) {
+try {
+jQuery.fn.modal.Constructor.prototype.enforceFocus = function() {};
+} catch(exception) {
+	SQ.Log.error('Error initializing BootstrapJQueryPlugin', exception);
+}
+try {
+$('.ajax-modal').on('click', modalLinkOnClick);
+$('.modal').on('show', modalOnShow);
+$('.modal').on('hidden', modalOnHidden);
+$('.modal').on('shown', modalOnShown);
+} catch(exception) {
+	SQ.Log.error('Error initializing BootstrapModalPlugin', exception);
+}
+try {
+} catch(exception) {
+	SQ.Log.error('Error initializing LightboxJQueryPlugin', exception);
+}
+try {
+PhoenixDropdownMenu.initialize();
+} catch(exception) {
+	SQ.Log.error('Error initializing BootstrapDropdownMenuPlugin', exception);
+}
+});
+</script>
+<script type="text/javascript">
+var PhxGenIdController = new VisibilityController("PhxGenId");
+PhxGenIdController.addValue('false');
+PhxGenIdController.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenIdController);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_2Controller = new VisibilityController("PhxGenId_2");
+PhxGenId_2Controller.addValue('');
+PhxGenId_2Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_2Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_3Controller = new VisibilityController("PhxGenId_3");
+PhxGenId_3Controller.addValue('false');
+PhxGenId_3Controller.addValue('true');
+PhxGenId_3Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_3Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_4Controller = new VisibilityController("PhxGenId_4");
+PhxGenId_4Controller.addValue('true');
+PhxGenId_4Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_4Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_5Controller = new VisibilityController("PhxGenId_5");
+PhxGenId_5Controller.addValue('false');
+PhxGenId_5Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_5Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_6Controller = new VisibilityController("PhxGenId_6");
+PhxGenId_6Controller.addValue('true');
+PhxGenId_6Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_6Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+var PhxGenId_7Controller = new VisibilityController("PhxGenId_7");
+PhxGenId_7Controller.addValue('false');
+PhxGenId_7Controller.addValue('true');
+PhxGenId_7Controller.setJQueryInputQueryValue(':input[name=\'emailexists\']');
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.addController('emailexists', PhxGenId_7Controller);
+}
+
+jQuery(":input[name='emailexists']").off('change.uicontroller.emailexists');
+jQuery(":input[name='emailexists']").on('change.uicontroller.emailexists', function(event) {if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+});
+if(typeof PhoenixVisibilityControllers != 'undefined'){
+	PhoenixVisibilityControllers.triggerChange('emailexists');
+}
+
+</script>
+<script type="text/javascript">
+try {	window.addEventListener('load', ()=>{const privacyPolicyLink = document.querySelector(".siteFooterFixed > a"); if(privacyPolicyLink){privacyPolicyLink.setAttribute("aria-label", "JAGGAER Service Privacy Policy (opens a new window)");privacyPolicyLink.setAttribute("id","privacyPolicyLink");}}, false);
+} catch(e) {SQ.Log.error('',e);}
+	jQuery(document).ready(function() {
+		bindAccessibilityAtrributes();
+		PhoenixUtils.initializeDestroyables();
+		PassiveEventHandler.verifyPassiveListener();
+		Material.Layout.initCols();
+		Material.Layout.initializeDocHeader();
+		Material.Inputs.initInputGroupInputs();
+		Material.Inputs.initInputGroupTextareas();
+		Material.Modal.initModals();
+		Material.Popover.initPopovers();
+		Material.Inputs.preventCalendarPopup();
+		Material.Table.initTables();
+		Material.Autocomplete.initAutocomplete();
+	});
+</script>
+<div id="HoverHelpOverlay" style="display:none;" class="InlineOverlayShadow">
+<div id="HoverHelpOverlay_Content" class="HoverHelpOverlayContent" style="white-space:normal;">
+<div style="direction:rtl; padding:2px; position:absolute; opacity: 0.5; right:2px;"><a class="imageLink" href="javascript:hoverHelpHideOverlayNoFade();" title="Close" tabindex="0"  data-bind-space='true'  role="button"><img src="/app_docs/art/icons/help/close-icon.gif" border="0" alt="Close" /></a></div>
+<div id="HoverHelpOverlayWaitBox" style="display:none">
+<img src="/app_docs/art/icons/ajax/ajax-loader.gif" border="0" alt="Loading..." title="Loading..." style="vertical-align:middle;" />Requesting help from server...
+</div>
+<div id="HoverHelpOverlayErrorBox" style="display:none">
+<span class="Error">Unable to retrieve help from server</span>
+</div>
+<div id="HoverHelpOverlayContentContainer" style="display:none; padding-right:12px; max-height:7.2em; overflow:hidden">
+<div id="HoverHelpOverlayContent">&nbsp;</div>
+</div>
+<div style="margin-top:4px">
+<div id="HoverHelpOverlayEditLinkContainer" style="float:right; display:none">
+<a class="LightLink" href="" id="HoverHelpOverlayEditLink" tabindex="0"></a>
+</div>
+<div id="HoverHelpOverlayMoreLink" style="padding:2px; padding-top:4px; display:none">
+<a style="font-weight:bold" href="javascript:hoverHelpShowAll()">show entire help text</a>
+</div>
+<div id="HoverHelpOverlayEditLinkShim">&nbsp;</div>
+</div>
+</div>
+</div>
+<script type="text/javascript">
+try{(function(apiKey) {(function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=[];v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);y=e.createElement(n);y.async=!0;y.src='https://content.adopt.jaggaer.com/agent/static/'+apiKey+'/pendo.js';z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');pendo.initialize({visitor: {id:'JI:PROD:US:unknown',user_business_unit:'',user_business_unit_id:'',user_department:'',user_department_id:'',user_lang:'',user_type:'',app_user_id:'JI:PROD:US:unknown',environment:'Production',domain_name:'null',visitor_account_type:'NULL',platform:'Other',platform_version:'Unrecognized',version_num:'No value'},account: {id:'10020000274',name:'DASIowa (<center>State of Iowa</center>)',orgtype:'production',region:'UnitedStates',app_account_id:'JI:PROD:US:30004435',account_type:'customer'}});})('634156e8-4c09-4546-60a2-6936dc8d9ca8');} catch(exception){SQ.Log.error('Exception occured when including Pendo', exception);}</script>
+<script type="text/javascript" src="/app_docs/js/analytics/cookie-cleanup.js"></script>
+<script type="text/javascript">
+try {window.addEventListener("load", cleanGaCookiesOnce);} catch(exception) { SQ.Log.error('Exception occured when removing ga cookies', exception); }</script>
+	</body>
+</html>
+

@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+  "documents": [
+    {
+      "filename": "Surveillance-Trailer-Bid-Packet-2025.pdf",
+      "stored_as": "2a26320ad9543f72_Surveillance-Trailer-Bid-Packet-2025.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\KY-WARREN-SURVEILLANCE-TRAILER-2025\\2a26320ad9543f72_Surveillance-Trailer-Bid-Packet-2025.pdf",
+      "sha256": "2a26320ad9543f728b86d1a065ef15fcc2bae0ff4f8d7a943ea4285d0d2e4fcd",
+      "bytes": 282398,
+      "source_url": "https://www.warrencountyky.gov/wp-content/uploads/2025/12/Surveillance-Trailer-Bid-Packet-2025.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:23.589551+00:00"
+    }
+  ],
+  "hashes": [
+    "2a26320ad9543f728b86d1a065ef15fcc2bae0ff4f8d7a943ea4285d0d2e4fcd"
+  ],
+  "tags": [
+    "LOCAL",
+    "IFB",
+    "RFQ",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:47:23.241528+00:00",
+  "buyer": "Warren Fiscal Court / Warren County KY",
+  "agency": "Warren County Emergency Management",
+  "solicitation_number": "MST-2025",
+  "title": "Mobile Wireless Surveillance Trailer sealed bid",
+  "jurisdiction": "LOCAL",
+  "authoritative_source": "https://www.warrencountyky.gov/wp-content/uploads/2025/12/Surveillance-Trailer-Bid-Packet-2025.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:23.589567+00:00"
+}

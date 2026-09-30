@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+<meta name="google-site-verification" content="z47zOZvlcT7DCr_owne3IxkM83L4DI97M3Vtb27lEI0">
+    <title>DAS Website: Page Not Found Error</title>
+
+<!-- Bootstrap core CSS -->
+<link href="/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<link href="/css/ie10-viewport-bug-workaround.css" rel="stylesheet" type="text/css">
+
+<!-- Custom styles for this template -->
+<link href="/css/footer-navbar.css" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+<link rel="shortcut icon" href="/favicon.ico" >
+
+<!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
+<!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+<script src="/js/ie-emulation-modes-warning.js"></script>
+
+<!-- Override CSS -->
+<link href="/css/override.css" rel="stylesheet" type="text/css">
+
+<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+<!--[if lt IE 9]>
+  <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+  <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+<![endif]-->
+</head>
+<body>
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+  <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+        </div>
+       <div id="navbar" style="font-size: 14pt;" class="collapse navbar-collapse navbar-right">
+				<ul class="nav navbar-nav">
+
+				<li><a href="/">Home</a></li>
+
+				<li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">About<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="/about/index.html">About DAS</a></li>
+						<li><a href="/about/leadership/index.html">DAS Leadership</a></li>
+					</ul>
+				</li>
+
+				<li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Divisions<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li class="dropdown_links"><a href="/director/index.html">Director's Office</a></li>
+						<li class="dropdown_links"><a href="/accounting/index.html">State Accounting</a></li>
+						<li class="dropdown_links"><a href="/budget/index.html">Budget</a></li>
+						<li class="dropdown_links"><a href="/building/index.html">State Building</a></li>
+						<li class="dropdown_links"><a href="https://capitol.nebraska.gov/" target="_blank">Capitol Commission</a></li>
+						<li class="dropdown_links"><a href="https://cio.nebraska.gov/" target="_blank">Chief Information Officer</a></li>
+						<li class="dropdown_links"><a href="/emprel/index.html">Employee Relations</a></li>
+						<li class="dropdown_links"><a href="/hr/index.html">DAS Human Resources</a></li>
+						<li class="dropdown_links"><a href="/materiel/index.html">Materiel</a></li>
+						<li class="dropdown_links"><a href="/personnel/index.html">State Personnel</a></li>
+						<li class="dropdown_links"><a href="/risk/index.html">Risk Management</a></li>
+						<li class="dropdown_links"><a href="/309/index.html">Task Force for Building Renewal (309)</a></li>
+						<li class="dropdown_links"><a href="/tsb/index.html">Transportation Services Bureau (TSB)</a></li>
+					</ul>
+				</li>      
+
+				<li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contact Us<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li class="dropdown_links"><a href="/contact/index.html#director">Director's Office</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#acct">State Accounting</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#bud">Budget</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#state-building">State Building</a></li>   
+						<li class="dropdown_links"><a href="/contact/index.html#employee-relations">Employee Relations</a></li>   
+						<li class="dropdown_links"><a href="/contact/index.html#hr">DAS Human Resources</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#mat">Materiel</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#state-personnel">State Personnel</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#risk">Risk Management</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#309">Task Force for Building Renewal (309)</a></li>
+						<li class="dropdown_links"><a href="/contact/index.html#tsb">Transportation Services Bureau (TSB)</a></li>
+					</ul>
+				</li>  
+
+				<li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Forms &amp; Documents<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li class="dropdown_links"><a href="/forms/index.html#administrative-services">Administrative Services</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#director">Director's Office</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#acct">State Accounting</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#bud">Budget</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#state-building">State Building</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#employee-relations">Employee Relations</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#hr">DAS Human Resources</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#materiel">Materiel</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#state-personnel">State Personnel</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#process-improvement-efficiency">Process Improvement and Efficiency</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#risk">Risk Management</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#309">Task Force for Building Renewal (309)</a></li>
+						<li class="dropdown_links"><a href="/forms/index.html#tsb">Transportation Services Bureau (TSB)</a></li>
+					</ul>
+				</li>   
+
+			</ul>
+		</div>
+      </div>
+  </nav>
+<div class="row jumbotron-banner1 cio-logo">
+	<div class="col-lg-4" style="margin-top:25px;">
+		<div class="col-lg-4" style="margin-top:175px">
+		</div>
+	</div> 
+</div> 
+<div class="container"> 
+<div class="col-lg-4 col-md-4 col-sm-7 col-xs-9 pull-right">
+	<script async src="https://cse.google.com/cse.js?cx=66b30db0deea74d41">
+	</script>
+	<div class="gcse-search"></div>
+</div>
+<div class="row">
+	<div class="page-header col-lg-12 pull-left">
+<h1>404 Error - Page Not Found</h1>
+<p class="ocio-breadcrumb">
+	<a href="/index.html">DAS Home</a>
+	<span class="breadcrumb-divider"> / </span>Page Not Found
+</p>
+	</div>
+</div>
+
+<div class="row">
+</div> 
+
+<div class="col-lg-12 clearfix">
+	&nbsp;
+</div>
+<nav>
+	<div class="col-lg-3 clearfix" style="margin-top:50px;">
+		<h4>Links of Interest</h4>
+		<hr style="margin-top:-2px; margin-bottom:6px;">
+		<hr style="margin-top:8px; margin-bottom:20px;">
+			<ul class="list-unstyled side-nav">
+      	  		<li><a href="/contact/">Contact Us</a><hr style="margin-top:6px; margin-bottom:6px;">
+				</li>
+				<li><a href="/forms/">Forms &amp; Docs</a><hr style="margin-top:6px; margin-bottom:6px;">
+				</li>
+				<li><a href="/about/">About</a><hr style="margin-top:6px; margin-bottom:6px;">
+				</li>
+			</ul>
+<p>
+	<a href="https://www.facebook.com/NEAdminServ" target="_blank"><img src="/images/fb-links.png" width="19" height="29" alt="Facebook"></a>
+	<a href="https://www.linkedin.com/company/nebraskadas/" target="_blank"><img src="/images/linkedin.png" width="31" height="27" alt="Linkedin"></a>
+
+	</div> 
+</nav>
+	<main>
+		<div class="col-lg-9 pull-right">
+			<section>
+				<h2>
+					The page you requested is not available or has been moved. 
+				</h2>
+				<p>
+					To help you locate what is needed, please use the <strong>search option</strong>, above. You might also find the <strong>links at the top of the page</strong> or the <strong>Links of Interest</strong> at the left helpful. The <strong>links below</strong> will help locate a specific DAS Division home page:
+				</p>
+				<ul>
+					<li><a href="/director/index.html">Director's Office</a></li>
+					<li><a href="/309/index.html">309 Task Force for Building Renewal</a></li>
+					<li><a href="/accounting/index.html">Accounting</a></li>
+					<li><a href="https://budget.nebraska.gov/index.html">Budget</a></li>
+					<li><a href="/building/index.html">Building Division</a></li>
+					<li><a href="https://capitol.nebraska.gov/">Capitol Commission</a></li>
+					<li><a href="/coe/index.html">Center of Operational Excellence </a></li>
+					<li><a href="https://cio.nebraska.gov/">Chief Information Officer</a></li>
+					<li><a href="/hr/index.html">DAS Human Resources</a></li>
+					<li><a href="/materiel/index.html">Materiel Division</a></li>
+					<li><a href="/personnel/index.html">State Personnel</a></li>
+					<li><a href="/risk/index.html">Risk Management</a></li>
+					<li><a href="/tsb/index.html">Transportation Services Bureau</a></li>
+				</ul>
+				<p>
+					If you believe this message is an error, please email <a href="mailto:DAS.Website@nebraska.gov">DAS.Website@nebraska.gov</a>. It will be helpful if you share the link you were using when you received this error.
+				</p>
+			</section>
+		</div>
+	</main>
+</div>
+<footer class="footer">
+	<div class="container">
+		<p>&nbsp;</p> 
+		<div class="row">
+			<div class="col-lg-2 col-md-2 col-sm-2 col-xs-2 text-muted">
+				<p>
+					<a href="/">Home</a><br>
+					<a href="/contact/index.html">Contact</a>
+				</p>
+			</div>
+			<div class="col-lg-4 col-md-4 col-sm-4 col-xs-4 text-muted" style="margin-right:20px;">
+        		<p>
+					<a href="https://www.nebraska.gov/" target="_blank">Nebraska.gov</a><br>
+        	  		<a href="https://governor.nebraska.gov/" target="_blank">Governor</a><br>
+       	    		<a href="https://link.nebraska.gov/" target="_blank">LINK Website</a>
+              	</p>
+      		</div>
+        </div>  
+		<p>&nbsp;</p>
+		<div class="row">
+	  		<div class="col-lg-6 col-md-6 col-sm-6 col-xs-4">
+        		<p>
+					<a href="https://www.facebook.com/NEAdminServ" target="_blank"><img src="/images/facebook.png" width="22" height="33" alt="Facebook"></a>
+					<a href="https://www.linkedin.com/company/nebraskadas/" target="_blank"><img src="/images/linkedin.png" width="28" height="27" alt="Linkedin"></a>
+        		</p>
+
+        	</div>
+        </div>
+	</div>
+</footer>
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script>
+	window.jQuery || document.write('<script src="/js/jquery.min.js"><\/script>')
+</script>
+<!--<script src="/js/jquery.min.js"></script>-->
+<!--<script src="/js/bootstrap.min.js"></script>-->
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="/js/ie10-viewport-bug-workaround.js"></script>
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+<!--<script src="https://code.jquery.com/jquery-1.12.4.js"></script>-->
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+</body> 
+</html>

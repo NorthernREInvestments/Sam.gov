@@ -12,6 +12,7 @@ from discovery.constants import (
     VALIDATABLE_STATUSES,
 )
 from discovery.state_matrix import all_states_enriched
+from discovery.structured_source_registry import all_structured_live_candidates
 
 # Deterministic easy-win validation priority (geographic diversity).
 # Excludes known-hard AL/AK/AZ/CA from front of line; AR included if URL repaired.
@@ -81,6 +82,7 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "platform_family": a.get("platform_family"),
             "kind": "LOCAL",
             "state_code": a.get("state_code"),
+            "buyer_type": a.get("buyer_type"),
             "adapter_status": a.get("adapter_status"),
             "validation_candidate": a.get("validation_candidate", True),
         }
@@ -128,6 +130,12 @@ def _pool_map() -> dict[str, dict[str, Any]]:
             "adapter_status": n.get("adapter_status"),
             "validation_candidate": n.get("validation_candidate", True),
         }
+
+    # Phase L.15 Tier-1/2 structured open-data / API sources
+    for s in all_structured_live_candidates():
+        if not s.get("list_url"):
+            continue
+        out[s["source_id"]] = dict(s)
 
     # Apply verified alternate official routes (canonical may be stale/gated)
     try:
@@ -205,6 +213,9 @@ def _priority_rank(source_id: str) -> int:
     # BidNet statewide networks — high yield; run before sparse agency duplicates
     if source_id.startswith("network_bidnet_"):
         return 40
+    # L.15 structured open-data — prefer before fragile HTML portals
+    if source_id.startswith("structured_"):
+        return 5
     return 1000
 
 

@@ -1,0 +1,45 @@
+{
+  "case_id": "R_04",
+  "case_name": "UOM TRAP \u2014 HD (hundred) normalization",
+  "description": "",
+  "source_type": "SYNTHETIC_EDGE_CASE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ UOM-R04\nPart Number: BOLT-M8-100\nQuantity: 552 HD\nUnit of measure: HD (hundred). One HD = 100 each.\nTotal pieces required = 55,200 EA equivalent.\nFOB DESTINATION Delivery 30 days.\nCommercial packaging.\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {
+    "uom": "HD",
+    "quantity": 552,
+    "quantity_uom_confirmed": true,
+    "total_pieces": 55200
+  },
+  "expected": {
+    "quantity_uom": {
+      "has_quantity": true,
+      "hd_hundred_detected": true,
+      "total_pieces_noted": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "uom",
+    "quantity",
+    "trap",
+    "R04",
+    "REGRESSION_QUANTITY"
+  ],
+  "notes": "R04 \u2014 expected business truth: 552 HD = 55,200 pieces. If M3 treats HD as EA, economics understate by 100x (CRITICAL).",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "SYNTHETIC_EDGE_CASE",
+  "ui_expectations": {
+    "ready_banner": false
+  },
+  "next_action_quality": "Normalize quantity: confirm supplier quote covers 55,200 pieces (552 HD \u00d7 100), not 552 each.",
+  "blocker_quality": null
+}

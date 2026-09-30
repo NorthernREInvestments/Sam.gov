@@ -1,0 +1,1241 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "audits": [
+    {
+      "project": "IA-005-RFB-3030-2027",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n9/28/2026",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "complete and sign",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 22",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "AMENDMENT_ACK",
+          "summary": "Amendment acknowledgment",
+          "excerpt": "acknowledge the amendment",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-fcf661d8d6af",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-645-DOTRFB-2975-2027",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/7/2026",
+          "source_document_id": "DOC-29fdf487df6a",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-29fdf487df6a",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-29fdf487df6a",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-645-DOTRFB-3042-2027",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/1/2026",
+          "source_document_id": "DOC-8db7550f6cd4",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-8db7550f6cd4",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-8db7550f6cd4",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-645-DOTRFB-3046-2027",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n9/28/2026",
+          "source_document_id": "DOC-1266ba00f3c5",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-1266ba00f3c5",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-1266ba00f3c5",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "MT-DPHHS-IFB-2027-0703BP",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/1/2026",
+          "source_document_id": "DOC-a257ddec4065",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-a257ddec4065",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-RFB947601-02",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/13/2026",
+          "source_document_id": "DOC-98e5262911ad",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid Form",
+          "source_document_id": "DOC-98e5262911ad",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "or equal",
+          "source_document_id": "DOC-98e5262911ad",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-RFB952200-01",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/6/2026",
+          "source_document_id": "DOC-58c13fc2e4d7",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid Form",
+          "source_document_id": "DOC-58c13fc2e4d7",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "or equal",
+          "source_document_id": "DOC-58c13fc2e4d7",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "IA-RFB952400-01",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "Close\n10/5/2026",
+          "source_document_id": "DOC-ade51b8e1327",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid Form",
+          "source_document_id": "DOC-ade51b8e1327",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "or equal",
+          "source_document_id": "DOC-ade51b8e1327",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-121604-OR-LEICA",
+      "ground_truth": [
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Qty",
+          "source_document_id": "DOC-3661bc8cd65e",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-3661bc8cd65e",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "MUST BE SIGNED",
+          "source_document_id": "DOC-3661bc8cd65e",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 17",
+          "source_document_id": "DOC-3661bc8cd65e",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-3661bc8cd65e",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-121756-OR",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-d00ac4006c72",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-d00ac4006c72",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 17",
+          "source_document_id": "DOC-d00ac4006c72",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-d00ac4006c72",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-6305-OF",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "EMAIL SUBMISSION",
+          "source_document_id": "DOC-287eb3f789c5",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Authorized Signature",
+          "source_document_id": "DOC-287eb3f789c5",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid form",
+          "source_document_id": "DOC-287eb3f789c5",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-287eb3f789c5",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-123131-OR-POP",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-784c79911e41",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-784c79911e41",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-784c79911e41",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Cost Sheet",
+          "source_document_id": "DOC-784c79911e41",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-784c79911e41",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV102",
+      "ground_truth": [
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Quantity: 1",
+          "source_document_id": "DOC-54dc9400e463",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "Submit via",
+          "source_document_id": "DOC-54dc9400e463",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Signed SF1449",
+          "source_document_id": "DOC-54dc9400e463",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "SF1449",
+          "source_document_id": "DOC-54dc9400e463",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV99",
+      "ground_truth": [
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Quantity: 1",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "DIBBS",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Signed SF1449",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 1155",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "or equal",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "EXACT_PART",
+          "summary": "Exact/no substitute",
+          "excerpt": "approved source",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-1597f2b6dc09",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DLA-SPE4A7-23-R-0105",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "OFFER DUE",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "QUANTITY\r\n\r\n2",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "submitted electronically",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "SIGNATURE OF OFFEROR",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "FORM 1449",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "or equal",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "EXACT_PART",
+          "summary": "Exact/no substitute",
+          "excerpt": "approved sources",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVER TO",
+          "source_document_id": "DOC-7fd4a0fd4280",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "ground_truth": [
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "quantity. 6.3",
+          "source_document_id": "DOC-5f41b32d7cf0",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "DIBBS",
+          "source_document_id": "DOC-5f41b32d7cf0",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 1",
+          "source_document_id": "DOC-5f41b32d7cf0",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "EXACT_PART",
+          "summary": "Exact/no substitute",
+          "excerpt": "approved \r\nsources",
+          "source_document_id": "DOC-5f41b32d7cf0",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "delivered to",
+          "source_document_id": "DOC-5f41b32d7cf0",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DOD-N6600125Q6337",
+      "ground_truth": [],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DOD-N6600125Q6265",
+      "ground_truth": [],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DOS-19VM3026Q0024",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-d84dc1f26195",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "FORM 18",
+          "source_document_id": "DOC-d84dc1f26195",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVER BY",
+          "source_document_id": "DOC-d84dc1f26195",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DOS-19N10226Q0007",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "OFFER DUE",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "QUANTITY \n2",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "submitted electronically",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "SIGNATURE OF OFFEROR",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 1449",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-20f94dc32a1b",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "DOS-19CV1025Q0001",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "OFFER DUE",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "QUANTITY \n2",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "submitted \nby \ne-mail",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "SIGNATURE OF OFFEROR",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 1449",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-d97945b2a987",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-SPB-FORM16-ITB-REQS",
+      "ground_truth": [
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 16",
+          "source_document_id": "DOC-911bc0fd0898",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1742",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-017055ccc291",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1850",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "email to",
+          "source_document_id": "DOC-27bf1686b707",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-119951-O8-CAMERAS",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "QTY",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Cost Sheet",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-eb6a28f4c443",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-119949-O8B-GM",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-6c0e1bb0b464",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-6c0e1bb0b464",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-6c0e1bb0b464",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 17",
+          "source_document_id": "DOC-6c0e1bb0b464",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-6c0e1bb0b464",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-6908-OF-DASDEC",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-fb6ba33c505f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-fb6ba33c505f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Authorized Signature",
+          "source_document_id": "DOC-fb6ba33c505f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid form",
+          "source_document_id": "DOC-fb6ba33c505f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-fb6ba33c505f",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-6829-OF-CAMERAS",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-54dc368fdbf2",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "Sharefile",
+          "source_document_id": "DOC-54dc368fdbf2",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Authorized Signature",
+          "source_document_id": "DOC-54dc368fdbf2",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Bid form",
+          "source_document_id": "DOC-54dc368fdbf2",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-54dc368fdbf2",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "sealed bids until",
+          "source_document_id": "DOC-0d3a7efb7a5f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "sealed bids",
+          "source_document_id": "DOC-0d3a7efb7a5f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "Company Rep Signature",
+          "source_document_id": "DOC-0d3a7efb7a5f",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "Completion/ Delivery",
+          "source_document_id": "DOC-0d3a7efb7a5f",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "ground_truth": [
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "Up to 50 cameras",
+          "source_document_id": "DOC-ecf87c642434",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "sealed bids",
+          "source_document_id": "DOC-ecf87c642434",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "FOB ",
+          "source_document_id": "DOC-ecf87c642434",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "SC-FLORENCE-2024-21-CAMERAS",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "Sealed bids",
+          "source_document_id": "DOC-c23e71e243ef",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-c23e71e243ef",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NASA-SEWP-80TECH24R0001-A14",
+      "ground_truth": [
+        {
+          "category": "SUBMISSION_DEADLINE",
+          "summary": "Offer/bid due date present",
+          "excerpt": "proposal due",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "QUANTITY",
+          "summary": "Quantity/qty stated",
+          "excerpt": "QUANTITY (OCT 1995",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ELECTRONIC SUBMISSION",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "signed SF1449",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "SF1449",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "BRAND_OR_EQUAL",
+          "summary": "Brand name or equal",
+          "excerpt": "BRAND NAME OR EQUAL",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "AMENDMENT_ACK",
+          "summary": "Amendment acknowledgment",
+          "excerpt": "acknowledgement of all amendments",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "delivered to",
+          "source_document_id": "DOC-ebf97bb8010b",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    },
+    {
+      "project": "NE-119949-O8B-GM-ZIP",
+      "ground_truth": [
+        {
+          "category": "QUESTION_DEADLINE",
+          "summary": "Questions deadline",
+          "excerpt": "Written Questions regarding the project are due no later",
+          "source_document_id": "DOC-094a1d899e95",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SUBMISSION_METHOD",
+          "summary": "Submission method",
+          "excerpt": "ShareFile",
+          "source_document_id": "DOC-094a1d899e95",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "SIGNATURE",
+          "summary": "Signature/form signing",
+          "excerpt": "must be signed",
+          "source_document_id": "DOC-094a1d899e95",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "FORM",
+          "summary": "Required form/SF1449/cost sheet",
+          "excerpt": "Form 17",
+          "source_document_id": "DOC-094a1d899e95",
+          "mandatory": true,
+          "material": true
+        },
+        {
+          "category": "DELIVERY",
+          "summary": "Delivery requirement",
+          "excerpt": "DELIVERY ARO",
+          "source_document_id": "DOC-094a1d899e95",
+          "mandatory": true,
+          "material": true
+        }
+      ],
+      "manually_reviewed": true
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "case_id": "BP_001",
+  "case_name": "Broader pipeline \u2014 commercial incomplete (blocked)",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ BP-001\nAgency: Fixture Agency\nDell Latitude 5540 brand name or equal\nQuantity: 20 EA\nFOB DESTINATION\nDelivery within 30 days\nCommercial packaging acceptable\nSubmit via email to buy@example.invalid\n",
+  "documents": [],
+  "row_overrides": {
+    "current_public_price": 899.0,
+    "product_classification": "IT_HARDWARE"
+  },
+  "expected": {
+    "classification": {
+      "product_classification": "IT_HARDWARE"
+    },
+    "product_identity": {
+      "brand_or_equal_detected": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "supplier": {
+      "state": "COMMERCIAL_SOURCE_FOUND",
+      "supplier_validated": false
+    },
+    "economics": {
+      "economics_complete": false
+    },
+    "financing": {
+      "financing_compatible": false
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    },
+    "execution_blockers_include_any": [
+      "SUPPLIER_NOT_VALIDATED",
+      "QUOTE_NOT_EXECUTABLE",
+      "ECONOMICS_INCOMPLETE_OR_UNKNOWN",
+      "FINANCING_INCOMPATIBLE_OR_UNKNOWN"
+    ]
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "broader_pipeline",
+    "commercial",
+    "negative"
+  ],
+  "notes": "Public price alone must not validate supplier",
+  "adversarial": false,
+  "validation_depth": "broader_pipeline",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

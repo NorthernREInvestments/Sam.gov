@@ -1,0 +1,76 @@
+{
+  "corpus_project_id": "NE-123131-OR-POP",
+  "documents": [
+    {
+      "filename": "123131_20OR.html",
+      "stored_as": "450e06377ec11508_123131_20OR.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\450e06377ec11508_123131_20OR.html",
+      "sha256": "450e06377ec11508fbd4bddd5ae72f6bc650eaf31c0a09aa652da377b9cd301b",
+      "bytes": 18630,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR.html",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:01.691716+00:00"
+    },
+    {
+      "filename": "123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+      "stored_as": "7dc2ef783c6ba14d_123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\7dc2ef783c6ba14d_123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+      "sha256": "7dc2ef783c6ba14d85e591f6748f94a4af54e9f37238830b08eb02c290a4e6f6",
+      "bytes": 919101,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR%20Response%20-%20Chestman%20Coca-Cola.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:02.473930+00:00"
+    },
+    {
+      "filename": "123131_20OR_20ITB.docx",
+      "stored_as": "86cc7451cd0ec56e_123131_20OR_20ITB.docx",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\86cc7451cd0ec56e_123131_20OR_20ITB.docx",
+      "sha256": "86cc7451cd0ec56e0eebef2d11bee18c3cdbd52f5f577cf58cf71854ac057b33",
+      "bytes": 13165,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR%20ITB.docx",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:02.735042+00:00"
+    },
+    {
+      "filename": "Attachment_20A_20-_20Cost_20Sheet.xlsx",
+      "stored_as": "3cc7cf4652b91b7d_Attachment_20A_20-_20Cost_20Sheet.xlsx",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\3cc7cf4652b91b7d_Attachment_20A_20-_20Cost_20Sheet.xlsx",
+      "sha256": "3cc7cf4652b91b7d08827db37cd8d6a5f575d6c5463bed5796d912efea473578",
+      "bytes": 20451,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/Attachment%20A%20-%20Cost%20Sheet.xlsx",
+      "role": "PRICING_SHEET",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:02.996205+00:00"
+    }
+  ],
+  "hashes": [
+    "450e06377ec11508fbd4bddd5ae72f6bc650eaf31c0a09aa652da377b9cd301b",
+    "7dc2ef783c6ba14d85e591f6748f94a4af54e9f37238830b08eb02c290a4e6f6",
+    "86cc7451cd0ec56e0eebef2d11bee18c3cdbd52f5f577cf58cf71854ac057b33",
+    "3cc7cf4652b91b7d08827db37cd8d6a5f575d6c5463bed5796d912efea473578"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "EXACT_PART",
+    "Q_AND_A",
+    "BUYER_XLSX",
+    "MULTI_AMENDMENT"
+  ],
+  "created_at": "2026-09-29T22:42:01.424754+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "123131 OR",
+  "title": "Brand Name Pop commodity ITB",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:42:02.996228+00:00"
+}

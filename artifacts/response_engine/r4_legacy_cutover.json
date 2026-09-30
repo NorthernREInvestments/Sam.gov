@@ -1,0 +1,26 @@
+{
+  "canonical_path": "response_engine.r4_service.run_r4_generation",
+  "reused": [
+    "response_engine.deliverables",
+    "BuyerPricingFieldMap (clins)",
+    "R2 pricing_scenarios / line_items",
+    "R3 compliance_response_maps / attestations",
+    "firewall.py",
+    "openpyxl",
+    "python-docx"
+  ],
+  "migrated": [
+    "draft_bid_assembly.populate_field concepts",
+    "proposal_export narrative patterns (deterministic subset)"
+  ],
+  "deprecated_as_operator_authority": [
+    "proposal_service Bid Prep path",
+    "m3 draft_bid_package as readiness"
+  ],
+  "compatibility_only": [
+    "proposal_service / proposal_export for legacy=1",
+    "draft_bid_assembly / bid_package / bid_pricing_engine",
+    "submission_package checklist"
+  ],
+  "one_canonical_path": true
+}

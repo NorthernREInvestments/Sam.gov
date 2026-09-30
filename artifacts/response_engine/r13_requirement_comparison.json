@@ -1,0 +1,496 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "comparisons": [
+    {
+      "project": "IA-005-RFB-3030-2027",
+      "ground_truth_count": 7,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "AMENDMENT_ACK",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 7,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-645-DOTRFB-2975-2027",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-645-DOTRFB-3042-2027",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-645-DOTRFB-3046-2027",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "MT-DPHHS-IFB-2027-0703BP",
+      "ground_truth_count": 2,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY"
+      ],
+      "missed": [],
+      "captured_count": 2,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-RFB947601-02",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "FORM",
+        "BRAND_OR_EQUAL"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-RFB952200-01",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "FORM",
+        "BRAND_OR_EQUAL"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "IA-RFB952400-01",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "FORM",
+        "BRAND_OR_EQUAL"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-121604-OR-LEICA",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-121756-OR",
+      "ground_truth_count": 4,
+      "captured": [
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 4,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-6305-OF",
+      "ground_truth_count": 4,
+      "captured": [
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 4,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-123131-OR-POP",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV102",
+      "ground_truth_count": 4,
+      "captured": [
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM"
+      ],
+      "missed": [],
+      "captured_count": 4,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV99",
+      "ground_truth_count": 7,
+      "captured": [
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "BRAND_OR_EQUAL",
+        "EXACT_PART",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 7,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DLA-SPE4A7-23-R-0105",
+      "ground_truth_count": 8,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "BRAND_OR_EQUAL",
+        "EXACT_PART",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 8,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "FORM",
+        "EXACT_PART",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DOD-N6600125Q6337",
+      "ground_truth_count": 0,
+      "captured": [],
+      "missed": [],
+      "captured_count": 0,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DOD-N6600125Q6265",
+      "ground_truth_count": 0,
+      "captured": [],
+      "missed": [],
+      "captured_count": 0,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DOS-19VM3026Q0024",
+      "ground_truth_count": 3,
+      "captured": [
+        "SUBMISSION_METHOD",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DOS-19N10226Q0007",
+      "ground_truth_count": 6,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 6,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "DOS-19CV1025Q0001",
+      "ground_truth_count": 6,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 6,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-SPB-FORM16-ITB-REQS",
+      "ground_truth_count": 1,
+      "captured": [
+        "FORM"
+      ],
+      "missed": [],
+      "captured_count": 1,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1742",
+      "ground_truth_count": 1,
+      "captured": [
+        "SUBMISSION_METHOD"
+      ],
+      "missed": [],
+      "captured_count": 1,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1850",
+      "ground_truth_count": 1,
+      "captured": [
+        "SUBMISSION_METHOD"
+      ],
+      "missed": [],
+      "captured_count": 1,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-119951-O8-CAMERAS",
+      "ground_truth_count": 6,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 6,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-119949-O8B-GM",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-6908-OF-DASDEC",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-6829-OF-CAMERAS",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "ground_truth_count": 4,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 4,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "ground_truth_count": 3,
+      "captured": [
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 3,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "SC-FLORENCE-2024-21-CAMERAS",
+      "ground_truth_count": 2,
+      "captured": [
+        "SUBMISSION_METHOD",
+        "SIGNATURE"
+      ],
+      "missed": [],
+      "captured_count": 2,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NASA-SEWP-80TECH24R0001-A14",
+      "ground_truth_count": 8,
+      "captured": [
+        "SUBMISSION_DEADLINE",
+        "QUANTITY",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "BRAND_OR_EQUAL",
+        "AMENDMENT_ACK",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 8,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    },
+    {
+      "project": "NE-119949-O8B-GM-ZIP",
+      "ground_truth_count": 5,
+      "captured": [
+        "QUESTION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "SIGNATURE",
+        "FORM",
+        "DELIVERY"
+      ],
+      "missed": [],
+      "captured_count": 5,
+      "missed_count": 0,
+      "unsupported": [],
+      "after_fixes": true
+    }
+  ]
+}

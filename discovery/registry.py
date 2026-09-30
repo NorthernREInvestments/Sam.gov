@@ -69,10 +69,10 @@ COOPERATIVES = [
 PLATFORM_FAMILIES_SEED = [
     ("platform_bonfire", PLATFORM_BONFIRE, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_bonfire", False),
     ("platform_opengov", PLATFORM_OPENGOV, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_opengov", False),
-    ("platform_ionwave", PLATFORM_IONWAVE, CADENCE_SLOW, ADAPTER_AUTH_REQUIRED, None, True),
+    ("platform_ionwave", PLATFORM_IONWAVE, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_ionwave", False),
     ("platform_planetbids", PLATFORM_PLANETBIDS, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_planetbids", False),
     ("platform_bidnet", PLATFORM_BIDNET, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_bidnet", False),
-    ("platform_demandstar", PLATFORM_DEMANDSTAR, CADENCE_SLOW, ADAPTER_AUTH_REQUIRED, None, True),
+    ("platform_demandstar", PLATFORM_DEMANDSTAR, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_demandstar", False),
     ("platform_jaggaer", PLATFORM_JAGGAER, CADENCE_SLOW, ADAPTER_UNVERIFIED_LIVE, "live_jaggaer", False),
     ("platform_periscope", PLATFORM_PERISCOPE, CADENCE_SLOW, ADAPTER_AUTH_REQUIRED, None, True),
     ("platform_public_purchase", PLATFORM_PUBLIC_PURCHASE, CADENCE_NORMAL, ADAPTER_UNVERIFIED_LIVE, "live_public_purchase", False),

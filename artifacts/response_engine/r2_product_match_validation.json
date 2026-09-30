@@ -1,0 +1,8 @@
+{
+  "build": "20260929-m3-r2-clin-pricing-product-compliance",
+  "modes": {
+    "EXACT": 0,
+    "BRAND_OR_EQUAL": 6,
+    "OTHER": 26
+  }
+}

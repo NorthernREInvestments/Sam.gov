@@ -1,0 +1,119 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "items": [
+    {
+      "project_id": "RP-3ac005927709",
+      "buyer": "State agency",
+      "solicitation_number": "005-RFB-3030-2027",
+      "source_type": "state_portal_pdf",
+      "document_count": 2,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-12a55be00558",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-2975-2027",
+      "source_type": "state_portal_pdf",
+      "document_count": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-ce0ec9645c5a",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-3042-2027",
+      "source_type": "state_portal_pdf",
+      "document_count": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-e47cb4d18b9e",
+      "buyer": "Iowa DOT",
+      "solicitation_number": "645-DOTRFB-3046-2027",
+      "source_type": "state_portal_pdf",
+      "document_count": 4,
+      "file_types": [
+        ".html",
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-98e80c0ad631",
+      "buyer": "Montana DPHHS",
+      "solicitation_number": "DPHHS-IFB-2027-0703BP",
+      "source_type": "state_portal_pdf",
+      "document_count": 1,
+      "file_types": [
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-151ce2910905",
+      "buyer": "State agency",
+      "solicitation_number": "RFB947601-02",
+      "source_type": "state_portal_pdf",
+      "document_count": 1,
+      "file_types": [
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-cf28584b3d35",
+      "buyer": "State agency",
+      "solicitation_number": "RFB952200-01",
+      "source_type": "state_portal_pdf",
+      "document_count": 1,
+      "file_types": [
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-b7bb129dd030",
+      "buyer": "State agency",
+      "solicitation_number": "RFB952400-01",
+      "source_type": "state_portal_pdf",
+      "document_count": 1,
+      "file_types": [
+        ".pdf"
+      ]
+    },
+    {
+      "project_id": "RP-613075c73e6b",
+      "buyer": "Phoenix",
+      "solicitation_number": "_phoenix_detail_1742.html",
+      "source_type": "city_portal_html",
+      "document_count": 4,
+      "file_types": [
+        ".html"
+      ]
+    },
+    {
+      "project_id": "RP-51de014e007b",
+      "buyer": "Phoenix",
+      "solicitation_number": "_phoenix_detail_1850.html",
+      "source_type": "city_portal_html",
+      "document_count": 4,
+      "file_types": [
+        ".html"
+      ]
+    },
+    {
+      "project_id": "RP-583813270784",
+      "buyer": "Iowa",
+      "solicitation_number": "iowa-row",
+      "source_type": "state_listing_html",
+      "document_count": 1,
+      "file_types": [
+        ".html"
+      ]
+    }
+  ]
+}

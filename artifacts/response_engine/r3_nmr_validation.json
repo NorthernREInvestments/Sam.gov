@@ -1,0 +1,9 @@
+{
+  "counts": {
+    "NMR_UNKNOWN": 30,
+    "NMR_REVIEW_REQUIRED": 2
+  },
+  "engine": "response_engine.nmr.evaluate_nmr",
+  "legacy_bridge": "response_engine.nmr.nmr_from_deep_deal_compat",
+  "note": "Never boolean-only; waiver requires SBA source"
+}

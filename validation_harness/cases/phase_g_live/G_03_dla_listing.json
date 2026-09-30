@@ -1,0 +1,57 @@
+{
+  "case_id": "G_03_dla_listing",
+  "case_name": "16--PARTS KIT,LINEAR ACTUA",
+  "description": "Phase G LIVE_SOURCE frozen after supervised run. Retrieved 2026-09-24T18:03:13.634709+00:00. Original provenance LIVE_SOURCE \u2192 stored as REAL_SOURCE_FIXTURE / FROZEN_REAL_SOURCE.",
+  "source_type": "REAL_SOURCE_FIXTURE",
+  "source_fixture": "",
+  "documents": [],
+  "row_overrides": {
+    "canonical_id": "8090b2aab9ce4e29b7e461887e34ffb3",
+    "title": "16--PARTS KIT,LINEAR ACTUA",
+    "solicitation_number": "SPE4A726T791G",
+    "source_id": "fed_sam_contract_opportunities",
+    "ui_link": null,
+    "deadline": null,
+    "phase_g_provenance_at_capture": "LIVE_SOURCE",
+    "phase_g_frozen_as": "FROZEN_REAL_SOURCE",
+    "live_retrieval_timestamp": "2026-09-24T18:03:13.634709+00:00",
+    "is_dla": true,
+    "ready_for_owner_approval_observed": false,
+    "execution_critical_blockers_observed": [
+      "ECONOMICS_INCOMPLETE_OR_UNKNOWN",
+      "SUPPLIER_NOT_VALIDATED",
+      "QUOTE_NOT_EXECUTABLE",
+      "FINANCING_INCOMPATIBLE_OR_UNKNOWN",
+      "SUBMISSION_INCOMPLETE_OR_UNKNOWN",
+      "DELIVERY_INFEASIBLE_OR_UNKNOWN",
+      "PRODUCT_IDENTITY_UNCONFIRMED",
+      "QUANTITY_UOM_UNCONFIRMED",
+      "EXR-SUPPLIER_C-747cab2b9f5d",
+      "EXR-SUPPLIER_C-ea6979ba7c12",
+      "EXR-SUPPLIER_C-06c3ca363015",
+      "EXR-SUPPLIER_C-67c8f2fabcae",
+      "EXR-SUPPLIER_C-89a948dc0756"
+    ],
+    "operator_next_action_observed": "Economics must be explicitly complete (UNKNOWN blocks). (value=None)"
+  },
+  "expected": {
+    "ready_for_owner_approval": false,
+    "phase_g_note": "Listing-only capture; must not be labeled LIVE_SOURCE in future runs"
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "phase_g",
+    "LIVE_PROMOTED",
+    "dla_listing"
+  ],
+  "notes": "Promoted from Phase G live batch without altering facts. Not a READY path.",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": "REAL_SOURCE_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

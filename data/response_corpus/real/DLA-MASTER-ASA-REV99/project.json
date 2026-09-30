@@ -1,0 +1,36 @@
+{
+  "corpus_project_id": "DLA-MASTER-ASA-REV99",
+  "documents": [
+    {
+      "filename": "DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "stored_as": "2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-MASTER-ASA-REV99\\2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "sha256": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+      "bytes": 129364,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "role": "MASTER_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:47:03.571009+00:00"
+    }
+  ],
+  "hashes": [
+    "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889"
+  ],
+  "tags": [
+    "FEDERAL",
+    "DLA",
+    "RFQ"
+  ],
+  "created_at": "2026-09-29T22:42:03.945568+00:00",
+  "buyer": "Defense Logistics Agency",
+  "agency": "DLA",
+  "solicitation_number": "MASTER-ASA-REV-99",
+  "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 99",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-99_February_20_2025.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+  "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+  "updated_at": "2026-09-29T22:47:03.571031+00:00"
+}

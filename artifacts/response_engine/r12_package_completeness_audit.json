@@ -1,0 +1,186 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "cases": [
+    {
+      "project": "r12-real-005-RFB-3030-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "Amendment\n1",
+          "excerpt": "ructions for Responding to an Amendment 1.      Review the amendment in the solicitation. 2.      Com",
+          "source_span": [
+            2741,
+            2752
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "on the same or more favorable terms and conditions for up  to Four (4) annual extensions.  The resulting Contr",
+          "source_span": [
+            3204,
+            3224
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": "If you have exceptions to the Terms and  Conditions, submit an question(s) in the Question and Answer Section w",
+          "source_span": [
+            4805,
+            4826
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Question and Answer",
+          "excerpt": " submit an question(s) in the Question and Answer Section with your exception(s). 1.1  Enter the Bidder's con",
+          "source_span": [
+            4857,
+            4876
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-645-DOTRFB-2975-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            5861,
+            5881
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3042-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            11459,
+            11479
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3046-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            4386,
+            4406
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-DPHHS-IFB-2027-0703BP",
+      "status": "COMPLETE",
+      "complete": true,
+      "missing": [],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-RFB947601-02",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4266,
+            4274
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name HHS STS New Garage Building, Dated",
+          "source_span": [
+            3556,
+            3570
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-RFB952200-01",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4453,
+            4461
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name DOC NCF Dietary and Laundry Hot  W",
+          "source_span": [
+            3704,
+            3718
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    },
+    {
+      "project": "r12-real-RFB952400-01",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4283,
+            4291
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name DOC ASP Sallyport Tunnel & Living ",
+          "source_span": [
+            3592,
+            3606
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ],
+      "false_complete": false
+    }
+  ],
+  "false_complete": 0
+}

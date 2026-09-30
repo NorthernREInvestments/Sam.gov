@@ -1,0 +1,5 @@
+{
+  "open_across_corpus": 81,
+  "rule": "no auto-confirm; versioned audit log",
+  "engine": "response_engine.owner_attestations"
+}

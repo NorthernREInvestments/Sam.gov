@@ -1,0 +1,196 @@
+{
+  "build": "20260929-m3-r11-production-intake-legacy-cutover",
+  "parses": [
+    {
+      "project": "r11-corpus-real-005-RFB-3030-2027",
+      "filename": "005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "815263a9cf3a2eb0"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-2975-2027",
+      "filename": "645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "7a6134d1fea06287"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-2975-2027",
+      "filename": "645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "14c5afe4b6ec569e"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-2975-2027",
+      "filename": "645-DOTRFB-3046-2027__645-DOTRFB-3046-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "78df42e0eddfcd4c"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3042-2027",
+      "filename": "645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "14c5afe4b6ec569e"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3042-2027",
+      "filename": "645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "7a6134d1fea06287"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3042-2027",
+      "filename": "645-DOTRFB-3046-2027__645-DOTRFB-3046-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "78df42e0eddfcd4c"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3046-2027",
+      "filename": "645-DOTRFB-3046-2027__645-DOTRFB-3046-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "78df42e0eddfcd4c"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3046-2027",
+      "filename": "645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "7a6134d1fea06287"
+    },
+    {
+      "project": "r11-corpus-real-645-DOTRFB-3046-2027",
+      "filename": "645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+      "method": "pdf_native_text",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "hash": "14c5afe4b6ec569e"
+    },
+    {
+      "project": "r11-syn-xlsx",
+      "filename": "CostSheet.xlsx",
+      "method": "spreadsheet",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": "PRICING_TEMPLATE",
+      "hash": "fc31f96cfd3f02c6"
+    },
+    {
+      "project": "r11-syn-docx",
+      "filename": "Nebraska_ITB.docx",
+      "method": "docx",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": "PRICING_TEMPLATE",
+      "hash": "770600366ddec83c"
+    },
+    {
+      "project": "r11-syn-html",
+      "filename": "portal_rfq.html",
+      "method": "html",
+      "confidence": "MEDIUM",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": "PRICING_TEMPLATE",
+      "hash": "63988a8ad4527dfa"
+    },
+    {
+      "project": "r11-syn-zip",
+      "filename": "solicitation_package.zip",
+      "method": "zip",
+      "confidence": "LOW",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": null,
+      "hash": "6409166c8b69eb61"
+    },
+    {
+      "project": "r11-syn-zip",
+      "filename": "base_solicitation.txt",
+      "method": "txt",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": null,
+      "hash": "dc6a318e1412b335"
+    },
+    {
+      "project": "r11-syn-zip",
+      "filename": "pricing.csv",
+      "method": "spreadsheet",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": "PRICING_TEMPLATE",
+      "hash": "5f16328daa4f2381"
+    },
+    {
+      "project": "r11-syn-qa-master",
+      "filename": "dla_master_solicitation.txt",
+      "method": "txt",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": null,
+      "hash": "668771a073671042"
+    },
+    {
+      "project": "r11-syn-qa-master",
+      "filename": "buyer_qa.txt",
+      "method": "txt",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": "DELIVERY_TEMPLATE",
+      "hash": "3f057e2964b8abfb"
+    },
+    {
+      "project": "r11-syn-missing",
+      "filename": "base_with_missing_attachment.txt",
+      "method": "txt",
+      "confidence": "HIGH",
+      "ocr_required": false,
+      "status": "FETCHED",
+      "buyer_template_class": null,
+      "hash": "9bd1f30ac1aecf2f"
+    }
+  ],
+  "pdf_stats": {
+    "pdfs": 4,
+    "native_text": 4,
+    "ocr_required": 0,
+    "ocr_failures": 0
+  },
+  "xlsx_stats": {
+    "workbooks_parsed": 1,
+    "buyer_templates": 5,
+    "pricing_sheets": 4
+  }
+}

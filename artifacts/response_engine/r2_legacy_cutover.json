@@ -1,0 +1,17 @@
+{
+  "canonical_response_pricing_path": "response_engine.r2_service.run_r2_analysis",
+  "money_kernel": "micro_purchase_lab_economics.D/money (re-exported as response_engine.money)",
+  "max_buy_formula": "response_engine.pricing.calculate_max_buy_decimal (Decimal port of phase_l.quote_economics L6)",
+  "financing_default_rate": "0.05 (L6 DEFAULT_FINANCING_RATE)",
+  "deprecated_as_authority": [
+    "phase_l.acquisition_lanes.calculate_maximum_buy_price (10% \u2014 wrap only)",
+    "bid_compliance_engine for Bid Prep readiness",
+    "m3_deal_economics as CLIN bid authority"
+  ],
+  "retained_inputs": [
+    "L.22 supplier quotes via response_engine.supplier_evidence",
+    "\u00b5Lab Decimal + historical-equivalent as intelligence only",
+    "transaction_economics / draft_bid_assembly for later assembly"
+  ],
+  "competing_operator_readiness_paths": 0
+}

@@ -1,0 +1,9 @@
+{
+  "build": "20260929-m3-r5-preflight-submission-ui-sync",
+  "overall_counts": {
+    "OWNER_ACTION_REQUIRED": 20,
+    "FAIL": 12
+  },
+  "engine": "response_engine.r5_preflight",
+  "note": "Real corpus often FAIL/OWNER_ACTION \u2014 incomplete company/quote/signature data is expected"
+}
