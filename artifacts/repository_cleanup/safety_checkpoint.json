@@ -1,32 +1,55 @@
 ﻿{
-    "created_at_utc":  "2026-09-30T02:27:32.1844629Z",
-    "branch":  "cleanup/m3-r5-production-consolidation",
-    "starting_commit_subject":  "feat: add µLab product-transaction integrity and source routing.",
-    "destructive_cleanup_allowed":  false,
-    "next_required_actions":  [
-                                  "Owner approve commit of known-good R5 state onto cleanup/m3-r5-production-consolidation",
-                                  "Record post-commit hash as r5_known_good_commit in this report",
-                                  "Only then begin proven-redundancy inventory (no deletes under uncertainty)"
-                              ],
-    "working_tree":  {
-                         "porcelain_line_count":  678,
-                         "clean":  false,
-                         "note":  "R5 response_engine, phase_l, docs, tests, artifacts are UNCOMMITTED. Known-good R5 state is NOT fully represented by starting_commit alone."
-                     },
-    "rules":  [
-                  "No business data deletion",
-                  "No live-consumer module deletion",
-                  "Migrate+test before delete when unique behavior exists",
-                  "KEEP uncertain files",
-                  "Any boot/route/regression failure =\u003e M3_PRODUCTION_REPOSITORY_CONSOLIDATED_FAILED"
-              ],
-    "starting_commit":  "0d5c08c717298888b013af1badba702999241419",
-    "repo":  "govtracker",
-    "checkpoint":  "CRITICAL_SAFETY_CHECKPOINT",
-    "blockers":  [
-                     "Working tree not committed — R5 state must be committed (or otherwise snapshot) before any delete/overwrite.",
-                     "Do not delete modules with live runtime consumers.",
-                     "Do not delete/overwrite real business data under data/.",
-                     "Uncertainty =\u003e KEEP + remaining_compatibility.json"
-                 ]
+  "checkpoint": "CRITICAL_SAFETY_CHECKPOINT",
+  "created_at_utc": "2026-09-30T02:27:32Z",
+  "updated_at_utc": "2026-09-30T03:05:00Z",
+  "repo": "govtracker",
+  "branch": "cleanup/m3-r5-production-consolidation",
+  "starting_commit": "0d5c08c717298888b013af1badba702999241419",
+  "starting_commit_subject": "feat: add µLab product-transaction integrity and source routing.",
+  "r5_known_good_commit": "2fe3e1629e4844846057ddcf564e73b83b421791",
+  "r5_known_good_subject": "checkpoint: known-good M3 R5 production baseline before repository consolidation",
+  "working_tree_at_baseline": {
+    "note": "Baseline commit created from dirty tree; secrets and mutable data excluded via .gitignore classification."
+  },
+  "destructive_cleanup_allowed": true,
+  "destructive_cleanup_started": false,
+  "secret_check": {
+    "env_ignored": true,
+    "env_staged": false,
+    "bad_path_matches": 0,
+    "content_secret_hits": 0,
+    "result": "PASS"
+  },
+  "precommit_checks": {
+    "imports_ok": true,
+    "app_module_ok": true,
+    "tests": "tests/test_response_engine_r5.py + tests/test_owner_ui_operator_console.py → 38 passed"
+  },
+  "excluded_categories": [
+    ".env / .env.local / secrets",
+    "data/response_projects (live response projects)",
+    "data/response_corpus/cache",
+    "mutable memories/checkpoints/learning/caches under data/",
+    "owner_ui_operator_notes / owner_attestation_log / company_compliance_profile_history",
+    "l23_canonical_population_store.json",
+    "non-allowlisted artifacts/",
+    "debug scripts scripts/_debug_* and probe outputs",
+    "_full_pytest* logs"
+  ],
+  "included_categories": [
+    "response_engine R1–R5",
+    "phase_l / discovery / operator UI",
+    "tests + docs",
+    "canonical data/response_corpus/real + registries",
+    "artifacts/response_engine + artifacts/repository_cleanup",
+    "static/operator.*"
+  ],
+  "rollback": "git checkout 2fe3e1629e4844846057ddcf564e73b83b421791  OR  git reset --hard 2fe3e1629e4844846057ddcf564e73b83b421791 on this branch only when intentional",
+  "rules": [
+    "No business data deletion",
+    "No live-consumer module deletion",
+    "Migrate+test before delete when unique behavior exists",
+    "KEEP uncertain files",
+    "Any boot/route/regression/invariant failure => M3_PRODUCTION_REPOSITORY_CONSOLIDATED_FAILED"
+  ]
 }
