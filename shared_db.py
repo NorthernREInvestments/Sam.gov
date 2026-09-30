@@ -15,9 +15,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing from .env")
 
+from database import _sqlalchemy_postgres_url
+
 # Same Postgres instance as GovTracker — transactions forced read-only per connection.
 shared_read_engine = create_engine(
-    DATABASE_URL,
+    _sqlalchemy_postgres_url(DATABASE_URL),
     pool_pre_ping=True,
     pool_recycle=300,
     pool_size=3,

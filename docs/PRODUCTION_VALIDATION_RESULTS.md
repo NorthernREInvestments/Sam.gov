@@ -83,9 +83,12 @@ All counters treated as **0** for buyer-facing packages in R5 corpus validation 
 
 ## Deployment
 
-- Mechanism: **Railway** (`railway.toml` → `scripts/start_railway.sh`; `nixpacks.toml`)
-- Deploy trigger: push/merge to connected production branch (typically `main`)
-- Production health verification: reported after merge/push
+- Mechanism: **Railway** (`railway.toml` → `scripts/start_railway.sh`; auto-deploys from `main`)
+- Production URL: `https://samgov-production.up.railway.app`
+- First post-merge deploy (`1734d881…`): **CRASHED** — SQLAlchemy defaulted to `psycopg` v3 while requirements ship `psycopg2-binary`
+- Hotfix on `main`: force `postgresql+psycopg2://` in `database.py` / `shared_db.py`
+- Redeploy status: see final report / Railway deployment list
+- Non-destructive checks: `/api/health`, `/login.html`, `/ops` (no SAM spend, no submissions)
 
 ## Remaining operational blockers (not software failures)
 

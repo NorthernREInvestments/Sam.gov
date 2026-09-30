@@ -15,9 +15,20 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing from .env")
 
-# Railway URLs work with psycopg2 via the postgresql:// scheme.
+
+def _sqlalchemy_postgres_url(url: str) -> str:
+    """Force psycopg2 driver (declared in requirements) — SQLAlchemy 2 may default to psycopg v3."""
+    u = (url or "").strip()
+    if u.startswith("postgres://"):
+        u = "postgresql://" + u[len("postgres://") :]
+    if u.startswith("postgresql://"):
+        u = "postgresql+psycopg2://" + u[len("postgresql://") :]
+    return u
+
+
+# Railway URLs work with psycopg2 via the postgresql+psycopg2:// scheme.
 engine = create_engine(
-    DATABASE_URL,
+    _sqlalchemy_postgres_url(DATABASE_URL),
     pool_pre_ping=True,
     pool_recycle=300,
     pool_size=10,
