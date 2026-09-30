@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="m3-build" content="20260929-m3-owner-ui-15-minute-operator-training">
+  <title>M3 Operator</title>
+  <link rel="stylesheet" href="/operator.css?v=20260929-m3-owner-ui">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to work</a>
+
+  <header class="topbar">
+    <div class="brand" data-route="home" tabindex="0" role="link" aria-label="M3 Home">
+      <span class="brand-mark">M3</span>
+      <span class="brand-sub">Operator</span>
+    </div>
+    <form class="search-form" id="global-search-form" role="search">
+      <label class="sr-only" for="global-search">Search</label>
+      <input id="global-search" type="search" placeholder="Buyer, solicitation, product, supplier…" autocomplete="off">
+    </form>
+    <div class="topbar-actions">
+      <label class="train-toggle" title="Short on-screen hints">
+        <input type="checkbox" id="training-mode"> Training
+      </label>
+      <button type="button" class="btn ghost" id="btn-walkthrough">Walkthrough</button>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Primary">
+    <button type="button" data-route="home">Home</button>
+    <button type="button" data-route="today">Today</button>
+    <button type="button" data-route="deals">Deals</button>
+    <button type="button" data-route="calls">Calls</button>
+    <button type="button" data-route="quotes">Quotes</button>
+    <button type="button" data-route="registrations">Registrations</button>
+    <button type="button" data-route="bid-prep">Bid Prep</button>
+    <button type="button" data-route="watch">Watch</button>
+    <button type="button" data-route="blocked">Blocked</button>
+    <button type="button" data-route="settings">Settings</button>
+  </nav>
+
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+  <div id="hint-bar" class="hint-bar" hidden></div>
+
+  <main id="main" class="main" tabindex="-1"></main>
+
+  <dialog id="walkthrough-dialog" class="walkthrough">
+    <form method="dialog">
+      <h2>Operator walkthrough</h2>
+      <ol id="walkthrough-steps">
+        <li><strong>Home / Today</strong> — Open Today to see what needs attention.</li>
+        <li><strong>Open a deal</strong> — Tap the top CALL TODAY card.</li>
+        <li><strong>Call supplier</strong> — Use the primary CALL SUPPLIER button.</li>
+        <li><strong>Record answers</strong> — Enter price, freight, lead time on one screen.</li>
+        <li><strong>Save and move on</strong> — Save Call, then work the next item.</li>
+      </ol>
+      <p class="muted">Target: under 5 minutes. Full training: 15–30 minutes.</p>
+      <menu>
+        <button value="cancel" class="btn ghost">Close</button>
+        <button value="default" class="btn primary" id="walkthrough-start">Start on Today</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="/operator.js?v=20260929-m3-owner-ui" defer></script>
+</body>
+</html>

@@ -1,0 +1,1562 @@
+{
+  "kind": "RealCorpusManifest",
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "projects": {
+    "IA-005-RFB-3030-2027": {
+      "corpus_project_id": "IA-005-RFB-3030-2027",
+      "documents": [
+        {
+          "filename": "005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+          "stored_as": "815263a9cf3a2eb0_005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-005-RFB-3030-2027\\815263a9cf3a2eb0_005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+          "sha256": "815263a9cf3a2eb05d084c4bbab8cc3fc0755e4640ef5b10865d57fcd8773242",
+          "bytes": 729168,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\005-RFB-3030-2027\\005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.474678+00:00"
+        },
+        {
+          "filename": "005-RFB-3030-2027__ViewSourcingEvent.html",
+          "stored_as": "11737783d27dfedc_005-RFB-3030-2027__ViewSourcingEvent.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-005-RFB-3030-2027\\11737783d27dfedc_005-RFB-3030-2027__ViewSourcingEvent.html",
+          "sha256": "11737783d27dfedc79882e9f3b98af1fe8c96b4291ed16387fb4695745476bd6",
+          "bytes": 35959,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\005-RFB-3030-2027\\005-RFB-3030-2027__ViewSourcingEvent",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.484797+00:00"
+        }
+      ],
+      "hashes": [
+        "815263a9cf3a2eb05d084c4bbab8cc3fc0755e4640ef5b10865d57fcd8773242",
+        "11737783d27dfedc79882e9f3b98af1fe8c96b4291ed16387fb4695745476bd6"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.465761+00:00",
+      "buyer": "Iowa / State portal",
+      "agency": null,
+      "solicitation_number": "005-RFB-3030-2027",
+      "title": "005-RFB-3030-2027",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:005-RFB-3030-2027",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.019945+00:00",
+      "golden": true
+    },
+    "IA-645-DOTRFB-2975-2027": {
+      "corpus_project_id": "IA-645-DOTRFB-2975-2027",
+      "documents": [
+        {
+          "filename": "645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+          "stored_as": "7a6134d1fea06287_645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-2975-2027\\7a6134d1fea06287_645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+          "sha256": "7a6134d1fea0628780c841b9356ebfe0f283e424f7261ffa2595ad6f0c941eee",
+          "bytes": 420077,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-2975-2027\\645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.507683+00:00"
+        },
+        {
+          "filename": "645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+          "stored_as": "1d3858b232cfddfd_645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-2975-2027\\1d3858b232cfddfd_645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+          "sha256": "1d3858b232cfddfdb550f25e796044480a18c04f026d0b6bf127982364234fb6",
+          "bytes": 35941,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-2975-2027\\645-DOTRFB-2975-2027__ViewSourcingEvent",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.515849+00:00"
+        }
+      ],
+      "hashes": [
+        "7a6134d1fea0628780c841b9356ebfe0f283e424f7261ffa2595ad6f0c941eee",
+        "1d3858b232cfddfdb550f25e796044480a18c04f026d0b6bf127982364234fb6"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.497775+00:00",
+      "buyer": "Iowa DOT",
+      "agency": null,
+      "solicitation_number": "645-DOTRFB-2975-2027",
+      "title": "645-DOTRFB-2975-2027",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:645-DOTRFB-2975-2027",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.038920+00:00",
+      "golden": true
+    },
+    "IA-645-DOTRFB-3042-2027": {
+      "corpus_project_id": "IA-645-DOTRFB-3042-2027",
+      "documents": [
+        {
+          "filename": "645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+          "stored_as": "14c5afe4b6ec569e_645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3042-2027\\14c5afe4b6ec569e_645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+          "sha256": "14c5afe4b6ec569e3b0c1aa8965262aa8d13c49bc1ceb821d3e6b5abd016c4d6",
+          "bytes": 299331,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\645-DOTRFB-3042-2027\\645-DOTRFB-3042-2027__645-DOTRFB-3042-2027-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.537526+00:00"
+        },
+        {
+          "filename": "645-DOTRFB-3042-2027__ViewSourcingEvent.html",
+          "stored_as": "396c801f48dc140c_645-DOTRFB-3042-2027__ViewSourcingEvent.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3042-2027\\396c801f48dc140c_645-DOTRFB-3042-2027__ViewSourcingEvent.html",
+          "sha256": "396c801f48dc140c0c587ce34dee5dfc45911a1c61260ac11b08690f3588b235",
+          "bytes": 35939,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-3042-2027\\645-DOTRFB-3042-2027__ViewSourcingEvent",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.546925+00:00"
+        }
+      ],
+      "hashes": [
+        "14c5afe4b6ec569e3b0c1aa8965262aa8d13c49bc1ceb821d3e6b5abd016c4d6",
+        "396c801f48dc140c0c587ce34dee5dfc45911a1c61260ac11b08690f3588b235"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.528863+00:00",
+      "buyer": "Iowa DOT",
+      "agency": null,
+      "solicitation_number": "645-DOTRFB-3042-2027",
+      "title": "645-DOTRFB-3042-2027",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:645-DOTRFB-3042-2027",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.056253+00:00",
+      "golden": true
+    },
+    "IA-645-DOTRFB-3046-2027": {
+      "corpus_project_id": "IA-645-DOTRFB-3046-2027",
+      "documents": [
+        {
+          "filename": "iowa_wildflower_event.pdf",
+          "stored_as": "78df42e0eddfcd4c_iowa_wildflower_event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3046-2027\\78df42e0eddfcd4c_iowa_wildflower_event.pdf",
+          "sha256": "78df42e0eddfcd4c63f0d10e6534a850e74035c43855aceca6f4e7e9b2a879e2",
+          "bytes": 977930,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\iowa_wildflower_event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.571300+00:00"
+        },
+        {
+          "filename": "645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+          "stored_as": "e26d848b71733f19_645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-3046-2027\\e26d848b71733f19_645-DOTRFB-3046-2027__ViewSourcingEvent.html",
+          "sha256": "e26d848b71733f19fa9eb3ae2904b77a98998664d92d34c4701b974a2a74ef3a",
+          "bytes": 35963,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-3046-2027\\645-DOTRFB-3046-2027__ViewSourcingEvent",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.582241+00:00"
+        }
+      ],
+      "hashes": [
+        "78df42e0eddfcd4c63f0d10e6534a850e74035c43855aceca6f4e7e9b2a879e2",
+        "e26d848b71733f19fa9eb3ae2904b77a98998664d92d34c4701b974a2a74ef3a"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "PORTAL_SUBMISSION",
+        "OCR",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.561940+00:00",
+      "buyer": "Iowa DOT",
+      "agency": null,
+      "solicitation_number": "645-DOTRFB-3046-2027",
+      "title": "645-DOTRFB-3046-2027",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:645-DOTRFB-3046-2027",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.077600+00:00",
+      "golden": true
+    },
+    "MT-DPHHS-IFB-2027-0703BP": {
+      "corpus_project_id": "MT-DPHHS-IFB-2027-0703BP",
+      "documents": [
+        {
+          "filename": "DPHHS-IFB-2027-0703BP__DPHHS-IFB-2027-0703BP-event.pdf",
+          "stored_as": "7165d39b04d4d9c7_DPHHS-IFB-2027-0703BP__DPHHS-IFB-2027-0703BP-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\MT-DPHHS-IFB-2027-0703BP\\7165d39b04d4d9c7_DPHHS-IFB-2027-0703BP__DPHHS-IFB-2027-0703BP-event.pdf",
+          "sha256": "7165d39b04d4d9c75005bf6fd54a59a80867fa271332d6b68cb5b9e9af1ad7f3",
+          "bytes": 408483,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\DPHHS-IFB-2027-0703BP\\DPHHS-IFB-2027-0703BP__DPHHS-IFB-2027-0703BP-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.605723+00:00"
+        }
+      ],
+      "hashes": [
+        "7165d39b04d4d9c75005bf6fd54a59a80867fa271332d6b68cb5b9e9af1ad7f3"
+      ],
+      "tags": [
+        "STATE",
+        "IFB",
+        "PORTAL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.595479+00:00",
+      "buyer": "Montana DPHHS",
+      "agency": null,
+      "solicitation_number": "DPHHS-IFB-2027-0703BP",
+      "title": "DPHHS-IFB-2027-0703BP",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:DPHHS-IFB-2027-0703BP",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.094170+00:00",
+      "golden": true
+    },
+    "IA-RFB947601-02": {
+      "corpus_project_id": "IA-RFB947601-02",
+      "documents": [
+        {
+          "filename": "RFB947601-02__RFB947601-02-event.pdf",
+          "stored_as": "1c8e03d2130a0820_RFB947601-02__RFB947601-02-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-RFB947601-02\\1c8e03d2130a0820_RFB947601-02__RFB947601-02-event.pdf",
+          "sha256": "1c8e03d2130a08209a96eb4cc88b658e8156b50455244c307b3e6c278bc403de",
+          "bytes": 262948,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\RFB947601-02\\RFB947601-02__RFB947601-02-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.628121+00:00"
+        }
+      ],
+      "hashes": [
+        "1c8e03d2130a08209a96eb4cc88b658e8156b50455244c307b3e6c278bc403de"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.618291+00:00",
+      "buyer": "Iowa agency",
+      "agency": null,
+      "solicitation_number": "RFB947601-02",
+      "title": "RFB947601-02",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:RFB947601-02",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.112028+00:00",
+      "golden": true
+    },
+    "IA-RFB952200-01": {
+      "corpus_project_id": "IA-RFB952200-01",
+      "documents": [
+        {
+          "filename": "RFB952200-01__RFB952200-01-event.pdf",
+          "stored_as": "3bf3902553bad3a6_RFB952200-01__RFB952200-01-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-RFB952200-01\\3bf3902553bad3a6_RFB952200-01__RFB952200-01-event.pdf",
+          "sha256": "3bf3902553bad3a62c01f171975548cee8b5810ed547ffbcae74cc3b2f40d2de",
+          "bytes": 264498,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\RFB952200-01\\RFB952200-01__RFB952200-01-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.649037+00:00"
+        }
+      ],
+      "hashes": [
+        "3bf3902553bad3a62c01f171975548cee8b5810ed547ffbcae74cc3b2f40d2de"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.638713+00:00",
+      "buyer": "Iowa agency",
+      "agency": null,
+      "solicitation_number": "RFB952200-01",
+      "title": "RFB952200-01",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:RFB952200-01",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.129224+00:00",
+      "golden": true
+    },
+    "IA-RFB952400-01": {
+      "corpus_project_id": "IA-RFB952400-01",
+      "documents": [
+        {
+          "filename": "RFB952400-01__RFB952400-01-event.pdf",
+          "stored_as": "6b2c995ee30272ae_RFB952400-01__RFB952400-01-event.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-RFB952400-01\\6b2c995ee30272ae_RFB952400-01__RFB952400-01-event.pdf",
+          "sha256": "6b2c995ee30272ae80c6f5b203d57d90a875b29efa4f3aa3419a954931d8e2d2",
+          "bytes": 364884,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\RFB952400-01\\RFB952400-01__RFB952400-01-event.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:41:54.672598+00:00"
+        }
+      ],
+      "hashes": [
+        "6b2c995ee30272ae80c6f5b203d57d90a875b29efa4f3aa3419a954931d8e2d2"
+      ],
+      "tags": [
+        "STATE",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.662215+00:00",
+      "buyer": "Iowa agency",
+      "agency": null,
+      "solicitation_number": "RFB952400-01",
+      "title": "RFB952400-01",
+      "jurisdiction": "STATE",
+      "authoritative_source": "local:RFB952400-01",
+      "discovery_source": "SciQuest/local_artifact",
+      "submission_system": null,
+      "solicitation_status": "HISTORICAL_OR_CACHED",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.142488+00:00",
+      "golden": true
+    },
+    "NE-121604-OR-LEICA": {
+      "corpus_project_id": "NE-121604-OR-LEICA",
+      "documents": [
+        {
+          "filename": "Leica_20ITB.pdf",
+          "stored_as": "8b6f9ce97b9cab23_Leica_20ITB.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121604-OR-LEICA\\8b6f9ce97b9cab23_Leica_20ITB.pdf",
+          "sha256": "8b6f9ce97b9cab2305019e3f160fdf0fa513a051624436c261a1a10a1ad1a6ec",
+          "bytes": 5885474,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/Leica%20ITB.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:41:57.623196+00:00"
+        },
+        {
+          "filename": "121604_20OR_20ITB_20SIELER5-23-25.pdf",
+          "stored_as": "91b28c27631510f6_121604_20OR_20ITB_20SIELER5-23-25.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121604-OR-LEICA\\91b28c27631510f6_121604_20OR_20ITB_20SIELER5-23-25.pdf",
+          "sha256": "91b28c27631510f6de1265e9af3293924fff2d4d4772b25dea1f9e8857c50a4f",
+          "bytes": 4154480,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/121604%20OR%20ITB%20SIELER5-23-25.pdf",
+          "role": "PRICING_SHEET",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:41:59.899574+00:00"
+        }
+      ],
+      "hashes": [
+        "8b6f9ce97b9cab2305019e3f160fdf0fa513a051624436c261a1a10a1ad1a6ec",
+        "91b28c27631510f6de1265e9af3293924fff2d4d4772b25dea1f9e8857c50a4f"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "RFQ",
+        "BUYER_XLSX",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:54.682140+00:00",
+      "buyer": "Nebraska DAS / NDOT",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "121604 OR",
+      "title": "Survey Equipment (Leica ITB)",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/Leica%20ITB.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:36.203382+00:00",
+      "golden": true
+    },
+    "NE-121756-OR": {
+      "corpus_project_id": "NE-121756-OR",
+      "documents": [
+        {
+          "filename": "121756_20OR_20ITB.pdf",
+          "stored_as": "4350dfc1b2cd8021_121756_20OR_20ITB.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121756-OR\\4350dfc1b2cd8021_121756_20OR_20ITB.pdf",
+          "sha256": "4350dfc1b2cd8021eede6017ba51755949d886a14cac3e909f1cb846bf4f7fc6",
+          "bytes": 713325,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/121756%20OR/121756%20OR%20ITB.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:00.686300+00:00"
+        }
+      ],
+      "hashes": [
+        "4350dfc1b2cd8021eede6017ba51755949d886a14cac3e909f1cb846bf4f7fc6"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:41:59.911813+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "121756 OR",
+      "title": "Commodity ITB 121756 OR",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/121756%20OR/121756%20OR%20ITB.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:41.072257+00:00",
+      "golden": true
+    },
+    "NE-6305-OF": {
+      "corpus_project_id": "NE-6305-OF",
+      "documents": [
+        {
+          "filename": "6305_20OF_20ITB.pdf",
+          "stored_as": "78ba2148cba0d5c9_6305_20OF_20ITB.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6305-OF\\78ba2148cba0d5c9_6305_20OF_20ITB.pdf",
+          "sha256": "78ba2148cba0d5c9518bdfc2fe845afd98ef18814bb7acdbe9c3f0b037e41f32",
+          "bytes": 804878,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6305/6305%20OF%20ITB.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:01.412951+00:00"
+        }
+      ],
+      "hashes": [
+        "78ba2148cba0d5c9518bdfc2fe845afd98ef18814bb7acdbe9c3f0b037e41f32"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:00.697571+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "6305 OF",
+      "title": "Invitation to Bid One Time Purchase 6305 OF",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6305/6305%20OF%20ITB.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:41.801661+00:00",
+      "golden": true
+    },
+    "NE-123131-OR-POP": {
+      "corpus_project_id": "NE-123131-OR-POP",
+      "documents": [
+        {
+          "filename": "123131_20OR.html",
+          "stored_as": "450e06377ec11508_123131_20OR.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\450e06377ec11508_123131_20OR.html",
+          "sha256": "450e06377ec11508fbd4bddd5ae72f6bc650eaf31c0a09aa652da377b9cd301b",
+          "bytes": 18630,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR.html",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:01.691716+00:00"
+        },
+        {
+          "filename": "123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+          "stored_as": "7dc2ef783c6ba14d_123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\7dc2ef783c6ba14d_123131_20OR_20Response_20-_20Chestman_20Coca-Cola.pdf",
+          "sha256": "7dc2ef783c6ba14d85e591f6748f94a4af54e9f37238830b08eb02c290a4e6f6",
+          "bytes": 919101,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR%20Response%20-%20Chestman%20Coca-Cola.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:02.473930+00:00"
+        },
+        {
+          "filename": "123131_20OR_20ITB.docx",
+          "stored_as": "86cc7451cd0ec56e_123131_20OR_20ITB.docx",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\86cc7451cd0ec56e_123131_20OR_20ITB.docx",
+          "sha256": "86cc7451cd0ec56e0eebef2d11bee18c3cdbd52f5f577cf58cf71854ac057b33",
+          "bytes": 13165,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR%20ITB.docx",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:02.735042+00:00"
+        },
+        {
+          "filename": "Attachment_20A_20-_20Cost_20Sheet.xlsx",
+          "stored_as": "3cc7cf4652b91b7d_Attachment_20A_20-_20Cost_20Sheet.xlsx",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-123131-OR-POP\\3cc7cf4652b91b7d_Attachment_20A_20-_20Cost_20Sheet.xlsx",
+          "sha256": "3cc7cf4652b91b7d08827db37cd8d6a5f575d6c5463bed5796d912efea473578",
+          "bytes": 20451,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/Attachment%20A%20-%20Cost%20Sheet.xlsx",
+          "role": "PRICING_SHEET",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:02.996205+00:00"
+        }
+      ],
+      "hashes": [
+        "450e06377ec11508fbd4bddd5ae72f6bc650eaf31c0a09aa652da377b9cd301b",
+        "7dc2ef783c6ba14d85e591f6748f94a4af54e9f37238830b08eb02c290a4e6f6",
+        "86cc7451cd0ec56e0eebef2d11bee18c3cdbd52f5f577cf58cf71854ac057b33",
+        "3cc7cf4652b91b7d08827db37cd8d6a5f575d6c5463bed5796d912efea473578"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EXACT_PART",
+        "Q_AND_A",
+        "BUYER_XLSX",
+        "MULTI_AMENDMENT",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:01.424754+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "123131 OR",
+      "title": "Brand Name Pop commodity ITB",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/123131%20OR/123131%20OR.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:42.595667+00:00",
+      "golden": true
+    },
+    "DLA-MASTER-ASA-REV102": {
+      "corpus_project_id": "DLA-MASTER-ASA-REV102",
+      "documents": [
+        {
+          "filename": "DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+          "stored_as": "ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-MASTER-ASA-REV102\\ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+          "sha256": "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28",
+          "bytes": 791748,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+          "role": "MASTER_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:47:02.913685+00:00"
+        }
+      ],
+      "hashes": [
+        "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28"
+      ],
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:03.643828+00:00",
+      "buyer": "Defense Logistics Agency",
+      "agency": "DLA",
+      "solicitation_number": "MASTER-ASA-REV-102",
+      "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 102",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-102_September_29_2025.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+      "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+      "updated_at": "2026-09-29T22:51:36.152282+00:00",
+      "golden": true
+    },
+    "DLA-MASTER-ASA-REV99": {
+      "corpus_project_id": "DLA-MASTER-ASA-REV99",
+      "documents": [
+        {
+          "filename": "DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+          "stored_as": "2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-MASTER-ASA-REV99\\2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+          "sha256": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+          "bytes": 129364,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+          "role": "MASTER_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:47:03.571009+00:00"
+        }
+      ],
+      "hashes": [
+        "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889"
+      ],
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFQ"
+      ],
+      "created_at": "2026-09-29T22:42:03.945568+00:00",
+      "buyer": "Defense Logistics Agency",
+      "agency": "DLA",
+      "solicitation_number": "MASTER-ASA-REV-99",
+      "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 99",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-99_February_20_2025.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+      "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+      "updated_at": "2026-09-29T22:51:36.165253+00:00"
+    },
+    "DLA-SPE4A7-23-R-0105": {
+      "corpus_project_id": "DLA-SPE4A7-23-R-0105",
+      "documents": [
+        {
+          "filename": "SPE4A7-23-R-0105_UPDATED_RFP.txt",
+          "stored_as": "469c06d9b0ab475d_SPE4A7-23-R-0105_UPDATED_RFP.txt",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-SPE4A7-23-R-0105\\469c06d9b0ab475d_SPE4A7-23-R-0105_UPDATED_RFP.txt",
+          "sha256": "469c06d9b0ab475dc3fc0f23a83521aa7b0fead662d3a7288d47230f115ea01c",
+          "bytes": 360090,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\SPE4A7-23-R-0105_UPDATED_RFP.txt",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:47:03.695353+00:00"
+        }
+      ],
+      "hashes": [
+        "469c06d9b0ab475dc3fc0f23a83521aa7b0fead662d3a7288d47230f115ea01c"
+      ],
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFP",
+        "EXACT_PART",
+        "MULTI_AMENDMENT",
+        "PIEE",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:04.204629+00:00",
+      "buyer": "Defense Logistics Agency Aviation",
+      "agency": "DLA",
+      "solicitation_number": "SPE4A7-23-R-0105",
+      "title": "Navy IPV GEN IV RFP",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://www.dla.mil/Aviation/Offers/Commodities/Navy-IPV-GEN-IV-Project/",
+      "discovery_source": null,
+      "submission_system": "PIEE/DLA",
+      "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+      "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+      "updated_at": "2026-09-29T22:51:36.178781+00:00",
+      "golden": true
+    },
+    "DLA-AF-GEN-IV-DRAFT-RFP": {
+      "corpus_project_id": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "documents": [
+        {
+          "filename": "AF_GEN_IV_IPV_DRAFT_RFP.txt",
+          "stored_as": "a7f15b41efc28eb0_AF_GEN_IV_IPV_DRAFT_RFP.txt",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DLA-AF-GEN-IV-DRAFT-RFP\\a7f15b41efc28eb0_AF_GEN_IV_IPV_DRAFT_RFP.txt",
+          "sha256": "a7f15b41efc28eb0595f57a92de07a2ee6c3a279685572677acf7fc2799e8e6d",
+          "bytes": 223809,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\AF_GEN_IV_IPV_DRAFT_RFP.txt",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:47:03.727465+00:00"
+        }
+      ],
+      "hashes": [
+        "a7f15b41efc28eb0595f57a92de07a2ee6c3a279685572677acf7fc2799e8e6d"
+      ],
+      "tags": [
+        "FEDERAL",
+        "DLA",
+        "RFP",
+        "EXACT_PART"
+      ],
+      "created_at": "2026-09-29T22:42:04.962701+00:00",
+      "buyer": "Defense Logistics Agency Aviation",
+      "agency": "DLA",
+      "solicitation_number": "AF-GEN-IV-IPV-DRAFT",
+      "title": "Air Force GEN IV IPV Draft RFP",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://www.dla.mil/Portals/104/Documents/Aviation/Commodities/AF%20Gen%20IV/DRAFT%20RFP%20AF%20GEN%20IV%20IPV.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_CACHED",
+      "notes": "Cached from authoritative government source after CDN blocked direct urllib",
+      "updated_at": "2026-09-29T22:51:36.190847+00:00"
+    },
+    "DOD-N6600125Q6337": {
+      "corpus_project_id": "DOD-N6600125Q6337",
+      "documents": [
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "605d3b62331383d3_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\605d3b62331383d3_oppMgmtLink.xhtml",
+          "sha256": "605d3b62331383d3659206c478c7d518622b594e5825b66fade6b47acab9796f",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:06.291141+00:00"
+        },
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "f19461411f1bf697_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\f19461411f1bf697_oppMgmtLink.xhtml",
+          "sha256": "f19461411f1bf697835b1f70ef61890f58b8aff24f7b5a4b499a9556bb9cb586",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:13.789946+00:00"
+        },
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "228d72e908dfe1b4_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6337\\228d72e908dfe1b4_oppMgmtLink.xhtml",
+          "sha256": "228d72e908dfe1b47b6d800d128888428b0eb1ed02189c89dd6c80a696a0e68e",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:51:46.405768+00:00"
+        }
+      ],
+      "hashes": [
+        "605d3b62331383d3659206c478c7d518622b594e5825b66fade6b47acab9796f",
+        "f19461411f1bf697835b1f70ef61890f58b8aff24f7b5a4b499a9556bb9cb586",
+        "228d72e908dfe1b47b6d800d128888428b0eb1ed02189c89dd6c80a696a0e68e"
+      ],
+      "tags": [
+        "FEDERAL",
+        "PIEE",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "SF1449",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:05.211545+00:00",
+      "buyer": "Department of the Navy / NIWC",
+      "agency": "DoD",
+      "solicitation_number": "N66001-25-Q-6337",
+      "title": "Brand Name or Equal Leach International Relays",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml?noticeId=N6600125Q6337&noticeType=CombinedSynopsisSolicitation",
+      "discovery_source": null,
+      "submission_system": "PIEE",
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:46.405789+00:00",
+      "golden": true
+    },
+    "DOD-N6600125Q6265": {
+      "corpus_project_id": "DOD-N6600125Q6265",
+      "documents": [
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "e58e188460dd1ae3_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e58e188460dd1ae3_oppMgmtLink.xhtml",
+          "sha256": "e58e188460dd1ae3a8ada50eb4ef133ea22755126b3258bc66560163b1523b5f",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:07.325641+00:00"
+        },
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "e370b1a9e8da478c_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e370b1a9e8da478c_oppMgmtLink.xhtml",
+          "sha256": "e370b1a9e8da478cfd4a2ee2de0df12b544b8cf2b8e125063c8bfc78c337fae1",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:14.800876+00:00"
+        },
+        {
+          "filename": "oppMgmtLink.xhtml",
+          "stored_as": "e97394da1e54e1bc_oppMgmtLink.xhtml",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOD-N6600125Q6265\\e97394da1e54e1bc_oppMgmtLink.xhtml",
+          "sha256": "e97394da1e54e1bcb986e2398d1ac445b78b337fe8b90cb2be3240494e929d31",
+          "bytes": 27696,
+          "source_url": "https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:51:47.485031+00:00"
+        }
+      ],
+      "hashes": [
+        "e58e188460dd1ae3a8ada50eb4ef133ea22755126b3258bc66560163b1523b5f",
+        "e370b1a9e8da478cfd4a2ee2de0df12b544b8cf2b8e125063c8bfc78c337fae1",
+        "e97394da1e54e1bcb986e2398d1ac445b78b337fe8b90cb2be3240494e929d31"
+      ],
+      "tags": [
+        "FEDERAL",
+        "PIEE",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "EXACT_PART",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:06.307597+00:00",
+      "buyer": "Department of the Navy / NIWC",
+      "agency": "DoD",
+      "solicitation_number": "N66001-25-Q-6265",
+      "title": "COTS Brand Name and Brand Name or Equal Materials/IT Equipment",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://piee.eb.mil/sol/xhtml/unauth/search/oppMgmtLink.xhtml?noticeId=N6600125Q6265&noticeType=CombinedSynopsisSolicitation",
+      "discovery_source": null,
+      "submission_system": "PIEE",
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:47.485045+00:00",
+      "golden": true
+    },
+    "DOS-19VM3026Q0024": {
+      "corpus_project_id": "DOS-19VM3026Q0024",
+      "documents": [
+        {
+          "filename": "19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+          "stored_as": "910f7c15e7b0a85b_19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19VM3026Q0024\\910f7c15e7b0a85b_19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+          "sha256": "910f7c15e7b0a85be5f19bc2e35d5d86c5425d576d0d1b18ff97f541e567cc54",
+          "bytes": 337543,
+          "source_url": "https://vn.usembassy.gov/wp-content/uploads/sites/124/2026/09/19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:15.303915+00:00"
+        }
+      ],
+      "hashes": [
+        "910f7c15e7b0a85be5f19bc2e35d5d86c5425d576d0d1b18ff97f541e567cc54"
+      ],
+      "tags": [
+        "FEDERAL",
+        "SF1449",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:07.337101+00:00",
+      "buyer": "U.S. Embassy Hanoi",
+      "agency": "Department of State",
+      "solicitation_number": "19VM3026Q0024",
+      "title": "Cleaning supplies BPA RFQ (SF1449)",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://vn.usembassy.gov/wp-content/uploads/sites/124/2026/09/19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+      "discovery_source": null,
+      "submission_system": "EMAIL",
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:47.497722+00:00",
+      "golden": true
+    },
+    "DOS-19N10226Q0007": {
+      "corpus_project_id": "DOS-19N10226Q0007",
+      "documents": [
+        {
+          "filename": "19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+          "stored_as": "d304bc5369310a08_19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19N10226Q0007\\d304bc5369310a08_19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+          "sha256": "d304bc5369310a0898272f8003adbc72e48315f1a0e440df02698a52f3e41db5",
+          "bytes": 875979,
+          "source_url": "https://ng.usembassy.gov/wp-content/uploads/sites/43/2026/04/19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:15.848377+00:00"
+        }
+      ],
+      "hashes": [
+        "d304bc5369310a0898272f8003adbc72e48315f1a0e440df02698a52f3e41db5"
+      ],
+      "tags": [
+        "FEDERAL",
+        "SF1449",
+        "RFQ",
+        "EMAIL_SUBMISSION"
+      ],
+      "created_at": "2026-09-29T22:42:07.705034+00:00",
+      "buyer": "U.S. Embassy Abuja",
+      "agency": "Department of State",
+      "solicitation_number": "19N10226Q0007",
+      "title": "Gardening power tools maintenance/parts RFQ (SF1449)",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://ng.usembassy.gov/wp-content/uploads/sites/43/2026/04/19N10226Q0007-SS-PREVENTIVE_MAINTENANCE.pdf",
+      "discovery_source": null,
+      "submission_system": "EMAIL",
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:47.961994+00:00"
+    },
+    "DOS-19CV1025Q0001": {
+      "corpus_project_id": "DOS-19CV1025Q0001",
+      "documents": [
+        {
+          "filename": "A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+          "stored_as": "e990fe17e883c608_A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19CV1025Q0001\\e990fe17e883c608_A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+          "sha256": "e990fe17e883c608f62fbc3a1b2649564e1d652475d9d2586f9abcb5da81c33f",
+          "bytes": 640540,
+          "source_url": "https://cv.usembassy.gov/wp-content/uploads/sites/189/2024/11/A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:16.475160+00:00"
+        }
+      ],
+      "hashes": [
+        "e990fe17e883c608f62fbc3a1b2649564e1d652475d9d2586f9abcb5da81c33f"
+      ],
+      "tags": [
+        "FEDERAL",
+        "SF1449",
+        "RFQ",
+        "EMAIL_SUBMISSION"
+      ],
+      "created_at": "2026-09-29T22:42:08.159157+00:00",
+      "buyer": "U.S. Embassy Praia",
+      "agency": "Department of State",
+      "solicitation_number": "19CV1025Q0001",
+      "title": "Drinking water delivery SF1449 RFQ",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://cv.usembassy.gov/wp-content/uploads/sites/189/2024/11/A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+      "discovery_source": null,
+      "submission_system": "EMAIL",
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:48.487183+00:00"
+    },
+    "NE-SPB-FORM16-ITB-REQS": {
+      "corpus_project_id": "NE-SPB-FORM16-ITB-REQS",
+      "documents": [
+        {
+          "filename": "NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+          "stored_as": "7c632822f62ecc8e_NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-SPB-FORM16-ITB-REQS\\7c632822f62ecc8e_NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+          "sha256": "7c632822f62ecc8ed5eb8afdec07d42adbbec9e5f3ee6c1b0794374c3d35b768",
+          "bytes": 148776,
+          "source_url": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:42:09.146031+00:00"
+        }
+      ],
+      "hashes": [
+        "7c632822f62ecc8ed5eb8afdec07d42adbbec9e5f3ee6c1b0794374c3d35b768"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB"
+      ],
+      "created_at": "2026-09-29T22:42:08.567892+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "SPB-FORM-16",
+      "title": "ITB Submission Requirements (SPB Form 16)",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:59.383810+00:00"
+    },
+    "AZ-PHX-_phoenix_detail_1742": {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1742",
+      "documents": [
+        {
+          "filename": "_phoenix_detail_1742.html",
+          "stored_as": "02ea01138340c791__phoenix_detail_1742.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\AZ-PHX-_phoenix_detail_1742\\02ea01138340c791__phoenix_detail_1742.html",
+          "sha256": "02ea01138340c791af2d896398269ed477d132902f3f5fdb5f0b6edacb0a7bb5",
+          "bytes": 59294,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_phoenix_detail_1742.html",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:42:09.171139+00:00"
+        }
+      ],
+      "hashes": [
+        "02ea01138340c791af2d896398269ed477d132902f3f5fdb5f0b6edacb0a7bb5"
+      ],
+      "tags": [
+        "LOCAL",
+        "PORTAL_SUBMISSION",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:09.158481+00:00",
+      "buyer": "Phoenix",
+      "agency": null,
+      "solicitation_number": "_phoenix_detail_1742.html",
+      "title": "_phoenix_detail_1742.html",
+      "jurisdiction": "LOCAL",
+      "authoritative_source": "local:C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_phoenix_detail_1742.html",
+      "discovery_source": "OpenGov/Phoenix",
+      "submission_system": null,
+      "solicitation_status": "CLOSED_OR_HISTORICAL",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:59.877957+00:00",
+      "golden": true
+    },
+    "AZ-PHX-_phoenix_detail_1850": {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1850",
+      "documents": [
+        {
+          "filename": "_phoenix_detail_1850.html",
+          "stored_as": "d98047900a3c5aaa__phoenix_detail_1850.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\AZ-PHX-_phoenix_detail_1850\\d98047900a3c5aaa__phoenix_detail_1850.html",
+          "sha256": "d98047900a3c5aaa7419c67f16335aa39bb3075f6b508047783fa8bc9daf031e",
+          "bytes": 59294,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_phoenix_detail_1850.html",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:42:09.192959+00:00"
+        }
+      ],
+      "hashes": [
+        "d98047900a3c5aaa7419c67f16335aa39bb3075f6b508047783fa8bc9daf031e"
+      ],
+      "tags": [
+        "LOCAL",
+        "PORTAL_SUBMISSION",
+        "RFQ",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:42:09.181117+00:00",
+      "buyer": "Phoenix",
+      "agency": null,
+      "solicitation_number": "_phoenix_detail_1850.html",
+      "title": "_phoenix_detail_1850.html",
+      "jurisdiction": "LOCAL",
+      "authoritative_source": "local:C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_phoenix_detail_1850.html",
+      "discovery_source": "OpenGov/Phoenix",
+      "submission_system": null,
+      "solicitation_status": "CLOSED_OR_HISTORICAL",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:59.890647+00:00",
+      "golden": true
+    },
+    "NE-119951-O8-CAMERAS": {
+      "corpus_project_id": "NE-119951-O8-CAMERAS",
+      "documents": [
+        {
+          "filename": "119951O8.html",
+          "stored_as": "77e593c21422e699_119951O8.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\77e593c21422e699_119951O8.html",
+          "sha256": "77e593c21422e699d61a89f29c2814f5b4c478e08f23ac722a12b6870899090e",
+          "bytes": 19179,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951O8.html",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:16.898835+00:00"
+        },
+        {
+          "filename": "119951_20O8_20ITB.pdf",
+          "stored_as": "5df4a379886f6a17_119951_20O8_20ITB.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\5df4a379886f6a17_119951_20O8_20ITB.pdf",
+          "sha256": "5df4a379886f6a17300090ea1a694016826e1efcb307fe1cec18e71fd0b375e6",
+          "bytes": 414828,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%20O8%20ITB.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:17.375208+00:00"
+        },
+        {
+          "filename": "119951_2008_20Cost_20SHEET.pdf",
+          "stored_as": "3fff0d8501abcb1c_119951_2008_20Cost_20SHEET.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\3fff0d8501abcb1c_119951_2008_20Cost_20SHEET.pdf",
+          "sha256": "3fff0d8501abcb1cf5fc6326c4e5c2cc043f2e4ad4cf445f9dd25c9c4deac03a",
+          "bytes": 91140,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%2008%20Cost%20SHEET.pdf",
+          "role": "PRICING_SHEET",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:17.787153+00:00"
+        },
+        {
+          "filename": "119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+          "stored_as": "713a509b106d8292_119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\713a509b106d8292_119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+          "sha256": "713a509b106d8292ee282fcc67a7010f33ed68e3da8c348fe785b8c41dd3c13d",
+          "bytes": 20469,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%20O8%20SOLICITATION%20ADDENDUM%20NO%20QUESTIONS.docx",
+          "role": "Q_AND_A",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:18.058503+00:00"
+        }
+      ],
+      "hashes": [
+        "77e593c21422e699d61a89f29c2814f5b4c478e08f23ac722a12b6870899090e",
+        "5df4a379886f6a17300090ea1a694016826e1efcb307fe1cec18e71fd0b375e6",
+        "3fff0d8501abcb1cf5fc6326c4e5c2cc043f2e4ad4cf445f9dd25c9c4deac03a",
+        "713a509b106d8292ee282fcc67a7010f33ed68e3da8c348fe785b8c41dd3c13d"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "RFQ",
+        "BRAND_OR_EQUAL",
+        "Q_AND_A",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:16.485878+00:00",
+      "buyer": "Nebraska DAS / NDOT",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "119951 O8",
+      "title": "Axis Traffic Cameras commodity ITB",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951O8.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:49.093867+00:00",
+      "golden": true
+    },
+    "NE-119949-O8B-GM": {
+      "corpus_project_id": "NE-119949-O8B-GM",
+      "documents": [
+        {
+          "filename": "119949O8B.html",
+          "stored_as": "1a44cac4f23b16b4_119949O8B.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\1a44cac4f23b16b4_119949O8B.html",
+          "sha256": "1a44cac4f23b16b4c867cd7e01df4187e53f2dcdde78a2f991d55dc97eb6d4ee",
+          "bytes": 18422,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:18.330163+00:00"
+        },
+        {
+          "filename": "119949_20O8_20B_20ITB.pdf",
+          "stored_as": "7235a8b5831ba672_119949_20O8_20B_20ITB.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\7235a8b5831ba672_119949_20O8_20B_20ITB.pdf",
+          "sha256": "7235a8b5831ba67252c96ee361dcd30c7ed2c1bb72b84dfeb9f6bb738abc0231",
+          "bytes": 434614,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20B%20ITB.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:18.873961+00:00"
+        },
+        {
+          "filename": "119949_20O8_20B_20Attachments.xlsx",
+          "stored_as": "c5512fa8bb881345_119949_20O8_20B_20Attachments.xlsx",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\c5512fa8bb881345_119949_20O8_20B_20Attachments.xlsx",
+          "sha256": "c5512fa8bb8813450b675249d8e0fd8b9aa8ce6a06cf963345e3c92cc4f7b72c",
+          "bytes": 97522,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20B,%20Attachments.xlsx",
+          "role": "PRICING_SHEET",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:19.351843+00:00"
+        },
+        {
+          "filename": "119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+          "stored_as": "a19705249d156051_119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\a19705249d156051_119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+          "sha256": "a19705249d156051cf9e4b9b2377022fe16c1ffafabd67ab3278ec496a4ff336",
+          "bytes": 71488,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20(B),%20Addendum%20One%20Q%20&%20A.pdf",
+          "role": "Q_AND_A",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:19.739762+00:00"
+        }
+      ],
+      "hashes": [
+        "1a44cac4f23b16b4c867cd7e01df4187e53f2dcdde78a2f991d55dc97eb6d4ee",
+        "7235a8b5831ba67252c96ee361dcd30c7ed2c1bb72b84dfeb9f6bb738abc0231",
+        "c5512fa8bb8813450b675249d8e0fd8b9aa8ce6a06cf963345e3c92cc4f7b72c",
+        "a19705249d156051cf9e4b9b2377022fe16c1ffafabd67ab3278ec496a4ff336"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "Q_AND_A",
+        "EXACT_PART",
+        "MULTI_AMENDMENT",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:18.070822+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "119949 O8 B",
+      "title": "GM Vehicle Market Baskets commodity ITB",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:50.779626+00:00",
+      "golden": true
+    },
+    "NE-6908-OF-DASDEC": {
+      "corpus_project_id": "NE-6908-OF-DASDEC",
+      "documents": [
+        {
+          "filename": "6908OF.html",
+          "stored_as": "5155d0b7165865d4_6908OF.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\5155d0b7165865d4_6908OF.html",
+          "sha256": "5155d0b7165865d476349b503ac798e05185a5926219a2640b061dbe9910dc8d",
+          "bytes": 18277,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908OF.html",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:20.020976+00:00"
+        },
+        {
+          "filename": "6908_20OF.pdf",
+          "stored_as": "b3c17129a8f522a8_6908_20OF.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\b3c17129a8f522a8_6908_20OF.pdf",
+          "sha256": "b3c17129a8f522a8d92865b065066c94de807c93860596b3cb926d7dac478752",
+          "bytes": 850037,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908%20OF.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:20.744823+00:00"
+        },
+        {
+          "filename": "6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+          "stored_as": "d33a2fd9c6c5e447_6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\d33a2fd9c6c5e447_6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+          "sha256": "d33a2fd9c6c5e44738802f0bdbb4ba801a7105255f1ecd68037eb038d34635b1",
+          "bytes": 71830,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908%20OF%20Addendum%20One%20Q%20&%20A.pdf",
+          "role": "Q_AND_A",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:21.098465+00:00"
+        }
+      ],
+      "hashes": [
+        "5155d0b7165865d476349b503ac798e05185a5926219a2640b061dbe9910dc8d",
+        "b3c17129a8f522a8d92865b065066c94de807c93860596b3cb926d7dac478752",
+        "d33a2fd9c6c5e44738802f0bdbb4ba801a7105255f1ecd68037eb038d34635b1"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "EXACT_PART",
+        "Q_AND_A",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:19.753511+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "6908 OF",
+      "title": "DASDEC III Messaging Platform Units",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908OF.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:52.319002+00:00",
+      "golden": true
+    },
+    "NE-6829-OF-CAMERAS": {
+      "corpus_project_id": "NE-6829-OF-CAMERAS",
+      "documents": [
+        {
+          "filename": "6829_20OF.html",
+          "stored_as": "2d34440b444a298a_6829_20OF.html",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\2d34440b444a298a_6829_20OF.html",
+          "sha256": "2d34440b444a298a5c81f768581970488a7f1187b1f173b15af2e0a91ae6512c",
+          "bytes": 18380,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF.html",
+          "role": "PORTAL_INSTRUCTIONS",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:21.465907+00:00"
+        },
+        {
+          "filename": "6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+          "stored_as": "3524073426dbc388_6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\3524073426dbc388_6829_20OF_20117110_20OR_20_20ITB_20stacked.pdf",
+          "sha256": "3524073426dbc388ace3273ae8aa07d35177b7b8775f4456b9ba99d5745ead83",
+          "bytes": 687376,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF,%20117110%20OR%20%20ITB%20stacked.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:22.108272+00:00"
+        },
+        {
+          "filename": "6829_20OF_20QUESTIONS_20FINAL.pdf",
+          "stored_as": "427ef472fbc46fe8_6829_20OF_20QUESTIONS_20FINAL.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\427ef472fbc46fe8_6829_20OF_20QUESTIONS_20FINAL.pdf",
+          "sha256": "427ef472fbc46fe83695eec4af6168525b2c96b53bdb51a8ba236e9595e92f02",
+          "bytes": 120820,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF%20QUESTIONS%20FINAL.pdf",
+          "role": "Q_AND_A",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:22.831991+00:00"
+        },
+        {
+          "filename": "6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+          "stored_as": "8cddab119cd4d7e5_6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6829-OF-CAMERAS\\8cddab119cd4d7e5_6829_20OF_20Addendum_20Two-Revised_20Schedule_20of_20Events-REV_2005.20.22.pdf",
+          "sha256": "8cddab119cd4d7e55e69c8483afff8a0391b374c6b751531b60de438a3c13dc8",
+          "bytes": 85050,
+          "source_url": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF%20Addendum%20Two-Revised%20Schedule%20of%20Events-REV%2005.20.22.pdf",
+          "role": "ADDENDUM",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:23.224910+00:00"
+        }
+      ],
+      "hashes": [
+        "2d34440b444a298a5c81f768581970488a7f1187b1f173b15af2e0a91ae6512c",
+        "3524073426dbc388ace3273ae8aa07d35177b7b8775f4456b9ba99d5745ead83",
+        "427ef472fbc46fe83695eec4af6168525b2c96b53bdb51a8ba236e9595e92f02",
+        "8cddab119cd4d7e55e69c8483afff8a0391b374c6b751531b60de438a3c13dc8"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "Q_AND_A",
+        "MULTI_AMENDMENT",
+        "BRAND_OR_EQUAL",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:21.111044+00:00",
+      "buyer": "Nebraska DAS / NDOT",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "6829 OF",
+      "title": "Traffic Classification Camera System",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6829%20OF/6829%20OF.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:53.675238+00:00",
+      "golden": true
+    },
+    "KY-WARREN-SURVEILLANCE-TRAILER-2025": {
+      "corpus_project_id": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "documents": [
+        {
+          "filename": "Surveillance-Trailer-Bid-Packet-2025.pdf",
+          "stored_as": "2a26320ad9543f72_Surveillance-Trailer-Bid-Packet-2025.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\KY-WARREN-SURVEILLANCE-TRAILER-2025\\2a26320ad9543f72_Surveillance-Trailer-Bid-Packet-2025.pdf",
+          "sha256": "2a26320ad9543f728b86d1a065ef15fcc2bae0ff4f8d7a943ea4285d0d2e4fcd",
+          "bytes": 282398,
+          "source_url": "https://www.warrencountyky.gov/wp-content/uploads/2025/12/Surveillance-Trailer-Bid-Packet-2025.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:23.589551+00:00"
+        }
+      ],
+      "hashes": [
+        "2a26320ad9543f728b86d1a065ef15fcc2bae0ff4f8d7a943ea4285d0d2e4fcd"
+      ],
+      "tags": [
+        "LOCAL",
+        "IFB",
+        "RFQ",
+        "BRAND_OR_EQUAL"
+      ],
+      "created_at": "2026-09-29T22:47:23.241528+00:00",
+      "buyer": "Warren Fiscal Court / Warren County KY",
+      "agency": "Warren County Emergency Management",
+      "solicitation_number": "MST-2025",
+      "title": "Mobile Wireless Surveillance Trailer sealed bid",
+      "jurisdiction": "LOCAL",
+      "authoritative_source": "https://www.warrencountyky.gov/wp-content/uploads/2025/12/Surveillance-Trailer-Bid-Packet-2025.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:55.650704+00:00"
+    },
+    "OK-OTTAWA-COURTHOUSE-CAMERAS": {
+      "corpus_project_id": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "documents": [
+        {
+          "filename": "bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+          "stored_as": "ced7de3a80ad2e95_bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\OK-OTTAWA-COURTHOUSE-CAMERAS\\ced7de3a80ad2e95_bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+          "sha256": "ced7de3a80ad2e95f3039a436a7ee12c1efe702cccd22f3de2f1e33a93f9f5aa",
+          "bytes": 105144,
+          "source_url": "https://ottawaok.gov/file/bids/bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:24.181154+00:00"
+        }
+      ],
+      "hashes": [
+        "ced7de3a80ad2e95f3039a436a7ee12c1efe702cccd22f3de2f1e33a93f9f5aa"
+      ],
+      "tags": [
+        "LOCAL",
+        "IFB",
+        "BRAND_OR_EQUAL"
+      ],
+      "created_at": "2026-09-29T22:47:23.602869+00:00",
+      "buyer": "Ottawa County OK",
+      "agency": "Ottawa County Board of County Commissioners",
+      "solicitation_number": "2024-2025.10",
+      "title": "Courthouse Security Cameras IFB",
+      "jurisdiction": "LOCAL",
+      "authoritative_source": "https://ottawaok.gov/file/bids/bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:55.924189+00:00"
+    },
+    "SC-FLORENCE-2024-21-CAMERAS": {
+      "corpus_project_id": "SC-FLORENCE-2024-21-CAMERAS",
+      "documents": [
+        {
+          "filename": "2024-21_invitation_to_bid.pdf",
+          "stored_as": "253c0e1d56098697_2024-21_invitation_to_bid.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\SC-FLORENCE-2024-21-CAMERAS\\253c0e1d56098697_2024-21_invitation_to_bid.pdf",
+          "sha256": "253c0e1d560986977b535978c01ba31f5112db36681aa1fd6edcf19f19b6ad94",
+          "bytes": 528413,
+          "source_url": "https://www.cityofflorencesc.gov/sites/default/files/uploads/bids/2024-21_invitation_to_bid.pdf",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:24.950663+00:00"
+        }
+      ],
+      "hashes": [
+        "253c0e1d560986977b535978c01ba31f5112db36681aa1fd6edcf19f19b6ad94"
+      ],
+      "tags": [
+        "LOCAL",
+        "IFB",
+        "EXACT_PART",
+        "BRAND_OR_EQUAL"
+      ],
+      "created_at": "2026-09-29T22:47:24.195832+00:00",
+      "buyer": "City of Florence SC",
+      "agency": "Purchasing and Contracting",
+      "solicitation_number": "2024-21",
+      "title": "Security Camera System ITB",
+      "jurisdiction": "LOCAL",
+      "authoritative_source": "https://www.cityofflorencesc.gov/sites/default/files/uploads/bids/2024-21_invitation_to_bid.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:56.488481+00:00"
+    },
+    "NASA-SEWP-80TECH24R0001-A14": {
+      "corpus_project_id": "NASA-SEWP-80TECH24R0001-A14",
+      "documents": [
+        {
+          "filename": "80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+          "stored_as": "c052d366e17de0ba_80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NASA-SEWP-80TECH24R0001-A14\\c052d366e17de0ba_80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+          "sha256": "c052d366e17de0baeb1de6ae71946443f28d27180cc8f894d1b5a5231cbcb5dc",
+          "bytes": 1147925,
+          "source_url": "https://www.sewp.nasa.gov/documents/80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+          "role": "AMENDMENT",
+          "acquisition": "PUBLIC_FETCH",
+          "retrieved_at": "2026-09-29T22:47:27.144658+00:00"
+        }
+      ],
+      "hashes": [
+        "c052d366e17de0baeb1de6ae71946443f28d27180cc8f894d1b5a5231cbcb5dc"
+      ],
+      "tags": [
+        "FEDERAL",
+        "RFP",
+        "SF1449",
+        "MULTI_AMENDMENT",
+        "EMAIL_SUBMISSION",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:24.963213+00:00",
+      "buyer": "NASA SEWP",
+      "agency": "NASA",
+      "solicitation_number": "80TECH24R0001",
+      "title": "SEWP VI Request for Proposals Amendment 14",
+      "jurisdiction": "FEDERAL",
+      "authoritative_source": "https://www.sewp.nasa.gov/documents/80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": null,
+      "updated_at": "2026-09-29T22:51:57.279751+00:00",
+      "golden": true
+    },
+    "NE-119949-O8B-GM-ZIP": {
+      "corpus_project_id": "NE-119949-O8B-GM-ZIP",
+      "documents": [
+        {
+          "filename": "NE_119949_O8B_package.zip",
+          "stored_as": "877f0202e345c8ab_NE_119949_O8B_package.zip",
+          "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM-ZIP\\877f0202e345c8ab_NE_119949_O8B_package.zip",
+          "sha256": "877f0202e345c8ab9c327eeeb44e82db44334dc68feb2959a80f41c755db89d2",
+          "bytes": 559529,
+          "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\cache\\NE_119949_O8B_package.zip",
+          "role": "BASE_SOLICITATION",
+          "acquisition": "LOCAL_ARTIFACT",
+          "retrieved_at": "2026-09-29T22:47:28.032004+00:00"
+        }
+      ],
+      "hashes": [
+        "877f0202e345c8ab9c327eeeb44e82db44334dc68feb2959a80f41c755db89d2"
+      ],
+      "tags": [
+        "STATE",
+        "NEBRASKA",
+        "ITB",
+        "BUYER_XLSX",
+        "Q_AND_A",
+        "ZIP_PACKAGE",
+        "GOLDEN_CORPUS"
+      ],
+      "created_at": "2026-09-29T22:47:27.883568+00:00",
+      "buyer": "Nebraska DAS",
+      "agency": "State Purchasing Bureau",
+      "solicitation_number": "119949 O8 B-ZIP",
+      "title": "GM Vehicle Market Baskets commodity ITB (ZIP package)",
+      "jurisdiction": "STATE",
+      "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+      "discovery_source": null,
+      "submission_system": null,
+      "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+      "notes": "ZIP assembled from authoritative Nebraska buyer files for archive-handling validation",
+      "updated_at": "2026-09-29T22:51:59.833419+00:00",
+      "golden": true
+    }
+  },
+  "updated_at": "2026-09-29T22:52:25.207937+00:00"
+}

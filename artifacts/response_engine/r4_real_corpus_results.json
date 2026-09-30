@@ -1,0 +1,417 @@
+{
+  "build": "20260929-m3-r4-buyer-forms-response-generation",
+  "projects_analyzed": 32,
+  "fully_draftable": 0,
+  "partially_draftable": 32,
+  "blocked": 0,
+  "status_counts": {
+    "DRAFT_INCOMPLETE": 32
+  },
+  "rows": [
+    {
+      "corpus_project_id": "IA-005-RFB-3030-2027",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 20,
+      "blockers": [
+        "4 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 4,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-2975-2027",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 9,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3042-2027",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 9,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-645-DOTRFB-3046-2027",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 9,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "MT-DPHHS-IFB-2027-0703BP",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 7,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB947601-02",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 14,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB952200-01",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 14,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "IA-RFB952400-01",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 14,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-121604-OR-LEICA",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 54,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-121756-OR",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 51,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6305-OF",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 19,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-123131-OR-POP",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 50,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-MASTER-ASA-REV102",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 10,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-MASTER-ASA-REV99",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 25,
+      "blockers": [
+        "7 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 7,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-SPE4A7-23-R-0105",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 63,
+      "blockers": [
+        "18 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 18,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 13,
+      "blockers": [
+        "1 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 1,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6337",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "GENERATION_BLOCKED",
+      "documents": 6,
+      "blockers": [
+        "Line quantity unknown \u2014 pricing generation blocked"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOD-N6600125Q6265",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "GENERATION_BLOCKED",
+      "documents": 6,
+      "blockers": [
+        "Line quantity unknown \u2014 pricing generation blocked"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19VM3026Q0024",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 11,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19N10226Q0007",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 44,
+      "blockers": [
+        "24 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 24,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "DOS-19CV1025Q0001",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 36,
+      "blockers": [
+        "21 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 21,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1742",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 6,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "AZ-PHX-_phoenix_detail_1850",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 6,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119951-O8-CAMERAS",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 45,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 50,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6908-OF-DASDEC",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 20,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-6829-OF-CAMERAS",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 18,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 8,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 7,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "SC-FLORENCE-2024-21-CAMERAS",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "GENERATION_BLOCKED",
+      "documents": 10,
+      "blockers": [
+        "Line quantity unknown \u2014 pricing generation blocked"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NASA-SEWP-80TECH24R0001-A14",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_ATTESTATION_REQUIRED",
+      "documents": 62,
+      "blockers": [
+        "6 owner attestation(s) required before certification population"
+      ],
+      "signatures_pending": 1,
+      "attestations_pending": 6,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    },
+    {
+      "corpus_project_id": "NE-119949-O8B-GM-ZIP",
+      "package_status": "DRAFT_INCOMPLETE",
+      "readiness": "OWNER_SIGNATURE_REQUIRED",
+      "documents": 50,
+      "blockers": [],
+      "signatures_pending": 1,
+      "attestations_pending": 0,
+      "conflicts": 0,
+      "handoff": true,
+      "sam_api_calls": 0
+    }
+  ],
+  "sam_api_calls": 0
+}

@@ -1,0 +1,41 @@
+{
+  "case_id": "R_03",
+  "case_name": "MIL-STD-2073 PACKAGING \u2014 detect without false reject",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ PACK-R03\nPart Number: PKG-2073-55\nQuantity: 40 EA\nMIL-STD-2073 packaging required. Preservation method TBD.\nMIL-STD-129 marking. Specialist packaging house may be required.\nFOB DESTINATION Delivery 45 days ARO.\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "packaging": {
+      "mil_std_2073_detected": true,
+      "specialist_packaging_flagged": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "packaging",
+    "false_rejection",
+    "R03"
+  ],
+  "notes": "R03 \u2014 MIL packaging must not equal REJECTED; readiness blocked until cost/path resolved",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false,
+    "not_lifecycle_rejected": true
+  },
+  "next_action_quality": "Confirm with a packaging provider whether MIL-STD-2073 applies for PN PKG-2073-55 and obtain per-unit packaging cost before bid economics.",
+  "blocker_quality": null
+}

@@ -1,0 +1,26 @@
+{
+  "canonical_path": "response_engine.r3_service.run_r3_analysis",
+  "reused": [
+    "data/company_eligibility_profile.json",
+    "company_eligibility.set_aside_eligibility",
+    "eligibility_gate.load_company_eligibility_profile",
+    "deep_deal_compliance.evaluate_nonmanufacturer_rule (compat bridge)",
+    "phase_l.registration_tracker (REGISTER_BEFORE_BID UI)"
+  ],
+  "migrated_into_r3": [
+    "NMR states",
+    "trade/COO line analysis",
+    "Section 889",
+    "owner attestations",
+    "cyber/DPAS detection",
+    "company profile versioning"
+  ],
+  "deprecated_as_operator_facing": [
+    "Parallel Bid Prep eligibility results outside R3"
+  ],
+  "compatibility_only": [
+    "deep_deal_compliance.evaluate_bid_compliance",
+    "company_profile.py underwriting DB (not Bid Prep eligibility)"
+  ],
+  "one_canonical_path": true
+}

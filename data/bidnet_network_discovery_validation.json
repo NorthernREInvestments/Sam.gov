@@ -1,0 +1,278 @@
+{
+  "elapsed_seconds": 1352.0,
+  "raw_records": 14065,
+  "unique_records": 13481,
+  "listing_records": 14065,
+  "sources_attempted": 51,
+  "sources_successful": 45,
+  "sources_auth_blocked": 0,
+  "sources_failed": 6,
+  "pages_fetched_total": 771,
+  "opportunities_returned": 13481,
+  "target_5000_reached": true,
+  "product_survivor_universe": {
+    "kind": "PRODUCT_SURVIVOR_UNIVERSE",
+    "TOTAL_CURRENT_UNIQUE_DISCOVERED": 13481,
+    "TOTAL_CHEAP_SCREENED": 13481,
+    "LIKELY_PRODUCT_RESALE": 0,
+    "PRODUCT_PLUS_MINOR_SERVICE": 0,
+    "MIXED": 0,
+    "UNKNOWN": 13481,
+    "SERVICE_DEFERRED": 0,
+    "CONSTRUCTION_DEFERRED": 0,
+    "plausible_product_transaction_survivors": 13481,
+    "by_class": {
+      "UNKNOWN": 13481
+    }
+  },
+  "top_sources": [
+    {
+      "source_id": "network_bidnet_california",
+      "raw": 2506,
+      "access": "BROKEN_ROUTE"
+    },
+    {
+      "source_id": "network_bidnet_texas",
+      "raw": 1963,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_ohio",
+      "raw": 1268,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_pennsylvania",
+      "raw": 1242,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_virginia",
+      "raw": 1193,
+      "access": "BROKEN_ROUTE"
+    },
+    {
+      "source_id": "network_bidnet_massachusetts",
+      "raw": 960,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_illinois",
+      "raw": 858,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_georgia",
+      "raw": 570,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_washington",
+      "raw": 523,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_maryland",
+      "raw": 492,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_missouri",
+      "raw": 402,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_colorado",
+      "raw": 397,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_south_carolina",
+      "raw": 380,
+      "access": "BROKEN_ROUTE"
+    },
+    {
+      "source_id": "network_bidnet_minnesota",
+      "raw": 358,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_oregon",
+      "raw": 330,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_connecticut",
+      "raw": 319,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_new_york",
+      "raw": 314,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_wisconsin",
+      "raw": 303,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_louisiana",
+      "raw": 302,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_utah",
+      "raw": 293,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_tennessee",
+      "raw": 224,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_hawaii",
+      "raw": 221,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_arizona",
+      "raw": 216,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_kansas",
+      "raw": 213,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_kentucky",
+      "raw": 211,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_mississippi",
+      "raw": 191,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_iowa",
+      "raw": 186,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_indiana",
+      "raw": 168,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_arkansas",
+      "raw": 155,
+      "access": "PUBLIC_METADATA_ONLY"
+    },
+    {
+      "source_id": "network_bidnet_maine",
+      "raw": 153,
+      "access": "PUBLIC_METADATA_ONLY"
+    }
+  ],
+  "failures": [
+    {
+      "source_id": "network_bidnet_california",
+      "stop": "PARSER_FAILURE",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 102
+    },
+    {
+      "source_id": "network_bidnet_michigan",
+      "stop": "HTTP_404",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 1
+    },
+    {
+      "source_id": "network_bidnet_south_carolina",
+      "stop": "PARSER_FAILURE",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 26
+    },
+    {
+      "source_id": "network_bidnet_virginia",
+      "stop": "PARSER_FAILURE",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 49
+    },
+    {
+      "source_id": "network_bidnet_wyoming",
+      "stop": "HTTP_404",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 1
+    },
+    {
+      "source_id": "network_bidnet_district_of_columbia",
+      "stop": "HTTP_404",
+      "explicit": "TECHNICAL_FAILURE",
+      "raw": null,
+      "pages": 1
+    }
+  ],
+  "discovery_gaps": [
+    {
+      "gap_type": "FEDERAL_COVERAGE_GAP",
+      "target": "FEDERAL",
+      "expected_yield": 95,
+      "detail": "Only 0 productive federal sources of 3 registered"
+    },
+    {
+      "gap_type": "STATE_WITHOUT_STATEWIDE_SOURCE",
+      "target": "CA",
+      "expected_yield": 90,
+      "detail": "No productive verified source for CA"
+    },
+    {
+      "gap_type": "STATE_WITHOUT_STATEWIDE_SOURCE",
+      "target": "MI",
+      "expected_yield": 90,
+      "detail": "No productive verified source for MI"
+    },
+    {
+      "gap_type": "STATE_WITHOUT_STATEWIDE_SOURCE",
+      "target": "SC",
+      "expected_yield": 90,
+      "detail": "No productive verified source for SC"
+    },
+    {
+      "gap_type": "STATE_WITHOUT_STATEWIDE_SOURCE",
+      "target": "VA",
+      "expected_yield": 90,
+      "detail": "No productive verified source for VA"
+    },
+    {
+      "gap_type": "STATE_WITHOUT_STATEWIDE_SOURCE",
+      "target": "WY",
+      "expected_yield": 90,
+      "detail": "No productive verified source for WY"
+    },
+    {
+      "gap_type": "HIGH_VOLUME_PORTAL_BLOCKED",
+      "target": "network_bidnet_california",
+      "expected_yield": 85,
+      "detail": "network_bidnet_california access=BROKEN_ROUTE family=BIDNET",
+      "access_state": "BROKEN_ROUTE",
+      "portal_family": "BIDNET"
+    },
+    {
+      "gap_type": "HIGH_VOLUME_PORTAL_BLOCKED",
+      "target": "network_bidnet_south_carolina",
+      "expected_yield": 85,
+      "detail": "network_bidnet_south_carolina access=BROKEN_ROUTE family=BIDNET",
+      "access_state": "BROKEN_ROUTE",
+      "portal_family": "BIDNET"
+    }
+  ]
+}

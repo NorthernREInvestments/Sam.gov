@@ -205,8 +205,10 @@ def test_api_routes_exist():
 
 def test_sidebar_nav_and_view_present():
     html = Path(__file__).resolve().parents[1].joinpath("static", "index.html").read_text(encoding="utf-8")
-    assert 'data-m3-view="micro-lab"' in html
+    # Phase C: µLab moved under Settings → Advanced; view shell must remain
     assert 'id="view-m3-micro-lab"' in html
     assert "Micro-Purchase Economics Lab" in html
+    assert 'id="m3-open-micro-lab"' in html or "micro-lab" in html
     js = Path(__file__).resolve().parents[1].joinpath("static", "m3-mobile.js").read_text(encoding="utf-8")
     assert '"micro-lab"' in js
+    assert "showM3View" in js

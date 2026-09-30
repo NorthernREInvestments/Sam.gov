@@ -1,0 +1,6090 @@
+{
+  "top_level_zero_external": [
+    {
+      "module": "check_status",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1466,
+      "zero_external": true
+    },
+    {
+      "module": "claude_export",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 244,
+      "zero_external": true
+    },
+    {
+      "module": "clear_db",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1338,
+      "zero_external": true
+    },
+    {
+      "module": "refresh_pricing",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 3924,
+      "zero_external": true
+    },
+    {
+      "module": "refresh_workflow",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1782,
+      "zero_external": true
+    }
+  ],
+  "top_level_low_external": [
+    {
+      "module": "agreement_prompt",
+      "external_importers": 1,
+      "importers_sample": [
+        "openai_client.py"
+      ],
+      "bytes": 13582,
+      "zero_external": false
+    },
+    {
+      "module": "claude_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "tests/test_openai_migration.py"
+      ],
+      "bytes": 311,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_ops",
+      "external_importers": 1,
+      "importers_sample": [
+        "deals_api.py"
+      ],
+      "bytes": 14829,
+      "zero_external": false
+    },
+    {
+      "module": "csv_upload_constants",
+      "external_importers": 1,
+      "importers_sample": [
+        "csv_import_service.py"
+      ],
+      "bytes": 1067,
+      "zero_external": false
+    },
+    {
+      "module": "deal_research_record",
+      "external_importers": 1,
+      "importers_sample": [
+        "on_demand_research_loop.py"
+      ],
+      "bytes": 2530,
+      "zero_external": false
+    },
+    {
+      "module": "govspend_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "watchlist_sync.py"
+      ],
+      "bytes": 9049,
+      "zero_external": false
+    },
+    {
+      "module": "internal_pricing",
+      "external_importers": 1,
+      "importers_sample": [
+        "pricing.py"
+      ],
+      "bytes": 9705,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_routes",
+      "external_importers": 1,
+      "importers_sample": [
+        "app.py"
+      ],
+      "bytes": 7056,
+      "zero_external": false
+    },
+    {
+      "module": "places_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "sub_finder.py"
+      ],
+      "bytes": 5194,
+      "zero_external": false
+    },
+    {
+      "module": "playwright_bootstrap",
+      "external_importers": 1,
+      "importers_sample": [
+        "piee_client.py"
+      ],
+      "bytes": 1387,
+      "zero_external": false
+    },
+    {
+      "module": "proposal_prompt",
+      "external_importers": 1,
+      "importers_sample": [
+        "openai_client.py"
+      ],
+      "bytes": 10391,
+      "zero_external": false
+    },
+    {
+      "module": "provider_knowledge",
+      "external_importers": 1,
+      "importers_sample": [
+        "global_views.py"
+      ],
+      "bytes": 2489,
+      "zero_external": false
+    },
+    {
+      "module": "shared_db",
+      "external_importers": 1,
+      "importers_sample": [
+        "gs_watchlist_service.py"
+      ],
+      "bytes": 1508,
+      "zero_external": false
+    },
+    {
+      "module": "ai_events",
+      "external_importers": 2,
+      "importers_sample": [
+        "ask_about_deal.py",
+        "transcript_service.py"
+      ],
+      "bytes": 2715,
+      "zero_external": false
+    },
+    {
+      "module": "ask_about_deal",
+      "external_importers": 2,
+      "importers_sample": [
+        "deals_api.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 2840,
+      "zero_external": false
+    },
+    {
+      "module": "bid_submission_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 10983,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_economics",
+      "external_importers": 2,
+      "importers_sample": [
+        "commercial_ops.py",
+        "tests/test_commercial_workspace.py"
+      ],
+      "bytes": 8979,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_next_action",
+      "external_importers": 2,
+      "importers_sample": [
+        "next_action_engine.py",
+        "tests/test_commercial_workspace.py"
+      ],
+      "bytes": 6458,
+      "zero_external": false
+    },
+    {
+      "module": "compliance_matrix",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 8628,
+      "zero_external": false
+    },
+    {
+      "module": "cost_governor_integrations",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py"
+      ],
+      "bytes": 3728,
+      "zero_external": false
+    },
+    {
+      "module": "csv_attachment_session",
+      "external_importers": 2,
+      "importers_sample": [
+        "csv_attachment_queue_service.py",
+        "csv_watchlist_service.py"
+      ],
+      "bytes": 453,
+      "zero_external": false
+    },
+    {
+      "module": "csv_watchlist_service",
+      "external_importers": 2,
+      "importers_sample": [
+        "csv_opportunity_service.py",
+        "csv_upload_job.py"
+      ],
+      "bytes": 10875,
+      "zero_external": false
+    },
+    {
+      "module": "deal_context_packet",
+      "external_importers": 2,
+      "importers_sample": [
+        "ask_about_deal.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 6655,
+      "zero_external": false
+    },
+    {
+      "module": "deals_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 27935,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_openai",
+      "external_importers": 2,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 9515,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_suppliers",
+      "external_importers": 2,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 10766,
+      "zero_external": false
+    },
+    {
+      "module": "discovery_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 8494,
+      "zero_external": false
+    },
+    {
+      "module": "document_completeness",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7855,
+      "zero_external": false
+    },
+    {
+      "module": "document_references",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 4950,
+      "zero_external": false
+    },
+    {
+      "module": "exception_engine",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_workspace.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 11717,
+      "zero_external": false
+    },
+    {
+      "module": "final_clarification_review",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7478,
+      "zero_external": false
+    },
+    {
+      "module": "funding_research",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_workspace.py",
+        "tests/test_govcon_os.py"
+      ],
+      "bytes": 4891,
+      "zero_external": false
+    },
+    {
+      "module": "global_views",
+      "external_importers": 2,
+      "importers_sample": [
+        "os_api.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 9104,
+      "zero_external": false
+    },
+    {
+      "module": "historical_backtest_runner",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_historical_benchmark_v1.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 26380,
+      "zero_external": false
+    },
+    {
+      "module": "historical_gov_price_benchmark",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 8538,
+      "zero_external": false
+    },
+    {
+      "module": "init_db",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 398,
+      "zero_external": false
+    },
+    {
+      "module": "line_item_pricing",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 9682,
+      "zero_external": false
+    },
+    {
+      "module": "local_package_search",
+      "external_importers": 2,
+      "importers_sample": [
+        "missing_info_engine.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 8140,
+      "zero_external": false
+    },
+    {
+      "module": "m3_award_product_projection",
+      "external_importers": 2,
+      "importers_sample": [
+        "tests/test_m3_award_product_projection.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 32181,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_research",
+      "external_importers": 2,
+      "importers_sample": [
+        "micro_purchase_lab_service.py",
+        "tests/test_micro_purchase_lab_automation.py"
+      ],
+      "bytes": 62584,
+      "zero_external": false
+    },
+    {
+      "module": "msrp_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 4209,
+      "zero_external": false
+    },
+    {
+      "module": "national_discovery_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 2335,
+      "zero_external": false
+    },
+    {
+      "module": "ne_wy_deep_coverage",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_ne_wy_deep_coverage.py",
+        "tests/test_ne_wy_deep_coverage.py"
+      ],
+      "bytes": 55855,
+      "zero_external": false
+    },
+    {
+      "module": "on_demand_research_loop",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 12728,
+      "zero_external": false
+    },
+    {
+      "module": "operator_result_ingestion",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_executable_deal_pipeline.py",
+        "tests/test_executable_deal_pipeline.py"
+      ],
+      "bytes": 8684,
+      "zero_external": false
+    },
+    {
+      "module": "os_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3902,
+      "zero_external": false
+    },
+    {
+      "module": "package_readiness_layers",
+      "external_importers": 2,
+      "importers_sample": [
+        "pursuit_qualification.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 4948,
+      "zero_external": false
+    },
+    {
+      "module": "pre_bid_transaction_financing",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_pre_bid_transaction_financing.py",
+        "tests/test_pre_bid_transaction_financing.py"
+      ],
+      "bytes": 29330,
+      "zero_external": false
+    },
+    {
+      "module": "prebid_decision_freeze",
+      "external_importers": 2,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 4945,
+      "zero_external": false
+    },
+    {
+      "module": "preliminary_economics",
+      "external_importers": 2,
+      "importers_sample": [
+        "public_evidence_recovery.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 5933,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_reprocess",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/ingest_solicitation_document.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 20326,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_expansion_seeds",
+      "external_importers": 2,
+      "importers_sample": [
+        "procurement_source_coverage_expansion.py",
+        "tests/test_procurement_source_coverage_expansion.py"
+      ],
+      "bytes": 36543,
+      "zero_external": false
+    },
+    {
+      "module": "product_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 19577,
+      "zero_external": false
+    },
+    {
+      "module": "product_matching",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_engine.py",
+        "tests/test_product_beta.py"
+      ],
+      "bytes": 5986,
+      "zero_external": false
+    },
+    {
+      "module": "product_resale_live_validation",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_product_resale_discovery_intelligence.py",
+        "tests/test_product_resale_discovery_intelligence.py"
+      ],
+      "bytes": 10033,
+      "zero_external": false
+    },
+    {
+      "module": "product_yield_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_productive_source_network_validation.py",
+        "tests/test_productive_source_network.py"
+      ],
+      "bytes": 2369,
+      "zero_external": false
+    },
+    {
+      "module": "public_document_retriever",
+      "external_importers": 2,
+      "importers_sample": [
+        "discovery/federal_dla_enrichment.py",
+        "scripts/run_opp199_document_completeness.py"
+      ],
+      "bytes": 6257,
+      "zero_external": false
+    },
+    {
+      "module": "public_evidence_recovery",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_public_evidence_recovery.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 34752,
+      "zero_external": false
+    },
+    {
+      "module": "structured_evidence",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7095,
+      "zero_external": false
+    },
+    {
+      "module": "supplier_fit",
+      "external_importers": 2,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 3884,
+      "zero_external": false
+    },
+    {
+      "module": "transactional_discovery",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_transactional_discovery.py",
+        "tests/test_transactional_discovery.py"
+      ],
+      "bytes": 38898,
+      "zero_external": false
+    }
+  ],
+  "top_level_all": [
+    {
+      "module": "check_status",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1466,
+      "zero_external": true
+    },
+    {
+      "module": "claude_export",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 244,
+      "zero_external": true
+    },
+    {
+      "module": "clear_db",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1338,
+      "zero_external": true
+    },
+    {
+      "module": "refresh_pricing",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 3924,
+      "zero_external": true
+    },
+    {
+      "module": "refresh_workflow",
+      "external_importers": 0,
+      "importers_sample": [],
+      "bytes": 1782,
+      "zero_external": true
+    },
+    {
+      "module": "agreement_prompt",
+      "external_importers": 1,
+      "importers_sample": [
+        "openai_client.py"
+      ],
+      "bytes": 13582,
+      "zero_external": false
+    },
+    {
+      "module": "claude_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "tests/test_openai_migration.py"
+      ],
+      "bytes": 311,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_ops",
+      "external_importers": 1,
+      "importers_sample": [
+        "deals_api.py"
+      ],
+      "bytes": 14829,
+      "zero_external": false
+    },
+    {
+      "module": "csv_upload_constants",
+      "external_importers": 1,
+      "importers_sample": [
+        "csv_import_service.py"
+      ],
+      "bytes": 1067,
+      "zero_external": false
+    },
+    {
+      "module": "deal_research_record",
+      "external_importers": 1,
+      "importers_sample": [
+        "on_demand_research_loop.py"
+      ],
+      "bytes": 2530,
+      "zero_external": false
+    },
+    {
+      "module": "govspend_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "watchlist_sync.py"
+      ],
+      "bytes": 9049,
+      "zero_external": false
+    },
+    {
+      "module": "internal_pricing",
+      "external_importers": 1,
+      "importers_sample": [
+        "pricing.py"
+      ],
+      "bytes": 9705,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_routes",
+      "external_importers": 1,
+      "importers_sample": [
+        "app.py"
+      ],
+      "bytes": 7056,
+      "zero_external": false
+    },
+    {
+      "module": "places_client",
+      "external_importers": 1,
+      "importers_sample": [
+        "sub_finder.py"
+      ],
+      "bytes": 5194,
+      "zero_external": false
+    },
+    {
+      "module": "playwright_bootstrap",
+      "external_importers": 1,
+      "importers_sample": [
+        "piee_client.py"
+      ],
+      "bytes": 1387,
+      "zero_external": false
+    },
+    {
+      "module": "proposal_prompt",
+      "external_importers": 1,
+      "importers_sample": [
+        "openai_client.py"
+      ],
+      "bytes": 10391,
+      "zero_external": false
+    },
+    {
+      "module": "provider_knowledge",
+      "external_importers": 1,
+      "importers_sample": [
+        "global_views.py"
+      ],
+      "bytes": 2489,
+      "zero_external": false
+    },
+    {
+      "module": "shared_db",
+      "external_importers": 1,
+      "importers_sample": [
+        "gs_watchlist_service.py"
+      ],
+      "bytes": 1508,
+      "zero_external": false
+    },
+    {
+      "module": "ai_events",
+      "external_importers": 2,
+      "importers_sample": [
+        "ask_about_deal.py",
+        "transcript_service.py"
+      ],
+      "bytes": 2715,
+      "zero_external": false
+    },
+    {
+      "module": "ask_about_deal",
+      "external_importers": 2,
+      "importers_sample": [
+        "deals_api.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 2840,
+      "zero_external": false
+    },
+    {
+      "module": "bid_submission_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 10983,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_economics",
+      "external_importers": 2,
+      "importers_sample": [
+        "commercial_ops.py",
+        "tests/test_commercial_workspace.py"
+      ],
+      "bytes": 8979,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_next_action",
+      "external_importers": 2,
+      "importers_sample": [
+        "next_action_engine.py",
+        "tests/test_commercial_workspace.py"
+      ],
+      "bytes": 6458,
+      "zero_external": false
+    },
+    {
+      "module": "compliance_matrix",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 8628,
+      "zero_external": false
+    },
+    {
+      "module": "cost_governor_integrations",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py"
+      ],
+      "bytes": 3728,
+      "zero_external": false
+    },
+    {
+      "module": "csv_attachment_session",
+      "external_importers": 2,
+      "importers_sample": [
+        "csv_attachment_queue_service.py",
+        "csv_watchlist_service.py"
+      ],
+      "bytes": 453,
+      "zero_external": false
+    },
+    {
+      "module": "csv_watchlist_service",
+      "external_importers": 2,
+      "importers_sample": [
+        "csv_opportunity_service.py",
+        "csv_upload_job.py"
+      ],
+      "bytes": 10875,
+      "zero_external": false
+    },
+    {
+      "module": "deal_context_packet",
+      "external_importers": 2,
+      "importers_sample": [
+        "ask_about_deal.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 6655,
+      "zero_external": false
+    },
+    {
+      "module": "deals_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 27935,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_openai",
+      "external_importers": 2,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 9515,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_suppliers",
+      "external_importers": 2,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 10766,
+      "zero_external": false
+    },
+    {
+      "module": "discovery_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 8494,
+      "zero_external": false
+    },
+    {
+      "module": "document_completeness",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7855,
+      "zero_external": false
+    },
+    {
+      "module": "document_references",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 4950,
+      "zero_external": false
+    },
+    {
+      "module": "exception_engine",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_workspace.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 11717,
+      "zero_external": false
+    },
+    {
+      "module": "final_clarification_review",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7478,
+      "zero_external": false
+    },
+    {
+      "module": "funding_research",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_workspace.py",
+        "tests/test_govcon_os.py"
+      ],
+      "bytes": 4891,
+      "zero_external": false
+    },
+    {
+      "module": "global_views",
+      "external_importers": 2,
+      "importers_sample": [
+        "os_api.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 9104,
+      "zero_external": false
+    },
+    {
+      "module": "historical_backtest_runner",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_historical_benchmark_v1.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 26380,
+      "zero_external": false
+    },
+    {
+      "module": "historical_gov_price_benchmark",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 8538,
+      "zero_external": false
+    },
+    {
+      "module": "init_db",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 398,
+      "zero_external": false
+    },
+    {
+      "module": "line_item_pricing",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 9682,
+      "zero_external": false
+    },
+    {
+      "module": "local_package_search",
+      "external_importers": 2,
+      "importers_sample": [
+        "missing_info_engine.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 8140,
+      "zero_external": false
+    },
+    {
+      "module": "m3_award_product_projection",
+      "external_importers": 2,
+      "importers_sample": [
+        "tests/test_m3_award_product_projection.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 32181,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_research",
+      "external_importers": 2,
+      "importers_sample": [
+        "micro_purchase_lab_service.py",
+        "tests/test_micro_purchase_lab_automation.py"
+      ],
+      "bytes": 62584,
+      "zero_external": false
+    },
+    {
+      "module": "msrp_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 4209,
+      "zero_external": false
+    },
+    {
+      "module": "national_discovery_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 2335,
+      "zero_external": false
+    },
+    {
+      "module": "ne_wy_deep_coverage",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_ne_wy_deep_coverage.py",
+        "tests/test_ne_wy_deep_coverage.py"
+      ],
+      "bytes": 55855,
+      "zero_external": false
+    },
+    {
+      "module": "on_demand_research_loop",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 12728,
+      "zero_external": false
+    },
+    {
+      "module": "operator_result_ingestion",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_executable_deal_pipeline.py",
+        "tests/test_executable_deal_pipeline.py"
+      ],
+      "bytes": 8684,
+      "zero_external": false
+    },
+    {
+      "module": "os_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3902,
+      "zero_external": false
+    },
+    {
+      "module": "package_readiness_layers",
+      "external_importers": 2,
+      "importers_sample": [
+        "pursuit_qualification.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 4948,
+      "zero_external": false
+    },
+    {
+      "module": "pre_bid_transaction_financing",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_pre_bid_transaction_financing.py",
+        "tests/test_pre_bid_transaction_financing.py"
+      ],
+      "bytes": 29330,
+      "zero_external": false
+    },
+    {
+      "module": "prebid_decision_freeze",
+      "external_importers": 2,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 4945,
+      "zero_external": false
+    },
+    {
+      "module": "preliminary_economics",
+      "external_importers": 2,
+      "importers_sample": [
+        "public_evidence_recovery.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 5933,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_reprocess",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/ingest_solicitation_document.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 20326,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_expansion_seeds",
+      "external_importers": 2,
+      "importers_sample": [
+        "procurement_source_coverage_expansion.py",
+        "tests/test_procurement_source_coverage_expansion.py"
+      ],
+      "bytes": 36543,
+      "zero_external": false
+    },
+    {
+      "module": "product_api",
+      "external_importers": 2,
+      "importers_sample": [
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 19577,
+      "zero_external": false
+    },
+    {
+      "module": "product_matching",
+      "external_importers": 2,
+      "importers_sample": [
+        "deal_engine.py",
+        "tests/test_product_beta.py"
+      ],
+      "bytes": 5986,
+      "zero_external": false
+    },
+    {
+      "module": "product_resale_live_validation",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_product_resale_discovery_intelligence.py",
+        "tests/test_product_resale_discovery_intelligence.py"
+      ],
+      "bytes": 10033,
+      "zero_external": false
+    },
+    {
+      "module": "product_yield_intelligence",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_productive_source_network_validation.py",
+        "tests/test_productive_source_network.py"
+      ],
+      "bytes": 2369,
+      "zero_external": false
+    },
+    {
+      "module": "public_document_retriever",
+      "external_importers": 2,
+      "importers_sample": [
+        "discovery/federal_dla_enrichment.py",
+        "scripts/run_opp199_document_completeness.py"
+      ],
+      "bytes": 6257,
+      "zero_external": false
+    },
+    {
+      "module": "public_evidence_recovery",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_public_evidence_recovery.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 34752,
+      "zero_external": false
+    },
+    {
+      "module": "structured_evidence",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 7095,
+      "zero_external": false
+    },
+    {
+      "module": "supplier_fit",
+      "external_importers": 2,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 3884,
+      "zero_external": false
+    },
+    {
+      "module": "transactional_discovery",
+      "external_importers": 2,
+      "importers_sample": [
+        "scripts/run_transactional_discovery.py",
+        "tests/test_transactional_discovery.py"
+      ],
+      "bytes": 38898,
+      "zero_external": false
+    },
+    {
+      "module": "agreement_export",
+      "external_importers": 3,
+      "importers_sample": [
+        "agreement_service.py",
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 4249,
+      "zero_external": false
+    },
+    {
+      "module": "ai_export",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "claude_export.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 13013,
+      "zero_external": false
+    },
+    {
+      "module": "amendment_monitor",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "scheduler.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 4396,
+      "zero_external": false
+    },
+    {
+      "module": "bid_compliance_invalidation",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "scripts/run_bid_compliance_validation.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 8249,
+      "zero_external": false
+    },
+    {
+      "module": "bid_pricing_invalidation",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "scripts/run_bid_pricing_validation.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 4331,
+      "zero_external": false
+    },
+    {
+      "module": "bid_readiness_engine",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "tests/test_bid_compliance.py",
+        "tests/test_m3_offer_readiness.py"
+      ],
+      "bytes": 14977,
+      "zero_external": false
+    },
+    {
+      "module": "bid_requirement_extraction",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "execution_requirements/extract.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 14148,
+      "zero_external": false
+    },
+    {
+      "module": "budget_config",
+      "external_importers": 3,
+      "importers_sample": [
+        "cost_governor.py",
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py"
+      ],
+      "bytes": 3955,
+      "zero_external": false
+    },
+    {
+      "module": "co_clarification",
+      "external_importers": 3,
+      "importers_sample": [
+        "final_clarification_review.py",
+        "missing_info_engine.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 11691,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_quotes",
+      "external_importers": 3,
+      "importers_sample": [
+        "commercial_ops.py",
+        "deal_workspace.py",
+        "tests/test_commercial_workspace.py"
+      ],
+      "bytes": 12456,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_verification_plan",
+      "external_importers": 3,
+      "importers_sample": [
+        "commercial_verification_engine.py",
+        "m3_end_to_end.py",
+        "tests/test_commercial_verification.py"
+      ],
+      "bytes": 14401,
+      "zero_external": false
+    },
+    {
+      "module": "contract_advice",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "workflow_backfill_service.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 1191,
+      "zero_external": false
+    },
+    {
+      "module": "cost_intelligence",
+      "external_importers": 3,
+      "importers_sample": [
+        "pursuit_qualification.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 12442,
+      "zero_external": false
+    },
+    {
+      "module": "csv_pricing_job",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "csv_watchlist_service.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 8405,
+      "zero_external": false
+    },
+    {
+      "module": "document_intel",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 12631,
+      "zero_external": false
+    },
+    {
+      "module": "draft_bid_assembly",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "m3_end_to_end.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 12869,
+      "zero_external": false
+    },
+    {
+      "module": "evidence_maturity",
+      "external_importers": 3,
+      "importers_sample": [
+        "executable_deal_pipeline.py",
+        "operator_result_ingestion.py",
+        "tests/test_executable_deal_pipeline.py"
+      ],
+      "bytes": 2511,
+      "zero_external": false
+    },
+    {
+      "module": "funding_source_research",
+      "external_importers": 3,
+      "importers_sample": [
+        "funding_source_kb.py",
+        "scripts/run_pre_bid_transaction_financing.py",
+        "tests/test_funding_source_research.py"
+      ],
+      "bytes": 68410,
+      "zero_external": false
+    },
+    {
+      "module": "historical_case_models",
+      "external_importers": 3,
+      "importers_sample": [
+        "historical_case_inventory.py",
+        "scripts/run_historical_case_inventory.py",
+        "tests/test_historical_case_inventory.py"
+      ],
+      "bytes": 9780,
+      "zero_external": false
+    },
+    {
+      "module": "historical_outcome_vault",
+      "external_importers": 3,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 4725,
+      "zero_external": false
+    },
+    {
+      "module": "learning_feedback",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "tests/test_controlled_real_world_verification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 10354,
+      "zero_external": false
+    },
+    {
+      "module": "legacy_runtime",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "tests/test_m3_primary_application.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3136,
+      "zero_external": false
+    },
+    {
+      "module": "live_review_package",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "tests/test_controlled_real_world_verification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3303,
+      "zero_external": false
+    },
+    {
+      "module": "m3_commercial_intelligence",
+      "external_importers": 3,
+      "importers_sample": [
+        "m3_commercial_engine.py",
+        "m3_end_to_end.py",
+        "tests/test_m3_evidence_acquisition.py"
+      ],
+      "bytes": 8374,
+      "zero_external": false
+    },
+    {
+      "module": "m3_document_discovery",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "tests/test_m3_document_discovery.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 35483,
+      "zero_external": false
+    },
+    {
+      "module": "m3_market_hunt_read",
+      "external_importers": 3,
+      "importers_sample": [
+        "tests/test_m3_market_hunt.py",
+        "tests/test_m3_market_hunt_handoff.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 21936,
+      "zero_external": false
+    },
+    {
+      "module": "m3_source_access",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "tests/test_m3_evidence_acquisition.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 5712,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_quote_intel",
+      "external_importers": 3,
+      "importers_sample": [
+        "micro_purchase_lab_research.py",
+        "micro_purchase_lab_service.py",
+        "tests/test_micro_purchase_lab_automation.py"
+      ],
+      "bytes": 13329,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_source_router",
+      "external_importers": 3,
+      "importers_sample": [
+        "micro_purchase_lab_integrity.py",
+        "scripts/micro_lab_integrity_live_validation.py",
+        "tests/test_micro_purchase_lab_integrity.py"
+      ],
+      "bytes": 15560,
+      "zero_external": false
+    },
+    {
+      "module": "missing_info_engine",
+      "external_importers": 3,
+      "importers_sample": [
+        "deals_api.py",
+        "fixtures/reconcile_opp199.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 10843,
+      "zero_external": false
+    },
+    {
+      "module": "ne_wy_directory_parsers",
+      "external_importers": 3,
+      "importers_sample": [
+        "ne_wy_deep_coverage.py",
+        "scripts/_check_nde_parse.py",
+        "tests/test_ne_wy_deep_coverage.py"
+      ],
+      "bytes": 5572,
+      "zero_external": false
+    },
+    {
+      "module": "operator_deal_packet",
+      "external_importers": 3,
+      "importers_sample": [
+        "scripts/run_executable_deal_pipeline.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_executable_deal_pipeline.py"
+      ],
+      "bytes": 5629,
+      "zero_external": false
+    },
+    {
+      "module": "opportunity_source",
+      "external_importers": 3,
+      "importers_sample": [
+        "product_api.py",
+        "tests/test_product_beta.py",
+        "tests/test_sam_scarcity.py"
+      ],
+      "bytes": 11913,
+      "zero_external": false
+    },
+    {
+      "module": "performance_constants",
+      "external_importers": 3,
+      "importers_sample": [
+        "amendment_monitor.py",
+        "performance_service.py",
+        "performance_settings.py"
+      ],
+      "bytes": 1416,
+      "zero_external": false
+    },
+    {
+      "module": "portal_registration_decision",
+      "external_importers": 3,
+      "importers_sample": [
+        "public_evidence_recovery.py",
+        "scripts/run_deadline_runtime_validation.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 5315,
+      "zero_external": false
+    },
+    {
+      "module": "pricing_scenarios",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "commercial_verification_engine.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 14497,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_blockers",
+      "external_importers": 3,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "transactional_procurement.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 6652,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_coverage_expansion",
+      "external_importers": 3,
+      "importers_sample": [
+        "ne_wy_deep_coverage.py",
+        "scripts/run_procurement_source_coverage_expansion.py",
+        "tests/test_procurement_source_coverage_expansion.py"
+      ],
+      "bytes": 27902,
+      "zero_external": false
+    },
+    {
+      "module": "product_bid_compliance",
+      "external_importers": 3,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "m3_eligibility_evidence_read.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 10382,
+      "zero_external": false
+    },
+    {
+      "module": "product_funnel",
+      "external_importers": 3,
+      "importers_sample": [
+        "product_api.py",
+        "scripts/product_beta_cli.py",
+        "tests/test_funnel_stage1_reresolve.py"
+      ],
+      "bytes": 14206,
+      "zero_external": false
+    },
+    {
+      "module": "proposal_export",
+      "external_importers": 3,
+      "importers_sample": [
+        "agreement_export.py",
+        "app.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 20484,
+      "zero_external": false
+    },
+    {
+      "module": "proximity_scoring",
+      "external_importers": 3,
+      "importers_sample": [
+        "openai_client.py",
+        "sub_finder.py",
+        "sync.py"
+      ],
+      "bytes": 5953,
+      "zero_external": false
+    },
+    {
+      "module": "public_evidence_models",
+      "external_importers": 3,
+      "importers_sample": [
+        "deadline_conflict.py",
+        "public_evidence_recovery.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 7014,
+      "zero_external": false
+    },
+    {
+      "module": "pursuit_qualification",
+      "external_importers": 3,
+      "importers_sample": [
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "tests/test_financing_false_negative.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 20944,
+      "zero_external": false
+    },
+    {
+      "module": "requirement_register",
+      "external_importers": 3,
+      "importers_sample": [
+        "deal_readiness.py",
+        "deal_workspace.py",
+        "fixtures/reconcile_opp199.py"
+      ],
+      "bytes": 3000,
+      "zero_external": false
+    },
+    {
+      "module": "research_cost_ledger",
+      "external_importers": 3,
+      "importers_sample": [
+        "cost_governor.py",
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py"
+      ],
+      "bytes": 6654,
+      "zero_external": false
+    },
+    {
+      "module": "screen",
+      "external_importers": 3,
+      "importers_sample": [
+        "app.py",
+        "phase_l/l26_rescue.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 4174,
+      "zero_external": false
+    },
+    {
+      "module": "specification_extraction",
+      "external_importers": 3,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "public_evidence_recovery.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 8045,
+      "zero_external": false
+    },
+    {
+      "module": "transcript_service",
+      "external_importers": 3,
+      "importers_sample": [
+        "deals_api.py",
+        "deal_workspace.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 5684,
+      "zero_external": false
+    },
+    {
+      "module": "agreement_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "sub_contact_service.py",
+        "sub_finder.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 15089,
+      "zero_external": false
+    },
+    {
+      "module": "ai_operating_modes",
+      "external_importers": 4,
+      "importers_sample": [
+        "ai_events.py",
+        "deal_workspace.py",
+        "os_api.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 1875,
+      "zero_external": false
+    },
+    {
+      "module": "alternate_authoritative_routes",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_evidence_acquisition.py",
+        "discovery/selection.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_round2_high_coverage_discovery.py"
+      ],
+      "bytes": 6856,
+      "zero_external": false
+    },
+    {
+      "module": "authoritative_freshness_gate",
+      "external_importers": 4,
+      "importers_sample": [
+        "bid_readiness_engine.py",
+        "cost_governor_integrations.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "tests/test_national_incremental_discovery.py"
+      ],
+      "bytes": 4230,
+      "zero_external": false
+    },
+    {
+      "module": "autopilot_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "scheduler.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3386,
+      "zero_external": false
+    },
+    {
+      "module": "award_lifecycle",
+      "external_importers": 4,
+      "importers_sample": [
+        "deal_workspace.py",
+        "global_views.py",
+        "next_action_engine.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 5820,
+      "zero_external": false
+    },
+    {
+      "module": "bid_package",
+      "external_importers": 4,
+      "importers_sample": [
+        "deal_workspace.py",
+        "draft_bid_assembly.py",
+        "fixtures/reconcile_opp199.py",
+        "tests/test_deal_workspace.py"
+      ],
+      "bytes": 3796,
+      "zero_external": false
+    },
+    {
+      "module": "bid_price_targets",
+      "external_importers": 4,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "public_evidence_recovery.py",
+        "transactional_procurement.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 5099,
+      "zero_external": false
+    },
+    {
+      "module": "budget_catchup",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 10910,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_readiness_gate",
+      "external_importers": 4,
+      "importers_sample": [
+        "commercial_verification_engine.py",
+        "scripts/run_financing_false_negative_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_financing_false_negative.py"
+      ],
+      "bytes": 8439,
+      "zero_external": false
+    },
+    {
+      "module": "comparable_scope",
+      "external_importers": 4,
+      "importers_sample": [
+        "ai_export.py",
+        "sync.py",
+        "usaspending_client.py",
+        "tests/test_data_integrity.py"
+      ],
+      "bytes": 17651,
+      "zero_external": false
+    },
+    {
+      "module": "csv_opportunity_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "csv_pricing_service.py",
+        "tests/test_csv_opportunity_service.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 12843,
+      "zero_external": false
+    },
+    {
+      "module": "csv_pricing_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "csv_opportunity_service.py",
+        "csv_pricing_job.py",
+        "scripts/demo_csv_pricing.py",
+        "tests/test_csv_pricing_service.py"
+      ],
+      "bytes": 13653,
+      "zero_external": false
+    },
+    {
+      "module": "csv_upload_job",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "csv_watchlist_service.py",
+        "tests/test_csv_upload_job.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 7859,
+      "zero_external": false
+    },
+    {
+      "module": "deal_context",
+      "external_importers": 4,
+      "importers_sample": [
+        "commercial_execution.py",
+        "deal_workspace.py",
+        "missing_info_engine.py",
+        "os_service.py"
+      ],
+      "bytes": 3107,
+      "zero_external": false
+    },
+    {
+      "module": "deal_engine",
+      "external_importers": 4,
+      "importers_sample": [
+        "product_api.py",
+        "product_funnel.py",
+        "scripts/live_stage3_opp199.py",
+        "tests/test_product_beta.py"
+      ],
+      "bytes": 19913,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_compliance",
+      "external_importers": 4,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "m3_eligibility_evidence_read.py",
+        "response_engine/nmr.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 9633,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_documents",
+      "external_importers": 4,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "phase_h/deep_research.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 16156,
+      "zero_external": false
+    },
+    {
+      "module": "direct_document_retrieval",
+      "external_importers": 4,
+      "importers_sample": [
+        "public_document_retriever.py",
+        "discovery/federal_description_recovery.py",
+        "scripts/product_beta_cli.py",
+        "tests/test_sam_scarcity.py"
+      ],
+      "bytes": 11269,
+      "zero_external": false
+    },
+    {
+      "module": "executable_deal_pipeline",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_end_to_end.py",
+        "scripts/run_executable_deal_pipeline.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_executable_deal_pipeline.py"
+      ],
+      "bytes": 38516,
+      "zero_external": false
+    },
+    {
+      "module": "geo",
+      "external_importers": 4,
+      "importers_sample": [
+        "location_matching.py",
+        "places_client.py",
+        "sub_finder.py",
+        "usaspending_client.py"
+      ],
+      "bytes": 9034,
+      "zero_external": false
+    },
+    {
+      "module": "historical_context",
+      "external_importers": 4,
+      "importers_sample": [
+        "product_api.py",
+        "stage3_engine.py",
+        "scripts/live_stage3_opp199.py",
+        "tests/test_product_beta.py"
+      ],
+      "bytes": 5836,
+      "zero_external": false
+    },
+    {
+      "module": "information_need_router",
+      "external_importers": 4,
+      "importers_sample": [
+        "document_locator.py",
+        "on_demand_research_loop.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 8304,
+      "zero_external": false
+    },
+    {
+      "module": "legacy_data_integrity",
+      "external_importers": 4,
+      "importers_sample": [
+        "ai_funnel.py",
+        "economic_integrity.py",
+        "scripts/audit_legacy_data_integrity.py",
+        "tests/test_legacy_audit.py"
+      ],
+      "bytes": 19996,
+      "zero_external": false
+    },
+    {
+      "module": "live_package_completeness",
+      "external_importers": 4,
+      "importers_sample": [
+        "package_readiness_layers.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_live_autonomous_deal_validation.py"
+      ],
+      "bytes": 11611,
+      "zero_external": false
+    },
+    {
+      "module": "m3_discovery_planner",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_market_hunt_read.py",
+        "tests/test_m3_discovery_planner.py",
+        "tests/test_m3_market_hunt_handoff.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 24195,
+      "zero_external": false
+    },
+    {
+      "module": "m3_source_qualification_read",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_offer_readiness_read.py",
+        "m3_research_queue.py",
+        "tests/test_m3_source_qualification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 24805,
+      "zero_external": false
+    },
+    {
+      "module": "m3_supplier_product_graph",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_market_hunt_read.py",
+        "tests/test_m3_source_qualification.py",
+        "tests/test_m3_supplier_product_graph.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 38423,
+      "zero_external": false
+    },
+    {
+      "module": "main",
+      "external_importers": 4,
+      "importers_sample": [
+        "tests/test_phase_e1_integrity.py",
+        "tests/test_phase_f_reality.py",
+        "tests/test_phase_f_ui_torture.py",
+        "tests/test_validation_harness.py"
+      ],
+      "bytes": 1793,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_integrity",
+      "external_importers": 4,
+      "importers_sample": [
+        "micro_purchase_lab_pipeline.py",
+        "execution_requirements/extract.py",
+        "scripts/micro_lab_integrity_live_validation.py",
+        "tests/test_micro_purchase_lab_integrity.py"
+      ],
+      "bytes": 43790,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_pipeline",
+      "external_importers": 4,
+      "importers_sample": [
+        "micro_purchase_lab_service.py",
+        "scripts/micro_lab_integrity_live_validation.py",
+        "tests/test_micro_purchase_lab_integrity.py",
+        "tests/test_micro_purchase_lab_pipeline.py"
+      ],
+      "bytes": 58151,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "micro_purchase_lab_research.py",
+        "micro_purchase_lab_routes.py",
+        "tests/test_micro_purchase_lab_automation.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 21566,
+      "zero_external": false
+    },
+    {
+      "module": "os_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "global_views.py",
+        "os_api.py",
+        "tests/test_govcon_os.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 11636,
+      "zero_external": false
+    },
+    {
+      "module": "performance_service",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "sync.py",
+        "scripts/test_performance.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 30651,
+      "zero_external": false
+    },
+    {
+      "module": "performance_settings",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "performance_service.py",
+        "settings_store.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3886,
+      "zero_external": false
+    },
+    {
+      "module": "pricing_constants",
+      "external_importers": 4,
+      "importers_sample": [
+        "display_format.py",
+        "internal_pricing.py",
+        "pws_fields.py",
+        "usaspending_client.py"
+      ],
+      "bytes": 1245,
+      "zero_external": false
+    },
+    {
+      "module": "product_false_positive_audit",
+      "external_importers": 4,
+      "importers_sample": [
+        "m3_end_to_end.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_round2_high_coverage_discovery.py"
+      ],
+      "bytes": 5413,
+      "zero_external": false
+    },
+    {
+      "module": "sam_live_fallback",
+      "external_importers": 4,
+      "importers_sample": [
+        "phase_l/enrichment.py",
+        "phase_l/federal_public_search.py",
+        "scripts/run_phase_k_live_verification.py",
+        "tests/test_sam_live_fallback.py"
+      ],
+      "bytes": 40163,
+      "zero_external": false
+    },
+    {
+      "module": "scheduler",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "scripts/run_federal_dla_preflight.py",
+        "tests/test_federal_dla_ironclad.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 10814,
+      "zero_external": false
+    },
+    {
+      "module": "source_health",
+      "external_importers": 4,
+      "importers_sample": [
+        "procurement_source_registry.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 5260,
+      "zero_external": false
+    },
+    {
+      "module": "stage3_engine",
+      "external_importers": 4,
+      "importers_sample": [
+        "product_api.py",
+        "product_funnel.py",
+        "scripts/product_beta_cli.py",
+        "tests/test_product_beta.py"
+      ],
+      "bytes": 9892,
+      "zero_external": false
+    },
+    {
+      "module": "sub_constants",
+      "external_importers": 4,
+      "importers_sample": [
+        "agreement_service.py",
+        "sub_contact_service.py",
+        "sub_finder.py",
+        "sub_serializers.py"
+      ],
+      "bytes": 9688,
+      "zero_external": false
+    },
+    {
+      "module": "transaction_learning",
+      "external_importers": 4,
+      "importers_sample": [
+        "app.py",
+        "learning_feedback.py",
+        "tests/test_controlled_real_world_verification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 13362,
+      "zero_external": false
+    },
+    {
+      "module": "bid_pricing_engine",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "m3_end_to_end.py",
+        "scripts/run_bid_pricing_validation.py",
+        "tests/test_bid_pricing.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 17653,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_execution",
+      "external_importers": 5,
+      "importers_sample": [
+        "commercial_next_action.py",
+        "fixtures/opp199.py",
+        "tests/test_commercial_workspace.py",
+        "tests/test_govcon_os.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 22836,
+      "zero_external": false
+    },
+    {
+      "module": "csv_attachment_policy",
+      "external_importers": 5,
+      "importers_sample": [
+        "api_budget.py",
+        "intake.py",
+        "sam_enrich.py",
+        "sync.py",
+        "tests/test_csv_attachment_policy.py"
+      ],
+      "bytes": 2770,
+      "zero_external": false
+    },
+    {
+      "module": "deal_workspace",
+      "external_importers": 5,
+      "importers_sample": [
+        "deals_api.py",
+        "deal_context_packet.py",
+        "fixtures/reconcile_opp199.py",
+        "tests/test_discovery_network.py",
+        "tests/test_govcon_os.py"
+      ],
+      "bytes": 27402,
+      "zero_external": false
+    },
+    {
+      "module": "document_ingestion",
+      "external_importers": 5,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "sam_live_fallback.py",
+        "response_engine/parsers.py",
+        "scripts/ingest_solicitation_document.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 14784,
+      "zero_external": false
+    },
+    {
+      "module": "document_locator",
+      "external_importers": 5,
+      "importers_sample": [
+        "m3_end_to_end.py",
+        "m3_evidence_acquisition.py",
+        "on_demand_research_loop.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 10388,
+      "zero_external": false
+    },
+    {
+      "module": "expired_purge_service",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "csv_opportunity_service.py",
+        "scheduler.py",
+        "tests/test_expired_purge.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3403,
+      "zero_external": false
+    },
+    {
+      "module": "first_pursuit_selection",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "live_review_package.py",
+        "tests/test_controlled_real_world_verification.py",
+        "tests/test_m3_configuration_separation.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 8174,
+      "zero_external": false
+    },
+    {
+      "module": "funding_engine",
+      "external_importers": 5,
+      "importers_sample": [
+        "deal_workspace.py",
+        "global_views.py",
+        "os_service.py",
+        "tests/test_govcon_os.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 13093,
+      "zero_external": false
+    },
+    {
+      "module": "funding_persistence",
+      "external_importers": 5,
+      "importers_sample": [
+        "deals_api.py",
+        "deal_context_packet.py",
+        "deal_workspace.py",
+        "global_views.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 6791,
+      "zero_external": false
+    },
+    {
+      "module": "governing_documents",
+      "external_importers": 5,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "bid_compliance_invalidation.py",
+        "m3_evidence_acquisition.py",
+        "scripts/run_bid_compliance_validation.py",
+        "tests/test_bid_compliance.py"
+      ],
+      "bytes": 10088,
+      "zero_external": false
+    },
+    {
+      "module": "historical_benchmark_models",
+      "external_importers": 5,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "historical_outcome_vault.py",
+        "prebid_decision_freeze.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "tests/test_historical_benchmark_v1.py"
+      ],
+      "bytes": 9083,
+      "zero_external": false
+    },
+    {
+      "module": "location_matching",
+      "external_importers": 5,
+      "importers_sample": [
+        "csv_pricing_service.py",
+        "display_format.py",
+        "internal_pricing.py",
+        "pricing.py",
+        "usaspending_client.py"
+      ],
+      "bytes": 13039,
+      "zero_external": false
+    },
+    {
+      "module": "m3_commercial_product_matching",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "m3_public_pricing_evidence.py",
+        "tests/test_m3_commercial_product_matching.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 71304,
+      "zero_external": false
+    },
+    {
+      "module": "m3_dla_clause_extraction",
+      "external_importers": 5,
+      "importers_sample": [
+        "m3_offer_readiness_read.py",
+        "m3_research_queue.py",
+        "execution_requirements/extract.py",
+        "tests/test_m3_dla_clause_extraction.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 21204,
+      "zero_external": false
+    },
+    {
+      "module": "m3_document_evidence",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "m3_document_discovery.py",
+        "m3_mobile_read_model.py",
+        "tests/test_m3_document_evidence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 57283,
+      "zero_external": false
+    },
+    {
+      "module": "m3_document_intelligence",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "tests/test_m3_dla_clause_extraction.py",
+        "tests/test_m3_document_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 53727,
+      "zero_external": false
+    },
+    {
+      "module": "m3_eligibility_evidence_read",
+      "external_importers": 5,
+      "importers_sample": [
+        "m3_offer_readiness_read.py",
+        "m3_research_queue.py",
+        "tests/test_m3_eligibility_evidence.py",
+        "tests/test_m3_execution_os.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 28936,
+      "zero_external": false
+    },
+    {
+      "module": "m3_evidence_constants",
+      "external_importers": 5,
+      "importers_sample": [
+        "m3_commercial_engine.py",
+        "m3_commercial_intelligence.py",
+        "m3_document_evidence.py",
+        "m3_evidence_acquisition.py",
+        "m3_source_access.py"
+      ],
+      "bytes": 2833,
+      "zero_external": false
+    },
+    {
+      "module": "m3_market_hunt_handoff",
+      "external_importers": 5,
+      "importers_sample": [
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_market_hunt_handoff.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 18138,
+      "zero_external": false
+    },
+    {
+      "module": "m3_portfolio_deal_analysis",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "scheduler.py",
+        "scripts/_run_portfolio_cycle.py",
+        "tests/test_m3_portfolio_deal_analysis.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 45546,
+      "zero_external": false
+    },
+    {
+      "module": "next_action_engine",
+      "external_importers": 5,
+      "importers_sample": [
+        "deal_workspace.py",
+        "os_service.py",
+        "tests/test_commercial_workspace.py",
+        "tests/test_govcon_os_foundation.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 17076,
+      "zero_external": false
+    },
+    {
+      "module": "operator_action_queue",
+      "external_importers": 5,
+      "importers_sample": [
+        "executable_deal_pipeline.py",
+        "phase_l/hunt.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_executable_deal_pipeline.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 10941,
+      "zero_external": false
+    },
+    {
+      "module": "piee_client",
+      "external_importers": 5,
+      "importers_sample": [
+        "attachment_storage.py",
+        "document_intel.py",
+        "openai_client.py",
+        "sam_enrich.py",
+        "sync.py"
+      ],
+      "bytes": 11023,
+      "zero_external": false
+    },
+    {
+      "module": "pricing_backfill_service",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "autopilot_service.py",
+        "scheduler.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 4646,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_seed_sweep",
+      "external_importers": 5,
+      "importers_sample": [
+        "ne_wy_deep_coverage.py",
+        "procurement_source_coverage_expansion.py",
+        "scripts/run_procurement_source_seed_sweep.py",
+        "tests/test_procurement_source_coverage_expansion.py",
+        "tests/test_procurement_source_seed_sweep.py"
+      ],
+      "bytes": 54942,
+      "zero_external": false
+    },
+    {
+      "module": "pursuit_ranking",
+      "external_importers": 5,
+      "importers_sample": [
+        "scripts/run_financing_false_negative_validation.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "tests/test_financing_false_negative.py",
+        "tests/test_m3_configuration_separation.py",
+        "tests/test_national_incremental_discovery.py"
+      ],
+      "bytes": 8250,
+      "zero_external": false
+    },
+    {
+      "module": "solicitation_package_constants",
+      "external_importers": 5,
+      "importers_sample": [
+        "solicitation_package_retrieval.py",
+        "table_extractors.py",
+        "transactional_bom.py",
+        "transactional_procurement.py",
+        "tests/test_transactional_procurement.py"
+      ],
+      "bytes": 3505,
+      "zero_external": false
+    },
+    {
+      "module": "solicitation_package_retrieval",
+      "external_importers": 5,
+      "importers_sample": [
+        "document_ingestion.py",
+        "document_locator.py",
+        "transactional_procurement.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_transactional_procurement.py"
+      ],
+      "bytes": 16351,
+      "zero_external": false
+    },
+    {
+      "module": "source_discovery_engine",
+      "external_importers": 5,
+      "importers_sample": [
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_seed_sweep.py",
+        "scripts/run_m3_1_0_e2e_validation.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "tests/test_national_incremental_discovery.py"
+      ],
+      "bytes": 10137,
+      "zero_external": false
+    },
+    {
+      "module": "source_recovery_priority",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "procurement_source_registry.py",
+        "tests/test_m3_pipeline_stabilization.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 18320,
+      "zero_external": false
+    },
+    {
+      "module": "sub_contact_service",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "database.py",
+        "proposal_service.py",
+        "sub_finder.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 35680,
+      "zero_external": false
+    },
+    {
+      "module": "submission_package",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "intake.py",
+        "proposal_service.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 26746,
+      "zero_external": false
+    },
+    {
+      "module": "table_extractors",
+      "external_importers": 5,
+      "importers_sample": [
+        "document_ingestion.py",
+        "m3_document_intelligence.py",
+        "response_engine/production_intake.py",
+        "tests/test_document_ingestion.py",
+        "tests/test_transactional_procurement.py"
+      ],
+      "bytes": 16516,
+      "zero_external": false
+    },
+    {
+      "module": "temporary_retrieval",
+      "external_importers": 5,
+      "importers_sample": [
+        "on_demand_research_loop.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 8642,
+      "zero_external": false
+    },
+    {
+      "module": "transaction_economics",
+      "external_importers": 5,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "commercial_result_pipeline.py",
+        "line_item_pricing.py",
+        "pricing_scenarios.py",
+        "tests/test_bid_pricing.py"
+      ],
+      "bytes": 8952,
+      "zero_external": false
+    },
+    {
+      "module": "transactional_procurement",
+      "external_importers": 5,
+      "importers_sample": [
+        "procurement_reprocess.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "scripts/run_transactional_procurement.py",
+        "tests/test_transactional_procurement.py"
+      ],
+      "bytes": 53926,
+      "zero_external": false
+    },
+    {
+      "module": "unknown_source_resolution",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "scripts/run_m3_1_0_e2e_validation.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_round2_high_coverage_discovery.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 18494,
+      "zero_external": false
+    },
+    {
+      "module": "watchlist_fingerprint",
+      "external_importers": 5,
+      "importers_sample": [
+        "csv_watchlist_service.py",
+        "gs_watchlist_service.py",
+        "watchlist_sync.py",
+        "tests/test_data_integrity.py",
+        "tests/test_watchlist_fingerprint.py"
+      ],
+      "bytes": 16345,
+      "zero_external": false
+    },
+    {
+      "module": "watchlist_pricing",
+      "external_importers": 5,
+      "importers_sample": [
+        "pricing.py",
+        "pricing_backfill_service.py",
+        "prior_contract_extract.py",
+        "watchlist_sync.py",
+        "tests/test_watchlist_pricing_skip.py"
+      ],
+      "bytes": 4998,
+      "zero_external": false
+    },
+    {
+      "module": "watchlist_sync",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "csv_opportunity_service.py",
+        "csv_watchlist_service.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 16572,
+      "zero_external": false
+    },
+    {
+      "module": "workflow_backfill_service",
+      "external_importers": 5,
+      "importers_sample": [
+        "app.py",
+        "autopilot_service.py",
+        "intake.py",
+        "refresh_workflow.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 16868,
+      "zero_external": false
+    },
+    {
+      "module": "workflow_status",
+      "external_importers": 5,
+      "importers_sample": [
+        "ai_export.py",
+        "app.py",
+        "settings_store.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 18657,
+      "zero_external": false
+    },
+    {
+      "module": "ai_cost_budget",
+      "external_importers": 6,
+      "importers_sample": [
+        "api_budget.py",
+        "openai_runtime.py",
+        "product_api.py",
+        "scripts/run_opp199_document_completeness.py",
+        "scripts/stage2_preflight_opp68.py",
+        "tests/test_ai_funnel_budget.py"
+      ],
+      "bytes": 8656,
+      "zero_external": false
+    },
+    {
+      "module": "bid_compliance_engine",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_end_to_end.py",
+        "scripts/run_bid_compliance_validation.py",
+        "tests/test_bid_compliance.py",
+        "tests/test_m3_offer_readiness.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 13500,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_result_pipeline",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "commercial_verification_engine.py",
+        "scripts/run_commercial_verification_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_financing_false_negative.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 12056,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_verification_engine",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "scripts/run_commercial_verification_validation.py",
+        "scripts/run_financing_false_negative_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_financing_false_negative.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 18418,
+      "zero_external": false
+    },
+    {
+      "module": "company_eligibility",
+      "external_importers": 6,
+      "importers_sample": [
+        "ai_funnel.py",
+        "eligibility_gate.py",
+        "phase_l/access_gate.py",
+        "response_engine/company_profile_r3.py",
+        "tests/test_response_engine_r3.py",
+        "tests/test_stage0_stage1.py"
+      ],
+      "bytes": 2917,
+      "zero_external": false
+    },
+    {
+      "module": "company_profile",
+      "external_importers": 6,
+      "importers_sample": [
+        "compliance_matrix.py",
+        "deals_api.py",
+        "deal_readiness.py",
+        "deal_workspace.py",
+        "fixtures/reconcile_opp199.py",
+        "tests/test_deal_workspace.py"
+      ],
+      "bytes": 11215,
+      "zero_external": false
+    },
+    {
+      "module": "coverage_gap_intelligence",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "procurement_source_coverage_discovery.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "scripts/run_productive_source_network_validation.py",
+        "tests/test_national_incremental_discovery.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 6332,
+      "zero_external": false
+    },
+    {
+      "module": "csv_import_service",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "csv_opportunity_service.py",
+        "csv_watchlist_service.py",
+        "expired_purge_service.py",
+        "tests/test_csv_import.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 26663,
+      "zero_external": false
+    },
+    {
+      "module": "deadline_conflict",
+      "external_importers": 6,
+      "importers_sample": [
+        "deadline_runtime.py",
+        "public_evidence_recovery.py",
+        "scripts/run_deadline_runtime_validation.py",
+        "tests/test_application_clock.py",
+        "tests/test_deadline_integrity_hardening.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 11280,
+      "zero_external": false
+    },
+    {
+      "module": "deal_lifecycle",
+      "external_importers": 6,
+      "importers_sample": [
+        "deal_workspace.py",
+        "global_views.py",
+        "os_api.py",
+        "os_service.py",
+        "discovery/metrics.py",
+        "tests/test_govcon_os.py"
+      ],
+      "bytes": 5580,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_economics",
+      "external_importers": 6,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "transactional_procurement.py",
+        "phase_h/deep_research.py",
+        "scripts/run_phase_j_reconciliation.py",
+        "scripts/run_phase_k_live_verification.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 9508,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_research",
+      "external_importers": 6,
+      "importers_sample": [
+        "transactional_discovery.py",
+        "phase_h/deep_research.py",
+        "phase_i/hunt.py",
+        "scripts/run_boast_eligibility_regression.py",
+        "scripts/run_deep_deal_research.py",
+        "tests/test_deep_deal_research.py"
+      ],
+      "bytes": 39074,
+      "zero_external": false
+    },
+    {
+      "module": "display_format",
+      "external_importers": 6,
+      "importers_sample": [
+        "csv_opportunity_service.py",
+        "openai_client.py",
+        "pricing.py",
+        "sync.py",
+        "tests/test_data_integrity.py",
+        "tests/test_legacy_audit.py"
+      ],
+      "bytes": 20920,
+      "zero_external": false
+    },
+    {
+      "module": "entity_geographic_coverage",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_seed_sweep.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_round2_high_coverage_discovery.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 6759,
+      "zero_external": false
+    },
+    {
+      "module": "external_action_control",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "commercial_verification_engine.py",
+        "scripts/run_commercial_verification_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_controlled_real_world_verification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 15098,
+      "zero_external": false
+    },
+    {
+      "module": "financing_verification",
+      "external_importers": 6,
+      "importers_sample": [
+        "commercial_verification_engine.py",
+        "m3_end_to_end.py",
+        "scripts/run_commercial_verification_validation.py",
+        "scripts/run_financing_false_negative_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_financing_false_negative.py"
+      ],
+      "bytes": 34755,
+      "zero_external": false
+    },
+    {
+      "module": "funding_underwriting",
+      "external_importers": 6,
+      "importers_sample": [
+        "financing_verification.py",
+        "funding_path_intelligence.py",
+        "historical_backtest_runner.py",
+        "pre_bid_transaction_financing.py",
+        "scripts/run_pre_bid_transaction_financing.py",
+        "tests/test_pre_bid_transaction_financing.py"
+      ],
+      "bytes": 19806,
+      "zero_external": false
+    },
+    {
+      "module": "historical_case_inventory",
+      "external_importers": 6,
+      "importers_sample": [
+        "scripts/run_historical_benchmark_v1.py",
+        "scripts/run_historical_case_inventory.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_historical_benchmark_v1.py",
+        "tests/test_historical_case_inventory.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 37388,
+      "zero_external": false
+    },
+    {
+      "module": "m3_capital_requirement_gate_read",
+      "external_importers": 6,
+      "importers_sample": [
+        "m3_pursuit_readiness_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_capital_requirement_gate.py",
+        "tests/test_m3_final_operator_dry_run.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 38271,
+      "zero_external": false
+    },
+    {
+      "module": "m3_commercial_validation_read",
+      "external_importers": 6,
+      "importers_sample": [
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_capital_requirement_gate.py",
+        "tests/test_m3_commercial_validation.py",
+        "tests/test_m3_final_operator_dry_run.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 27022,
+      "zero_external": false
+    },
+    {
+      "module": "m3_demand_signal",
+      "external_importers": 6,
+      "importers_sample": [
+        "m3_discovery_planner.py",
+        "m3_intelligence_graph_read.py",
+        "m3_market_hunt_read.py",
+        "tests/test_m3_demand_signal.py",
+        "tests/test_m3_discovery_planner.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 33627,
+      "zero_external": false
+    },
+    {
+      "module": "m3_material_acquisition_gap",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "scripts/_run_material_gaps.py",
+        "tests/test_m3_material_acquisition_gap.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 56149,
+      "zero_external": false
+    },
+    {
+      "module": "m3_procurement_profile",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "product_discovery.py",
+        "tests/test_m3_configuration_separation.py",
+        "tests/test_m3_primary_application.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 11927,
+      "zero_external": false
+    },
+    {
+      "module": "m3_product_pricing",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_document_evidence.py",
+        "m3_mobile_read_model.py",
+        "m3_procurement_package.py",
+        "tests/test_m3_product_pricing.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 33750,
+      "zero_external": false
+    },
+    {
+      "module": "m3_research_queue",
+      "external_importers": 6,
+      "importers_sample": [
+        "m3_market_hunt_handoff.py",
+        "m3_market_hunt_read.py",
+        "m3_offer_readiness_read.py",
+        "tests/test_m3_eligibility_evidence.py",
+        "tests/test_m3_research_queue.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 23472,
+      "zero_external": false
+    },
+    {
+      "module": "m3_research_service",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_discovery_service.py",
+        "m3_mobile_read_model.py",
+        "scheduler.py",
+        "tests/test_m3_automatic_research.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 33470,
+      "zero_external": false
+    },
+    {
+      "module": "m3_seed_basket_economics",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_material_acquisition_gap.py",
+        "m3_mobile_read_model.py",
+        "scripts/_run_seed_basket.py",
+        "tests/test_m3_seed_basket_economics.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 54004,
+      "zero_external": false
+    },
+    {
+      "module": "m3_source_credentials",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "m3_source_access.py",
+        "phase_l/registration_tracker.py",
+        "tests/test_m3_evidence_acquisition.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 5111,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_store",
+      "external_importers": 6,
+      "importers_sample": [
+        "micro_purchase_lab_routes.py",
+        "micro_purchase_lab_service.py",
+        "scripts/micro_lab_integrity_live_validation.py",
+        "tests/test_micro_purchase_economics_lab.py",
+        "tests/test_micro_purchase_lab_automation.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 6370,
+      "zero_external": false
+    },
+    {
+      "module": "national_procurement_coverage_map",
+      "external_importers": 6,
+      "importers_sample": [
+        "app.py",
+        "m3_mobile_read_model.py",
+        "scripts/run_bidnet_network_discovery_validation.py",
+        "scripts/run_national_discovery_scale_validation.py",
+        "tests/test_national_discovery_scale.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 19538,
+      "zero_external": false
+    },
+    {
+      "module": "operator_crm",
+      "external_importers": 6,
+      "importers_sample": [
+        "commercial_ops.py",
+        "deals_api.py",
+        "transcript_service.py",
+        "tests/test_commercial_workspace.py",
+        "tests/test_govcon_os_foundation.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 15037,
+      "zero_external": false
+    },
+    {
+      "module": "package_manifest",
+      "external_importers": 6,
+      "importers_sample": [
+        "document_completeness.py",
+        "final_clarification_review.py",
+        "governing_documents.py",
+        "public_document_retriever.py",
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py"
+      ],
+      "bytes": 4870,
+      "zero_external": false
+    },
+    {
+      "module": "persistence_policy",
+      "external_importers": 6,
+      "importers_sample": [
+        "deal_research_record.py",
+        "procurement_source_knowledge.py",
+        "reusable_knowledge.py",
+        "temporary_retrieval.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 4094,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_coverage_discovery",
+      "external_importers": 6,
+      "importers_sample": [
+        "procurement_source_coverage_expansion.py",
+        "procurement_source_seed_sweep.py",
+        "scripts/run_procurement_source_coverage_discovery.py",
+        "tests/test_procurement_source_coverage_discovery.py",
+        "tests/test_procurement_source_coverage_expansion.py",
+        "tests/test_procurement_source_seed_sweep.py"
+      ],
+      "bytes": 70067,
+      "zero_external": false
+    },
+    {
+      "module": "sub_serializers",
+      "external_importers": 6,
+      "importers_sample": [
+        "ai_export.py",
+        "app.py",
+        "sub_contact_service.py",
+        "sub_finder.py",
+        "sync.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 4063,
+      "zero_external": false
+    },
+    {
+      "module": "usaspending_savings",
+      "external_importers": 6,
+      "importers_sample": [
+        "pricing.py",
+        "prior_contract_extract.py",
+        "sync.py",
+        "watchlist_pricing.py",
+        "watchlist_sync.py",
+        "tests/test_watchlist_pricing_skip.py"
+      ],
+      "bytes": 1113,
+      "zero_external": false
+    },
+    {
+      "module": "db_tables",
+      "external_importers": 7,
+      "importers_sample": [
+        "check_status.py",
+        "database.py",
+        "gs_watchlist_service.py",
+        "shared_db.py",
+        "scripts/check_attachments_today.py",
+        "scripts/diagnose_attachment_text.py",
+        "scripts/diagnose_far_fields.py"
+      ],
+      "bytes": 2828,
+      "zero_external": false
+    },
+    {
+      "module": "deal_readiness",
+      "external_importers": 7,
+      "importers_sample": [
+        "commercial_next_action.py",
+        "deal_workspace.py",
+        "next_action_engine.py",
+        "os_service.py",
+        "tests/test_deal_workspace.py",
+        "tests/test_document_completeness.py",
+        "tests/test_govcon_os_foundation.py"
+      ],
+      "bytes": 13096,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_qualification",
+      "external_importers": 7,
+      "importers_sample": [
+        "deep_deal_research.py",
+        "executable_deal_pipeline.py",
+        "historical_backtest_runner.py",
+        "transactional_discovery.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_deep_deal_research.py",
+        "tests/test_transactional_discovery.py"
+      ],
+      "bytes": 16482,
+      "zero_external": false
+    },
+    {
+      "module": "document_ingestion_constants",
+      "external_importers": 7,
+      "importers_sample": [
+        "bid_price_targets.py",
+        "document_ingestion.py",
+        "procurement_blockers.py",
+        "procurement_reprocess.py",
+        "supplier_fit.py",
+        "scripts/ingest_solicitation_document.py",
+        "tests/test_document_ingestion.py"
+      ],
+      "bytes": 1919,
+      "zero_external": false
+    },
+    {
+      "module": "intake",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "screen.py",
+        "sync.py",
+        "watchlist_sync.py",
+        "workflow_backfill_service.py",
+        "tests/test_screen_session.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 34673,
+      "zero_external": false
+    },
+    {
+      "module": "knowledge_store",
+      "external_importers": 7,
+      "importers_sample": [
+        "commercial_ops.py",
+        "product_api.py",
+        "product_funnel.py",
+        "stage3_engine.py",
+        "fixtures/reconcile_opp199.py",
+        "scripts/live_stage3_opp199.py",
+        "scripts/run_opp199_document_completeness.py"
+      ],
+      "bytes": 4719,
+      "zero_external": false
+    },
+    {
+      "module": "m3_acquisition_target_engine",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "m3_commercial_product_matching.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_public_pricing_evidence.py",
+        "tests/test_m3_acquisition_target_engine.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 78431,
+      "zero_external": false
+    },
+    {
+      "module": "m3_evidence_chain",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "m3_discovery_service.py",
+        "m3_document_discovery.py",
+        "m3_mobile_read_model.py",
+        "m3_pipeline_store.py",
+        "tests/test_m3_evidence_chain.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 35989,
+      "zero_external": false
+    },
+    {
+      "module": "m3_execution_intelligence",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "m3_deal_economics.py",
+        "m3_mobile_read_model.py",
+        "m3_procurement_package.py",
+        "m3_product_pricing.py",
+        "tests/test_m3_execution_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 31862,
+      "zero_external": false
+    },
+    {
+      "module": "m3_next_hour_queue_read",
+      "external_importers": 7,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "tests/test_deadline_integrity_hardening.py",
+        "tests/test_m3_next_hour_queue.py",
+        "tests/test_m3_operator_loop.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 31926,
+      "zero_external": false
+    },
+    {
+      "module": "m3_strategic_intelligence_read",
+      "external_importers": 7,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_human_os.py",
+        "tests/test_m3_strategic_intelligence.py",
+        "tests/test_m3_supply_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 34725,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_config",
+      "external_importers": 7,
+      "importers_sample": [
+        "micro_purchase_lab_economics.py",
+        "micro_purchase_lab_pipeline.py",
+        "micro_purchase_lab_research.py",
+        "micro_purchase_lab_routes.py",
+        "micro_purchase_lab_service.py",
+        "tests/test_micro_purchase_economics_lab.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 3649,
+      "zero_external": false
+    },
+    {
+      "module": "product_category_yield",
+      "external_importers": 7,
+      "importers_sample": [
+        "m3_end_to_end.py",
+        "m3_evidence_acquisition.py",
+        "micro_purchase_lab_pipeline.py",
+        "product_false_positive_audit.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_round2_high_coverage_discovery.py"
+      ],
+      "bytes": 7355,
+      "zero_external": false
+    },
+    {
+      "module": "product_discovery",
+      "external_importers": 7,
+      "importers_sample": [
+        "m3_procurement_profile.py",
+        "product_api.py",
+        "scripts/product_beta_cli.py",
+        "tests/test_m3_configuration_separation.py",
+        "tests/test_m3_primary_application.py",
+        "tests/test_product_beta.py",
+        "tests/test_sam_scarcity.py"
+      ],
+      "bytes": 13066,
+      "zero_external": false
+    },
+    {
+      "module": "product_resale_source_intelligence",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "m3_discovery_planner.py",
+        "micro_purchase_lab_source_router.py",
+        "product_resale_live_validation.py",
+        "scripts/run_product_resale_discovery_intelligence.py",
+        "tests/test_product_resale_discovery_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 51875,
+      "zero_external": false
+    },
+    {
+      "module": "source_network_audit",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_registry.py",
+        "scripts/run_productive_source_network_validation.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_productive_source_network.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 15854,
+      "zero_external": false
+    },
+    {
+      "module": "sub_finder",
+      "external_importers": 7,
+      "importers_sample": [
+        "app.py",
+        "attachment_pipeline.py",
+        "intake.py",
+        "openai_client.py",
+        "proximity_scoring.py",
+        "tests/test_sub_search_background.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 35163,
+      "zero_external": false
+    },
+    {
+      "module": "temporal_evidence_api",
+      "external_importers": 7,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "on_demand_research_loop.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "scripts/run_historical_case_inventory.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_historical_benchmark_v1.py",
+        "tests/test_historical_case_inventory.py"
+      ],
+      "bytes": 6586,
+      "zero_external": false
+    },
+    {
+      "module": "tracked_solicitation",
+      "external_importers": 7,
+      "importers_sample": [
+        "cost_governor_integrations.py",
+        "m3_discovery_service.py",
+        "national_discovery_api.py",
+        "scripts/run_cost_governor_validation.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "tests/test_cost_governor.py",
+        "tests/test_national_incremental_discovery.py"
+      ],
+      "bytes": 21632,
+      "zero_external": false
+    },
+    {
+      "module": "transactional_bom",
+      "external_importers": 7,
+      "importers_sample": [
+        "executable_deal_pipeline.py",
+        "procurement_reprocess.py",
+        "table_extractors.py",
+        "transactional_procurement.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_live_autonomous_deal_validation.py",
+        "tests/test_transactional_procurement.py"
+      ],
+      "bytes": 21531,
+      "zero_external": false
+    },
+    {
+      "module": "attachment_pipeline",
+      "external_importers": 8,
+      "importers_sample": [
+        "attachment_storage.py",
+        "intake.py",
+        "openai_client.py",
+        "screening_pipeline.py",
+        "workflow_backfill_service.py",
+        "scripts/backfill_attachment_compliance.py",
+        "scripts/backfill_far_fields.py",
+        "scripts/verify_far_52219.py"
+      ],
+      "bytes": 20101,
+      "zero_external": false
+    },
+    {
+      "module": "bid_compliance_constants",
+      "external_importers": 8,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "bid_compliance_invalidation.py",
+        "bid_readiness_engine.py",
+        "bid_requirement_extraction.py",
+        "bid_submission_intelligence.py",
+        "compliance_matrix.py",
+        "governing_documents.py",
+        "product_bid_compliance.py"
+      ],
+      "bytes": 7652,
+      "zero_external": false
+    },
+    {
+      "module": "bid_pricing_constants",
+      "external_importers": 8,
+      "importers_sample": [
+        "bid_pricing_engine.py",
+        "bid_pricing_invalidation.py",
+        "draft_bid_assembly.py",
+        "historical_gov_price_benchmark.py",
+        "line_item_pricing.py",
+        "msrp_intelligence.py",
+        "pricing_scenarios.py",
+        "transaction_economics.py"
+      ],
+      "bytes": 3195,
+      "zero_external": false
+    },
+    {
+      "module": "bom_gate",
+      "external_importers": 8,
+      "importers_sample": [
+        "commercial_next_action.py",
+        "deal_readiness.py",
+        "deal_workspace.py",
+        "next_action_engine.py",
+        "os_service.py",
+        "fixtures/reconcile_opp199.py",
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_deal_workspace.py"
+      ],
+      "bytes": 2908,
+      "zero_external": false
+    },
+    {
+      "module": "eligibility_gate",
+      "external_importers": 8,
+      "importers_sample": [
+        "phase_h/deep_research.py",
+        "phase_i/hunt.py",
+        "phase_l/access_gate.py",
+        "response_engine/company_profile_r3.py",
+        "scripts/rescore_phase_h_eligibility.py",
+        "scripts/run_phase_k_live_verification.py",
+        "tests/test_eligibility_gate.py",
+        "tests/test_phase_i_hunt.py"
+      ],
+      "bytes": 25528,
+      "zero_external": false
+    },
+    {
+      "module": "family_adapter_contract",
+      "external_importers": 8,
+      "importers_sample": [
+        "unknown_source_resolution.py",
+        "discovery/live_fetchers.py",
+        "discovery/selection.py",
+        "scripts/run_productive_source_network_validation.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_national_discovery_scale.py",
+        "tests/test_productive_source_network.py",
+        "tests/test_round2_high_coverage_discovery.py"
+      ],
+      "bytes": 17478,
+      "zero_external": false
+    },
+    {
+      "module": "federal_dla_constants",
+      "external_importers": 8,
+      "importers_sample": [
+        "m3_demand_signal.py",
+        "sam_scarcity.py",
+        "discovery/dla_reconciliation.py",
+        "discovery/dla_source_map.py",
+        "discovery/federal_dla_coverage.py",
+        "discovery/federal_sam_ingest.py",
+        "tests/test_federal_dla_ironclad.py",
+        "tests/test_m3_demand_signal.py"
+      ],
+      "bytes": 4656,
+      "zero_external": false
+    },
+    {
+      "module": "funding_path_intelligence",
+      "external_importers": 8,
+      "importers_sample": [
+        "deals_api.py",
+        "deep_deal_research.py",
+        "funding_source_research.py",
+        "transactional_procurement.py",
+        "discovery/tiny_end_to_end.py",
+        "tests/test_funding_path_intelligence.py",
+        "tests/test_funding_source_research.py",
+        "tests/test_pre_bid_transaction_financing.py"
+      ],
+      "bytes": 53390,
+      "zero_external": false
+    },
+    {
+      "module": "historical_benchmark_constants",
+      "external_importers": 8,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "historical_benchmark_models.py",
+        "historical_outcome_vault.py",
+        "prebid_decision_freeze.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_historical_benchmark_v1.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 3406,
+      "zero_external": false
+    },
+    {
+      "module": "m3_competitive_intelligence",
+      "external_importers": 8,
+      "importers_sample": [
+        "app.py",
+        "m3_deal_economics.py",
+        "m3_execution_intelligence.py",
+        "m3_mobile_read_model.py",
+        "m3_procurement_package.py",
+        "m3_product_pricing.py",
+        "tests/test_m3_competitive_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 29930,
+      "zero_external": false
+    },
+    {
+      "module": "prior_contract_extract",
+      "external_importers": 8,
+      "importers_sample": [
+        "attachment_pipeline.py",
+        "csv_pricing_service.py",
+        "display_format.py",
+        "intake.py",
+        "pricing_backfill_service.py",
+        "refresh_pricing.py",
+        "workflow_backfill_service.py",
+        "tests/test_data_integrity.py"
+      ],
+      "bytes": 20881,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_knowledge",
+      "external_importers": 8,
+      "importers_sample": [
+        "document_locator.py",
+        "executable_deal_pipeline.py",
+        "information_need_router.py",
+        "on_demand_research_loop.py",
+        "reusable_knowledge.py",
+        "temporary_retrieval.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_on_demand_procurement_intelligence.py"
+      ],
+      "bytes": 15935,
+      "zero_external": false
+    },
+    {
+      "module": "proposal_defaults",
+      "external_importers": 8,
+      "importers_sample": [
+        "ai_export.py",
+        "openai_client.py",
+        "pricing.py",
+        "proposal_export.py",
+        "proposal_service.py",
+        "settings_store.py",
+        "sub_contact_service.py",
+        "sync.py"
+      ],
+      "bytes": 3107,
+      "zero_external": false
+    },
+    {
+      "module": "sync",
+      "external_importers": 8,
+      "importers_sample": [
+        "app.py",
+        "intake.py",
+        "main.py",
+        "product_discovery.py",
+        "scheduler.py",
+        "watchlist_sync.py",
+        "scripts/diagnose_dashboard.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 67731,
+      "zero_external": false
+    },
+    {
+      "module": "temporal_evidence_firewall",
+      "external_importers": 8,
+      "importers_sample": [
+        "historical_backtest_runner.py",
+        "historical_case_inventory.py",
+        "on_demand_research_loop.py",
+        "temporal_evidence_api.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "scripts/run_historical_case_inventory.py",
+        "tests/test_historical_benchmark_v1.py",
+        "tests/test_historical_case_inventory.py"
+      ],
+      "bytes": 10380,
+      "zero_external": false
+    },
+    {
+      "module": "csv_attachment_queue_service",
+      "external_importers": 9,
+      "importers_sample": [
+        "app.py",
+        "csv_import_service.py",
+        "csv_opportunity_service.py",
+        "csv_watchlist_service.py",
+        "expired_purge_service.py",
+        "scheduler.py",
+        "sync.py",
+        "tests/test_csv_attachment_queue.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 17144,
+      "zero_external": false
+    },
+    {
+      "module": "discovery_checkpoint",
+      "external_importers": 9,
+      "importers_sample": [
+        "budget_catchup.py",
+        "family_adapter_contract.py",
+        "m3_discovery_service.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "scripts/run_productive_source_network_validation.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_national_incremental_discovery.py",
+        "tests/test_productive_source_network.py",
+        "tests/test_round2_high_coverage_discovery.py"
+      ],
+      "bytes": 4715,
+      "zero_external": false
+    },
+    {
+      "module": "funding_source_kb",
+      "external_importers": 9,
+      "importers_sample": [
+        "deals_api.py",
+        "deep_deal_research.py",
+        "funding_path_intelligence.py",
+        "funding_source_research.py",
+        "discovery/tiny_end_to_end.py",
+        "tests/test_funding_path_intelligence.py",
+        "tests/test_funding_source_research.py",
+        "tests/test_pre_bid_transaction_financing.py",
+        "tests/test_tiny_end_to_end.py"
+      ],
+      "bytes": 16837,
+      "zero_external": false
+    },
+    {
+      "module": "historical_case_constants",
+      "external_importers": 9,
+      "importers_sample": [
+        "historical_case_inventory.py",
+        "historical_case_models.py",
+        "on_demand_research_loop.py",
+        "temporal_evidence_api.py",
+        "temporal_evidence_firewall.py",
+        "scripts/run_historical_benchmark_v1.py",
+        "scripts/run_historical_case_inventory.py",
+        "tests/test_historical_benchmark_v1.py",
+        "tests/test_historical_case_inventory.py"
+      ],
+      "bytes": 4577,
+      "zero_external": false
+    },
+    {
+      "module": "m3_evidence_acquisition",
+      "external_importers": 9,
+      "importers_sample": [
+        "app.py",
+        "m3_document_evidence.py",
+        "m3_end_to_end.py",
+        "m3_mobile_read_model.py",
+        "micro_purchase_lab_pipeline.py",
+        "artifacts/_live_breakthrough_verify.py",
+        "tests/test_m3_evidence_acquisition.py",
+        "tests/test_portal_document_resolver.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 55398,
+      "zero_external": false
+    },
+    {
+      "module": "m3_government_revenue_benchmark",
+      "external_importers": 9,
+      "importers_sample": [
+        "app.py",
+        "m3_material_acquisition_gap.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_seed_basket_economics.py",
+        "scripts/_inventory_seed_bom.py",
+        "scripts/_run_gov_revenue.py",
+        "tests/test_m3_government_revenue_benchmark.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 69127,
+      "zero_external": false
+    },
+    {
+      "module": "m3_intelligence_graph_read",
+      "external_importers": 9,
+      "importers_sample": [
+        "m3_market_hunt_handoff.py",
+        "m3_market_hunt_read.py",
+        "m3_research_queue.py",
+        "tests/test_m3_award_product_projection.py",
+        "tests/test_m3_demand_signal.py",
+        "tests/test_m3_intelligence_graph_read.py",
+        "tests/test_m3_research_queue.py",
+        "tests/test_m3_supplier_product_graph.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 42688,
+      "zero_external": false
+    },
+    {
+      "module": "m3_intelligence_retrieval_read",
+      "external_importers": 9,
+      "importers_sample": [
+        "m3_action_orchestration_read.py",
+        "m3_execution_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_action_orchestration.py",
+        "tests/test_m3_human_os.py",
+        "tests/test_m3_intelligence_retrieval.py",
+        "tests/test_m3_strategic_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 49673,
+      "zero_external": false
+    },
+    {
+      "module": "m3_master_record_read",
+      "external_importers": 9,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_action_orchestration.py",
+        "tests/test_m3_human_os.py",
+        "tests/test_m3_intelligence_retrieval.py",
+        "tests/test_m3_master_record.py",
+        "tests/test_m3_strategic_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 45623,
+      "zero_external": false
+    },
+    {
+      "module": "m3_pipeline_handoff",
+      "external_importers": 9,
+      "importers_sample": [
+        "app.py",
+        "m3_discovery_service.py",
+        "scripts/run_federal_dla_product_intelligence_campaign.py",
+        "scripts/run_federal_dla_product_intelligence_preflight.py",
+        "scripts/run_federal_handoff_throughput.py",
+        "scripts/run_m3_live_opportunity_test.py",
+        "tests/test_federal_dla_ironclad.py",
+        "tests/test_m3_pipeline_stabilization.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 21631,
+      "zero_external": false
+    },
+    {
+      "module": "m3_procurement_package",
+      "external_importers": 9,
+      "importers_sample": [
+        "app.py",
+        "m3_document_discovery.py",
+        "m3_document_evidence.py",
+        "m3_document_intelligence.py",
+        "m3_mobile_read_model.py",
+        "m3_product_identity_resolution.py",
+        "tests/test_m3_document_intelligence.py",
+        "tests/test_m3_procurement_package.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 58604,
+      "zero_external": false
+    },
+    {
+      "module": "micro_purchase_lab_economics",
+      "external_importers": 9,
+      "importers_sample": [
+        "micro_purchase_lab_pipeline.py",
+        "micro_purchase_lab_quote_intel.py",
+        "micro_purchase_lab_research.py",
+        "micro_purchase_lab_routes.py",
+        "micro_purchase_lab_service.py",
+        "response_engine/money.py",
+        "tests/test_micro_purchase_economics_lab.py",
+        "tests/test_micro_purchase_lab_automation.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 26896,
+      "zero_external": false
+    },
+    {
+      "module": "pricing",
+      "external_importers": 9,
+      "importers_sample": [
+        "ai_export.py",
+        "app.py",
+        "csv_pricing_service.py",
+        "openai_client.py",
+        "pricing_backfill_service.py",
+        "prior_contract_extract.py",
+        "proposal_service.py",
+        "sub_contact_service.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 15777,
+      "zero_external": false
+    },
+    {
+      "module": "public_evidence_constants",
+      "external_importers": 9,
+      "importers_sample": [
+        "deadline_conflict.py",
+        "deadline_runtime.py",
+        "portal_registration_decision.py",
+        "public_evidence_models.py",
+        "public_evidence_recovery.py",
+        "scripts/run_deadline_runtime_validation.py",
+        "tests/test_application_clock.py",
+        "tests/test_deadline_integrity_hardening.py",
+        "tests/test_public_evidence_recovery.py"
+      ],
+      "bytes": 2369,
+      "zero_external": false
+    },
+    {
+      "module": "solicitation_package",
+      "external_importers": 9,
+      "importers_sample": [
+        "commercial_next_action.py",
+        "co_clarification.py",
+        "deal_readiness.py",
+        "deal_workspace.py",
+        "missing_info_engine.py",
+        "next_action_engine.py",
+        "tests/test_commercial_workspace.py",
+        "tests/test_deal_workspace.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 5440,
+      "zero_external": false
+    },
+    {
+      "module": "ai_stage2",
+      "external_importers": 10,
+      "importers_sample": [
+        "openai_client.py",
+        "product_funnel.py",
+        "scripts/find_product_mvp_candidates.py",
+        "scripts/live_stage1_refresh_opp68.py",
+        "scripts/live_stage2_once_opp68.py",
+        "scripts/live_stage3_opp199.py",
+        "scripts/retest_opp68_economics_zero_cost.py",
+        "scripts/stage2_preflight_opp68.py",
+        "tests/test_economic_integrity.py",
+        "tests/test_stage2_evidence.py"
+      ],
+      "bytes": 54681,
+      "zero_external": false
+    },
+    {
+      "module": "auth",
+      "external_importers": 10,
+      "importers_sample": [
+        "app.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_capital_handler.py",
+        "scripts/_probe_colon_ids.py",
+        "scripts/_probe_deal_save_trace.py",
+        "scripts/_probe_deal_wipes_store.py",
+        "scripts/_probe_full_bom_wipe.py",
+        "scripts/_probe_ingest_then_api.py",
+        "tests/test_bid_compliance.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 1946,
+      "zero_external": false
+    },
+    {
+      "module": "funding_path_constants",
+      "external_importers": 10,
+      "importers_sample": [
+        "funding_engine.py",
+        "funding_path_intelligence.py",
+        "funding_source_kb.py",
+        "funding_source_research.py",
+        "funding_underwriting.py",
+        "discovery/tiny_end_to_end.py",
+        "tests/test_funding_path_intelligence.py",
+        "tests/test_funding_source_research.py",
+        "tests/test_pre_bid_transaction_financing.py",
+        "tests/test_tiny_end_to_end.py"
+      ],
+      "bytes": 6367,
+      "zero_external": false
+    },
+    {
+      "module": "gs_watchlist_service",
+      "external_importers": 10,
+      "importers_sample": [
+        "app.py",
+        "csv_watchlist_service.py",
+        "govspend_client.py",
+        "screening_pipeline.py",
+        "sync.py",
+        "watchlist_pricing.py",
+        "watchlist_sync.py",
+        "tests/test_watchlist_fingerprint.py",
+        "tests/test_watchlist_load_all.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 20065,
+      "zero_external": false
+    },
+    {
+      "module": "m3_contract_lifecycle_read",
+      "external_importers": 10,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "m3_master_record_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_action_orchestration.py",
+        "tests/test_m3_contract_lifecycle.py",
+        "tests/test_m3_intelligence_retrieval.py",
+        "tests/test_m3_master_record.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 51314,
+      "zero_external": false
+    },
+    {
+      "module": "m3_product_fact_projection",
+      "external_importers": 10,
+      "importers_sample": [
+        "m3_award_product_projection.py",
+        "m3_intelligence_graph_read.py",
+        "m3_research_queue.py",
+        "tests/test_m3_award_product_projection.py",
+        "tests/test_m3_demand_signal.py",
+        "tests/test_m3_intelligence_graph_read.py",
+        "tests/test_m3_product_fact_projection.py",
+        "tests/test_m3_research_queue.py",
+        "tests/test_m3_supplier_product_graph.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 30868,
+      "zero_external": false
+    },
+    {
+      "module": "missing_info",
+      "external_importers": 10,
+      "importers_sample": [
+        "co_clarification.py",
+        "final_clarification_review.py",
+        "local_package_search.py",
+        "missing_info_engine.py",
+        "next_action_engine.py",
+        "fixtures/opp199.py",
+        "fixtures/reconcile_opp199.py",
+        "scripts/run_opp199_document_completeness.py",
+        "tests/test_document_completeness.py",
+        "tests/test_operator_workflow.py"
+      ],
+      "bytes": 6624,
+      "zero_external": false
+    },
+    {
+      "module": "quote_validation",
+      "external_importers": 10,
+      "importers_sample": [
+        "commercial_execution.py",
+        "commercial_next_action.py",
+        "commercial_ops.py",
+        "commercial_quotes.py",
+        "deal_readiness.py",
+        "deal_workspace.py",
+        "os_service.py",
+        "fixtures/reconcile_opp199.py",
+        "tests/test_commercial_workspace.py",
+        "tests/test_deal_workspace.py"
+      ],
+      "bytes": 5488,
+      "zero_external": false
+    },
+    {
+      "module": "ai_pricing",
+      "external_importers": 11,
+      "importers_sample": [
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "final_clarification_review.py",
+        "openai_runtime.py",
+        "scripts/live_stage1_once.py",
+        "scripts/live_stage1_refresh_opp68.py",
+        "scripts/live_stage2_once_opp68.py",
+        "scripts/live_stage3_opp199.py",
+        "scripts/stage2_preflight_opp68.py",
+        "tests/test_ai_pricing.py",
+        "tests/test_stage2_evidence.py"
+      ],
+      "bytes": 6425,
+      "zero_external": false
+    },
+    {
+      "module": "commercial_verification_constants",
+      "external_importers": 11,
+      "importers_sample": [
+        "commercial_readiness_gate.py",
+        "commercial_result_pipeline.py",
+        "commercial_verification_engine.py",
+        "commercial_verification_plan.py",
+        "external_action_control.py",
+        "financing_verification.py",
+        "scripts/run_commercial_verification_validation.py",
+        "scripts/run_financing_false_negative_validation.py",
+        "tests/test_commercial_verification.py",
+        "tests/test_controlled_real_world_verification.py",
+        "tests/test_financing_false_negative.py"
+      ],
+      "bytes": 7339,
+      "zero_external": false
+    },
+    {
+      "module": "executable_deal_constants",
+      "external_importers": 11,
+      "importers_sample": [
+        "evidence_maturity.py",
+        "executable_deal_pipeline.py",
+        "live_package_completeness.py",
+        "operator_action_queue.py",
+        "operator_result_ingestion.py",
+        "pursuit_qualification.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_executable_deal_pipeline.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "tests/test_executable_deal_pipeline.py",
+        "tests/test_live_autonomous_deal_validation.py"
+      ],
+      "bytes": 3232,
+      "zero_external": false
+    },
+    {
+      "module": "federal_dla_product_constants",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_product_fact_projection.py",
+        "discovery/dla_product_extract.py",
+        "discovery/federal_description_recovery.py",
+        "discovery/federal_dla_enrichment.py",
+        "discovery/federal_package_refs.py",
+        "scripts/run_federal_dla_product_intelligence_preflight.py",
+        "tests/test_federal_dla_product_intelligence.py",
+        "tests/test_m3_award_product_projection.py",
+        "tests/test_m3_intelligence_graph_read.py",
+        "tests/test_m3_product_fact_projection.py",
+        "tests/test_m3_research_queue.py"
+      ],
+      "bytes": 3716,
+      "zero_external": false
+    },
+    {
+      "module": "m3_economic_learning_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_contract_lifecycle_read.py",
+        "m3_execution_os_read.py",
+        "m3_intelligence_retrieval_read.py",
+        "m3_master_record_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_contract_lifecycle.py",
+        "tests/test_m3_economic_learning.py",
+        "tests/test_m3_master_record.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 40896,
+      "zero_external": false
+    },
+    {
+      "module": "m3_human_os_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_human_os.py",
+        "tests/test_m3_next_hour_queue.py",
+        "tests/test_m3_operator_loop.py",
+        "tests/test_m3_opportunity_operating.py",
+        "tests/test_m3_pursuit_readiness.py",
+        "tests/test_m3_research_execution.py",
+        "tests/test_m3_supply_intelligence.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 35939,
+      "zero_external": false
+    },
+    {
+      "module": "m3_offer_readiness_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "m3_supplier_capital_ops_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_dla_clause_extraction.py",
+        "tests/test_m3_eligibility_evidence.py",
+        "tests/test_m3_execution_os.py",
+        "tests/test_m3_offer_readiness.py",
+        "tests/test_m3_source_qualification.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 36378,
+      "zero_external": false
+    },
+    {
+      "module": "m3_operator_loop_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_commercial_validation_read.py",
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_next_hour_queue_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_capital_requirement_gate.py",
+        "tests/test_m3_commercial_validation.py",
+        "tests/test_m3_final_operator_dry_run.py",
+        "tests/test_m3_operator_loop.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 26512,
+      "zero_external": false
+    },
+    {
+      "module": "m3_opportunity_operating_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_next_hour_queue_read.py",
+        "m3_operator_loop_read.py",
+        "m3_pursuit_readiness_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_next_hour_queue.py",
+        "tests/test_m3_opportunity_operating.py",
+        "tests/test_m3_pursuit_readiness.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 28860,
+      "zero_external": false
+    },
+    {
+      "module": "m3_research_execution_read",
+      "external_importers": 11,
+      "importers_sample": [
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_next_hour_queue_read.py",
+        "m3_opportunity_operating_read.py",
+        "m3_supply_intelligence_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_opportunity_operating.py",
+        "tests/test_m3_pursuit_readiness.py",
+        "tests/test_m3_research_execution.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 30039,
+      "zero_external": false
+    },
+    {
+      "module": "pursuit_qualification_constants",
+      "external_importers": 11,
+      "importers_sample": [
+        "cost_intelligence.py",
+        "operating_mode.py",
+        "operator_action_queue.py",
+        "package_readiness_layers.py",
+        "pursuit_qualification.py",
+        "pursuit_ranking.py",
+        "source_health.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_financing_false_negative_validation.py",
+        "tests/test_financing_false_negative.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 3124,
+      "zero_external": false
+    },
+    {
+      "module": "m3_supplier_capital_ops_read",
+      "external_importers": 12,
+      "importers_sample": [
+        "m3_action_orchestration_read.py",
+        "m3_capital_requirement_gate_read.py",
+        "m3_commercial_validation_read.py",
+        "m3_economic_learning_read.py",
+        "m3_execution_os_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_contract_lifecycle.py",
+        "tests/test_m3_economic_learning.py",
+        "tests/test_m3_supplier_capital_ops.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 48533,
+      "zero_external": false
+    },
+    {
+      "module": "proposal_service",
+      "external_importers": 12,
+      "importers_sample": [
+        "agreement_service.py",
+        "ai_export.py",
+        "app.py",
+        "intake.py",
+        "openai_client.py",
+        "prior_contract_extract.py",
+        "product_api.py",
+        "proposal_export.py",
+        "sub_contact_service.py",
+        "workflow_status.py",
+        "tests/test_economic_integrity.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 40639,
+      "zero_external": false
+    },
+    {
+      "module": "reusable_knowledge",
+      "external_importers": 12,
+      "importers_sample": [
+        "cost_intelligence.py",
+        "executable_deal_pipeline.py",
+        "on_demand_research_loop.py",
+        "operator_result_ingestion.py",
+        "pursuit_qualification.py",
+        "scripts/run_autonomous_pursuit_qualification.py",
+        "scripts/run_executable_deal_pipeline.py",
+        "scripts/run_live_autonomous_deal_validation.py",
+        "scripts/run_on_demand_procurement_intelligence.py",
+        "tests/test_executable_deal_pipeline.py",
+        "tests/test_on_demand_procurement_intelligence.py",
+        "tests/test_pursuit_qualification.py"
+      ],
+      "bytes": 4966,
+      "zero_external": false
+    },
+    {
+      "module": "screening_pipeline",
+      "external_importers": 12,
+      "importers_sample": [
+        "app.py",
+        "attachment_pipeline.py",
+        "csv_watchlist_service.py",
+        "intake.py",
+        "proposal_service.py",
+        "screen.py",
+        "sub_finder.py",
+        "sync.py",
+        "workflow_backfill_service.py",
+        "scripts/audit_compliance_backfill.py",
+        "scripts/diagnose_dashboard.py",
+        "_wip_backup_before_micro_lab/app.py"
+      ],
+      "bytes": 10404,
+      "zero_external": false
+    },
+    {
+      "module": "m3_lifecycle",
+      "external_importers": 13,
+      "importers_sample": [
+        "app.py",
+        "first_pursuit_selection.py",
+        "m3_end_to_end.py",
+        "m3_intelligence_graph_read.py",
+        "m3_mobile_read_model.py",
+        "m3_pipeline_store.py",
+        "m3_research_service.py",
+        "scripts/run_m3_1_0_e2e_validation.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "tests/test_m3_1_0_end_to_end.py",
+        "tests/test_operator_workflow_api.py",
+        "tests/test_operator_workflow_projection.py"
+      ],
+      "bytes": 12437,
+      "zero_external": false
+    },
+    {
+      "module": "m3_opportunity_identity",
+      "external_importers": 13,
+      "importers_sample": [
+        "m3_intelligence_graph_read.py",
+        "m3_market_hunt_handoff.py",
+        "m3_market_hunt_read.py",
+        "m3_offer_readiness_read.py",
+        "m3_product_fact_projection.py",
+        "m3_research_queue.py",
+        "tests/test_m3_award_product_projection.py",
+        "tests/test_m3_demand_signal.py",
+        "tests/test_m3_intelligence_graph_read.py",
+        "tests/test_m3_opportunity_identity.py",
+        "tests/test_m3_research_queue.py",
+        "tests/test_m3_supplier_product_graph.py"
+      ],
+      "bytes": 16205,
+      "zero_external": false
+    },
+    {
+      "module": "naics_labels",
+      "external_importers": 13,
+      "importers_sample": [
+        "ai_export.py",
+        "csv_opportunity_service.py",
+        "csv_watchlist_service.py",
+        "database.py",
+        "display_format.py",
+        "m3_procurement_profile.py",
+        "openai_client.py",
+        "sam_client.py",
+        "scheduler.py",
+        "settings_store.py",
+        "sub_constants.py",
+        "sync.py"
+      ],
+      "bytes": 5693,
+      "zero_external": false
+    },
+    {
+      "module": "pws_fields",
+      "external_importers": 13,
+      "importers_sample": [
+        "ai_export.py",
+        "app.py",
+        "intake.py",
+        "internal_pricing.py",
+        "openai_client.py",
+        "pricing.py",
+        "proposal_service.py",
+        "screen.py",
+        "screening_pipeline.py",
+        "sync.py",
+        "scripts/diagnose_dashboard.py",
+        "tests/test_data_integrity.py"
+      ],
+      "bytes": 11497,
+      "zero_external": false
+    },
+    {
+      "module": "attachment_storage",
+      "external_importers": 14,
+      "importers_sample": [
+        "app.py",
+        "attachment_pipeline.py",
+        "direct_document_retrieval.py",
+        "document_intel.py",
+        "intake.py",
+        "openai_client.py",
+        "prior_contract_extract.py",
+        "refresh_pricing.py",
+        "refresh_workflow.py",
+        "screening_pipeline.py",
+        "sync.py",
+        "workflow_backfill_service.py"
+      ],
+      "bytes": 8918,
+      "zero_external": false
+    },
+    {
+      "module": "m3_execution_os_read",
+      "external_importers": 14,
+      "importers_sample": [
+        "m3_contract_lifecycle_read.py",
+        "m3_economic_learning_read.py",
+        "m3_supplier_capital_ops_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_m3_action_orchestration.py",
+        "tests/test_m3_contract_lifecycle.py",
+        "tests/test_m3_economic_learning.py",
+        "tests/test_m3_execution_os.py",
+        "tests/test_m3_intelligence_retrieval.py",
+        "tests/test_m3_master_record.py"
+      ],
+      "bytes": 47737,
+      "zero_external": false
+    },
+    {
+      "module": "m3_product_identity_resolution",
+      "external_importers": 14,
+      "importers_sample": [
+        "app.py",
+        "m3_acquisition_target_engine.py",
+        "m3_commercial_product_matching.py",
+        "m3_government_revenue_benchmark.py",
+        "m3_material_acquisition_gap.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_public_pricing_evidence.py",
+        "m3_seed_basket_economics.py",
+        "micro_purchase_lab_research.py",
+        "tests/test_m3_acquisition_target_engine.py",
+        "tests/test_m3_commercial_product_matching.py"
+      ],
+      "bytes": 55218,
+      "zero_external": false
+    },
+    {
+      "module": "m3_public_pricing_evidence",
+      "external_importers": 14,
+      "importers_sample": [
+        "app.py",
+        "m3_government_revenue_benchmark.py",
+        "m3_material_acquisition_gap.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_seed_basket_economics.py",
+        "phase_l/enrichment.py",
+        "phase_l/market_price.py",
+        "scripts/_debug_price_extract.py",
+        "scripts/_debug_test_html.py",
+        "scripts/_inventory_seed_bom.py",
+        "scripts/_probe_gov_awards.py"
+      ],
+      "bytes": 66151,
+      "zero_external": false
+    },
+    {
+      "module": "openai_client",
+      "external_importers": 14,
+      "importers_sample": [
+        "agreement_service.py",
+        "ai_export.py",
+        "attachment_pipeline.py",
+        "attachment_storage.py",
+        "claude_client.py",
+        "contract_advice.py",
+        "intake.py",
+        "proposal_service.py",
+        "settings_store.py",
+        "sub_finder.py",
+        "scripts/diagnose_attachment_text.py",
+        "scripts/verify_stage1_cache_funnel.py"
+      ],
+      "bytes": 83159,
+      "zero_external": false
+    },
+    {
+      "module": "sam_scarcity",
+      "external_importers": 14,
+      "importers_sample": [
+        "app.py",
+        "discovery_api.py",
+        "product_api.py",
+        "product_discovery.py",
+        "sam_client.py",
+        "sam_enrich.py",
+        "sync.py",
+        "discovery/federal_sam_ingest.py",
+        "discovery/sam_policy.py",
+        "scripts/live_stage3_opp199.py",
+        "scripts/product_beta_cli.py",
+        "tests/test_discovery_network.py"
+      ],
+      "bytes": 26463,
+      "zero_external": false
+    },
+    {
+      "module": "solicitation_identity",
+      "external_importers": 14,
+      "importers_sample": [
+        "budget_catchup.py",
+        "m3_opportunity_identity.py",
+        "m3_pipeline_handoff.py",
+        "m3_pipeline_store.py",
+        "national_discovery_funnel.py",
+        "scripts/run_m3_live_opportunity_test.py",
+        "scripts/run_national_incremental_discovery_validation.py",
+        "scripts/run_productive_source_network_validation.py",
+        "scripts/run_round2_high_coverage_validation.py",
+        "tests/test_m3_opportunity_identity.py",
+        "tests/test_m3_pipeline_stabilization.py",
+        "tests/test_national_incremental_discovery.py"
+      ],
+      "bytes": 7392,
+      "zero_external": false
+    },
+    {
+      "module": "ai_analysis_cache",
+      "external_importers": 15,
+      "importers_sample": [
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "openai_runtime.py",
+        "scripts/check_cache_persistence.py",
+        "scripts/find_product_mvp_candidates.py",
+        "scripts/live_stage1_once.py",
+        "scripts/live_stage1_refresh_opp68.py",
+        "scripts/live_stage2_once_opp68.py",
+        "scripts/restore_stage1_hist_cache_opp68.py",
+        "scripts/stage2_preflight_opp68.py",
+        "scripts/verify_stage1_cache_funnel.py",
+        "tests/test_ai_cache.py"
+      ],
+      "bytes": 5448,
+      "zero_external": false
+    },
+    {
+      "module": "deadline_runtime",
+      "external_importers": 15,
+      "importers_sample": [
+        "executable_deal_pipeline.py",
+        "historical_backtest_runner.py",
+        "m3_end_to_end.py",
+        "m3_evidence_acquisition.py",
+        "m3_human_os_read.py",
+        "m3_pipeline_store.py",
+        "m3_pursuit_readiness_read.py",
+        "discovery/deadline.py",
+        "discovery/deadline_viability.py",
+        "discovery/sciquest.py",
+        "scripts/run_deadline_runtime_validation.py",
+        "scripts/run_live_autonomous_deal_validation.py"
+      ],
+      "bytes": 36109,
+      "zero_external": false
+    },
+    {
+      "module": "deep_deal_constants",
+      "external_importers": 15,
+      "importers_sample": [
+        "deep_deal_compliance.py",
+        "deep_deal_documents.py",
+        "deep_deal_economics.py",
+        "deep_deal_openai.py",
+        "deep_deal_qualification.py",
+        "deep_deal_research.py",
+        "deep_deal_suppliers.py",
+        "executable_deal_pipeline.py",
+        "historical_backtest_runner.py",
+        "m3_eligibility_evidence_read.py",
+        "transactional_discovery.py",
+        "transactional_procurement.py"
+      ],
+      "bytes": 5311,
+      "zero_external": false
+    },
+    {
+      "module": "m3_supply_intelligence_read",
+      "external_importers": 15,
+      "importers_sample": [
+        "m3_commercial_validation_read.py",
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_operator_loop_read.py",
+        "m3_opportunity_operating_read.py",
+        "m3_pursuit_readiness_read.py",
+        "m3_research_execution_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_commercial_validation.py",
+        "tests/test_m3_opportunity_operating.py",
+        "tests/test_m3_pursuit_readiness.py"
+      ],
+      "bytes": 31877,
+      "zero_external": false
+    },
+    {
+      "module": "product_deal",
+      "external_importers": 15,
+      "importers_sample": [
+        "ai_funnel.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "deal_engine.py",
+        "historical_backtest_runner.py",
+        "product_api.py",
+        "product_discovery.py",
+        "product_funnel.py",
+        "sam_scarcity.py",
+        "stage3_engine.py",
+        "scripts/find_product_mvp_candidates.py",
+        "scripts/live_stage3_opp199.py"
+      ],
+      "bytes": 28744,
+      "zero_external": false
+    },
+    {
+      "module": "m3_deal_economics",
+      "external_importers": 16,
+      "importers_sample": [
+        "app.py",
+        "m3_acquisition_target_engine.py",
+        "m3_commercial_product_matching.py",
+        "m3_government_revenue_benchmark.py",
+        "m3_intelligence_graph_read.py",
+        "m3_material_acquisition_gap.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_procurement_package.py",
+        "m3_product_pricing.py",
+        "m3_public_pricing_evidence.py",
+        "m3_seed_basket_economics.py"
+      ],
+      "bytes": 25951,
+      "zero_external": false
+    },
+    {
+      "module": "m3_mobile_read_model",
+      "external_importers": 16,
+      "importers_sample": [
+        "app.py",
+        "live_review_package.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_save_trace.py",
+        "tests/test_deadline_integrity_hardening.py",
+        "tests/test_execution_compliance.py",
+        "tests/test_m3_automatic_discovery.py",
+        "tests/test_m3_market_hunt_handoff.py",
+        "tests/test_m3_mobile_operator.py",
+        "tests/test_m3_offer_readiness.py",
+        "tests/test_m3_pipeline_persistence.py"
+      ],
+      "bytes": 43854,
+      "zero_external": false
+    },
+    {
+      "module": "m3_pursuit_readiness_read",
+      "external_importers": 16,
+      "importers_sample": [
+        "m3_commercial_validation_read.py",
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_next_hour_queue_read.py",
+        "m3_operator_loop_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "scripts/_probe_store_get.py",
+        "tests/test_deadline_integrity_hardening.py",
+        "tests/test_m3_capital_requirement_gate.py",
+        "tests/test_m3_commercial_validation.py",
+        "tests/test_m3_final_operator_dry_run.py"
+      ],
+      "bytes": 41149,
+      "zero_external": false
+    },
+    {
+      "module": "m3_supplier_intelligence",
+      "external_importers": 16,
+      "importers_sample": [
+        "app.py",
+        "m3_acquisition_target_engine.py",
+        "m3_commercial_product_matching.py",
+        "m3_competitive_intelligence.py",
+        "m3_deal_economics.py",
+        "m3_document_evidence.py",
+        "m3_execution_intelligence.py",
+        "m3_intelligence_graph_read.py",
+        "m3_mobile_read_model.py",
+        "m3_procurement_package.py",
+        "m3_product_identity_resolution.py",
+        "m3_product_pricing.py"
+      ],
+      "bytes": 47734,
+      "zero_external": false
+    },
+    {
+      "module": "sam_enrich",
+      "external_importers": 17,
+      "importers_sample": [
+        "ai_export.py",
+        "amendment_monitor.py",
+        "csv_attachment_queue_service.py",
+        "direct_document_retrieval.py",
+        "document_intel.py",
+        "intake.py",
+        "openai_client.py",
+        "piee_client.py",
+        "public_document_retriever.py",
+        "sam_client.py",
+        "sync.py",
+        "workflow_status.py"
+      ],
+      "bytes": 24309,
+      "zero_external": false
+    },
+    {
+      "module": "sam_client",
+      "external_importers": 18,
+      "importers_sample": [
+        "app.py",
+        "intake.py",
+        "openai_client.py",
+        "opportunity_source.py",
+        "product_discovery.py",
+        "sam_enrich.py",
+        "sam_live_fallback.py",
+        "sync.py",
+        "watchlist_sync.py",
+        "workflow_backfill_service.py",
+        "discovery/dla_fallback.py",
+        "discovery/federal_sam_ingest.py"
+      ],
+      "bytes": 10646,
+      "zero_external": false
+    },
+    {
+      "module": "ai_stage1",
+      "external_importers": 19,
+      "importers_sample": [
+        "ai_stage2.py",
+        "intake.py",
+        "openai_client.py",
+        "product_api.py",
+        "product_funnel.py",
+        "scripts/find_product_mvp_candidates.py",
+        "scripts/live_stage1_once.py",
+        "scripts/live_stage1_refresh_opp68.py",
+        "scripts/live_stage2_once_opp68.py",
+        "scripts/live_stage3_opp199.py",
+        "scripts/product_beta_cli.py",
+        "scripts/restore_stage1_hist_cache_opp68.py"
+      ],
+      "bytes": 25537,
+      "zero_external": false
+    },
+    {
+      "module": "settings_store",
+      "external_importers": 19,
+      "importers_sample": [
+        "agreement_service.py",
+        "ai_export.py",
+        "app.py",
+        "csv_import_service.py",
+        "intake.py",
+        "m3_discovery_service.py",
+        "openai_client.py",
+        "performance_service.py",
+        "proposal_defaults.py",
+        "proposal_service.py",
+        "proximity_scoring.py",
+        "sam_client.py"
+      ],
+      "bytes": 11840,
+      "zero_external": false
+    },
+    {
+      "module": "ai_model_router",
+      "external_importers": 20,
+      "importers_sample": [
+        "ai_funnel.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "m3_commercial_product_matching.py",
+        "m3_evidence_acquisition.py",
+        "m3_public_pricing_evidence.py",
+        "m3_supplier_intelligence.py",
+        "openai_client.py",
+        "openai_runtime.py",
+        "scripts/find_product_mvp_candidates.py",
+        "scripts/live_stage1_once.py",
+        "scripts/live_stage1_refresh_opp68.py"
+      ],
+      "bytes": 4216,
+      "zero_external": false
+    },
+    {
+      "module": "cost_governor",
+      "external_importers": 20,
+      "importers_sample": [
+        "app.py",
+        "bid_compliance_engine.py",
+        "bid_pricing_engine.py",
+        "commercial_verification_engine.py",
+        "cost_governor_integrations.py",
+        "external_action_control.py",
+        "m3_commercial_product_matching.py",
+        "m3_discovery_planner.py",
+        "m3_discovery_service.py",
+        "m3_end_to_end.py",
+        "m3_evidence_acquisition.py",
+        "m3_portfolio_deal_analysis.py"
+      ],
+      "bytes": 31820,
+      "zero_external": false
+    },
+    {
+      "module": "national_discovery_constants",
+      "external_importers": 20,
+      "importers_sample": [
+        "authoritative_freshness_gate.py",
+        "cost_governor_integrations.py",
+        "coverage_gap_intelligence.py",
+        "discovery_checkpoint.py",
+        "entity_geographic_coverage.py",
+        "national_discovery_funnel.py",
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_registry.py",
+        "pursuit_ranking.py",
+        "solicitation_identity.py",
+        "source_discovery_engine.py",
+        "source_network_audit.py"
+      ],
+      "bytes": 3816,
+      "zero_external": false
+    },
+    {
+      "module": "national_discovery_funnel",
+      "external_importers": 20,
+      "importers_sample": [
+        "budget_catchup.py",
+        "m3_discovery_service.py",
+        "m3_end_to_end.py",
+        "m3_portfolio_deal_analysis.py",
+        "micro_purchase_lab_pipeline.py",
+        "product_category_yield.py",
+        "product_yield_intelligence.py",
+        "phase_g/live_batch.py",
+        "phase_i/hunt.py",
+        "scripts/run_cost_governor_validation.py",
+        "scripts/run_m3_1_0_e2e_validation.py",
+        "scripts/run_m3_final_operator_dry_run.py"
+      ],
+      "bytes": 10393,
+      "zero_external": false
+    },
+    {
+      "module": "pdf_text",
+      "external_importers": 20,
+      "importers_sample": [
+        "attachment_pipeline.py",
+        "direct_document_retrieval.py",
+        "document_ingestion.py",
+        "m3_government_revenue_benchmark.py",
+        "m3_seed_basket_economics.py",
+        "openai_client.py",
+        "prior_contract_extract.py",
+        "procurement_reprocess.py",
+        "public_document_retriever.py",
+        "public_evidence_recovery.py",
+        "sam_live_fallback.py",
+        "solicitation_package_retrieval.py"
+      ],
+      "bytes": 1079,
+      "zero_external": false
+    },
+    {
+      "module": "usaspending_client",
+      "external_importers": 20,
+      "importers_sample": [
+        "ai_export.py",
+        "app.py",
+        "comparable_scope.py",
+        "csv_pricing_service.py",
+        "display_format.py",
+        "location_matching.py",
+        "openai_client.py",
+        "pricing.py",
+        "prior_contract_extract.py",
+        "pws_fields.py",
+        "sam_client.py",
+        "sam_enrich.py"
+      ],
+      "bytes": 87220,
+      "zero_external": false
+    },
+    {
+      "module": "m3_commercial_engine",
+      "external_importers": 21,
+      "importers_sample": [
+        "app.py",
+        "m3_acquisition_target_engine.py",
+        "m3_competitive_intelligence.py",
+        "m3_deal_economics.py",
+        "m3_discovery_service.py",
+        "m3_document_evidence.py",
+        "m3_end_to_end.py",
+        "m3_execution_intelligence.py",
+        "m3_mobile_read_model.py",
+        "m3_procurement_package.py",
+        "m3_product_identity_resolution.py",
+        "m3_product_pricing.py"
+      ],
+      "bytes": 40854,
+      "zero_external": false
+    },
+    {
+      "module": "openai_runtime",
+      "external_importers": 22,
+      "importers_sample": [
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "deep_deal_openai.py",
+        "final_clarification_review.py",
+        "m3_commercial_product_matching.py",
+        "m3_evidence_acquisition.py",
+        "m3_public_pricing_evidence.py",
+        "m3_supplier_intelligence.py",
+        "openai_client.py",
+        "discovery/dla_fallback.py",
+        "scripts/live_stage1_once.py",
+        "scripts/live_stage1_refresh_opp68.py"
+      ],
+      "bytes": 18077,
+      "zero_external": false
+    },
+    {
+      "module": "m3_end_to_end",
+      "external_importers": 23,
+      "importers_sample": [
+        "app.py",
+        "m3_discovery_service.py",
+        "m3_pipeline_handoff.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_research_service.py",
+        "scripts/run_federal_dla_product_intelligence_campaign.py",
+        "scripts/run_federal_handoff_throughput.py",
+        "scripts/run_m3_1_0_e2e_validation.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/run_m3_live_opportunity_test.py",
+        "scripts/_probe_capital_handler.py",
+        "scripts/_probe_deal_save_trace.py"
+      ],
+      "bytes": 35497,
+      "zero_external": false
+    },
+    {
+      "module": "m3_action_orchestration_read",
+      "external_importers": 24,
+      "importers_sample": [
+        "m3_capital_requirement_gate_read.py",
+        "m3_execution_os_read.py",
+        "m3_human_os_read.py",
+        "m3_next_hour_queue_read.py",
+        "m3_operator_loop_read.py",
+        "m3_opportunity_operating_read.py",
+        "m3_pursuit_readiness_read.py",
+        "m3_research_execution_read.py",
+        "m3_supply_intelligence_read.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_deal_wipe_step.py",
+        "tests/test_m3_action_orchestration.py"
+      ],
+      "bytes": 46662,
+      "zero_external": false
+    },
+    {
+      "module": "ai_funnel",
+      "external_importers": 27,
+      "importers_sample": [
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "intake.py",
+        "micro_purchase_lab_pipeline.py",
+        "openai_client.py",
+        "openai_runtime.py",
+        "product_api.py",
+        "product_deal.py",
+        "product_discovery.py",
+        "product_funnel.py",
+        "sam_scarcity.py",
+        "scripts/find_product_mvp_candidates.py"
+      ],
+      "bytes": 28569,
+      "zero_external": false
+    },
+    {
+      "module": "cost_governor_constants",
+      "external_importers": 28,
+      "importers_sample": [
+        "bid_compliance_engine.py",
+        "bid_pricing_engine.py",
+        "budget_catchup.py",
+        "budget_config.py",
+        "commercial_verification_engine.py",
+        "cost_governor.py",
+        "cost_governor_integrations.py",
+        "m3_human_os_read.py",
+        "m3_research_execution_read.py",
+        "research_cost_ledger.py",
+        "scripts/run_cost_governor_validation.py",
+        "tests/test_cost_governor.py"
+      ],
+      "bytes": 2826,
+      "zero_external": false
+    },
+    {
+      "module": "data_integrity",
+      "external_importers": 28,
+      "importers_sample": [
+        "ai_funnel.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "company_profile.py",
+        "deal_engine.py",
+        "display_format.py",
+        "economic_integrity.py",
+        "historical_context.py",
+        "intake.py",
+        "knowledge_store.py",
+        "legacy_data_integrity.py",
+        "openai_client.py"
+      ],
+      "bytes": 18670,
+      "zero_external": false
+    },
+    {
+      "module": "portal_document_resolver",
+      "external_importers": 28,
+      "importers_sample": [
+        "m3_document_discovery.py",
+        "m3_document_intelligence.py",
+        "m3_evidence_acquisition.py",
+        "m3_product_identity_resolution.py",
+        "ne_wy_deep_coverage.py",
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_seed_sweep.py",
+        "artifacts/_live_breakthrough_verify.py",
+        "artifacts/_probe_opengov.py",
+        "artifacts/_probe_phoenix.py",
+        "artifacts/_probe_phoenix2.py",
+        "artifacts/_probe_phoenix3.py"
+      ],
+      "bytes": 16202,
+      "zero_external": false
+    },
+    {
+      "module": "procurement_source_registry",
+      "external_importers": 28,
+      "importers_sample": [
+        "app.py",
+        "coverage_gap_intelligence.py",
+        "entity_geographic_coverage.py",
+        "m3_discovery_service.py",
+        "m3_mobile_read_model.py",
+        "ne_wy_deep_coverage.py",
+        "procurement_source_coverage_discovery.py",
+        "procurement_source_coverage_expansion.py",
+        "procurement_source_seed_sweep.py",
+        "source_discovery_engine.py",
+        "source_network_audit.py",
+        "source_recovery_priority.py"
+      ],
+      "bytes": 18426,
+      "zero_external": false
+    },
+    {
+      "module": "api_budget",
+      "external_importers": 32,
+      "importers_sample": [
+        "agreement_service.py",
+        "ai_export.py",
+        "app.py",
+        "autopilot_service.py",
+        "csv_attachment_queue_service.py",
+        "intake.py",
+        "m3_discovery_planner.py",
+        "openai_client.py",
+        "prior_contract_extract.py",
+        "product_api.py",
+        "proposal_service.py",
+        "sam_client.py"
+      ],
+      "bytes": 14012,
+      "zero_external": false
+    },
+    {
+      "module": "economic_integrity",
+      "external_importers": 32,
+      "importers_sample": [
+        "ai_funnel.py",
+        "ai_stage2.py",
+        "bid_price_targets.py",
+        "commercial_economics.py",
+        "commercial_ops.py",
+        "commercial_verification_plan.py",
+        "deal_engine.py",
+        "deal_readiness.py",
+        "deep_deal_economics.py",
+        "executable_deal_pipeline.py",
+        "financing_verification.py",
+        "historical_context.py"
+      ],
+      "bytes": 32877,
+      "zero_external": false
+    },
+    {
+      "module": "m3_discovery_service",
+      "external_importers": 37,
+      "importers_sample": [
+        "app.py",
+        "m3_commercial_validation_read.py",
+        "m3_intelligence_graph_read.py",
+        "m3_mobile_read_model.py",
+        "m3_operator_loop_read.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_research_service.py",
+        "micro_purchase_lab_research.py",
+        "micro_purchase_lab_service.py",
+        "product_resale_live_validation.py",
+        "scheduler.py",
+        "scripts/run_federal_dla_product_intelligence_campaign.py"
+      ],
+      "bytes": 50784,
+      "zero_external": false
+    },
+    {
+      "module": "app",
+      "external_importers": 57,
+      "importers_sample": [
+        "scripts/run_federal_dla_preflight.py",
+        "scripts/run_federal_dla_product_intelligence_preflight.py",
+        "scripts/run_m3_final_operator_dry_run.py",
+        "scripts/_probe_capital_handler.py",
+        "scripts/_probe_colon_ids.py",
+        "scripts/_probe_deal_save_trace.py",
+        "scripts/_probe_deal_wipes_store.py",
+        "scripts/_probe_full_bom_wipe.py",
+        "scripts/_probe_ingest_then_api.py",
+        "tests/test_bid_compliance.py",
+        "tests/test_bid_pricing.py",
+        "tests/test_commercial_verification.py"
+      ],
+      "bytes": 239110,
+      "zero_external": false
+    },
+    {
+      "module": "m3_pipeline_store",
+      "external_importers": 64,
+      "importers_sample": [
+        "app.py",
+        "first_pursuit_selection.py",
+        "live_review_package.py",
+        "m3_commercial_validation_read.py",
+        "m3_demand_signal.py",
+        "m3_discovery_service.py",
+        "m3_economic_learning_read.py",
+        "m3_end_to_end.py",
+        "m3_execution_os_read.py",
+        "m3_intelligence_graph_read.py",
+        "m3_market_hunt_read.py",
+        "m3_mobile_read_model.py"
+      ],
+      "bytes": 33150,
+      "zero_external": false
+    },
+    {
+      "module": "operating_mode",
+      "external_importers": 76,
+      "importers_sample": [
+        "app.py",
+        "bid_compliance_engine.py",
+        "bid_pricing_engine.py",
+        "commercial_verification_engine.py",
+        "external_action_control.py",
+        "live_review_package.py",
+        "m3_discovery_service.py",
+        "m3_end_to_end.py",
+        "m3_mobile_read_model.py",
+        "m3_portfolio_deal_analysis.py",
+        "m3_research_service.py",
+        "operator_action_queue.py"
+      ],
+      "bytes": 6890,
+      "zero_external": false
+    },
+    {
+      "module": "database",
+      "external_importers": 119,
+      "importers_sample": [
+        "ai_analysis_cache.py",
+        "ai_cost_budget.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "api_budget.py",
+        "app.py",
+        "attachment_storage.py",
+        "clear_db.py",
+        "csv_attachment_queue_service.py",
+        "csv_pricing_job.py",
+        "csv_upload_job.py",
+        "deals_api.py"
+      ],
+      "bytes": 18469,
+      "zero_external": false
+    },
+    {
+      "module": "models",
+      "external_importers": 160,
+      "importers_sample": [
+        "agreement_service.py",
+        "ai_analysis_cache.py",
+        "ai_cost_budget.py",
+        "ai_events.py",
+        "ai_export.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "amendment_monitor.py",
+        "api_budget.py",
+        "app.py",
+        "ask_about_deal.py",
+        "attachment_pipeline.py"
+      ],
+      "bytes": 95018,
+      "zero_external": false
+    },
+    {
+      "module": "application_clock",
+      "external_importers": 377,
+      "importers_sample": [
+        "agreement_export.py",
+        "agreement_service.py",
+        "ai_analysis_cache.py",
+        "ai_cost_budget.py",
+        "ai_events.py",
+        "ai_export.py",
+        "ai_funnel.py",
+        "ai_stage1.py",
+        "ai_stage2.py",
+        "amendment_monitor.py",
+        "api_budget.py",
+        "app.py"
+      ],
+      "bytes": 5399,
+      "zero_external": false
+    }
+  ],
+  "phase_l_zero_importers_candidate": [
+    {
+      "module": "phase_l/l10_rescue.py",
+      "stem": "l10_rescue"
+    },
+    {
+      "module": "phase_l/l12_rescue.py",
+      "stem": "l12_rescue"
+    },
+    {
+      "module": "phase_l/l13_rescue.py",
+      "stem": "l13_rescue"
+    },
+    {
+      "module": "phase_l/l14_rescue.py",
+      "stem": "l14_rescue"
+    },
+    {
+      "module": "phase_l/l172_coverage_saturation.py",
+      "stem": "l172_coverage_saturation"
+    },
+    {
+      "module": "phase_l/l17_lower48_coverage.py",
+      "stem": "l17_lower48_coverage"
+    }
+  ],
+  "docs_total": 410,
+  "obsolete_docs_candidate": [
+    "eligibility_gate_audit.md",
+    "eligibility_gate_completion_report.md",
+    "eligibility_gate_regression_report.md",
+    "end_to_end_validation_audit.md",
+    "execution_compliance_audit.md",
+    "operator_ui_audit.md",
+    "operator_workflow_mapping.md",
+    "phase_e1_integrity_repair_audit.md",
+    "phase_f_baseline.md",
+    "phase_f_completion_report.md",
+    "phase_f_reality_gap_register.md",
+    "phase_f_validation_scorecard.md",
+    "phase_g_completion_report.md",
+    "phase_g_live_run_report.md",
+    "phase_g_live_source_gap_register.md",
+    "phase_g_preflight.md",
+    "phase_g_ready_audit.md",
+    "phase_g_rejection_audit.md",
+    "phase_g_validation_scorecard.md",
+    "phase_h_cohort.md",
+    "phase_h_completion_report.md",
+    "phase_h_deep_research_report.md",
+    "phase_h_gap_register.md",
+    "phase_h_manual_audit.md",
+    "phase_h_preflight.md",
+    "phase_h_validation_scorecard.md",
+    "phase_i_completion_report.md",
+    "phase_i_deep_deal_report.md",
+    "phase_i_gap_register.md",
+    "phase_i_owner_ready_deals.md",
+    "phase_i_preflight.md",
+    "phase_i_rejection_summary.md",
+    "phase_i_search_funnel.md",
+    "phase_i_validation_scorecard.md",
+    "phase_j_completion_report.md",
+    "phase_j_gap_register.md",
+    "phase_j_history_reconciliation_report.md",
+    "phase_j_identity_rules.md",
+    "phase_j_preflight.md",
+    "phase_j_reconciliation_corpus.md",
+    "phase_j_validation_scorecard.md",
+    "phase_k_completion_report.md",
+    "phase_k_economics.md",
+    "phase_k_live_verification.md",
+    "phase_k_owner_packets.md",
+    "phase_k_preflight.md",
+    "phase_k_ranked_deals.md",
+    "phase_k_supplier_research.md",
+    "phase_l10_buyer_history_workflow.md",
+    "phase_l10_discovery_audit.md",
+    "phase_l10_discovery_gaps.md",
+    "phase_l10_exact_workflow_design.md",
+    "phase_l10_gov_value_upgrades.md",
+    "phase_l10_legacy_cleanup.md",
+    "phase_l10_platform_history_adapters.md",
+    "phase_l10_quality_results.md",
+    "phase_l10_regression.md",
+    "phase_l10_supplier_upgrades.md",
+    "phase_l11_coverage.md",
+    "phase_l11_exact_history_design.md",
+    "phase_l11_legacy_cleanup.md",
+    "phase_l11_quality_results.md",
+    "phase_l11_regression.md",
+    "phase_l11_resilient_hunt.md",
+    "phase_l12_auth_history_design.md",
+    "phase_l12_buyer_history_paths.md",
+    "phase_l12_buyer_pivot_workflow.md",
+    "phase_l12_gov_upgrades.md",
+    "phase_l12_legacy_cleanup.md",
+    "phase_l12_live_report.md",
+    "phase_l12_platform_gaps.md",
+    "phase_l12_prior_awardee_supplier_intel.md",
+    "phase_l12_registration_priorities.md",
+    "phase_l12_regression.md",
+    "phase_l13_bidnet_public_artifacts.md",
+    "phase_l13_gov_upgrades.md",
+    "phase_l13_legacy_cleanup.md",
+    "phase_l13_platform_artifact_patterns.md",
+    "phase_l13_public_artifact_design.md",
+    "phase_l13_registration_reassessment.md",
+    "phase_l13_regression.md",
+    "phase_l13_source_results.md",
+    "phase_l141_api_feed_inventory.md",
+    "phase_l141_dedupe_audit.md",
+    "phase_l141_l14_repair.md",
+    "phase_l141_legacy_cleanup.md",
+    "phase_l141_profile_audit.md",
+    "phase_l141_regression.md",
+    "phase_l141_source_failures.md",
+    "phase_l141_source_priorities.md",
+    "phase_l141_structured_source_strategy.md",
+    "phase_l141_testable_state.md",
+    "phase_l14_bidnet_parked.md",
+    "phase_l14_buyer_yield.md",
+    "phase_l14_discovery_gaps.md",
+    "phase_l14_legacy_cleanup.md",
+    "phase_l14_nonbidnet_discovery_design.md",
+    "phase_l14_platform_capability_matrix.md",
+    "phase_l14_platform_history_adapters.md",
+    "phase_l14_regression.md",
+    "phase_l14_source_yield.md",
+    "phase_l14_state_yield.md",
+    "phase_l15_api_feed_inventory.md",
+    "phase_l15_fresh_hunt.md",
+    "phase_l15_legacy_cleanup.md",
+    "phase_l15_open_data_sources.md",
+    "phase_l15_quote_target_delta.md",
+    "phase_l15_regression.md",
+    "phase_l15_source_stop_loss.md",
+    "phase_l15_source_value.md",
+    "phase_l15_state_structured_coverage.md",
+    "phase_l15_structured_source_strategy.md",
+    "phase_l16_buyer_type_matrix.md",
+    "phase_l16_history_expansion.md",
+    "phase_l16_legacy_cleanup.md",
+    "phase_l16_public_structured_expansion.md",
+    "phase_l16_quote_target_delta.md",
+    "phase_l16_recurring_buy_intelligence.md",
+    "phase_l16_regression.md",
+    "phase_l16_source_yield.md",
+    "phase_l16_state_matrix.md",
+    "phase_l16_term_contract_research.md",
+    "phase_l172_accessible_now.md",
+    "phase_l172_coverage_saturation.md",
+    "phase_l172_legacy_cleanup.md",
+    "phase_l172_owner_workflow.md",
+    "phase_l172_platform_enumeration.md",
+    "phase_l172_platform_leverage.md",
+    "phase_l172_registration_unlocks.md",
+    "phase_l172_regression.md",
+    "phase_l172_source_productivity.md",
+    "phase_l173_accessible_now.md",
+    "phase_l173_bonfire.md",
+    "phase_l173_ionwave.md",
+    "phase_l173_legacy_cleanup.md",
+    "phase_l173_opengov.md",
+    "phase_l173_owner_queues.md",
+    "phase_l173_planetbids.md",
+    "phase_l173_platform_adapter_strategy.md",
+    "phase_l173_registration_unlocks.md",
+    "phase_l173_regression.md",
+    "phase_l173_simplehtml.md",
+    "phase_l17_accessible_now.md",
+    "phase_l17_county_coverage.md",
+    "phase_l17_legacy_cleanup.md",
+    "phase_l17_lower48_strategy.md",
+    "phase_l17_municipality_coverage.md",
+    "phase_l17_platform_mapping.md",
+    "phase_l17_registration_strategy.md",
+    "phase_l17_regression.md",
+    "phase_l17_source_gaps.md",
+    "phase_l17_state_coverage.md",
+    "phase_l18_economics.md",
+    "phase_l18_gov_evidence.md",
+    "phase_l18_legacy_cleanup.md",
+    "phase_l18_opengov_mirrors.md",
+    "phase_l18_owner_decisions.md",
+    "phase_l18_quantity_config.md",
+    "phase_l18_regression.md",
+    "phase_l18_research_conversion.md",
+    "phase_l18_supplier_research.md",
+    "phase_l18_winability.md",
+    "phase_l19_award_matching.md",
+    "phase_l19_bid_tab_recovery.md",
+    "phase_l19_buyer_history_strategy.md",
+    "phase_l19_gov_evidence_delta.md",
+    "phase_l19_history_sources.md",
+    "phase_l19_legacy_cleanup.md",
+    "phase_l19_purchase_order_recovery.md",
+    "phase_l19_quote_target_delta.md",
+    "phase_l19_recurring_buy_intelligence.md",
+    "phase_l19_regression.md",
+    "phase_l20_authorization.md",
+    "phase_l20_economics.md",
+    "phase_l20_legacy_cleanup.md",
+    "phase_l20_manufacturer_channels.md",
+    "phase_l20_public_pricing.md",
+    "phase_l20_quote_target_delta.md",
+    "phase_l20_regression.md",
+    "phase_l20_supplier_memory.md",
+    "phase_l20_supplier_strategy.md",
+    "phase_l20_terms_financing.md",
+    "phase_l24_convergence_audit.md",
+    "phase_l24_failures.md",
+    "phase_l24_live_report.md",
+    "phase_l24_price_history_convergence_design.md",
+    "phase_l24_regression.md",
+    "phase_l25_source_expansion_audit.md",
+    "phase_l26_progressive_funnel_audit.md",
+    "phase_l27_resilient_pricing_audit.md",
+    "phase_l28_STOP.md",
+    "phase_l28_product_detail_resolution_audit.md",
+    "phase_l29_STOP.md",
+    "phase_l29_bot_resilience.md",
+    "phase_l29_failures.md",
+    "phase_l29_live_report.md",
+    "phase_l29_maximum_source_design.md",
+    "phase_l29_price_source_audit.md",
+    "phase_l29_recurring_buy_report.md",
+    "phase_l29_regression.md",
+    "phase_l29_source_inventory.md",
+    "phase_l3_acquisition_lane_design.md",
+    "phase_l3_channel_distribution.md",
+    "phase_l3_commercial_discovery.md",
+    "phase_l3_live_report.md",
+    "phase_l3_original_source_audit.md",
+    "phase_l3_quote_required_report.md",
+    "phase_l3_regression.md",
+    "phase_l3_specialty_pipeline.md",
+    "phase_l4_buyer_watchlist.md",
+    "phase_l4_commercial_feed_design.md",
+    "phase_l4_commercial_yield.md",
+    "phase_l4_lane_report.md",
+    "phase_l4_live_source_report.md",
+    "phase_l4_platform_inventory.md",
+    "phase_l4_regression.md",
+    "phase_l4_state_source_registry.md",
+    "phase_l5_attrition_audit.md",
+    "phase_l5_category_attrition.md",
+    "phase_l5_counterfactual_replay.md",
+    "phase_l5_false_negative_sample.md",
+    "phase_l5_live_report.md",
+    "phase_l5_recovered_candidates.md",
+    "phase_l5_regression.md",
+    "phase_l5_source_attrition.md",
+    "phase_l5_stage2_admission_design.md",
+    "phase_l6_government_value_hierarchy.md",
+    "phase_l6_live_report.md",
+    "phase_l6_max_buy_engine.md",
+    "phase_l6_quote_economics_design.md",
+    "phase_l6_quote_priority.md",
+    "phase_l6_regression.md",
+    "phase_l6_supplier_mapping.md",
+    "phase_l6_unknown_conversion.md",
+    "phase_l7_current_positive_audit.md",
+    "phase_l7_legacy_cleanup.md",
+    "phase_l7_live_report.md",
+    "phase_l7_new_positive_report.md",
+    "phase_l7_quote_readiness_design.md",
+    "phase_l7_quote_ready_queue.md",
+    "phase_l7_regression.md",
+    "phase_l7_supplier_packet_design.md",
+    "phase_l7_unknown_conversion.md",
+    "phase_l8_economic_conversion.md",
+    "phase_l8_gov_value_recovery.md",
+    "phase_l8_legacy_cleanup.md",
+    "phase_l8_live_report.md",
+    "phase_l8_population_recovery_design.md",
+    "phase_l8_quantity_recovery.md",
+    "phase_l8_regression.md",
+    "phase_l8_source_productivity.md",
+    "phase_l8_supplier_recovery.md",
+    "phase_l9_government_value_grades.md",
+    "phase_l9_legacy_cleanup.md",
+    "phase_l9_live_report.md",
+    "phase_l9_positive_audit.md",
+    "phase_l9_quality_audit_design.md",
+    "phase_l9_quantity_config_audit.md",
+    "phase_l9_regression.md",
+    "phase_l9_source_upgrades.md",
+    "phase_l9_supplier_grades.md",
+    "phase_l9_validated_queue.md",
+    "phase_l_accessibility_model.md",
+    "phase_l_competition_model.md",
+    "phase_l_cross_government_design.md",
+    "phase_l_cross_government_live_report.md",
+    "phase_l_economics_model.md",
+    "phase_l_regression.md",
+    "pilot_candidate_audit.md",
+    "pilot_financing_screen.md",
+    "pilot_owner_workflow.md",
+    "pilot_quote_readiness.md",
+    "pilot_real_world_test.md",
+    "pilot_regression.md",
+    "pilot_source_gaps.md",
+    "repository_cleanup_audit.md",
+    "sam_live_fallback_design.md",
+    "sam_live_fallback_phase_k_recheck.md",
+    "sam_live_fallback_regression.md"
+  ],
+  "obsolete_docs_count": 279,
+  "tests_total": 206,
+  "test_groups": {
+    "phase_l_early": {
+      "count": 26,
+      "files": [
+        "test_phase_l10_exact_workflow.py",
+        "test_phase_l11_exact_history.py",
+        "test_phase_l12_auth_history.py",
+        "test_phase_l13_public_artifacts.py",
+        "test_phase_l141_repair.py",
+        "test_phase_l14_nonbidnet.py",
+        "test_phase_l15_structured_expansion.py",
+        "test_phase_l16_public_structured.py",
+        "test_phase_l172_coverage_saturation.py",
+        "test_phase_l173_platform_adapters.py",
+        "test_phase_l17_lower48_coverage.py",
+        "test_phase_l18_research_conversion.py",
+        "test_phase_l19_buyer_history.py",
+        "test_phase_l24_convergence.py",
+        "test_phase_l25_source_expansion.py",
+        "test_phase_l26_progressive_funnel.py",
+        "test_phase_l27_resilient_pricing.py",
+        "test_phase_l28_product_detail_resolution.py",
+        "test_phase_l29_maximum_source_coverage.py",
+        "test_phase_l3_commercial_rebalance.py",
+        "test_phase_l4_commercial_feed.py",
+        "test_phase_l5_retention.py",
+        "test_phase_l6_quote_economics.py",
+        "test_phase_l7_quote_readiness.py",
+        "test_phase_l8_population_recovery.py",
+        "test_phase_l9_quality_audit.py"
+      ]
+    },
+    "phase_g_k": {
+      "count": 7,
+      "files": [
+        "test_phase_e1_integrity.py",
+        "test_phase_f_reality.py",
+        "test_phase_f_ui_torture.py",
+        "test_phase_g_provenance.py",
+        "test_phase_h_deep_research.py",
+        "test_phase_i_hunt.py",
+        "test_phase_j_reconciliation.py"
+      ]
+    },
+    "m3_read_models": {
+      "count": 58,
+      "files": [
+        "test_m3_1_0_end_to_end.py",
+        "test_m3_acquisition_target_engine.py",
+        "test_m3_action_orchestration.py",
+        "test_m3_automatic_discovery.py",
+        "test_m3_automatic_research.py",
+        "test_m3_award_product_projection.py",
+        "test_m3_capital_requirement_gate.py",
+        "test_m3_commercial_intelligence_engine.py",
+        "test_m3_commercial_product_matching.py",
+        "test_m3_commercial_validation.py",
+        "test_m3_competitive_intelligence.py",
+        "test_m3_configuration_separation.py",
+        "test_m3_contract_lifecycle.py",
+        "test_m3_deal_economics.py",
+        "test_m3_demand_signal.py",
+        "test_m3_discovery_planner.py",
+        "test_m3_dla_clause_extraction.py",
+        "test_m3_document_discovery.py",
+        "test_m3_document_evidence.py",
+        "test_m3_document_intelligence.py",
+        "test_m3_economic_learning.py",
+        "test_m3_eligibility_evidence.py",
+        "test_m3_evidence_acquisition.py",
+        "test_m3_evidence_chain.py",
+        "test_m3_execution_intelligence.py",
+        "test_m3_execution_os.py",
+        "test_m3_government_revenue_benchmark.py",
+        "test_m3_human_os.py",
+        "test_m3_intelligence_graph_read.py",
+        "test_m3_intelligence_retrieval.py",
+        "test_m3_market_hunt.py",
+        "test_m3_market_hunt_handoff.py",
+        "test_m3_master_record.py",
+        "test_m3_material_acquisition_gap.py",
+        "test_m3_mobile_operator.py",
+        "test_m3_next_hour_queue.py",
+        "test_m3_offer_readiness.py",
+        "test_m3_operator_loop.py",
+        "test_m3_opportunity_identity.py",
+        "test_m3_opportunity_operating.py",
+        "test_m3_pipeline_persistence.py",
+        "test_m3_pipeline_stabilization.py",
+        "test_m3_portfolio_deal_analysis.py",
+        "test_m3_procurement_package.py",
+        "test_m3_product_fact_projection.py",
+        "test_m3_product_identity_resolution.py",
+        "test_m3_product_pricing.py",
+        "test_m3_public_pricing_evidence.py",
+        "test_m3_pursuit_readiness.py",
+        "test_m3_research_execution.py",
+        "test_m3_research_queue.py",
+        "test_m3_seed_basket_economics.py",
+        "test_m3_source_qualification.py",
+        "test_m3_strategic_intelligence.py",
+        "test_m3_supplier_capital_ops.py",
+        "test_m3_supplier_intelligence.py",
+        "test_m3_supplier_product_graph.py",
+        "test_m3_supply_intelligence.py"
+      ]
+    }
+  },
+  "artifact_dirs": {
+    "_t": {
+      "files": 6,
+      "bytes": 3336655
+    },
+    "_temp_live_autonomous": {
+      "files": 12,
+      "bytes": 2913876
+    },
+    "_temp_on_demand": {
+      "files": 0,
+      "bytes": 0
+    },
+    "_temp_pursuit_qualification": {
+      "files": 0,
+      "bytes": 0
+    },
+    "deal_packets": {
+      "files": 10,
+      "bytes": 84966
+    },
+    "document_registry": {
+      "files": 0,
+      "bytes": 0
+    },
+    "fixtures": {
+      "files": 2,
+      "bytes": 19202
+    },
+    "historical_source_corpus": {
+      "files": 1,
+      "bytes": 131453
+    },
+    "live_inspect": {
+      "files": 13,
+      "bytes": 529072
+    },
+    "phase_g": {
+      "files": 4,
+      "bytes": 1182054
+    },
+    "phase_h": {
+      "files": 7,
+      "bytes": 2185983
+    },
+    "phase_i": {
+      "files": 9,
+      "bytes": 3592511
+    },
+    "phase_j": {
+      "files": 6,
+      "bytes": 450847
+    },
+    "phase_k": {
+      "files": 1,
+      "bytes": 39934
+    },
+    "phase_l": {
+      "files": 391,
+      "bytes": 38981652
+    },
+    "repo_cleanup": {
+      "files": 2,
+      "bytes": 426781
+    },
+    "repository_cleanup": {
+      "files": 2,
+      "bytes": 3791
+    },
+    "response_engine": {
+      "files": 80,
+      "bytes": 488533
+    },
+    "sam": {
+      "files": 12,
+      "bytes": 857193
+    },
+    "transactional_deal_packets": {
+      "files": 6,
+      "bytes": 130443
+    },
+    "transactional_procurement_evidence": {
+      "files": 8,
+      "bytes": 2570308
+    },
+    "transactional_procurement_packets": {
+      "files": 8,
+      "bytes": 899684
+    },
+    "validation": {
+      "files": 13,
+      "bytes": 281085
+    }
+  }
+}

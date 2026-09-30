@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>M3 — Supplier Call Desk</title>
+  <style>
+    :root {
+      --bg: #f3f0ea;
+      --ink: #1a1f24;
+      --panel: #fffdf8;
+      --accent: #0b5fff;
+      --warn: #8a3b12;
+      --ok: #1b6b3a;
+      --border: #d5cfc3;
+      --owner: #3b1f1f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(160deg, #e8efe8 0%, var(--bg) 45%, #e7eef7 100%);
+      color: var(--ink);
+      line-height: 1.35;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      background: rgba(26,31,36,.92);
+      color: #f7f4ee;
+      position: sticky; top: 0; z-index: 5;
+    }
+    header h1 { margin: 0; font-size: 1.25rem; letter-spacing: .02em; }
+    header p { margin: .25rem 0 0; opacity: .85; font-size: .9rem; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+    .grid { display: grid; gap: 1rem; }
+    @media (min-width: 900px) {
+      .grid.split { grid-template-columns: 1.1fr .9fr; align-items: start; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 8px 24px rgba(26,31,36,.06);
+    }
+    .card h2 { margin: 0 0 .6rem; font-size: 1.05rem; }
+    label { display: block; font-size: .85rem; margin: .55rem 0 .2rem; font-weight: 600; }
+    input, select, textarea, button {
+      font: inherit; width: 100%; padding: .7rem .75rem; border-radius: 10px;
+      border: 1px solid var(--border); background: #fff;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    button {
+      background: var(--accent); color: #fff; border: 0; font-weight: 700;
+      cursor: pointer; margin-top: .5rem;
+    }
+    button.secondary { background: #44525f; }
+    button.warn { background: var(--warn); }
+    .q {
+      border-top: 1px solid var(--border);
+      padding: .85rem 0;
+    }
+    .q:first-child { border-top: 0; }
+    .q-meta { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .35rem 0; }
+    .q-meta label { display: inline-flex; gap: .35rem; align-items: center; font-weight: 500; margin: 0; }
+    .q-meta input { width: auto; }
+    .badge {
+      display: inline-block; padding: .15rem .5rem; border-radius: 999px;
+      background: #e6eefc; font-size: .75rem; font-weight: 700;
+    }
+    .owner {
+      background: #2a1515; color: #f6e7e7; border-color: #5a2d2d;
+    }
+    .owner h2 { color: #ffd7d0; }
+    .muted { opacity: .75; font-size: .9rem; }
+    .status { font-size: .85rem; margin-top: .4rem; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .err { color: #a11; font-weight: 700; }
+    .script {
+      background: #eef5ff; border-left: 4px solid var(--accent);
+      padding: .8rem 1rem; border-radius: 8px; font-size: 1.02rem;
+    }
+    .list button.pick {
+      text-align: left; background: #fff; color: var(--ink); border: 1px solid var(--border); margin: .35rem 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>M3 Supplier Call Desk</h1>
+    <p>Live worksheet · no auto-dial · no auto-send · owner answers only</p>
+  </header>
+  <div class="wrap">
+    <div class="card list" id="today-list">
+      <h2>Today’s supplier calls</h2>
+      <p class="muted">Load artifacts then pick a call. Data stays in this browser until you export/save JSON.</p>
+      <button type="button" id="btn-load">Load L.22 artifacts</button>
+      <div id="picks"></div>
+      <p class="status" id="load-status"></p>
+    </div>
+
+    <div class="grid split" id="workspace" hidden>
+      <div>
+        <div class="card">
+          <h2>Opportunity</h2>
+          <div id="opp"></div>
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <h2>Supplier</h2>
+          <div id="sup"></div>
+          <div class="script" id="script" style="margin-top:.75rem"></div>
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <h2>Call questions</h2>
+          <div id="questions"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Call notes</h2>
+          <textarea id="call-notes" placeholder="Free-form notes during the call…"></textarea>
+          <button type="button" id="btn-save">SAVE CALL</button>
+          <button type="button" class="secondary" id="btn-complete">Mark complete (with checks)</button>
+          <p class="status" id="save-status"></p>
+        </div>
+        <div class="card owner" style="margin-top:1rem">
+          <h2>OWNER ONLY — DO NOT DISCLOSE</h2>
+          <pre id="owner-panel" style="white-space:pre-wrap;font-size:.85rem"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const STATE = { today: null, workspaces: null, current: null, dirty: false };
+    const $ = (id) => document.getElementById(id);
+
+    async function loadArtifacts() {
+      try {
+        const [today, ws] = await Promise.all([
+          fetch('/artifacts/phase_l/l22_today_calls.json').then(r => r.json()),
+          fetch('/artifacts/phase_l/l22_workspaces.json').then(r => r.json()),
+        ]);
+        STATE.today = today;
+        STATE.workspaces = ws;
+        $('load-status').innerHTML = `<span class="ok">Loaded ${today.count} call targets</span>`;
+        renderPicks();
+      } catch (e) {
+        // file:// fallback — paste not required; try relative path hint
+        $('load-status').innerHTML = `<span class="err">Could not fetch artifacts (serve govtracker or open via app). ${e}</span>`;
+      }
+    }
+
+    function renderPicks() {
+      const box = $('picks');
+      box.innerHTML = '';
+      (STATE.today.entries || []).slice(0, 40).forEach((e, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pick';
+        b.textContent = `${e.priority} · ${e.supplier || ''} · ${(e.product || '').slice(0, 70)} · ${e.call_status}`;
+        b.onclick = () => openWorkspace(e);
+        box.appendChild(b);
+      });
+    }
+
+    function findWorkspace(entry) {
+      for (const opp of (STATE.workspaces.opportunities || [])) {
+        if (String(opp.opportunity_id) !== String(entry.opportunity_id)) continue;
+        for (const w of opp.workspaces || []) {
+          if ((w.supplier || {}).name === entry.supplier || (w.supplier || {}).rfq_url === entry.rfq_url) {
+            return { opp, w };
+          }
+        }
+        return { opp, w: (opp.workspaces || [])[0] };
+      }
+      return null;
+    }
+
+    function openWorkspace(entry) {
+      if (STATE.dirty && !confirm('Discard unsaved changes?')) return;
+      const found = findWorkspace(entry);
+      if (!found) { alert('Workspace not found'); return; }
+      STATE.current = { entry, ...found, answers: {}, notes: '' };
+      STATE.dirty = false;
+      $('workspace').hidden = false;
+      const o = found.w.opportunity || {};
+      $('opp').innerHTML = `
+        <div><strong>${o.buyer || ''}</strong></div>
+        <div class="muted">${o.solicitation || ''}</div>
+        <div>${(o.product || '').slice(0, 180)}</div>
+        <div>Qty: ${o.quantity ?? '—'} · Deadline: ${o.deadline || '—'}</div>
+        ${o.authoritative_solicitation_link ? `<div><a href="${o.authoritative_solicitation_link}" target="_blank" rel="noopener">Solicitation link</a></div>` : ''}`;
+      const s = found.w.supplier || {};
+      $('sup').innerHTML = `
+        <div><strong>${s.name || ''}</strong> <span class="badge">${(s.priority || {}).band || ''}</span></div>
+        <div>Grade: ${s.grade || ''} · Auth: ${s.authorization || ''}</div>
+        <div>Phone: ${s.phone || '—'} · RFQ: ${s.rfq_url ? `<a href="${s.rfq_url}" target="_blank" rel="noopener">open</a>` : '—'}</div>
+        <div class="muted">${s.why_selected || ''}</div>`;
+      $('script').textContent = found.w.opening_script || '';
+      $('owner-panel').textContent = JSON.stringify(found.w.owner_only_panel || {}, null, 2);
+      $('call-notes').value = '';
+      renderQuestions(found.w);
+    }
+
+    function renderQuestions(w) {
+      const root = $('questions');
+      root.innerHTML = '';
+      const groups = w.call_questions || {};
+      for (const band of ['MUST_ASK', 'ASK_IF_RELEVANT', 'NICE_TO_KNOW']) {
+        const list = groups[band] || [];
+        if (!list.length) continue;
+        const h = document.createElement('h3');
+        h.textContent = band.replaceAll('_', ' ');
+        h.style.fontSize = '.95rem';
+        root.appendChild(h);
+        list.forEach(q => root.appendChild(questionEl(q)));
+      }
+    }
+
+    function questionEl(q) {
+      const div = document.createElement('div');
+      div.className = 'q';
+      div.dataset.qid = q.question_id;
+      const type = q.answer_type;
+      let input = '';
+      if (type === 'dropdown' && q.options) {
+        input = `<select data-field="value"><option value="">—</option>${q.options.map(o => `<option>${o}</option>`).join('')}</select>`;
+      } else if (type === 'yes_no' || type === 'yes_no_unknown') {
+        const opts = type === 'yes_no' ? ['YES', 'NO'] : ['YES', 'NO', 'UNKNOWN'];
+        input = `<select data-field="value"><option value="">—</option>${opts.map(o => `<option>${o}</option>`).join('')}</select>`;
+      } else if (type === 'multiline') {
+        input = `<textarea data-field="value" rows="3"></textarea>`;
+      } else {
+        const t = type === 'number' || type === 'currency' ? 'number' : type === 'date' ? 'date' : 'text';
+        input = `<input data-field="value" type="${t}" step="any" />`;
+      }
+      div.innerHTML = `
+        <div><span class="badge">${q.question_category}</span> ${q.question_text}</div>
+        <div class="q-meta">
+          <label><input type="checkbox" data-field="asked" /> Asked</label>
+          <label><input type="checkbox" data-field="recorded" /> Answer recorded</label>
+          <label><input type="checkbox" data-field="followup" /> Follow-up required</label>
+        </div>
+        ${input}
+        <label>Question note</label>
+        <input data-field="note" type="text" placeholder="Optional note for this answer" />`;
+      div.querySelectorAll('input,select,textarea').forEach(el => {
+        el.addEventListener('change', () => { STATE.dirty = true; });
+        el.addEventListener('input', () => { STATE.dirty = true; });
+      });
+      return div;
+    }
+
+    function collectAnswers() {
+      const answers = [];
+      document.querySelectorAll('#questions .q').forEach(div => {
+        answers.push({
+          question_id: div.dataset.qid,
+          answer_value: div.querySelector('[data-field="value"]').value,
+          asked: div.querySelector('[data-field="asked"]').checked,
+          answer_recorded: div.querySelector('[data-field="recorded"]').checked,
+          follow_up_required: div.querySelector('[data-field="followup"]').checked,
+          owner_note: div.querySelector('[data-field="note"]').value || null,
+        });
+      });
+      return answers;
+    }
+
+    function saveLocal() {
+      if (!STATE.current) return;
+      const payload = {
+        saved_at: new Date().toISOString(),
+        opportunity_id: STATE.current.entry.opportunity_id,
+        supplier: STATE.current.entry.supplier,
+        call_notes: $('call-notes').value,
+        answers: collectAnswers(),
+        auto_send: false,
+        auto_call: false,
+      };
+      const key = `m3_l22_${payload.opportunity_id}_${STATE.current.entry.supplier_id || payload.supplier}`;
+      localStorage.setItem(key, JSON.stringify(payload));
+      STATE.dirty = false;
+      $('save-status').innerHTML = `<span class="ok">Saved ${payload.saved_at}</span>`;
+      // also download JSON for server-side ingest
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${key}.json`;
+      a.click();
+    }
+
+    $('btn-load').onclick = loadArtifacts;
+    $('btn-save').onclick = saveLocal;
+    $('btn-complete').onclick = () => {
+      const missing = collectAnswers().filter(a => a.asked && !a.answer_value && !a.follow_up_required);
+      if (missing.length && !confirm(`Some asked questions have no answer (${missing.length}). Save anyway?`)) return;
+      saveLocal();
+    };
+    $('call-notes').addEventListener('input', () => { STATE.dirty = true; });
+    window.addEventListener('beforeunload', (e) => {
+      if (STATE.dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+  </script>
+</body>
+</html>

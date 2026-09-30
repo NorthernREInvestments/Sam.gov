@@ -1,0 +1,36 @@
+{
+  "corpus_project_id": "NE-SPB-FORM16-ITB-REQS",
+  "documents": [
+    {
+      "filename": "NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+      "stored_as": "7c632822f62ecc8e_NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-SPB-FORM16-ITB-REQS\\7c632822f62ecc8e_NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+      "sha256": "7c632822f62ecc8ed5eb8afdec07d42adbbec9e5f3ee6c1b0794374c3d35b768",
+      "bytes": 148776,
+      "source_url": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:09.146031+00:00"
+    }
+  ],
+  "hashes": [
+    "7c632822f62ecc8ed5eb8afdec07d42adbbec9e5f3ee6c1b0794374c3d35b768"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB"
+  ],
+  "created_at": "2026-09-29T22:42:08.567892+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "SPB-FORM-16",
+  "title": "ITB Submission Requirements (SPB Form 16)",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Form_16-ITB_Submission_Requirements.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:42:09.146059+00:00"
+}

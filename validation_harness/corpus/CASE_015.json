@@ -1,0 +1,34 @@
+{
+  "case_id": "CASE_015",
+  "case_name": "Mandatory submission requirements present and unresolved",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ SUB-015\nPart Number: SUB-4 Quantity: 3 EA\nSubmit via email to contracting@example.invalid\nSubject line: SUB-015 Quote\nQuote validity: 30 days\nAcknowledge all amendments.\nSigned representations and certifications required.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "submission": {
+      "has_submission_requirements": true,
+      "amendment_ack_required": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "submission",
+    "adversarial",
+    "false_readiness"
+  ],
+  "notes": "",
+  "adversarial": true,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

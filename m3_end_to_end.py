@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from application_clock import now_utc
-from deadline_runtime import evaluate_deadline
 from executable_deal_pipeline import ExecutableDealPipeline
 from financing_verification import (
     build_transaction_funding_requirement,
@@ -125,35 +124,66 @@ class M3EndToEndOrchestrator:
                 "survived": bool(row.get("research_queued") or row.get("cheap_screen_survive")),
             }
 
-        # Deadline
-        if row.get("deadline"):
-            dl = evaluate_deadline(
-                response_deadline=row["deadline"],
-                local_timezone=record.get("timezone") or "America/Chicago",
-            )
-            row["deadline_evaluation"] = {
-                "status": dl.get("deadline_status") or dl.get("status"),
-                "calendar_days_remaining": dl.get("calendar_days_remaining"),
+        # Deadline — persist Close/response only; never fabricate; never use posted as close
+        from deadline_runtime import apply_response_deadline_to_row
+
+        close_raw = (
+            record.get("deadline_raw")
+            or record.get("response_deadline")
+            or record.get("deadline")
+            or row.get("deadline_raw")
+            or row.get("response_deadline")
+            or row.get("deadline")
+        )
+        posted_raw = (
+            record.get("posted_raw")
+            or record.get("open_date_raw")
+            or (record.get("listing_dates") or {}).get("posted_date")
+            or row.get("posted_raw")
+        )
+        # Guard: posted must not silently become response deadline
+        if close_raw and posted_raw and str(close_raw).strip() == str(posted_raw).strip():
+            # Ambiguous single date labeled both ways — keep as UNKNOWN response unless role is Close
+            if not (record.get("deadline_role") or "").upper() in {"CLOSE", "RESPONSE", "CLOSING"}:
+                if (record.get("listing_dates") or {}).get("closing_date"):
+                    close_raw = (record.get("listing_dates") or {}).get("closing_date")
+                elif record.get("deadline_raw") and record.get("deadline_raw") != posted_raw:
+                    close_raw = record.get("deadline_raw")
+                else:
+                    # Do not invent; leave unknown if we cannot distinguish
+                    pass
+
+        row = apply_response_deadline_to_row(
+            row,
+            close_raw=close_raw if close_raw not in (None, "", "UNKNOWN") else None,
+            posted_raw=posted_raw if posted_raw not in (None, "", "UNKNOWN") else None,
+            published_raw=record.get("published_raw"),
+            amendment_close_raw=record.get("amendment_deadline") or record.get("amended_close"),
+            award_raw=record.get("anticipated_award_raw") or record.get("award_date"),
+            delivery_raw=record.get("delivery_date_raw") or record.get("delivery_date"),
+            source_url=record.get("detail_url") or record.get("source_url") or row.get("detail_url"),
+            is_amendment=bool(record.get("is_amendment") or record.get("amendment_deadline")),
+            local_timezone=record.get("timezone") or record.get("deadline_timezone") or "America/Chicago",
+        )
+        self.store._rows[row["canonical_id"]] = row
+        st = str((row.get("deadline_evaluation") or {}).get("status") or "").upper()
+        days = (row.get("deadline_evaluation") or {}).get("calendar_days_remaining")
+        if st in {"EXPIRED", "TOO_LATE"} or (isinstance(days, (int, float)) and days < 0):
+            row["rejected"] = True
+            row["stop_reason"] = "deadline_expired"
+            row["lifecycle"] = derive_lifecycle(row)
+            row["pending_next_action"] = determine_next_action(row)
+            self.store._rows[row["canonical_id"]] = row
+            if persist:
+                self.store.save()
+            return {
+                "canonical_id": row["canonical_id"],
+                "created": True,
+                "lifecycle": row["lifecycle"],
+                "next_action": row["pending_next_action"],
+                "survived": False,
+                "stop_reason": "deadline_expired",
             }
-            st = str(row["deadline_evaluation"]["status"] or "").upper()
-            if st in {"EXPIRED", "TOO_LATE"} or (
-                isinstance(dl.get("calendar_days_remaining"), (int, float)) and dl["calendar_days_remaining"] < 0
-            ):
-                row["rejected"] = True
-                row["stop_reason"] = "deadline_expired"
-                row["lifecycle"] = derive_lifecycle(row)
-                row["pending_next_action"] = determine_next_action(row)
-                self.store._rows[row["canonical_id"]] = row
-                if persist:
-                    self.store.save()
-                return {
-                    "canonical_id": row["canonical_id"],
-                    "created": True,
-                    "lifecycle": row["lifecycle"],
-                    "next_action": row["pending_next_action"],
-                    "survived": False,
-                    "stop_reason": "deadline_expired",
-                }
 
         s1 = stage1_ultra_cheap(
             {

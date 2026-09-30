@@ -1,0 +1,34 @@
+{
+  "case_id": "CASE_006",
+  "case_name": "UOM/pack ambiguity",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ UOM-006\nQuantity: 10 HD (hundred). Pack size: 12 per pack.\nEstimated quantity: 500\nPart Number: UOM-1\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "quantity_uom": {
+      "has_quantity": true,
+      "estimate_flagged_not_guaranteed": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "quantity",
+    "uom",
+    "pack"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

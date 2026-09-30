@@ -1,0 +1,21 @@
+{
+  "kind": "SharedMasterDocument",
+  "master_id": "MASTER-03bdaf99645b",
+  "authority": "DLA",
+  "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 102",
+  "version": "Rev-102-2025-09-29",
+  "effective_date": null,
+  "file_hash": "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28",
+  "content_hash": "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28",
+  "source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-102_September_29_2025.pdf",
+  "original_filename": "ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+  "binary_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-03bdaf99645b_ba8bab42ccea41f3_ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+  "parsed_text_excerpt": "",
+  "parse": {
+    "method": "pdf_scan_detected",
+    "confidence": "LOW",
+    "parser_version": "r11-20260929-v1"
+  },
+  "created_at": "2026-09-29T22:47:03.527487+00:00",
+  "parsed_text_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-03bdaf99645b.txt"
+}

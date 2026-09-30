@@ -1,0 +1,100 @@
+{
+  "build": "20260929-m3-r1-solicitation-response-compiler-foundation",
+  "rows": [
+    {
+      "case_id": "federal-commercial-rfq",
+      "categories": [
+        "AMENDMENT_ACK",
+        "COUNTRY_OF_ORIGIN",
+        "DELIVERY",
+        "FOB",
+        "FORM",
+        "PAGE_LIMIT",
+        "QUANTITY",
+        "QUESTION_DEADLINE",
+        "SIGNATURE",
+        "SUBMISSION_DEADLINE",
+        "SUBMISSION_METHOD",
+        "TECHNICAL_LITERATURE"
+      ],
+      "material": 15,
+      "timing": [
+        "AT_DELIVERY",
+        "AT_SUBMISSION",
+        "PRE_QUESTION_DEADLINE"
+      ]
+    },
+    {
+      "case_id": "state-brand-or-equal",
+      "categories": [
+        "BRAND_OR_EQUAL",
+        "SALIENT_CHARACTERISTIC"
+      ],
+      "material": 5,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    },
+    {
+      "case_id": "exact-brand",
+      "categories": [
+        "AUTHORIZATION",
+        "EXACT_BRAND",
+        "SUBMISSION_DEADLINE",
+        "SUBMISSION_METHOD"
+      ],
+      "material": 4,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    },
+    {
+      "case_id": "amendment-quantity",
+      "categories": [
+        "AMENDMENT_ACK",
+        "QUANTITY"
+      ],
+      "material": 2,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    },
+    {
+      "case_id": "dibbs-like",
+      "categories": [
+        "SUBMISSION_METHOD"
+      ],
+      "material": 1,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    },
+    {
+      "case_id": "format-rules-rfp",
+      "categories": [
+        "FILE_FORMAT",
+        "FILE_NAME",
+        "FONT",
+        "MARGIN",
+        "PAGE_LIMIT"
+      ],
+      "material": 0,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    },
+    {
+      "case_id": "buyer-template",
+      "categories": [
+        "FORM",
+        "PRICE",
+        "QUANTITY",
+        "SUBMISSION_METHOD"
+      ],
+      "material": 6,
+      "timing": [
+        "AT_SUBMISSION"
+      ]
+    }
+  ]
+}

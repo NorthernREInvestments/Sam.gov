@@ -1,0 +1,42 @@
+{
+  "build": "20260929-m3-r3-company-compliance-reps-certs-trade",
+  "verdict": "PHASE_R3_COMPANY_COMPLIANCE_READY",
+  "projects_analyzed": 32,
+  "readiness_counts": {
+    "TRADE_COMPLIANCE_REVIEW": 22,
+    "ELIGIBILITY_BLOCKED": 10
+  },
+  "nmr_counts": {
+    "NMR_UNKNOWN": 30,
+    "NMR_REVIEW_REQUIRED": 2
+  },
+  "trade_counts": {
+    "UNKNOWN": 32
+  },
+  "section889_counts": {
+    "NOT_APPLICABLE": 18,
+    "REVIEW_REQUIRED": 9,
+    "OWNER_CONFIRMATION_REQUIRED": 5
+  },
+  "cyber_counts": {
+    "NOT_APPLICABLE": 31,
+    "REQUIRED_UNKNOWN": 1
+  },
+  "pass_like": 0,
+  "review_like": 22,
+  "fail_like": 10,
+  "unknown_like": 0,
+  "owner_attestations_open": 81,
+  "sam_api_calls": 0,
+  "fabricated_pass_suspect": 0,
+  "canonical_path": "response_engine.r3_service.run_r3_analysis",
+  "never_ready_to_submit": true,
+  "next_phase": "R4 \u2014 BUYER FORMS / SPREADSHEETS / RESPONSE DOCUMENT GENERATION",
+  "limitations": [
+    "Company profile largely UNKNOWN \u2014 expected fail-closed results",
+    "No live SAM refresh in R3",
+    "NMR waiver detection requires explicit waiver evidence on project",
+    "CMMC level verification requires documented company evidence",
+    "R4 form population not implemented"
+  ]
+}

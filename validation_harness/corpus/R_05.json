@@ -1,0 +1,55 @@
+{
+  "case_id": "R_05",
+  "case_name": "MULTI-CLIN / MULTI-DESTINATION \u2014 do not flatten",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ MULTI-R05\nPart Number: MC-100\nCLIN 0001 Quantity: 100 EA Destination: Richmond VA FOB DESTINATION Delivery 30 days ARO\nCLIN 0002 Quantity: 250 EA Destination: Norfolk VA FOB ORIGIN Delivery 45 days ARO\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {
+    "line_items": [
+      {
+        "clin": "0001",
+        "quantity": 100,
+        "uom": "EA",
+        "destination": "Richmond",
+        "fob": "DESTINATION"
+      },
+      {
+        "clin": "0002",
+        "quantity": 250,
+        "uom": "EA",
+        "destination": "Norfolk",
+        "fob": "ORIGIN"
+      }
+    ]
+  },
+  "expected": {
+    "quantity_uom": {
+      "multi_clin_destinations": 2
+    },
+    "shipping_delivery": {
+      "fob_destination": true,
+      "fob_origin": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "clin",
+    "delivery",
+    "R05"
+  ],
+  "notes": "R05 \u2014 two destinations/FOBs must remain distinct in execution",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": "Request separate freight quotes for CLIN 0001 Richmond (FOB Destination) and CLIN 0002 Norfolk (FOB Origin) before rolling economics.",
+  "blocker_quality": null
+}

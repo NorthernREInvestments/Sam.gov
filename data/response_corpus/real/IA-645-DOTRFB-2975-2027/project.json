@@ -1,0 +1,48 @@
+{
+  "corpus_project_id": "IA-645-DOTRFB-2975-2027",
+  "documents": [
+    {
+      "filename": "645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "stored_as": "7a6134d1fea06287_645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-2975-2027\\7a6134d1fea06287_645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "sha256": "7a6134d1fea0628780c841b9356ebfe0f283e424f7261ffa2595ad6f0c941eee",
+      "bytes": 420077,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-2975-2027\\645-DOTRFB-2975-2027__645-DOTRFB-2975-2027-event.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.507683+00:00"
+    },
+    {
+      "filename": "645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+      "stored_as": "1d3858b232cfddfd_645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-645-DOTRFB-2975-2027\\1d3858b232cfddfd_645-DOTRFB-2975-2027__ViewSourcingEvent.html",
+      "sha256": "1d3858b232cfddfdb550f25e796044480a18c04f026d0b6bf127982364234fb6",
+      "bytes": 35941,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\645-DOTRFB-2975-2027\\645-DOTRFB-2975-2027__ViewSourcingEvent",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.515849+00:00"
+    }
+  ],
+  "hashes": [
+    "7a6134d1fea0628780c841b9356ebfe0f283e424f7261ffa2595ad6f0c941eee",
+    "1d3858b232cfddfdb550f25e796044480a18c04f026d0b6bf127982364234fb6"
+  ],
+  "tags": [
+    "STATE",
+    "RFQ",
+    "PORTAL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:41:54.497775+00:00",
+  "buyer": "Iowa DOT",
+  "agency": null,
+  "solicitation_number": "645-DOTRFB-2975-2027",
+  "title": "645-DOTRFB-2975-2027",
+  "jurisdiction": "STATE",
+  "authoritative_source": "local:645-DOTRFB-2975-2027",
+  "discovery_source": "SciQuest/local_artifact",
+  "submission_system": null,
+  "solicitation_status": "HISTORICAL_OR_CACHED",
+  "notes": null,
+  "updated_at": "2026-09-29T22:41:54.515862+00:00"
+}

@@ -1,0 +1,15 @@
+{
+  "build": "20260929-m3-r5-preflight-submission-ui-sync",
+  "verdict_candidate": "PHASE_R5_SUBMISSION_WORKFLOW_READY",
+  "projects_analyzed": 32,
+  "DEAD_END_DEALS": 0,
+  "preflight_ready": 0,
+  "owner_action": 32,
+  "blocked": 0,
+  "waiting": 0,
+  "sam_api_calls": 0,
+  "external_side_effects": 0,
+  "auto_signed": 0,
+  "firewall_all_zero": true,
+  "fixtures": 13
+}

@@ -1,0 +1,95 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "engine": {
+    "available": true,
+    "engine": "rapidocr_onnxruntime",
+    "version": "r12-ocr-20260929-v1"
+  },
+  "cases": [
+    {
+      "project": "r12-real-005-RFB-3030-2027",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-2975-2027",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3042-2027",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3046-2027",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-DPHHS-IFB-2027-0703BP",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-RFB947601-02",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-RFB952200-01",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    },
+    {
+      "project": "r12-real-RFB952400-01",
+      "method": "pdf_native_text",
+      "ocr_required": false,
+      "confidence": "HIGH",
+      "stats": null,
+      "ok": true
+    }
+  ],
+  "scanned_fixture": {
+    "ok": true,
+    "engine": "rapidocr_onnxruntime",
+    "stats": {
+      "pages_rendered": 1,
+      "native_pages": 0,
+      "ocr_pages": 1,
+      "high": 1,
+      "medium": 0,
+      "low": 0,
+      "failures": 0,
+      "review_gated_pages": 0
+    },
+    "confidence": "HIGH",
+    "text_excerpt": "[OCR p.1] Solicitation RFQ-OCR-1\nQuantity. 15 each\nDe livery shall occur within 30 days ARO.\nSubmit signed SF1449 via email by October 14, 2026 2:00 PM cT."
+  },
+  "scanned_project": {
+    "requirements": 3,
+    "review_queue": 0,
+    "gated": 0
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "build": "20260929-m3-r11-production-intake-legacy-cutover",
+  "cases": [
+    {
+      "project": "r11-corpus-real-005-RFB-3030-2027",
+      "missing": [
+        {
+          "label": "Amendment\n1",
+          "excerpt": "ructions for Responding to an Amendment 1.      Review the amendment in the solicitation. 2.      Com",
+          "source_span": [
+            2741,
+            2752
+          ]
+        },
+        {
+          "label": "Question and Answer",
+          "excerpt": " submit an question(s) in the Question and Answer Section with your exception(s). 1.1  Enter the Bidder's con",
+          "source_span": [
+            4857,
+            4876
+          ]
+        }
+      ]
+    },
+    {
+      "project": "r11-syn-docx",
+      "missing": [
+        {
+          "label": "Attachment C",
+          "excerpt": "knowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            96,
+            108
+          ]
+        },
+        {
+          "label": "Amendment 0001",
+          "excerpt": "nd name or equal. Acknowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet require",
+          "source_span": [
+            76,
+            90
+          ]
+        },
+        {
+          "label": "See Attachment C",
+          "excerpt": ". Acknowledge Amendment 0001. See Attachment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            92,
+            108
+          ]
+        },
+        {
+          "label": "Pricing Sheet",
+          "excerpt": "achment C for specifications. Pricing Sheet required.",
+          "source_span": [
+            129,
+            142
+          ]
+        }
+      ]
+    },
+    {
+      "project": "r11-syn-missing",
+      "missing": [
+        {
+          "label": "Attachment C",
+          "excerpt": "tation. Quantity: 5 each. See Attachment C for specifications. Signed form required.",
+          "source_span": [
+            41,
+            53
+          ]
+        },
+        {
+          "label": "See Attachment C",
+          "excerpt": "licitation. Quantity: 5 each. See Attachment C for specifications. Signed form required.",
+          "source_span": [
+            37,
+            53
+          ]
+        }
+      ]
+    }
+  ]
+}

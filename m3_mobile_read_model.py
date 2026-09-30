@@ -16,6 +16,48 @@ def _unknown(v: Any) -> Any:
     return v
 
 
+def _eligibility_section(row: dict[str, Any]) -> dict[str, Any]:
+    """Show only relevant eligibility prerequisites when present on the row/packet."""
+    gate = row.get("eligibility_gate") or (row.get("phase_h_operator_packet") or {}).get("eligibility") or {}
+    if not isinstance(gate, dict) or not gate:
+        return {"status": "UNKNOWN", "relevant": [], "note": "Not evaluated"}
+    # Prefer compact UI shape from Phase H operator packet
+    if gate.get("relevant") is not None and gate.get("label"):
+        return {
+            "status": gate.get("label") or gate.get("overall_status") or "UNKNOWN",
+            "overall_status": gate.get("overall_status"),
+            "relevant": gate.get("relevant") or [],
+            "detail": (gate.get("plain") or {}).get("detail") or gate.get("blocking_reason"),
+            "next_action": gate.get("next_action"),
+        }
+    overall = gate.get("overall_status")
+    label_map = {
+        "ELIGIBLE_CONFIRMED": "Confirmed",
+        "ELIGIBLE_CONDITIONAL": "Conditional",
+        "NOT_CURRENTLY_ELIGIBLE": "Blocked",
+        "ELIGIBILITY_UNKNOWN": "Unknown",
+        "ELIGIBILITY_NOT_APPLICABLE": "Not applicable",
+    }
+    relevant: list[dict[str, str]] = []
+    if gate.get("vehicle_required") and gate.get("vehicle_name"):
+        relevant.append({"name": str(gate.get("vehicle_name")), "status": str(gate.get("vehicle_status") or "UNKNOWN")})
+    if gate.get("boa_required"):
+        relevant.append({"name": "BOAST BOA", "status": str(gate.get("boa_status") or "UNKNOWN")})
+    if gate.get("jcp_required"):
+        relevant.append({"name": "JCP", "status": str(gate.get("jcp_status") or "UNKNOWN")})
+    if gate.get("approved_source_required"):
+        relevant.append(
+            {"name": "Approved source", "status": str(gate.get("approved_source_status") or "UNKNOWN")}
+        )
+    return {
+        "status": label_map.get(str(overall), str(overall or "UNKNOWN")),
+        "overall_status": overall,
+        "relevant": relevant,
+        "detail": (gate.get("plain") or {}).get("detail") or gate.get("blocking_reason"),
+        "next_action": gate.get("next_action"),
+    }
+
+
 def _money(v: Any) -> Any:
     if v is None or v == "" or v == "UNKNOWN":
         return "UNKNOWN"
@@ -47,14 +89,28 @@ def opportunity_card_summary(row: dict[str, Any]) -> dict[str, Any]:
         pass
     days = readiness.get("time_left")
     if days == "UNKNOWN":
-        days = (row.get("deadline_evaluation") or {}).get("calendar_days_remaining")
+        days = row.get("deadline_runway_days")
+        if days is None:
+            days = (row.get("deadline_evaluation") or {}).get("calendar_days_remaining")
         days = days if days is not None else "UNKNOWN"
-    return {
+    deadline_display = (
+        row.get("deadline_raw")
+        or row.get("response_deadline")
+        or row.get("deadline")
+        or row.get("deadline_display")
+        or "UNKNOWN"
+    )
+    card = {
         "canonical_id": row.get("canonical_id"),
         "buyer": row.get("agency") or row.get("buyer") or "UNKNOWN",
         "title": row.get("title") or "Untitled",
         "solicitation_number": row.get("solicitation_number") or row.get("external_id"),
-        "deadline": row.get("deadline") or "UNKNOWN",
+        "deadline": deadline_display,
+        "deadline_runway_label": row.get("deadline_display") or "UNKNOWN",
+        "deadline_viability": row.get("deadline_viability")
+        or (row.get("deadline_evaluation") or {}).get("deadline_viability")
+        or "UNKNOWN",
+        "deadline_runway_days": days,
         "days_remaining": days,
         "lifecycle": row.get("lifecycle") or derive_lifecycle(row),
         "supported_revenue": revenue,
@@ -74,6 +130,30 @@ def opportunity_card_summary(row: dict[str, Any]) -> dict[str, Any]:
         "product_category": row.get("product_category") or row.get("product_classification") or "UNKNOWN",
         "priority": _priority_score(row, nxt if isinstance(nxt, dict) else {}),
     }
+    try:
+        from execution_requirements.enrichment import attach_canonical_enrichment
+
+        # Reuse prior enrichment when present (dashboard may enrich once then card)
+        if isinstance(row.get("owner_approval_gate"), dict) and "ready_for_owner_approval" in row:
+            from operator_workflow.summary import attach_operator_workflow
+
+            card = attach_operator_workflow(card, row, include_summary=True)
+            card["ready_for_owner_approval"] = row.get("ready_for_owner_approval") is True
+            card["owner_approval_gate"] = row.get("owner_approval_gate")
+            card["execution_critical_blockers"] = list(row.get("execution_critical_blockers") or [])
+            if row.get("supplier_execution_state") is not None:
+                card["supplier_execution_state"] = row.get("supplier_execution_state")
+        else:
+            # Same enrichment path as Deal Room / Deep Dive (Phase E.1)
+            card = attach_canonical_enrichment(card, row, include_summary=True, include_full_profile=False)
+    except Exception:
+        try:
+            from operator_workflow.summary import attach_operator_workflow
+
+            card = attach_operator_workflow(card, row, include_summary=True)
+        except Exception:
+            pass
+    return card
 
 
 def _priority_score(row: dict[str, Any], nxt: dict[str, Any]) -> int:
@@ -113,7 +193,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
     pricing = row.get("bid_pricing") or {}
     actions = row.get("operator_actions") or []
     bom = row.get("line_items") or row.get("bom") or []
-    return {
+    out = {
         "kind": "M3DealRoom",
         "canonical_id": row.get("canonical_id"),
         "overview": {
@@ -122,9 +202,14 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
             "title": card["title"],
             "source": row.get("source_id") or "UNKNOWN",
             "deadline": card["deadline"],
+            "deadline_raw": row.get("deadline_raw") or row.get("response_deadline") or card["deadline"],
+            "deadline_viability": card.get("deadline_viability") or row.get("deadline_viability") or "UNKNOWN",
+            "deadline_runway_days": card.get("deadline_runway_days") or row.get("deadline_runway_days"),
             "days_remaining": card["days_remaining"],
             "lifecycle": card["lifecycle"],
             "detail_url": row.get("detail_url"),
+            "posted_raw": row.get("posted_raw"),
+            "open_is_not_response_deadline": bool(row.get("open_is_not_response_deadline") or row.get("posted_raw")),
         },
         "product_fit": {
             "category": card["product_category"],
@@ -185,6 +270,7 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
             ),
             "unknown_financing_is_not_rejection": True,
         },
+        "eligibility": _eligibility_section(row),
         "compliance": {
             "requirements": compliance.get("resolved") or compliance.get("requirements") or [],
             "blockers": compliance.get("unresolved")
@@ -322,6 +408,41 @@ def deal_room_summary(row: dict[str, Any]) -> dict[str, Any]:
         "readiness": readiness,
         "DEVELOPMENT_NO_OUTREACH": is_development_no_outreach(),
     }
+    # Phase E.1 — canonical enrichment (execution → gate → workflow). Same path as dashboard cards.
+    # opportunity_card_summary already enriched; reuse gate when present to avoid double profile build.
+    try:
+        if isinstance(out.get("owner_approval_gate"), dict) and "ready_for_owner_approval" in out:
+            if isinstance(out.get("overview"), dict):
+                out["overview"] = dict(out["overview"])
+                out["overview"]["operator_workflow_state"] = out.get("operator_workflow_state")
+                out["overview"]["operator_next_action"] = out.get("operator_next_action")
+                out["overview"]["ready_for_owner_approval"] = out.get("ready_for_owner_approval") is True
+                ses = out.get("supplier_execution_state")
+                out["overview"]["supplier_execution_state"] = (
+                    ses.get("state") if isinstance(ses, dict) else ses
+                )
+            # Ensure execution_compliance profile is present for deep-dive checklist UI
+            if not isinstance(out.get("execution_compliance"), dict) or out["execution_compliance"].get("kind") != "ExecutionComplianceProfile":
+                from execution_requirements.enrichment import attach_canonical_enrichment
+
+                out = attach_canonical_enrichment(out, row, include_summary=True, include_full_profile=True)
+        else:
+            from execution_requirements.enrichment import attach_canonical_enrichment
+
+            out = attach_canonical_enrichment(out, row, include_summary=True, include_full_profile=True)
+            if isinstance(out.get("overview"), dict):
+                out["overview"] = dict(out["overview"])
+                out["overview"]["operator_workflow_state"] = out.get("operator_workflow_state")
+                out["overview"]["operator_next_action"] = out.get("operator_next_action")
+                out["overview"]["ready_for_owner_approval"] = out.get("ready_for_owner_approval") is True
+                ses = out.get("supplier_execution_state")
+                out["overview"]["supplier_execution_state"] = (
+                    ses.get("state") if isinstance(ses, dict) else ses
+                )
+    except Exception:
+        out.setdefault("execution_compliance", {"kind": "ExecutionComplianceProfile", "error": "unavailable"})
+        out.setdefault("ready_for_owner_approval", False)
+    return out
 
 
 def _deal_commercial(row: dict[str, Any]) -> dict[str, Any]:
@@ -600,6 +721,12 @@ def action_queue_mobile(store: M3PipelineStore | None = None) -> dict[str, Any]:
                 "lifecycle": row.get("lifecycle") or item.get("lifecycle"),
             }
         )
+        try:
+            from operator_workflow.summary import attach_operator_workflow
+
+            cards[-1] = attach_operator_workflow(cards[-1], row or item, include_summary=False)
+        except Exception:
+            pass
     cards.sort(key=lambda c: (c.get("priority") if isinstance(c.get("priority"), int) else 50, str(c.get("deadline"))))
     return {
         "kind": "M3MobileActionQueue",
@@ -638,16 +765,53 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
             restore_pipeline_store_from_db(store)
     except Exception:
         pass
-    rows = store.all()
-    cards = [opportunity_card_summary(r) for r in rows]
+    rows = [r for r in store.all() if isinstance(r, dict)]
+    # Phase E.1 — enrich once per display candidate, then share across cards + operator_dashboard.
+    # Cap list enrichment: opportunity_card_summary re-enriches any row lacking owner_approval_gate;
+    # full extract on every durable row hangs large pipelines / full-suite runs.
+    _TERMINAL = {
+        "REJECTED",
+        "REJECTED_CHEAP_SCREEN",
+        "CANCELLED",
+        "CLOSED",
+        "AWARDED",
+        "ARCHIVED",
+        "LOST",
+    }
+    _LIST_ENRICH_CAP = 80
+
+    def _dash_sort_key(r: dict[str, Any]) -> tuple:
+        life = str(r.get("lifecycle") or "")
+        terminal = 1 if life in _TERMINAL else 0
+        pri = r.get("priority")
+        try:
+            pri_i = int(pri) if pri is not None else 50
+        except (TypeError, ValueError):
+            pri_i = 50
+        dl = str(r.get("response_deadline") or r.get("deadline") or "9999")
+        return (terminal, pri_i, dl)
+
+    candidates = sorted(rows, key=_dash_sort_key)[:_LIST_ENRICH_CAP]
+    enriched_rows: list[dict[str, Any]] = []
+    try:
+        from execution_requirements.enrichment import enrich_deal_for_operator
+
+        for r in candidates:
+            try:
+                enriched_rows.append(
+                    enrich_deal_for_operator(r, include_summary=False, include_full_profile=False)
+                )
+            except Exception:
+                enriched_rows.append(r)
+    except Exception:
+        enriched_rows = list(candidates)
+
+    cards = [opportunity_card_summary(r) for r in enriched_rows]
     cards.sort(key=lambda c: (c.get("priority", 50), str(c.get("deadline") or "9999")))
     actions = action_queue_mobile(store)
-    active = [
-        c
-        for c in cards
-        if c.get("lifecycle")
-        not in {"REJECTED", "REJECTED_CHEAP_SCREEN", "CANCELLED", "CLOSED", "AWARDED", "ARCHIVED", "LOST"}
-    ]
+    active = [c for c in cards if c.get("lifecycle") not in _TERMINAL]
+    # Accurate active count from full store (cards are display-capped)
+    active_count_all = sum(1 for r in rows if str(r.get("lifecycle") or "") not in _TERMINAL)
     try:
         from m3_procurement_profile import load_m3_procurement_profile
 
@@ -724,9 +888,9 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         }
     except Exception:
         national = None
-    return {
+    out = {
         "kind": "M3MobileDashboard",
-        "active_count": len(active),
+        "active_count": active_count_all if active_count_all else len(active),
         "action_count": actions["count"],
         "active_opportunities": active[:40],
         "top_actions": actions["actions"][:15],
@@ -739,6 +903,20 @@ def mobile_dashboard_summary(store: M3PipelineStore | None = None) -> dict[str, 
         "payload_note": "compact read-model; economics UNKNOWN when unsupported",
         "procurement_profile": profile_summary,
     }
+    try:
+        from operator_workflow.summary import build_operator_dashboard_payload
+
+        # Rows already enriched above — do not re-run execution profile
+        out["operator_dashboard"] = build_operator_dashboard_payload(enriched_rows, enrich=False)
+    except Exception:
+        out["operator_dashboard"] = {
+            "kind": "OperatorDashboardPrep",
+            "active_work": [],
+            "attention_needed": {},
+            "counts": {},
+            "note": "operator dashboard projection unavailable",
+        }
+    return out
 
 
 def mobile_sources_summary() -> dict[str, Any]:

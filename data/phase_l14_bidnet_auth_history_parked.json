@@ -1,0 +1,20 @@
+{
+  "kind": "BIDNET_AUTH_HISTORY_PARKED",
+  "build": "20260928-m3-phase-l14-nonbidnet-source-expansion",
+  "platform": "BidNet",
+  "blocked_history": 82,
+  "unlock": "free_vendor_registration",
+  "priority": "deferred_by_owner",
+  "discovery_may_continue": true,
+  "no_current_engineering_effort": true,
+  "forbidden_this_phase": [
+    "BidNet registration",
+    "BidNet login",
+    "BidNet anti-bot evasion",
+    "BidNet history scraping",
+    "BidNet CAPTCHA",
+    "BidNet award-page workarounds"
+  ],
+  "parked_at": "2026-09-30T00:30:46.288744+00:00",
+  "reopen_only_when": "owner_explicitly_unparks_or_registers"
+}

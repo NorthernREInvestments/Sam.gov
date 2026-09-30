@@ -1,0 +1,22 @@
+﻿{
+  "checkpoint": "CRITICAL_SAFETY_CHECKPOINT",
+  "updated_at_utc": "2026-09-30T03:45:00Z",
+  "repo": "govtracker",
+  "branch": "cleanup/m3-r5-production-consolidation",
+  "starting_commit": "0d5c08c717298888b013af1badba702999241419",
+  "r5_known_good_commit": "2fe3e1629e4844846057ddcf564e73b83b421791",
+  "destructive_cleanup_allowed": true,
+  "destructive_cleanup_started": true,
+  "destructive_cleanup_completed": true,
+  "verdict": "M3_PRODUCTION_REPOSITORY_CONSOLIDATED_READY",
+  "deletion_manifest": "artifacts/repository_cleanup/deletion_manifest.json",
+  "remaining_compatibility": "artifacts/repository_cleanup/remaining_compatibility.json",
+  "results_doc": "docs/REPOSITORY_CLEANUP_RESULTS.md",
+  "secret_check": {
+    "env_ignored": true,
+    "result": "PASS"
+  },
+  "sam_api_calls": 0,
+  "external_side_effects": 0,
+  "DEAD_END_DEALS": 0
+}

@@ -1,0 +1,51 @@
+{
+  "corpus_project_id": "NE-121604-OR-LEICA",
+  "documents": [
+    {
+      "filename": "Leica_20ITB.pdf",
+      "stored_as": "8b6f9ce97b9cab23_Leica_20ITB.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121604-OR-LEICA\\8b6f9ce97b9cab23_Leica_20ITB.pdf",
+      "sha256": "8b6f9ce97b9cab2305019e3f160fdf0fa513a051624436c261a1a10a1ad1a6ec",
+      "bytes": 5885474,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/Leica%20ITB.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:41:57.623196+00:00"
+    },
+    {
+      "filename": "121604_20OR_20ITB_20SIELER5-23-25.pdf",
+      "stored_as": "91b28c27631510f6_121604_20OR_20ITB_20SIELER5-23-25.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121604-OR-LEICA\\91b28c27631510f6_121604_20OR_20ITB_20SIELER5-23-25.pdf",
+      "sha256": "91b28c27631510f6de1265e9af3293924fff2d4d4772b25dea1f9e8857c50a4f",
+      "bytes": 4154480,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/121604%20OR%20ITB%20SIELER5-23-25.pdf",
+      "role": "PRICING_SHEET",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:41:59.899574+00:00"
+    }
+  ],
+  "hashes": [
+    "8b6f9ce97b9cab2305019e3f160fdf0fa513a051624436c261a1a10a1ad1a6ec",
+    "91b28c27631510f6de1265e9af3293924fff2d4d4772b25dea1f9e8857c50a4f"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "RFQ",
+    "BUYER_XLSX",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:41:54.682140+00:00",
+  "buyer": "Nebraska DAS / NDOT",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "121604 OR",
+  "title": "Survey Equipment (Leica ITB)",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/121604%20OR/Leica%20ITB.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:41:59.899597+00:00"
+}

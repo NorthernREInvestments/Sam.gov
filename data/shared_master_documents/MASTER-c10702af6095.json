@@ -1,0 +1,21 @@
+{
+  "kind": "SharedMasterDocument",
+  "master_id": "MASTER-c10702af6095",
+  "authority": "DLA",
+  "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 99",
+  "version": "Rev-99-2025-02-20",
+  "effective_date": null,
+  "file_hash": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+  "content_hash": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+  "source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-99_February_20_2025.pdf",
+  "original_filename": "2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+  "binary_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-c10702af6095_2927c365455d59f3_2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+  "parsed_text_excerpt": "DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION \r\nFOR AUTOMATED SIMPLIFIED ACQUISITIONS\r\nREVISION 99 (February 20, 2025)\r\n1\r\nPART I - Instructions to Suppliersfor the Submission of Quotations and Automated Evaluation\r\n1. General Information/Instruction:\r\n(a) This solicitation, called the DLA Master Solicitation for Automated Simplified Acquisitions, is used with the \r\nrequest for quotations (RFQ), and the awards of purchase orders and basic contracts for automated EProcurement \r\nacquisitions valued up to the simplified acquisition threshold (SAT). The information/instruction found in this document \r\nexpands upon information/instruction found within individual solicitations that reference this document. The DLA \r\nMaster Solicitation for Automated Simplified Acquisitions is referenced in all automated RFQs that are located on the \r\nDLA Internet Bid Board System (DIBBS). Each RFQ contains a web link to this master solicitation. Suppliers are \r\nrequired to read PARTs I, II, and III of this master solicitation to understand the automated solicitation, evaluation and \r\naward process for the automated simplified acquisitions. Suppliers shall comply with the master solicitation in effect at \r\ntime of award. The master solicitation will be updated to reflect changes in law, regulation and acquisition policies and \r\nprocedures. Updates to this master solicitation will be identified by a date and revision number. Changes from the \r\npreceding revision will be indicated by yellow highlighting. Deletions are shown using strikethrough. Additions are \r\nshown using bold font style and brackets. Prior versions of the DLA Master Solicitation for Automated Simplified \r\nAcquisitions will be archived and available.\r\n(b) The master solicitation contains multiple parts. Part I instructs suppliers in the submission of quotations, use of the \r\nDIBBS and one-time buy automated award evaluation. Part II contains the Automated Indefinite Delivery Contract \r\n(AIDC) award evaluation informatio",
+  "parse": {
+    "method": "txt",
+    "confidence": "HIGH",
+    "parser_version": "r11-20260929-v1"
+  },
+  "created_at": "2026-09-29T22:47:03.590083+00:00",
+  "parsed_text_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-c10702af6095.txt"
+}

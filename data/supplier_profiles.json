@@ -1,0 +1,1343 @@
+{
+  "kind": "SupplierProfileRegistry",
+  "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery",
+  "profiles": {
+    "apple.com": {
+      "kind": "SupplierProfile",
+      "supplier": "apple.com",
+      "supplier_id": "apple.com",
+      "website": "https://www.apple.com/",
+      "manufacturer_relationships": [
+        "Apple"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "iPad"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 31,
+      "price_kind": "MANUFACTURER_LIST_PRICE",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-30T01:57:06.430635+00:00"
+    },
+    "ebay.com": {
+      "kind": "SupplierProfile",
+      "supplier": "ebay.com",
+      "supplier_id": "ebay.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Apple"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "iPad 11"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 6,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:26:35.387710+00:00"
+    },
+    "cat.com": {
+      "kind": "SupplierProfile",
+      "supplier": "cat.com",
+      "supplier_id": "cat.com",
+      "website": "https://www.cat.com/en_US/support/dealer-locator.html",
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 30,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-30T01:57:06.243676+00:00"
+    },
+    "sourcewellmn.gov": {
+      "kind": "SupplierProfile",
+      "supplier": "sourcewell-mn.gov",
+      "supplier_id": "sourcewellmn.gov",
+      "website": "https://www.sourcewell-mn.gov/",
+      "manufacturer_relationships": [
+        "Caterpillar",
+        "Ford"
+      ],
+      "authorization": "AUTHORIZATION_NOT_REQUIRED",
+      "exact_products": [
+        "c18",
+        "Police Pursuit Interceptor"
+      ],
+      "public_pricing": true,
+      "quote_required": false,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 37,
+      "price_kind": "CONTRACT_CATALOG_PRICE",
+      "grades_seen": [
+        "SUPPLIER_D",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-30T01:57:06.265018+00:00"
+    },
+    "3kingsenvironmentalinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "3kingsenvironmentalinc.com",
+      "supplier_id": "3kingsenvironmentalinc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:04.052272+00:00"
+    },
+    "activeconstructioninc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "activeconstructioninc.com",
+      "supplier_id": "activeconstructioninc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:04.077112+00:00"
+    },
+    "jimmydieselinc01.com": {
+      "kind": "SupplierProfile",
+      "supplier": "jimmydieselinc01.com",
+      "supplier_id": "jimmydieselinc01.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 1,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:03.955128+00:00"
+    },
+    "altorferindustriesinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "altorferindustriesinc.com",
+      "supplier_id": "altorferindustriesinc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 10,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:28.841137+00:00"
+    },
+    "zoro.com": {
+      "kind": "SupplierProfile",
+      "supplier": "zoro.com",
+      "supplier_id": "zoro.com",
+      "website": "https://www.zoro.com/search?q=FY27",
+      "manufacturer_relationships": [
+        "Caterpillar",
+        "Apple",
+        "Microsoft",
+        "Yamaha",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18",
+        "iPad 11",
+        "Chromebox",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 13,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.640200+00:00"
+    },
+    "bobcat.com": {
+      "kind": "SupplierProfile",
+      "supplier": "bobcat.com",
+      "supplier_id": "bobcat.com",
+      "website": "https://www.bobcat.com/search?q=CAT-213FAC-M",
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:29.218786+00:00"
+    },
+    "machinerytrader.com": {
+      "kind": "SupplierProfile",
+      "supplier": "machinerytrader.com",
+      "supplier_id": "machinerytrader.com",
+      "website": "https://www.machinerytrader.com/list/search?keywords=CAT-213FAC-M",
+      "manufacturer_relationships": [
+        "Caterpillar"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:29.245153+00:00"
+    },
+    "grainger.com": {
+      "kind": "SupplierProfile",
+      "supplier": "grainger.com",
+      "supplier_id": "grainger.com",
+      "website": "https://www.grainger.com/search?searchQuery=FY27",
+      "manufacturer_relationships": [
+        "Caterpillar",
+        "Apple",
+        "Microsoft",
+        "Yamaha",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18",
+        "iPad 11",
+        "Chromebox",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 14,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:32.624691+00:00"
+    },
+    "fastenal.com": {
+      "kind": "SupplierProfile",
+      "supplier": "fastenal.com",
+      "supplier_id": "fastenal.com",
+      "website": "https://www.fastenal.com/product/search?term=FY27",
+      "manufacturer_relationships": [
+        "Caterpillar",
+        "Apple",
+        "Yamaha",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "c18",
+        "iPad 11",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 11,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.674977+00:00"
+    },
+    "cdwg.com": {
+      "kind": "SupplierProfile",
+      "supplier": "cdw-g.com",
+      "supplier_id": "cdwg.com",
+      "website": "https://www.cdwg.com/",
+      "manufacturer_relationships": [
+        "Apple",
+        "Ford",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "Police Pursuit Interceptor",
+        "Chromebox",
+        "0549701",
+        "iPad"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 30,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-30T01:57:06.459114+00:00"
+    },
+    "insight.com": {
+      "kind": "SupplierProfile",
+      "supplier": "insight.com",
+      "supplier_id": "insight.com",
+      "website": "https://www.insight.com/",
+      "manufacturer_relationships": [
+        "Apple",
+        "Ford",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "Police Pursuit Interceptor",
+        "Chromebox",
+        "0549701",
+        "iPad"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 26,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-30T01:57:06.492476+00:00"
+    },
+    "shi.com": {
+      "kind": "SupplierProfile",
+      "supplier": "shi.com",
+      "supplier_id": "shi.com",
+      "website": "https://www.shi.com/",
+      "manufacturer_relationships": [
+        "Apple",
+        "Ford",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "Police Pursuit Interceptor",
+        "0549701",
+        "iPad"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 25,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-30T01:57:06.525677+00:00"
+    },
+    "dell.com": {
+      "kind": "SupplierProfile",
+      "supplier": "dell.com",
+      "supplier_id": "dell.com",
+      "website": "https://www.dell.com/search?q=Printer+Repair+and+Maintenance+for+the+V",
+      "manufacturer_relationships": [
+        "Apple",
+        "Ford",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "Police Pursuit Interceptor",
+        "Chromebox",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 6,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:33.340007+00:00"
+    },
+    "cdw.com": {
+      "kind": "SupplierProfile",
+      "supplier": "cdw.com",
+      "supplier_id": "cdw.com",
+      "website": "https://www.cdw.com/search?q=Printer+Repair+and+Maintenance+for+the+V",
+      "manufacturer_relationships": [
+        "Apple",
+        "Ford",
+        "ASUS",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "iPad 11",
+        "Police Pursuit Interceptor",
+        "Chromebox",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 13,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C",
+        "SUPPLIER_B",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T14:57:29.648311+00:00"
+    },
+    "mscdirect.com": {
+      "kind": "SupplierProfile",
+      "supplier": "mscdirect.com",
+      "supplier_id": "mscdirect.com",
+      "website": "https://www.mscdirect.com/browse/tn/?searchterm=FY27",
+      "manufacturer_relationships": [
+        "Apple",
+        "Yamaha",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "iPad 11",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 9,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.655108+00:00"
+    },
+    "mcmaster.com": {
+      "kind": "SupplierProfile",
+      "supplier": "mcmaster.com",
+      "supplier_id": "mcmaster.com",
+      "website": "https://www.mcmaster.com/search/FY27",
+      "manufacturer_relationships": [
+        "Apple",
+        "Yamaha",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "iPad 11",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 8,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.692920+00:00"
+    },
+    "digikey.com": {
+      "kind": "SupplierProfile",
+      "supplier": "digikey.com",
+      "supplier_id": "digikey.com",
+      "website": "https://www.digikey.com/en/products?keywords=FY27",
+      "manufacturer_relationships": [
+        "Apple",
+        "Yamaha",
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "iPad 11",
+        "0549701"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 8,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C",
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.728431+00:00"
+    },
+    "ford.com": {
+      "kind": "SupplierProfile",
+      "supplier": "ford.com",
+      "supplier_id": "ford.com",
+      "website": "https://www.ford.com/fleet/",
+      "manufacturer_relationships": [
+        "Ford"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "Police Pursuit Interceptor"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 13,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T07:35:19.712263+00:00"
+    },
+    "naspovaluepoint.org": {
+      "kind": "SupplierProfile",
+      "supplier": "naspovaluepoint.org",
+      "supplier_id": "naspovaluepoint.org",
+      "website": "https://www.naspovaluepoint.org/",
+      "manufacturer_relationships": [
+        "Ford"
+      ],
+      "authorization": "AUTHORIZATION_NOT_REQUIRED",
+      "exact_products": [
+        "Police Pursuit Interceptor"
+      ],
+      "public_pricing": true,
+      "quote_required": false,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 13,
+      "price_kind": "CONTRACT_CATALOG_PRICE",
+      "grades_seen": [
+        "SUPPLIER_D",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T07:35:19.789789+00:00"
+    },
+    "corporatebusinesssystemsinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "corporatebusinesssystemsinc.com",
+      "supplier_id": "corporatebusinesssystemsinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.305107+00:00"
+    },
+    "metroofficesolutionsinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "metroofficesolutionsinc.com",
+      "supplier_id": "metroofficesolutionsinc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Microsoft"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:28.953772+00:00"
+    },
+    "asus.com": {
+      "kind": "SupplierProfile",
+      "supplier": "asus.com",
+      "supplier_id": "asus.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "ASUS"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [
+        "Chromebox"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 11,
+      "price_kind": "MANUFACTURER_LIST_PRICE",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T14:57:29.619647+00:00"
+    },
+    "newegg.com": {
+      "kind": "SupplierProfile",
+      "supplier": "newegg.com",
+      "supplier_id": "newegg.com",
+      "website": "https://www.newegg.com/p/pl?d=Chromebox",
+      "manufacturer_relationships": [
+        "ASUS"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "Chromebox"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 1,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:29.830404+00:00"
+    },
+    "bhphotovideo.com": {
+      "kind": "SupplierProfile",
+      "supplier": "bhphotovideo.com",
+      "supplier_id": "bhphotovideo.com",
+      "website": "https://www.bhphotovideo.com/c/search?Ntt=Chromebox",
+      "manufacturer_relationships": [
+        "ASUS"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [
+        "Chromebox"
+      ],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 1,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:29.857751+00:00"
+    },
+    "kayhaninternationallimited.com": {
+      "kind": "SupplierProfile",
+      "supplier": "kayhaninternationallimited.com",
+      "supplier_id": "kayhaninternationallimited.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 6,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.168768+00:00"
+    },
+    "interiorinvestmentsllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "interiorinvestmentsllc.com",
+      "supplier_id": "interiorinvestmentsllc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.184477+00:00"
+    },
+    "hausergrouplimited.com": {
+      "kind": "SupplierProfile",
+      "supplier": "hausergrouplimited.com",
+      "supplier_id": "hausergrouplimited.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.093938+00:00"
+    },
+    "perkproductsinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "perkproductsinc.com",
+      "supplier_id": "perkproductsinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.132579+00:00"
+    },
+    "arconas.com": {
+      "kind": "SupplierProfile",
+      "supplier": "arconas.com",
+      "supplier_id": "arconas.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.149640+00:00"
+    },
+    "staples.com": {
+      "kind": "SupplierProfile",
+      "supplier": "staples.com",
+      "supplier_id": "staples.com",
+      "website": "https://www.staples.com/search?q=Cafeteria+Furniture",
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_NOT_REQUIRED",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 3,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.201569+00:00"
+    },
+    "officedepot.com": {
+      "kind": "SupplierProfile",
+      "supplier": "officedepot.com",
+      "supplier_id": "officedepot.com",
+      "website": "https://www.officedepot.com/search?q=Cafeteria+Furniture",
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_NOT_REQUIRED",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 3,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.216969+00:00"
+    },
+    "wahtshearingllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "wahtshearingllc.com",
+      "supplier_id": "wahtshearingllc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:30.308576+00:00"
+    },
+    "chevy.com": {
+      "kind": "SupplierProfile",
+      "supplier": "chevy.com",
+      "supplier_id": "chevy.com",
+      "website": "https://www.chevy.com/search?q=Vehicle+Items+D1",
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 6,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T05:00:33.658058+00:00"
+    },
+    "millertotalcleanllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "millertotalcleanllc.com",
+      "supplier_id": "millertotalcleanllc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 3,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:31.883876+00:00"
+    },
+    "mileschevroletnissan.com": {
+      "kind": "SupplierProfile",
+      "supplier": "mileschevroletnissan.com",
+      "supplier_id": "mileschevroletnissan.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 20,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.577224+00:00"
+    },
+    "piercemanufacturingco.com": {
+      "kind": "SupplierProfile",
+      "supplier": "piercemanufacturingco.com",
+      "supplier_id": "piercemanufacturingco.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.482674+00:00"
+    },
+    "centralpurchasingofficereceptionist.com": {
+      "kind": "SupplierProfile",
+      "supplier": "centralpurchasingofficereceptionist.com",
+      "supplier_id": "centralpurchasingofficereceptionist.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 10,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.518573+00:00"
+    },
+    "cisco.com": {
+      "kind": "SupplierProfile",
+      "supplier": "cisco.com",
+      "supplier_id": "cisco.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZED_LIKELY",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 8,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_B",
+        "SUPPLIER_C"
+      ],
+      "updated_at": "2026-09-29T15:19:00.087339+00:00"
+    },
+    "trace3governmentllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "trace3governmentllc.com",
+      "supplier_id": "trace3governmentllc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:30.855807+00:00"
+    },
+    "worldwidetechnologyllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "worldwidetechnologyllc.com",
+      "supplier_id": "worldwidetechnologyllc.com",
+      "website": null,
+      "manufacturer_relationships": [
+        "Cisco"
+      ],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:30.832596+00:00"
+    },
+    "abofficemachines.com": {
+      "kind": "SupplierProfile",
+      "supplier": "abofficemachines.com",
+      "supplier_id": "abofficemachines.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:31.412674+00:00"
+    },
+    "massmutualthemolyneauxfinancialgp.com": {
+      "kind": "SupplierProfile",
+      "supplier": "massmutualthemolyneauxfinancialgp.com",
+      "supplier_id": "massmutualthemolyneauxfinancialgp.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 1,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:31.326468+00:00"
+    },
+    "johnsonsinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "johnsonsinc.com",
+      "supplier_id": "johnsonsinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:31.362898+00:00"
+    },
+    "anchormechanicalinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "anchormechanicalinc.com",
+      "supplier_id": "anchormechanicalinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.587360+00:00"
+    },
+    "chicagounitedindustrieslimited.com": {
+      "kind": "SupplierProfile",
+      "supplier": "chicagounitedindustrieslimited.com",
+      "supplier_id": "chicagounitedindustrieslimited.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.604647+00:00"
+    },
+    "y2kheatingcooling.com": {
+      "kind": "SupplierProfile",
+      "supplier": "y2kheatingcooling.com",
+      "supplier_id": "y2kheatingcooling.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.511609+00:00"
+    },
+    "allchicagoinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "allchicagoinc.com",
+      "supplier_id": "allchicagoinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.529687+00:00"
+    },
+    "unitedairlinesinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "unitedairlinesinc.com",
+      "supplier_id": "unitedairlinesinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.551010+00:00"
+    },
+    "oakbrookmechanicalservices.com": {
+      "kind": "SupplierProfile",
+      "supplier": "oakbrookmechanicalservices.com",
+      "supplier_id": "oakbrookmechanicalservices.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:32.569726+00:00"
+    },
+    "suttonfordinc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "suttonfordinc.com",
+      "supplier_id": "suttonfordinc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:31.934462+00:00"
+    },
+    "atrllc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "atrllc.com",
+      "supplier_id": "atrllc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 4,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.536638+00:00"
+    },
+    "kerrysautobodyinccleanedup.com": {
+      "kind": "SupplierProfile",
+      "supplier": "kerrysautobodyinccleanedup.com",
+      "supplier_id": "kerrysautobodyinccleanedup.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 2,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.320720+00:00"
+    },
+    "aaafireprotectioninc.com": {
+      "kind": "SupplierProfile",
+      "supplier": "aaafireprotectioninc.com",
+      "supplier_id": "aaafireprotectioninc.com",
+      "website": null,
+      "manufacturer_relationships": [],
+      "authorization": "AUTHORIZATION_UNKNOWN",
+      "exact_products": [],
+      "public_pricing": false,
+      "quote_required": true,
+      "terms": "unknown",
+      "freight": "unknown",
+      "financing_compatibility": "unknown",
+      "past_m3_usage": 1,
+      "price_kind": "QUOTE_REQUIRED",
+      "grades_seen": [
+        "SUPPLIER_D"
+      ],
+      "updated_at": "2026-09-29T05:00:33.287518+00:00"
+    }
+  },
+  "updated_at": "2026-09-30T01:57:06.526419+00:00"
+}

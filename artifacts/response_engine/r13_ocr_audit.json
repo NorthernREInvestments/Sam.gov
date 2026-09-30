@@ -1,0 +1,10 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "cases": [
+    {
+      "project": "DLA-MASTER-ASA-REV102",
+      "ocr_pages": 0,
+      "ocr_required_docs": 1
+    }
+  ]
+}

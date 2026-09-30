@@ -199,9 +199,23 @@ def parse_sciquest_public_events(
         if number and _is_status_word(number):
             number = None
 
+        # Close = response deadline (runway driver). Open/posted is NEVER the response deadline.
         deadline_raw = _close_from_row(row)
         posted_raw = _open_posted_from_row(row)
         dl = normalize_deadline(deadline_raw) if deadline_raw else normalize_deadline(None)
+        # Prefer TZ resolved from Close text (e.g. CDT → America/Chicago)
+        try:
+            from deadline_runtime import parse_procurement_deadline
+
+            close_parsed = parse_procurement_deadline(deadline_raw, role="CLOSE") if deadline_raw else {}
+            if close_parsed.get("iana_timezone") and close_parsed.get("timezone_confidence") == "KNOWN":
+                dl = {
+                    **dl,
+                    "timezone": close_parsed.get("iana_timezone"),
+                    "timezone_confidence": "KNOWN",
+                }
+        except Exception:
+            pass
 
         pdf_ids = re.findall(r"Sourcingevent/(\d+)-event\.pdf", row, re.I)
         if pdf_ids:
@@ -309,6 +323,10 @@ def parse_sciquest_public_events(
                     "rtype": (rtype or "").strip().upper() or None,
                     "anchor_id": anchor_id,
                     "posted_raw": posted_raw,
+                    "open_date_raw": posted_raw,
+                    "close_date_raw": deadline_raw,
+                    "response_deadline_raw": deadline_raw,
+                    "open_is_not_response_deadline": True if posted_raw else None,
                     "document_link_discovered": bool(doc_links),
                     "document_fetched": False,
                     "customer_org": (parse_qs(urlparse(list_url).query).get("CustomerOrg") or [None])[0],

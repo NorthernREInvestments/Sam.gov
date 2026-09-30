@@ -1,0 +1,16 @@
+{
+  "kind": "PhaseGFrozenFixtures",
+  "count": 10,
+  "files": [
+    "G_01_exact_nsn.json",
+    "G_02_parts_kit_uom_identity.json",
+    "G_03_dla_listing.json",
+    "G_04_supplier_economics_block.json",
+    "G_05_service_reject.json",
+    "G_06_construction_reject.json",
+    "G_07_award_notice_reject.json",
+    "G_08_public_price_unavailable.json",
+    "G_09_financing_blocker.json",
+    "G_NOTE_no_ready_path.json"
+  ]
+}

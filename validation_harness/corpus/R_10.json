@@ -1,0 +1,72 @@
+{
+  "case_id": "R_10",
+  "case_name": "FINANCING FAILURE \u2014 good deal economics but cash/PG blocks owner",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ FIN-R10\nPart Number: FIN-OK-1 brand name or equal\nQuantity: 20 EA\nFOB DESTINATION Delivery 30 days\nCommercial packaging acceptable\nSubmit via email.\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "Validated Wholesale LLC",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "acquisition_cost": 450,
+    "supported_profit": 18400,
+    "government_revenue": 52000,
+    "economics_complete": true,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true,
+    "financing_compatible": false,
+    "funding_state": "UNRESOLVED_OWNER_CASH",
+    "owner_cash_required_before_payment": 45000,
+    "personal_guarantee_required": true
+  },
+  "expected": {
+    "supplier": {
+      "supplier_validated": true
+    },
+    "economics": {
+      "economics_complete": true
+    },
+    "financing": {
+      "financing_compatible": false
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    },
+    "execution_blockers_include_any": [
+      "FINANCING_INCOMPATIBLE_OR_UNKNOWN"
+    ]
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "financing",
+    "false_readiness",
+    "R10",
+    "REGRESSION_READY"
+  ],
+  "notes": "R10 \u2014 high margin must not override owner-cash / PG prohibition",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false,
+    "financing_blocker_visible": true
+  },
+  "next_action_quality": "Financing is unresolved. Supplier terms require payment before government reimbursement and a personal guarantee is indicated. Confirm a zero-owner-cash, non-PG funding path before bid approval.",
+  "blocker_quality": null
+}

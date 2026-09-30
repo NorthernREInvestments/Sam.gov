@@ -1,0 +1,77 @@
+{
+  "kind": "SharedMasterDocumentIndex",
+  "by_id": {
+    "MASTER-5ae934856ab0": {
+      "kind": "SharedMasterDocument",
+      "master_id": "MASTER-5ae934856ab0",
+      "authority": "DLA",
+      "title": "DLA Master Solicitation SPE4A1-19-R-0001",
+      "version": "2024",
+      "effective_date": null,
+      "file_hash": "2bd59a8751072ce1d4cd9472b709e2a955ad891d9e65fab6f7f201e71de83d29",
+      "content_hash": "2bd59a8751072ce1d4cd9472b709e2a955ad891d9e65fab6f7f201e71de83d29",
+      "source": "fixture_local",
+      "original_filename": "dla_master.txt",
+      "binary_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-5ae934856ab0_2bd59a8751072ce1_dla_master.txt",
+      "parse": {
+        "method": "txt",
+        "confidence": "HIGH",
+        "parser_version": "r11-20260929-v1"
+      },
+      "created_at": "2026-09-29T21:16:57.675208+00:00",
+      "parsed_text_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-5ae934856ab0.txt"
+    },
+    "MASTER-03bdaf99645b": {
+      "kind": "SharedMasterDocument",
+      "master_id": "MASTER-03bdaf99645b",
+      "authority": "DLA",
+      "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 102",
+      "version": "Rev-102-2025-09-29",
+      "effective_date": null,
+      "file_hash": "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28",
+      "content_hash": "ba8bab42ccea41f3304139f9d34c7479ccb4a623919db10da4e6b5363a25ef28",
+      "source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-102_September_29_2025.pdf",
+      "original_filename": "ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+      "binary_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-03bdaf99645b_ba8bab42ccea41f3_ba8bab42ccea41f3_DLA_MasterSolicitation_ASA_Rev102_2025-09-29.pdf",
+      "parse": {
+        "method": "pdf_scan_detected",
+        "confidence": "LOW",
+        "parser_version": "r11-20260929-v1"
+      },
+      "created_at": "2026-09-29T22:47:03.527487+00:00",
+      "parsed_text_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-03bdaf99645b.txt"
+    },
+    "MASTER-c10702af6095": {
+      "kind": "SharedMasterDocument",
+      "master_id": "MASTER-c10702af6095",
+      "authority": "DLA",
+      "title": "DLA Master Solicitation for Automated Simplified Acquisitions Rev 99",
+      "version": "Rev-99-2025-02-20",
+      "effective_date": null,
+      "file_hash": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+      "content_hash": "2927c365455d59f306c598a373aea1252bca731c3617d007ba1cd7465d139889",
+      "source": "https://www.dla.mil/Portals/104/Documents/J7Acquisition/MasterSolicitation4ASAcqRev-99_February_20_2025.pdf",
+      "original_filename": "2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "binary_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-c10702af6095_2927c365455d59f3_2927c365455d59f3_DLA_MasterSolicitation_ASA_Rev99_2025-02-20.txt",
+      "parse": {
+        "method": "txt",
+        "confidence": "HIGH",
+        "parser_version": "r11-20260929-v1"
+      },
+      "created_at": "2026-09-29T22:47:03.590083+00:00",
+      "parsed_text_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\shared_master_documents\\binaries\\MASTER-c10702af6095.txt"
+    }
+  },
+  "by_authority_title": {
+    "dla|dla master solicitation spe4a1-19-r-0001|2024": [
+      "MASTER-5ae934856ab0"
+    ],
+    "dla|dla master solicitation for automated simplified acquisitions rev 102|rev-102-2025-09-29": [
+      "MASTER-03bdaf99645b"
+    ],
+    "dla|dla master solicitation for automated simplified acquisitions rev 99|rev-99-2025-02-20": [
+      "MASTER-c10702af6095"
+    ]
+  },
+  "updated_at": "2026-09-29T22:47:03.590657+00:00"
+}

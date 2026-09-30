@@ -70,12 +70,38 @@ def _read_durable_payload() -> dict[str, Any] | None:
                         path = Path(__file__).resolve().parent / path
                     if path.exists():
                         data = json.loads(path.read_text(encoding="utf-8"))
-                        return data if isinstance(data, dict) else None
+                        if isinstance(data, dict):
+                            return data
+                    # CRITICAL: never fall through to the empty FILE_PRIMARY stub
+                    # (opportunities: []) — that silently wipes the pipeline on reload/save.
+                    if DEFAULT_PATH.exists() and DEFAULT_PATH != path:
+                        try:
+                            data = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
+                            if isinstance(data, dict) and (data.get("opportunities") or data.get("opportunity_count")):
+                                return data
+                        except Exception:
+                            pass
+                    log.error(
+                        "FILE_PRIMARY pointer set but payload file missing/unreadable at %s — refusing empty stub",
+                        path,
+                    )
+                    return None
             row = db.query(AppSetting).filter(AppSetting.key == PIPELINE_SETTINGS_KEY).one_or_none()
             if not row or not row.value:
                 return None
             data = json.loads(row.value) if isinstance(row.value, str) else row.value
-            return data if isinstance(data, dict) else None
+            if not isinstance(data, dict):
+                return None
+            # Guard: FILE_PRIMARY stub stored under settings key must not be treated as data
+            if data.get("mode") == "FILE_PRIMARY" and not (data.get("opportunities") or []):
+                path = DEFAULT_PATH
+                if path.exists():
+                    file_data = json.loads(path.read_text(encoding="utf-8"))
+                    if isinstance(file_data, dict):
+                        return file_data
+                log.error("Refusing empty FILE_PRIMARY stub from AppSetting")
+                return None
+            return data
         finally:
             db.close()
     except Exception:
@@ -277,6 +303,26 @@ class M3PipelineStore:
             except Exception:
                 log.exception("Durable merge-before-save failed; continuing with local rows")
 
+        # Safety: never durable-write an empty pipeline over a non-empty durable store
+        # (observed during Deal Room attach side-effects / FILE_PRIMARY stub reads).
+        if self.durable and durable_write and not self._rows:
+            try:
+                existing = _read_durable_payload()
+                existing_n = len((existing or {}).get("opportunities") or [])
+                if existing_n > 0:
+                    log.error(
+                        "Refusing durable save of EMPTY pipeline over %s existing opportunities",
+                        existing_n,
+                    )
+                    # Still refresh local file cache from durable — do not clobber DB
+                    if existing:
+                        self.path.parent.mkdir(parents=True, exist_ok=True)
+                        self.path.write_text(json.dumps(existing, indent=2, default=str), encoding="utf-8")
+                    return self.path
+            except Exception:
+                log.exception("Empty-save guard failed; aborting empty durable write")
+                return self.path
+
         payload = _payload_from_rows(self._rows, self._audit)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if durable_write:
@@ -356,7 +402,19 @@ class M3PipelineStore:
                 "solicitation_number": record.get("solicitation_number") or record.get("external_id"),
                 "source_id": record.get("source_id"),
                 "detail_url": record.get("detail_url"),
-                "deadline": record.get("deadline") or record.get("deadline_raw") or record.get("response_deadline"),
+                # Response/close only — never silently use posted/open as deadline
+                "deadline": record.get("deadline")
+                or record.get("deadline_raw")
+                or record.get("response_deadline"),
+                "deadline_raw": record.get("deadline_raw") or record.get("response_deadline"),
+                "response_deadline": record.get("response_deadline") or record.get("deadline_raw"),
+                "posted_raw": record.get("posted_raw") or record.get("open_date_raw"),
+                "open_date_raw": record.get("open_date_raw") or record.get("posted_raw"),
+                "listing_dates": record.get("listing_dates"),
+                "deadline_evidence": record.get("deadline_evidence"),
+                "deadline_timezone": record.get("deadline_timezone"),
+                "deadline_tz_confidence": record.get("deadline_tz_confidence")
+                or record.get("deadline_timezone_confidence"),
                 "status": record.get("status") or "OPEN",
                 "description": record.get("description"),
                 "product_classification": record.get("product_classification"),
@@ -408,7 +466,6 @@ class M3PipelineStore:
         for field in (
             "title",
             "agency",
-            "deadline",
             "status",
             "description",
             "package_access",
@@ -417,6 +474,60 @@ class M3PipelineStore:
         ):
             if record.get(field) is not None:
                 existing[field] = record[field]
+        # Deadline merge: never let an older close overwrite a newer confirmed close;
+        # never promote posted/open into deadline.
+        incoming_close = (
+            record.get("deadline_raw")
+            or record.get("response_deadline")
+            or record.get("deadline")
+        )
+        incoming_posted = record.get("posted_raw") or record.get("open_date_raw")
+        if incoming_posted:
+            existing["posted_raw"] = incoming_posted
+            existing["open_date_raw"] = incoming_posted
+            existing["open_is_not_response_deadline"] = True
+        if incoming_close and incoming_close not in (None, "", "UNKNOWN"):
+            if incoming_posted and str(incoming_close).strip() == str(incoming_posted).strip():
+                # Do not treat open/posted as response deadline
+                pass
+            else:
+                prior = existing.get("deadline_raw") or existing.get("response_deadline") or existing.get("deadline")
+                try:
+                    from deadline_runtime import apply_response_deadline_to_row, parse_procurement_deadline
+
+                    prior_date = parse_procurement_deadline(prior, role="CLOSE").get("date") if prior else None
+                    new_date = parse_procurement_deadline(incoming_close, role="CLOSE").get("date")
+                    is_amend = bool(record.get("is_amendment") or record.get("amendment_deadline"))
+                    # Prefer newer close date; preserve history via amendment evidence
+                    if prior and prior_date and new_date and new_date < prior_date and not is_amend:
+                        # Older close must not overwrite newer confirmed deadline
+                        pass
+                    else:
+                        existing = apply_response_deadline_to_row(
+                            existing,
+                            close_raw=incoming_close,
+                            posted_raw=incoming_posted,
+                            source_url=record.get("detail_url") or existing.get("detail_url"),
+                            is_amendment=bool(prior and prior != incoming_close),
+                        )
+                except Exception:
+                    existing["deadline"] = incoming_close
+                    existing["deadline_raw"] = incoming_close
+                    existing["response_deadline"] = incoming_close
+        if record.get("listing_dates"):
+            existing["listing_dates"] = {
+                **(existing.get("listing_dates") or {}),
+                **record["listing_dates"],
+            }
+        if record.get("deadline_evidence"):
+            try:
+                from deadline_runtime import merge_deadline_evidence
+
+                existing["deadline_evidence"] = merge_deadline_evidence(
+                    existing.get("deadline_evidence"), record.get("deadline_evidence")
+                )
+            except Exception:
+                existing["deadline_evidence"] = record.get("deadline_evidence")
         # Prefer incoming line_items only when present (never wipe with empty)
         if record.get("line_items") or record.get("bom"):
             existing["line_items"] = record.get("line_items") or record.get("bom")

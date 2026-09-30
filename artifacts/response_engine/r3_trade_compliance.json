@@ -1,0 +1,7 @@
+{
+  "counts": {
+    "UNKNOWN": 32
+  },
+  "engine": "response_engine.trade_compliance.evaluate_trade_compliance",
+  "rule": "unknown origin never auto-passes; brand HQ \u2260 COO"
+}

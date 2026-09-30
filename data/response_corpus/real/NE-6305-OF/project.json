@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "NE-6305-OF",
+  "documents": [
+    {
+      "filename": "6305_20OF_20ITB.pdf",
+      "stored_as": "78ba2148cba0d5c9_6305_20OF_20ITB.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6305-OF\\78ba2148cba0d5c9_6305_20OF_20ITB.pdf",
+      "sha256": "78ba2148cba0d5c9518bdfc2fe845afd98ef18814bb7acdbe9c3f0b037e41f32",
+      "bytes": 804878,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6305/6305%20OF%20ITB.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:01.412951+00:00"
+    }
+  ],
+  "hashes": [
+    "78ba2148cba0d5c9518bdfc2fe845afd98ef18814bb7acdbe9c3f0b037e41f32"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:42:00.697571+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "6305 OF",
+  "title": "Invitation to Bid One Time Purchase 6305 OF",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6305/6305%20OF%20ITB.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:42:01.412973+00:00"
+}

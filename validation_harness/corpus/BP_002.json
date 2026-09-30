@@ -1,0 +1,47 @@
+{
+  "case_id": "BP_002",
+  "case_name": "Broader pipeline \u2014 DIBBS incomplete (blocked)",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nDIBBS RFQ BP-002\nNSN: 5310-00-999-0001\nApproved source required\nQuantity: 50 EA\nFOB ORIGIN\nMIL-STD-2073 packaging\nDestination acceptance\n",
+  "documents": [],
+  "row_overrides": {
+    "product_classification": "DIBBS_HARDWARE"
+  },
+  "expected": {
+    "classification": {
+      "product_classification": "DIBBS_HARDWARE"
+    },
+    "product_identity": {
+      "nsn_detected": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "packaging": {
+      "mil_std_2073_detected": true
+    },
+    "supplier": {
+      "supplier_validated": false
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "broader_pipeline",
+    "dibbs",
+    "negative"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "broader_pipeline",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

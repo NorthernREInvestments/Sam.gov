@@ -1,0 +1,48 @@
+{
+  "corpus_project_id": "IA-005-RFB-3030-2027",
+  "documents": [
+    {
+      "filename": "005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+      "stored_as": "815263a9cf3a2eb0_005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-005-RFB-3030-2027\\815263a9cf3a2eb0_005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+      "sha256": "815263a9cf3a2eb05d084c4bbab8cc3fc0755e4640ef5b10865d57fcd8773242",
+      "bytes": 729168,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\005-RFB-3030-2027\\005-RFB-3030-2027__005-RFB-3030-2027-event.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.474678+00:00"
+    },
+    {
+      "filename": "005-RFB-3030-2027__ViewSourcingEvent.html",
+      "stored_as": "11737783d27dfedc_005-RFB-3030-2027__ViewSourcingEvent.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-005-RFB-3030-2027\\11737783d27dfedc_005-RFB-3030-2027__ViewSourcingEvent.html",
+      "sha256": "11737783d27dfedc79882e9f3b98af1fe8c96b4291ed16387fb4695745476bd6",
+      "bytes": 35959,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\transactional_procurement_evidence\\005-RFB-3030-2027\\005-RFB-3030-2027__ViewSourcingEvent",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.484797+00:00"
+    }
+  ],
+  "hashes": [
+    "815263a9cf3a2eb05d084c4bbab8cc3fc0755e4640ef5b10865d57fcd8773242",
+    "11737783d27dfedc79882e9f3b98af1fe8c96b4291ed16387fb4695745476bd6"
+  ],
+  "tags": [
+    "STATE",
+    "RFQ",
+    "PORTAL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:41:54.465761+00:00",
+  "buyer": "Iowa / State portal",
+  "agency": null,
+  "solicitation_number": "005-RFB-3030-2027",
+  "title": "005-RFB-3030-2027",
+  "jurisdiction": "STATE",
+  "authoritative_source": "local:005-RFB-3030-2027",
+  "discovery_source": "SciQuest/local_artifact",
+  "submission_system": null,
+  "solicitation_status": "HISTORICAL_OR_CACHED",
+  "notes": null,
+  "updated_at": "2026-09-29T22:41:54.484810+00:00"
+}

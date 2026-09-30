@@ -27,10 +27,12 @@ def _daily_limit(env_key: str, default: int) -> int:
 
 
 def sam_daily_limit() -> int:
-    """SAM.gov search + enrich calls per day (protect expiring API key credits).
+    """SAM.gov search + enrich calls per day (protect API key credits).
 
-    Prefer SAM_API_CALL_LIMIT when set; fall back to SAM_DAILY_API_BUDGET (default 10).
+    Prefer SAM_DAILY_CALL_BUDGET, then SAM_API_CALL_LIMIT, then SAM_DAILY_API_BUDGET (default 10).
     """
+    if os.getenv("SAM_DAILY_CALL_BUDGET") is not None:
+        return _daily_limit("SAM_DAILY_CALL_BUDGET", 10)
     if os.getenv("SAM_API_CALL_LIMIT") is not None:
         return _daily_limit("SAM_API_CALL_LIMIT", 10)
     return _daily_limit("SAM_DAILY_API_BUDGET", 10)

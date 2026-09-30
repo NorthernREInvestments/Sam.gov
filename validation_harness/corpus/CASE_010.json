@@ -1,0 +1,33 @@
+{
+  "case_id": "CASE_010",
+  "case_name": "Source inspection",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ SRC-INSP-010\nPart Number: SI-2 Quantity: 8 EA\nSource inspection required at contractor facility.\nCertificate of Conformance required.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "inspection_acceptance": {
+      "source_inspection": true,
+      "certificate_of_conformance": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "inspection",
+    "acceptance"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

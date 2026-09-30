@@ -1,7 +1,7 @@
 """Deadline / timezone normalization — never silently assume timezone."""
 
 from __future__ import annotations
-from application_clock import now_utc, today_local
+from application_clock import now_utc
 
 import re
 from datetime import date, datetime, timezone
@@ -18,10 +18,12 @@ def normalize_deadline(
     *,
     timezone_hint: str | None = None,
     timezone_explicit: bool = False,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """
     Store raw, parsed local, timezone, UTC where resolvable.
     Unknown timezone is explicit — never silent default to ET/UTC for display as fact.
+    Optional ``now`` keeps deadline_passed aligned with injected clocks (tests/pipelines).
     """
     if raw is None or raw == "":
         return {
@@ -62,11 +64,35 @@ def normalize_deadline(
             ss = int(m.group(6) or 0)
             parsed_local = datetime(y, mo, d, hh, mm, ss)
         else:
-            # MM/DD/YYYY
-            m2 = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw_s)
+            # MM/DD/YYYY[, ] h:mm AM/PM [TZ]
+            m2 = re.match(
+                r"(\d{1,2})/(\d{1,2})/(\d{4})(?:\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM))?(?:\s+([A-Z]{2,5}))?",
+                raw_s,
+                re.I,
+            )
             if m2:
                 mo, d, y = int(m2.group(1)), int(m2.group(2)), int(m2.group(3))
-                parsed_local = datetime(y, mo, d, 17, 0, 0)
+                hh, mm = 17, 0
+                if m2.group(4):
+                    hh = int(m2.group(4))
+                    mm = int(m2.group(5) or 0)
+                    ampm = (m2.group(6) or "").upper()
+                    if ampm == "PM" and hh < 12:
+                        hh += 12
+                    if ampm == "AM" and hh == 12:
+                        hh = 0
+                parsed_local = datetime(y, mo, d, hh, mm, 0)
+                tz_abbrev = (m2.group(7) or "").strip().upper() or None
+                if tz_abbrev and not timezone_hint:
+                    try:
+                        from deadline_runtime import resolve_iana_timezone
+
+                        iana, conf = resolve_iana_timezone(tz_abbrev)
+                        if conf == "KNOWN" and iana:
+                            tz_name = iana
+                            tz_conf = "KNOWN"
+                    except Exception:
+                        pass
             else:
                 # Month name: September 30, 2026 2:00 PM [Central]
                 m3 = re.search(
@@ -106,12 +132,18 @@ def normalize_deadline(
             tz_conf = "UNKNOWN"
             utc_deadline = None
 
+    clock = now if isinstance(now, datetime) else now_utc()
+    if clock.tzinfo is None:
+        clock = clock.replace(tzinfo=timezone.utc)
+    else:
+        clock = clock.astimezone(timezone.utc)
+
     deadline_passed = False
     if utc_deadline:
-        deadline_passed = utc_deadline < now_utc()
+        deadline_passed = utc_deadline < clock
     elif parsed_local:
         # Compare date-only when TZ unknown — conservative date compare
-        deadline_passed = parsed_local.date() < today_local()
+        deadline_passed = parsed_local.date() < clock.date()
 
     return {
         "deadline_raw": raw_s,

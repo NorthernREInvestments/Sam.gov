@@ -1,0 +1,8 @@
+{
+  "engine": "response_engine.spreadsheet_fill",
+  "rules": [
+    "preserve formulas",
+    "original immutable",
+    "XLSM manual"
+  ]
+}

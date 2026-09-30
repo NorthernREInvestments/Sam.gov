@@ -1,0 +1,35 @@
+{
+  "corpus_project_id": "IA-RFB952200-01",
+  "documents": [
+    {
+      "filename": "RFB952200-01__RFB952200-01-event.pdf",
+      "stored_as": "3bf3902553bad3a6_RFB952200-01__RFB952200-01-event.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\IA-RFB952200-01\\3bf3902553bad3a6_RFB952200-01__RFB952200-01-event.pdf",
+      "sha256": "3bf3902553bad3a62c01f171975548cee8b5810ed547ffbcae74cc3b2f40d2de",
+      "bytes": 264498,
+      "source_url": "file://C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\artifacts\\_temp_live_autonomous\\RFB952200-01\\RFB952200-01__RFB952200-01-event.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "LOCAL_ARTIFACT",
+      "retrieved_at": "2026-09-29T22:41:54.649037+00:00"
+    }
+  ],
+  "hashes": [
+    "3bf3902553bad3a62c01f171975548cee8b5810ed547ffbcae74cc3b2f40d2de"
+  ],
+  "tags": [
+    "STATE",
+    "RFQ"
+  ],
+  "created_at": "2026-09-29T22:41:54.638713+00:00",
+  "buyer": "Iowa agency",
+  "agency": null,
+  "solicitation_number": "RFB952200-01",
+  "title": "RFB952200-01",
+  "jurisdiction": "STATE",
+  "authoritative_source": "local:RFB952200-01",
+  "discovery_source": "SciQuest/local_artifact",
+  "submission_system": null,
+  "solicitation_status": "HISTORICAL_OR_CACHED",
+  "notes": null,
+  "updated_at": "2026-09-29T22:41:54.649055+00:00"
+}

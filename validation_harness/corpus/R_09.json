@@ -1,0 +1,38 @@
+{
+  "case_id": "R_09",
+  "case_name": "SOURCE INSPECTION \u2014 survives into execution / supplier packet",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ SRC-R09\nPart Number: SI-2 Quantity: 8 EA\nSource inspection required at contractor facility.\nCertificate of Conformance required.\nFOB ORIGIN. Submit via email.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "inspection_acceptance": {
+      "source_inspection": true,
+      "certificate_of_conformance": true
+    },
+    "shipping_delivery": {
+      "fob_origin": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "inspection",
+    "supplier",
+    "R09"
+  ],
+  "notes": "R09 \u2014 source inspection must appear in supplier confirmation packet",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {},
+  "next_action_quality": "Ask Supplier whether source inspection at their facility is supported for PN SI-2 (8 EA) and include CoC in the quote packet.",
+  "blocker_quality": null
+}

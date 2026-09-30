@@ -3,11 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-      <meta name="m3-build" content="20260922-m3-micro-lab-integrity-1">
+      <meta name="m3-build" content="20260929-m3-owner-ui-15-minute-operator-training">
       <title>M3 — GovCon Operating System</title>
       <link rel="stylesheet" href="/style.css?v=20260917-m3-product-identity-1">
 </head>
 <body class="m3-only-app">
+  <div id="operator-redirect-banner" style="background:#123526;color:#e8fff4;padding:.75rem 1rem;text-align:center;font-family:system-ui,sans-serif">
+    <strong>Daily operator work lives in the Operator Console.</strong>
+    <a href="/ops" style="color:#fff;margin-left:.75rem;font-weight:700">Open Operator Console →</a>
+    <span style="opacity:.8;margin-left:.75rem;font-size:.9rem">(This page is legacy / advanced research.)</span>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (!params.has("legacy") && !params.has("stay")) {
+        location.replace("/ops");
+      }
+    })();
+  </script>
   <header class="header m3-app-header">
     <div class="header-brand">
       <h1>M3</h1>
@@ -470,69 +483,82 @@
     </div>
   </div>
 
-  <!-- M3 Mobile Operator Experience — PRIMARY APPLICATION -->
+  <!-- M3 Operator OS — PRIMARY APPLICATION (Phase C) -->
   <div id="view-m3-home">
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
-        <h2>Home</h2>
-        <p class="m3-mobile-sub">What is new · What matters · What needs attention · What next</p>
+        <h2>Dashboard</h2>
+        <p class="m3-mobile-sub">What requires my attention today?</p>
+        <p id="m3-role-banner" class="m3-role-banner muted"></p>
       </header>
-      <div id="m3-discovery-status" class="m3-discovery-status m3-disc-current" aria-live="polite">
-        <div class="m3-disc-main">
-          <div class="m3-disc-head"><span class="m3-disc-title">DISCOVERY</span><span class="m3-disc-pct">…</span></div>
-          <div class="m3-disc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span style="width:0%"></span></div>
-          <p class="m3-disc-line muted">Loading discovery status…</p>
-        </div>
-        <div class="m3-disc-actions">
-          <button type="button" class="btn m3-disc-run-now" id="m3-discovery-run-now" disabled>RUN NOW</button>
-        </div>
-      </div>
-      <div id="m3-research-status" class="m3-research-status m3-res-idle" aria-live="polite">
-        <div class="m3-res-main">
-          <div class="m3-res-head"><span class="m3-res-title">RESEARCH</span><span class="m3-res-pct">…</span></div>
-          <div class="m3-res-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span style="width:0%"></span></div>
-          <p class="m3-res-line muted">Loading research status…</p>
-        </div>
-        <div class="m3-res-actions">
-          <button type="button" class="btn m3-res-run-now" id="m3-research-run-now" disabled>RUN NOW</button>
-        </div>
-      </div>
-      <div id="m3-evidence-status" class="m3-evidence-status m3-ev-idle" aria-live="polite">
-        <div class="m3-ev-main">
-          <div class="m3-ev-head"><span class="m3-ev-title">EVIDENCE ACCESS</span></div>
-          <p class="m3-ev-line muted">Loading evidence access…</p>
-        </div>
-        <div class="m3-ev-actions">
-          <button type="button" class="btn m3-ev-run-now" id="m3-evidence-run-now" disabled>RECOVER</button>
-        </div>
-      </div>
+      <div id="m3-home-kpis" class="m3-kpi-row" aria-live="polite"></div>
       <div id="m3-home-attention" class="m3-attention-band"></div>
       <section class="m3-mobile-section">
-        <h3 class="m3-section-label">Actions first</h3>
+        <h3 class="m3-section-label">Needs your approval</h3>
+        <div id="m3-home-approvals" class="m3-card-stack"></div>
+      </section>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Urgent blockers</h3>
         <div id="m3-home-actions" class="m3-card-stack"></div>
       </section>
       <section class="m3-mobile-section">
-        <h3 class="m3-section-label">Active opportunities</h3>
+        <h3 class="m3-section-label">Active deals</h3>
         <div id="m3-home-opps" class="m3-card-stack"></div>
       </section>
-      <p id="m3-home-empty" class="m3-empty" hidden>No active pipeline opportunities yet.</p>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Submitted</h3>
+        <div id="m3-home-submitted" class="m3-card-stack"></div>
+      </section>
+      <p id="m3-home-empty" class="m3-empty" hidden>Nothing needs attention right now.</p>
     </div>
   </div>
 
   <div id="view-m3-opportunities" hidden>
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
-        <h2>Opportunities</h2>
-        <p class="m3-mobile-sub">Portfolio deals · ranked by executable economics</p>
+        <h2>New Opportunities</h2>
+        <p class="m3-mobile-sub">Find the next opportunities worth pursuing</p>
       </header>
       <div id="m3-opps-filters" class="m3-btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="all">All</button>
-        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="cvw">Verification worthy</button>
-        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="ftx">First tx</button>
-        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="partial">Partial economics</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="intake">Intake</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="all">All open</button>
+        <button type="button" class="m3-back-btn m3-opp-filter" data-filter="ftx">First deal candidates</button>
       </div>
       <div id="m3-opps-top-cards" class="m3-card-stack"></div>
       <div id="m3-opps-list" class="m3-card-stack"></div>
+    </div>
+  </div>
+
+  <div id="view-m3-deep-dive" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Deep Dive</h2>
+        <p class="m3-mobile-sub">Move a deal from interesting to ready for owner approval</p>
+      </header>
+      <div id="m3-deep-dive-list" class="m3-card-stack"></div>
+      <p id="m3-deep-dive-empty" class="m3-empty" hidden>No deals in research yet. Advance one from New Opportunities.</p>
+    </div>
+  </div>
+
+  <div id="view-m3-pipeline" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Pipeline</h2>
+        <p class="m3-mobile-sub">Track actual business execution</p>
+      </header>
+      <div id="m3-pipeline-ladder" class="m3-pipeline-ladder" aria-hidden="true"></div>
+      <div id="m3-pipeline-body" class="m3-card-stack"></div>
+    </div>
+  </div>
+
+  <div id="view-m3-history" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <h2>Won / History</h2>
+        <p class="m3-mobile-sub">Awards, losses, margins, and lessons for future intelligence</p>
+      </header>
+      <div id="m3-history-body" class="m3-card-stack"></div>
+      <p id="m3-history-empty" class="m3-empty" hidden>No closed outcomes yet.</p>
     </div>
   </div>
 
@@ -551,7 +577,7 @@
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
         <h2>Sources</h2>
-        <p class="m3-mobile-sub">Source health â‰  market coverage</p>
+        <p class="m3-mobile-sub">Source health ≠ market coverage</p>
       </header>
       <div id="m3-sources-body" class="m3-card-stack"></div>
     </div>
@@ -588,13 +614,71 @@
   <div id="view-m3-settings" hidden>
     <div class="m3-mobile-page">
       <header class="m3-mobile-header">
-        <h2>M3 Settings</h2>
-        <p class="m3-mobile-sub">Product-resale procurement profile (not legacy NAICS)</p>
+        <h2>Settings</h2>
+        <p class="m3-mobile-sub">Role, profile, and Advanced tools</p>
       </header>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Working as</h3>
+        <article class="m3-info-card">
+          <p class="muted">UI view mode only — not authentication or access control. Backend RBAC is not implemented.</p>
+          <div class="m3-btn-row">
+            <button type="button" id="m3-role-owner" class="m3-back-btn m3-role-btn" data-role="owner">View as Owner</button>
+            <button type="button" id="m3-role-va" class="m3-back-btn m3-role-btn" data-role="va">View as Operator</button>
+          </div>
+          <p id="m3-role-status" class="muted"></p>
+        </article>
+      </section>
       <div id="m3-settings-body" class="m3-card-stack"></div>
-      <p class="muted m3-legacy-note">Legacy Northern RE facilities-service NAICS/sync UI is retired from this app. Controlled verification is available below.</p>
-      <div class="m3-btn-row">
-        <button type="button" id="m3-open-verify" class="m3-back-btn">Open controlled verify</button>
+      <section class="m3-mobile-section">
+        <h3 class="m3-section-label">Advanced / Admin</h3>
+        <p class="muted">Internal engines, Stage status, Sources, µLab — not daily VA work.</p>
+        <div class="m3-btn-row" style="flex-wrap:wrap;gap:6px">
+          <button type="button" id="m3-open-advanced" class="m3-back-btn">System status</button>
+          <button type="button" id="m3-open-actions" class="m3-back-btn">Action queue</button>
+          <button type="button" id="m3-open-sources" class="m3-back-btn">Sources</button>
+          <button type="button" id="m3-open-micro-lab" class="m3-back-btn">µLab</button>
+          <button type="button" id="m3-open-verify" class="m3-back-btn">Controlled verify</button>
+        </div>
+      </section>
+      <p class="muted m3-legacy-note">Legacy Northern RE facilities-service NAICS/sync UI is retired from this app.</p>
+    </div>
+  </div>
+
+  <div id="view-m3-advanced" hidden>
+    <div class="m3-mobile-page">
+      <header class="m3-mobile-header">
+        <button type="button" id="m3-advanced-back" class="m3-back-btn">← Settings</button>
+        <h2>System status</h2>
+        <p class="m3-mobile-sub">Discovery · Research · Evidence (admin)</p>
+      </header>
+      <div id="m3-discovery-status" class="m3-discovery-status m3-disc-current" aria-live="polite">
+        <div class="m3-disc-main">
+          <div class="m3-disc-head"><span class="m3-disc-title">DISCOVERY</span><span class="m3-disc-pct">…</span></div>
+          <div class="m3-disc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span style="width:0%"></span></div>
+          <p class="m3-disc-line muted">Loading discovery status…</p>
+        </div>
+        <div class="m3-disc-actions">
+          <button type="button" class="btn m3-disc-run-now" id="m3-discovery-run-now" disabled>RUN NOW</button>
+        </div>
+      </div>
+      <div id="m3-research-status" class="m3-research-status m3-res-idle" aria-live="polite">
+        <div class="m3-res-main">
+          <div class="m3-res-head"><span class="m3-res-title">RESEARCH</span><span class="m3-res-pct">…</span></div>
+          <div class="m3-res-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span style="width:0%"></span></div>
+          <p class="m3-res-line muted">Loading research status…</p>
+        </div>
+        <div class="m3-res-actions">
+          <button type="button" class="btn m3-res-run-now" id="m3-research-run-now" disabled>RUN NOW</button>
+        </div>
+      </div>
+      <div id="m3-evidence-status" class="m3-evidence-status m3-ev-idle" aria-live="polite">
+        <div class="m3-ev-main">
+          <div class="m3-ev-head"><span class="m3-ev-title">EVIDENCE ACCESS</span></div>
+          <p class="m3-ev-line muted">Loading evidence access…</p>
+        </div>
+        <div class="m3-ev-actions">
+          <button type="button" class="btn m3-ev-run-now" id="m3-evidence-run-now" disabled>RECOVER</button>
+        </div>
       </div>
     </div>
   </div>
@@ -744,11 +828,16 @@
   <div id="view-m3-deal-room" hidden>
     <div class="m3-mobile-page m3-deal-room">
       <header class="m3-mobile-header m3-deal-header">
-        <button type="button" id="m3-deal-back" class="m3-back-btn">â† Back</button>
-        <h2 id="m3-deal-title">Deal Room</h2>
+        <button type="button" id="m3-deal-back" class="m3-back-btn">← Back</button>
+        <h2 id="m3-deal-title">Deep Dive</h2>
         <p id="m3-deal-sub" class="m3-mobile-sub"></p>
+        <div id="m3-deal-ready-banner" class="m3-ready-banner" hidden></div>
       </header>
-      <div id="m3-deal-sections" class="m3-card-stack"></div>
+      <div id="m3-deal-checklist" class="m3-card-stack m3-checklist"></div>
+      <details class="m3-tech-details">
+        <summary>Technical details (Advanced)</summary>
+        <div id="m3-deal-sections" class="m3-card-stack"></div>
+      </details>
       <section class="m3-mobile-section" id="m3-deal-learning-panel">
         <h3 class="m3-section-label">Record learning</h3>
         <article class="m3-info-card">
@@ -780,11 +869,11 @@
   </div>
 
   <nav id="m3-bottom-nav" class="m3-bottom-nav" aria-label="M3 navigation">
-    <button type="button" class="m3-nav-btn active" data-m3-view="home">Home</button>
-    <button type="button" class="m3-nav-btn" data-m3-view="opportunities">Opps</button>
-    <button type="button" class="m3-nav-btn" data-m3-view="actions">Actions</button>
-    <button type="button" class="m3-nav-btn" data-m3-view="micro-lab">µLab</button>
-    <button type="button" class="m3-nav-btn" data-m3-view="sources">Sources</button>
+    <button type="button" class="m3-nav-btn active" data-m3-view="home">Dashboard</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="opportunities">New Opps</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="deep-dive">Deep Dive</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="pipeline">Pipeline</button>
+    <button type="button" class="m3-nav-btn" data-m3-view="history">History</button>
     <button type="button" class="m3-nav-btn" data-m3-view="settings">Settings</button>
   </nav>
 
@@ -800,17 +889,17 @@
     </div>
   </div>
 
-  <script src="/app.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/m3-mobile.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/micro-purchase-lab.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/gos-app.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/product-pipeline.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/deal-workspace.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/contract-detail.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/subs.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/pricing.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/proposal.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/submission.js?v=20260922-m3-micro-lab-integrity-1"></script>
-  <script src="/performance.js?v=20260922-m3-micro-lab-integrity-1"></script>
+  <script src="/app.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/m3-mobile.js?v=20260929-m3-owner-ui-15-minute-operator-training"></script>
+  <script src="/micro-purchase-lab.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/gos-app.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/product-pipeline.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/deal-workspace.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/contract-detail.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/subs.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/pricing.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/proposal.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/submission.js?v=20260922-m3-validation-harness-1"></script>
+  <script src="/performance.js?v=20260922-m3-validation-harness-1"></script>
 </body>
 </html>

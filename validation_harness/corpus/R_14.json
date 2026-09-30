@@ -1,0 +1,66 @@
+{
+  "case_id": "R_14",
+  "case_name": "REAL_SOURCE Iowa \u2014 645-DOTRFB-3046-2027 Wildflower and Native Grass Seed",
+  "description": "",
+  "source_type": "REAL_SOURCE_FIXTURE",
+  "source_fixture": "REAL_SOURCE_FIXTURE\nSource: artifacts/m3_iowa_live_breakthrough.json (frozen local; auth tokens redacted)\nSolicitation: 645-DOTRFB-3046-2027\nAgency: State of Iowa Department of Administrative Services\nTitle: Wildflower and Native Grass Seed\nResponse deadline: 9/28/2026, 1:00 PM CDT\nOpen date is not the response deadline.\nLine P1: Big bluestem (Andropogon gerardii) Quantity: 324.3 LB\nLine P3: Blue grama (Bouteloua gracilis) Quantity: 324.0 LB\nLine P4: Canada wildrye (Elymus canadensis) Quantity: 108.1 LB\nMulti-line seed BOM (~196 lines in source PDF).\nSubmit via Iowa DAS Jaggaer / SciQuest event.\n",
+  "documents": [],
+  "row_overrides": {
+    "canonical_id": "sol:645DOTRFB30462027:stateofiowadepartmentofadministrativeser",
+    "solicitation_number": "645-DOTRFB-3046-2027",
+    "agency": "State of Iowa Department of Administrative Services",
+    "product_classification": "AGRICULTURAL_SEED",
+    "deadline": "2026-09-28T13:00:00-05:00",
+    "open_is_not_response_deadline": true,
+    "line_items": [
+      {
+        "clin": "P1",
+        "description": "Big bluestem (Andropogon gerardii)",
+        "quantity": 324.3,
+        "uom": "LB"
+      },
+      {
+        "clin": "P3",
+        "description": "Blue grama (Bouteloua gracilis)",
+        "quantity": 324.0,
+        "uom": "LB"
+      },
+      {
+        "clin": "P4",
+        "description": "Canada wildrye (Elymus canadensis)",
+        "quantity": 108.1,
+        "uom": "LB"
+      }
+    ]
+  },
+  "expected": {
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "reality",
+    "real_source",
+    "iowa",
+    "jaggaer",
+    "multi_line",
+    "R14"
+  ],
+  "notes": "R14 \u2014 REAL_SOURCE from frozen Iowa breakthrough artifact. Multi-line LB UOM seed buy; not READY without supplier/econ/finance resolution.",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REAL_SOURCE_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": false,
+    "real_source_labeled": true
+  },
+  "next_action_quality": "Obtain supplier quotes covering the full seed BOM in pounds (not EA), starting with Big bluestem 324.3 LB and Blue grama 324.0 LB, before economics.",
+  "blocker_quality": null
+}

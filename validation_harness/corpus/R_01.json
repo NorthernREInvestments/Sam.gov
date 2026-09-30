@@ -1,0 +1,82 @@
+{
+  "case_id": "R_01",
+  "case_name": "SIMPLE COMMERCIAL PRODUCT \u2014 path to READY",
+  "description": "",
+  "source_type": "REALISTIC_FROZEN_FIXTURE",
+  "source_fixture": "REALISTIC_FROZEN_FIXTURE\nRFQ CITY-IT-R01\nAgency: City of Fixture Procurement\nManufacturer: Dell Inc.\nModel: Latitude 5540\nDell Latitude 5540 laptop brand name or equal\nQuantity: 50 EA\nFOB DESTINATION\nDelivery within 30 days after award\nCommercial packaging ASTM D3951 acceptable.\nSubmit quotes via email to buying@example.invalid\nSubject line: CITY-IT-R01 Quote\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "Validated Wholesale LLC",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "acquisition_cost": 450,
+    "supported_profit": 18400,
+    "government_revenue": 52000,
+    "economics_complete": true,
+    "financing_compatible": true,
+    "funding_state": "COMPATIBLE",
+    "owner_cash_required_before_payment": 0,
+    "personal_guarantee_required": false,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true
+  },
+  "expected": {
+    "product_identity": {
+      "brand_or_equal_detected": true
+    },
+    "quantity_uom": {
+      "has_quantity": true
+    },
+    "shipping_delivery": {
+      "fob_destination": true
+    },
+    "packaging": {
+      "commercial_packaging_detected": true
+    },
+    "supplier": {
+      "supplier_validated": true,
+      "quote_executable": true
+    },
+    "economics": {
+      "economics_complete": true
+    },
+    "financing": {
+      "financing_compatible": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": true
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": true,
+  "tags": [
+    "reality",
+    "commercial",
+    "positive_ready",
+    "R01"
+  ],
+  "notes": "R01 \u2014 exact manufacturer/model; commercial pack; destination delivery; executable supplier path",
+  "adversarial": false,
+  "validation_depth": "reality",
+  "reality_class": "REALISTIC_FROZEN_FIXTURE",
+  "ui_expectations": {
+    "ready_banner": true,
+    "deep_dive_who_acts": "Owner",
+    "no_stage_jargon": true
+  },
+  "next_action_quality": "Escalate ready package to owner for bid approval.",
+  "blocker_quality": null
+}

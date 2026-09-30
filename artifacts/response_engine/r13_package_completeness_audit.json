@@ -1,0 +1,2622 @@
+{
+  "build": "20260929-m3-r13-real-corpus-final-validation",
+  "cases": [
+    {
+      "project": "IA-005-RFB-3030-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Amendment\n1",
+          "excerpt": "ructions for Responding to an Amendment 1.      Review the amendment in the solicitation. 2.      Com",
+          "source_span": [
+            2741,
+            2752
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "on the same or more favorable terms and conditions for up  to Four (4) annual extensions.  The resulting Contr",
+          "source_span": [
+            3204,
+            3224
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": "If you have exceptions to the Terms and  Conditions, submit an question(s) in the Question and Answer Section w",
+          "source_span": [
+            4805,
+            4826
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Question and Answer",
+          "excerpt": " submit an question(s) in the Question and Answer Section with your exception(s). 1.1  Enter the Bidder's con",
+          "source_span": [
+            4857,
+            4876
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "IA-645-DOTRFB-2975-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            5861,
+            5881
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "IA-645-DOTRFB-3042-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            11459,
+            11479
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "IA-645-DOTRFB-3046-2027",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "s or both at the same prices, terms and conditions to  any other Iowa state agency, Regent or Political Subdiv",
+          "source_span": [
+            4386,
+            4406
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "MT-DPHHS-IFB-2027-0703BP",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "IA-RFB947601-02",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4266,
+            4274
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name HHS STS New Garage Building, Dated",
+          "source_span": [
+            3556,
+            3570
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "IA-RFB952200-01",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4453,
+            4461
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name DOC NCF Dietary and Laundry Hot  W",
+          "source_span": [
+            3704,
+            3718
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "IA-RFB952400-01",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Bid Form",
+          "excerpt": "load the completed and signed Bid Form.  NOTE: Bids are to be entered on the Bid Form only;  not i",
+          "source_span": [
+            4283,
+            4291
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "drawing sheets",
+          "excerpt": " Bidding Documents, including drawing sheets bearing the project name DOC ASP Sallyport Tunnel & Living ",
+          "source_span": [
+            3592,
+            3606
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "NE-121604-OR-LEICA",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "ATTACHMENT A",
+          "excerpt": "\u0200\" $# \",-+'%&  1    121604 OR ATTACHMENT A    COST SHEET  Nebraska Department of Transportation  Surve",
+          "source_span": [
+            5938,
+            5950
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment if",
+          "excerpt": "provide responses in separate attachment if multiple exceptions are taken):  1.  The specific clause, i",
+          "source_span": [
+            71282,
+            71295
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment cover",
+          "excerpt": "0014012-SUR Accessory - Panel attachment cover $35.00 EA HWB10007-TNL Tribrach W30Sb Black No Optical Plum",
+          "source_span": [
+            296394,
+            296410
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment with",
+          "excerpt": "523-GEO Robotic Total Station Attachment with Magnet Mount $225.00 EA 125520-GEO TDC6/MM6 Device Bracket ",
+          "source_span": [
+            314780,
+            314795
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "...................... 1  C.  SCHEDULE OF EVENTS ....................................................",
+          "source_span": [
+            10589,
+            10600
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to change.",
+          "source_span": [
+            44357,
+            44371
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the correct link for  the upload step you are",
+          "source_span": [
+            44520,
+            44533
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule \nof",
+          "excerpt": "d time of the opening per the Schedule  of Events. No late solicitation responses will be accepted.   ",
+          "source_span": [
+            51380,
+            51392
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule to",
+          "excerpt": "ach manufacturer\u2019s list price schedule to coincide with  manufacturers presented as Catalog/Non-Core ",
+          "source_span": [
+            159855,
+            159866
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Cost \nSheet",
+          "excerpt": "must be submitted on the BAFO Cost  Sheet and in accordance with the State\u2019s instructions. Failure to",
+          "source_span": [
+            62098,
+            62109
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 22  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            24894,
+            24918
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "olicitation and agrees to the terms and conditions unless otherwise indicated in writing and certifies that bi",
+          "source_span": [
+            7476,
+            7496
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms \nand conditions",
+          "excerpt": " and any proposed alternative terms  and conditions submitted with the solicitation response. The State reserve",
+          "source_span": [
+            71724,
+            71745
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "terms and \nconditions",
+          "excerpt": "or does not conflict with the terms and  conditions of this contract.    The Vendor shall include a similar pro",
+          "source_span": [
+            110713,
+            110734
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed by the State,  shall always con",
+          "source_span": [
+            74926,
+            74940
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "QUESTIONS AND ANSWERS",
+          "excerpt": ".............. 1  D.  WRITTEN QUESTIONS AND ANSWERS ...........................................................",
+          "source_span": [
+            10766,
+            10787
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-121756-OR",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment A",
+          "excerpt": " List, as shown in 121756 OR- Attachment A Estimated Annual Usage,, 121756 OR, and  121756 OR Attachme",
+          "source_span": [
+            63627,
+            63639
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment B",
+          "excerpt": "e,, 121756 OR, and  121756 OR Attachment B-Cost Sheet.    a.  The Core List shall contain the most rep",
+          "source_span": [
+            63691,
+            63703
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment if",
+          "excerpt": "provide responses in separate attachment if multiple exceptions  are taken):    1.  The specific clause",
+          "source_span": [
+            68715,
+            68728
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "...................... 1  C.  SCHEDULE OF EVENTS ....................................................",
+          "source_span": [
+            7400,
+            7411
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to  change",
+          "source_span": [
+            40996,
+            41010
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the  correct link for the upload step you are",
+          "source_span": [
+            41162,
+            41175
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "See Attachment A",
+          "excerpt": "inimum order requirements.    See Attachment A: Estimated Annual Usage  Page 16  SPB Form 17 | ITB Templat",
+          "source_span": [
+            98196,
+            98212
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Cost Sheet",
+          "excerpt": " and distribute the work      Cost Sheet: A required document that is completed by the vendor in the",
+          "source_span": [
+            27061,
+            27071
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 23  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            20737,
+            20761
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "..................... 8  II.  TERMS AND CONDITIONS ...........................................................",
+          "source_span": [
+            11183,
+            11203
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": " solicitation.    Accept All  Terms and  Conditions  Within  Section as  Written  (Initial)  Exceptions  Taken ",
+          "source_span": [
+            69629,
+            69650
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed  by the State, shall always con",
+          "source_span": [
+            72466,
+            72480
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "QUESTIONS AND ANSWERS",
+          "excerpt": ".............. 1  D.  WRITTEN QUESTIONS AND ANSWERS ...........................................................",
+          "source_span": [
+            7577,
+            7598
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-6305-OF",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "ATTACHMENT A",
+          "excerpt": "NVITATION BIDDERS MUST SUBMIT ATTACHMENT A COST SHEET  AS PART OF THEIR BID.  Page i  SPB ITB Boilerpl",
+          "source_span": [
+            2604,
+            2616
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "...................... 1  C.  SCHEDULE OF EVENTS ....................................................",
+          "source_span": [
+            8810,
+            8821
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to  change",
+          "source_span": [
+            42118,
+            42132
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "COST SHEET",
+          "excerpt": "DERS MUST SUBMIT ATTACHMENT A COST SHEET  AS PART OF THEIR BID.  Page i  SPB ITB Boilerplate | 07012",
+          "source_span": [
+            2617,
+            2627
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "Bid form",
+          "excerpt": "By signing this Invitation to Bid form, the bidder guarantees compliance with the provisions state",
+          "source_span": [
+            526,
+            534
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": ".................... 21  VI.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            20253,
+            20277
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "itation to Bid, agrees to the terms and conditions unless otherwise agreed to (see Section III) and certifies ",
+          "source_span": [
+            637,
+            657
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": "etitive and reasonable cost.  Terms and  Conditions, Project Description and Scope of Work, Proposal instructio",
+          "source_span": [
+            39754,
+            39775
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Terms \nand Conditions",
+          "excerpt": "actor is expected to read the Terms  and Conditions and must initial either accept, reject, or reject and provi",
+          "source_span": [
+            65464,
+            65485
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Standard Terms",
+          "excerpt": "t to, but not limited to, the Standard Terms and Conditions. PLEASE READ  CAREFULLY! This form is part o",
+          "source_span": [
+            2210,
+            2224
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "QUESTIONS AND ANSWERS",
+          "excerpt": ".............. 1  D.  WRITTEN QUESTIONS AND ANSWERS ...........................................................",
+          "source_span": [
+            8987,
+            9008
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-123131-OR-POP",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment A",
+          "excerpt": "itation to Bid: 09/09/25 Word Attachment A - Cost Sheet: 09/09/25 Excel Attachment B - Delivery Addres",
+          "source_span": [
+            952,
+            964
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment B",
+          "excerpt": " - Cost Sheet: 09/09/25 Excel Attachment B - Delivery Addresses, Contacts, And Instructions: 09/09/25 ",
+          "source_span": [
+            994,
+            1006
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment if",
+          "excerpt": "provide responses in separate attachment if multiple exceptions  are taken):    1.  The specific clause",
+          "source_span": [
+            68186,
+            68199
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Schedule of",
+          "excerpt": " occur in accordance with the Schedule of Events detailed in the solicitation linked below. PROJECT D",
+          "source_span": [
+            459,
+            470
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to  change",
+          "source_span": [
+            40702,
+            40716
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the  correct link for the upload step you are",
+          "source_span": [
+            40867,
+            40880
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule \nbetween",
+          "excerpt": "y) or on a mutually agreeable schedule  between the Vendor and each NDCS Facility Staff of the expected del",
+          "source_span": [
+            94446,
+            94463
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Addendum 1",
+          "excerpt": "nd Instructions: 09/09/25 PDF Addendum 1 \u2013 Questions and Answers: 09/17/25 PDF List of Respondents: ",
+          "source_span": [
+            1070,
+            1080
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 24  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            22443,
+            22467
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "..................... 8  II.  TERMS AND CONDITIONS ...........................................................",
+          "source_span": [
+            12399,
+            12419
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": " solicitation.    Accept All  Terms and  Conditions  Within  Section as  Written  (Initial)  Exceptions  Taken ",
+          "source_span": [
+            69105,
+            69126
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed  by the State, shall always con",
+          "source_span": [
+            71951,
+            71965
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Questions and Answers",
+          "excerpt": "ns: 09/09/25 PDF Addendum 1 \u2013 Questions and Answers: 09/17/25 PDF List of Respondents: 10/20/25 Word Intent to ",
+          "source_span": [
+            1083,
+            1104
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV102",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "MASTER SOLICITATION",
+          "excerpt": " DLA MASTER SOLICITATION SPE4A1-19-R-0001 Version 2024. Applicable clauses incorpora",
+          "source_span": [
+            5,
+            24
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DLA-MASTER-ASA-REV99",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment 3",
+          "excerpt": "20-O0019) (Revision 1) (see \r Attachment 3). \r [Use the clause at 252.225-7013, Duty-Free Entry, inste",
+          "source_span": [
+            88737,
+            88749
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 5",
+          "excerpt": "n 2020-O0019) (Revision \r 2) (Attachment 5) \r https://www.acq.osd.mil/dpap/policy/policyvault/USA00240",
+          "source_span": [
+            94055,
+            94067
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 2",
+          "excerpt": " (Class Deviation 2024-O0014) Attachment 2 \r https://www.acq.osd.mil/dpap/policy/policyvault/USA000827",
+          "source_span": [
+            97148,
+            97160
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 1",
+          "excerpt": "(Class Deviation 2024-O0014)\r Attachment 1\r https://www.acq.osd.mil/dpap/policy/policyvault/USA000827-",
+          "source_span": [
+            97794,
+            97806
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit Disposition",
+          "excerpt": "01 Supplemental First Article Exhibit Disposition - Contractor Maintained (MAY 2020) \u2013 Applies when the contr",
+          "source_span": [
+            109508,
+            109527
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix F",
+          "excerpt": "0) in accordance with \r DFARS Appendix F; and\r (iii) Marking in accordance with MIL-STD-129 (latest ",
+          "source_span": [
+            116747,
+            116757
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "schedule for",
+          "excerpt": "tation. The required delivery schedule for \r FAT line items will be identified in FAR 52.209-3 or 52.2",
+          "source_span": [
+            14993,
+            15005
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule actions",
+          "excerpt": "APPLICABLE for Federal Supply Schedule actions, \r Governmentwide Acquisitions and Multi Agency Contracts. ",
+          "source_span": [
+            60030,
+            60046
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Refer to schedule for",
+          "excerpt": "Contract Quality Requirement\r Refer to schedule for applicability.\r FAR 52.246-15 (Apr 1984) Certificate of Con",
+          "source_span": [
+            77705,
+            77726
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "see \r\nAttachment 3",
+          "excerpt": "ion 2020-O0019) (Revision 1) (see \r Attachment 3). \r [Use the clause at 252.225-7013, Duty-Free Entry, inste",
+          "source_span": [
+            88731,
+            88749
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "terms and \r\nconditions",
+          "excerpt": "ence, including the following terms and \r conditions that will be provided in full text:\r (i) Clause: 52.216-19 ",
+          "source_span": [
+            26852,
+            26874
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Terms and Conditions",
+          "excerpt": "2.212-5 (Jan 2025)] [Contract Terms and Conditions Required To Implement \r Statutes or Executive Orders\u2014Commer",
+          "source_span": [
+            53640,
+            53660
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "MASTER SOLICITATION",
+          "excerpt": "EFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION \r FOR AUTOMATED SIMPLIFIED ACQUISITIONS\r REVISION 99 (Febru",
+          "source_span": [
+            31,
+            50
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DLA-SPE4A7-23-R-0105",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "attachment 2",
+          "excerpt": " See World-Wide Demand column attachment 2: Schedule of Items \r \u2022 Sourcing Status: o DLA Sourced Items",
+          "source_span": [
+            9729,
+            9741
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 1",
+          "excerpt": "e included in the contract as Attachment 1. B. Supplemental Schedule of Items. Consists of items of sp",
+          "source_span": [
+            10825,
+            10837
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 3",
+          "excerpt": ") Data \r PID Data included in Attachment 3 \r Part 12 Clauses \r 52.212-04 CONTRACT TERMS AND CONDITIONS",
+          "source_span": [
+            13173,
+            13185
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 6",
+          "excerpt": "surcharge element is shown in Attachment 6. \r L.12.5 Transition CLIN. Fixed Pricing is established for",
+          "source_span": [
+            221831,
+            221843
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix B",
+          "excerpt": "down by site, as shown at PWS Appendix B in the Level of Support Table. As shown in the table each s",
+          "source_span": [
+            220172,
+            220182
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix for",
+          "excerpt": "\r 2.4.8 Kitting (Site C1; See Appendix for FRCSE, Jacksonville Kit BOM)) ... 82 \r 3.0 MATERIAL MANAGEM",
+          "source_span": [
+            266897,
+            266909
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix A",
+          "excerpt": "the \r schedule of items (SOI) Appendix A for the customers listed at Appendix B \u2013 Customer Sites. Ap",
+          "source_span": [
+            269999,
+            270009
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix E",
+          "excerpt": "ce and warehouse space. See \r Appendix E for full list of Government Furnished Facility and Equipmen",
+          "source_span": [
+            277138,
+            277148
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix \r\nB",
+          "excerpt": " designated delivery point in Appendix \r B \r 2.4.7.3 Provide Material for DLA WWD Orders \r For items d",
+          "source_span": [
+            291862,
+            291874
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Appendix D",
+          "excerpt": "or spot-buy requests found in Appendix D 6.11. The spot-buy form \r will be conveyed among the partie",
+          "source_span": [
+            323097,
+            323107
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "DUM\r \r 19. ITEM NUMBER\r \r 20. SCHEDULE OF SUPPLIES/SERVICES\r \r 21. QUANTITY\r \r 22. UNIT\r \r 23. UNIT P",
+          "source_span": [
+            889,
+            900
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE\r\n\r\n12",
+          "excerpt": "ON UNLESS BLOCK IS MARKED SEE SCHEDULE\r \r 12. DISCOUNT TERMS\r \r ARE ARE NOT ATTACHED ARE ARE NOT ATTACHE",
+          "source_span": [
+            2278,
+            2292
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE\r\n\r\nSPE4A7",
+          "excerpt": "pecified on each order\r \r SEE SCHEDULE\r \r SPE4A7\r \r See Continuation Sheet - Blocks 19-24 attached\r \r 3\r \r /",
+          "source_span": [
+            2973,
+            2991
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule do",
+          "excerpt": " unit prices set forth in the Schedule do not include allowances for any portion of the contingency c",
+          "source_span": [
+            133072,
+            133083
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule utilizing",
+          "excerpt": " to implement an overtime pay schedule utilizing existing staff. \r (i) For additional work scheduled during ",
+          "source_span": [
+            163818,
+            163836
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "ADDENDUM\r\n\r\n19",
+          "excerpt": "OR \r PROPOSAL \r (RFP) \r \r SEE ADDENDUM\r \r 19. ITEM NUMBER\r \r 20. SCHEDULE OF SUPPLIES/SERVICES\r \r 21. QU",
+          "source_span": [
+            854,
+            868
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SEE SCHEDULE\r\n\r\n12",
+          "excerpt": "NATION UNLESS BLOCK IS MARKED SEE SCHEDULE\r \r 12. DISCOUNT TERMS\r \r ARE ARE NOT ATTACHED ARE ARE NOT ATTACHE",
+          "source_span": [
+            2274,
+            2292
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SEE SCHEDULE\r\n\r\nSPE4A7",
+          "excerpt": " \r Specified on each order\r \r SEE SCHEDULE\r \r SPE4A7\r \r See Continuation Sheet - Blocks 19-24 attached\r \r 3\r \r /",
+          "source_span": [
+            2969,
+            2991
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "See Attachment 2",
+          "excerpt": " designated control activity: See Attachment 2, Schedule of Items, which designates all Critical Safety It",
+          "source_span": [
+            71709,
+            71725
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "See Appendix for",
+          "excerpt": " 81 \r 2.4.8 Kitting (Site C1; See Appendix for FRCSE, Jacksonville Kit BOM)) ... 82 \r 3.0 MATERIAL MANAGEM",
+          "source_span": [
+            266893,
+            266909
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "See \r\nAppendix E",
+          "excerpt": "d office and warehouse space. See \r Appendix E for full list of Government Furnished Facility and Equipmen",
+          "source_span": [
+            277132,
+            277148
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "See Appendix E",
+          "excerpt": "e) and FRC-SW (North Island). See Appendix E File entitled GFFE.docx. \r 10.8 Bins/Storage Units \r Unless",
+          "source_span": [
+            356842,
+            356856
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Technical Specifications",
+          "excerpt": " Provide Parts ... 79 \r 2.4.1 Technical Specifications and Quality Assurance Requirements ... 79 \r 2.4.2 Critical ",
+          "source_span": [
+            266528,
+            266552
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "technical specification",
+          "excerpt": "uate processes to ensure 100% technical specification and quality compliance. \r d. Ensure that its parts vendors,",
+          "source_span": [
+            284663,
+            284686
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "ITIONAL SHEETS SUBJECT TO THE TERMS AND CONDITIONS SPECIFIED\r \r 29. AWARD OF CONTRACT: REFERENCE OFFER DATED .",
+          "source_span": [
+            1352,
+            1372
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DLA-AF-GEN-IV-DRAFT-RFP",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment 2",
+          "excerpt": "rogram at any given time. See Attachment 2 for the initial SOI. (note: SOI is subject to growth over t",
+          "source_span": [
+            7288,
+            7300
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 4",
+          "excerpt": "140.1-R). The Quality Matrix (Attachment 4) provides a complete listing of shelf-life codes cross-refe",
+          "source_span": [
+            8321,
+            8333
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 13",
+          "excerpt": "l changes. In accordance with Attachment 13 \u2013 Annual Bin Max Recommendation Schedule, the Contractor sh",
+          "source_span": [
+            21016,
+            21029
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 11",
+          "excerpt": " the IPV Change Request Form (Attachment 11). Unusually large numbers of items \r being added at one tim",
+          "source_span": [
+            51493,
+            51506
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 8",
+          "excerpt": "um bin levels as reflected on Attachment 8. Minimum and maximum levels will be evaluated periodically.",
+          "source_span": [
+            69023,
+            69035
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 9",
+          "excerpt": "rent Kit LOMs are provided as Attachment 9 of \r the RFP. The Contractor will only be required to suppl",
+          "source_span": [
+            77741,
+            77753
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 5",
+          "excerpt": "kit requirements as listed in Attachment 5. \r All completed kits in the designated staging area will b",
+          "source_span": [
+            78557,
+            78569
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 12",
+          "excerpt": " at each ALC as identified on Attachment 12, Forward Kitting Locations. \r Attachment 12 will be provide",
+          "source_span": [
+            82752,
+            82765
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment 1",
+          "excerpt": " 1. All items to be priced in Attachment 1 of the RFP, at the quantities stated. \r 2. The total materi",
+          "source_span": [
+            221957,
+            221969
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "appendix does",
+          "excerpt": "provided as an appendix. This appendix does \r not count towards the page limit listed in L.1.1. \r B. A ",
+          "source_span": [
+            188075,
+            188088
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Schedule of",
+          "excerpt": "lerances and limits. 38. SOI (Schedule of Items) - The specific set of items supported by the IPV pro",
+          "source_span": [
+            7189,
+            7200
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule at",
+          "excerpt": "x) level changes on a rolling schedule at the beginning of each quarter as agreed to between the Air ",
+          "source_span": [
+            21141,
+            21152
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule as",
+          "excerpt": "\r For items designated in the schedule as worldwide demand items, the Contractor will deliver ordered",
+          "source_span": [
+            41419,
+            41430
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule \r\ndata",
+          "excerpt": "tings and provide maintenance schedule \r data. \r \r 11.1.2 Data to be Provided by the Gen IV awardee to DL",
+          "source_span": [
+            151972,
+            151987
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule for",
+          "excerpt": "shall support the Air Force\u2019s schedule for rollout of the automated solution including filling the bin",
+          "source_span": [
+            157570,
+            157582
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule and",
+          "excerpt": "ist in establishing shadowing schedule and approve satisfactory completion of task \r \u2022 Support Transit",
+          "source_span": [
+            159443,
+            159455
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "See Attachment 2",
+          "excerpt": "PV program at any given time. See Attachment 2 for the initial SOI. (note: SOI is subject to growth over t",
+          "source_span": [
+            7284,
+            7300
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "technical specifications",
+          "excerpt": "ments will be included in the technical specifications and quality provisions data that will be provided by \r the ",
+          "source_span": [
+            42279,
+            42303
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "technical specification",
+          "excerpt": "uate processes to ensure 100% technical specification and quality compliance. \r 3. Ensure its parts vendors, supp",
+          "source_span": [
+            58121,
+            58144
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "E). All GFE is subject to the terms and conditions of this PWS, contract, and applicable clauses. The \r Contra",
+          "source_span": [
+            30179,
+            30199
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DOD-N6600125Q6337",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "DOD-N6600125Q6265",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "DOS-19VM3026Q0024",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Terms and Conditions",
+          "excerpt": "arate fees.    C. Procurement Terms and Conditions    \u2022  The offeror must be willing to accept BPA and Calls f",
+          "source_span": [
+            8344,
+            8364
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DOS-19N10226Q0007",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment 1",
+          "excerpt": "cifications/Work Statement  \u2022 Attachment 1 to Description/Specifications/Performance Work Statement, G",
+          "source_span": [
+            2857,
+            2869
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit A",
+          "excerpt": "n all equipment identified in Exhibit A in safe, efficient,  and fully operational condition. Servi",
+          "source_span": [
+            9607,
+            9616
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Schedule Of",
+          "excerpt": "Continuation To SF-1449, RFQ, Schedule Of Supplies/Services, Block 20  Description/Specifications/Wor",
+          "source_span": [
+            2771,
+            2782
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE \n12",
+          "excerpt": "OCK IS        MARKED      SEE SCHEDULE  12. DISCOUNT TERMS    13a.  THIS CONTRACT IS A                ",
+          "source_span": [
+            4667,
+            4679
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE \nCONTINUATION",
+          "excerpt": "2) BACK  5    SECTION 1 - THE SCHEDULE  CONTINUATION TO SF-1449  RFQ NUMBER 19N10226Q0007     PRICES, BLOCK 23  ",
+          "source_span": [
+            8047,
+            8069
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule \nRe",
+          "excerpt": "8% of PM  tasks completed  on schedule  Re-performance  at no cost; Cure  Notice after 2nd  occurrence",
+          "source_span": [
+            19073,
+            19085
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule \nand",
+          "excerpt": "l reports  submitted per  the schedule  and format  prescribed in  Section XII  100%  Inspection of  Su",
+          "source_span": [
+            19848,
+            19861
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE AND",
+          "excerpt": "lause)    652.232-70  PAYMENT SCHEDULE AND INVOICE SUBMISSION (FIXED-PRICE)       (AUG 1999)      (a) ",
+          "source_span": [
+            66902,
+            66914
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "ADDENDUM \n19",
+          "excerpt": "       BELOW IS CHECKED   SEE ADDENDUM  19.  ITEM NO.  20.  SCHEDULE OF SUPPLIES/SERVICES  21.  QUANTI",
+          "source_span": [
+            5268,
+            5280
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SEE SCHEDULE \n12",
+          "excerpt": "S BLOCK IS        MARKED      SEE SCHEDULE  12. DISCOUNT TERMS    13a.  THIS CONTRACT IS A                ",
+          "source_span": [
+            4663,
+            4679
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "TIONAL  SHEETS SUBJECT TO THE TERMS AND CONDITIONS SPECIFIED HEREIN.    29. AWARD OF CONTRACT:  REF. _________",
+          "source_span": [
+            6174,
+            6194
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "DOS-19CV1025Q0001",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment 1",
+          "excerpt": "USES    \u2022 Contract Clauses  \u2022 Attachment 1 \u2013 2025 US Embassy Praia Holidays    SECTION 3 - SOLICITATIO",
+          "source_span": [
+            2130,
+            2142
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE \n12",
+          "excerpt": "OCK IS        MARKED      SEE SCHEDULE  12. DISCOUNT TERMS    13a.  THIS CONTRACT IS A                ",
+          "source_span": [
+            3564,
+            3576
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "SEE ADDENDUM  19.  ITEM  20.  SCHEDULE OF SUPPLIES/SERVICES  21.  QUANTITY  22.  UNIT  23.  UNIT PRIC",
+          "source_span": [
+            4274,
+            4285
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule must",
+          "excerpt": ".  The defined water delivery schedule must be followed    \u2022 Warehouse/Achada Grande Tr\u00e1s  \u2022 CMR-Guard ",
+          "source_span": [
+            6516,
+            6529
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule are",
+          "excerpt": "nd services specified in the  Schedule are estimates only and are not purchased by this contract.     ",
+          "source_span": [
+            44039,
+            44051
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule up",
+          "excerpt": " or services specified in the Schedule up to and including the quantity  designated in the Schedule a",
+          "source_span": [
+            44345,
+            44356
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule as",
+          "excerpt": "e quantity  designated in the Schedule as the \u201cmaximum.\u201d  The Government shall order at least the qua",
+          "source_span": [
+            44406,
+            44417
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SCHEDULE AND",
+          "excerpt": "lause)    652.232-70  PAYMENT SCHEDULE AND INVOICE SUBMISSION (FIXED-PRICE)       (AUG 1999)      (a) ",
+          "source_span": [
+            49409,
+            49421
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "ADDENDUM \n19",
+          "excerpt": "       BELOW IS CHECKED   SEE ADDENDUM  19.  ITEM  20.  SCHEDULE OF SUPPLIES/SERVICES  21.  QUANTITY  ",
+          "source_span": [
+            4248,
+            4260
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "SEE SCHEDULE \n12",
+          "excerpt": "S BLOCK IS        MARKED      SEE SCHEDULE  12. DISCOUNT TERMS    13a.  THIS CONTRACT IS A                ",
+          "source_span": [
+            3560,
+            3576
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Terms and Conditions",
+          "excerpt": "lause (FAR 52.212.4, Contract Terms and Conditions-Commercial Items (May 2001), if any of  the services exceed",
+          "source_span": [
+            8253,
+            8273
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "NE-SPB-FORM16-ITB-REQS",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Schedule of",
+          "excerpt": " will be established with the Schedule of Events.  Note: Posting to SPB website fulfills public notic",
+          "source_span": [
+            1991,
+            2002
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Technical Specifications",
+          "excerpt": "ll accompany the ITB release. Technical Specifications  may be listed either within ITB or in a separate attachmen",
+          "source_span": [
+            491,
+            515
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1742",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "AZ-PHX-_phoenix_detail_1850",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "NE-119951-O8-CAMERAS",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "attachment if",
+          "excerpt": "provide responses in separate attachment if  multiple exceptions are taken):  1.  The specific clause, ",
+          "source_span": [
+            69696,
+            69709
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Schedule of",
+          "excerpt": " occur in accordance with the Schedule of Events detailed in the solicitation linked below. PROJECT D",
+          "source_span": [
+            461,
+            472
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to change.",
+          "source_span": [
+            42027,
+            42041
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the correct link for  the upload step you are",
+          "source_span": [
+            42192,
+            42205
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Cost \nSheet",
+          "excerpt": "must be submitted on the BAFO Cost  Sheet and in accordance with the State\u2019s instructions. Failure to",
+          "source_span": [
+            59109,
+            59120
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 18  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            23021,
+            23045
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "..................... 7  II.  TERMS AND CONDITIONS ...........................................................",
+          "source_span": [
+            12658,
+            12678
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms \nand conditions",
+          "excerpt": " and any proposed alternative terms  and conditions submitted with the solicitation response. The State reserve",
+          "source_span": [
+            70139,
+            70160
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "terms and \nconditions",
+          "excerpt": "or does not conflict with the terms and  conditions of this contract.    The Vendor shall include a similar pro",
+          "source_span": [
+            102639,
+            102660
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed by the State,  shall always con",
+          "source_span": [
+            73370,
+            73384
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "QUESTIONS AND ANSWERS",
+          "excerpt": ".............. 1  D.  WRITTEN QUESTIONS AND ANSWERS ...........................................................",
+          "source_span": [
+            9219,
+            9240
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-119949-O8B-GM",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment A",
+          "excerpt": "vitation to Bid: 08/30/24 PDF Attachment A: 08/30/24 Excel Addendum One- Questions and Answers 09/16/2",
+          "source_span": [
+            1224,
+            1236
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment H",
+          "excerpt": "in the Core List, as shown in Attachment H, I, J, K, L, 119949 O8 - B, COST SHEET.    a.  The Core Lis",
+          "source_span": [
+            65724,
+            65736
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment \nH",
+          "excerpt": "roposed. Vendor must complete Attachment  H, I, J, K, L,119949 O8 - B, COST SHEET. Pay special attentio",
+          "source_span": [
+            67782,
+            67795
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment if",
+          "excerpt": "rovide  responses in separate attachment if multiple exceptions are taken):    1.  The specific clause,",
+          "source_span": [
+            70950,
+            70963
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment B",
+          "excerpt": "s/instructions.    Please See Attachment B (Delivery Instructions)    X.  Vendor Communication   Award",
+          "source_span": [
+            121568,
+            121580
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment C",
+          "excerpt": " Attachment B (Delivery)  c.  Attachment C (Sedans, SUV, Cross)  d.  Attachment D (Van)  e.  Attachmen",
+          "source_span": [
+            133628,
+            133640
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment D",
+          "excerpt": "t C (Sedans, SUV, Cross)  d.  Attachment D (Van)  e.  Attachment E (Light Duty Truck)  f.  Attachment ",
+          "source_span": [
+            133667,
+            133679
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment E",
+          "excerpt": "  d.  Attachment D (Van)  e.  Attachment E (Light Duty Truck)  f.  Attachment F (Heavy Duty Truck)  g.",
+          "source_span": [
+            133691,
+            133703
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment F",
+          "excerpt": "ent E (Light Duty Truck)  f.  Attachment F (Heavy Duty Truck)  g.  Attachment G (Police)  h.  Attachme",
+          "source_span": [
+            133728,
+            133740
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment G",
+          "excerpt": "ent F (Heavy Duty Truck)  g.  Attachment G (Police)  h.  Attachment H (Sedan, SUV, Cross - Options)  i",
+          "source_span": [
+            133765,
+            133777
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment I",
+          "excerpt": "n, SUV, Cross - Options)  i.  Attachment I (Van- Options)  j.  Attachment J (Light Duty Truck - Option",
+          "source_span": [
+            133840,
+            133852
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment J",
+          "excerpt": "achment I (Van- Options)  j.  Attachment J (Light Duty Truck - Options)  k.  Attachment K (Heavy Duty ",
+          "source_span": [
+            133873,
+            133885
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment K",
+          "excerpt": "ht Duty Truck - Options)  k.  Attachment K (Heavy Duty Truck - Options)  l.  Attachment L (Police - Op",
+          "source_span": [
+            133920,
+            133932
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment L",
+          "excerpt": "vy Duty Truck - Options)  l.  Attachment L (Police - Options)  NOTES/COMMENTS:  Page 25  SPB Form 17 |",
+          "source_span": [
+            133967,
+            133979
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Schedule of",
+          "excerpt": " occur in accordance with the Schedule of Events detailed in the solicitation linked below. PROJECT D",
+          "source_span": [
+            467,
+            478
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to  change",
+          "source_span": [
+            42488,
+            42502
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the  correct link for the upload step you are",
+          "source_span": [
+            42654,
+            42667
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "See Attachment B",
+          "excerpt": "tions/instructions.    Please See Attachment B (Delivery Instructions)    X.  Vendor Communication   Award",
+          "source_span": [
+            121564,
+            121580
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 23  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            23688,
+            23712
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "..................... 8  II.  TERMS AND CONDITIONS ...........................................................",
+          "source_span": [
+            12739,
+            12759
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": " solicitation.    Accept All  Terms and  Conditions  Within  Section as  Written  (Initial)  Exceptions  Taken ",
+          "source_span": [
+            71863,
+            71884
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed  by the State, shall always con",
+          "source_span": [
+            74699,
+            74713
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Questions and Answers",
+          "excerpt": " 08/30/24 Excel Addendum One- Questions and Answers 09/16/24 PDF Bid Tabulation by SPB: 10/21/24 PDF Intent to ",
+          "source_span": [
+            1267,
+            1288
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-6908-OF-DASDEC",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Schedule of",
+          "excerpt": " occur in accordance with the Schedule of Events detailed in the solicitation linked below. PROJECT D",
+          "source_span": [
+            463,
+            474
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to change.",
+          "source_span": [
+            45151,
+            45165
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "cost sheet",
+          "excerpt": "to the change and an itemized cost sheet  for the change. Changes in work and the amount of compensa",
+          "source_span": [
+            73038,
+            73048
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "Bid form",
+          "excerpt": "By signing this Invitation to Bid form, the bidder guarantees compliance with the provisions state",
+          "source_span": [
+            1925,
+            1933
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 18  VI. TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            23483,
+            23507
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATION",
+          "excerpt": "...................... 19  D. TECHNICAL SPECIFICATION: PHASE 2: EAS EQUIPMENT FOR TV NETWORK ....................",
+          "source_span": [
+            24206,
+            24229
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "itation to Bid, agrees to the terms and conditions unless otherwise agreed to and certifies that bidder mainta",
+          "source_span": [
+            2036,
+            2056
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and \nconditions",
+          "excerpt": "@nebraskapublicmedia.org. The terms and  conditions included in the Contractor\u2019s invoice shall be deemed to be ",
+          "source_span": [
+            101578,
+            101599
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Standard Terms",
+          "excerpt": "t to, but not limited to, the Standard Terms and Conditions.  PLEASE READ CAREFULLY! This form is part o",
+          "source_span": [
+            3633,
+            3647
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Questions and Answers",
+          "excerpt": ": 07/01/24 PDF Addendum One - Questions and Answers 07/16/24 PDF Bid Tabulation by SPB: 08/06/24 PDF Intent to ",
+          "source_span": [
+            1319,
+            1340
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "NE-6829-OF-CAMERAS",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Schedule of",
+          "excerpt": " occur in accordance with the Schedule of Events detailed in the solicitation linked below. PROJECT D",
+          "source_span": [
+            507,
+            518
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to change.",
+          "source_span": [
+            42383,
+            42397
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "cost sheet",
+          "excerpt": "to the change and an itemized cost sheet for the change.  Changes in work and the amount of compensa",
+          "source_span": [
+            71758,
+            71768
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "Bid form",
+          "excerpt": "By signing this Invitation to Bid form, the bidder guarantees compliance with the provisions state",
+          "source_span": [
+            2032,
+            2040
+          ],
+          "role": "REQUIRED_FOR_RESPONSE"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": ".................... 16  VI.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            24086,
+            24110
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and conditions",
+          "excerpt": "itation to Bid, agrees to the terms and conditions unless otherwise agreed to and certifies that bidder mainta",
+          "source_span": [
+            2143,
+            2163
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms \nand conditions",
+          "excerpt": "45, to use this contract. The terms  and conditions, including price, of the contract may not be amended. The S",
+          "source_span": [
+            81556,
+            81577
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Questions and Answers",
+          "excerpt": ": 11/01/2023 PDF Addendum One-Questions and Answers 11/16/2023 PDF Addendum Two- Revised Schedule of Events 11/",
+          "source_span": [
+            1295,
+            1316
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    },
+    {
+      "project": "KY-WARREN-SURVEILLANCE-TRAILER-2025",
+      "status": "COMPLETE",
+      "complete": true,
+      "false_complete": false,
+      "missing": []
+    },
+    {
+      "project": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "terms and conditions",
+          "excerpt": "lied  below).    NOTE:  Other terms and conditions may be added at the discretion of county officers.    STATE",
+          "source_span": [
+            3987,
+            4007
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        }
+      ]
+    },
+    {
+      "project": "SC-FLORENCE-2024-21-CAMERAS",
+      "status": "PARTIAL",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Schedule 80",
+          "excerpt": "g and Conduit Requirement: 1\u201d Schedule 80 PVC, Backfill Trenches with 90%  Compaction  11. Provide ap",
+          "source_span": [
+            11235,
+            11246
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule \n3",
+          "excerpt": "ing:    1. Price  2. Delivery Schedule  3. Warranty      The City shall have sole discretion in evalu",
+          "source_span": [
+            13779,
+            13790
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule a",
+          "excerpt": "The City of Florence will not schedule a pre-bid meeting. It is suggested that interested  bidders s",
+          "source_span": [
+            14790,
+            14800
+          ],
+          "role": "REFERENCE_ONLY"
+        }
+      ]
+    },
+    {
+      "project": "NASA-SEWP-80TECH24R0001-A14",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment \nA",
+          "excerpt": "es and    in accordance  with Attachment  A, SOW  As Defined  in  Attachment  A, SOW   As Defined in  A",
+          "source_span": [
+            62660,
+            62673
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment A",
+          "excerpt": "ment  A, SOW   As Defined in  Attachment A, SOW   As Defined in  Attachment A, SOW     2  Deliverables",
+          "source_span": [
+            62732,
+            62744
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment D",
+          "excerpt": "verables in  accordance with  Attachment D,  DRD  As Defined  in  Attachment  D, DRD  List  As Defined",
+          "source_span": [
+            62826,
+            62838
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment \nD",
+          "excerpt": "ment D,  DRD  As Defined  in  Attachment  D, DRD  List  As Defined in  Attachment D, DRD List  As Defin",
+          "source_span": [
+            62862,
+            62875
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment F",
+          "excerpt": " for Technology Equipment and Attachment F, SEWP Database of Record. Such  orders may be issued from t",
+          "source_span": [
+            106585,
+            106597
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment C",
+          "excerpt": "r must respond as outlined in Attachment C: Contract Holder User Manual  (CHUM).    Contract Holders a",
+          "source_span": [
+            117559,
+            117571
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment J",
+          "excerpt": "rporated into the contract as Attachment J. Refer to NIST SP 800-.161 (most current  version) for addi",
+          "source_span": [
+            151348,
+            151360
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment to",
+          "excerpt": " the clause is included as an attachment to the contract.  b. Summary Subcontract Reports (SSRs)  The C",
+          "source_span": [
+            155855,
+            155868
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment H",
+          "excerpt": "Program (www.abilityone.gov). Attachment H is applicable at the order  level and the AbilityOne Centra",
+          "source_span": [
+            169677,
+            169689
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment B",
+          "excerpt": " the requirements of contract Attachment B: SEWP Program Performance, and the policy and  procedures s",
+          "source_span": [
+            179158,
+            179170
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment L",
+          "excerpt": "e attached to the contract as Attachment L.    At a minimum, the Climate Change Risk Management Plan m",
+          "source_span": [
+            198510,
+            198522
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment \nDescription",
+          "excerpt": "ade a part of this contract:  Attachment  Description  Date  No. of Pages  (including the  cover page)  A   State",
+          "source_span": [
+            227154,
+            227177
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit 4",
+          "excerpt": "AICS Size Standard Crosswalk (Exhibit 4) ..........................................................",
+          "source_span": [
+            13712,
+            13721
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit 3a",
+          "excerpt": "s    Excluded  (c) Category A Exhibit 3a    Excluded  (c) Category A Mandatory Experience Letter of ",
+          "source_span": [
+            242092,
+            242102
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit 1",
+          "excerpt": "B and C Mandatory Experience  Exhibit 1 Cover Page    Excluded  (c) Category B and C Mandatory Expe",
+          "source_span": [
+            242248,
+            242257
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Exhibit 5",
+          "excerpt": "ons  (a) Cover Page, Indices, Exhibit 5 (Proposal C- SCRM Attestation Form)  or O-TTPS certificate ",
+          "source_span": [
+            242993,
+            243002
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "exhibit is",
+          "excerpt": "gov entity information. This  exhibit is for the SEWP data repository and being collected to verify ",
+          "source_span": [
+            271605,
+            271615
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "schedule of",
+          "excerpt": " the following order: (1) the schedule of supplies/services; (2) The  Assignments, Disputes, Payments",
+          "source_span": [
+            31336,
+            31347
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule prescribes",
+          "excerpt": "the contract.  (E) Unless the Schedule prescribes otherwise, the hourly rates in the Schedule shall  not be v",
+          "source_span": [
+            41107,
+            41126
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule shall",
+          "excerpt": "wise, the hourly rates in the Schedule shall  not be varied by virtue of the Contractor having performed",
+          "source_span": [
+            41162,
+            41176
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule and",
+          "excerpt": "ime rates are provided in the Schedule and the Contracting Officer  approves overtime work in advance,",
+          "source_span": [
+            41310,
+            41322
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule provides",
+          "excerpt": " this contract.    (3) If the Schedule provides rates for overtime, the premium portion of those rates  wil",
+          "source_span": [
+            41558,
+            41575
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule has",
+          "excerpt": "iling price set forth  in the Schedule has been increased, any hours expended and material costs incur",
+          "source_span": [
+            46126,
+            46138
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule \nDelivery",
+          "excerpt": "Item  Description  Reference  Schedule  Delivery  Method/Addresses  1  Services and    in accordance  with A",
+          "source_span": [
+            62583,
+            62601
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule are",
+          "excerpt": "nd services specified in the  Schedule are estimates only and are not purchased by this contract.   (b",
+          "source_span": [
+            113813,
+            113825
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule up",
+          "excerpt": " or services specified in the Schedule up to and including the quantity  80TECH24R0001- SEWP VI RFP  ",
+          "source_span": [
+            114114,
+            114125
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule as",
+          "excerpt": "ge | 44     designated in the Schedule as the maximum. The Government shall order at least the quanti",
+          "source_span": [
+            114222,
+            114233
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule after",
+          "excerpt": " the Contractor\u2019s current GSA Schedule after discounting for any GSA or  other Government fee. If the pr",
+          "source_span": [
+            125079,
+            125093
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Schedule Contract",
+          "excerpt": " the Contractor's current GSA Schedule Contract price list after discounting any GSA  or other Government f",
+          "source_span": [
+            125744,
+            125761
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule other",
+          "excerpt": "standard Delivery: A delivery schedule other than the 30-calendar day standard  delivery time may be pro",
+          "source_span": [
+            129427,
+            129441
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "Amendment 14",
+          "excerpt": "icitation  amendments (Except Amendment 14) will result in the Offeror being eliminated from  competit",
+          "source_span": [
+            249930,
+            249942
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "ts  I.  FAR 52.212-4 CONTRACT TERMS AND CONDITIONS - COMMERCIAL PRODUCTS  AND COMMERCIAL SERVICES. (NOV 2023) ",
+          "source_span": [
+            239,
+            259
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "terms and \nconditions",
+          "excerpt": "ent is in accordance with the terms and  conditions of the agreement or invoice.    (C) To the extent able, the",
+          "source_span": [
+            42706,
+            42727
+          ],
+          "role": "REFERENCE_ONLY"
+        }
+      ]
+    },
+    {
+      "project": "NE-119949-O8B-GM-ZIP",
+      "status": "MISSING_REFERENCED_DOCUMENT",
+      "complete": false,
+      "false_complete": false,
+      "missing": [
+        {
+          "label": "Attachment H",
+          "excerpt": "in the Core List, as shown in Attachment H, I, J, K, L, 119949 O8 - B, COST SHEET.    a.  The Core Lis",
+          "source_span": [
+            64156,
+            64168
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment \nH",
+          "excerpt": "roposed. Vendor must complete Attachment  H, I, J, K, L,119949 O8 - B, COST SHEET. Pay special attentio",
+          "source_span": [
+            66214,
+            66227
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "attachment if",
+          "excerpt": "rovide  responses in separate attachment if multiple exceptions are taken):    1.  The specific clause,",
+          "source_span": [
+            69382,
+            69395
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment B",
+          "excerpt": "s/instructions.    Please See Attachment B (Delivery Instructions)    X.  Vendor Communication   Award",
+          "source_span": [
+            120000,
+            120012
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment A",
+          "excerpt": "tors (GM) Market basket:  a.  Attachment A (Cover Sheet)  b.  Attachment B (Delivery)  c.  Attachment ",
+          "source_span": [
+            131999,
+            132011
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment C",
+          "excerpt": " Attachment B (Delivery)  c.  Attachment C (Sedans, SUV, Cross)  d.  Attachment D (Van)  e.  Attachmen",
+          "source_span": [
+            132060,
+            132072
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment D",
+          "excerpt": "t C (Sedans, SUV, Cross)  d.  Attachment D (Van)  e.  Attachment E (Light Duty Truck)  f.  Attachment ",
+          "source_span": [
+            132099,
+            132111
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment E",
+          "excerpt": "  d.  Attachment D (Van)  e.  Attachment E (Light Duty Truck)  f.  Attachment F (Heavy Duty Truck)  g.",
+          "source_span": [
+            132123,
+            132135
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment F",
+          "excerpt": "ent E (Light Duty Truck)  f.  Attachment F (Heavy Duty Truck)  g.  Attachment G (Police)  h.  Attachme",
+          "source_span": [
+            132160,
+            132172
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment G",
+          "excerpt": "ent F (Heavy Duty Truck)  g.  Attachment G (Police)  h.  Attachment H (Sedan, SUV, Cross - Options)  i",
+          "source_span": [
+            132197,
+            132209
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment I",
+          "excerpt": "n, SUV, Cross - Options)  i.  Attachment I (Van- Options)  j.  Attachment J (Light Duty Truck - Option",
+          "source_span": [
+            132272,
+            132284
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment J",
+          "excerpt": "achment I (Van- Options)  j.  Attachment J (Light Duty Truck - Options)  k.  Attachment K (Heavy Duty ",
+          "source_span": [
+            132305,
+            132317
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment K",
+          "excerpt": "ht Duty Truck - Options)  k.  Attachment K (Heavy Duty Truck - Options)  l.  Attachment L (Police - Op",
+          "source_span": [
+            132352,
+            132364
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "Attachment L",
+          "excerpt": "vy Duty Truck - Options)  l.  Attachment L (Police - Options)  NOTES/COMMENTS:  Page 25  SPB Form 17 |",
+          "source_span": [
+            132399,
+            132411
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "SCHEDULE OF",
+          "excerpt": "...................... 1  C.  SCHEDULE OF EVENTS ....................................................",
+          "source_span": [
+            7388,
+            7399
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule shown",
+          "excerpt": " to adhere to the procurement schedule shown below, but all dates are approximate and subject to  change",
+          "source_span": [
+            40920,
+            40934
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "schedule step",
+          "excerpt": "ow, are unique links for each schedule step. Please click the  correct link for the upload step you are",
+          "source_span": [
+            41086,
+            41099
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "See Attachment B",
+          "excerpt": "tions/instructions.    Please See Attachment B (Delivery Instructions)    X.  Vendor Communication   Award",
+          "source_span": [
+            119996,
+            120012
+          ],
+          "role": "UNKNOWN"
+        },
+        {
+          "label": "TECHNICAL SPECIFICATIONS",
+          "excerpt": "..................... 23  V.  TECHNICAL SPECIFICATIONS ...........................................................",
+          "source_span": [
+            22120,
+            22144
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "TERMS AND CONDITIONS",
+          "excerpt": "..................... 8  II.  TERMS AND CONDITIONS ...........................................................",
+          "source_span": [
+            11171,
+            11191
+          ],
+          "role": "REQUIRED_FOR_COMPLIANCE"
+        },
+        {
+          "label": "Terms and \nConditions",
+          "excerpt": " solicitation.    Accept All  Terms and  Conditions  Within  Section as  Written  (Initial)  Exceptions  Taken ",
+          "source_span": [
+            70295,
+            70316
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "standard terms",
+          "excerpt": "ing by the State, the State\u2019s standard terms and conditions, as executed  by the State, shall always con",
+          "source_span": [
+            73131,
+            73145
+          ],
+          "role": "REFERENCE_ONLY"
+        },
+        {
+          "label": "QUESTIONS AND ANSWERS",
+          "excerpt": ".............. 1  D.  WRITTEN QUESTIONS AND ANSWERS ...........................................................",
+          "source_span": [
+            7565,
+            7586
+          ],
+          "role": "INFORMATIONAL"
+        }
+      ]
+    }
+  ],
+  "false_complete": 0
+}

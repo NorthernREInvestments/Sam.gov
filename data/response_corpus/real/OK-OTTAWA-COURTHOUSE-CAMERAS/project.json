@@ -1,0 +1,36 @@
+{
+  "corpus_project_id": "OK-OTTAWA-COURTHOUSE-CAMERAS",
+  "documents": [
+    {
+      "filename": "bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+      "stored_as": "ced7de3a80ad2e95_bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\OK-OTTAWA-COURTHOUSE-CAMERAS\\ced7de3a80ad2e95_bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+      "sha256": "ced7de3a80ad2e95f3039a436a7ee12c1efe702cccd22f3de2f1e33a93f9f5aa",
+      "bytes": 105144,
+      "source_url": "https://ottawaok.gov/file/bids/bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:24.181154+00:00"
+    }
+  ],
+  "hashes": [
+    "ced7de3a80ad2e95f3039a436a7ee12c1efe702cccd22f3de2f1e33a93f9f5aa"
+  ],
+  "tags": [
+    "LOCAL",
+    "IFB",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:47:23.602869+00:00",
+  "buyer": "Ottawa County OK",
+  "agency": "Ottawa County Board of County Commissioners",
+  "solicitation_number": "2024-2025.10",
+  "title": "Courthouse Security Cameras IFB",
+  "jurisdiction": "LOCAL",
+  "authoritative_source": "https://ottawaok.gov/file/bids/bid_2024-2025.10_courthouse_security_cameras_658.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:24.181178+00:00"
+}

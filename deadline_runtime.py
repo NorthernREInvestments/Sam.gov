@@ -627,3 +627,295 @@ def classify_queue_opportunities(
         # Confirmed expired must not remain in normal actionable queue
         "normal_actionable_excludes_expired": True,
     }
+
+
+# --- Canonical opportunity deadline persistence (reuse existing model) ---
+
+# Date roles that must NEVER silently become the response/close deadline
+_NON_RESPONSE_DATE_ROLES = frozenset(
+    {
+        "OPEN",
+        "POSTED",
+        "PUBLISHED",
+        "AMENDMENT_DATE",
+        "AWARD",
+        "ANTICIPATED_AWARD",
+        "DELIVERY",
+    }
+)
+
+
+def _deadline_raw_from_row(row: dict[str, Any]) -> str | None:
+    for key in (
+        "response_deadline",
+        "deadline_raw",
+        "raw_deadline_text",
+        "deadline",
+        "operational_deadline",
+    ):
+        v = row.get(key)
+        if v is not None and str(v).strip() and str(v).strip().upper() != "UNKNOWN":
+            return str(v).strip()
+    return None
+
+
+def merge_deadline_evidence(
+    existing: list[dict[str, Any]] | None,
+    incoming: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Append unique deadline evidence records; preserve history."""
+    out: list[dict[str, Any]] = [dict(r) for r in (existing or []) if isinstance(r, dict)]
+    seen = {
+        (str(r.get("role") or ""), str(r.get("value") or ""), str(r.get("source_url") or ""))
+        for r in out
+    }
+    for r in incoming or []:
+        if not isinstance(r, dict):
+            continue
+        key = (str(r.get("role") or ""), str(r.get("value") or ""), str(r.get("source_url") or ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(dict(r))
+    return apply_amendments(out)
+
+
+def apply_response_deadline_to_row(
+    row: dict[str, Any],
+    *,
+    close_raw: str | None = None,
+    posted_raw: str | None = None,
+    published_raw: str | None = None,
+    amendment_close_raw: str | None = None,
+    award_raw: str | None = None,
+    delivery_raw: str | None = None,
+    source_url: str | None = None,
+    evidence_class: str | None = None,
+    is_amendment: bool = False,
+    local_timezone: str = "America/Chicago",
+    now: datetime | None = None,
+    force_unknown: bool = False,
+) -> dict[str, Any]:
+    """
+    Persist response/closing deadline onto a canonical opportunity row.
+
+    Reuses evaluate_deadline + enrich_opportunity_deadline.
+    Never treats posted/open/award/delivery as the response deadline.
+    Never fabricates a deadline when the source provides none.
+    """
+    from deadline_conflict import deadline_evidence_record
+    from discovery.deadline_viability import enrich_opportunity_deadline
+    from public_evidence_constants import EV_AUTHORITATIVE_CURRENT
+
+    out = dict(row)
+    ev_class = evidence_class or EV_AUTHORITATIVE_CURRENT
+    src = source_url or out.get("detail_url") or out.get("source_url")
+
+    # Distinct date fields — never confuse roles
+    listing_dates = dict(out.get("listing_dates") or {})
+    if posted_raw:
+        listing_dates["posted_date"] = posted_raw
+        listing_dates["open_date"] = posted_raw
+        out["posted_raw"] = posted_raw
+        out["open_date_raw"] = posted_raw
+    if published_raw:
+        listing_dates["published_date"] = published_raw
+        out["published_raw"] = published_raw
+    if award_raw:
+        listing_dates["anticipated_award_date"] = award_raw
+        out["anticipated_award_raw"] = award_raw
+    if delivery_raw:
+        listing_dates["delivery_date"] = delivery_raw
+        out["delivery_date_raw"] = delivery_raw
+    if close_raw or amendment_close_raw:
+        closing = amendment_close_raw or close_raw
+        listing_dates["closing_date"] = closing
+        listing_dates["response_deadline"] = closing
+    if listing_dates:
+        out["listing_dates"] = listing_dates
+
+    evidence: list[dict[str, Any]] = list(out.get("deadline_evidence") or [])
+
+    # OPEN/posted is recorded as OPEN — never as CLOSE / response_deadline
+    if posted_raw:
+        evidence.append(
+            deadline_evidence_record(
+                raw=posted_raw,
+                role="OPEN",
+                evidence_class=ev_class,
+                source_url=src,
+                page_section="Open",
+                confidence="HIGH",
+            )
+        )
+
+    operational_close = None if force_unknown else (amendment_close_raw or close_raw)
+    if operational_close:
+        role = "AMENDMENT" if (is_amendment or amendment_close_raw) else "CLOSE"
+        rec = deadline_evidence_record(
+            raw=operational_close,
+            role=role,
+            evidence_class=ev_class,
+            source_url=src,
+            page_section="Close" if role == "CLOSE" else "Amendment",
+            confidence="HIGH",
+        )
+        if role == "AMENDMENT":
+            rec["is_amendment"] = True
+        evidence.append(rec)
+
+    # Prefer explicit close; never promote non-response roles already on the row
+    if not operational_close and not force_unknown:
+        existing = _deadline_raw_from_row(out)
+        # Guard: if existing deadline equals posted/open only, treat as unknown response
+        posted = out.get("posted_raw") or listing_dates.get("posted_date")
+        if existing and posted and existing.strip() == str(posted).strip():
+            existing = None
+        if existing:
+            operational_close = existing
+
+    evidence = merge_deadline_evidence(out.get("deadline_evidence"), evidence)
+    out["deadline_evidence"] = evidence
+
+    if not operational_close or force_unknown:
+        # Honest UNKNOWN — do not estimate or invent
+        out["deadline"] = None
+        out["deadline_raw"] = None
+        out["response_deadline"] = None
+        out["raw_deadline_text"] = None
+        ev = evaluate_deadline(
+            response_deadline=None,
+            deadline_evidence=evidence,
+            portal_status=out.get("status") or out.get("portal_status"),
+            local_timezone=local_timezone,
+            now=now,
+        )
+        out["deadline_evaluation"] = ev
+        enriched = enrich_opportunity_deadline(out, now=now)
+        for k, v in enriched.items():
+            if k.startswith("deadline_") or k in {
+                "raw_deadline_text",
+                "queue_bucket",
+                "deadline_override_active",
+                "deadline_manual_override",
+            }:
+                out[k] = v
+        out["deadline_display"] = out.get("deadline_display") or "DEADLINE UNKNOWN"
+        out["deadline_badge"] = out.get("deadline_badge") or "DEADLINE UNKNOWN"
+        out["deadline_known"] = False
+        return out
+
+    parsed = parse_procurement_deadline(operational_close, role="CLOSE")
+    tz_label = parsed.get("timezone_label")
+    iana = parsed.get("iana_timezone")
+    tz_conf = parsed.get("timezone_confidence") or "UNKNOWN"
+
+    out["deadline_raw"] = operational_close
+    out["raw_deadline_text"] = operational_close
+    out["response_deadline"] = operational_close
+    out["deadline"] = operational_close
+    out["deadline_timezone"] = iana or tz_label
+    out["deadline_tz_confidence"] = tz_conf
+    out["deadline_timezone_confidence"] = tz_conf
+    out["deadline_precision"] = (
+        "DATE_ONLY"
+        if parsed.get("date_only")
+        else ("DATETIME_TZ_KNOWN" if tz_conf == "KNOWN" else "DATETIME_TZ_UNCERTAIN")
+    )
+    out["deadline_source"] = {
+        "source_url": src,
+        "evidence_class": ev_class,
+        "role": "CLOSE",
+        "page_section": "Close",
+    }
+    out["deadline_actionable_status"] = None  # filled after evaluate
+
+    ev = evaluate_deadline(
+        response_deadline=operational_close,
+        deadline_timezone=iana or tz_label,
+        deadline_evidence=evidence,
+        portal_status=out.get("status") or out.get("portal_status"),
+        local_timezone=local_timezone,
+        now=now,
+    )
+    out["deadline_evaluation"] = {
+        **ev,
+        "status": ev.get("deadline_status") or ev.get("status"),
+        "calendar_days_remaining": ev.get("calendar_days_remaining"),
+        "viability": ev.get("deadline_viability"),
+        "badge": None,
+    }
+    enriched = enrich_opportunity_deadline(out, now=now)
+    for k, v in enriched.items():
+        if k.startswith("deadline_") or k in {
+            "raw_deadline_text",
+            "queue_bucket",
+            "deadline_override_active",
+            "deadline_manual_override",
+        }:
+            out[k] = v
+    # Prefer evaluation runway when TZ-aware parse succeeded
+    if ev.get("calendar_days_remaining") is not None:
+        out["deadline_runway_days"] = ev["calendar_days_remaining"]
+    if ev.get("deadline_viability"):
+        out["deadline_viability"] = ev["deadline_viability"]
+    out["deadline_actionable"] = bool(ev.get("actionable"))
+    out["deadline_actionable_status"] = ev.get("deadline_status")
+    out["deadline_known"] = True
+    if ev.get("conflict") and not ev.get("conflict_resolved"):
+        out["deadline_conflict"] = True
+        out["deadline_conflict_unresolved"] = True
+    else:
+        out["deadline_conflict"] = bool(ev.get("conflict"))
+        out["deadline_conflict_unresolved"] = False
+
+    # Guard: never leave posted/open as the operational deadline field
+    if out.get("posted_raw") and out.get("deadline") == out.get("posted_raw"):
+        if operational_close and operational_close != out.get("posted_raw"):
+            out["deadline"] = operational_close
+            out["response_deadline"] = operational_close
+
+    # Explicit marker that open ≠ response
+    if out.get("posted_raw") or out.get("open_date_raw"):
+        out["open_is_not_response_deadline"] = True
+
+    return out
+
+
+def deadline_context_for_operator(row: dict[str, Any]) -> dict[str, Any]:
+    """Consistent operator-facing deadline slice from canonical row fields."""
+    ev = row.get("deadline_evaluation") if isinstance(row.get("deadline_evaluation"), dict) else {}
+    raw = _deadline_raw_from_row(row)
+    known = bool(row.get("deadline_known")) or bool(raw)
+    days = row.get("deadline_runway_days")
+    if days is None:
+        days = ev.get("calendar_days_remaining")
+    viability = row.get("deadline_viability") or ev.get("deadline_viability") or ev.get("viability")
+    if not known:
+        viability = viability or VIABILITY_UNKNOWN
+    display = row.get("deadline_display") or raw or "DEADLINE UNKNOWN"
+    badge = row.get("deadline_badge") or (
+        "DEADLINE UNKNOWN" if not known else (ev.get("badge") or viability or "UNKNOWN")
+    )
+    return {
+        "deadline": raw or "UNKNOWN",
+        "deadline_raw": row.get("deadline_raw") or raw,
+        "response_deadline": row.get("response_deadline") or raw,
+        "deadline_display": display if known else "DEADLINE UNKNOWN",
+        "deadline_badge": badge,
+        "deadline_runway_days": days if isinstance(days, (int, float)) else None,
+        "deadline_viability": viability or "UNKNOWN",
+        "deadline_actionable": bool(row.get("deadline_actionable") if row.get("deadline_actionable") is not None else ev.get("actionable")),
+        "deadline_timezone": row.get("deadline_timezone"),
+        "deadline_tz_confidence": row.get("deadline_tz_confidence") or row.get("deadline_timezone_confidence") or "UNKNOWN",
+        "deadline_precision": row.get("deadline_precision") or "UNKNOWN",
+        "deadline_known": known,
+        "deadline_conflict_unresolved": bool(row.get("deadline_conflict_unresolved")),
+        "posted_raw": row.get("posted_raw") or (row.get("listing_dates") or {}).get("posted_date"),
+        "open_is_not_response_deadline": bool(
+            row.get("open_is_not_response_deadline") or row.get("posted_raw")
+        ),
+        "listing_dates": row.get("listing_dates") or {},
+        "deadline_source": row.get("deadline_source"),
+        "queue_bucket": row.get("queue_bucket") or ev.get("queue_bucket"),
+    }

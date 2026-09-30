@@ -1,0 +1,60 @@
+{
+  "build": "20260929-m3-r1-solicitation-response-compiler-foundation",
+  "rows": [
+    {
+      "case_id": "federal-commercial-rfq",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "Base RFQ",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "state-brand-or-equal",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "ITB",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "exact-brand",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "Exact brand RFQ",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "amendment-quantity",
+      "edges": [
+        {
+          "from": "DOC-e336fb47a417",
+          "to": "DOC-4e83a40debea",
+          "relation": "MODIFIES"
+        }
+      ],
+      "conflicts": [],
+      "controlling_version": "Base",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "dibbs-like",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "DIBBS RFQ",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "format-rules-rfp",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "RFP formatting",
+      "superseded_docs": 0
+    },
+    {
+      "case_id": "buyer-template",
+      "edges": [],
+      "conflicts": [],
+      "controlling_version": "Commodity ITB",
+      "superseded_docs": 0
+    }
+  ]
+}

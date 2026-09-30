@@ -1,0 +1,10 @@
+{
+  "package_version_specific": true,
+  "invalidates_on_material_change": true,
+  "amendment_fixture": {
+    "name": "amendment_after_approval",
+    "preflight": "FAIL",
+    "approval_status": "EXPIRED_DUE_TO_CHANGE",
+    "next": "BUILD RESPONSE PACKAGE"
+  }
+}

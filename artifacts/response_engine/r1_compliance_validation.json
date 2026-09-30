@@ -1,0 +1,288 @@
+{
+  "build": "20260929-m3-r1-solicitation-response-compiler-foundation",
+  "rows": [
+    {
+      "case_id": "federal-commercial-rfq",
+      "summary": {
+        "total_requirements": 19,
+        "mandatory_requirements": 19,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 19,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 19,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: COUNTRY_OF_ORIGIN",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FOB",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SIGNATURE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SIGNATURE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: AMENDMENT_ACK",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: TECHNICAL_LITERATURE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_METHOD",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_DEADLINE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_DEADLINE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: PAGE_LIMIT",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "state-brand-or-equal",
+      "summary": {
+        "total_requirements": 5,
+        "mandatory_requirements": 5,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 5,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 5,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: BRAND_OR_EQUAL",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SALIENT_CHARACTERISTIC",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SALIENT_CHARACTERISTIC",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SALIENT_CHARACTERISTIC",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SALIENT_CHARACTERISTIC",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "exact-brand",
+      "summary": {
+        "total_requirements": 4,
+        "mandatory_requirements": 4,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 4,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 4,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: EXACT_BRAND",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_METHOD",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_DEADLINE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: AUTHORIZATION",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "amendment-quantity",
+      "summary": {
+        "total_requirements": 2,
+        "mandatory_requirements": 2,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 2,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 2,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Amendment 001 acknowledgment unresolved.",
+          "resolution": "Owner must acknowledge amendment before submission (external ack later)."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: AMENDMENT_ACK",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "dibbs-like",
+      "summary": {
+        "total_requirements": 1,
+        "mandatory_requirements": 1,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 1,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 1,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_METHOD",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "format-rules-rfp",
+      "summary": {
+        "total_requirements": 5,
+        "mandatory_requirements": 5,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 5,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 5,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: PAGE_LIMIT",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FONT",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: MARGIN",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FILE_FORMAT",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FILE_NAME",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    },
+    {
+      "case_id": "buyer-template",
+      "summary": {
+        "total_requirements": 6,
+        "mandatory_requirements": 6,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 6,
+        "review_required": 0,
+        "clarification_required": 0,
+        "material_unresolved": 6,
+        "nonmaterial_unresolved": 0,
+        "superseded": 0
+      },
+      "hard_blocks": [
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: FORM",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: SUBMISSION_METHOD",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: QUANTITY",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        },
+        {
+          "reason": "Mandatory material requirement UNKNOWN: PRICE",
+          "resolution": "Obtain verified evidence or owner confirmation before any response claim."
+        }
+      ]
+    }
+  ]
+}

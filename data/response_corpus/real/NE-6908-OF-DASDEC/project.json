@@ -1,0 +1,63 @@
+{
+  "corpus_project_id": "NE-6908-OF-DASDEC",
+  "documents": [
+    {
+      "filename": "6908OF.html",
+      "stored_as": "5155d0b7165865d4_6908OF.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\5155d0b7165865d4_6908OF.html",
+      "sha256": "5155d0b7165865d476349b503ac798e05185a5926219a2640b061dbe9910dc8d",
+      "bytes": 18277,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908OF.html",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:20.020976+00:00"
+    },
+    {
+      "filename": "6908_20OF.pdf",
+      "stored_as": "b3c17129a8f522a8_6908_20OF.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\b3c17129a8f522a8_6908_20OF.pdf",
+      "sha256": "b3c17129a8f522a8d92865b065066c94de807c93860596b3cb926d7dac478752",
+      "bytes": 850037,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908%20OF.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:20.744823+00:00"
+    },
+    {
+      "filename": "6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+      "stored_as": "d33a2fd9c6c5e447_6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-6908-OF-DASDEC\\d33a2fd9c6c5e447_6908_20OF_20Addendum_20One_20Q_20_20A.pdf",
+      "sha256": "d33a2fd9c6c5e44738802f0bdbb4ba801a7105255f1ecd68037eb038d34635b1",
+      "bytes": 71830,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908%20OF%20Addendum%20One%20Q%20&%20A.pdf",
+      "role": "Q_AND_A",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:21.098465+00:00"
+    }
+  ],
+  "hashes": [
+    "5155d0b7165865d476349b503ac798e05185a5926219a2640b061dbe9910dc8d",
+    "b3c17129a8f522a8d92865b065066c94de807c93860596b3cb926d7dac478752",
+    "d33a2fd9c6c5e44738802f0bdbb4ba801a7105255f1ecd68037eb038d34635b1"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "EXACT_PART",
+    "Q_AND_A",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:47:19.753511+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "6908 OF",
+  "title": "DASDEC III Messaging Platform Units",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/6908OF/6908OF.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:21.098490+00:00"
+}

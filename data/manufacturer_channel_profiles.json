@@ -1,0 +1,265 @@
+{
+  "kind": "ManufacturerChannelProfileRegistry",
+  "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery",
+  "generated_at": "2026-09-29T05:00:33.669333+00:00",
+  "profiles": [
+    {
+      "manufacturer": "Caterpillar",
+      "product_categories": [
+        "EQUIPMENT",
+        "marine",
+        "engines"
+      ],
+      "direct_sales": false,
+      "distributor_network": true,
+      "authorized_dealer_directory": "https://www.cat.com/en_US/support/dealer-locator.html",
+      "government_channel": "https://www.cat.com/en_US/products/new/power-systems.html",
+      "contract_pricing_source": [
+        "Sourcewell"
+      ],
+      "territory_restrictions": true,
+      "typical_quote_requirement": true,
+      "channels": [
+        {
+          "supplier_domain": "cat.com",
+          "name": "Caterpillar Dealer Network",
+          "source_type": "OEM",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "oem_dealer_locator",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.cat.com/en_US/support/dealer-locator.html",
+          "price_kind": "QUOTE_REQUIRED",
+          "territory_restricted": true,
+          "note": "Territory dealer quote required \u2014 cross-territory not assumed"
+        },
+        {
+          "supplier_domain": "sourcewell-mn.gov",
+          "name": "Sourcewell Heavy Equipment",
+          "source_type": "COOPERATIVE",
+          "authorization_state": "AUTHORIZATION_NOT_REQUIRED",
+          "authorization_evidence": "sourcewell_construction_equipment",
+          "product_fit": "FAMILY",
+          "locator_url": "https://www.sourcewell-mn.gov/",
+          "price_kind": "CONTRACT_CATALOG_PRICE",
+          "eligibility": "cooperative_member"
+        }
+      ],
+      "kind": "ManufacturerChannelProfile",
+      "profile_key": "caterpillar",
+      "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery"
+    },
+    {
+      "manufacturer": "Apple",
+      "product_categories": [
+        "IT",
+        "tablets",
+        "computers"
+      ],
+      "direct_sales": true,
+      "distributor_network": true,
+      "authorized_dealer_directory": "https://locate.apple.com/",
+      "government_channel": "https://www.apple.com/education/",
+      "contract_pricing_source": [
+        "CDW-G",
+        "Insight",
+        "SHI"
+      ],
+      "territory_restrictions": false,
+      "typical_quote_requirement": true,
+      "channels": [
+        {
+          "supplier_domain": "apple.com",
+          "name": "Apple",
+          "source_type": "OEM",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "manufacturer_direct_store",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.apple.com/",
+          "price_kind": "MANUFACTURER_LIST_PRICE",
+          "note": "MSRP/list only \u2014 not acquisition cost"
+        },
+        {
+          "supplier_domain": "cdw-g.com",
+          "name": "CDW-G",
+          "source_type": "DISTRIBUTOR",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "apple_education_government_authorized_reseller",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.cdwg.com/",
+          "price_kind": "QUOTE_REQUIRED"
+        },
+        {
+          "supplier_domain": "insight.com",
+          "name": "Insight",
+          "source_type": "DISTRIBUTOR",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "apple_authorized_enterprise_reseller",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.insight.com/",
+          "price_kind": "QUOTE_REQUIRED"
+        },
+        {
+          "supplier_domain": "shi.com",
+          "name": "SHI International",
+          "source_type": "DISTRIBUTOR",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "apple_authorized_reseller",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.shi.com/",
+          "price_kind": "QUOTE_REQUIRED"
+        }
+      ],
+      "kind": "ManufacturerChannelProfile",
+      "profile_key": "apple",
+      "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery"
+    },
+    {
+      "manufacturer": "Ford",
+      "product_categories": [
+        "VEHICLE",
+        "fleet",
+        "police"
+      ],
+      "direct_sales": false,
+      "distributor_network": true,
+      "authorized_dealer_directory": "https://www.ford.com/dealerships/",
+      "government_channel": "https://www.ford.com/fleet/",
+      "contract_pricing_source": [
+        "Sourcewell",
+        "NASPO"
+      ],
+      "territory_restrictions": true,
+      "typical_quote_requirement": true,
+      "channels": [
+        {
+          "supplier_domain": "ford.com",
+          "name": "Ford Fleet",
+          "source_type": "OEM",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "oem_fleet_program",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.ford.com/fleet/",
+          "price_kind": "QUOTE_REQUIRED",
+          "territory_restricted": true
+        },
+        {
+          "supplier_domain": "sourcewell-mn.gov",
+          "name": "Sourcewell Fleet Contracts",
+          "source_type": "COOPERATIVE",
+          "authorization_state": "AUTHORIZATION_NOT_REQUIRED",
+          "authorization_evidence": "public_cooperative_contract_catalog",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "locator_url": "https://www.sourcewell-mn.gov/",
+          "price_kind": "CONTRACT_CATALOG_PRICE",
+          "eligibility": "cooperative_member_or_participating_agency",
+          "note": "Catalog visible; purchasing eligibility may be required"
+        },
+        {
+          "supplier_domain": "naspovaluepoint.org",
+          "name": "NASPO ValuePoint",
+          "source_type": "COOPERATIVE",
+          "authorization_state": "AUTHORIZATION_NOT_REQUIRED",
+          "authorization_evidence": "naspo_vehicle_contracts",
+          "product_fit": "FAMILY",
+          "locator_url": "https://www.naspovaluepoint.org/",
+          "price_kind": "CONTRACT_CATALOG_PRICE",
+          "eligibility": "participating_entity"
+        }
+      ],
+      "kind": "ManufacturerChannelProfile",
+      "profile_key": "ford",
+      "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery"
+    },
+    {
+      "manufacturer": "ASUS",
+      "product_categories": [
+        "IT"
+      ],
+      "direct_sales": true,
+      "distributor_network": true,
+      "authorized_dealer_directory": "https://www.asus.com/us/support/",
+      "government_channel": null,
+      "contract_pricing_source": [
+        "CDW",
+        "Insight"
+      ],
+      "territory_restrictions": false,
+      "typical_quote_requirement": true,
+      "channels": [
+        {
+          "supplier_domain": "asus.com",
+          "name": "ASUS",
+          "source_type": "OEM",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "oem_direct",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "price_kind": "MANUFACTURER_LIST_PRICE"
+        },
+        {
+          "supplier_domain": "cdw.com",
+          "name": "CDW",
+          "source_type": "DISTRIBUTOR",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "national_it_distributor",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "price_kind": "QUOTE_REQUIRED"
+        }
+      ],
+      "kind": "ManufacturerChannelProfile",
+      "profile_key": "asus",
+      "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery"
+    },
+    {
+      "manufacturer": "Cisco",
+      "product_categories": [
+        "IT",
+        "networking"
+      ],
+      "direct_sales": false,
+      "distributor_network": true,
+      "authorized_dealer_directory": "https://locatr.cloudapps.cisco.com/WWChannels/LOCATR/openBasicSearch.do",
+      "government_channel": "https://www.cisco.com/c/en/us/solutions/industries/government.html",
+      "contract_pricing_source": [
+        "CDW-G",
+        "SHI",
+        "Insight"
+      ],
+      "territory_restrictions": false,
+      "typical_quote_requirement": true,
+      "channels": [
+        {
+          "supplier_domain": "cisco.com",
+          "name": "Cisco Partner Locator",
+          "source_type": "OEM",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "partner_locator",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "price_kind": "QUOTE_REQUIRED"
+        },
+        {
+          "supplier_domain": "cdw-g.com",
+          "name": "CDW-G",
+          "source_type": "DISTRIBUTOR",
+          "authorization_state": "AUTHORIZED_LIKELY",
+          "authorization_evidence": "cisco_authorized_partner",
+          "product_fit": "EXACT",
+          "exact_product_evidence": true,
+          "price_kind": "QUOTE_REQUIRED"
+        }
+      ],
+      "kind": "ManufacturerChannelProfile",
+      "profile_key": "cisco",
+      "build": "20260928-m3-phase-l20-supplier-acquisition-evidence-recovery"
+    }
+  ]
+}

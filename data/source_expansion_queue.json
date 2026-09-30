@@ -1,0 +1,99 @@
+{
+  "kind": "SOURCE_EXPANSION_QUEUE",
+  "build": "20260929-m3-national-source-expansion-product-density-sam-budget-allocation",
+  "entries": {
+    "OpenGov": {
+      "state": "LOW_VALUE",
+      "mapped": 102,
+      "tested": 0,
+      "live_rows": 0,
+      "product_density": 0.0,
+      "SourceYieldScore": 8.0,
+      "PlatformLeverageScore": 64.55,
+      "at": "2026-09-29T15:15:11.088452+00:00"
+    },
+    "Bonfire": {
+      "state": "PRODUCTIVE",
+      "mapped": 31,
+      "tested": 15,
+      "live_rows": 3,
+      "product_density": 0.0,
+      "SourceYieldScore": 8.3,
+      "PlatformLeverageScore": 52.23,
+      "at": "2026-09-29T15:15:53.515804+00:00"
+    },
+    "PlanetBids": {
+      "state": "TESTED",
+      "mapped": 22,
+      "tested": 7,
+      "live_rows": 0,
+      "product_density": 0.0,
+      "SourceYieldScore": -4.0,
+      "PlatformLeverageScore": 48.0,
+      "at": "2026-09-29T15:16:19.534237+00:00"
+    },
+    "IonWave": {
+      "state": "TESTED",
+      "mapped": 20,
+      "tested": 5,
+      "live_rows": 0,
+      "product_density": 0.0,
+      "SourceYieldScore": 2.0,
+      "PlatformLeverageScore": 45.65,
+      "at": "2026-09-29T15:16:36.694482+00:00"
+    },
+    "SimpleHTML": {
+      "state": "LOW_VALUE",
+      "mapped": 22,
+      "tested": 0,
+      "live_rows": 0,
+      "product_density": 0.0,
+      "SourceYieldScore": 8.0,
+      "PlatformLeverageScore": 44.0,
+      "at": "2026-09-29T15:16:36.960694+00:00"
+    },
+    "BidNet": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 41,
+      "PlatformLeverageScore": 25.43,
+      "at": "2026-09-29T15:16:36.960743+00:00"
+    },
+    "StateOwned": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 23,
+      "PlatformLeverageScore": 20.23,
+      "at": "2026-09-29T15:16:36.960748+00:00"
+    },
+    "Jaggaer": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 9,
+      "PlatformLeverageScore": 18.48,
+      "at": "2026-09-29T15:16:36.960750+00:00"
+    },
+    "PublicPurchase": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 3,
+      "PlatformLeverageScore": 15.33,
+      "at": "2026-09-29T15:16:36.960753+00:00"
+    },
+    "Socrata": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 10,
+      "PlatformLeverageScore": 14.7,
+      "at": "2026-09-29T15:16:36.960755+00:00"
+    },
+    "Cooperative": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 6,
+      "PlatformLeverageScore": 13.4,
+      "at": "2026-09-29T15:16:36.960757+00:00"
+    },
+    "DemandStar": {
+      "state": "NEEDS_ADAPTER",
+      "mapped": 1,
+      "PlatformLeverageScore": 11.47,
+      "at": "2026-09-29T15:16:36.960759+00:00"
+    }
+  },
+  "updated_at": "2026-09-29T15:16:36.960761+00:00"
+}

@@ -1,0 +1,38 @@
+{
+  "corpus_project_id": "NE-121756-OR",
+  "documents": [
+    {
+      "filename": "121756_20OR_20ITB.pdf",
+      "stored_as": "4350dfc1b2cd8021_121756_20OR_20ITB.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-121756-OR\\4350dfc1b2cd8021_121756_20OR_20ITB.pdf",
+      "sha256": "4350dfc1b2cd8021eede6017ba51755949d886a14cac3e909f1cb846bf4f7fc6",
+      "bytes": 713325,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/121756%20OR/121756%20OR%20ITB.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:42:00.686300+00:00"
+    }
+  ],
+  "hashes": [
+    "4350dfc1b2cd8021eede6017ba51755949d886a14cac3e909f1cb846bf4f7fc6"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "BUYER_XLSX",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:41:59.911813+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "121756 OR",
+  "title": "Commodity ITB 121756 OR",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/121756%20OR/121756%20OR%20ITB.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:42:00.686317+00:00"
+}

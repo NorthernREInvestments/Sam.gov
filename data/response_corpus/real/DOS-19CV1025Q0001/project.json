@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "DOS-19CV1025Q0001",
+  "documents": [
+    {
+      "filename": "A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+      "stored_as": "e990fe17e883c608_A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19CV1025Q0001\\e990fe17e883c608_A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+      "sha256": "e990fe17e883c608f62fbc3a1b2649564e1d652475d9d2586f9abcb5da81c33f",
+      "bytes": 640540,
+      "source_url": "https://cv.usembassy.gov/wp-content/uploads/sites/189/2024/11/A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:16.475160+00:00"
+    }
+  ],
+  "hashes": [
+    "e990fe17e883c608f62fbc3a1b2649564e1d652475d9d2586f9abcb5da81c33f"
+  ],
+  "tags": [
+    "FEDERAL",
+    "SF1449",
+    "RFQ",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:42:08.159157+00:00",
+  "buyer": "U.S. Embassy Praia",
+  "agency": "Department of State",
+  "solicitation_number": "19CV1025Q0001",
+  "title": "Drinking water delivery SF1449 RFQ",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://cv.usembassy.gov/wp-content/uploads/sites/189/2024/11/A-Solicitation-Package-SF1449-19CV1025Q0001.pdf",
+  "discovery_source": null,
+  "submission_system": "EMAIL",
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:16.475181+00:00"
+}

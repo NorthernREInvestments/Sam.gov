@@ -1,0 +1,76 @@
+{
+  "corpus_project_id": "NE-119951-O8-CAMERAS",
+  "documents": [
+    {
+      "filename": "119951O8.html",
+      "stored_as": "77e593c21422e699_119951O8.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\77e593c21422e699_119951O8.html",
+      "sha256": "77e593c21422e699d61a89f29c2814f5b4c478e08f23ac722a12b6870899090e",
+      "bytes": 19179,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951O8.html",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:16.898835+00:00"
+    },
+    {
+      "filename": "119951_20O8_20ITB.pdf",
+      "stored_as": "5df4a379886f6a17_119951_20O8_20ITB.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\5df4a379886f6a17_119951_20O8_20ITB.pdf",
+      "sha256": "5df4a379886f6a17300090ea1a694016826e1efcb307fe1cec18e71fd0b375e6",
+      "bytes": 414828,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%20O8%20ITB.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:17.375208+00:00"
+    },
+    {
+      "filename": "119951_2008_20Cost_20SHEET.pdf",
+      "stored_as": "3fff0d8501abcb1c_119951_2008_20Cost_20SHEET.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\3fff0d8501abcb1c_119951_2008_20Cost_20SHEET.pdf",
+      "sha256": "3fff0d8501abcb1cf5fc6326c4e5c2cc043f2e4ad4cf445f9dd25c9c4deac03a",
+      "bytes": 91140,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%2008%20Cost%20SHEET.pdf",
+      "role": "PRICING_SHEET",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:17.787153+00:00"
+    },
+    {
+      "filename": "119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+      "stored_as": "713a509b106d8292_119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119951-O8-CAMERAS\\713a509b106d8292_119951_20O8_20SOLICITATION_20ADDENDUM_20NO_20QUESTIONS.docx",
+      "sha256": "713a509b106d8292ee282fcc67a7010f33ed68e3da8c348fe785b8c41dd3c13d",
+      "bytes": 20469,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951%20O8%20SOLICITATION%20ADDENDUM%20NO%20QUESTIONS.docx",
+      "role": "Q_AND_A",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:18.058503+00:00"
+    }
+  ],
+  "hashes": [
+    "77e593c21422e699d61a89f29c2814f5b4c478e08f23ac722a12b6870899090e",
+    "5df4a379886f6a17300090ea1a694016826e1efcb307fe1cec18e71fd0b375e6",
+    "3fff0d8501abcb1cf5fc6326c4e5c2cc043f2e4ad4cf445f9dd25c9c4deac03a",
+    "713a509b106d8292ee282fcc67a7010f33ed68e3da8c348fe785b8c41dd3c13d"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "RFQ",
+    "BRAND_OR_EQUAL",
+    "Q_AND_A",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:47:16.485878+00:00",
+  "buyer": "Nebraska DAS / NDOT",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "119951 O8",
+  "title": "Axis Traffic Cameras commodity ITB",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119951O8/119951O8.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:18.058539+00:00"
+}

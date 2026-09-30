@@ -85,10 +85,38 @@ PROFILE_NATIONAL = {
     "paid": 0,
 }
 
+# PHASE_L_COMMERCIAL = Phase L hunts only — tighter caps so one source cannot burn the run
+PROFILE_PHASE_L_COMMERCIAL = {
+    "name": "PHASE_L_COMMERCIAL",
+    "max_sources": 70,
+    "all_eligible_sources": False,
+    "budget": RequestBudget(
+        max_total_requests=400,
+        max_requests_per_source=12,
+        max_pages_per_source=3,
+        max_records_per_source=120,
+        max_runtime_seconds=900,
+        max_retries=1,
+        min_interval_seconds=0.75,
+        timeout_seconds=20.0,
+    ),
+    "max_records_total": 8000,
+    "fetch_details": False,
+    "fetch_documents": False,
+    "pagination_exhaust": False,
+    "pagination_safety_max_pages": 4,
+    "source_wall_clock_seconds": 75.0,
+    "SAM": 0,
+    "OpenAI": 0,
+    "USAspending": 0,
+    "paid": 0,
+}
+
 PROFILES = {
     "tiny": PROFILE_TINY,
     "broad": PROFILE_BROAD,
     "national": PROFILE_NATIONAL,
+    "phase_l_commercial": PROFILE_PHASE_L_COMMERCIAL,
 }
 
 

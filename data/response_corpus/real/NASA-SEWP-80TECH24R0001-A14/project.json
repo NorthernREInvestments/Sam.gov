@@ -1,0 +1,38 @@
+{
+  "corpus_project_id": "NASA-SEWP-80TECH24R0001-A14",
+  "documents": [
+    {
+      "filename": "80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+      "stored_as": "c052d366e17de0ba_80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NASA-SEWP-80TECH24R0001-A14\\c052d366e17de0ba_80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+      "sha256": "c052d366e17de0baeb1de6ae71946443f28d27180cc8f894d1b5a5231cbcb5dc",
+      "bytes": 1147925,
+      "source_url": "https://www.sewp.nasa.gov/documents/80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+      "role": "AMENDMENT",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:27.144658+00:00"
+    }
+  ],
+  "hashes": [
+    "c052d366e17de0baeb1de6ae71946443f28d27180cc8f894d1b5a5231cbcb5dc"
+  ],
+  "tags": [
+    "FEDERAL",
+    "RFP",
+    "SF1449",
+    "MULTI_AMENDMENT",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:47:24.963213+00:00",
+  "buyer": "NASA SEWP",
+  "agency": "NASA",
+  "solicitation_number": "80TECH24R0001",
+  "title": "SEWP VI Request for Proposals Amendment 14",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://www.sewp.nasa.gov/documents/80TECH24R0001_Request_For_Proposals_Amendment14.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:27.144677+00:00"
+}

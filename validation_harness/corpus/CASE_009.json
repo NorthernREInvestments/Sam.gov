@@ -1,0 +1,35 @@
+{
+  "case_id": "CASE_009",
+  "case_name": "First article requirement",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ FAT-009\nPart Number: FAT-1 Quantity: 15 EA\nFirst Article Test (FAT) required prior to production.\nSource inspection may apply for FAT.\nDestination acceptance after approval.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "inspection_acceptance": {
+      "first_article": true,
+      "source_inspection": true,
+      "destination_acceptance": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "inspection",
+    "first_article",
+    "fat"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

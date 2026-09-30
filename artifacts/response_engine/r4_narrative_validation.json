@@ -1,0 +1,4 @@
+{
+  "engine": "document_generators.generate_technical_narrative_draft",
+  "rule": "deterministic verified facts only; DRAFT_REVIEW_REQUIRED"
+}

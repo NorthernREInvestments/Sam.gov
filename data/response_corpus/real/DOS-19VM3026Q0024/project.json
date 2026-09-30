@@ -1,0 +1,38 @@
+{
+  "corpus_project_id": "DOS-19VM3026Q0024",
+  "documents": [
+    {
+      "filename": "19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+      "stored_as": "910f7c15e7b0a85b_19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\DOS-19VM3026Q0024\\910f7c15e7b0a85b_19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+      "sha256": "910f7c15e7b0a85be5f19bc2e35d5d86c5425d576d0d1b18ff97f541e567cc54",
+      "bytes": 337543,
+      "source_url": "https://vn.usembassy.gov/wp-content/uploads/sites/124/2026/09/19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:15.303915+00:00"
+    }
+  ],
+  "hashes": [
+    "910f7c15e7b0a85be5f19bc2e35d5d86c5425d576d0d1b18ff97f541e567cc54"
+  ],
+  "tags": [
+    "FEDERAL",
+    "SF1449",
+    "RFQ",
+    "BRAND_OR_EQUAL",
+    "EMAIL_SUBMISSION"
+  ],
+  "created_at": "2026-09-29T22:42:07.337101+00:00",
+  "buyer": "U.S. Embassy Hanoi",
+  "agency": "Department of State",
+  "solicitation_number": "19VM3026Q0024",
+  "title": "Cleaning supplies BPA RFQ (SF1449)",
+  "jurisdiction": "FEDERAL",
+  "authoritative_source": "https://vn.usembassy.gov/wp-content/uploads/sites/124/2026/09/19VM3026Q0024-Request-for-quotation-Cleaning-supplies.pdf",
+  "discovery_source": null,
+  "submission_system": "EMAIL",
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:15.303938+00:00"
+}

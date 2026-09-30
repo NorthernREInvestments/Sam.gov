@@ -1,0 +1,61 @@
+{
+  "case_id": "BP_005",
+  "case_name": "Broader pipeline \u2014 economics UNKNOWN blocks",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ BP-005\nPart Number: ECON-1 Quantity: 6 EA\nFOB DESTINATION Delivery within 30 days\nSubmit via email\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "Validated Wholesale LLC",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "financing_compatible": true,
+    "funding_state": "COMPATIBLE",
+    "owner_cash_required_before_payment": 0,
+    "personal_guarantee_required": false,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true,
+    "economics_complete": null,
+    "supported_profit": "UNKNOWN",
+    "acquisition_cost": "UNKNOWN",
+    "product_classification": "COMMERCIAL"
+  },
+  "expected": {
+    "economics": {
+      "economics_complete": false
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    },
+    "execution_blockers_include_any": [
+      "ECONOMICS_INCOMPLETE_OR_UNKNOWN"
+    ]
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "broader_pipeline",
+    "economics",
+    "false_readiness"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "broader_pipeline",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

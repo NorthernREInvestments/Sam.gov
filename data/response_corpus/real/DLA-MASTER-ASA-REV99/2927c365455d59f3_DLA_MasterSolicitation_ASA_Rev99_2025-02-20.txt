@@ -1,0 +1,1980 @@
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+1
+PART I - Instructions to Suppliersfor the Submission of Quotations and Automated Evaluation
+1. General Information/Instruction:
+(a) This solicitation, called the DLA Master Solicitation for Automated Simplified Acquisitions, is used with the 
+request for quotations (RFQ), and the awards of purchase orders and basic contracts for automated EProcurement 
+acquisitions valued up to the simplified acquisition threshold (SAT). The information/instruction found in this document 
+expands upon information/instruction found within individual solicitations that reference this document. The DLA 
+Master Solicitation for Automated Simplified Acquisitions is referenced in all automated RFQs that are located on the 
+DLA Internet Bid Board System (DIBBS). Each RFQ contains a web link to this master solicitation. Suppliers are 
+required to read PARTs I, II, and III of this master solicitation to understand the automated solicitation, evaluation and 
+award process for the automated simplified acquisitions. Suppliers shall comply with the master solicitation in effect at 
+time of award. The master solicitation will be updated to reflect changes in law, regulation and acquisition policies and 
+procedures. Updates to this master solicitation will be identified by a date and revision number. Changes from the 
+preceding revision will be indicated by yellow highlighting. Deletions are shown using strikethrough. Additions are 
+shown using bold font style and brackets. Prior versions of the DLA Master Solicitation for Automated Simplified 
+Acquisitions will be archived and available.
+(b) The master solicitation contains multiple parts. Part I instructs suppliers in the submission of quotations, use of the 
+DIBBS and one-time buy automated award evaluation. Part II contains the Automated Indefinite Delivery Contract 
+(AIDC) award evaluation information and specific clauses and procurement note. Part III Subpart A contains the 
+mandatory provisions and clauses, Subpart B contains conditional provisions and clauses, and Subpart C contains 
+procurement notes that apply to automated solicitations, purchase orders and basic contracts. Provisions, clauses, and 
+procurement notes are incorporated by reference. They have the same force and effect as the full text. The full text of 
+provisions, clauses, and procurement notes can be found via the applicable links provided in Part III.
+Note: On or about October 5, 2017, mandatory provisions and clauses located in Part III Subpart A will appear in 
+automated solicitations and awards. Refer to Part III Subpart B for the conditional provisions and clauses, and Part III 
+Subpart C for the procurement notes. In the event of a conflict between mandatory provisions and clauses explicitly cited 
+in automated solicitations and awards and those located in the Master Solicitation Part III Subpart A, the mandatory 
+provisions and clauses in the automated solicitation or award will take precedence.
+2. DLA Internet Bid Board System (DIBBS)Instructionsfor Automated Solicitations.
+(a) AUTOMATED SOLICITATION NUMBERING: Automated solicitations are identified by “SPE” in the first three 
+positions of the solicitation number and “T” or “U” in the ninth position of the solicitation number.
+(b) SUBMITTING QUOTATIONS: Automated quotations must be submitted electronically on DIBBS at 
+https://www.dibbs.bsm.dla.mil/ for all automated RFQs posted on DIBBS. Quotations received by other electronic means, 
+even though within the FAR definition of “electronic commerce” or “electronic and information technology”, such as 
+facsimile (fax) or electronic mail (email) will not be considered for award. Quotations transmitted in hard copy by U.S. 
+Mail or other means will not be considered for award. Quotations received after the return date/time may only be 
+considered in accordance with the late quotation provision in paragraph (d) below.
+THE OFFEROR, BY SUBMISSION OF ITS QUOTATION, REPRESENTSTHAT:
+(1) IT WILL NOT PROVIDE COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES TO THE 
+GOVERNMENT IN THE PERFORMANCE OF ANY CONTRACT, SUBCONTRACT OR OTHER 
+CONTRACTUAL INSTRUMENT RESULTING FROM THIS SOLICITATION, IN ACCORDANCE WITH FAR 
+52.204-24(d)(1);
+(2) IT HAS CONDUCTED A REASONABLE INQUIRY AS DEFINED AT FAR 52.204-25(a), AND IT DOES NOT 
+USE COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES, OR USE ANY EQUIPMENT, 
+SYSTEM, OR SERVICE THAT USES COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES IN 
+ACCORDANCE WITH FAR 52.204-24(2);
+(3) IT DOES NOT PROVIDE COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES AS A PART 
+OF ITS OFFERED PRODUCTS OR SERVICES TO THE GOVERNMENT IN THE PERFORMANCE OF ANY 
+CONTRACT, SUBCONTRACT, OR OTHER CONTRACTUAL INSTRUMENT IN ACCORDANCE WITH FAR 
+52.204-26(c)(1);
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+2
+(4) IT HAS CONDUCTED A REASONABLE INQUIRY AS DEFINED AT FAR 52.204-25(a), AND IT DOES NOT 
+USE COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES, OR ANY EQUIPMENT, SYSTEM, 
+OR SERVICE THAT USES COVERED TELECOMMUNICATIONS EQUIPMENT OR SERVICES IN 
+ACCORDANCE WITH FAR 52.204-26(c)(2); AND
+(5) IT DOES NOT PROVIDE COVERED DEFENSE TELECOMMUNICATIONS EQUIPMENT OR 
+SERVICES AS A PART OF ITS OFFERED PRODUCTS OR SERVICES TO THE GOVERNMENT IN THE 
+PERFORMANCE OF ANY CONTRACT, SUBCONTRACT, OR OTHER CONTRACTUAL INSTRUMENT IN 
+ACCORDANCE WITH DFARS 252.204-7016(c).
+EFFECTIVE NOVEMBER 30, 2020, THE OFFEROR, BY SUBMISSION OF ITS QUOTATION, REPRESENTSTHE 
+FOLLOWING : IF DFARS CLAUSE 252.204–7012, SAFEGUARDING COVERED DEFENSE INFORMATION AND 
+CYBER INCIDENT REPORTING (MAY 2024) (DEVIATION 2024-O0013), APPLIES— 
+(1) IN ACCORDANCE WITH DFARS PROVISION 252.204-7019, IT HAS IMPLEMENTED THE NIST SP
+800171 SECURITY REQUIREMENTS FOR ITS INFORMATION SYSTEMS; AND
+(2) ITS SUMMARY LEVELSCORES ARE POSTED IN THE SUPPLIER PERFORMANCE RISK SYSTEM (SPRS)
+(HTTPS://WWW.SPRS.CSD.DISA.MIL/) INACCORDANCE WITH PARAGRAPH (d) OF DFARS CLAUSE 252.204- 
+7020, NIST SP800-171 DoD ASSESSMENT REQUIREMENTS.
+THE REQUIREMENTS IN DFARS 252.204-7012, 252.204-7019 AND 252.204-7020 APPLY WHEN ACCESS TO 
+CONTROLLED UNCLASSIFIED INFORMATION (CUI) IS REQUIRED FOR THE PERFORMANCE OF A 
+CONTRACT. THE PRESENCE OF CUI IN DLA PROCUREMENTS IS INDICATED BY THE INCLUSION OF 
+STANDARD TEXT OBJECT (STO) IN THE PURCHASE ORDER TEXT (POT), THE PROCUREMENT ITEM 
+DESCRIPTION (PID), THE TECHNICAL DATA PACKAGE, OR OTHER REQUIREMENTS 
+DOCUMENTATION. THE INCLUSION OF THE FOLLOWING STOS PROVIDES NOTICE THAT THE 
+SOLICITATION WILL RESULT IN A CONTRACT, TASK ORDER, OR DELIVERY ORDER THAT 
+INVOLVES CUI. IF STO RD002 - COVERED DEFENSE INFORMATION APPLIES, OR RD003 - COVERED 
+DEFENSE INFORMATION POTENTIALLY APPLIES, OR RQ032 - EXPORT CONTROL OF TECHNICAL 
+DATA IS INCLUDED, THE REQUIREMENTS IN DFARS 252.204-7012, 252.204-7019 AND 252.204-7020 MUST 
+BE MET. FAILURE TO COMPLY MAY RESULT IN CANCELLATION OF AUTOMATED PURCHASE 
+ORDERS.
+EFFECTIVE DECEMBER 4, 2023, CONTRACTORS ARE PROHIBITED FROM PROVIDING OR USING AS 
+PART OF THE PERFORMANCE OF THE CONTRACT ANY COVERED ARTICLE, OR ANY PRODUCTS OR 
+SERVICES PRODUCED OR PROVIDED BY A SOURCE, IF THE PROHIBITION IS SET OUT IN AN 
+APPLICABLE FEDERAL ACQUISITION SUPPLY CHAIN SECURITY ACT (FASCSA) ORDER, AS 
+DESCRIBED IN FAR CLAUSE 52.204-30, FEDERAL ACQUISITION SUPPLY CHAIN SECURITY ACT ORDERS 
+– PROHIBITION (DEC 2023).
+THE OFFEROR, BY SUBMISSION OF ITS QUOTATION, REPRESENTS IAW FAR PROVISION 52.204-29, 
+FEDERAL ACQUISITION SUPPLY CHAIN SECURITY ACT ORDERS – REPRESENTATION AND 
+DISCLOSURES, THE FOLLOWING: THE OFFEROR HAS CONDUCTED A REASONABLE INQUIRY, AND 
+THAT THE OFFEROR DOES NOT PROPOSE TO PROVIDE OR USE IN RESPONSE TO THIS SOLICITATION 
+ANY COVERED ARTICLE, OR ANY PRODUCTS OR SERVICES PRODUCED OR PROVIDED BY A SOURCE, 
+IF THE COVERED ARTICLE OR THE SOURCE IS PROHIBITED BY AN APPLICABLE FASCSA ORDER IN 
+EFFECT ON THE DATE THE SOLICITATION WAS ISSUED, EXCEPT AS WAIVED, OR AS DISCLOSED IN 
+PARAGRAPH (e) OF FAR 52.204-29. 
+THE OFFEROR SHALL REVIEW FAR PROVISION 52.204-29 AND CLAUSE 52.204-30 FOR FULL DETAILS 
+OF THE REQUIREMENTS FOR COMPLIANCE.
+FOR FEDERAL SUPPLY SCHEDULES, GOVERNMENTWIDE ACQUISITION CONTRACTS, AND MULTIAGENCY CONTRACTS, FAR CLAUSE 52.204–28, FEDERAL ACQUISITION SUPPLY CHAIN SECURITY ACT 
+ORDERS - FEDERAL SUPPLY SCHEDULES, GOVERNMENTWIDE ACQUISITION CONTRACTS, AND 
+MULTI-AGENCY CONTRACTS (DEC 2023), APPLIES.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+3
+RETURN DATE AND TIME: The time for receipt of quotations is 3:00 P.M. Eastern Standard Time, or when applicable, 
+Eastern Daylight Savings Time on the return date. If a return date falls on a Saturday, Sunday or federal holiday, the return 
+date will be extended to the next business day. Quotations submitted using EDI/DIBBS are subject to electronic interface 
+latency which can result in transmission delays. Suppliers must consider transmission delays in the EDI/DIBBS system 
+when submitting quotations and assume the risk of late transmission/submission. As an alternative, the direct entry of 
+quotation information into the DIBBS website is a method that precludes transmission delays and will ensure the quotation 
+is evaluated. Except as provided herein, awards will not be made prior to the solicitation return date/time. Fast Auto 
+Evaluation solicitations are solicitations estimated to be lessthan the micro-purchase threshold. They may be awarded prior 
+to the solicitation return date/time. Solicitations for items with documented urgency may be awarded prior to solicitation 
+return date/time. Solicitations may also result in award prior to the solicitation return date when the response date is 30
+days or greater and a responsive quotation is received prior to the 30 days but at least 11 days after issuance. Therefore, 
+suppliers are advised to submit quotations as quickly as possible. Auto Evaluation may extend the solicitation return date
+for three business days for price negotiations for “qualified” (see paragraph 3(a) below) quotations in the competitive
+range. Notice of the extension will be provided by email to suppliers in the competitive range (bids without exception) 
+inviting them to revise their quotation. DIBBS sends an email notification to the email address registered for the person 
+who submitted the quotation. If a third party submitted the quotation, DIBBS sends the notification to the email addresses
+of the third party and the super user CAGE. Suppliers are responsible for the accuracy of the email addresses in DIBBS. 
+Suppliers who have submitted their best quotation do not need to resubmit.
+(c) HOW INTERRUPTIONS AFFECT RETURN TIME AND DATE: If an emergency or unanticipated event 
+interrupts DIBBS processing preventing quotation submission through DIBBS at the close of a solicitation, the return 
+date/time will be extended to the same time of day on the next business day that DIBBS processing resumes. Notice of 
+the extension will be provided on the DIBBS home page. A supplier’s inability to submit a quotation caused by failure of
+ a supplier’s hardware, software, Internet Service Provider, or the World Wide Web itself, is not cause for extension of a 
+solicitation.
+(d) LATE QUOTATIONS: Quotations received after the return date/time for automated solicitations may be considered 
+until the evaluation process begins. Once the evaluation process begins, late quotations will only be considered if the 
+procurement is manually reviewed, and the contracting officer determinesthat considering the late quotation is in the best 
+interest of the Government and would not unduly delay the award. Quotations received after the evaluation process has 
+begun will not be considered if the procurement is processed entirely through the DLA Automated Evaluation program 
+without manual evaluation or buyer assist. The procurement will not be manually reviewed solely because a quote is 
+received after the return date/time.
+(e) QUOTATION REVISIONS: Suppliers may revise quotations on DIBBS up until the time the solicitation is 
+awarded. Quotation revisions overlay previously submitted quotations on the same solicitation.
+(f) QUOTATION WITHDRAWAL: Suppliers may withdraw quotations on DIBBS up until the time the solicitation is 
+awarded by selecting a bid type of “no bid.” A “no bid” quotation overlays a previously submitted quotation on the same 
+solicitation.
+(g) SET-ASIDE SOLICITATIONS: Solicitations with an estimated dollar value greater than the micro-purchase
+threshold and not exceeding the SAT are set-aside for small business or for one of the small business socioeconomic 
+programs when cited in the solicitation. When a solicitation is set-aside for one of the socioeconomic small businesses 
+(SDVOSB, WOSB, EDWOSB, or HUBZone), only small business quotations that comply with the nonmanufacturer 
+rule and limitations on subcontracting will be considered (see FAR 19.505). Refer to Part III, Subpart B, for 
+prescriptions describing nonmanufacturer rule and limitations on subcontracting applicability.
+(h) FAST AUTO EVALUATION SOLICITATIONS: A Fast Auto Evaluation icon on the DIBBS “search results” 
+screen identifies Fast Auto Evaluation solicitations. These solicitations are estimated to be at or less than the micropurchase threshold and are not set-aside. They may be awarded prior to the solicitation return date/time. A quotation
+valued less than the micro-purchase threshold that is submitted in response to a solicitation that has an estimated value 
+equal to or greater than the micro-purchase threshold and was not originally marked , may result in an early award as
+a result of being evaluated as a Fast Auto Evaluation quotation. Fast Auto Evaluation commences at 3:00 P.M., 3 
+business days after the issue date, and continues every day thereafter at 3:00 P.M. until the return date. The automated 
+evaluation program for an early award evaluates all quotations not exceeding the micro-purchase threshold.
+(i) SOLICITATIONS WITH FIRST ARTICLE TESTING (FAT) OR PRODUCTION LOT TESTING (PLT)
+REQUIREMENTS: The FAT and PLT appear as separate line items in the solicitation. The number of units shown in the 
+solicitation for the FAT or PLT line item is “1 EA”. The actual number of units required for the FAT line item will be 
+identified in clause FAR 52.209-3 or 52.209-4. The actual number of units required for the PLT line items will be 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+4
+identified in the specification for PLT requirements in Section A of the solicitation. The required delivery schedule for 
+FAT line items will be identified in FAR 52.209-3 or 52.209-4. The required delivery schedule for PLT line items will be 
+identified in Section A of the solicitation.
+(j) QUANTITY REQUIREMENTS: Quotation must be submitted on the total quantity of each item when a definite 
+quantity is required.
+(k) DELIVERY REQUIREMENTS: The Government required delivery will be stated in days after date of order 
+(ADO). If the supplier is not able to meet the delivery requirement, the supplier must submit their delivery timeframe on 
+the DIBBS quote page in number of days ADO. This includes time to deliver production quantity, required testing, and 
+government inspection and acceptance. If a FAT is required, the supplier must also comply with the FAT delivery 
+requirement and if unable to comply, must submit their delivery timeframe on the DIBBS quote page in number of days 
+ADO. This includes time to deliver the completed test report (if contractor FAT).
+(l) DOD CLASS DEVIATION 2023-O0001: A small business joint venture offeror must submit, with its offer, the 
+representation required in paragraph (c) of FAR solicitation provision 52.212-3, Offeror Representations and 
+Certifications-Commercial Products and Commercial Services, and paragraph (c) of FAR solicitation provision 52.219-1, 
+Small Business Program Representations, in accordance with 52.204-8(d) and 52.212-3(b) for the following categories:
+(A) Small business;
+(B) Service-disabled veteran-owned small business
+(C) Women-owned small business(WOSB) under the WOSB Program;
+(D) Economically disadvantaged women-owned small business under the WOSB Program; or
+(E) Historically underutilized business zone small business.
+Questions regarding the DIBBS should be e-mailed to: dibbsBSM@dla.mil or refer to the frequently asked questions on 
+DIBBS at https://www.dibbs.bsm.dla.mil/Refs/help/FrequentlyAskedQuestions/Default.aspx. For immediate assistance, 
+please call 1-877-352-2255.
+3. Automated AwardEvaluation Information
+(a) AUTOMATED EVALUATION: Acquisitions (excluding automated solicitations with first article test requirements – 
+(see paragraph (c) below) may be candidates for automated award under DLA Automated Evaluation program. The 
+program uses price reasonableness logic and other automated filters to make fully automated and buyer assisted automated 
+awards valued at the SAT or less. The Automated Evaluation program begins the evaluation process at the time and date 
+set for receipt of quotations and only considers “qualified quotations” for award. Qualified quotations are in exact 
+compliance with the solicitation requirements (bid type equal to “bid without exception”) and are submitted on the
+DIBBS.
+(1) The following are not considered exceptions to the solicitation requirements and will not make a quotation ineligible 
+for an award:
+(i) Quoting delivery days different than the required delivery days.
+(ii) Quoting a superseding or previously approved part or correction to a CAGE/part number cited in the 
+procurement identification description (PID) for an item described by manufacturer’s CAGE and part number.
+(iii) Quoting a used, reconditioned, remanufactured item, or unused former Governmentsurplus property.
+(iv) Quoting other than a domestic end product on an unrestricted solicitation.
+(v) Quoting a hazardous item.
+(vi) Quoting “Other” when the solicitation states a Higher-Level Quality requirement.
+(2) The following are considered exceptions to the solicitation requirements and will make a quotation ineligible for an 
+automated award:
+(i) Quoting an alternate product or otherwise taking exception to the solicitation’sitem description.
+(ii) Exceptionsto packaging requirements.
+(iii) Exceptionsto FOB terms.
+(iv) Exceptionsto inspection requirements.
+(v) Exceptionsto required quantity.
+(vi) Quoting a quantity variance greater than specified on the solicitation.
+(vii) Quoting “None” when a Higher-Level Contract Quality Requirement isrequired.
+(viii) Quoting the use of Child Labor.
+(ix) Quoting Remarks.
+(3) The following are qualifications (when cited in the solicitation) that are required to be eligible for an automated 
+award:
+(i) Export Control (as cited in the item description) requires the applicable certifications to be current for both the 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+5
+quoter and manufacturer unless the material offered is surplus then only the quoter is required to have the applicable 
+certifications. The offeror and any source(s) of supply it will use for contract performance must have an active United 
+States/Canada Joint Certification Program (JCP) certification and DLA controlling authority approval to access exportcontrolled data. DLA does not intend to delay award in order for an ineligible offer or its source(s) supply to apply for 
+and receive DLA controlling authority approval to access the export-controlled data.
+(ii) The quoted manufacturer must be on the specific Qualified Product List or Qualified Manufacturers List.
+(iii) The quoter must be on the specific Qualified Suppliers List of Distributors or on the Qualified Suppliers List.
+(iv) When Trade Agreements is cited (DFARS 252.225-7020) when offering the product of a Non-Designated 
+Country when other quotes received are not offering the product of a Non-Designated country.
+(b) AUTOMATED EVALUATION FACTORS: The automated evaluation program evaluates all qualified quotations 
+on the basis of price alone and does not consider quantity price breaks. Price evaluation factors are added to the total 
+quotation price in the following instances:
+(1) $200 for offers of surplus for unused former Government surplus material.
+(2) $600 for CSI evaluations of surplus by each ESA. The evaluation factor may be applied if the contracting office 
+cannot determine acceptability of quotations for other than CSI items and requires ESA coordination.
+(3) When the solicitation is subject to the Buy American statute or the Balance of Payments Program (see DFARS 
+225.502(c).
+(c) SOLICITATIONS WITH FAT/PLT REQUIREMENTS:
+(1) Solicitations with FAT/PLT requirements are not candidates for automated evaluation or award. All quotations 
+received for solicitations with FAT/PLT requirements shall be manually evaluated and manually awarded.
+(2) For solicitations with FAT testing by the Government, the contracting officer will apply an evaluation factor that 
+reflects the cost of the testing.
+(3) When FAT is waived, the contracting officer may negotiate for revised delivery since the original delivery 
+requirement may have been based on prior production deliveries with first article included.
+(d) TIE QUOTATIONS: If evaluated quotations result in a tie between qualified quotations, the award decision will be 
+based on the following order of precedence:
+(1) A domestic end product quotation over a qualifying foreign country end product quotation.
+(2) Small business quotation over a large business quotation.
+(3) Quotation with the shortest delivery. (If a quotation contains different deliveries for multiple line itemsthe 
+automated evaluation program uses the average of the delivery periods).
+(4) First quotation submitted.
+(e) MANUAL EVALUATION: When automated evaluation is not used, asin the case of FAT and PLT requirements, 
+or if the system is unable to make a fully automated award, quotations will be evaluated and awarded manually. When a 
+quotation is manually evaluated, the contracting officer may consider quantity price breaks quoted without further 
+discussion. When manually issued awards reference the Master Solicitation, all mandatory and conditional provisions,
+clauses, and procurement notes are incorporated by reference with the same force and effect as if set forth in full text.
+(f) MANUAL EVALUATION FACTORS: If the requirement is evaluated manually, price, delivery, and past 
+performance will be considered in accordance with the terms in the solicitation. Since delivery is an evaluation factor, 
+there may be an evaluation preference for quotes/offers of fewer delivery days than the number of delivery days 
+requested by the Government. Quoting/offering a greater number of delivery days than requested may result in the 
+quote/offer not being considered.
+(g) ALTERNATE OFFERS: Alternate offers will not be considered for automated award. Alternate offers may be 
+submitted for evaluation for future procurements to the location identified in the solicitation.
+(h) NOTICE OF AWARD: Purchase orders are based on a submitted quotation. Suppliers are requested to notify the 
+administrative contracting officer, within 14 days after receiving the notice of award, when they will not perform in 
+accordance with a purchase order. Failure to provide prompt notice will adversely affect your past performance 
+evaluation if the purchase order is later cancelled at other than the Government’s request.
+(i) AUTOMATED EVALUATION DISTRIBUTION: The automated award will be posted to the DIBBS web site and 
+distributed via email notification with a Web link to an electronic copy of the DD Form 1155, Order for Supplies or 
+Services. Orders will be transmitted via Electronic Data Interchange (EDI) to contractors who are EDI capable. 
+Contractors that are not EDI capable will receive their orders via email award notification containing Web links. Delays 
+in the receipt of awards that are caused by email interruptions and Internet access are not excusable delays and will not 
+extend delivery schedules.
+(j) FIRMS NEWLY REGISTERED IN DIBBS: Quotations submitted by firms newly registered in DIBBS (i.e., 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+6
+registered in DIBBS within the past 60 days) in volumes significantly exceeding the historical average for newly
+registered firms will be excluded from consideration for automated awards and manual awards.
+(k)USE OF SUPPLIER PERFORMANCE RISK SYSTEM (SPRS) RISK ASSESSMENT REQUIREMENT IN 
+DFARS PROVISION 252.204-7024, NOTICE ON THE USE OF THE SUPPLIER PERFORMANCE RISK SYSTEM, 
+FOR MANUAL EVALUATION 
+1. APPLICATION: Use of SPRS risk assessments is required for the evaluation of quotations or offers in response to 
+solicitations for supplies. 
+2. MANUAL EVALUATION FACTORS: When automated evaluation is not used or if the system is unable to make a fully 
+automated award, quotations will be evaluated in accordance with (IAW) DFARS provision 252.204-7024 and awarded 
+manually. When the quotation or offer is evaluated manually, contracting officers are required to consider item risk, price 
+risk, and supplier risk assessments, if available in SPRS, IAW DFARS 204.7603, as part of the manual award decision. 
+Offerors or quoters without a risk assessment in SPRS shall not be considered favorably or unfavorably.
+PART II – Automated Indefinite Delivery Contract (AIDC):
+Applies when a “U” solicitation and resulting award do not specify a firm quantity of supplies (other than a minimum 
+quantity) and provides for the issuance of delivery orders during the period of the contract. Coverage is for DLA orders 
+for stock replenishment (DLA Direct).
+1. Automated AwardEvaluation Information:
+The following are considered exceptionsto the solicitation requirements in addition to those listed in PART I and will 
+make a quotation ineligible for an automated award:
+(a) Quoting a used, reconditioned, remanufactured item, or unused former Governmentsurplus property.
+(b) Quoting lessthan the minimum of 90 days validity period.
+2. AIDC Contract:
+(a) The AIDC contract will incorporate this Master Solicitation by reference, including the following terms and 
+conditions that will be provided in full text:
+(i) Clause: 52.216-19 Order Limitations
+(ii) Clause: 52.216-22 Indefinite Quantity
+(iii) Clause: 52.216-18 Ordering
+(iv) Procurement note H06, Unilateral Simplified Indefinite-Delivery Contract (SIDC) (SEP 2021)
+(b) (b)Numbering: The Procurement Instrument Identifier (PIID) system will be used. The AIDC award issued
+hereunder will be distinguished by a “D” in the ninth position and a “6”, “7” or “8” in the tenth position of the 
+PIID. All delivery orders will utilize a 13-character PIID containing an “F” in the 9th position. To maintain 
+visibility of delivery order sequence, a 6-position numeric counter will be provided on every AIDC delivery 
+order. This counter will begin at 000001 and will be maintained for each basic AIDC contract. Numbering: The
+Procurement Instrument Identifier (PIID) system will be used. The AIDC award issued hereunder will be 
+distinguished by a “D” in the ninth position and a “6”, “7” or “8” in the tenth position of the PIID. All delivery 
+orders will utilize a 13-character PIID containing an “F” in the 9th position. To maintain visibility of delivery 
+order sequence, a 6-position numeric counter will be provided on every AIDC delivery order. This counter will 
+begin at 000001 and will be maintained for each basic AIDC contract.
+PART III – Provisions, Clauses and Procurement Notes:
+The following websites are provided to suppliers to obtain the full text of the FAR, DFARS, and DLAD provisions, 
+clauses, and Procurement Notes listed below:
+https://www.acquisition.gov, http://www.acq.osd.mil/dpap/dars/dfarspgi/current/index.html,
+http://www.dla.mil/hq/acquisition/offers/DLAD.aspx and 
+http://www.dla.mil/HQ/Acquisition/Offers/eProcurement.aspx.
+All provisions, clauses, and procurement notes are incorporated herein by reference with the same force and effect as if 
+set forth in full text and made a part of the solicitation/order as applicable. The submission of a quotation in response to a 
+RFQ that references this document constitutes the supplier’s compliance with the representations and certifications and 
+acceptance of the individual clauses, provisions, and procurement notes incorporated by reference herein. Certain 
+representations and certifications may be required as part of a quotation submitted via DIBBS. These representations and 
+certifications will be contained on the DIBBS quotation input form. Suppliers are reminded that all provisions 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+7
+incorporated herein by reference remain binding in their entirety. Any penalties for misrepresentation contained in the 
+reference clauses and provisions apply.
+CAUTION NOTICE: OFFERORS ARE REQUIRED TO COMPLY WITH DOMESTIC MATERIAL 
+RESTRICTIONS. THE BERRY AMENDMENT, THE BUY AMERICAN ACT, AND OTHER DOMESTIC 
+MATERIAL RESTRICTION MAY APPLY. OFFERORS ARE INSTRUCTED TO REFER TO THE 
+SOLICITATION CLAUSES RELATED TO FOREIGN SOURCING FOR MORE INFORMATION ON 
+APPLICABILITY. THE BERRY AMENDMENT THRESHOLD HAS BEEN REDUCED TO $150,000 AND 
+VENDORS MUST CAREFULLY REVIEW RELATED CLAUSES DFARS 252.225-7006, 252.225-7012, AND 
+252.225-7015 FOR APPLICABILITY REQUIREMENTS. IF YOUR OFFER IS BASED ON A NON-DOMESTIC 
+MATERIAL, YOU ARE REQUIRED TO PROVIDE DISCLOSURE INFORMATION IN YOUR QUOTE 
+AND/OR THROUGH WRITTEN NOTIFICATION TO THE POINT OF CONTACT LISTED IN THE 
+SOLICITATION.
+SUBPART A – MANDATORY FAR, DFARS AND DLAD PROVISIONS AND CLAUSES
+The following provisions and clauses are applicable to all solicitations and orders:
+FAR 52.203-19 (Jan 2017) Prohibition on Requiring Certain Internal Confidentiality 
+Agreements or Statements
+FAR 52.204-7 (Oct 2018) System for Award Management
+FAR 52.204-8 (Mar 2023) Annual Representations and Certifications
+FAR 52.204-13 (Oct 2018) System for Award Management Maintenance
+FAR 52.204-16 (Aug 2020) Commercial and Government Entity Code Reporting
+FAR 52.204-17 (Aug 2020) Ownership or Control of Offeror
+FAR 52.204-18 (Aug 2020) Commercial and Government Entity Code Maintenance
+FAR 52.204-20 (Aug 2020) Predecessor of Offeror
+FAR 52.204-21 (Nov 2021) Basic Safeguarding of Covered Contractor Information 
+Systems
+FAR 52.204-24 (Nov 2021) Representation Regarding Certain Telecommunications and 
+Video Surveillance Services or Equipment
+FAR 52.204-25 (Nov 2021) Prohibition on Contracting for Certain Telecommunications 
+and Video Surveillance Services or Equipment
+FAR 52.204-26 (Oct 2020) Covered Telecommunications Equipment or ServicesRepresentation
+FAR 52.204-27 (June 2023) Prohibition on a ByteDance Covered Application
+The contracting officer shall insert the clause at 52.204-27, 
+Prohibition on a ByteDance Covered Application, in all 
+solicitations and contracts, unless an exception is granted in 
+accordance with OMB Memorandum M-23-13
+FAR 52.204-29 (Dec 2023) Federal Acquisition Supply Chain Security Act Orders 
+Representation and Disclosures
+The provision is prescribed at FAR 4.2306(b) and is for use in 
+all solicitations for contracts, except that for Federal Supply 
+Schedules, Governmentwide acquisition contracts and multiagency contracts the clause will be inserted in all solicitations 
+for contracts if FASCSA orders apply at the contract level. 
+The provision will apply to acquisitions valued at or below the 
+SAT; acquisitions of commercial products, including COTS 
+items; and acquisition of commercial services. As prescribed in 
+4.2306(b), insert the following provision:
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+8
+Federal Acquisition Supply Chain Security Act Orders—
+Representation and Disclosures (DEC 2023)
+(a) Definitions. As used in this provision, Covered article, 
+FASCSA order, Intelligence community, National security 
+system, Reasonable inquiry, Sensitive compartmented 
+information, Sensitive compartmented information system, and 
+Source have the meaning provided in the clause 52.204–30, 
+Federal Acquisition Supply Chain Security Act Orders—
+Prohibition. 
+(b) Prohibition. Contractors are prohibited from providing or 
+using as part of the performance of the contract any covered 
+article, or any products or services produced or provided by a 
+source, if the prohibition is set out in an applicable Federal 
+Acquisition Supply Chain Security Act (FASCSA) order, as 
+described in paragraph (b)(1) of FAR 52.204–30, Federal 
+Acquisition Supply Chain Security Act Orders—Prohibition. 
+(c) Procedures. (1) The Offeror shall search for the phrase 
+“FASCSA order” in the System for Award Management 
+(SAM)( https://www.sam.gov) for any covered article, or any 
+products or services produced or provided by a source, if there 
+is an applicable FASCSA order described in paragraph (b)(1) 
+of FAR 52.204–30, Federal Acquisition Supply Chain Security 
+Act Orders—Prohibition. 
+(2) The Offeror shall review the solicitation for any FASCSA 
+orders that are not in SAM, but are effective and do apply to 
+the solicitation and resultant contract (see FAR 4.2303(c)(2)).
+(3) FASCSA orders issued after the date of solicitation do not 
+apply unless added by an amendment to the solicitation.
+(d) Representation. By submission of this offer, the offeror 
+represents that it has conducted a reasonable inquiry, and that 
+the offeror does not propose to provide or use in response to 
+this solicitation any covered article, or any products or 
+services produced or provided by a source, if the covered 
+article or the source is prohibited by an applicable FASCSA 
+order in effect on the date the solicitation was issued, except as 
+waived by the solicitation, or as disclosed in paragraph (e). 
+(e) Disclosures. The purpose for this disclosure is so the 
+Government may decide whether to issue a waiver. For any 
+covered article, or any products or services produced or 
+provided by a source, if the covered article or the source is 
+subject to an applicable FASCSA order, and the Offeror is 
+unable to represent compliance, then the Offeror shall provide 
+the following information as part of the offer: 
+(1) Name of the product or service provided to the 
+Government;
+(2) Name of the covered article or source subject to a FASCSA 
+order;
+(3) If applicable, name of the vendor, including the 
+Commercial and Government Entity code and unique entity 
+identifier (if known), that supplied the covered article or the 
+product or service to the Offeror;
+(4) Brand;
+(5) Model number (original equipment manufacturer number, 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+9
+manufacturer part number, or wholesaler number);
+(6) Item description;
+(7) Reason why the applicable covered article or the product 
+or service is being provided or used;
+(f) Executive agency review of disclosures. The contracting 
+officer will review disclosures provided in paragraph (e) to 
+determine if any waiver may be sought. A contracting officer 
+may choose not to pursue a waiver for covered articles or 
+sources otherwise subject to a FASCSA order and may instead
+make an award to an offeror that does not require a waiver.
+FAR 52.204-30 (Dec 2023) Federal Acquisition Supply Chain Security Act Orders 
+Prohibition
+The provision is prescribed at FAR 4.2306(b) and is for use in 
+all solicitations for contracts, except that for Federal Supply 
+Schedules, Governmentwide acquisition contracts and multiagency contracts the clause will be inserted in all solicitations 
+for contracts if FASCSA orders apply at the contract level. 
+The provision will apply to acquisitions valued at or below the 
+SAT; acquisitions of commercial products, including COTS 
+items; and acquisition of commercial services. As prescribed in 
+4.2306(c), insert the following clause:
+Federal Acquisition Supply Chain Security Act Orders—
+Prohibition (DEC 2023) 
+(a) Definitions. As used in this clause— 
+Covered article, as defined in 41 U.S.C. 4713(k), means— 
+(1) Information technology, as defined in 40 U.S.C. 11101, 
+including cloud computing services of all types;
+(2) Telecommunications equipment or telecommunications 
+service, as those terms are defined in section 3 of the 
+Communications Act of 1934 (47 U.S.C. 153); 
+(3) The processing of information on a Federal or non-Federal 
+information system, subject to the requirements of the 
+Controlled Unclassified Information program (see 32 CFR 
+part 2002); or
+(4) Hardware, systems, devices, software, or services that 
+include embedded or incidental information technology.
+FASCSA order means any of the following orders issued under 
+the Federal Acquisition Supply Chain Security Act (FASCSA) 
+requiring the removal of covered articles from executive 
+agency information systems or the exclusion of one or more 
+named sources or named covered articles from executive 
+agency procurement actions, as described in 41 CFR 201–
+1.303(d) and (e): 
+(1) The Secretary of Homeland Security may issue FASCSA 
+orders applicable to civilian agencies, to the extent not covered 
+by paragraph (2) or (3) of this definition. This type of 
+FASCSA order may be referred to as a Department of 
+Homeland Security (DHS) FASCSA order.
+(2) The Secretary of Defense may issue FASCSA orders 
+applicable to the Department of Defense (DoD) and national 
+security systems other than sensitive compartmented 
+information systems. This type of FASCSA order may be 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+10
+referred to as a DoD FASCSA order.
+(3) The Director of National Intelligence (DNI) may issue 
+FASCSA orders applicable to the intelligence community and 
+sensitive compartmented information systems, to the extent 
+not covered by paragraph (2) of this definition. This type of 
+FASCSA order may be referred to as a DNI FASCSA order.
+Intelligence community, as defined by 50 U.S.C. 3003(4), means 
+the following— 
+(1) The Office of the Director of National Intelligence;
+(2) The Central Intelligence Agency;
+(3) The National Security Agency;
+(4) The Defense Intelligence Agency;
+(5) The National Geospatial-Intelligence Agency;
+(6) The National Reconnaissance Office;
+(7) Other offices within the Department of Defense for the 
+collection of specialized national intelligence through 
+reconnaissance programs;
+(8) The intelligence elements of the Army, the Navy, the Air 
+Force, the Marine Corps, the Coast Guard, the Federal 
+Bureau of Investigation, the Drug Enforcement 
+Administration, and the Department of Energy;
+(9) The Bureau of Intelligence and Research of the 
+Department of State;
+(10) The Office of Intelligence and Analysis of the Department 
+of the Treasury;
+(11) The Office of Intelligence and Analysis of the Department 
+of Homeland Security; or
+(12) Such other elements of any department or agency as may 
+be designated by the President, or designated jointly by the 
+Director of National Intelligence and the head of the 
+department or agency concerned, as an element of the 
+intelligence community.
+National security system, as defined in 44 U.S.C. 3552, means 
+any information system (including any telecommunications 
+system) used or operated by an agency or by a contractor of 
+an agency, or other organization on behalf of an agency— 
+(1) The function, operation, or use of which involves 
+intelligence activities; involves cryptologic activities related to 
+national security; involves command and control of military 
+forces; involves equipment that is an integral part of a weapon 
+or weapons system; or is critical to the direct fulfillment of 
+military or intelligence missions, but does not include a system 
+that is to be used for routine administrative and business 
+applications (including payroll, finance, logistics, and 
+personnel management applications); or
+(2) Is protected at all times by procedures established for 
+information that have been specifically authorized under 
+criteria established by an Executive order or an Act of 
+Congress to be kept classified in the interest of national 
+defense or foreign policy.
+Reasonable inquiry means an inquiry designed to uncover any 
+information in the entity's possession about the identity of any 
+covered articles, or any products or services produced or 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+11
+provided by a source. This applies when the covered article or 
+the source is subject to an applicable FASCSA order. A 
+reasonable inquiry excludes the need to include an internal or 
+third-party audit. 
+Sensitive compartmented information means classified 
+information concerning or derived from intelligence sources, 
+methods, or analytical processes, which is required to be 
+handled within formal access control systems established by 
+the Director of National Intelligence. 
+Sensitive compartmented information system means a national 
+security system authorized to process or store sensitive 
+compartmented information. 
+Source means a non-Federal supplier, or potential supplier, of 
+products or services, at any tier. 
+(b) Prohibition. (1) Unless an applicable waiver has been issued 
+by the issuing official, Contractors shall not provide or use as 
+part of the performance of the contract any covered article, or 
+any products or services produced or provided by a source, if 
+the covered article or the source is prohibited by an applicable 
+FASCSA orders as follows: 
+(i) For solicitations and contracts awarded by a Department of 
+Defense contracting office, DoD FASCSA orders apply.
+(ii) For all other solicitations and contracts DHS FASCSA 
+orders apply.
+(2) The Contractor shall search for the phrase “FASCSA 
+order” in the System for Award Management (SAM) at 
+https://www.sam.gov to locate applicable FASCSA orders 
+identified in paragraph (b)(1). 
+(3) The Government may identify in the solicitation additional 
+FASCSA orders that are not in SAM, which are effective and 
+apply to the solicitation and resultant contract.
+(4) A FASCSA order issued after the date of solicitation 
+applies to this contract only if added by an amendment to the 
+solicitation or modification to the contract (see FAR 4.2304(c)). 
+However, see paragraph (c) of this clause.
+(5)(i) If the contractor wishes to ask for a waiver of the 
+requirements of a new FASCSA order being applied through 
+modification, then the Contractor shall disclose the following:
+(A) Name of the product or service provided to the 
+Government;
+(B) Name of the covered article or source subject to a FASCSA 
+order;
+(C) If applicable, name of the vendor, including the 
+Commercial and Government Entity code and unique entity 
+identifier (if known), that supplied or supplies the covered 
+article or the product or service to the Offeror;
+(D) Brand;
+(E) Model number (original equipment manufacturer number, 
+manufacturer part number, or wholesaler number);
+(F) Item description;
+(G) Reason why the applicable covered article or the product 
+or service is being provided or used;
+(ii) Executive agency review of disclosures. The contracting 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+12
+officer will review disclosures provided in paragraph (b)(5)(i) 
+to determine if any waiver is warranted. A contracting officer 
+may choose not to pursue a waiver for covered articles or 
+sources otherwise covered by a FASCSA order and to instead 
+pursue other appropriate action. 
+(c) Notice and reporting requirement. (1) During contract 
+performance, the Contractor shall review SAM.gov at least 
+once every three months, or as advised by the Contracting 
+Officer, to check for covered articles subject to FASCSA 
+order(s), or for products or services produced by a source 
+subject to FASCSA order(s) not currently identified under 
+paragraph (b) of this clause. 
+(2) If the Contractor identifies a new FASCSA order(s) that 
+could impact their supply chain, then the Contractor shall 
+conduct a reasonable inquiry to identify whether a covered 
+article or product or service produced or provided by a source 
+subject to the FASCSA order(s) was provided to the 
+Government or used during contract performance.
+(3)(i) The Contractor shall submit a report to the contracting 
+office as identified in paragraph (c)(3)(ii) of this clause, if the 
+Contractor identifies, including through any notification by a 
+subcontractor at any tier, that a covered article or product or 
+service produced or provided by a source was provided to the 
+Government or used during contract performance and is 
+subject to a FASCSA order(s) identified in paragraph (b) of 
+this clause, or a new FASCSA order identified in paragraph 
+(c)(2) of this clause. For indefinite delivery contracts, the 
+Contractor shall report to both the contracting office for the 
+indefinite delivery contract and the contracting office for any 
+affected order.
+(ii) If a report is required to be submitted to a contracting 
+office under (c)(3)(i) of this clause, the Contractor shall submit 
+the report as follows:
+(A) If a Department of Defense contracting office, the 
+Contractor shall report to the website at https://dibnet.dod.mil.
+(B) For all other contracting offices, the Contractor shall 
+report to the Contracting Officer.
+(4) The Contractor shall report the following information for 
+each covered article or each product or service produced or 
+provided by a source, where the covered article or source is 
+subject to a FASCSA order, pursuant to paragraph (c)(3)(i) of 
+this clause: 
+(i) Within 3 business days from the date of such identification 
+or notification:
+(A) Contract number;
+(B) Order number(s), if applicable;
+(C) Name of the product or service provided to the 
+Government or used during performance of the contract;
+(D) Name of the covered article or source subject to a 
+FASCSA order;
+(E) If applicable, name of the vendor, including the 
+Commercial and Government Entity code and unique entity 
+identifier (if known), that supplied the covered article or the 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+13
+product or service to the Contractor;
+(F) Brand;
+(G) Model number (original equipment manufacturer 
+number, manufacturer part number, or wholesaler number);
+(H) Item description; and
+(I) Any readily available information about mitigation actions 
+undertaken or recommended.
+(ii) Within 10 business days of submitting the information in 
+paragraph (c)(4)(i) of this clause:
+(A) Any further available information about mitigation actions 
+undertaken or recommended.
+(B) In addition, the Contractor shall describe the efforts it 
+undertook to prevent submission or use of the covered article 
+or the product or service produced or provided by a source 
+subject to an applicable FASCSA order, and any additional 
+efforts that will be incorporated to prevent future submission 
+or use of the covered article or the product or service 
+produced or provided by a source that is subject to an 
+applicable FASCSA order.
+(d) Removal. For Federal Supply Schedules, Governmentwide 
+acquisition contracts, multi-agency contracts or any other 
+procurement instrument intended for use by multiple 
+agencies, upon notification from the Contracting Officer, 
+during the performance of the contract, the Contractor shall 
+promptly make any necessary changes or modifications to 
+remove any product or service produced or provided by a 
+source that is subject to an applicable FASCSA order. 
+(e) Subcontracts. (1) The Contractor shall insert the substance 
+of this clause, including this paragraph (e) and excluding 
+paragraph (c)(1) of this clause, in all subcontracts and other 
+contractual instruments, including subcontracts for the 
+acquisition of commercial products and commercial services. 
+(2) The Government may identify in the solicitation additional 
+FASCSA orders that are not in SAM, which are effective and 
+apply to the contract and any subcontracts and other 
+contractual instruments under the contract. The Contractor or 
+higher-tier subcontractor shall notify their subcontractors, 
+and suppliers under other contractual instruments, that the 
+FASCSA orders in the solicitation that are not in SAM apply 
+to the contract and all subcontracts.
+Alternate I ( DEC 2023 ). As prescribed in 4.2306(c), substitute 
+the following paragraph (b)(1) for paragraph (b)(1) of the 
+basic clause: 
+(b) Prohibition. (1) Contractors are prohibited from providing 
+or using as part of the performance of the contract any 
+covered article, or any products or services produced or 
+provided by a source, if the covered article or the source is 
+prohibited by any applicable FASCSA orders identified by the 
+checkbox(es) in this paragraph (b)(1). Contracting Officer must 
+select either “yes” or “no” for each of the following types of 
+FASCSA orders
+Yes ☐ No ☐ DHS FASCSA Order
+Yes ☐ No ☐ DoD FASCSA Order
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+14
+Yes ☐ No ☐ DNI FASCSA Order 
+Alternate II ( DEC 2023 ). As prescribed in 4.2306(c)(2)(ii), 
+substitute the following paragraph (b) in place of paragraph 
+(b) of the basic clause. This clause applies to each order as 
+identified by the Contracting Officer. 
+(b) Prohibition. (1) Contractors are prohibited from providing 
+or using as part of the performance of the contract any 
+covered article, or any products or services produced or 
+provided by a source, if the covered article or the source is 
+prohibited by any applicable FASCSA orders identified by the 
+checkbox(es) in this paragraph (b)(1). Contracting Officer must 
+select either “yes” or “no” for each of the following types of 
+FASCSA orders:] 
+Yes ☐ No ☐ DHS FASCSA order
+Yes ☐ No ☐ DoD FASCSA order
+Yes ☐ No ☐ DNI FASCSA order
+(2) The Contractor shall search for the phrase “FASCSA 
+order” in the System for Award Management (SAM) at 
+https://www.sam.gov to locate applicable FASCSA orders 
+identified in paragraph (b)(1) of this clause. 
+(3) The Government may identify in the request for quotation 
+(RFQ) or in the notice of intent to place an order additional 
+FASCSA orders that are not in SAM, but are effective and 
+apply to the order.
+(4) A FASCSA order issued after the date of the RFQ or the 
+notice of intent to place an order applies to this contract only if 
+added by an amendment to the RFQ or in the notice of intent 
+to place an order or added by modification to the order (see 
+FAR 4.2304(c)). However, see paragraph (c) of this clause.
+(5)(i) If the contractor wishes to ask for a waiver, the 
+Contractor shall disclose the following:
+(A) Name of the product or service provided to the 
+Government;
+(B) Name of the covered article or source subject to a FASCSA 
+order;
+(C) If applicable, name of the vendor, including the 
+Commercial and Government Entity code and unique entity 
+identifier (if known), that supplied the covered article or the 
+product or service to the Offeror;
+(D) Brand;
+(E) Model number (original equipment manufacturer number, 
+manufacturer part number, or wholesaler number);
+(F) Item description;
+(G) Reason why the applicable covered article or the product 
+or service is being provided or used;
+(ii) Executive agency review of disclosures. The contracting 
+officer will review disclosures provided in paragraph (b)(5)(i) 
+of this clause to determine if any waiver may be sought. A 
+contracting officer may choose not to pursue a waiver for 
+covered articles or sources otherwise covered by a FASCSA 
+order and may instead make award to an offeror that does not 
+require a waiver.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+15
+FAR 52.211-2 (Jul 2021[Sep 2023]) Availability of Specifications, Standards, and Data Item 
+Descriptions Listed in the Acquisition Streamlining and 
+Standardization information System (ASSIST)
+FAR 52.211-5 (Aug 2000) Material Requirements
+FAR 52.211-14 (Apr 2008) Notice of Priority Rating for National Defense, Emergency 
+Preparedness, and Energy Program Use
+[FAR 52.212-5 (Jan 2025)] [Contract Terms and Conditions Required To Implement 
+Statutes or Executive Orders—Commercial Products and 
+Commercial Services]
+FAR 52.213-4 (Feb 2024) Terms and Conditions-Simplified Acquisitions (Other Than 
+Commercial Products and Commercial Services DFARS 
+252.225-7001 or 252.225-7036 applies in lieu of FAR 52.225-1 
+FAR 52.219-1 (Feb 2024) Small Business Program Representations
+Applies to solicitations exceeding the micro-purchase threshold.
+FAR 52.219-28 (Feb[Jan] 202[5]) Post-Award Small Business Program Representation
+Applies to solicitations and contracts exceeding the micropurchase threshold.
+FAR 52.222-36 (Jul 2014) Alternate I - Equal Opportunity for Workers with Disabilities
+FAR 52.223-3 (Feb 2021) Hazardous Material Identification and Material Safety Data
+FAR 52.223-7 (Jan 1997) Notice of Radioactive Materials
+FAR 52.222-54 (May 2022) Employment Eligibility Verification
+Applies to all solicitation and contracts that exceed $150,000.
+FAR 52.223-18 (Jun 2020) Encouraging Contractor Policies to Ban Text Messaging While 
+Driving
+[FAR 52.225-13 (Feb 2021)] [Restrictions on Certain Foreign Purchases]
+FAR 52.227-1 (Jun 2020) Authorization and Consent
+FAR 52.227-2 (Jun 2020) Notice and Assistance Regarding Patent and Copyright 
+Infringement
+FAR 52.227-3 (Apr 1984) Patent Indemnity
+FAR 52.232-39 (Jun 2013) Unenforceability of Unauthorized Obligations
+FAR 52.232-40 (Mar 2023) Providing Accelerated Payments to Small Business 
+Subcontractors
+FAR 52.242-17 (Apr 1984) Government Delay of Work
+FAR 52.243-1 (Aug 1987) Changes – Fixed Price
+FAR 52.246-2 (Aug 1996) Inspection of Supplies – Fixed Price
+FAR 52.249-8 (Apr 1984) Default (Fixed-Price Supply and Service)
+FAR 52.252-1 (Feb 1998) Solicitation Provisions Incorporated by Reference (The full 
+text of a provision may be accessed electronically at this 
+address:
+https://www.acquisition.gov.
+DFARS 252.203-7000 (Sep 2011) Requirements Relating to Compensation of Former DoD 
+Officials
+DFARS 252.203-7002 (Dec 2022) Requirement to Inform Employees of Whistleblower Rights
+DFARS 252.203-7005 (Sep 2022) Representation Relating to Compensation of Former DoD 
+Officials
+DFARS 252.204-7000 (Oct 2016) Disclosure of Information
+DFARS 252.204-7003 (Apr 1992) Control of Government Personnel Work Product
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+16
+DFARS 252.204-7007 (Oct 2024) Alternate A, Annual Representations and Certifications. 
+(Includes DFARS 252.204-7016 (Dec 2019), Covered Defense 
+Telecommunications Equipment Or Services – 
+Representation)
+DFARS 252.204-7008 (Oct 2016) Compliance with Safeguarding Covered Defense Information 
+Controls
+DFARS 252.204-7009 (Jan 2023) Limitations on the Use or Disclosure of Third-Party 
+Contractor Reported Cyber Incident Information
+DFARS 252.204-7012 (May 2024) Safeguarding Covered Defense Information and Cyber 
+Incident Reporting (Deviation 2024-O0013)
+DFARS 252.204-7015 (Jan 2023) Notice of Authorized Disclosure of Information for Litigation 
+Support
+DFARS 252.204-7017 (Mar 2021) Prohibition of Acquisition of Covered Defense 
+Telecommunications Equipment or Services-- Representation
+DFARS 252.204-7018 (Jan 2023) Prohibition of Acquisition of Covered Defense 
+Telecommunications Equipment or Services
+DFARS 252.204-7024 (Mar 2023) Notice on the Use of the Supplier Performance Risk System
+DFARS 252.204-7019 (Mar 2022[Nov 
+2023])
+Notice Of NIST SP 800-171 DoD Assessment Requirements
+DFARS 252.204-7020 (Jan 2023 [Nov
+2023])
+NIST SP 800-171 DoD Assessment Requirements
+DFARS 252.209-7002 (Dec 2022) Disclosure of Ownership or Control by a Foreign Government
+DFARS 252.223-7001 (Dec 1991) Hazard Warning Labels
+[DFARS 252.222-7006 (Jan 2023)] [Restrictions on the Use of Mandatory Arbitration 
+Agreements] 
+DFARS 252.223-7006 (Sep 2014) Prohibition On Storage, Treatment, And Disposal Of Toxic Or 
+Hazardous Materials—Basic
+DFARS 252.223-7008 (Jan 2023) Prohibition Of Hexavalent Chromium
+DFARS 252.225-7007 (Dec 2018) Prohibition on Acquisition of United States Munitions List 
+Items from Communist Chinese Military Companies
+DFARS 252.225-7048 (Jun 2013) Export-Controlled Items
+DFARS 252.232-7003 (Dec 2018) Electronic Submission of Payment Requests and Receiving 
+Reports
+DFARS 252.232-7006 (Jan 2023) Wide Area WorkFlow Payment Instructions
+DFARS 252.232-7010 (Dec 2006) Levies on Contract Payments
+DFARS 252.239-7018 (Dec 2022) Supply Chain Risk
+DFARS 252.239-7098 (Apr 2021) Prohibition On Contracting To Maintain Or Establish A 
+Computer Network Unless Such Network Is Designed To 
+Block Access To Certain Websites – Representation (Class 
+Deviation 2021-O0003)
+https://www.acq.osd.mil/dpap/policy/policyvault/USA000226-
+21-DPC.pdf)
+DFARS 252.243-7001 (Dec 1991) Pricing of Contract Modifications
+DFARS 252.244-7000 (Jan[Nov] 2023) Subcontracts For Commercial Products Or Commercial 
+Services 
+DFARS 252.246-7003 (Jan 2023) Notification of Potential Safety Issues
+DFARS 252.247-7023 (Jan 2023) Transportation Of Supplies By Sea—Basic
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+17
+DFARS 252.247-7025 (Oct 2024) Reflagging or Repair Work
+DLAD 5452.233-9001 (Jun 2020) Disputes – Agreement to Use Alternate Dispute Resolution 
+(ADR)
+SUBPART B – CONDITIONAL FAR, DFARS, AND DLAD PROVISIONS AND CLAUSES
+The following provisions and clauses apply asindicated below. These provisions and clauses are self-deleting if they do 
+not apply.
+FAR 52.203-12 (Jun 2020) Limitation on Payments to Influence Certain Federal 
+Transactions.
+Applies to solicitations and contracts when the estimated value 
+equals or exceeds $150,000.
+FAR 52.204-2 (Mar 2021) Security Requirements
+Applies to solicitations and contracts when the contract may require 
+access to classified information
+[FAR 52.204-7 (Nov 2024)] [System for Award Management
+As prescribed in 4.1105(a)(1), use the following provision:
+System for Award Management (Nov 2024)]
+FAR 52.204-28 (Dec 2023) Federal Acquisition Supply Chain Security Act Orders—
+Federal Supply Schedules, Governmentwide Acquisition 
+Contracts, and Multi-Agency Contracts (DEC 2023)
+The clause is prescribed at FAR 4.2306(a) and ONLY 
+APPLICABLE for Federal Supply Schedule actions, 
+Governmentwide Acquisitions and Multi Agency Contracts. It is 
+required in the basic solicitation and resultant contract for all 
+Federal Supply Schedules, Governmentwide acquisition contracts, 
+and multi-agency contracts when FASCSA orders are contemplated 
+to be applied at the task or delivery order level. The clause will 
+apply to acquisitions valued at or below the SAT; acquisitions of 
+commercial products, including COTS items; and acquisition of 
+commercial services. As prescribed in 4.2306(a), insert the 
+following clause:
+Federal Acquisition Supply Chain Security Act Orders—Federal 
+Supply Schedules, Governmentwide Acquisition Contracts, and 
+Multi-Agency Contracts (DEC 2023)
+(a) Definitions. As used in this clause— 
+Covered article, as defined in 41 U.S.C. 4713(k), means— 
+(1) Information technology, as defined in 40 U.S.C. 11101, 
+including cloud computing services of all types;
+(2) Telecommunications equipment or telecommunications service, 
+as those terms are defined in section 3 of the Communications Act 
+of 1934 (47 U.S.C. 153); 
+(3) The processing of information on a Federal or non-Federal 
+information system, subject to the requirements of the Controlled 
+Unclassified Information program (see 32 CFR part 2002); or
+(4) Hardware, systems, devices, software, or services that include 
+embedded or incidental information technology.
+FASCSA order means any of the following orders issued under the 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+18
+Federal Acquisition Supply Chain Security Act (FASCSA) 
+requiring the removal of covered articles from executive agency 
+information systems or the exclusion of one or more named sources 
+or named covered articles from executive agency procurement 
+actions, as described in 41 CFR 201–1.303(d) and (e): 
+(1) The Secretary of Homeland Security may issue FASCSA orders 
+applicable to civilian agencies, to the extent not covered by 
+paragraph (2) or (3) of this definition. This type of FASCSA order 
+may be referred to as a Department of Homeland Security (DHS) 
+FASCSA order.
+(2) The Secretary of Defense may issue FASCSA orders applicable 
+to the Department of Defense (DoD) and national security systems 
+other than sensitive compartmented information systems. This type 
+of FASCSA order may be referred to as a DoD FASCSA order.
+(3) The Director of National Intelligence (DNI) may issue 
+FASCSA orders applicable to the intelligence community and 
+sensitive compartmented information systems, to the extent not 
+covered by paragraph (2) of this definition. This type of FASCSA 
+order may be referred to as a DNI FASCSA order.
+Intelligence community, as defined by 50 U.S.C. 3003(4), means 
+the following— 
+(1) The Office of the Director of National Intelligence;
+(2) The Central Intelligence Agency;
+(3) The National Security Agency;
+(4) The Defense Intelligence Agency;
+(5) The National Geospatial-Intelligence Agency;
+(6) The National Reconnaissance Office;
+(7) Other offices within the Department of Defense for the 
+collection of specialized national intelligence through 
+reconnaissance programs;
+(8) The intelligence elements of the Army, the Navy, the Air Force, 
+the Marine Corps, the Coast Guard, the Federal Bureau of 
+Investigation, the Drug Enforcement Administration, and the 
+Department of Energy;
+(9) The Bureau of Intelligence and Research of the Department of 
+State;
+(10) The Office of Intelligence and Analysis of the Department of 
+the Treasury;
+(11) The Office of Intelligence and Analysis of the Department of 
+Homeland Security; or
+(12) Such other elements of any department or agency as may be 
+designated by the President, or designated jointly by the Director of 
+National Intelligence and the head of the department or agency 
+concerned, as an element of the intelligence community.
+National security system, as defined in 44 U.S.C. 3552, means any 
+information system (including any telecommunications system) 
+used or operated by an agency or by a contractor of an agency, or 
+other organization on behalf of an agency— 
+(1) The function, operation, or use of which involves intelligence 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+19
+activities; involves cryptologic activities related to national 
+security; involves command and control of military forces; involves 
+equipment that is an integral part of a weapon or weapons system; 
+or is critical to the direct fulfillment of military or intelligence 
+missions, but does not include a system that is to be used for 
+routine administrative and business applications (including payroll, 
+finance, logistics, and personnel management applications); or
+(2) Is protected at all times by procedures established for 
+information that have been specifically authorized under criteria 
+established by an Executive order or an Act of Congress to be kept 
+classified in the interest of national defense or foreign policy.
+Sensitive compartmented information means classified information 
+concerning or derived from intelligence sources, methods, or 
+analytical processes, which is required to be handled within formal 
+access control systems established by the Director of National 
+Intelligence. Sensitive compartmented information system means a 
+national security system authorized to process or store sensitive 
+compartmented information. Source means a non-Federal supplier, 
+or potential supplier, of products or services, at any tier.
+(b) Notice. During contract performance, the Contractor shall be 
+required to comply with any of the following that apply: DHS 
+FASCSA orders, DoD FASCSA orders, or DNI FASCSA orders. 
+The applicable FASCSA order(s) will be identified in the request 
+for quotation (see 8.405–2), or in the notice of intent to place an 
+order (see 16.505(b)). FASCSA orders will be identified in 
+paragraph (b)(1) of FAR 52.204–30, Federal Acquisition Supply 
+Chain Security Act Orders—Prohibition, with its Alternate II. 
+(c) Removal. Upon notification from the contracting officer, during 
+the performance of the contract, the Contractor shall promptly 
+make any necessary changes or modifications to remove any 
+covered article or any product or service produced or provided by a 
+source that is subject to an applicable Governmentwide FASCSA 
+order (see FAR 4.2303(b)).
+FAR 52.204-10 (Jun 2020) Reporting Executive Compensation and First-Tier Subcontract 
+Awards
+Applies to all solicitations and contracts of $30,000 or more.
+FAR 52.209-1 (Feb 1995) Qualification Requirements 
+Applies when QML, QPL, QBL is cited in the item description of 
+the solicitation/order. The agency activity name and address are is 
+located in the QPL specification, which is cited in the Item 
+Description and can be obtained from
+http://assist.daps.dla.mil/quicksearch.
+FAR 52.209-3 (Sep 1989) First Article Approval – Contractor Testing
+Applies when a fixed-price contract is contemplated, first article 
+approval is required, and the contractor is responsible for 
+conducting the first article testing.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+20
+FAR 52.209-3 (Jan 1997) First Article Approval – Contractor Testing ALT I
+Applies if the first article and the production quantity shall be 
+produced at the same facility.
+FAR 52.209-4 (Sep 1989) First Article Approval – Government Testing
+When a fixed-price contract is contemplated, first article approval 
+is required, and the Government is responsible for conducting the 
+first article test.
+FAR 52.211-15 (Apr 2008) Defense Priority and Allocation Requirements
+Applies to solicitations and awards/orders when a DPAS 
+rating/priority is cited on the face of the solicitation and/or the 
+award/order.
+FAR 52.211-16 (Apr 1984) Variation in Quantity
+For DLA Land and Maritime acquisitions: A variation in quantity 
+will not be accepted unless the unit of issue is in feet and only 
+when within +/- 10% when authorized in the individual order.
+FAR 52.213-1 (May 2006) Fast Payment Procedure
+Applies to acquisitions valued at $35,000 or less, unless a deviation 
+exists, which are OCONUS Customer Direct deliveries with 
+destination inspection and acceptances, or unless solicitation/award 
+specifically prohibits fast pay.
+FAR 52.216-18 (Aug 2020) Ordering
+Applies to solicitations and contracts when a definite-quantity 
+contract, a requirements contract, or an indefinite-quantity contract 
+is contemplated.
+FAR 52.216-19 (Oct 1995) Order Limitations
+Applies when the solicitation is for an Automated Indefinite 
+Delivery Contract (AIDC).
+FAR 52.216-22 (Oct 1995) Indefinite Quantity
+Applies when the solicitation is for an Automated Indefinite 
+Delivery Contract (AIDC).
+FAR 52.219-3 (Oct 2022) Notice of HUBZone Set-Aside or Sole-Source Award
+Applies to solicitations and contracts for acquisitions that are set 
+aside or awarded on a sole-source basis to HUBZone small 
+business concerns under FAR 19.1305 or 19.1306. This includes 
+multiple-award contracts when orders may be set aside for 
+HUBZone small business concerns as described in FAR 8.405-5 
+and 16.505(b)(2)(i)(F) or when orders may be issued directly to one 
+HUBZone small business concern in accordance with 
+19.504(c)(1)(ii); or to solicitations and contracts when procurement 
+note L36 is included.
+FAR 52.219-4 (Oct 2022) Notice of Price Evaluation Preference for HUBZone Small 
+Business Concerns
+Applies to solicitations and contracts for acquisitions conducted 
+using full and open competition
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+21
+FAR 52.219-6 (Nov 2020) Notice of Total Small Business Set-Aside
+Applies to solicitations and contracts involving total small business 
+set-asides. This includes multiple-award contracts when orders may 
+be set aside for any of the small business concerns identified in 
+FAR 19.000(a)(3), as described in FAR 8.405-5 and 
+16.505(b)(2)(i)(F); or to solicitations and contracts when 
+procurement note L17 or procurement note L36 is included.
+FAR 52.219-9 (Oct 2022) Small Business Subcontracting Plan
+FAR 52.219-14 (Feb 2023) Limitations on Subcontracting (DEVIATION 2021-O0008 
+Revision 1) 
+Applies to solicitations and contracts for supplies, services, and 
+construction, if any portion of the requirement is to be set aside for 
+small business and the contract amount is expected to exceed the 
+SAT, and in any solicitations and contracts that are set aside or 
+awarded on a sole-source basis in accordance with FAR subparts 
+19.8, 19.13, 19.14, or 19.15, regardless of dollar value. This 
+includes multiple- award contracts when orders may be set aside 
+for small business concerns, as described in FAR 8.405-5 and 
+16.505(b)(2)(i)(F), and when orders may be issued directly to a 
+small business concern as described in FAR 19.504(c)(1)(ii). For 
+contracts that are set aside, the contracting officer shall indicate in 
+paragraph (f) of the clause whether compliance with the limitations 
+on subcontracting is required at the contract or order level; when 
+using the HUBZone price evaluation preference (however, if the 
+prospective contractor waived the use of the price evaluation 
+preference, or is an other than small business, do not insert the 
+clause in the resultant contract); or to solicitations and contracts 
+when procurement note L17, procurement note L36, procurement 
+note L38 is included.
+FAR 52.219-27 (Feb 2024) Notice of Set Aside for, or Sole Source Award to, ServiceDisabled Veteran-Owned Small Business [(SDVOSB) Concerns 
+Eligible Under the SDVOSB Program
+Applies to solicitations and contracts for acquisitions that are set 
+aside or awarded on a sole- source basis to, service-disabled 
+veteran-owned small business concerns under FAR 19.1405 and 
+19.1406; to multiple-award contracts when orders may be set aside
+for service-disabled veteran-owned small business concerns as 
+described in FAR 8.405-5 and 16.505(b)(2)(i)(F) or when orders 
+may be issued directly to one service-disabled veteran-owned small 
+business contractor in accordance with FAR 19.504(c)(1)(ii); or to 
+solicitations and contracts when procurement note L17 is included.
+FAR 52.219-28 (Feb 2024) Post-Award Small Business Program Representation
+Applies to solicitations and contracts exceeding the micro-purchase 
+threshold when the contract is for supplies to be delivered or 
+services to be performed in the United States or its outlying areas, 
+or when the contracting officer has applied this part in accordance 
+with 19.000(b)(1)(ii). 
+(2) Use the clause with its Alternate I in solicitations and the 
+resulting multiple-award contracts with more than one NAICS 
+code. This is authorized for solicitations issued after October 1, 
+2025 (see 19.102(b)). 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+22
+FAR 52.219-29 (Oct 2022) Notice of Set-Aside for, or Sole-Source Award to, Economically 
+Disadvantaged Women-Owned Small Business Concerns
+Applies to solicitations and contracts for acquisitions that are set 
+aside or awarded on a sole-source basis to, EDWOSB concerns 
+under 19.1505(b) or 19.1506(a). This includes multiple-award 
+contracts when orders may be set aside for EDWOSB concerns as 
+described in 8.405-5 and 16.505(b)(2)(i)(F) or when orders may be 
+issued directly to one EDWOSB contractor in accordance with 
+19.504(c)(1)(ii).
+FAR 52.219-30 (Oct 2022) Notice of Set-Aside for, or Sole-Source Award to, WomenOwned Small Business Concerns Eligible Under the WomenOwned Small Business Program
+Applies to solicitations and contracts for acquisitions that are set 
+aside or awarded on a sole-source basis to WOSB concerns under 
+19.1505(c) or 19.1506(b). This includes multiple-award contracts 
+when orders may be set aside for WOSB concerns eligible under 
+the WOSB Program as described in 8.405-5 and 16.505(b)(2)(i)(F) 
+or when orders may be issued directly to one WOSB contractor in 
+accordance with 19.504(c)(1)(ii).
+FAR 52.219-33 (Sep 2021) Nonmanufacturer Rule
+Applies to solicitations and contracts, including multiple-award 
+contracts when orders may be set aside for small business concerns 
+as described in FAR 8.405-5 and 16.505(b)(2)(i)(F), and when 
+orders may be issued directly to a small business concern as 
+described in FAR 19.504(c)(1)(ii)), when the item being acquired 
+has been assigned a manufacturing or supply NAICS code, and 
+when any portion of the requirement is to be set aside for small 
+business and is expected to exceed the simplified acquisition 
+threshold; or set aside or awarded on a sole-source basis in 
+accordance with FAR subparts 19.8, 19.13, 19.14, or 19.15, 
+regardless of dollar value; or when using the HUBZone price 
+evaluation preference (see FAR 19.1307). However, if the 
+prospective contractor waived the use of the price evaluation 
+preference, or is an other than small business, do not insert the 
+clause in the resultant contract. Does not apply when the Small 
+Business Administration has waived the nonmanufacturer rule (see 
+FAR 19.505(c)(4)).
+FAR 52.222-4 (Mar 2018) Contract Work Hours and Safety Standards -Overtime 
+Compensation
+Applies to solicitations and contracts when the estimated value 
+equals or exceeds $150,000.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+23
+FAR 52.222-54 (May 2022) Employment Eligibility Verification
+Applies to solicitations and contracts when the estimated value 
+exceeds $150,000, except those that—
+(a) Are only for work that will be performed outside the United 
+States;
+(b) Are for a period of performance of less than 120 days; or
+(c) Are only for—
+(1) Commercially available off-the-shelf items;
+(2) Items that would be COTS items, but for minor modifications 
+(as defined at paragraph (3)(ii) of definition of “commercial 
+product” at 2.101;
+(3) Items that would be COTS items if they were not bulk cargo; 
+or
+(4) Commercial services that are—
+(i) Part of the purchase of a COTS item (or an item that would be a 
+COTS item, but for minor modifications);
+(ii) Performed by the COTS provider; and
+(iii) Are normally provided for that COTS item.
+FAR 52.223-9 (May 2008) Estimate of Percentage of Recovered Material Content for 
+EPA-Designated Items
+Applies to solicitations and contracts when the estimated value 
+exceeds $150,000
+FAR 52.229-13 (Nov 2020) Taxes - Foreign Contracts In Afghanistan
+Applies to solicitations and contracts with performance in 
+Afghanistan awarded by or on behalf of U.S. Forces, unless the 
+clause at 52.229–14 is used.
+FAR 52.229-14 (Nov 2020) Taxes - Foreign Contracts In Afghanistan (North Atlantic 
+Treaty Organization Status Of Forces Agreement)
+Applies to solicitations and contracts, instead of the clause at 
+52.229–13, with performance in Afghanistan awarded on behalf of 
+or in support of the North Atlantic Treaty Organization (NATO), 
+which are governed by the NATO Status of Forces Agreement 
+(SOFA).
+FAR 52.246-1 (Apr 1984) Contractor Inspection Requirements
+Applies when inspection and acceptance are at destination.
+FAR 52.246-11 (Dec 2014) Higher-Level Contract Quality Requirement
+Refer to schedule for applicability.
+FAR 52.246-15 (Apr 1984) Certificate of Conformance
+This clause applies when Inspection and Acceptance at Origin is 
+cited in the order. Clause is operative at the discretion of the 
+DCMA quality assurance representative. Does not apply to 
+hazardous material, items under FSC 1560, 1670, 1680, 3110, 
+3120, or FSG 28 and 29, or when solicitation/order specifically 
+prohibits.
+FAR 52.247-1 (Feb 2006) Commercial Bill of Lading Notations
+Applies to all F.o.b. origin awards.
+FAR 52.247-29 (Feb 2006) F.o.b. Origin
+Applies when the delivery term is f.o.b. origin.
+FAR 52.247-34 (Nov 1991) F.o.b. Destination
+Applies when the delivery term is f.o.b. destination
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+24
+FAR 52.247-48 (Feb 1999) F.o.b. Destination - Evidence of Shipment
+Applies when delivery term is f.o.b. destination and inspection, and 
+acceptance are at source.
+FAR 52.247-51 (Jan 2001) Evaluation of Export Offers
+Applies to solicitations when supplies are to be exported through 
+CONUS ports and offers are solicited on an f.o.b. origin or f.o.b. 
+destination basis.
+FAR 52.247-52 (Feb 2006) Clearance and Documentation Requirements – Shipments to 
+DoD Air or Water Terminal Transshipment Points
+Applies when shipments will be consigned to DoD air or water 
+terminal transshipment points or container consolidation points 
+(CCPs).
+FAR 52.247-65 (Jan 1991) F.o.b. Origin, Prepaid Freight - Small Package Shipments
+Applies to all F.o.b. origin awards except Foreign Military Sales 
+(FMS) requirements.
+FAR 52.247-68 (Feb 2006) Report of Shipment (REPSHIP)
+Applies to shipment when advance notice of shipment is required 
+for safety or security reasons, or where carload or truckload 
+shipments will be made to DoD installations or, as required, to 
+civilian agency facilities.
+DFARS 252.204-7022 (May 2021) Expediting Contract Closeout 
+Applies to solicitations and contracts when the contracting officer intends 
+to expedite contract closeout through the mutual waiver of entitlement to 
+a residual dollar amount of $1,000 or less determined at the time of 
+contract closeout. 
+DFARS 252.209-7004 (May 2019) Subcontracting with Firms that are Owned or Controlled by the 
+Government of a Country that is a State Sponsor of Terrorism 
+Applies to solicitations and contracts when the estimated value exceeds 
+$150,000. 
+DFARS 252.209-7010 (Aug 2011) Critical Safety Items 
+Applies when the item being acquired is identified as a Critical Item. 
+DFARS 252.209-7011 (Oct 2023) Representation for Restriction on the Use of Certain 
+Institutions of Higher Education
+This rule creates a new solicitation provision at DFARS 252.209–
+7011, Representation for Restriction on the Use of Certain 
+Institutions of Higher Education. The provision at DFARS 
+252.209–7011 is prescribed in DFARS 209.170–4 for use in 
+solicitations for acquisitions to an institution of higher education, 
+including solicitations for acquisitions to an institution of higher 
+education using FAR part 12 procedures for the acquisition of 
+commercial products, including COTS items, and commercial 
+services. DoD is applying the rule to contracts at or below the SAT, 
+to contracts for the acquisition of commercial products including 
+COTS items, and for the acquisition of commercial services.
+DFARS 252.211-7003 (Jan 2023) Item Unique Identification And Valuation 
+Applies when the item description contains the statement “IUID 
+MARKING IS REQUIRED.” If the unit cost is $5,000 or more and the 
+item description is silent as to IUID, DFARS 252.211-7003(c)(1)(i) 
+applies (there is an IUID exemption requested by the Service customer).
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+25
+DFARS 225.211-7008 (Sep 2010) Use of Government-Assigned Serial Numbers
+DFARS 252.225-7000 (Nov 2014) Buy American -- Balance of Payments Program Certification –
+BASIC 
+Applies to all acquisitions over the micro-purchase threshold up to 
+$25,000 and to acquisitions above $25,000 unless 252.225-7036 or its 
+ALT applies. 
+DFARS 252.225-7001 (Jun 2022) Buy American and Balance of Payments Program – BASIC 
+Applies to acquisitions over the micro-purchase threshold unless 
+252.225- 7021 or 252.225-7036 or their ALTs, apply See DFARS 
+225.1101(2)(i). 
+DFARS 252.225-7002 (Dec 2017) Qualifying Country Sources as Subcontractors 
+Applies when either DFARS 252.225-7001 or DFARS 252.225-7036 is 
+cited in the solicitation. 
+DFARS 252.225-7006 (Dec 2022) Acquisition of the American Flag 
+Applies to all acquisitions of the American flag exceeding $150,000. 
+DFARS 252.225-7012 (Apr 2022) Preference for Certain Domestic Commodities 
+Applies to all acquisitions exceeding $150,000. Applies at any dollar 
+value, only for the acquisitions athletic footwear purchased by DoD for 
+use by members of the Army, Navy, Air Force, or Marine Corps upon 
+their initial entry into the Armed Forces. 
+Preference for Certain Domestic Commodities (APR 2022) 
+(a) Definitions. As used in this clause—
+“Component” means any item supplied to the Government as part of an 
+end product or of another component. 
+“End product” means supplies delivered under a line item of this contract. 
+"Qualifying country" means a country with a reciprocal defense 
+procurement memorandum of understanding or international agreement 
+with the United States in which both countries agree to remove barriers to 
+purchases of supplies produced in the other country or services performed 
+by sources of the other country, and the memorandum or agreement 
+complies, where applicable, with the requirements of section 36 of the 
+Arms Export Control Act (22 U.S.C. 2776) and with 10 U.S.C. 2457. 
+Accordingly, the following are qualifying countries: Australia, Austria, 
+Belgium, Canada, Czech Republic, Denmark, Egypt, Estonia, Finland, 
+France, Germany, Greece, Israel, Italy, Japan, Latvia, Lithuania, 
+Luxembourg, Netherlands, Norway, Poland, Portugal, Slovenia, Spain, 
+Sweden, Switzerland, Turkey, and United Kingdom of Great Britain and 
+Northern Ireland.
+“Structural component of a tent”—
+(1) Means a component that contributes to the form and stability of the 
+tent (e.g., poles, frames, flooring, guy ropes, pegs); and
+(2) Does not include equipment such as heating, cooling, or lighting. 
+“United States” means the 50 States, the District of Columbia, and 
+outlying areas “U.S.-flag vessel” means a vessel of the United States or 
+belonging to the United States, including any vessel registered or having 
+national status under the laws of the United States.
+(b) The Contractor shall deliver under this contract only such of the 
+following items, either as end products or components, that have been 
+grown, reprocessed, reused, or produced in the United States:
+(1) Food.
+(2) Clothing and the materials and components thereof, other than 
+sensors, electronics, or other items added to, and not normally associated 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+26
+with, clothing and the materials components thereof. Clothing includes 
+items such as outerwear, headwear, underwear, nightwear. footwear, 
+hosiery, handwear, belts, badges, and insignia.
+(3)(i) Tents and structural components of tents;
+(ii) Tarpaulins; or
+(iii) Covers.
+(4) Cotton and other natural fiber products.
+(5) Woven silk or woven silk blends.
+(6) Spun silk yarn for cartridge cloth.
+(7) Synthetic fabric, and coated synthetic fabric, including all textile 
+fibers and yarns that are for use in such fabrics.
+(8) Canvas products.
+(9) Wool (whether in the form of fiber or yarn or contained in fabrics, 
+materials, or manufactured articles).
+(10) Any item of individual equipment (Federal Supply Class 8465) 
+manufactured from or containing fibers, yarns, fabrics, or materials listed 
+in this paragraph (b).
+(c) This clause does not apply—
+(1) To items listed in section 25.104(a) of the Federal Acquisition 
+Regulation, or other items for which the Government has determined that 
+a satisfactory quality and sufficient quantity cannot be acquired as and 
+when needed at U.S. market prices;
+(2) To incidental amounts of cotton, other natural fibers, or wool 
+incorporated in an end product, for which the estimated value of the 
+cotton, other natural fibers, or wool—
+(i) Is not more than 10 percent of the total price of the end product; and
+(ii) Does not exceed the threshold at Defense Federal Acquisition 
+Regulation Supplement 225.7002-2(a);
+(3) To waste and byproducts of cotton or wool fiber for use in the 
+production of propellants and explosives; (4) To foods, other than fish, 
+shellfish, or seafood, that have been manufactured or processed in the 
+United States, regardless of where the foods (and any component if 
+applicable) were grown or produced. Fish, shellfish, or seafood 
+manufactured or processed in the United States and fish, shellfish, or 
+seafood contained in foods manufactured or processed in the United 
+States shall be provided in accordance with paragraph (d) of this clause;
+(5) To chemical warfare protective clothing produced in a qualifying 
+country; or
+(6) To fibers and yarns that are for use in synthetic fabric or coated 
+synthetic fabric (but does apply to the synthetic or coated synthetic fabric 
+itself), if—
+(i) The fabric is to be used as a component of an end product that is not a 
+textile product. Examples of textile products, made in whole or in part of 
+fabric, include-
+(A) Draperies, floor coverings, furnishings, and bedding (Federal Supply 
+Group 72, Household and Commercial Furnishings and Appliances);
+(B) Items made in whole or in part of fabric in Federal Supply Group 83, 
+Textile/leather/furs/apparel/findings/tents/flags, or Federal Supply Group 
+84, Clothing, Individual Equipment and Insignia;
+(C) Upholstered seats (whether for household, office, or other use);
+and
+(D) Parachutes (Federal Supply Class 1670); or
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+27
+(ii) The fibers and yarns are para-aramid fibers and continuous filament 
+para-aramid yarns manufactured in a qualifying country.
+(d)(1) Fish, shellfish, and seafood delivered under this contract, or 
+contained in foods delivered under this contract— 
+(i) Shall be taken from the sea by U.S.-flag vessels; or
+(ii) If not taken from the sea, shall be obtained from fishing within the 
+United States; and
+(2) Any processing or manufacturing of the fish, shellfish, or seafood 
+shall be performed on a U.S.-flag vessel or in the United States. (End of 
+clause)
+DFARS 252.225-7013 (Jul 2020[Nov 202
+3]) 
+Duty-Free Entry (Class Deviation 2020-O0019) (Revision 1) (see 
+Attachment 3). 
+[Use the clause at 252.225-7013, Duty-Free Entry, instead of the 
+clause at FAR 52.225-8. Do not use the clause for acquisitions 
+of supplies that will not enter the customs territory of 
+the United States.
+FAR 25-1101 (e) Insert the clause at 52.225-8, Duty-Free Entry, 
+in solicitations and contracts for supplies that may be imported 
+into the United States and for which duty-free entry may be 
+obtained in accordance with 25.903(a), if the value of the 
+acquisition— 
+(1) Exceeds the simplified acquisition threshold; or
+(2) Does not exceed the simplified acquisition threshold, but the 
+savings from waiving the duty is anticipated to be more than 
+the administrative cost of waiving the duty. When used for 
+acquisitions that do not exceed the simplified acquisition 
+threshold, the contracting officer may modify paragraphs (c)(1) 
+and (j)(2) of the clause to reduce the dollar figure.] 
+Duty-Free Entry (Class Deviation 2020-O0019) (Revision 1) (see 
+Attachment 3) 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA001510-
+20DPC.pdf Applies when acquisition exceeds the micro-purchase 
+threshold except when set- aside for small business or when the 
+supplies will be shipped directly from a source outside the U.S. to a 
+customer outside the U.S. 
+DFARS 252.225-7015 (Jun 2005) Restriction on Acquisition of Hand or Measuring Tools 
+Applies to all acquisitions exceeding $150,000 that require delivery of 
+hand or measuring tools. 
+DFARS 252.225-7016 (Jun 2011) Restriction on Acquisition of Ball and Roller Bearings 
+Applies to all acquisitions unless the items being acquired are not, or do 
+not contain, ball and roller bearings. 
+DFARS 252.225-7017 (Nov 2023) Photovoltaic Devices (Class Deviation 2024-O0004)
+Applies to solicitations, including solicitations using FAR part 12 
+procedures for the acquisition of commercial products and commercial 
+services, for a contract expected to exceed the simplified acquisition 
+threshold that may be a covered contract, i.e., an energy savings 
+performance contract, a utility service contract, or a private housing 
+contract awarded by DoD, if such contract will result in DoD ownership 
+of photovoltaic devices, by means other than DoD purchase as end 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+28
+products. In addition, Use the clause in the resultant contract, including 
+contracts using FAR part 12 procedures for the acquisition of commercial 
+products and commercial services if it is a covered contract.
+Trade 
+Agreement
+Supply Contract 
+(equal to or 
+exceeding)
+Construction 
+Contract (equal to or 
+exceeding)
+WTO GPA $174,000.00 $6,708,000.00
+FTAs:
+Australia $102,280.00 $6,708,000.00
+Bahrain $174,000.00 $13,296,489.00
+CAFTA-DR 
+(Costa Rica, 
+Dominican 
+Republic, El 
+Salvador, 
+Guatemala, 
+Honduras, 
+and 
+Nicaragua) $102,280.00 $6,708,000.00
+Chile $102,280.00 $6,708,000.00
+Colombia $102,280.00 $6,708,000.00
+Korea $100,000.00 $6,708,000.00
+Morocco $174,000.00 $6,708,000.00
+Panama $174,000.00 $6,708,000.00
+Peru $174,000.00 $6,708,000.00
+Singapore $102,280.00 $6,708,000.00
+USMCA
+Mexico $102,280.00 $13,296,489.00
+DFARS 252.225-7018 (Nov 2023) Photovoltaic Devices—Certificate (Class Deviation 2024-
+O0004)
+Applies to solicitations, including solicitations using FAR part 12 
+procedures for the acquisition of commercial products and 
+commercial services, for a contract expected to exceed the 
+simplified acquisition threshold that may be a covered contract, i.e., 
+an energy savings performance contract, a utility service contract, 
+or a private housing contract awarded by DoD, if such contract will 
+result in DoD ownership of photovoltaic devices, by means other 
+than DoD purchase as end products.
+In addition, use the clause in the resultant contract, including 
+contracts using FAR part 12 procedures for the acquisition of 
+commercial products and commercial services, if it is a covered 
+contract.
+Trade 
+Agreement
+Supply Contract 
+(equal to or 
+exceeding)
+Construction 
+Contract (equal to or 
+exceeding)
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+29
+WTO GPA $174,000.00 $6,708,000.00
+FTAs:
+Australia $102,280.00 $6,708,000.00
+Bahrain $174,000.00 $13,296,489.00
+CAFTA-DR 
+(Costa Rica, 
+Dominican 
+Republic, El 
+Salvador, 
+Guatemala, 
+Honduras, 
+and 
+Nicaragua) $102,280.00 $6,708,000.00
+Chile $102,280.00 $6,708,000.00
+Colombia $102,280.00 $6,708,000.00
+Korea $100,000.00 $6,708,000.00
+Morocco $174,000.00 $6,708,000.00
+Panama $174,000.00 $6,708,000.00
+Peru $174,000.00 $6,708,000.00
+Singapore $102,280.00 $6,708,000.00
+USMCA
+Mexico $102,280.00 $13,296,489.00
+DFARS 252.225-7019 (Dec 2009) Restriction on Acquisition of Anchor and Mooring Chain 
+Applies to solicitations and contracts requiring welded shipboard anchor 
+or mooring chain four inches or less in diameter. 
+DFARS 252.225-7020 (Nov 2014) Trade Agreements Certificate—Basic 
+Applies to solicitations and contracts when the estimated value equals or 
+exceeds $182,000. 
+DFARS 252.225-7021 (Jul 2020) Trade Agreements —Basic (Class Deviation 2020-O0019) (Revision 
+2) (Attachment 5) 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA002406-21-
+DPC.pdf] Applies to solicitations and contracts for the items listed at 
+225.401-70] when the estimated value equals or exceeds $183,000, 
+except if the acquisition is of end products in support of operations in 
+Afghanistan. Does not apply to acquisitions set aside for small
+businesses.
+DFARS 252.225-7028 (Apr 2003) Exclusionary Policies and Practices of Foreign Governments 
+Applies for FMS 
+DFARS 252.225-7036 (Jun 2022) Buy American – Free Trade Agreements – Balance of Payments 
+Program – Basic. Applies to solicitations and contracts for the items 
+listed at 225.401- 70, when the estimated value equals or exceeds 
+$100,000, but is less than $183,000, except if the acquisition is of end 
+products in support of operations in Afghanistan. 
+DFARS 252.225-7036 ALT IV (Jun 2022) Buy American – Free Trade Agreements – Balance of Payments 
+Program – Alt IV 
+Applies to solicitations and contracts for the items listed at 225.401-70 
+when the estimated value equals or exceeds $92,319 but is less than 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+30
+$100,000, except if the acquisition is of end products in support of 
+operations in Afghanistan. 
+DFARS 252.225-7041 (Jun 1997) Correspondence in English 
+Applies when performance will be wholly or in part in a foreign country. 
+DFARS 252.225-7052 (May 2024) Restriction on the Acquisition of Certain Magnets and Tungsten
+Applies to solicitations and contracts that exceed the simplified 
+acquisition threshold, including solicitations and contracts using FAR 
+part 12 procedures for the acquisition of commercial products and 
+commercial services.
+DFARS 252.225-7062 (Jul 2023) Restriction on Acquisition of Large Medium-Speed Diesel 
+Engines
+Applies to solicitations and contracts that exceed the simplified 
+acquisition threshold, including solicitations and contracts using 
+FAR part 12 procedures for the acquisition of commercial products 
+and commercial services, that require large medium-speed diesel 
+engines for new construction of auxiliary ships using funds 
+available for National Defense Sealift Fund programs or 
+Shipbuilding or Conversion, Navy unless (a) An exception at 225-
+7010(2)(b)(2) applies; does not apply to the acquisition of an end 
+product (e.g., a machine tool), to be used in the facility, that 
+contains carbon, alloy, or armor steel plate as a component; or (b) 
+A waiver has been granted.
+DFARS 252.225-7968 (Mar 2022) Restriction on Acquisition of Personal Protective Equipment and 
+Certain Other Items from Non-Allied Foreign Nations (DEVIATION 
+2022-O0008) Applies to all acquisitions of personal protective 
+equipment materials and components, or sanitizing and disinfecting
+wipes, testing swabs, gauze, and bandages, with an estimated value 
+above $150,000. 
+DFARS 252.225-7972 (Aug 2024) Prohibition on the Procurement of Foreign-Made Unmanned 
+Aircraft Systems (Class Deviation 2024-O0014) Attachment 2 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA000827-20-
+DPC.pdf Applies to solicitations, unless (a) The acquisition is for (1) 
+Counter- unmanned aircraft system surrogate testing and training; or (2) 
+Intelligence, electronic warfare, and information warfare operations, 
+texting, analysis, and training; or (b) A waiver has been granted by the 
+Secretary of Defense in accordance with section 848 of the National 
+Defense Authorization Act for Fiscal Year 2020. 
+DFARS 252.225-7973 (Aug 2024) Prohibition on the Procurement of Foreign-Made Unmanned 
+Aircraft Systems— Representation. (Class Deviation 2024-O0014)
+Attachment 1
+https://www.acq.osd.mil/dpap/policy/policyvault/USA000827-20-
+DPC.pdf Applies to solicitations, unless (a) The acquisition is for (1) 
+Counter- unmanned aircraft system surrogate testing and training; or (2) 
+Intelligence, electronic warfare, and information warfare operations, 
+texting, analysis, and training; or (b) A waiver has been granted by the 
+Secretary of Defense in accordance with section 848 of the National 
+Defense Authorization Act for Fiscal Year 2020. 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+31
+DFARS 252.225-7975 (Aug 2020) Additional Access to Contractor and Subcontractor Records (Class 
+Deviation 2020-O0022, Attachment 2) 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA001616-20-
+DPC.pdf Applies to solicitations and contracts with an estimated value 
+exceeding $50,000 that will be performed outside the United States and 
+its outlying areas to support a contingency operation in which members 
+of the Armed Forces are actively engaged in hostilities.
+DFARS 252.225-7976 (Aug 2018) Contractor Personnel Performing in Japan (Class Deviation 2018-
+O0019) https://www.acq.osd.mil/dpap/policy/policyvault/USA002186-
+18-DPC.pdf Applies to solicitations and contracts that will require 
+contractor personnel to perform in Japan.
+DFARS 252.225-7993 (Aug 2020) Prohibition on Providing Funds to the Enemy (Class Deviation 2020-
+O0022 https://www.acq.osd.mil/dpap/policy/policyvault/USA001616-20-
+DPC.pdf 
+Applies to solicitations and contracts with an estimated value exceeding 
+$50,000 that will be performed outside the United States and its outlying 
+areas to support a contingency operation in which members of the Armed 
+Forces are actively engaged in hostilities. 
+DFARS 252.227-7025 (May 2013) Limitations On the Use or Disclosure of Government-Furnished 
+Information Marked with Restrictive Legend 
+Applies to solicitations and contracts when the Government expects to 
+provide the contractor, for performance of its contract, technical data or 
+computer software/ software documentation marked with another 
+contractor’s restrictive legends. 
+DFARS 252.239-7017 (Sep 2018) Notice of Supply Chain Risk (Class Deviation 2018-O0020) 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA002323-18-
+DPC.pdf Applies to solicitations for information technology services or 
+supplies. 
+DFARS 252.239-7018 (Sep 2018) Supply Chain Risk (Class Deviation 2018-O0020) 
+https://www.acq.osd.mil/dpap/policy/policyvault/USA002323-18-
+DPC.pdf Applies to solicitations and contracts for information technology 
+services or supplies. 
+DFARS 252.245-7003 (Apr 2012) Contractor Property Management System Administration
+DFARS 252.245-7005 (Jan 2024) Management and Reporting of Government Property
+Applies to solicitations and contracts including solicitations and contracts 
+using FAR part 12 procedures for the acquisition of commercial products 
+and commercial services, that contain the clause at FAR 52.245-1, 
+Government Property.
+DFARS 252.246-7007 (Aug 2016) Contractor Counterfeit Electronic Part Detection and Avoidance 
+System 
+Applies to solicitations and contracts when procuring, electronic parts; 
+end items, components, parts or assemblies containing electronic parts. 
+Does not apply to acquisitions set-aside for small business. 
+DFARS 252.246-7008 (May 2018) Sources of Electronic Parts 
+Applies to solicitations and contracts when procuring, electronic parts; 
+end items, components, parts or assemblies containing electronic parts; or 
+services, if the contractor will supply electronic parts or components, 
+parts, or assemblies containing electronic parts or components, parts, or 
+assemblies containing electronic parts as part of the service. 
+DFARS 252.247-7023 (Oct 2024) Transportation of Supplies by Sea
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+32
+DFARS 252.247-7026 (Oct 2024) Evaluation Preference for Use of Domestic Shipyards
+SUBPART C - PROCUREMENT NOTES
+The following procurement notes apply to solicitations and purchase orders as indicated below and are set forth in full text at 
+the following link: http://www.dla.mil/HQ/Acquisition/Offers/eProcurement.aspx. Archived versions can also be accessed at 
+this site. The revision in effect on the award date applies to purchase orders. These procurement notes are self-deleting if they 
+do not apply.
+C01 Superseded Part Numbered Items (SEP 2016 [FEB 2025]) – [When the award identifies supplies by manufacturer's 
+name, Commercial and Government Entity (CAGE) code, and part number, the specified item(s) are the only item(s) 
+acceptable under this contract.] Applies when procuring part numbered items, including when acquisitions are conducted 
+using FAR Part 12.
+C02 Manufacturing Phase Out or Discontinuation of Production, Diminishing Sources and Obsolete Materials or 
+Components (DEC 2016) – Applies to all solicitations and awards.
+C03 Contractor Retention of Supply Chain Traceability Documentation (JUN 2023) – Appliesto all solicitations and 
+awards.
+C04 Unused Former Government Surplus Property (Sep 2021) – Applies where surplus material is acceptable.
+C05 Change to Key Personnel (OCT 2016) – Applies when services to be provided require professional employees and 
+evaluation of proposed key managerial personnel is required to assess the probability of successful performance.
+C09 Economic Price Adjustment – Department of Labor Index (APR 2024) – Applies to all solicitations and awards. 
+C14 Correction of Nonconforming Packaging or Marking (MAY 2020) – Applies to all solicitations and awards. 
+C15 First Destination Transportation (FDT) Program, Government-Arranged Transportation for Automated Awards
+(AUG 2017) – Applies to solicitations and contractsissued by DLA Aviation, DLA Land and Maritime, DLA Troop Support 
+with f.o.b. origin and inspection/acceptance at destination, except (i) contracts with Classified, Controlled, or Sensitive Items;
+(ii) hazardous material (HAZMAT) contracts; (iii) Foreign Military Sales (FMS) contracts; or (iv) contracts being shipped to
+APO/FPO addresses.
+C16 First Destination Transportation (FDT) Program, Government-Arranged Transportation for Manual Awards 
+(AUG 2017) – Applies to solicitations and contracts issued by DLA Aviation, DLA Land and Maritime, and DLA Troop 
+Support with f.o.b. origin and inspection/acceptance at destination for manual solicitations, unless one of the exclusions in
+DLAD 47.305-3-90(a)-(c) applies.
+C17 First DestinationTransportation (FDT) Program – Shipments Originating from Outside the Contiguous
+United States (JUN 2020) – Applies to solicitations and contracts issued by DLA Aviation, DLA Land and Maritime, and 
+DLA Troop Support with f.o.b. origin and inspection/acceptance at destination when the shipment originates from outside the 
+contiguous United States with a contiguous United States location as the pick-up point in VSM.
+(1) The FDT Program applies to this acquisition. Delivery terms are f.o.b. origin. The Government will conduct an 
+Inspection and acceptance at destination.
+(2) If an offeror’s shipments will originate from outside the contiguous United States, the offeror shall include in its f.o.b. 
+origin price transportation to a contiguous United States location that the offeror selects based on cost-effectiveness or other 
+variables at the offeror’s discretion. The location the offeror selects becomes the point of origin for purposes of the f.o.b. 
+origin terms and conditions of the solicitation or award. The offeror shall identify this contiguous United States location as 
+the pick-up point in the Vendor Shipment
+Module (https://www.dau.edu/guidebooks/Shared%20Documents%20HTML/Guidebook%20for%20Contract%20Property%
+20Administration.aspx).
+C18 Shipping Instructions for Export and U.S. Territories (AUG 2017) – Applies to solicitations and contracts including 
+shipments to overseas customers including shipments direct to APO/FPO addresses, shipments to Alaska,
+Hawaii, and Puerto Rico, and shipments routed through the Container Consolidation Points (CCPs) at San Joaquin, 
+California (W62N2A) and New Cumberland, Pennsylvania (W25N14). Does not apply to First Destination Transportation 
+(FDT) buys.
+C19 Trans-Shipment of Material through DLA Containerization and Consolidation Points (CCP) (JUL 2024) – Applies 
+to solicitations and long-term contracts supporting customers outside the contiguous United States when supplies are to be 
+shipped via surface freight, CCP appears in the shipping address, or any time the requisition or TCN begins with “A,” “C,” or 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+33
+“W” for Army, or "E" or "F" for Air Force, and the customer is outside the contiguous United States.
+Does not apply to First Destination Transportation (FDT) buys.
+C20 Vendor Shipment Module (VSM) (JUL 2024) – Applies to solicitations and contracts issued by DLA Aviation, DLA 
+Land and Maritime, and DLA Troop Support, except for metals or wood products, or when DCMA administers the contract 
+and any of the following apply: (i) contracts where ultimate destination is outside the contiguous United States; (ii) 
+hazardous material (HAZMAT) contracts; (iii) Foreign Military Sales (FMS) contracts; or (iv) contracts requiring 
+Transportation Protective Service.
+(1) The DLA Vendor Shipment Module (VSM) is a web-based system for DLA contractors to obtain current shipping 
+addresses, two-dimensional bar-coded shipping labels in accordance with MIL-STD-129, bills of lading, packing lists, and 
+other shipping documentation. Contractors using VSM do not need to contact the transportation office prior to shipping items. 
+Contractors shall use VSM to print labels for f.o.b. destination contracts; and to print labels and arrange for shipping for f.o.b. 
+origin contracts. All contractors will use VSM to obtain shipping labels no more than two (2) days prior to shipment to ensure 
+the current destination address is used.
+(2) To obtain information for contracts administered by DLA or to register as a VSM user, the contractor shall contact the 
+DLA VSM Helpdesk at (800) 456-5507 or via email to delivery@dla.mil.
+(a) Before contacting the Government to advise that material is ready to ship, the contractor shall complete its VSM profile, 
+to include regular business hours and observed holidays. The Government may request reimbursement for occurrences when 
+the Government sends carrier equipment but is unable to pick-up a shipment because the material was unavailable or the 
+contractor facility was closed.
+(3) To obtain information for contracts administered by DCMA, the contractorshall contact the DCMA VSM Helpdesk at
+(314) 331-5573 or vsm.shipments@dcma.mil.
+C21 Shipping Instruction Request (SIR) (JUL 2024) – Applies to solicitations and contracts issued by DLA Aviation, 
+DLA Land and Maritime, and DLA Troop Support when DCMA administers the contract and any of the following apply: (i) 
+contracts where ultimate destination is outside the contiguous United States; (ii) hazardous material (HAZMAT) contracts;
+(iii) Foreign Military Sales (FMS) contracts; or (iv) contractsrequiring Transportation Protective Service.
+C22 Federal Aviation Administration (FAA) Certified Parts – Depot Level Repairables (DLR) Items (DEC 2018) – 
+Applies to all solicitations and awards when procuring FAA certified parts for DLR items.
+E01 Supplemental First Article Exhibit Disposition - Contractor Maintained (MAY 2020) – Applies when the contractor 
+shall hold the units. 
+E02 Supplemental First Article Exhibit Disposition - Government Maintained (MAY 2020) – Applies when the 
+Government shall hold the units.
+E03 Production Lot Testing - Contractor (MAY 2020) – Applies to solicitations and awards when contractor PLT applies. 
+E04 Production Lot Testing - Government (MAY 2020) – Applies to solicitations and awards when Government PLT 
+applies.
+E05 Product Verification Testing (MAY 2020) – Appliesto all solicitations and awards.
+E06 Inspection and Acceptance at Source (JUN 2018) – Appliesto solicitations and contractsthat require source 
+inspection and acceptance.
+E07 Evaluation Factor for Origin Inspection (JAN 2018) – Appliesto solicitationsthat require destination inspection.
+E08 First Article Testing Requirements (APR 2024) – Applies when FAT is applied.
+E09 Contractor First Article Test (FAT) Information (JUL 2022) – Applies to solicitations and awards when contractor 
+FAT applies.
+E10 Government First Article Test (FAT) Information (JUL 2022) – Appliesto solicitations and awards when 
+Government FAT applies.
+E11 Army Aviation Critical Safety Item Production Sample Test Pilot Program (AUG 2022)
+(1) The purpose of the AACSI pilot program is to allow select contractors to ship the full contractual production quantity 
+immediately upon completion of manufacturing and in advance of receiving sample test results from the engineering 
+support activity (ESA). The pilot program is applicable to AACSIs requiring both First Article Test (FAT) and Production 
+Lot Test (PLT); Government or Contractor. Upon receipt of shipment from the contractor, DLA may use the production 
+quantity to fulfill order requirements submitted by the Army in advance of receiving the sample test results.
+(2) Contractors not willing to participate in the pilot program must provide in their offer to the Government a clear 
+statement taking exception to Procurement Notes E11, Army Aviation Critical Safety Item Production Sample Test Pilot 
+Program, and Procurement Note E12, Army Aviation Critical Safety Item Production Sample Test Pilot Program, 
+Responsibilities of Parties for Quality Compliance/Warranty.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+34
+(3) Select contractors, having been approved for a FAT waiver, may be chosen to participate in the AACSI pilot program.
+(4) If a contractor is chosen to participate in the pilot program, the resultant award— 
+(a) Will not include solicited procurement note E04, Production Lot Testing – Government, or E03 Production Lot 
+Testing – Contractor; and
+(b) Solicited PLT CLIN S00000061 (Government) or S00000062 (Contractor) will be replaced by AACSI Production 
+Sample Test CLIN, S00000115; and
+(c) Will include this procurement note, E11, Army Aviation Critical Safety Item (AACSI) Production Sample Test 
+Pilot Program and E12, Army Aviation Critical Safety Item Production Sample Test Pilot Program, Responsibilities of 
+Parties for Quality Compliance/Warranty.
+(5) If a contractor is not selected to participate in the pilot program, the resultant award— 
+(a) Will include procurement note E03 or E04 assolicited; and
+(b) Will include PLT CLIN S00000061 or S00000062 as solicited; and
+(c) Will not include procurement note E11 and E12; and
+(d) Will not include CLIN S00000115.
+(6) The contractor’s offered unit price for either PLT CLIN S00000061 or S00000062 shall be the same as the production 
+quantity unit price. If the intended awardee is selected for the pilot program, the offered unit price for either PLT CLIN 
+S00000061 or S00000062, shall be utilized for the AACSI Production Sample Test, CLIN S00000115. The contractor’s 
+ship date for the production lot quantities shall be the same ship date for the AACSI Production Sample Test, CLIN 
+S00000115. The AACSI Production Sample Test is destructive, therefore the Government will not return sample(s) to 
+the contractor.
+(7) To facilitate the AACSI Production Sample Test, the ESA and/or testing facility has authority to communicate and 
+conduct clarifications directly with contractors. If this results in necessary changes to contract requirements, the 
+contractor shall contact the Post Award Contracting Officer or Contract Administrator (see the “Issued By” blocks on the
+contract award or order) for written approval. The contractor shall not act on any revisions or other changes until the 
+Contracting Officer issues a written modification approving the proposed revision(s)/change(s).
+(8) When provided by the ESA, DLA will incorporate test and/or inspection plans, to include test procedures, into its 
+acquisition process in accordance with the Technical Data Package (TDP). In the event a test plan is developed and/or 
+made accessible after award, DLA will forward to the contractor.
+(9) At least 14 calendar days (or as otherwise specified in the contract) prior to the date when the contractor will present 
+the production lot for selection of the AACSI Production Sample, the contractor shall provide written notice to the 
+cognizant DCMA Quality Assurance Representative (QAR) / DCMA office advising the date of availability and 
+requesting their presence at the contractor’s facility to facilitate the AACSI Production Sample selection. In the event 
+DCMA fails to respond within 7 calendar days of notification, the contractor will request assistance by submitting an 
+email to DLA Testing at email address DLATesting@dla.mil.
+(10) Unless otherwise stated within the award, the DCMA QAR will select one sample at random from the production 
+lot(s) produced.
+(11) The AACSI Production Sample destined for the test facility must ship on the same day as the production quantity 
+destined for a DLA depot or DLA customer. For partial shipments of the production quantity that are authorized by the 
+DLA contracting officer and included in the contract, the AACSI Production Sample Test CLIN (S00000115) shall ship 
+on the same day as the first partial shipment. For contracts that contain phased deliveries, the AACSI Production Sample 
+Test CLIN (S00000115) shall ship on the same day as the first phased delivery shipment.
+(12) DLA acceptance of the production quantities in advance of the AACSI Production Sample Test result is conditional; 
+reference procurement note, E12, Army Aviation Critical Safety Item, Production Sample Test, Responsibilities of 
+Parties, Quality Compliance/Warranty.
+(13) Contractor responsibilitiesfor preparing and shipping the AACSI Production Sample.
+(a) The test sample must meet all requirements of the Technical Data Package (TDP) and all other contractual 
+requirements.
+(b) Ship the selected AACSI Production Sample by traceable means. On the exterior of the shipping container, by— 
+(i) Marking the shipment “Production Sample Test – Do Not Post To Stock,” and including “Contract Number 
+[contractor insert] and Lot/Item Number [contractor insert];”
+(ii) Placing a copy of the system of record receiving report (i.e., WAWF or DD Form 250) in accordance with 
+DFARS Appendix F; and
+(iii) Marking in accordance with MIL-STD-129 (latest revision), paragraph 5.11.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+35
+(c) Include the following interior documentation:
+(i) DD Form 1222 and system of record receiving report (i.e., WAWF or DD Form 250).
+(ii) A copy of contract/order.
+(iii) A copy of test reports, showing actual results and tolerances specified in the technical data package.
+(iv) Material and process certifications.
+(v) Process operations and inspection method sheets.
+(vi) Copies of drawings used to manufacture the AACSI Production Sample (proper marking to assert proprietary 
+or other rights to restrict public disclosure is the contractor’s responsibility).
+(vii) Documentsrequired under contract deliverablesrequirementslist.
+(14) At the time of shipment, the contractor shall sign and submit copies of the DD Form 1222, system of record 
+receiving report (i.e., WAWF or DD Form 250), and transportation tracking information to— 
+(a) DLA Testing at email address:DLATesting@dla.mil; and
+(b) The contract administrator identified on page 1, block 6, of the award document.
+(15) For the AACSI Production Sample, the Government will conduct inspection at source and acceptance at destination. 
+The FOB point is destination.
+(16) Delivery. Ship samplesto (unless otherwise noted in award document): 
+(W31P0W) PR WOH9 US ARMY AVN CMD
+Redstone Arsenal Technical Test Center 
+Cottonwood Road, Building 8022 MF 4500 
+Redstone Arsenal, Alabama 35898-8052
+(17) The Army will notify DLA of the test resultsimmediately upon completion by sending an email to— 
+(a) DLA Testing at email address DLATesting@dla.mil; and
+(b) To the contract administrator listed on page 1 of the award document (block 6). Upon DLA’s receipt of testing 
+results, the contractor shall be advised accordingly.
+E12 Army Aviation Critical Safety Item, Production Sample Test Pilot Program, Responsibilities of Parties Quality 
+Compliance/Warranty (AUG 2022)
+(1) The contractor agrees that the AACSI Production Sample item(s) shipped against this contract must successfully pass 
+the post-production, Production Sample Test or the contractor will take the actions and agree to the conditions in 
+paragraphs (2), (3) and (4).
+The contractor will be notified by the DLA Contracting Officer or the DLA Post Award Administrator of an item ailing 
+the AACSI Production Sample Test. The contractor agrees to a full or partial return of the items, for either return, 
+correction or replacement of potentially the total order quantity (regardless of the quantity returned) at the discretion of
+the Contracting Officer.
+(2) The contractor agrees to pay all transportation charges and assume responsibility for the supplies while in transit
+when returned, corrected, or replaced pursuant to paragraph (2).
+(3) All items corrected or furnished by the contractor in replacement are subject to the requirements of the contract, to 
+include the warranty terms included therein and the terms of this clause, to the same extent as items initially 
+delivered. 
+G01 Additional Wide Area Workflow (WAWF) Information (AUG 2017) – Appliesto solicitations and contracts that 
+require f.o.b. destination and inspection/acceptance at destination.
+H01 Qualified Products List (QPL) for Federal Supply Class (FSC) 5935 Connector Assemblies and Contacts (SEP 
+2016) – Applies when purchasing qualification items in FSC 5935.
+H02 Component Qualified Products List (QPL)/Qualified Manufacturers List (QML) (SEP 2016) – Applies when 
+purchasing component qualification items.
+H04 Sourcing for Critical Safety Items (APR 2024) – Applies for CSI
+H06 Unilateral Simplified Indefinite-Delivery Contract (SIDC) (SEP 2021) - Appliesto RFQsfor SIDCs.
+H07 Supply Assurance through Multisource Contracting (SEP 2017) – Applies when first article testing is required
+and the contracting officer anticipates a split award to more than one source of supply to facilitate supply availability. 
+This procedure shall not be used when establishing requirements contracts or multiple award task or delivery order 
+indefinite quantity contracts, or when partial small business set-asides apply.
+H11 Section 508 Requirements (OCT 2020) – Appliesto solicitations and awards when procuring EIT products and 
+services.
+H13 [Airworthiness Parts for FAA Type Certified Aircraft -Contractor Requirements for Shipment Documentation, 
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+36
+Upload of Documents into DLA Automated Records Traceability (DART) Application, and Package Marking (JAN 
+2025)]Federal Aviation Administration (FAA) Certified Parts – Shipment Documentation Requirements (JUN 2020) – 
+Applies to all solicitations and awards for consumable items that require production by an FAA-approved manufacturer.
+H15 Transporter Proof of Delivery (TPD) (DEC 2020)
+Applies to DLA Aviation, DLA Land and Maritime, and DLA Troop Support solicitations and awards for supplies when all 
+of the following conditions exist:
+(A) Contract deliveries will be made directly to DLA customers;
+(B) Award will be made on a fixed-price basis;
+(C) Inspection or acceptance at source is not required;
+(D) Use of fast payment proceduresis not authorized;
+(E) Shipmentsto overseas destinations or to containerization consolidation points are not required; and
+(F) Acquisition is not being conducted under the subsistence total order and receipt electronic system (STORES),
+Defense Medical Logistics Standard Support (DMLSS), Industrial Prime Vendor (IPV), or Integrated Logistics 
+Partner (ILP) programs; and
+(G) The clause at 52.232-25, Prompt Payment, applies.
+H17 Restriction on FSC 5962, Electronic Microcircuits (JUL 2022) – Applies only to solicitations and 
+contract awards for Federal Supply Class (FSC) code 5962, Electronic Microcircuits, equal to or under the 
+micro-purchase threshold.
+L01 Electronic Award Transmission (JUN 2020) – Applies to all DIBBS solicitation (except indefinite 
+delivery/indefinite quantity task or delivery order contracts, requirements contracts, and multiple award federal 
+supply schedule-type contracts). 
+L02 Electronic Order Transmission for Indefinite-Delivery Contracts (JUN 2020) – Applies to DIBBS solicitations for 
+indefinite-delivery/indefinite-quantity task or delivery order contracts, requirements contracts, and multiple award federal 
+supply schedule-type contracts. 
+L04 Offers for Part Numbered Items (SEP 2016) – Applies when items are identified in the item description only by 
+the name of an approved source (CAGE code), a part number, and a brief description.
+L06 Agency Protests (DEC 2016) – Appliesto all solicitations.
+L07 Site Visit Instructions (OCT 2016) – Identifies Government points of contact for offerors who wish to inspect 
+Government installation where services will be performed.
+L08 Use of Supplier Performance Risk System (SPRS) in Past Performance Evaluations (JUN 2024)-[Applies to 
+solicitations when the contracting officer will use the Supplier Performance Risk System (SPRS) to evaluate 
+offerors’ past performance for best value source selections valued under $10 million.] 
+L09 Reverse Auction (OCT 2016) – Appliesto solicitations when the contracting officer may use reverse auction.
+L17 Service-Disabled Veteran-Owned Small Business/Small Business Set-Aside Cascade Instructions –NMR Waived 
+(Feb 2024) –Applies to automated solicitations valued over the micro-purchase threshold but less than or equal to the SAT 
+when the nonmanufacturer rule (NMR) is waived and a set-aside to a service-disabled veteran-owned small business concern 
+is anticipated. 
+(1) This solicitation is restricted to service-disabled veteran-owned small business and small business concerns. The 
+Government encourages all small business concerns to submit offers. The Government will make an award based on the 
+following order of set-aside precedence: 
+(a) Service-disabled veteran-owned small business (SDVOSB) concerns (FAR 52.219-27 (DEVIATION 2024-O0002) (JAN 
+2024) and 52.219-14 Limitations on Subcontracting (DEVIATION 2021- O0008) (SEP 2021)). 
+(b) If no eligible offer is received from a SDVOSB concern at a fair market price, then small business concerns (FAR 52.219-
+6). 
+(2) The clauses contained in this procurement note (except paragraph (b) of FAR 52.219- 27 (DEVIATION 2024-O0002) 
+(JAN 2024)) apply to the solicitation. Only the clauses matching the awardee’s Small Business Program and Type 
+representation at (1)(a) or (1)(b) apply to the award. 
+L22 Restriction of Alternate Offersfor Source Controlled Items (SEP 2017) – Applies when the acquisition is
+restricted to material manufactured by the sources listed on the source control drawing, as indicated by AMSCB.
+L29 Section 508 Requirements (OCT 2020) – Applies to solicitations when procuring EIT products and services, unless an 
+exception applies (reference FAR 39.204). L29 Section 508 Requirements (OCT 2021) is in DocBuilder
+L31 Additive Manufacturing (JUN 2018) – Appliesto all solicitations and contracts for parts and supplies, except for 
+DCSO, DLA Energy, DLA Troop Support – Subsistence, and DLA Troop Support – C&T.
+DEFENSE LOGISTICS AGENCY (DLA) MASTER SOLICITATION 
+FOR AUTOMATED SIMPLIFIED ACQUISITIONS
+REVISION 99 (February 20, 2025)
+37
+L32 Federal Aviation Administration (FAA) Certified Parts (JUN 2020) – Applies to all solicitations for itemsthat 
+require FAA certification.
+L36 HUBZone Small Business/Small Business Set-Aside Cascade Instructions – NMR Waived (FEB 2023) – Applies
+to automated solicitations valued over the micro-purchase threshold but less than or equal to the SAT when the 
+nonmanufacturer rule (NMR) is waived and a set-aside to a HUBZone small business concern is anticipated.
+L37 Women-Owned Small Business Program/Small Business Set-Aside Cascade Instructions – nonmanufacturer rule 
+(NMR) is waived. (FEB 2023)
+Applies to automated solicitations valued over the micro-purchase threshold but less than or equal to the SAT when a 
+women-owned small business set-aside is anticipated and FAR clause 52.219-30, Notice of Set-Aside for, or Sole- Source 
+Award to, Women-Owned Small Business Concerns Eligible Under the Women-Owned Small Business Program, is 
+included.
+L38 Economically Disadvantaged Women-Owned Small Business/Small Business Set-Aside Cascade Instructions –
+nonmanufacturer rule (NMR) is waived. (FEB 2023).
+Applies for automated solicitations valued over the micro-purchase threshold but less than or equal to the SAT when an 
+economically disadvantaged women-owned small business set-aside is anticipated and FAR clause 52.219-29, Notice of 
+Set-Aside for, or Sole-Source Award to, Economically Disadvantaged Women-owned Small Business Concerns, is 
+included. Award to, Women-Owned Small Business Concerns Eligible Under the Women-Owned Small Business 
+Program, is included.
+M01 Approved Suppliers for Federal Supply Class (FSC) 5961, Semiconductors and Hardware Devices, and FSC 
+5962, Electronic Microcircuits (JUN 2020) – Applies to solicitations when purchasing qualification itemsin FSCs 5961 
+and 5962.
+M03 Qualified Suppliers List for Manufacturers (QSLM)/Qualified Suppliers List for Distributors (QSLD) for Troop 
+Support (JUN 2020) – Applies to solicitations when purchasing Troop Support QSLM/QSLD qualification items.
+M04 Evaluation Factor for Government Testing of First Articles (MAY 2020) – Applies when the Government’s 
+laboratory cost will be a factor in evaluating offers.
+M05 Evaluation Factor for Unused Former Government Surplus Property (SEP 2016) – Applies where surplus
+material is acceptable.
+M06 Evaluation of Offers of Alternate Product for Part Numbered Items (SEP 2016) – Applies when items are 
+identified in the item description only by the name of an approved source (CAGE code), a part number, and a brief 
+description.

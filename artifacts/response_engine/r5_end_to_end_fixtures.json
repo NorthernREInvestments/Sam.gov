@@ -1,0 +1,101 @@
+{
+  "build": "20260929-m3-r5-preflight-submission-ui-sync",
+  "fixtures": [
+    {
+      "name": "simple_rfq",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "state_xlsx",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "brand_or_equal",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "multi_line",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "dla_dibbs",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "DIBBS",
+      "external_side_effects": 0
+    },
+    {
+      "name": "email_sub",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "EMAIL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "portal_sub",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PIEE",
+      "external_side_effects": 0
+    },
+    {
+      "name": "amendment_reapproval",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "amendment_after_approval",
+      "preflight": "FAIL",
+      "approval_status": "EXPIRED_DUE_TO_CHANGE",
+      "next": "BUILD RESPONSE PACKAGE"
+    },
+    {
+      "name": "late_deadline",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "late_deadline_block",
+      "preflight": "FAIL"
+    },
+    {
+      "name": "portal_price",
+      "preflight": "PASS",
+      "approved": true,
+      "dry_run_status": "DRY_RUN_SUBMITTED_CONFIRMED",
+      "adapter": "PORTAL",
+      "external_side_effects": 0
+    },
+    {
+      "name": "wrong_portal_price",
+      "conflict": "SUBMISSION_DATA_CONFLICT"
+    }
+  ],
+  "note": "Synthetic only \u2014 never marks real opportunities submitted",
+  "external_side_effects": 0
+}

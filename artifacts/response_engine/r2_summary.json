@@ -1,0 +1,63 @@
+{
+  "build": "20260929-m3-r2-clin-pricing-product-compliance",
+  "verdict": "PHASE_R2_CLIN_PRICING_TECHNICAL_COMPLIANCE_READY",
+  "real_projects_analyzed": 32,
+  "line_items_extracted": 317,
+  "multi_line_projects": 22,
+  "product_modes": {
+    "EXACT": 0,
+    "BRAND_OR_EQUAL": 6,
+    "OTHER": 26
+  },
+  "technical": {
+    "pass_verified_items": 0,
+    "fail_items": 0,
+    "review_unknown_items": 1184
+  },
+  "supplier_evidence": {
+    "projects_quote_required": 32,
+    "written_quotes_on_corpus": 0,
+    "note": "No fabricated supplier quotes; SUPPLIER_QUOTE_REQUIRED is correct"
+  },
+  "uom_blocks": 3,
+  "economics": {
+    "verified_profit_cases": 0,
+    "provisional_or_scenario": 0,
+    "unknown_dominant": true,
+    "reason": "corpus lacks live supplier quotes \u2014 fail-closed"
+  },
+  "financing": {
+    "default_rate": "0.05",
+    "pg_prepay_gates": true
+  },
+  "firewall_leaks": 0,
+  "readiness_counts": {
+    "PRODUCT_SELECTION_REQUIRED": 29,
+    "CLIN_STRUCTURE_INCOMPLETE": 3
+  },
+  "legacy_cutover": {
+    "canonical_response_pricing_path": "response_engine.r2_service.run_r2_analysis",
+    "money_kernel": "micro_purchase_lab_economics.D/money (re-exported as response_engine.money)",
+    "max_buy_formula": "response_engine.pricing.calculate_max_buy_decimal (Decimal port of phase_l.quote_economics L6)",
+    "financing_default_rate": "0.05 (L6 DEFAULT_FINANCING_RATE)",
+    "deprecated_as_authority": [
+      "phase_l.acquisition_lanes.calculate_maximum_buy_price (10% \u2014 wrap only)",
+      "bid_compliance_engine for Bid Prep readiness",
+      "m3_deal_economics as CLIN bid authority"
+    ],
+    "retained_inputs": [
+      "L.22 supplier quotes via response_engine.supplier_evidence",
+      "\u00b5Lab Decimal + historical-equivalent as intelligence only",
+      "transaction_economics / draft_bid_assembly for later assembly"
+    ],
+    "competing_operator_readiness_paths": 0
+  },
+  "r1_golden_intact": true,
+  "sam_api_calls": 0,
+  "limitations": [
+    "Verified profit rare on public corpus without supplier quotes (by design)",
+    "Line extraction heuristic; complex nested SLINs need more buyer templates",
+    "Full brand-or-equal evidence matching requires OEM datasheets attached by operator"
+  ],
+  "next_phase": "R3 \u2014 COMPANY COMPLIANCE / REPRESENTATIONS / CERTIFICATIONS / NMR / TRADE COMPLIANCE"
+}

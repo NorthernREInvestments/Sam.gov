@@ -1,0 +1,209 @@
+{
+  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
+  "audits": [
+    {
+      "project": "r12-real-005-RFB-3030-2027",
+      "requirements_total": 37,
+      "material": 35,
+      "expected_material_flags": [
+        "QUANTITY",
+        "FORM_OR_ACK"
+      ],
+      "captured": [
+        "QUANTITY",
+        "FORM_OR_ACK"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": true,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-2975-2027",
+      "requirements_total": 24,
+      "material": 16,
+      "expected_material_flags": [
+        "QUANTITY"
+      ],
+      "captured": [
+        "QUANTITY"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": true,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3042-2027",
+      "requirements_total": 24,
+      "material": 16,
+      "expected_material_flags": [
+        "QUANTITY"
+      ],
+      "captured": [
+        "QUANTITY"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": true,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-645-DOTRFB-3046-2027",
+      "requirements_total": 24,
+      "material": 16,
+      "expected_material_flags": [
+        "QUANTITY"
+      ],
+      "captured": [
+        "QUANTITY"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": true,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-DPHHS-IFB-2027-0703BP",
+      "requirements_total": 3,
+      "material": 3,
+      "expected_material_flags": [
+        "QUANTITY"
+      ],
+      "captured": [
+        "QUANTITY"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-RFB947601-02",
+      "requirements_total": 10,
+      "material": 9,
+      "expected_material_flags": [
+        "FORM_OR_ACK"
+      ],
+      "captured": [
+        "FORM_OR_ACK"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-RFB952200-01",
+      "requirements_total": 10,
+      "material": 9,
+      "expected_material_flags": [
+        "FORM_OR_ACK"
+      ],
+      "captured": [
+        "FORM_OR_ACK"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-real-RFB952400-01",
+      "requirements_total": 10,
+      "material": 9,
+      "expected_material_flags": [
+        "FORM_OR_ACK"
+      ],
+      "captured": [
+        "FORM_OR_ACK"
+      ],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-html-_phoenix_detail_1742.html",
+      "requirements_total": 2,
+      "material": 0,
+      "expected_material_flags": [],
+      "captured": [],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": true
+      },
+      "manually_reviewed": true
+    },
+    {
+      "project": "r12-html-_phoenix_detail_1850.html",
+      "requirements_total": 2,
+      "material": 0,
+      "expected_material_flags": [],
+      "captured": [],
+      "missed": [],
+      "false_unsupported": 0,
+      "provenance_coverage": 1.0,
+      "checklist": {
+        "quantity": false,
+        "deadline": false,
+        "submission": true,
+        "amendment_ack": false
+      },
+      "manually_reviewed": true
+    }
+  ]
+}

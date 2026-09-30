@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260922-m3-micro-lab-integrity-1"
+APP_BUILD_VERSION = "20260929-m3-owner-ui-15-minute-operator-training"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -546,6 +546,55 @@ def api_m3_health():
     }
 
 
+@app.get("/api/m3/phase-l/latest")
+def api_m3_phase_l_latest():
+    """Phase L hunt summary + owner chips for top accessible / profit-queue opportunities."""
+    from pathlib import Path
+
+    from phase_l.owner_view import build_owner_view
+
+    root = Path(__file__).resolve().parent / "artifacts" / "phase_l"
+    hunt_path = root / "hunt_latest.json"
+    enrich_path = root / "enrichment_latest.json"
+    queue_path = root / "owner_profit_queue.json"
+    if not hunt_path.exists() and not enrich_path.exists():
+        return {"kind": "PhaseLLatest", "ok": False, "error": "no_hunt_artifact"}
+    import json
+
+    data = json.loads(hunt_path.read_text(encoding="utf-8")) if hunt_path.exists() else {}
+    enrich = json.loads(enrich_path.read_text(encoding="utf-8")) if enrich_path.exists() else {}
+    queue = json.loads(queue_path.read_text(encoding="utf-8")) if queue_path.exists() else {}
+
+    # Prefer ≥$10K owner profit queue when L.2 enrichment produced any
+    source_rows = queue.get("rows") or enrich.get("top20") or data.get("top20") or []
+    top = []
+    for row in source_rows[:20]:
+        top.append(
+            {
+                **build_owner_view(row),
+                "title": row.get("title"),
+                "solicitation_id": row.get("solicitation_id"),
+                "expected_net_profit": row.get("expected_net_profit"),
+                "profit_tier": row.get("profit_tier"),
+            }
+        )
+    return {
+        "kind": "PhaseLLatest",
+        "ok": True,
+        "generated_at": enrich.get("generated_at") or data.get("generated_at"),
+        "phase": enrich.get("phase") or data.get("phase") or "L",
+        "source_mix": data.get("source_mix"),
+        "counts": enrich.get("counts") or data.get("counts"),
+        "funnel_total": (enrich.get("funnel") or data.get("funnel") or {}).get("TOTAL"),
+        "enrichment_funnel": (enrich.get("funnel") or {}).get("TOTAL"),
+        "primary_blockers": data.get("primary_blockers"),
+        "failure_reasons": enrich.get("failure_reasons"),
+        "owner_queue_count": (queue.get("count") if queue else None)
+        or (enrich.get("counts") or {}).get("owner_queue"),
+        "top20_owner_views": top,
+    }
+
+
 @app.get("/api/watchlist/priority-targets")
 def watchlist_priority_targets():
     from gs_watchlist_service import watchlist_status
@@ -1043,24 +1092,41 @@ def api_m3_pipeline_status(canonical_id: str | None = None):
         row = store.get(canonical_id)
         if not row:
             raise HTTPException(status_code=404, detail="opportunity not found")
+        try:
+            from operator_workflow.summary import attach_operator_workflow
+
+            opportunity = attach_operator_workflow(dict(row), row, include_summary=True)
+        except Exception:
+            opportunity = row
         return {
-            "opportunity": row,
+            "opportunity": opportunity,
             "readiness": row.get("readiness_summary") or readiness_summary(row),
             "audit": store.audit_for(canonical_id)[-20:],
+            "operator_workflow_state": opportunity.get("operator_workflow_state"),
+            "operator_next_action": opportunity.get("operator_next_action"),
+            "operator_blockers": opportunity.get("operator_blockers"),
+            "state_conflict_detected": opportunity.get("state_conflict_detected"),
         }
+    opps = []
+    for r in store.all()[:100]:
+        item = {
+            "canonical_id": r["canonical_id"],
+            "title": r.get("title"),
+            "lifecycle": r.get("lifecycle"),
+            "next_action": r.get("pending_next_action"),
+            "deadline": r.get("deadline"),
+            "stop_reason": r.get("stop_reason"),
+        }
+        try:
+            from operator_workflow.summary import attach_operator_workflow
+
+            item = attach_operator_workflow(item, r, include_summary=False)
+        except Exception:
+            pass
+        opps.append(item)
     return {
         "count": len(store.all()),
-        "opportunities": [
-            {
-                "canonical_id": r["canonical_id"],
-                "title": r.get("title"),
-                "lifecycle": r.get("lifecycle"),
-                "next_action": r.get("pending_next_action"),
-                "deadline": r.get("deadline"),
-                "stop_reason": r.get("stop_reason"),
-            }
-            for r in store.all()[:100]
-        ],
+        "opportunities": opps,
     }
 
 
@@ -2728,18 +2794,20 @@ def api_bid_requirements(opportunity_id: str):
 
 @app.get("/api/opportunities/{opportunity_id}/compliance-matrix")
 def api_compliance_matrix(opportunity_id: str):
+    """Operator-facing matrix: R1 ResponseProject is canonical when present."""
+    from response_engine.legacy_bridge import wrap_legacy_compliance_matrix
+
     analysis = _bid_compliance_for(opportunity_id)
-    return analysis.get("compliance_matrix") or {}
+    return wrap_legacy_compliance_matrix(opportunity_id, analysis.get("compliance_matrix") or {})
 
 
 @app.get("/api/opportunities/{opportunity_id}/bid-readiness")
 def api_bid_readiness(opportunity_id: str):
+    """Operator-facing readiness: R1 wins; legacy READY cannot override."""
+    from response_engine.legacy_bridge import wrap_legacy_bid_readiness
+
     analysis = _bid_compliance_for(opportunity_id)
-    return {
-        "bid_readiness": analysis.get("bid_readiness"),
-        "package_completeness": analysis.get("package_completeness"),
-        "commercial_verification": analysis.get("commercial_verification"),
-    }
+    return wrap_legacy_bid_readiness(opportunity_id, analysis)
 
 
 @app.get("/api/opportunities/{opportunity_id}/package-map")
@@ -4992,6 +5060,1164 @@ async def upload_sam_csv(
     if not started.get("ok"):
         raise HTTPException(status_code=409, detail=started.get("error", "Import already running"))
     return JSONResponse(status_code=202, content=started)
+
+
+# ---------------------------------------------------------------------------
+# M3 Owner / Operator UI — /api/ui/*
+# Abstracts L.23 funnel + L.22 call desk into plain-language work queues.
+# ---------------------------------------------------------------------------
+
+class UiCallSaveBody(BaseModel):
+    session_id: str
+    answers: list[dict[str, Any]] = Field(default_factory=list)
+    call_notes: str | None = None
+    promised_quote_date: str | None = None
+    complete: bool = False
+    outcome: str | None = None
+
+
+class UiQuoteBody(BaseModel):
+    unit_price: float | None = None
+    freight: float | None = None
+    lead_time: str | None = None
+    terms: str | None = None
+    quote_expiration: str | None = None
+    recommendation: str | None = None
+    bucket: str | None = None
+    supplier: str | None = None
+    buyer: str | None = None
+    product: str | None = None
+    expected_revenue: float | None = None
+    expected_profit: float | None = None
+    margin: float | None = None
+    max_buy: float | None = None
+    financing: float | None = None
+
+
+class UiRegisterBody(BaseModel):
+    confirmation: str | None = None
+
+
+class ResponseIngestBody(BaseModel):
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    buyer: str | None = None
+    solicitation_number: str | None = None
+    title: str | None = None
+    jurisdiction: str | None = None
+    discovery_source: str | None = None
+    authoritative_source: str | None = None
+    submission_system: str | None = None
+    compile: bool = True
+
+
+@app.post("/api/response-projects/from-opportunity/{opportunity_id}")
+def api_response_project_from_opportunity(opportunity_id: str, body: ResponseIngestBody | None = None):
+    """Create/reuse ResponseProject and run R1.1 production intake when possible."""
+    from response_engine.production_intake import start_bid_prep_production
+    from response_engine.service import (
+        compile_project,
+        create_or_get_project_from_opportunity,
+        get_project_view,
+        ingest_document_set,
+    )
+
+    payload = body or ResponseIngestBody()
+    cid = opportunity_id[2:] if opportunity_id.startswith("c:") else opportunity_id
+
+    # Prefer production intake (local artifacts / known package) — 0 SAM calls
+    if not payload.documents:
+        result = start_bid_prep_production(cid)
+        if result.get("view"):
+            return result["view"]
+        from response_engine.store import find_by_opportunity
+
+        proj = find_by_opportunity(cid)
+        if proj:
+            return get_project_view(proj["response_project_id"])
+        raise HTTPException(status_code=500, detail="Bid Prep intake did not produce a project.")
+
+    # Explicit document texts (tests / advanced) still supported
+    buyer = payload.buyer
+    title = payload.title
+    solicitation = payload.solicitation_number
+    jurisdiction = payload.jurisdiction
+    discovery = payload.discovery_source
+    auth = payload.authoritative_source
+    submit = payload.submission_system
+    try:
+        from phase_l.l23_full_population_funnel import load_store
+
+        rec = load_store().get(cid) or {}
+        buyer = buyer or rec.get("buyer")
+        title = title or rec.get("title")
+        solicitation = solicitation or rec.get("solicitation_event_id")
+        jurisdiction = jurisdiction or ("FEDERAL" if rec.get("is_federal") else rec.get("jurisdiction"))
+        discovery = discovery or rec.get("platform")
+        auth = auth or rec.get("authoritative_url") or rec.get("submission_path")
+        submit = submit or rec.get("submission_path")
+    except Exception:
+        pass
+
+    project = create_or_get_project_from_opportunity(
+        canonical_opportunity_id=cid,
+        buyer=buyer,
+        solicitation_number=solicitation,
+        title=title,
+        jurisdiction=jurisdiction,
+        discovery_source=discovery,
+        authoritative_source=auth if isinstance(auth, str) else None,
+        submission_system=submit if isinstance(submit, str) else None,
+    )
+    if payload.documents:
+        ingest_document_set(project, payload.documents)
+    if payload.compile or payload.documents:
+        compile_project(project, persist=True)
+    return get_project_view(project["response_project_id"])
+
+
+@app.get("/api/response-projects/{response_project_id}")
+def api_response_project_get(response_project_id: str):
+    from response_engine.service import get_project_view
+
+    view = get_project_view(response_project_id)
+    if not view:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return view
+
+
+@app.get("/api/response-projects/{response_project_id}/documents")
+def api_response_project_documents(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    docs = [{k: v for k, v in d.items() if k != "text"} for d in project.get("documents") or []]
+    return {
+        "response_project_id": response_project_id,
+        "documents": docs,
+        "graph": project.get("document_graph"),
+        "amendments": project.get("amendments"),
+        "current_controlling_version": project.get("current_controlling_version"),
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/requirements")
+def api_response_project_requirements(response_project_id: str, include_superseded: bool = False):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    reqs = project.get("requirements") or []
+    if not include_superseded:
+        reqs = [r for r in reqs if not r.get("superseded")]
+    return {"response_project_id": response_project_id, "count": len(reqs), "requirements": reqs}
+
+
+@app.get("/api/response-projects/{response_project_id}/compliance")
+def api_response_project_compliance(response_project_id: str):
+    from response_engine.compliance import operator_compliance_summary
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "response_project_id": response_project_id,
+        "matrix": project.get("compliance_matrix"),
+        "operator_summary": operator_compliance_summary(project),
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/clarifications")
+def api_response_project_clarifications(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "response_project_id": response_project_id,
+        "clarifications": project.get("clarifications") or [],
+        "note": "R1 generates recommended questions only — no buyer contact automation.",
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/blockers")
+def api_response_project_blockers(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "response_project_id": response_project_id,
+        "hard_blocks": project.get("hard_blocks") or [],
+        "hard_block_count": project.get("hard_block_count") or 0,
+        "unresolved_material_requirement_count": project.get("unresolved_material_requirement_count") or 0,
+        "response_status": project.get("response_status"),
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/intake")
+def api_response_project_intake(response_project_id: str, body: dict | None = None):
+    from response_engine.production_intake import run_production_intake
+    from response_engine.service import get_project_view
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    result = run_production_intake(
+        project,
+        local_paths=body.get("local_paths"),
+        compile_after=bool(body.get("compile", True)),
+        try_url_fetch=bool(body.get("try_url_fetch", False)),
+    )
+    return {"intake": result, "view": get_project_view(response_project_id)}
+
+
+@app.post("/api/response-projects/{response_project_id}/refresh")
+def api_response_project_refresh(response_project_id: str):
+    from response_engine.production_intake import refresh_solicitation
+    from response_engine.service import get_project_view
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    result = refresh_solicitation(project)
+    return {"refresh": result, "view": get_project_view(response_project_id)}
+
+
+@app.get("/api/response-projects/{response_project_id}/intake-status")
+def api_response_project_intake_status(response_project_id: str):
+    from response_engine.production_intake import intake_status
+
+    return intake_status(response_project_id)
+
+
+@app.get("/api/response-projects/{response_project_id}/document-graph")
+def api_response_project_document_graph(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "response_project_id": response_project_id,
+        "graph": project.get("document_graph"),
+        "amendments": project.get("amendments"),
+        "package_completeness": project.get("package_completeness"),
+        "current_controlling_version": project.get("current_controlling_version"),
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/documents/upload")
+async def api_response_project_document_upload(
+    response_project_id: str,
+    file: UploadFile = File(...),
+    mark_as_authoritative: bool = Form(False),
+    document_type: str = Form(""),
+):
+    from response_engine.production_intake import manual_upload_document
+    from response_engine.service import get_project_view
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file.")
+    if len(raw) > 40 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 40MB).")
+    result = manual_upload_document(
+        project,
+        data=raw,
+        filename=file.filename or "upload.bin",
+        mark_as_authoritative=bool(mark_as_authoritative),
+        document_type=document_type or None,
+    )
+    return {"upload": result, "view": get_project_view(response_project_id), "sam_api_calls": 0}
+
+
+class OcrCorrectionBody(BaseModel):
+    document_id: str
+    page: int
+    action: str = "CORRECT"  # CONFIRM | CORRECT | MARK_UNREADABLE
+    corrected_text: str = ""
+    notes: str | None = None
+    user: str = "owner"
+    recompile: bool = True
+
+
+@app.get("/api/response-projects/{response_project_id}/ocr-review")
+def api_response_project_ocr_review(response_project_id: str):
+    from response_engine.ocr import build_ocr_review_queue
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    queue = build_ocr_review_queue(project)
+    return {"response_project_id": response_project_id, "queue": queue, "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/ocr-review")
+def api_response_project_ocr_correct(response_project_id: str, body: OcrCorrectionBody):
+    from response_engine.ocr import apply_ocr_human_correction, build_ocr_review_queue, gate_ocr_requirements
+    from response_engine.service import compile_project, get_project_view
+    from response_engine.store import load_project, save_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    result = apply_ocr_human_correction(
+        project,
+        document_id=body.document_id,
+        page=body.page,
+        corrected_text=body.corrected_text,
+        user=body.user,
+        notes=body.notes,
+        action=body.action,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "OCR correction failed")
+    if body.recompile and project.get("documents"):
+        compile_project(project, persist=False)
+        gate_ocr_requirements(project)
+        build_ocr_review_queue(project)
+        save_project(project)
+    else:
+        save_project(project)
+    return {"correction": result, "view": get_project_view(response_project_id), "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/amendment-diffs")
+def api_response_project_amendment_diffs(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "response_project_id": response_project_id,
+        "amendment_diffs": project.get("amendment_diffs") or [],
+        "amendment_review_queue": project.get("amendment_review_queue") or [],
+        "sam_api_calls": 0,
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/amendment-diffs/acknowledge")
+def api_response_project_amendment_ack(response_project_id: str, body: dict | None = None):
+    from response_engine.service import compile_project, get_project_view
+    from response_engine.store import load_project, save_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    amd_id = body.get("amendment_id")
+    project["amendment_review_queue"] = [
+        q for q in (project.get("amendment_review_queue") or []) if q.get("amendment_id") != amd_id
+    ]
+    if body.get("recompile", True) and project.get("documents"):
+        compile_project(project, persist=True)
+    else:
+        save_project(project)
+    return {"ok": True, "view": get_project_view(response_project_id), "sam_api_calls": 0}
+
+
+# ---------------------------------------------------------------------------
+# R2 — CLIN / pricing / technical compliance (canonical economics path)
+# ---------------------------------------------------------------------------
+@app.get("/api/response-projects/{response_project_id}/line-items")
+def api_r2_line_items(response_project_id: str):
+    from response_engine.r2_service import get_r2_view, run_r2_analysis
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    if not project.get("r2_analyzed_at"):
+        run_r2_analysis(project)
+    return {"line_items": project.get("line_items") or [], "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/products")
+def api_r2_products(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {"offered_products": project.get("offered_products") or [], "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/products")
+def api_r2_add_product(response_project_id: str, body: dict | None = None):
+    from response_engine.product_offer import new_offered_product, select_offered_product
+    from response_engine.r2_service import run_r2_analysis
+    from response_engine.store import load_project, save_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    line_id = body.get("line_item_id")
+    if not line_id:
+        raise HTTPException(status_code=400, detail="line_item_id required")
+    op = new_offered_product(
+        response_project_id=response_project_id,
+        line_item_id=line_id,
+        manufacturer=body.get("manufacturer"),
+        brand=body.get("brand"),
+        model=body.get("model"),
+        mpn=body.get("mpn") or body.get("MPN"),
+        nsn=body.get("nsn"),
+        description=body.get("description"),
+        condition=body.get("condition") or "UNKNOWN",
+        country_of_origin=body.get("country_of_origin"),
+        warranty=body.get("warranty"),
+        supplier=body.get("supplier"),
+        product_mode=body.get("product_mode") or project.get("product_mode") or "UNKNOWN_PRODUCT_MODE",
+        superseding_part=bool(body.get("superseding_part")),
+        supersession_evidence_id=body.get("supersession_evidence_id"),
+    )
+    project.setdefault("offered_products", []).append(op)
+    if body.get("select", True):
+        select_offered_product(project, line_id, op["offered_product_id"], owner=True)
+    save_project(project)
+    run_r2_analysis(project)
+    return {"ok": True, "offered_product": op, "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/technical-compliance")
+def api_r2_technical(response_project_id: str):
+    from response_engine.r2_service import get_r2_view
+
+    view = get_r2_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "items": view.get("technical_compliance") or [],
+        "operator": (view.get("operator") or {}).get("technical"),
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/supplier-quotes")
+def api_r2_quotes(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {"supplier_quotes": project.get("supplier_quotes") or [], "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/supplier-quotes")
+def api_r2_attach_quote(response_project_id: str, body: dict | None = None):
+    from response_engine.r2_service import run_r2_analysis
+    from response_engine.store import load_project
+    from response_engine.supplier_evidence import attach_supplier_quote
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    result = attach_supplier_quote(project, body, line_item_id=body.get("line_item_id"))
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "quote rejected")
+    run_r2_analysis(project)
+    return {**result, "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/economics")
+def api_r2_economics(response_project_id: str):
+    from response_engine.r2_service import get_r2_view
+
+    view = get_r2_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    op = view.get("operator") or {}
+    return {
+        "line_economics": view.get("line_economics") or [],
+        "scenarios": view.get("pricing_scenarios") or [],
+        "operator_economics": op.get("economics"),
+        "financing": op.get("financing"),
+        "sam_api_calls": 0,
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/pricing-scenarios")
+def api_r2_pricing_scenarios(response_project_id: str, body: dict | None = None):
+    from response_engine.r2_service import create_pricing_scenario
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    scenario = create_pricing_scenario(
+        project,
+        total_bid_price=body.get("total_bid_price"),
+        target_profit=body.get("target_profit"),
+        target_margin=body.get("target_margin"),
+        scenario_type=body.get("scenario_type") or "OWNER_OR_ENGINE",
+    )
+    # Never return internal max-buy in a supplier-facing shape; strip for safety on this endpoint's public mirror
+    public = {k: v for k, v in scenario.items() if k not in {"internal_max_buy", "internal_max_buy_namespace"}}
+    return {"scenario": public, "internal_only_note": "max-buy retained on project under INTERNAL namespace", "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/r2-readiness")
+def api_r2_readiness(response_project_id: str):
+    from response_engine.r2_service import get_r2_view
+
+    view = get_r2_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    op = view.get("operator") or {}
+    return {
+        "readiness": view.get("readiness"),
+        "recommendation": op.get("recommendation"),
+        "next_action": op.get("next_action"),
+        "blockers": op.get("blockers") or [],
+        "never_ready_to_submit": True,
+        "firewall": view.get("firewall"),
+        "sam_api_calls": 0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# R3 — company compliance / NMR / trade / 889 / registrations / attestations
+# ---------------------------------------------------------------------------
+@app.get("/api/response-projects/{response_project_id}/r3")
+def api_r3_view(response_project_id: str):
+    from response_engine.r3_service import get_r3_view
+
+    view = get_r3_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return view
+
+
+@app.post("/api/response-projects/{response_project_id}/r3/analyze")
+def api_r3_analyze(response_project_id: str):
+    from response_engine.r3_service import run_r3_analysis
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    analysis = run_r3_analysis(project, force=True)
+    return {"ok": True, "analysis": analysis, "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/r3/matrix")
+def api_r3_matrix(response_project_id: str):
+    from response_engine.r3_service import get_r3_view
+
+    view = get_r3_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    a = view.get("analysis") or {}
+    return {
+        "matrix": a.get("compliance_matrix") or [],
+        "readiness": a.get("readiness"),
+        "next_action": a.get("next_action"),
+        "disclaimer": a.get("legal_disclaimer"),
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/r3/attestations")
+def api_r3_attestations(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {"attestations": project.get("owner_attestations") or [], "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/r3/attestations/{attestation_id}/confirm")
+def api_r3_confirm_attestation(response_project_id: str, attestation_id: str, body: dict | None = None):
+    from response_engine.r3_service import confirm_owner_attestation_on_project
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    answer = str(body.get("answer") or "").upper()
+    if answer not in ("YES", "NO", "NEED_REVIEW"):
+        raise HTTPException(status_code=400, detail="answer must be YES, NO, or NEED_REVIEW")
+    confirmed_by = body.get("confirmed_by") or "owner"
+    result = confirm_owner_attestation_on_project(
+        project,
+        attestation_id=attestation_id,
+        answer=answer,
+        confirmed_by=confirmed_by,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error") or "failed")
+    return {**result, "sam_api_calls": 0}
+
+
+@app.get("/api/company-compliance-profile")
+def api_company_compliance_profile():
+    """Owner Settings — Company Compliance (source-backed, no invent)."""
+    from response_engine.company_profile_r3 import load_company_compliance_profile
+
+    profile = load_company_compliance_profile()
+    # Never expose unnecessary sensitive refs
+    public = {k: v for k, v in profile.items() if k not in {"raw_eligibility_profile"}}
+    return {"profile": public, "sam_api_calls": 0, "live_sam_api": False}
+
+
+# ---------------------------------------------------------------------------
+# R4 — buyer forms / spreadsheets / response document generation
+# ---------------------------------------------------------------------------
+@app.post("/api/response-projects/{response_project_id}/response-plan")
+def api_r4_response_plan(response_project_id: str):
+    from response_engine.response_plan import build_response_plan
+    from response_engine.store import load_project, save_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    plan = build_response_plan(project)
+    project["response_plan"] = plan
+    save_project(project)
+    return {"ok": True, "plan": plan, "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/generate")
+def api_r4_generate(response_project_id: str, body: dict | None = None):
+    from response_engine.r4_service import run_r4_generation
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    package = run_r4_generation(project, force=True, created_by=body.get("created_by") or "operator")
+    return {
+        "ok": True,
+        "package": package,
+        "readiness": project.get("r4_readiness"),
+        "handoff": project.get("submission_handoff"),
+        "label": "DRAFT — NOT SUBMITTED",
+        "never_ready_to_submit": True,
+        "sam_api_calls": 0,
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/regenerate")
+def api_r4_regenerate(response_project_id: str, body: dict | None = None):
+    return api_r4_generate(response_project_id, body)
+
+
+@app.get("/api/response-projects/{response_project_id}/generated-package")
+def api_r4_package(response_project_id: str):
+    from response_engine.r4_service import get_r4_view
+
+    view = get_r4_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "package": view.get("package"),
+        "operator": view.get("operator"),
+        "label": "DRAFT — NOT SUBMITTED",
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/generated-documents")
+def api_r4_documents(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    pkg = project.get("generated_package") or {}
+    return {
+        "documents": pkg.get("generated_documents") or [],
+        "zip": pkg.get("zip"),
+        "label": "DRAFT — NOT SUBMITTED",
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/portal-response-data")
+def api_r4_portal_data(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    pkg = project.get("generated_package") or {}
+    return {
+        "portal_response_dataset": pkg.get("portal_response_dataset")
+        or (project.get("submission_handoff") or {}).get("portal_response_dataset"),
+        "submitted": False,
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/response-conflicts")
+def api_r4_conflicts(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    pkg = project.get("generated_package") or {}
+    return {"conflicts": pkg.get("conflicts") or [], "sam_api_calls": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/r4-readiness")
+def api_r4_readiness(response_project_id: str):
+    from response_engine.r4_service import get_r4_view
+
+    view = get_r4_view(response_project_id)
+    if not view.get("ok"):
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    op = view.get("operator") or {}
+    return {
+        "readiness": view.get("readiness") or op.get("readiness"),
+        "package_status": op.get("package_status"),
+        "next_action": op.get("next_action"),
+        "blockers": op.get("blockers") or [],
+        "handoff": view.get("handoff"),
+        "never_ready_to_submit": True,
+        "max_state": "READY_FOR_R5_PREFLIGHT",
+        "sam_api_calls": 0,
+    }
+
+
+@app.post("/api/response-projects/{response_project_id}/select-price-scenario")
+def api_r4_select_scenario(response_project_id: str, body: dict | None = None):
+    from response_engine.r4_service import select_bid_price_scenario
+    from response_engine.r5_service import invalidate_r5_on_change
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    sid = body.get("scenario_id")
+    if not sid:
+        raise HTTPException(status_code=400, detail="scenario_id required")
+    result = select_bid_price_scenario(project, sid, approve_for_draft=body.get("approve_for_draft", True))
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error") or "failed")
+    invalidate_r5_on_change(project, reason="PRICE_CHANGE")
+    from response_engine.store import save_project
+
+    save_project(project)
+    return {**result, "sam_api_calls": 0}
+
+
+# ---------------------------------------------------------------------------
+# R5 — preflight / owner approval / guided submission / receipt (DRY_RUN default)
+# ---------------------------------------------------------------------------
+@app.post("/api/response-projects/{response_project_id}/preflight")
+def api_r5_preflight(response_project_id: str):
+    from response_engine.r5_service import run_r5_preflight
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    result = run_r5_preflight(project)
+    return {
+        "ok": True,
+        "preflight": result,
+        "plain": result.get("next_action_plain"),
+        "summary": f"{result.get('mandatory_passed', 0)}/{result.get('mandatory_total', 0)} mandatory checks passed",
+        "sam_api_calls": 0,
+        "external_side_effects": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/preflight")
+def api_r5_preflight_get(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {"preflight": project.get("r5_preflight"), "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/owner-approval")
+def api_r5_owner_approval(response_project_id: str, body: dict | None = None):
+    from response_engine.r5_service import r5_owner_approve
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    decision = body.get("decision") or body.get("approval_status")
+    if not decision:
+        raise HTTPException(status_code=400, detail="decision required (APPROVED|REJECTED|CHANGES_REQUESTED)")
+    result = r5_owner_approve(
+        project,
+        decision=decision,
+        approved_by=body.get("approved_by") or "owner",
+        reason=body.get("reason"),
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "approval failed")
+    return {**result, "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/signature-tasks")
+def api_r5_signature_tasks(response_project_id: str):
+    from response_engine.r5_signatures import ensure_signature_tasks
+    from response_engine.store import load_project, save_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    tasks = ensure_signature_tasks(project)
+    save_project(project)
+    return {"tasks": tasks, "auto_signed": 0, "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/signature-tasks/{task_id}/sign")
+def api_r5_sign(response_project_id: str, task_id: str, body: dict | None = None):
+    from response_engine.r5_service import r5_sign
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    result = r5_sign(project, task_id=task_id, signed_by=body.get("signed_by") or "owner")
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "sign failed")
+    return {**result, "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/submission-plan")
+def api_r5_submission_plan(response_project_id: str):
+    from response_engine.r5_service import r5_submission_plan
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    plan = r5_submission_plan(project, dry_run=True)
+    return {"plan": plan, "label": "TEST SUBMISSION — NOT SENT" if plan.get("dry_run") else plan.get("label"), "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/freeze-submission")
+def api_r5_freeze(response_project_id: str):
+    from response_engine.r5_service import r5_freeze
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    result = r5_freeze(project)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "freeze failed")
+    return {**result, "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/submission-events")
+def api_r5_submission_event(response_project_id: str, body: dict | None = None):
+    """Record submission attempt. dry_run=True by default — no live submit."""
+    from response_engine.r5_service import r5_dry_run_submit
+    from response_engine.store import load_project
+    from response_engine.submission_audit import new_submission_event
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    if body.get("live_submit"):
+        raise HTTPException(status_code=403, detail="Live external submission is disabled. Use dry_run / guided checklist + receipt.")
+    if body.get("dry_run", True):
+        return {**r5_dry_run_submit(project, submitted_by=body.get("submitted_by") or "operator"), "sam_api_calls": 0}
+    event = new_submission_event(project, submitted_by=body.get("submitted_by") or "operator", dry_run=False)
+    from response_engine.store import save_project
+
+    save_project(project)
+    return {"ok": True, "event": event, "status": "SUBMITTED_UNCONFIRMED", "note": "Capture receipt to confirm", "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/receipt")
+def api_r5_receipt(response_project_id: str, body: dict | None = None):
+    from response_engine.r5_service import r5_record_receipt
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    receipt = r5_record_receipt(
+        project,
+        confirmation_number=body.get("confirmation_number"),
+        receipt_path=body.get("receipt_path"),
+        source=body.get("source") or "manual",
+        dry_run=bool(body.get("dry_run", True)),
+    )
+    return {"ok": True, "receipt": receipt, "sam_api_calls": 0, "external_side_effects": 0}
+
+
+@app.get("/api/response-projects/{response_project_id}/submission-audit")
+def api_r5_audit(response_project_id: str):
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {
+        "audits": project.get("submission_audits") or [],
+        "latest_event": project.get("latest_submission_event"),
+        "latest_receipt": project.get("latest_receipt"),
+        "sam_api_calls": 0,
+    }
+
+
+@app.get("/api/response-projects/{response_project_id}/operator-state")
+def api_r5_operator_state(response_project_id: str):
+    from response_engine.operator_state_service import build_operator_state
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    return {"state": build_operator_state(project), "sam_api_calls": 0}
+
+
+@app.post("/api/response-projects/{response_project_id}/validate-portal-price")
+def api_r5_validate_price(response_project_id: str, body: dict | None = None):
+    from response_engine.r5_service import validate_portal_price_entry
+    from response_engine.store import load_project
+
+    project = load_project(response_project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Response project not found.")
+    body = body or {}
+    result = validate_portal_price_entry(project, body.get("entered_price"))
+    if not result.get("ok"):
+        raise HTTPException(status_code=409, detail=result)
+    return result
+
+
+@app.get("/ops")
+@app.get("/operator")
+def owner_operator_console():
+    """Primary operator entry — 15–30 minute training console."""
+    return FileResponse(STATIC_DIR / "operator.html")
+
+
+@app.get("/docs/{doc_name}")
+def owner_docs(doc_name: str):
+    """Serve operator training markdown from docs/."""
+    allowed = {
+        "M3_OPERATOR_QUICKSTART.md",
+        "M3_OWNER_APPROVAL_QUICKSTART.md",
+        "M3_OPERATOR_CHEATSHEET.md",
+        "M3_OPERATOR_TRAINING_TEST.md",
+        "CURRENT_M3_UI_ARCHITECTURE.md",
+        "CURRENT_M3_ARCHITECTURE.md",
+    }
+    if doc_name not in allowed:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    path = Path(__file__).resolve().parent / "docs" / doc_name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return FileResponse(path, media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/api/ui/home")
+def api_ui_home():
+    from phase_l.owner_ui_service import build_home
+
+    return build_home()
+
+
+@app.get("/api/ui/today")
+def api_ui_today():
+    from phase_l.owner_ui_service import build_today
+
+    return build_today()
+
+
+@app.get("/api/ui/deals")
+def api_ui_deals(
+    status: str | None = None,
+    q: str | None = None,
+    buyer: str | None = None,
+    state: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+):
+    from phase_l.owner_ui_service import list_deals
+
+    return list_deals(status=status, q=q, buyer=buyer, state=state, page=page, page_size=page_size)
+
+
+@app.get("/api/ui/deals/{deal_id:path}")
+def api_ui_deal(deal_id: str):
+    from phase_l.owner_ui_service import get_deal
+
+    try:
+        return get_deal(deal_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Could not find that deal. It may have moved.") from None
+
+
+@app.get("/api/ui/advanced/{deal_id:path}")
+def api_ui_advanced(deal_id: str):
+    from phase_l.owner_ui_service import get_advanced
+
+    try:
+        return get_advanced(deal_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Could not find that deal.") from None
+
+
+@app.get("/api/ui/calls")
+def api_ui_calls():
+    from phase_l.owner_ui_service import build_today
+
+    today = build_today()
+    return {
+        "kind": "OwnerUiCalls",
+        "items": (today.get("sections") or {}).get("call_today", {}).get("items") or [],
+        "follow_up": (today.get("sections") or {}).get("follow_up", {}).get("items") or [],
+        "empty": "No supplier calls need attention right now.",
+    }
+
+
+@app.get("/api/ui/calls/workspace")
+def api_ui_call_workspace(deal_id: str = Query(...), supplier_id: str | None = None):
+    from phase_l.owner_ui_service import build_call_workspace
+
+    try:
+        return build_call_workspace(deal_id, supplier_id=supplier_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Could not open call workspace for that deal.") from None
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not refresh this call sheet. Last known data retained.",
+        ) from None
+
+
+@app.post("/api/ui/calls/save")
+def api_ui_call_save(body: UiCallSaveBody, deal_id: str = Query(...)):
+    from phase_l.owner_ui_service import save_call_answers
+
+    result = save_call_answers(
+        deal_id,
+        session_id=body.session_id,
+        answers=body.answers,
+        call_notes=body.call_notes,
+        promised_quote_date=body.promised_quote_date,
+        complete=body.complete,
+        outcome=body.outcome,
+    )
+    if not result.get("ok") and result.get("still_needed"):
+        return JSONResponse(status_code=200, content=result)
+    if not result.get("ok"):
+        return JSONResponse(status_code=502, content=result)
+    return result
+
+
+@app.get("/api/ui/quotes")
+def api_ui_quotes():
+    from phase_l.owner_ui_service import build_quotes
+
+    return build_quotes()
+
+
+@app.get("/api/ui/quotes/{deal_id:path}")
+def api_ui_quote_review(deal_id: str):
+    from phase_l.owner_ui_service import get_quote_review
+
+    try:
+        return get_quote_review(deal_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Quote not found for that deal.") from None
+
+
+@app.post("/api/ui/quotes/{deal_id:path}")
+def api_ui_quote_save(deal_id: str, body: UiQuoteBody):
+    from phase_l.owner_ui_service import upsert_quote_review
+
+    return upsert_quote_review(deal_id, body.model_dump(exclude_none=True))
+
+
+@app.get("/api/ui/registrations")
+def api_ui_registrations():
+    from phase_l.owner_ui_service import build_registrations
+
+    return build_registrations()
+
+
+@app.post("/api/ui/registrations/{portal_id}/mark")
+def api_ui_registration_mark(portal_id: str, body: UiRegisterBody):
+    from phase_l.owner_ui_service import mark_registered
+
+    result = mark_registered(portal_id, confirmation=body.confirmation)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("message") or "Not found")
+    return result
+
+
+@app.get("/api/ui/blocked")
+def api_ui_blocked(page: int = Query(1, ge=1), page_size: int = Query(40, ge=1, le=100)):
+    from phase_l.owner_ui_service import build_blocked
+
+    return build_blocked(page=page, page_size=page_size)
+
+
+@app.get("/api/ui/bid-prep")
+def api_ui_bid_prep():
+    from phase_l.owner_ui_service import build_bid_prep
+
+    return build_bid_prep()
+
+
+@app.get("/api/ui/watch")
+def api_ui_watch(page: int = Query(1, ge=1), page_size: int = Query(40, ge=1, le=100)):
+    from phase_l.owner_ui_service import build_watch
+
+    return build_watch(page=page, page_size=page_size)
+
+
+@app.get("/api/ui/search")
+def api_ui_search(q: str = Query(""), limit: int = Query(30, ge=1, le=50)):
+    from phase_l.owner_ui_service import global_search
+
+    return global_search(q, limit=limit)
+
+
+@app.get("/api/ui/settings")
+def api_ui_settings():
+    from phase_l.owner_ui_service import settings_payload
+
+    return settings_payload()
+
+
+@app.get("/api/ui/preservation")
+def api_ui_preservation():
+    from phase_l.owner_ui_service import preservation_snapshot
+
+    return preservation_snapshot()
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

@@ -1,0 +1,19 @@
+# Exclude from deployment ZIP / build bundles
+.git/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+_wip_backup*/
+artifacts/_t/
+artifacts/_temp*/
+artifacts/live_inspect/
+**/_probe_*
+_gaz_*.zip
+*.egg-info/
+.DS_Store
+.env
+.env.local

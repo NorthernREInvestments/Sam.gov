@@ -96,7 +96,48 @@ def _known_active_inventory(session: Any | None) -> dict[str, Any]:
             "known_closed_or_expired": len(rows) - len(active),
         }
     except Exception as exc:
+        try:
+            session.rollback()
+        except Exception:
+            pass
         return {"known_active_market_inventory": None, "error": str(exc)}
+
+
+def _safe_persist_opportunity(session: Any, opp: Any, *, metrics: dict[str, Any], sid: str) -> bool:
+    """Persist one opportunity; recover the session if a single row fails.
+
+    A failed upsert must not poison the rest of the live run (PendingRollbackError).
+    """
+    try:
+        upsert_canonical_opportunity(session, opp, dry_run=False)
+        return True
+    except Exception as exc:  # noqa: BLE001 — isolate per-row persist failures
+        metrics.setdefault("persist_errors", []).append(
+            {"source_id": sid, "external_id": getattr(opp, "external_id", None), "error": str(exc)[:300]}
+        )
+        metrics["persist_failures"] = int(metrics.get("persist_failures") or 0) + 1
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def _safe_commit_session(session: Any | None, *, metrics: dict[str, Any], sid: str | None = None) -> None:
+    """Commit after a source when possible; rollback and continue on failure."""
+    if session is None:
+        return
+    try:
+        session.commit()
+    except Exception as exc:  # noqa: BLE001
+        metrics.setdefault("commit_errors", []).append(
+            {"source_id": sid, "error": str(exc)[:300]}
+        )
+        metrics["commit_failures"] = int(metrics.get("commit_failures") or 0) + 1
+        try:
+            session.rollback()
+        except Exception:
+            pass
 
 
 def run_live_discovery(
@@ -113,6 +154,7 @@ def run_live_discovery(
     fetch_documents: bool | None = None,
     on_source_complete: Any | None = None,
     candidates_override: list[dict[str, Any]] | None = None,
+    source_wall_clock_s: float | None = None,
 ) -> dict[str, Any]:
     """
     Controlled live/preview discovery — listing-first by default for TINY/BROAD.
@@ -120,6 +162,7 @@ def run_live_discovery(
     Per-source budget exhaustion continues to next source.
     Optional on_source_complete(metrics, source_id) for coarse progress heartbeats.
     Optional candidates_override for tests (exact candidate list).
+    Optional source_wall_clock_s: process-isolated per-source timeout (L.11).
     """
     if persist:
         preview = False
@@ -143,6 +186,9 @@ def run_live_discovery(
     all_eligible = bool(prof.get("all_eligible_sources"))
     pagination_exhaust = bool(prof.get("pagination_exhaust"))
     pagination_safety_max_pages = int(prof.get("pagination_safety_max_pages") or budget.max_pages_per_source)
+    if source_wall_clock_s is None:
+        source_wall_clock_s = prof.get("source_wall_clock_seconds")
+    wall_clock_s = float(source_wall_clock_s) if source_wall_clock_s else None
 
     client = PublicProcurementHttpClient(
         budget=budget,
@@ -201,6 +247,10 @@ def run_live_discovery(
         "expired": 0,
         "parser_warnings": [],
         "per_source": {},
+        "persist_failures": 0,
+        "commit_failures": 0,
+        "persist_errors": [],
+        "commit_errors": [],
         "listing_requests": 0,
         "detail_requests": 0,
         "document_requests": 0,
@@ -324,14 +374,66 @@ def run_live_discovery(
         before = client.request_count
         source_stop_reason = None
         try:
-            result = fetcher.fetch_listing(
-                client,
-                list_url=cand["list_url"],
-                source_id=sid,
-                max_pages=budget.max_pages_per_source,
-                pagination_exhaust=pagination_exhaust,
-                pagination_safety_max_pages=pagination_safety_max_pages,
-            )
+            if wall_clock_s and authorize_live:
+                # L.11: process-isolated wall clock — hung HTTP cannot freeze the hunt
+                from types import SimpleNamespace
+
+                from phase_l.resilient_hunt import SOURCE_TIMEOUT, fetch_source_with_watchdog
+
+                wd = fetch_source_with_watchdog(
+                    cand,
+                    timeout_s=wall_clock_s,
+                    max_pages=min(int(budget.max_pages_per_source or 3), int(pagination_safety_max_pages or 3)),
+                )
+                if wd.get("status") == SOURCE_TIMEOUT:
+                    metrics["sources_failed"] += 1
+                    metrics["sources_technical_failure"] += 1
+                    metrics["per_source"][sid] = {
+                        "ok": False,
+                        "attempt": True,
+                        "error": wd.get("error"),
+                        "elapsed_ms": wd.get("elapsed_ms"),
+                        "source_stop_reason": SOURCE_TIMEOUT,
+                        "explicit_state": SOURCE_TIMEOUT,
+                        "isolated": True,
+                    }
+                    if persist and session is not None:
+                        _safe_commit_session(session, metrics=metrics, sid=sid)
+                    if callable(on_source_complete):
+                        try:
+                            on_source_complete(dict(metrics), sid)
+                        except Exception:
+                            pass
+                    continue
+                # Adapt watchdog payload into fetch_listing-shaped result
+                opps_ns = []
+                for o in wd.get("opportunities") or []:
+                    if isinstance(o, dict):
+                        opps_ns.append(SimpleNamespace(**o))
+                    else:
+                        opps_ns.append(o)
+                result = {
+                    "opportunities": opps_ns,
+                    "pages_fetched": wd.get("pages_fetched") or 1,
+                    "records_fetched": len(opps_ns),
+                    "validation": wd.get("validation")
+                    or {
+                        "valid": bool(wd.get("ok")),
+                        "failure_type": None if wd.get("ok") else (wd.get("status") or "WATCHDOG_FAILURE"),
+                        "warnings": [],
+                    },
+                    "pagination_complete": True,
+                    "pagination_stop_reason": wd.get("status"),
+                }
+            else:
+                result = fetcher.fetch_listing(
+                    client,
+                    list_url=cand["list_url"],
+                    source_id=sid,
+                    max_pages=budget.max_pages_per_source,
+                    pagination_exhaust=pagination_exhaust,
+                    pagination_safety_max_pages=pagination_safety_max_pages,
+                )
             metrics["listing_requests"] += int(result.get("pages_fetched") or 1)
             metrics["pages_fetched_total"] += int(result.get("pages_fetched") or 0)
             sources_contacted.append(
@@ -526,7 +628,7 @@ def run_live_discovery(
                     row = enrich_opportunity_deadline(row)
                     collected.append(row)
                     if persist and session is not None:
-                        upsert_canonical_opportunity(session, opp, dry_run=False)
+                        _safe_persist_opportunity(session, opp, metrics=metrics, sid=sid)
 
             explicit = _explicit_source_state(
                 {
@@ -575,6 +677,8 @@ def run_live_discovery(
                 "isolated": True,
                 "explicit_state": "SOURCE_BUDGET_EXHAUSTED",
             }
+            if persist and session is not None:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             continue
         except GlobalBudgetExhausted as exc:
             metrics["global_budget_exhausted"] = True
@@ -588,6 +692,8 @@ def run_live_discovery(
                 "requests": client.request_count - before,
                 "explicit_state": "GLOBAL_BUDGET_EXHAUSTED",
             }
+            if persist and session is not None:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             break
         except RuntimeBudgetExhausted as exc:
             metrics["runtime_budget_exhausted"] = True
@@ -601,6 +707,8 @@ def run_live_discovery(
                 "requests": client.request_count - before,
                 "explicit_state": "RUNTIME_BUDGET_EXHAUSTED",
             }
+            if persist and session is not None:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             break
         except BudgetExhausted as exc:
             msg = str(exc).lower()
@@ -615,6 +723,8 @@ def run_live_discovery(
                     "isolated": True,
                     "explicit_state": "SOURCE_BUDGET_EXHAUSTED",
                 }
+                if persist and session is not None:
+                    _safe_commit_session(session, metrics=metrics, sid=sid)
                 continue
             if "runtime" in msg or "max runtime" in msg:
                 metrics["runtime_budget_exhausted"] = True
@@ -627,6 +737,8 @@ def run_live_discovery(
                     "source_stop_reason": "RUNTIME_BUDGET_EXHAUSTED",
                     "explicit_state": "RUNTIME_BUDGET_EXHAUSTED",
                 }
+                if persist and session is not None:
+                    _safe_commit_session(session, metrics=metrics, sid=sid)
                 break
             metrics["global_budget_exhausted"] = True
             stop_run_partial = True
@@ -638,6 +750,8 @@ def run_live_discovery(
                 "source_stop_reason": "GLOBAL_BUDGET_EXHAUSTED",
                 "explicit_state": "GLOBAL_BUDGET_EXHAUSTED",
             }
+            if persist and session is not None:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             break
         except Exception as exc:
             metrics["sources_failed"] += 1
@@ -650,7 +764,12 @@ def run_live_discovery(
                 "isolated": True,
                 "explicit_state": "TECHNICAL_FAILURE",
             }
+            if persist and session is not None:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             continue
+
+        if persist and session is not None:
+            _safe_commit_session(session, metrics=metrics, sid=sid)
 
         if callable(on_source_complete):
             try:
@@ -898,7 +1017,9 @@ def run_live_discovery(
                     row = enrich_opportunity_deadline(row)
                     collected.append(row)
                     if persist and session is not None:
-                        upsert_canonical_opportunity(session, opp, dry_run=False)
+                        _safe_persist_opportunity(session, opp, metrics=metrics, sid=sid)
+            if persist and session is not None and src_raw > 0:
+                _safe_commit_session(session, metrics=metrics, sid=sid)
             if src_raw > 0:
                 metrics["sources_successful"] += 1
                 metrics["sources_attempted"] += 1

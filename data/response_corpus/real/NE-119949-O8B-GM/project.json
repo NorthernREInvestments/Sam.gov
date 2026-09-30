@@ -1,0 +1,76 @@
+{
+  "corpus_project_id": "NE-119949-O8B-GM",
+  "documents": [
+    {
+      "filename": "119949O8B.html",
+      "stored_as": "1a44cac4f23b16b4_119949O8B.html",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\1a44cac4f23b16b4_119949O8B.html",
+      "sha256": "1a44cac4f23b16b4c867cd7e01df4187e53f2dcdde78a2f991d55dc97eb6d4ee",
+      "bytes": 18422,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+      "role": "PORTAL_INSTRUCTIONS",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:18.330163+00:00"
+    },
+    {
+      "filename": "119949_20O8_20B_20ITB.pdf",
+      "stored_as": "7235a8b5831ba672_119949_20O8_20B_20ITB.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\7235a8b5831ba672_119949_20O8_20B_20ITB.pdf",
+      "sha256": "7235a8b5831ba67252c96ee361dcd30c7ed2c1bb72b84dfeb9f6bb738abc0231",
+      "bytes": 434614,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20B%20ITB.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:18.873961+00:00"
+    },
+    {
+      "filename": "119949_20O8_20B_20Attachments.xlsx",
+      "stored_as": "c5512fa8bb881345_119949_20O8_20B_20Attachments.xlsx",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\c5512fa8bb881345_119949_20O8_20B_20Attachments.xlsx",
+      "sha256": "c5512fa8bb8813450b675249d8e0fd8b9aa8ce6a06cf963345e3c92cc4f7b72c",
+      "bytes": 97522,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20B,%20Attachments.xlsx",
+      "role": "PRICING_SHEET",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:19.351843+00:00"
+    },
+    {
+      "filename": "119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+      "stored_as": "a19705249d156051_119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\NE-119949-O8B-GM\\a19705249d156051_119949_20O8_20_B_20Addendum_20One_20Q_20_20A.pdf",
+      "sha256": "a19705249d156051cf9e4b9b2377022fe16c1ffafabd67ab3278ec496a4ff336",
+      "bytes": 71488,
+      "source_url": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949%20O8%20(B),%20Addendum%20One%20Q%20&%20A.pdf",
+      "role": "Q_AND_A",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:19.739762+00:00"
+    }
+  ],
+  "hashes": [
+    "1a44cac4f23b16b4c867cd7e01df4187e53f2dcdde78a2f991d55dc97eb6d4ee",
+    "7235a8b5831ba67252c96ee361dcd30c7ed2c1bb72b84dfeb9f6bb738abc0231",
+    "c5512fa8bb8813450b675249d8e0fd8b9aa8ce6a06cf963345e3c92cc4f7b72c",
+    "a19705249d156051cf9e4b9b2377022fe16c1ffafabd67ab3278ec496a4ff336"
+  ],
+  "tags": [
+    "STATE",
+    "NEBRASKA",
+    "ITB",
+    "BUYER_XLSX",
+    "Q_AND_A",
+    "EXACT_PART",
+    "MULTI_AMENDMENT"
+  ],
+  "created_at": "2026-09-29T22:47:18.070822+00:00",
+  "buyer": "Nebraska DAS",
+  "agency": "State Purchasing Bureau",
+  "solicitation_number": "119949 O8 B",
+  "title": "GM Vehicle Market Baskets commodity ITB",
+  "jurisdiction": "STATE",
+  "authoritative_source": "https://das.nebraska.gov/materiel/purchasing/119949O8B/119949O8B.html",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:19.739778+00:00"
+}

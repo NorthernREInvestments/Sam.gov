@@ -1,0 +1,37 @@
+{
+  "corpus_project_id": "SC-FLORENCE-2024-21-CAMERAS",
+  "documents": [
+    {
+      "filename": "2024-21_invitation_to_bid.pdf",
+      "stored_as": "253c0e1d56098697_2024-21_invitation_to_bid.pdf",
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\response_corpus\\real\\SC-FLORENCE-2024-21-CAMERAS\\253c0e1d56098697_2024-21_invitation_to_bid.pdf",
+      "sha256": "253c0e1d560986977b535978c01ba31f5112db36681aa1fd6edcf19f19b6ad94",
+      "bytes": 528413,
+      "source_url": "https://www.cityofflorencesc.gov/sites/default/files/uploads/bids/2024-21_invitation_to_bid.pdf",
+      "role": "BASE_SOLICITATION",
+      "acquisition": "PUBLIC_FETCH",
+      "retrieved_at": "2026-09-29T22:47:24.950663+00:00"
+    }
+  ],
+  "hashes": [
+    "253c0e1d560986977b535978c01ba31f5112db36681aa1fd6edcf19f19b6ad94"
+  ],
+  "tags": [
+    "LOCAL",
+    "IFB",
+    "EXACT_PART",
+    "BRAND_OR_EQUAL"
+  ],
+  "created_at": "2026-09-29T22:47:24.195832+00:00",
+  "buyer": "City of Florence SC",
+  "agency": "Purchasing and Contracting",
+  "solicitation_number": "2024-21",
+  "title": "Security Camera System ITB",
+  "jurisdiction": "LOCAL",
+  "authoritative_source": "https://www.cityofflorencesc.gov/sites/default/files/uploads/bids/2024-21_invitation_to_bid.pdf",
+  "discovery_source": null,
+  "submission_system": null,
+  "solicitation_status": "PUBLIC_HISTORICAL_OR_LIVE",
+  "notes": null,
+  "updated_at": "2026-09-29T22:47:24.950681+00:00"
+}

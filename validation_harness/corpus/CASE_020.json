@@ -1,0 +1,72 @@
+{
+  "case_id": "CASE_020",
+  "case_name": "POSITIVE B \u2014 DIBBS approved source executable",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nDIBBS RFQ POS-B-020\nNSN: 5310-00-123-4567\nApproved source CAGE 12345 required.\nQuantity: 100 EA\nFOB ORIGIN\nInspection at destination. Destination acceptance.\nMIL-STD-2073 packaging required.\nSubmit via DIBBS.\n",
+  "documents": [],
+  "row_overrides": {
+    "owner_readiness_fixture_confirm_all": true,
+    "supplier_validated": true,
+    "quote_executable": true,
+    "formal_quote": true,
+    "preferred_supplier": "Approved Source Cage 12345",
+    "supplier_quote": {
+      "quoted_total": 22500,
+      "source": "SUPPLIER_FORMAL",
+      "notes": "formal quote"
+    },
+    "acquisition_cost": 450,
+    "supported_profit": 18400,
+    "government_revenue": 52000,
+    "economics_complete": true,
+    "financing_compatible": true,
+    "funding_state": "COMPATIBLE",
+    "owner_cash_required_before_payment": 0,
+    "personal_guarantee_required": false,
+    "submission_complete": true,
+    "packaging_resolved": true,
+    "delivery_feasible": true,
+    "amendments_resolved": true,
+    "product_identity_confirmed": true,
+    "quantity_uom_confirmed": true,
+    "approved_source_resolved": true
+  },
+  "expected": {
+    "product_identity": {
+      "nsn_detected": true
+    },
+    "shipping_delivery": {
+      "fob_origin": true
+    },
+    "inspection_acceptance": {
+      "destination_acceptance": true
+    },
+    "packaging": {
+      "mil_std_2073_detected": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": true
+    },
+    "supplier": {
+      "supplier_validated": true,
+      "quote_executable": true
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": true,
+  "tags": [
+    "positive_ready",
+    "dibbs",
+    "nsn"
+  ],
+  "notes": "POSITIVE CASE B \u2014 DIBBS NSN with approved source path resolved",
+  "adversarial": false,
+  "validation_depth": "positive_ready",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}

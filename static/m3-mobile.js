@@ -1,11 +1,211 @@
 /** M3 mobile operator experience — phone/tablet/desktop responsive; backend authoritative. */
 (function () {
-  const M3_VIEWS = ["home", "opportunities", "actions", "sources", "verify", "settings", "deal-room", "micro-lab"];
-  let cache = { dashboard: null, actions: null, sources: null, deal: null, mode: null, pursuits: null, learning: null, profile: null, discovery: null, research: null, evidence: null };
+  const M3_VIEWS = [
+    "home",
+    "opportunities",
+    "deep-dive",
+    "pipeline",
+    "history",
+    "actions",
+    "sources",
+    "verify",
+    "settings",
+    "advanced",
+    "deal-room",
+    "micro-lab",
+  ];
+  const ROLE_KEY = "m3_operator_role";
+  const OW_LABELS = {
+    DISCOVERED: "Discovered",
+    QUALIFIED: "Qualified",
+    DEEP_RESEARCH: "Deep Research",
+    SUPPLIER_VALIDATION: "Supplier Validation",
+    FINANCE_REVIEW: "Financing Review",
+    BID_PREPARATION: "Bid Preparation",
+    SUBMITTED: "Submitted",
+    AWARDED: "Awarded",
+    ORDERING: "Ordering",
+    SHIPPED: "Shipped",
+    DELIVERED: "Delivered",
+    ACCEPTED: "Accepted",
+    INVOICED: "Invoiced",
+    PAID: "Paid",
+    HISTORY: "History",
+  };
+  const PIPELINE_ORDER = [
+    "QUALIFIED",
+    "DEEP_RESEARCH",
+    "SUPPLIER_VALIDATION",
+    "FINANCE_REVIEW",
+    "BID_PREPARATION",
+    "SUBMITTED",
+    "AWARDED",
+    "ORDERING",
+    "DELIVERED",
+    "PAID",
+    "HISTORY",
+  ];
+  const INTAKE_STATES = new Set(["DISCOVERED", "QUALIFIED"]);
+  const EXECUTION_STATES = new Set([
+    "DEEP_RESEARCH",
+    "SUPPLIER_VALIDATION",
+    "FINANCE_REVIEW",
+    "BID_PREPARATION",
+  ]);
+  const APPROVAL_STATES = new Set(["BID_PREPARATION"]);
+  const SUBMITTED_STATES = new Set(["SUBMITTED"]);
+  const HISTORY_STATES = new Set(["AWARDED", "ORDERING", "DELIVERED", "PAID", "HISTORY"]);
+
+  let cache = {
+    dashboard: null,
+    actions: null,
+    sources: null,
+    deal: null,
+    mode: null,
+    pursuits: null,
+    learning: null,
+    profile: null,
+    discovery: null,
+    research: null,
+    evidence: null,
+    portfolio: null,
+  };
   let lastDealId = null;
   let activeLearningRecordId = null;
   let discoveryPollTimer = null;
   let researchPollTimer = null;
+  let portfolioFilter = "intake";
+
+  function getRole() {
+    try {
+      return localStorage.getItem(ROLE_KEY) === "owner" ? "owner" : "va";
+    } catch (_) {
+      return "va";
+    }
+  }
+
+  function setRole(role) {
+    const r = role === "owner" ? "owner" : "va";
+    try {
+      localStorage.setItem(ROLE_KEY, r);
+    } catch (_) {}
+    paintRoleChrome();
+  }
+
+  function paintRoleChrome() {
+    const role = getRole();
+    const banner = document.getElementById("m3-role-banner");
+    if (banner) {
+      banner.textContent =
+        role === "owner"
+          ? "View as Owner — UI preference only (not access control)"
+          : "View as Operator — UI preference only (not access control)";
+    }
+    const status = document.getElementById("m3-role-status");
+    if (status) {
+      status.textContent =
+        role === "owner"
+          ? "View mode: Owner (display only — not authentication)"
+          : "View mode: Operator (display only — not authentication)";
+    }
+    document.querySelectorAll(".m3-role-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-role") === role);
+    });
+  }
+
+  function owLabel(state) {
+    if (!state) return "—";
+    return OW_LABELS[state] || String(state).replace(/_/g, " ");
+  }
+
+  function owState(o) {
+    return (
+      (o && (o.operator_workflow_state || (o.operator_summary && o.operator_summary.operator_workflow_state))) ||
+      ""
+    );
+  }
+
+  function plainNext(o) {
+    return (
+      (o && (o.operator_next_action || o.NEXT || o.next_action)) ||
+      "Review opportunity"
+    );
+  }
+
+  function plainBlockers(o) {
+    const b = (o && (o.operator_blockers || o.blocking_progress || o.execution_critical_blockers)) || [];
+    if (!b.length) return [];
+    const MAP = {
+      ECONOMICS_UNKNOWN: "Economics incomplete — resolve cost and profit before bid",
+      ECONOMICS_INCOMPLETE_OR_UNKNOWN: "Economics incomplete — resolve cost and profit before bid",
+      SUPPLIER_UNKNOWN: "Supplier path unresolved — identify and validate a supplier",
+      SUPPLIER_NOT_VALIDATED: "Supplier not validated — public listing is not enough",
+      QUOTE_NOT_EXECUTABLE: "No executable supplier quote — obtain a formal quote for the exact requirement",
+      FINANCING_INCOMPATIBLE_OR_UNKNOWN: "Financing unresolved — confirm zero owner cash and no personal guarantee",
+      FUNDING_UNRESOLVED: "Financing unresolved — confirm a funding path before approval",
+      SUBMISSION_INCOMPLETE_OR_UNKNOWN: "Submission incomplete — finish required documents and acknowledgements",
+      PACKAGING_UNRESOLVED: "Packaging unresolved — confirm packaging method and cost",
+      DELIVERY_INFEASIBLE_OR_UNKNOWN: "Delivery unresolved — confirm FOB, destination, and lead time",
+      AMENDMENT_UNRESOLVED: "Amendment conflict — confirm the latest authoritative quantity and deadline",
+      PRODUCT_IDENTITY_UNCONFIRMED: "Product identity unconfirmed — lock exact part/NSN before quoting",
+      QUANTITY_UOM_UNCONFIRMED: "Quantity/UOM unconfirmed — normalize units before supplier pricing",
+      SUPPLIER_QUOTE_NEEDED: "Supplier quote needed",
+    };
+    return b.map((x) => {
+      const key = String(x || "").toUpperCase();
+      if (MAP[key]) return MAP[key];
+      return String(x)
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    });
+  }
+
+  function humanEvidenceLevel(level) {
+    const s = String(level || "").toUpperCase();
+    if (!s || s === "UNKNOWN" || s === "LEVEL_4_UNKNOWN" || s === "LEVEL_4") return "Pricing evidence incomplete";
+    if (s.includes("PUBLIC")) return "Public market price only (not a supplier quote)";
+    if (s.includes("SUPPLIER") || s.includes("FORMAL")) return "Supplier quote evidence";
+    return String(level).replace(/_/g, " ");
+  }
+
+  function whySelected(o) {
+    const reasons = [];
+    const blockers = new Set((o && o.operator_blockers) || []);
+    const flags = new Set((o && o.risk_flags) || []);
+    if (!blockers.has("ECONOMICS_UNKNOWN") && (o.Known_gross_spread != null || o.supported_profit != null)) {
+      reasons.push("Margin looks workable");
+    }
+    if (!blockers.has("SUPPLIER_UNKNOWN") && !flags.has("SUPPLIER_QUOTE_NEEDED")) {
+      reasons.push("Supplier options available");
+    } else {
+      reasons.push("Needs supplier quote");
+    }
+    const conf = o.confidence_level || o.profit_confidence || "";
+    if (String(conf).toUpperCase() === "HIGH" || String(conf).toUpperCase() === "STRONG") {
+      reasons.push("Product match confidence high");
+    } else if (o.Commercial_verification === "COMMERCIAL_VERIFICATION_WORTHY" || o.Deal_state === "COMMERCIAL_VERIFICATION_WORTHY") {
+      reasons.push("Historical purchase signal found");
+    } else {
+      reasons.push("In intake for qualification");
+    }
+    if (o.FIRST_TRANSACTION_CANDIDATE) reasons.push("Good first-deal candidate");
+    return reasons.slice(0, 4);
+  }
+
+  function sumMoney(items, pick) {
+    let total = 0;
+    let any = false;
+    (items || []).forEach((it) => {
+      const v = pick(it);
+      const n = Number(v);
+      if (v != null && v !== "" && v !== "UNKNOWN" && !Number.isNaN(n)) {
+        total += n;
+        any = true;
+      }
+    });
+    return any ? total : null;
+  }
 
   function esc(s) {
     if (typeof escapeHtml === "function") return escapeHtml(String(s ?? ""));
@@ -430,8 +630,12 @@
     document.querySelectorAll(".m3-nav-btn").forEach((btn) => {
       const isActive =
         btn.dataset.m3View === name ||
-        (name === "deal-room" && btn.dataset.m3View === "opportunities") ||
-        (name === "verify" && btn.dataset.m3View === "settings");
+        (name === "deal-room" && btn.dataset.m3View === "deep-dive") ||
+        (name === "verify" && btn.dataset.m3View === "settings") ||
+        (name === "advanced" && btn.dataset.m3View === "settings") ||
+        (name === "actions" && btn.dataset.m3View === "settings") ||
+        (name === "sources" && btn.dataset.m3View === "settings") ||
+        (name === "micro-lab" && btn.dataset.m3View === "settings");
       btn.classList.toggle("active", isActive);
     });
     document.body.classList.add("m3-mobile-active", "m3-only-app");
@@ -443,62 +647,83 @@
     } catch (_) {
       /* ignore */
     }
+    paintRoleChrome();
     if (name === "home") loadHome();
     if (name === "opportunities") loadOpportunities();
+    if (name === "deep-dive") loadDeepDiveQueue();
+    if (name === "pipeline") loadPipeline();
+    if (name === "history") loadHistory();
     if (name === "actions") loadActions();
     if (name === "sources") loadSources();
     if (name === "verify") loadVerify();
     if (name === "settings") loadM3Settings();
+    if (name === "advanced") loadAdvanced();
     if (name === "micro-lab" && window.MicroPurchaseLab) window.MicroPurchaseLab.open();
   }
 
+  function isOwnerReady(o) {
+    if (!o || typeof o !== "object") return false;
+    if (o.ready_for_owner_approval === true) return true;
+    const gate = o.owner_approval_gate;
+    if (gate && gate.ready_for_owner_approval === true) return true;
+    const ec = o.execution_compliance;
+    if (ec && ec.owner_approval_gate && ec.owner_approval_gate.ready_for_owner_approval === true) return true;
+    return false;
+  }
+
   function oppCard(o) {
-    const title = o.Opportunity || o.title || o.canonical_id;
-    const buyer = o.Agency || o.buyer || "";
-    const deadline = o.Deadline || o.deadline || fmtDays(o.days_remaining);
-    const revenue = o.Government_benchmark != null && o.Government_benchmark !== "UNKNOWN"
-      ? o.Government_benchmark
-      : o.Revenue_basis != null && o.Revenue_basis !== "UNKNOWN"
-        ? o.Revenue_basis
-        : o.supported_revenue;
-    const gross = o.Known_gross_spread;
-    const status = o.Status || o.Deal_state || o.lifecycle;
-    const next = o.NEXT || o.next_action || "—";
-    const cov = o.Coverage != null && o.Coverage !== "UNKNOWN" ? o.Coverage : o.Economic_coverage_pct;
-    return `<article class="m3-opp-card" data-cid="${esc(o.canonical_id)}" role="button" tabindex="0">
+    const title = o.Opportunity || o.title || o.deal_name || o.canonical_id;
+    const buyer = o.Agency || o.buyer || o.agency || "";
+    const product = o.Product_BOM || o.product || o.product_name || title;
+    const revenue =
+      o.Government_benchmark != null && o.Government_benchmark !== "UNKNOWN"
+        ? o.Government_benchmark
+        : o.Revenue_basis != null && o.Revenue_basis !== "UNKNOWN"
+          ? o.Revenue_basis
+          : o.estimated_value != null
+            ? o.estimated_value
+            : o.supported_revenue;
+    const profit =
+      o.Known_gross_spread != null && o.Known_gross_spread !== "UNKNOWN"
+        ? o.Known_gross_spread
+        : o.supported_profit;
+    const conf = o.confidence_level || o.profit_confidence || "—";
+    const stage = owLabel(owState(o));
+    const next = plainNext(o);
+    const blockers = plainBlockers(o);
+    const why = whySelected(o);
+    const whyHtml = why
+      .map((r) => `<li class="m3-why-item">${esc(r.startsWith("Needs") ? "○ " + r : "✓ " + r)}</li>`)
+      .join("");
+    const readyHtml = isOwnerReady(o)
+      ? `<p class="m3-ready-banner m3-ready-on">READY FOR OWNER APPROVAL</p>`
+      : "";
+    return `<article class="m3-opp-card m3-operator-card" data-cid="${esc(o.canonical_id)}" role="button" tabindex="0">
+      ${readyHtml}
       <div class="m3-opp-buyer">${esc(buyer)}</div>
-      <h3 class="m3-opp-title">${esc(title)}</h3>
+      <h3 class="m3-opp-title">${esc(product)}</h3>
+      <p class="m3-stage-pill">${esc(stage)}</p>
       <dl class="m3-kv">
-        <div><dt>Deadline</dt><dd>${esc(deadline)}</dd></div>
-        <div><dt>Gov revenue</dt><dd>${esc(fmtMoney(revenue))}</dd></div>
-        <div><dt>Gross spread</dt><dd>${esc(gross != null && gross !== "UNKNOWN" ? fmtMoney(gross) : fmtMoney(o.supported_profit))}</dd></div>
-        <div><dt>Coverage</dt><dd>${esc(cov != null && cov !== "UNKNOWN" ? cov + (String(cov).includes("%") ? "" : "%") : o.profit_confidence || "—")}</dd></div>
-        <div><dt>Status</dt><dd>${esc(status)}</dd></div>
-        <div><dt>Funding</dt><dd>${esc(o.Funding || o.funding_state || "VERIFY")}</dd></div>
+        <div><dt>Contract value</dt><dd>${esc(fmtMoney(revenue))}</dd></div>
+        <div><dt>Estimated profit</dt><dd>${esc(fmtMoney(profit))}</dd></div>
+        <div><dt>Confidence</dt><dd>${esc(conf)}</dd></div>
       </dl>
-      <p class="m3-next"><strong>Next:</strong> ${esc(next)}</p>
-      ${o.FIRST_TRANSACTION_CANDIDATE ? '<p class="m3-priority">FIRST_TRANSACTION_CANDIDATE</p>' : ""}
-      <p class="m3-why muted">Economics: ${esc(o.Economics_class || o.why_waiting || "UNKNOWN")}</p>
+      <div class="m3-why-block">
+        <p class="m3-why-label">Why M3 selected</p>
+        <ul class="m3-why-list">${whyHtml}</ul>
+      </div>
+      ${blockers.length ? `<p class="m3-blockers"><strong>Blockers:</strong> ${esc(blockers.join(" · "))}</p>` : ""}
+      <p class="m3-next"><strong>Next action:</strong> ${esc(next)}</p>
+      <div class="m3-btn-row m3-card-actions" data-stop="1">
+        <button type="button" class="m3-back-btn m3-advance-btn" data-cid="${esc(o.canonical_id)}">Advance</button>
+        <button type="button" class="m3-back-btn m3-reject-btn" data-cid="${esc(o.canonical_id)}">Reject</button>
+      </div>
     </article>`;
   }
 
   function portfolioTopCard(c) {
-    return `<article class="m3-info-card m3-opp-card" data-cid="${esc(c.canonical_id)}" role="button" tabindex="0">
-      <h3>${esc(c.Opportunity)}</h3>
-      <p class="muted">${esc(c.Agency)} · ${esc(c.Product_BOM)}</p>
-      <dl class="m3-kv">
-        <div><dt>Gov benchmark</dt><dd>${esc(fmtMoney(c.Government_benchmark))}</dd></div>
-        <div><dt>Acquisition</dt><dd>${esc(fmtMoney(c.Observed_acquisition))}</dd></div>
-        <div><dt>Gross spread</dt><dd>${esc(fmtMoney(c.Known_gross_spread))}</dd></div>
-        <div><dt>Coverage</dt><dd>${esc(c.Coverage)}</dd></div>
-        <div><dt>Capital</dt><dd>${esc(fmtMoney(c.Capital))}</dd></div>
-        <div><dt>Status</dt><dd>${esc(c.Status)}</dd></div>
-      </dl>
-      <p class="m3-next"><strong>NEXT:</strong> ${esc(c.NEXT)}</p>
-    </article>`;
+    return oppCard(c);
   }
-
-  let portfolioFilter = "all";
 
   async function loadOpportunities(force) {
     try {
@@ -508,24 +733,26 @@
       const list = document.getElementById("m3-opps-list");
       const topEl = document.getElementById("m3-opps-top-cards");
       let opps = cache.portfolio.opportunities || cache.portfolio.deals || [];
-      if (portfolioFilter === "cvw") {
-        opps = opps.filter((o) => o.Deal_state === "COMMERCIAL_VERIFICATION_WORTHY" || o.Commercial_verification === "COMMERCIAL_VERIFICATION_WORTHY" || o.Status === "COMMERCIAL_VERIFICATION_WORTHY");
+      if (portfolioFilter === "intake") {
+        opps = opps.filter((o) => {
+          const st = owState(o);
+          return !st || INTAKE_STATES.has(st) || st === "DISCOVERED";
+        });
       } else if (portfolioFilter === "ftx") {
         opps = opps.filter((o) => o.FIRST_TRANSACTION_CANDIDATE);
-      } else if (portfolioFilter === "partial") {
-        opps = opps.filter((o) => o.Economics_class === "PARTIAL_ECONOMICS" || o.Deal_state === "PARTIAL_ECONOMICS");
       }
       if (topEl) {
-        const tops = (cache.portfolio.top_cards || []).slice(0, 4);
-        topEl.innerHTML = tops.map(portfolioTopCard).join("");
+        const tops = (cache.portfolio.top_cards || []).slice(0, 3);
+        topEl.innerHTML = tops.length ? `<p class="m3-section-label">Top picks</p>` + tops.map(portfolioTopCard).join("") : "";
         wireCardClicks(topEl);
+        wireOppActions(topEl);
       }
       if (list) {
-        list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No opportunities match filter.</p>";
+        list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No opportunities in this queue.</p>";
         wireCardClicks(list);
+        wireOppActions(list);
       }
     } catch (_) {
-      /* non-fatal — fall back to dashboard */
       try {
         if (!cache.dashboard || force) cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
         const list = document.getElementById("m3-opps-list");
@@ -533,6 +760,7 @@
         if (list) {
           list.innerHTML = opps.map(oppCard).join("") || "<p class='m3-empty'>No active opportunities.</p>";
           wireCardClicks(list);
+          wireOppActions(list);
         }
       } catch (__) {
         /* non-fatal */
@@ -605,85 +833,288 @@
             : health.operating_mode || "MODE";
         }
       }
-      // Always refresh Home from authoritative APIs (do not trust stale empty cache)
       cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
       const d = cache.dashboard;
-      cache.discovery =
-        d.discovery ||
-        (await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery));
-      try {
-        const fed = await fetchJson("/api/m3/federal-dla/coverage");
-        cache.federalEnrich = (fed && fed.enrichment && fed.enrichment.last_campaign_metrics) || fed || {};
-      } catch (_) {
-        cache.federalEnrich = cache.federalEnrich || {};
-      }
-      renderDiscoveryStatus(cache.discovery || d.discovery);
-      scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
-      cache.research =
-        d.research ||
-        (await fetchJson("/api/m3/research/status").catch(() => cache.research));
-      renderResearchStatus(cache.research || d.research);
-      scheduleResearchPoll(!!(cache.research && cache.research.running));
-      cache.evidence =
-        d.evidence ||
-        (await fetchJson("/api/m3/evidence/status").catch(() => cache.evidence));
-      renderEvidenceStatus(cache.evidence || d.evidence);
-      const attention = document.getElementById("m3-home-attention");
-      const profile = d.procurement_profile || {};
+      const od = d.operator_dashboard || {};
+      const activeWork = od.active_work || [];
+      const attention = od.attention_needed || {};
       const actions = d.top_actions || [];
       const opps = d.active_opportunities || [];
-      const fundingWait = opps.filter((o) => String(o.funding_state || "").includes("FUNDING") || String(o.lifecycle || "").includes("FUNDING")).length;
-      const commercialWait = opps.filter((o) => String(o.lifecycle || "").includes("COMMERCIAL") || String(o.next_action || "").includes("COMMERCIAL")).length;
-      const activeCount = Number(d.active_count != null ? d.active_count : opps.length) || 0;
-      const nat = d.national_discovery || {};
-      if (attention) {
-        attention.innerHTML = `<article class="m3-info-card m3-attention-card">
-          <dl class="m3-kv">
-            <div><dt>Active</dt><dd>${esc(activeCount)}</dd></div>
-            <div><dt>Actions</dt><dd>${esc(d.action_count || actions.length)}</dd></div>
-            <div><dt>Current unique</dt><dd>${esc(nat.CURRENT_UNIQUE_OPPORTUNITIES != null ? nat.CURRENT_UNIQUE_OPPORTUNITIES : "—")}</dd></div>
-            <div><dt>Product survivors</dt><dd>${esc(nat.PRODUCT_RESALE_SURVIVORS != null ? nat.PRODUCT_RESALE_SURVIVORS : "—")}</dd></div>
-            <div><dt>Sources productive</dt><dd>${esc(nat.SOURCES_PRODUCTIVE != null ? nat.SOURCES_PRODUCTIVE : "—")}</dd></div>
-            <div><dt>Statewide covered</dt><dd>${esc(nat.STATES_WITH_STATEWIDE_COVERAGE != null ? nat.STATES_WITH_STATEWIDE_COVERAGE : "—")}</dd></div>
-            <div><dt>Federal current</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.federal_current_notices) != null ? cache.discovery.federal_dla.federal_current_notices : "—")}</dd></div>
-            <div><dt>Federal bid-ready</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.federal_bid_ready) != null ? cache.discovery.federal_dla.federal_bid_ready : "—")}</dd></div>
-            <div><dt>DLA current</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_current) != null ? cache.discovery.federal_dla.dla_current : "—")}</dd></div>
-            <div><dt>DLA NSN</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dla_exact_nsn) != null ? cache.discovery.federal_dla.dla_exact_nsn : "—")}</dd></div>
-            <div><dt>DIBBS mode</dt><dd>${esc((cache.discovery && cache.discovery.federal_dla && cache.discovery.federal_dla.dibbs_access_mode) || "—")}</dd></div>
-            <div><dt>Fed enrich ready</dt><dd>${esc((cache.federalEnrich && cache.federalEnrich.commercial_research_ready) != null ? cache.federalEnrich.commercial_research_ready : "—")}</dd></div>
-            <div><dt>Funding review</dt><dd>${esc(fundingWait)}</dd></div>
-            <div><dt>Commercial review</dt><dd>${esc(commercialWait)}</dd></div>
-          </dl>
-          <p class="m3-next"><strong>Do next:</strong> ${esc((actions[0] && (actions[0].need || actions[0].opportunity_title)) || "Review opportunities")}</p>
-          <p class="muted">${esc(profile.primary_purpose || "Government product-resale")} · NAICS primary filter: ${profile.naics_is_primary_filter ? "yes" : "no"}</p>
-          <p class="muted">Outreach blocked · build ${esc((health && health.build_version) || "")}</p>
+
+      // Soft-refresh engine status for Advanced (do not paint on Dashboard)
+      cache.discovery = d.discovery || cache.discovery;
+      cache.research = d.research || cache.research;
+      cache.evidence = d.evidence || cache.evidence;
+
+      // Awaiting approval = owner gate true only (not BID_PREPARATION alone)
+      const approvals = activeWork.filter((w) => isOwnerReady(w));
+      const submitted = activeWork.filter((w) => SUBMITTED_STATES.has(w.operator_workflow_state));
+      const activeDeals = activeWork.filter(
+        (w) => !isOwnerReady(w) && !SUBMITTED_STATES.has(w.operator_workflow_state)
+      );
+
+      const expectedProfit = sumMoney(opps, (o) =>
+        o.Known_gross_spread != null && o.Known_gross_spread !== "UNKNOWN" ? o.Known_gross_spread : o.supported_profit
+      );
+      const pipelineValue = sumMoney(activeWork, (w) => w.estimated_value);
+
+      const kpiEl = document.getElementById("m3-home-kpis");
+      if (kpiEl) {
+        kpiEl.innerHTML = `
+          <article class="m3-kpi"><span class="m3-kpi-label">Expected profit</span><strong>${esc(fmtMoney(expectedProfit))}</strong></article>
+          <article class="m3-kpi"><span class="m3-kpi-label">Pipeline value</span><strong>${esc(fmtMoney(pipelineValue))}</strong></article>
+          <article class="m3-kpi"><span class="m3-kpi-label">Active deals</span><strong>${esc(activeWork.length)}</strong></article>
+          <article class="m3-kpi"><span class="m3-kpi-label">Awaiting approval</span><strong>${esc(approvals.length)}</strong></article>`;
+      }
+
+      const attentionEl = document.getElementById("m3-home-attention");
+      if (attentionEl) {
+        const cats = Object.keys(attention || {}).filter((k) => (attention[k] || []).length);
+        const role = getRole();
+        const headline =
+          role === "owner"
+            ? approvals.length
+              ? `${approvals.length} deal(s) waiting for your approval`
+              : "No deals waiting for approval"
+            : actions.length
+              ? `${actions.length} task(s) need operator action`
+              : "No urgent operator tasks";
+        attentionEl.innerHTML = `<article class="m3-info-card m3-attention-card">
+          <h3>${esc(headline)}</h3>
+          <p class="muted">${esc((od.counts && od.counts.attention_total) || 0)} blockers across pipeline · outreach blocked</p>
+          ${cats.length ? `<p class="muted">Focus: ${esc(cats.map((c) => c.replace(/_/g, " ")).join(" · "))}</p>` : ""}
         </article>`;
       }
+
+      const compactCard = (w) => {
+        const row = opps.find((o) => o.canonical_id === w.canonical_id) || w;
+        return `<article class="m3-opp-card" data-cid="${esc(w.canonical_id)}" role="button" tabindex="0">
+          <h3 class="m3-opp-title">${esc(w.deal_name || row.Opportunity || w.canonical_id)}</h3>
+          <p class="m3-stage-pill">${esc(owLabel(w.operator_workflow_state))}</p>
+          <p class="m3-next"><strong>Next:</strong> ${esc(w.operator_next_action || "Review")}</p>
+          ${(w.operator_blockers || []).length ? `<p class="m3-blockers">${esc(plainBlockers(w).join(" · "))}</p>` : ""}
+        </article>`;
+      };
+
+      const approvalsEl = document.getElementById("m3-home-approvals");
       const actionsEl = document.getElementById("m3-home-actions");
       const oppsEl = document.getElementById("m3-home-opps");
+      const submittedEl = document.getElementById("m3-home-submitted");
       const empty = document.getElementById("m3-home-empty");
-      if (actionsEl) actionsEl.innerHTML = actions.slice(0, 5).map(actionCard).join("") || "<p class='muted'>No actions</p>";
-      if (oppsEl) oppsEl.innerHTML = opps.slice(0, 12).map(oppCard).join("");
-      if (empty) empty.hidden = activeCount > 0 || opps.length > 0 || actions.length > 0;
-      wireCardClicks(actionsEl);
-      wireCardClicks(oppsEl);
+
+      if (approvalsEl) {
+        approvalsEl.innerHTML = approvals.length
+          ? approvals.map(compactCard).join("")
+          : "<p class='muted'>Nothing waiting for owner approval.</p>";
+        wireCardClicks(approvalsEl);
+      }
+      if (actionsEl) {
+        const urgent = actions.slice(0, 5);
+        actionsEl.innerHTML = urgent.length
+          ? urgent.map(actionCard).join("")
+          : "<p class='muted'>No urgent blockers.</p>";
+        wireCardClicks(actionsEl);
+      }
+      if (oppsEl) {
+        oppsEl.innerHTML = activeDeals.length
+          ? activeDeals.slice(0, 12).map(compactCard).join("")
+          : "<p class='muted'>No active deals.</p>";
+        wireCardClicks(oppsEl);
+      }
+      if (submittedEl) {
+        submittedEl.innerHTML = submitted.length
+          ? submitted.map(compactCard).join("")
+          : "<p class='muted'>No submitted opportunities.</p>";
+        wireCardClicks(submittedEl);
+      }
+      if (empty) {
+        empty.hidden = !!(approvals.length || activeDeals.length || submitted.length || actions.length);
+      }
+      paintRoleChrome();
     } catch (e) {
       const oppsEl = document.getElementById("m3-home-opps");
       if (oppsEl) oppsEl.innerHTML = `<p class="m3-empty">Unable to load dashboard. ${esc(e && e.message ? e.message : "")}</p>`;
-      // Still try to paint discovery status so the bar is never blank
-      try {
-        const st = await fetchJson("/api/m3/discovery/status");
-        cache.discovery = st;
-        renderDiscoveryStatus(st);
-      } catch (_) {
-        renderDiscoveryStatus({ status: "IDLE", progress_percent: 0 });
+    }
+  }
+
+  async function loadAdvanced() {
+    try {
+      cache.discovery = await fetchJson("/api/m3/discovery/status").catch(() => cache.discovery);
+      renderDiscoveryStatus(cache.discovery || {});
+      scheduleDiscoveryPoll(!!(cache.discovery && cache.discovery.running));
+      cache.research = await fetchJson("/api/m3/research/status").catch(() => cache.research);
+      renderResearchStatus(cache.research || {});
+      scheduleResearchPoll(!!(cache.research && cache.research.running));
+      cache.evidence = await fetchJson("/api/m3/evidence/status").catch(() => cache.evidence);
+      renderEvidenceStatus(cache.evidence || {});
+    } catch (_) {
+      renderDiscoveryStatus({ status: "IDLE", progress_percent: 0 });
+      renderResearchStatus({ status: "IDLE", progress_percent: 0 });
+    }
+  }
+
+  async function loadDeepDiveQueue(force) {
+    try {
+      if (!cache.portfolio || force) cache.portfolio = await fetchJson("/api/m3/mobile/opportunities");
+      if (!cache.dashboard || force) {
+        try {
+          cache.dashboard = await fetchJson("/api/m3/mobile/dashboard");
+        } catch (_) {}
       }
+      const list = document.getElementById("m3-deep-dive-list");
+      const empty = document.getElementById("m3-deep-dive-empty");
+      const od = (cache.dashboard && cache.dashboard.operator_dashboard) || {};
+      let rows = od.active_work || [];
+      if (!rows.length) {
+        rows = (cache.portfolio.opportunities || []).map((o) => ({
+          canonical_id: o.canonical_id,
+          deal_name: o.Opportunity || o.title,
+          operator_workflow_state: owState(o),
+          operator_next_action: plainNext(o),
+          operator_blockers: o.operator_blockers || [],
+        }));
+      }
+      const exec = rows.filter((r) => EXECUTION_STATES.has(r.operator_workflow_state) || APPROVAL_STATES.has(r.operator_workflow_state));
+      if (list) {
+        list.innerHTML = exec.length
+          ? exec
+              .map(
+                (w) => `<article class="m3-opp-card" data-cid="${esc(w.canonical_id)}" role="button" tabindex="0">
+            <h3 class="m3-opp-title">${esc(w.deal_name || w.canonical_id)}</h3>
+            <p class="m3-stage-pill">${esc(owLabel(w.operator_workflow_state))}</p>
+            <p class="m3-next"><strong>Your job:</strong> ${esc(w.operator_next_action || "Continue checklist")}</p>
+            <p class="muted">Open Deep Dive checklist →</p>
+          </article>`
+              )
+              .join("")
+          : "";
+        wireCardClicks(list);
+      }
+      if (empty) empty.hidden = exec.length > 0;
+    } catch (_) {
+      const empty = document.getElementById("m3-deep-dive-empty");
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Unable to load Deep Dive queue.";
+      }
+    }
+  }
+
+  async function loadPipeline(force) {
+    try {
+      if (!cache.portfolio || force) cache.portfolio = await fetchJson("/api/m3/mobile/opportunities");
+      const body = document.getElementById("m3-pipeline-body");
+      const ladder = document.getElementById("m3-pipeline-ladder");
+      const opps = cache.portfolio.opportunities || cache.portfolio.deals || [];
+      if (ladder) {
+        ladder.innerHTML = PIPELINE_ORDER.map((s) => `<span class="m3-pipe-step">${esc(owLabel(s))}</span>`).join(
+          '<span class="m3-pipe-arrow">↓</span>'
+        );
+      }
+      const byState = {};
+      PIPELINE_ORDER.forEach((s) => {
+        byState[s] = [];
+      });
+      opps.forEach((o) => {
+        const st = owState(o) || "QUALIFIED";
+        if (!byState[st]) byState[st] = [];
+        if (st !== "DISCOVERED") byState[st].push(o);
+      });
+      if (body) {
+        body.innerHTML = PIPELINE_ORDER.map((s) => {
+          const items = byState[s] || [];
+          if (!items.length) return "";
+          return `<section class="m3-mobile-section">
+            <h3 class="m3-section-label">${esc(owLabel(s))} · ${items.length}</h3>
+            ${items
+              .slice(0, 20)
+              .map(
+                (o) => `<article class="m3-opp-card" data-cid="${esc(o.canonical_id)}" role="button" tabindex="0">
+                <h3 class="m3-opp-title">${esc(o.Opportunity || o.title || o.canonical_id)}</h3>
+                <p class="muted">${esc(o.Agency || o.buyer || "")}</p>
+                <p class="m3-next"><strong>Next:</strong> ${esc(plainNext(o))}</p>
+              </article>`
+              )
+              .join("")}
+          </section>`;
+        }).join("") || "<p class='m3-empty'>Pipeline is empty.</p>";
+        wireCardClicks(body);
+      }
+    } catch (_) {
+      const body = document.getElementById("m3-pipeline-body");
+      if (body) body.innerHTML = "<p class='m3-empty'>Unable to load pipeline.</p>";
+    }
+  }
+
+  async function loadHistory(force) {
+    try {
+      if (!cache.portfolio || force) cache.portfolio = await fetchJson("/api/m3/mobile/opportunities");
+      let learning = null;
       try {
-        const rst = await fetchJson("/api/m3/research/status");
-        cache.research = rst;
-        renderResearchStatus(rst);
-      } catch (_) {
-        renderResearchStatus({ status: "IDLE", progress_percent: 0 });
+        learning = await fetchJson("/api/m3/learning/records").catch(() => null);
+      } catch (_) {}
+      const body = document.getElementById("m3-history-body");
+      const empty = document.getElementById("m3-history-empty");
+      const opps = (cache.portfolio.opportunities || []).filter((o) => HISTORY_STATES.has(owState(o)));
+      const records = (learning && (learning.records || learning.items || learning)) || [];
+      const recList = Array.isArray(records) ? records : [];
+      let html = "";
+      if (recList.length) {
+        html += `<section class="m3-mobile-section"><h3 class="m3-section-label">Learning outcomes</h3>`;
+        html += recList
+          .slice(0, 30)
+          .map((r) => {
+            const status = r.outcome_status || r.status || r.outcome || "—";
+            return `<article class="m3-info-card">
+              <h3>${esc(r.title || r.deal_name || r.canonical_id || "Record")}</h3>
+              <dl class="m3-kv">
+                <div><dt>Outcome</dt><dd>${esc(status)}</dd></div>
+                <div><dt>Agency</dt><dd>${esc(r.buyer || r.agency || "—")}</dd></div>
+                <div><dt>Supplier</dt><dd>${esc(r.supplier || "—")}</dd></div>
+                <div><dt>Margin / notes</dt><dd>${esc(r.lesson || r.notes || r.rationale || "—")}</dd></div>
+              </dl>
+            </article>`;
+          })
+          .join("");
+        html += `</section>`;
+      }
+      if (opps.length) {
+        html += `<section class="m3-mobile-section"><h3 class="m3-section-label">Closed / post-award deals</h3>`;
+        html += opps
+          .map(
+            (o) => {
+              const profit = o.Known_gross_spread != null && o.Known_gross_spread !== "UNKNOWN"
+                ? fmtMoney(o.Known_gross_spread)
+                : o.supported_profit != null && o.supported_profit !== "UNKNOWN"
+                  ? fmtMoney(o.supported_profit)
+                  : "UNKNOWN";
+              const supplier =
+                (o.preferred_supplier || o.supplier || (o.supplier_execution_state && o.supplier_execution_state.state) || "UNKNOWN");
+              return `<article class="m3-opp-card" data-cid="${esc(o.canonical_id)}" role="button" tabindex="0">
+            <h3 class="m3-opp-title">${esc(o.Opportunity || o.title || o.canonical_id)}</h3>
+            <p class="m3-stage-pill">${esc(owLabel(owState(o)))}</p>
+            <dl class="m3-kv">
+              <div><dt>Buyer</dt><dd>${esc(o.Agency || o.buyer || o.agency || "UNKNOWN")}</dd></div>
+              <div><dt>Supplier</dt><dd>${esc(supplier)}</dd></div>
+              <div><dt>Profit</dt><dd>${esc(profit)}</dd></div>
+              <div><dt>Outcome notes</dt><dd>${esc(o.lesson || o.loss_reason || o.why_waiting || "UNKNOWN")}</dd></div>
+            </dl>
+          </article>`;
+            }
+          )
+          .join("");
+        html += `</section>`;
+      }
+      if (body) {
+        body.innerHTML = html || "";
+        wireCardClicks(body);
+      }
+      if (empty) empty.hidden = !!(html && html.length);
+    } catch (_) {
+      const empty = document.getElementById("m3-history-empty");
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Unable to load history.";
       }
     }
   }
@@ -899,19 +1330,206 @@
     if (rid) rid.textContent = activeLearningRecordId ? "Record: " + activeLearningRecordId : "No active learning record";
   }
 
+  function checkStatus(ok, blocked) {
+    if (blocked) return "Blocked";
+    if (ok) return "Complete";
+    return "Missing";
+  }
+
+  function checklistSection(title, status, items) {
+    const cls =
+      status === "Complete"
+        ? "m3-check-status-complete"
+        : status === "Blocked"
+          ? "m3-check-status-blocked"
+          : "m3-check-status-missing";
+    const rows = (items || [])
+      .map((it) => {
+        const mark = it.done ? "✓" : it.blocked ? "✕" : "○";
+        return `<li><span class="m3-check-mark">${mark}</span> ${esc(it.label)}${it.detail ? ` <span class="muted">— ${esc(it.detail)}</span>` : ""}</li>`;
+      })
+      .join("");
+    return `<article class="m3-info-card m3-checklist-section">
+      <div class="m3-check-head">
+        <h3>${esc(title)}</h3>
+        <span class="m3-check-status ${cls}">${esc(status)}</span>
+      </div>
+      <ul class="m3-check-list">${rows}</ul>
+    </article>`;
+  }
+
+  function renderDealChecklist(deal) {
+    const el = document.getElementById("m3-deal-checklist");
+    if (!el) return;
+    const req = deal.requirements || {};
+    const fit = deal.product_fit || {};
+    const comp = deal.compliance || {};
+    const price = deal.pricing || {};
+    const fund = deal.funding || {};
+    const si = deal.supplier_intelligence || {};
+    const ci = deal.commercial_intelligence || {};
+    const pkgInt = deal.procurement_package || {};
+    const econ = deal.economics || {};
+    const blockers = new Set(deal.operator_blockers || []);
+    const bom = req.bom_lines || pkgInt.BOM || [];
+    const suppliers = si.Possible_Suppliers || [];
+    const priceItems = ((si.Pricing_Evidence || {}).items || []);
+    const hasQuote = priceItems.some((p) => String(p.level || "").includes("QUOTE") || String(p.Source || "").toLowerCase().includes("quote"));
+
+    const productItems = [
+      { label: "Exact product identity", done: !!(fit.identity || fit.matched_product || ci.Known_Manufacturer), detail: fit.identity || ci.Known_Manufacturer || "" },
+      { label: "Manufacturer / model", done: !!(ci.Known_Manufacturer || fit.manufacturer), detail: ci.Known_Manufacturer || "" },
+      { label: "Quantity", done: !!(bom.length || req.quantity), detail: bom.length ? bom.length + " line(s)" : "" },
+      { label: "Specifications", done: !!(req.specifications || (bom[0] && bom[0].specification)), detail: "" },
+      { label: "Substitutions reviewed", done: !!(fit.substitutions_ok || fit.substitution_policy), detail: "" },
+    ];
+    const productOk = productItems.filter((i) => i.done).length >= 3;
+    const productBlocked = blockers.has("PRODUCT_UNKNOWN");
+
+    const supplierItems = [
+      { label: "Supplier contacted", done: suppliers.length > 0, detail: suppliers.length ? suppliers.length + " option(s)" : "" },
+      { label: "Quote requested", done: suppliers.length > 0 || hasQuote, detail: "" },
+      { label: "Quote received", done: hasQuote, detail: hasQuote ? "Quote evidence present" : "", blocked: blockers.has("SUPPLIER_UNKNOWN") },
+      { label: "Availability", done: !!(si.Availability || (suppliers[0] && suppliers[0].availability)), detail: "" },
+      { label: "Lead time", done: !!(si.Lead_Time || (suppliers[0] && suppliers[0].lead_time)), detail: "" },
+      { label: "Supplier terms", done: !!(si.Terms || (suppliers[0] && suppliers[0].terms)), detail: "" },
+    ];
+    const supplierOk = hasQuote || (suppliers.length > 0 && !blockers.has("SUPPLIER_UNKNOWN"));
+    const supplierBlocked = blockers.has("SUPPLIER_UNKNOWN");
+
+    const pricingItems = [
+      { label: "Government historical pricing", done: !!(ci.Government_Value || econ.expected_revenue || price.government_benchmark), detail: "" },
+      { label: "Current market pricing", done: priceItems.length > 0 || !!(ci.Estimated_Acquisition), detail: "" },
+      { label: "Supplier cost", done: hasQuote || !!(econ.acquisition_cost), detail: "" },
+      { label: "Expected margin", done: econ.expected_profit != null && econ.expected_profit !== "UNKNOWN", detail: fmtMoney(econ.expected_profit) },
+      { label: "Confidence", done: !!(deal.confidence_level || price.evidence_level), detail: deal.confidence_level || price.evidence_level || "" },
+    ];
+    const pricingOk = pricingItems.filter((i) => i.done).length >= 3 && !blockers.has("ECONOMICS_UNKNOWN");
+    const pricingBlocked = blockers.has("ECONOMICS_UNKNOWN");
+
+    const complianceItems = [
+      { label: "Domestic requirements", done: !!(comp.domestic || comp.buy_american || comp.TAA), detail: "" },
+      { label: "Brand restrictions", done: comp.brand_restricted != null || !!(comp.brand_notes), detail: "" },
+      { label: "Certifications", done: !!(comp.certifications || []).length, detail: "" },
+      { label: "Set-asides", done: !!(comp.set_aside || req.set_aside), detail: comp.set_aside || req.set_aside || "" },
+      { label: "Solicitation requirements", done: !!(req.special_requirements || comp.solicitation_notes || bom.length), detail: "" },
+    ];
+    const complianceOk = complianceItems.filter((i) => i.done).length >= 2;
+
+    const financeItems = [
+      { label: "Purchase amount", done: !!(fund.amount || econ.capital_required || econ.expected_revenue), detail: fmtMoney(fund.amount || econ.capital_required) },
+      { label: "Payment timeline", done: !!(fund.payment_timeline || fund.terms), detail: "" },
+      { label: "Funding requirement", done: !!(fund.funding_state || fund.required), detail: fund.funding_state || "" },
+      { label: "Financing path", done: !!(fund.path || fund.financing_path), detail: fund.path || fund.financing_path || "", blocked: blockers.has("FUNDING_UNRESOLVED") },
+    ];
+    const financeOk = !blockers.has("FUNDING_UNRESOLVED") && financeItems.filter((i) => i.done).length >= 2;
+    const financeBlocked = blockers.has("FUNDING_UNRESOLVED");
+
+    const bidItems = [
+      { label: "Documents complete", done: !!(pkgInt.Documents || pkgInt.documents_complete || deal.evidence), detail: "" },
+      { label: "Pricing complete", done: pricingOk, detail: "" },
+      { label: "Submission ready", done: APPROVAL_STATES.has(deal.operator_workflow_state) || !!(deal.actions && !deal.actions.why_not_ready), detail: "" },
+    ];
+    const bidOk = bidItems.filter((i) => i.done).length >= 2;
+
+    el.innerHTML = [
+      checklistSection("Product Validation", checkStatus(productOk, productBlocked), productItems),
+      checklistSection("Supplier Validation", checkStatus(supplierOk, supplierBlocked), supplierItems),
+      checklistSection("Pricing Validation", checkStatus(pricingOk, pricingBlocked), pricingItems),
+      checklistSection("Compliance", checkStatus(complianceOk, false), complianceItems),
+      checklistSection("Financing", checkStatus(financeOk, financeBlocked), financeItems),
+      checklistSection("Bid Preparation", checkStatus(bidOk, false), bidItems),
+      `<article class="m3-info-card">
+        <h3>Who acts next</h3>
+        <p><strong>${esc(isOwnerReady(deal) ? "Owner" : "VA / Operator")}</strong></p>
+        <p class="m3-next">${esc(deal.operator_next_action || (deal.actions && deal.actions.next_action) || "Continue checklist")}</p>
+        ${(deal.operator_blockers || []).length ? `<p class="m3-blockers">Blockers: ${esc(plainBlockers(deal).join(" · "))}</p>` : ""}
+      </article>`,
+    ].join("");
+  }
+
   async function openDealRoom(canonicalId) {
     lastDealId = canonicalId;
     showM3View("deal-room");
     const sections = document.getElementById("m3-deal-sections");
+    const checklistEl = document.getElementById("m3-deal-checklist");
     const title = document.getElementById("m3-deal-title");
     const sub = document.getElementById("m3-deal-sub");
-    if (sections) sections.innerHTML = "<p class='muted'>Loading deal room…</p>";
+    const readyBanner = document.getElementById("m3-deal-ready-banner");
+    if (sections) sections.innerHTML = "<p class='muted'>Loading technical details…</p>";
+    if (checklistEl) checklistEl.innerHTML = "<p class='muted'>Loading checklist…</p>";
     try {
       const deal = await fetchJson("/api/m3/mobile/deal/" + encodeURIComponent(canonicalId));
       cache.deal = deal;
       const o = deal.overview || {};
-      if (title) title.textContent = o.title || "Deal Room";
-      if (sub) sub.textContent = (o.buyer || "") + " · " + (o.lifecycle || "");
+      const ow = deal.operator_workflow_state || (deal.operator_summary && deal.operator_summary.operator_workflow_state) || "";
+      if (title) title.textContent = o.title || "Deep Dive";
+      if (sub) {
+        sub.textContent =
+          (o.buyer || "") + " · " + owLabel(ow) + " · Next: " + (deal.operator_next_action || o.next_action || "Continue checklist");
+      }
+      renderDealChecklist(deal);
+      // Prefer Phase D structured section statuses when present (no UI redesign)
+      const ec = deal.execution_compliance || {};
+      const dd = ec.deep_dive_sections || {};
+      if (checklistEl && dd && Object.keys(dd).length) {
+        const mapStatus = (sec) => {
+          const code = (sec && sec.code) || "";
+          if (code === "COMPLETE") return "Complete";
+          if (code === "BLOCKED") return "Blocked";
+          if (code === "MISSING" || code === "DEFERRED_TO_ECONOMICS") return "Missing";
+          return "Action Required";
+        };
+        const sectionsOrder = [
+          ["Product Validation", "Product"],
+          ["Supplier Validation", "Supplier"],
+          ["Pricing Validation", "Pricing"],
+          ["Compliance", "Compliance"],
+          ["Financing", "Financing"],
+          ["Bid Preparation", "Bid"],
+        ];
+        const cards = sectionsOrder.map(([title, key]) => {
+          const sec = dd[key] || {};
+          const st = mapStatus(sec);
+          const cls =
+            st === "Complete"
+              ? "m3-check-status-complete"
+              : st === "Blocked"
+                ? "m3-check-status-blocked"
+                : "m3-check-status-missing";
+          const actions = (sec.actions || []).slice(0, 6);
+          const rows = actions.length
+            ? actions.map((a) => `<li><span class="m3-check-mark">○</span> ${esc(a)}</li>`).join("")
+            : `<li class="muted">${esc(sec.status || "No items")}</li>`;
+          return `<article class="m3-info-card m3-checklist-section">
+            <div class="m3-check-head"><h3>${esc(title)}</h3><span class="m3-check-status ${cls}">${esc(st)}</span></div>
+            <ul class="m3-check-list">${rows}</ul>
+          </article>`;
+        });
+        const gate = ec.owner_approval_gate || {};
+        cards.push(`<article class="m3-info-card">
+          <h3>Who acts next</h3>
+          <p><strong>${esc(gate.ready_for_owner_approval ? "Owner" : "VA / Operator")}</strong></p>
+          <p class="m3-next">${esc((gate.va_next_actions && gate.va_next_actions[0]) || deal.operator_next_action || "Continue checklist")}</p>
+          ${(gate.reasons || []).length ? `<p class="m3-blockers">${esc(gate.reasons.slice(0, 4).join(" · "))}</p>` : ""}
+        </article>`);
+        checklistEl.innerHTML = cards.join("");
+      }
+      if (readyBanner) {
+        // Phase E.1 — sole authority: owner_approval_gate.ready_for_owner_approval === true
+        // BID_PREPARATION / checklist allPass / legacy READY must never override a blocked gate.
+        const gateReady =
+          (ec.owner_approval_gate && ec.owner_approval_gate.ready_for_owner_approval === true) ||
+          deal.ready_for_owner_approval === true;
+        readyBanner.hidden = !gateReady;
+        if (gateReady) {
+          readyBanner.textContent = "READY FOR OWNER APPROVAL";
+          readyBanner.className = "m3-ready-banner m3-ready-on";
+        } else {
+          readyBanner.textContent = "";
+          readyBanner.className = "m3-ready-banner";
+        }
+      }
       const econ = deal.economics || {};
       const fund = deal.funding || {};
       const req = deal.requirements || {};
@@ -965,7 +1583,7 @@
           (p) =>
             `<li>${esc(p.level)} · ${esc(p.amount)} ${esc(p.unit || "USD")} · ${esc(p.Source)} · match ${esc(p.Product_match_confidence)}</li>`
         )
-        .join("") || `<li class="muted">${esc((si.Pricing_Evidence || {}).level || "LEVEL_4_UNKNOWN")}</li>`;
+        .join("") || `<li class="muted">${esc(humanEvidenceLevel((si.Pricing_Evidence || {}).level))}</li>`;
       if (sections) {
         sections.innerHTML = [
           sectionCard(
@@ -1068,7 +1686,7 @@
               <div><dt>NSN</dt><dd>${esc(prodInt.NSN ?? "UNKNOWN")}</dd></div>
               <div><dt>Quantity</dt><dd>${esc(prodInt.Quantity ?? "UNKNOWN")}</dd></div>
               <div><dt>Contract value</dt><dd>${esc(prodInt.Contract_value ?? "UNKNOWN")} <span class="muted">(${esc(prodInt.Contract_value_confidence || "")})</span></dd></div>
-              <div><dt>Pricing evidence</dt><dd>${esc(((prodInt.Pricing_evidence || {}).level) ?? "LEVEL_4")} · ${esc(((prodInt.Pricing_evidence || {}).items || []).length)} item(s)</dd></div>
+              <div><dt>Pricing evidence</dt><dd>${esc(humanEvidenceLevel((prodInt.Pricing_evidence || {}).level))} · ${esc(((prodInt.Pricing_evidence || {}).items || []).length)} item(s)</dd></div>
               <div><dt>Research readiness</dt><dd>${esc(prodInt.Research_readiness ?? "UNKNOWN")}</dd></div>
               <div><dt>Missing information</dt><dd>${esc(((prodInt.Missing_information || []).join(", ")) || "none listed")}</dd></div>
               <div><dt>Next Action</dt><dd>${esc(prodInt.Next_Action ?? "—")}</dd></div>
@@ -1184,6 +1802,28 @@
             </dl>`
           ),
           sectionCard(
+            "Phase L Access / Competition / Economics",
+            (() => {
+              const pl = deal.phase_l_owner_view || deal.phase_l || {};
+              const a = pl.access || {};
+              const c = pl.competition || {};
+              const e = pl.economics || {};
+              const s = pl.source || {};
+              return `<dl class="m3-kv">
+              <div><dt>Can we bid?</dt><dd>${esc(a.can_we_bid || "—")}</dd></div>
+              <div><dt>Why / blocker</dt><dd>${esc(a.why || "—")}</dd></div>
+              <div><dt>Access type</dt><dd>${esc(a.competition_access_type || "—")}</dd></div>
+              <div><dt>Hist offers</dt><dd>${esc(c.historical_offers ?? "—")}</dd></div>
+              <div><dt>Competition signal</dt><dd>${esc(c.effective_competition_signal || "—")}</dd></div>
+              <div><dt>Retail unit</dt><dd>${esc(e.public_retail_unit_price ?? "—")}</dd></div>
+              <div><dt>Expected net</dt><dd>${esc(e.expected_net_profit ?? "—")}</dd></div>
+              <div><dt>Profit tier</dt><dd>${esc(e.profit_tier || "—")}</dd></div>
+              <div><dt>Source level</dt><dd>${esc(s.source_level || "—")}</dd></div>
+              <div><dt>Owner decision</dt><dd>${esc(pl.owner_decision || "—")}</dd></div>
+            </dl>`;
+            })()
+          ),
+          sectionCard(
             "Economics",
             `<dl class="m3-kv">
               <div><dt>Revenue</dt><dd>${esc(fmtMoney(econ.revenue))}</dd></div>
@@ -1235,7 +1875,9 @@
   function wireCardClicks(container) {
     if (!container) return;
     container.querySelectorAll("[data-cid]").forEach((el) => {
-      const go = () => {
+      if (el.matches("button")) return;
+      const go = (e) => {
+        if (e && e.target && e.target.closest && e.target.closest("[data-stop],button")) return;
         const cid = el.getAttribute("data-cid");
         if (cid) openDealRoom(cid);
       };
@@ -1243,7 +1885,30 @@
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          go();
+          go(e);
+        }
+      });
+    });
+  }
+
+  function wireOppActions(container) {
+    if (!container) return;
+    container.querySelectorAll(".m3-advance-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cid = btn.getAttribute("data-cid");
+        if (cid) openDealRoom(cid);
+      });
+    });
+    container.querySelectorAll(".m3-reject-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = btn.closest(".m3-opp-card");
+        if (card) {
+          card.classList.add("m3-rejected");
+          card.innerHTML = "<p class='muted'>Marked reject (local only — not persisted yet).</p>";
         }
       });
     });
@@ -1256,11 +1921,18 @@
         showM3View(v);
       });
     });
-    document.getElementById("m3-deal-back")?.addEventListener("click", () => showM3View("opportunities"));
+    document.getElementById("m3-deal-back")?.addEventListener("click", () => showM3View("deep-dive"));
+    document.getElementById("m3-advanced-back")?.addEventListener("click", () => showM3View("settings"));
     document.getElementById("m3-open-verify")?.addEventListener("click", () => showM3View("verify"));
+    document.getElementById("m3-open-advanced")?.addEventListener("click", () => showM3View("advanced"));
+    document.getElementById("m3-open-actions")?.addEventListener("click", () => showM3View("actions"));
+    document.getElementById("m3-open-sources")?.addEventListener("click", () => showM3View("sources"));
+    document.getElementById("m3-open-micro-lab")?.addEventListener("click", () => showM3View("micro-lab"));
+    document.getElementById("m3-role-owner")?.addEventListener("click", () => setRole("owner"));
+    document.getElementById("m3-role-va")?.addEventListener("click", () => setRole("va"));
     document.querySelectorAll(".m3-opp-filter").forEach((btn) => {
       btn.addEventListener("click", () => {
-        portfolioFilter = btn.getAttribute("data-filter") || "all";
+        portfolioFilter = btn.getAttribute("data-filter") || "intake";
         loadOpportunities(false);
       });
     });
@@ -1330,15 +2002,14 @@
         return;
       }
       try {
-        const state = document.getElementById("m3-fv-state")?.value || "UNKNOWN";
         await postJson("/api/m3/learning/financing-verification", {
           record_id: activeLearningRecordId,
           financing_path: document.getElementById("m3-fv-path")?.value || "UNKNOWN",
-          result: state,
-          state: state,
+          result: document.getElementById("m3-fv-state")?.value || "UNKNOWN",
+          state: document.getElementById("m3-fv-state")?.value || "UNKNOWN",
           authorized_by: "mobile-operator",
         });
-        setLearningMsg("Financing verification recorded (UNKNOWN≠rejection)");
+        setLearningMsg("Financing verification recorded");
       } catch (e) {
         setLearningMsg(String(e.message || e));
       }

@@ -1,0 +1,32 @@
+{
+  "case_id": "CASE_017",
+  "case_name": "Commercial ASTM packaging",
+  "description": "",
+  "source_type": "SYNTHETIC_VALIDATION_FIXTURE",
+  "source_fixture": "SYNTHETIC_VALIDATION_FIXTURE\nRFQ ASTM-017 Quantity: 9 EA Part Number: A-1\nCommercial packaging ASTM D3951 acceptable.\n",
+  "documents": [],
+  "row_overrides": {},
+  "expected": {
+    "packaging": {
+      "commercial_packaging_detected": true
+    },
+    "owner_readiness": {
+      "ready_for_owner_approval": false
+    }
+  },
+  "allowed_unknowns": [],
+  "expected_blockers": [],
+  "expected_operator_state": null,
+  "expected_owner_readiness": false,
+  "tags": [
+    "packaging",
+    "commercial"
+  ],
+  "notes": "",
+  "adversarial": false,
+  "validation_depth": "execution_path",
+  "reality_class": null,
+  "ui_expectations": {},
+  "next_action_quality": null,
+  "blocker_quality": null
+}
