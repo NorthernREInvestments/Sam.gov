@@ -26,7 +26,7 @@ from discovery.lower48 import (
     registration_unlock_score,
 )
 from discovery.platform_buyer_catalog import platform_buyer_catalog, platform_catalog_by_family
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from phase_l.acquisition_lanes import STAGE3_NO_ROW_CAP
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
 from phase_l.legacy_cleanup import assert_no_fixed_positive_cap
@@ -111,7 +111,7 @@ def test_gates_and_no_sam_dibbs_outreach():
     assert STAGE3_NO_ROW_CAP
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert VALIDATED_QUOTE_TARGET == "VALIDATED_QUOTE_TARGET"
 

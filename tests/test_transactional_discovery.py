@@ -69,14 +69,20 @@ def test_hvac_low_fit():
 
 
 def test_one_time_product_outranks_sourcewell():
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 9, 15, 12, 0, 0, tzinfo=timezone.utc)
+    product_due = (now + timedelta(days=45)).strftime("%m/%d/%Y")
+    coop_due = (now + timedelta(days=75)).strftime("%m/%d/%Y")
     product = enrich_for_transactional_ranking(
         {
             "title": "RFQ Purchase of industrial pumps",
             "description": "Procurement of 12 industrial pumps",
             "source_id": "state_tx",
             "product_classification": "CORE_PRODUCT",
-            "deadline_raw": "10/01/2026",
-        }
+            "deadline_raw": product_due,
+        },
+        now=now,
     )
     coop = enrich_for_transactional_ranking(
         {
@@ -84,8 +90,9 @@ def test_one_time_product_outranks_sourcewell():
             "agency": "Sourcewell",
             "source_id": "coop_sourcewell_live",
             "product_classification": "CORE_PRODUCT",
-            "deadline_raw": "11/03/2026",
-        }
+            "deadline_raw": coop_due,
+        },
+        now=now,
     )
     assert product["transactional_priority_score"] > coop["transactional_priority_score"]
     assert product["launch_tier"] in {TIER_A_IMMEDIATE, TIER_B_LIKELY}

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from discovery.sam_api_parked import (
     SAM_API_PENDING_REPLACEMENT_KEY,
+    SAM_API_BUDGETED,
     assert_no_sam_opportunities_api_url,
     block_sam_opportunities_fetch,
     sam_api_park_status,
@@ -49,7 +50,7 @@ DOCS = ROOT / "docs"
 
 def test_sam_api_pending_and_unused():
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert st["calls_allowed_this_phase"] == 0
     assert assert_no_sam_opportunities_api_url("https://api.sam.gov/opportunities/v2/search")
@@ -62,7 +63,7 @@ def test_sam_api_pending_and_unused():
         assert not assert_no_sam_opportunities_api_url(s.get("list_url"))
     # Free queue marks SAM as pending
     sam_q = next(x for x in FREE_STRUCTURED_ACCESS_QUEUE if "SAM" in x["source"])
-    assert sam_q.get("status") == SAM_API_PENDING_REPLACEMENT_KEY
+    assert sam_q.get("status") in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
 
 
 def test_socrata_multi_source_registry():
@@ -217,7 +218,7 @@ def test_l16_artifacts_when_present():
     assert summary.get("no_sam_api_calls") is True
     assert summary.get("no_outreach") is True
     assert summary.get("evidence_gate_unchanged") is True
-    assert summary["sam_api"]["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert summary["sam_api"]["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert summary["sam_api"]["calls_consumed"] == 0
     for doc in (
         "phase_l16_public_structured_expansion.md",

@@ -1,7 +1,7 @@
 """Deadline / timezone normalization — never silently assume timezone."""
 
 from __future__ import annotations
-from application_clock import now_utc, today_local
+from application_clock import now_utc
 
 import re
 from datetime import date, datetime, timezone
@@ -18,10 +18,12 @@ def normalize_deadline(
     *,
     timezone_hint: str | None = None,
     timezone_explicit: bool = False,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """
     Store raw, parsed local, timezone, UTC where resolvable.
     Unknown timezone is explicit — never silent default to ET/UTC for display as fact.
+    Optional ``now`` keeps deadline_passed aligned with injected clocks (tests/pipelines).
     """
     if raw is None or raw == "":
         return {
@@ -130,12 +132,18 @@ def normalize_deadline(
             tz_conf = "UNKNOWN"
             utc_deadline = None
 
+    clock = now if isinstance(now, datetime) else now_utc()
+    if clock.tzinfo is None:
+        clock = clock.replace(tzinfo=timezone.utc)
+    else:
+        clock = clock.astimezone(timezone.utc)
+
     deadline_passed = False
     if utc_deadline:
-        deadline_passed = utc_deadline < now_utc()
+        deadline_passed = utc_deadline < clock
     elif parsed_local:
         # Compare date-only when TZ unknown — conservative date compare
-        deadline_passed = parsed_local.date() < today_local()
+        deadline_passed = parsed_local.date() < clock.date()
 
     return {
         "deadline_raw": raw_s,

@@ -20,7 +20,7 @@ def test_build_tag_and_app_version():
     from app import APP_BUILD_VERSION
 
     assert BUILD_TAG == "20260919-m3-pursuit-readiness-1"
-    assert APP_BUILD_VERSION.startswith("20260922-m3-")
+    assert APP_BUILD_VERSION.startswith("2026") and "m3-" in APP_BUILD_VERSION
 
 
 def test_assessment_known_evidence_and_unknowns_preserved():

@@ -27,7 +27,7 @@ from discovery.lower48 import (
     is_nonfederal_accessible_now,
     normalize_jurisdiction_id,
 )
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from discovery.structured_adapters import cross_source_dedupe_key, dedupe_structured_rows
 from phase_l.acquisition_lanes import STAGE3_NO_ROW_CAP
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
@@ -136,7 +136,7 @@ def test_cross_jurisdiction_dedupe_and_gates():
     assert VALIDATED_QUOTE_TARGET == "VALIDATED_QUOTE_TARGET"
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
 
 

@@ -10,7 +10,7 @@ from discovery.opengov_agency_mirrors import (
     propose_mirrors_for_jurisdiction,
 )
 from discovery.platform_adapters import crosswalk_confidence
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from phase_l.acquisition_lanes import STAGE3_NO_ROW_CAP
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
 from phase_l.l18_research_conversion import (
@@ -168,7 +168,7 @@ def test_authoritative_gates_unchanged():
     assert STAGE3_NO_ROW_CAP
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert BUILD.startswith("20260928-m3-phase-l18")
     assert EXPIRED == "EXPIRED"

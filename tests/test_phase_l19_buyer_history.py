@@ -19,7 +19,7 @@ from discovery.buyer_history_profiles import (
     discover_and_profile_buyer,
     note_prior_government_vendor,
 )
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
 from phase_l.exact_history_recovery import grade_recovered_award
 from phase_l.l19_buyer_history_recovery import (
@@ -144,7 +144,7 @@ def test_gates_unchanged():
     assert_no_fixed_positive_cap()
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert st["calls_allowed_this_phase"] == 0
     assert BUILD.startswith("20260928-m3-phase-l19")

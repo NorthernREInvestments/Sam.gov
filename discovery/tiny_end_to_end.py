@@ -645,12 +645,17 @@ def process_opportunity_pipeline(
         )
         out["product_classification"] = cls["classification"]
 
-    dl = normalize_deadline(out.get("deadline_raw"))
+    # Prefer viability enrichment clock; fall back to normalize_deadline(now=...) so
+    # injected pipeline clocks stay consistent (never wall-clock vs FIXED_NOW skew).
+    deadline_passed = bool(out.get("deadline_expired"))
+    if out.get("deadline_raw") and out.get("deadline_expired") is None:
+        dl = normalize_deadline(out.get("deadline_raw"), now=now)
+        deadline_passed = bool(dl.get("deadline_passed"))
     reject = early_reject_reasons(
         title=out.get("title"),
         description=out.get("description"),
         status=out.get("status"),
-        deadline_passed=bool(dl.get("deadline_passed")),
+        deadline_passed=deadline_passed,
         classification=out.get("product_classification"),
         estimated_value=out.get("estimated_value"),
         estimated_value_status=out.get("estimated_value_status", "UNKNOWN"),

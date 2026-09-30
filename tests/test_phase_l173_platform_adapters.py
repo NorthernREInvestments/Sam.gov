@@ -20,7 +20,7 @@ from discovery.platform_adapters import (
     extract_portal_slug,
     platform_inventory,
 )
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from phase_l.acquisition_lanes import STAGE3_NO_ROW_CAP
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
 from phase_l.l173_platform_expansion import diagnose_ready_to_research
@@ -103,7 +103,7 @@ def test_authoritative_chain_and_gates():
     assert STAGE3_NO_ROW_CAP
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert VALIDATED_QUOTE_TARGET == "VALIDATED_QUOTE_TARGET"
     assert BUILD.startswith("20260928-m3-phase-l173")

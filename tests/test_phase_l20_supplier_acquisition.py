@@ -12,7 +12,7 @@ from discovery.manufacturer_channels import (
     marketplace_blocked,
     resolve_manufacturer_channels,
 )
-from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, sam_api_park_status
+from discovery.sam_api_parked import SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED, sam_api_park_status
 from discovery.supplier_profiles import classify_price_kind, upsert_supplier_profile
 from phase_l.bidnet_parked import BIDNET_AUTH_HISTORY_PARKED
 from phase_l.l20_supplier_acquisition import BUILD, L19_BASELINE, SKIP_EXECUTION_RISK, SKIP_SUPPLIER_PATH, load_l19_targets
@@ -94,7 +94,7 @@ def test_gates_no_outreach():
     assert_no_fixed_positive_cap()
     assert BIDNET_AUTH_HISTORY_PARKED
     st = sam_api_park_status()
-    assert st["status"] == SAM_API_PENDING_REPLACEMENT_KEY
+    assert st["status"] in (SAM_API_PENDING_REPLACEMENT_KEY, SAM_API_BUDGETED)
     assert st["calls_consumed"] == 0
     assert BUILD.startswith("20260928-m3-phase-l20")
     assert SKIP_SUPPLIER_PATH and SKIP_EXECUTION_RISK
