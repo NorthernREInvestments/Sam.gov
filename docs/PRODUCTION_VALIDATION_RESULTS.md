@@ -13,6 +13,9 @@
 | Validation branch | `cleanup/m3-r5-production-consolidation` |
 | Final validated cleanup commit | `b5e288895d34e1ae181258832db21d0b0e705da9` |
 | Previous `main` | `0d5c08c717298888b013af1badba702999241419` |
+| Main merge commit | `8eafcb1fe3e6912c57f435377b14ce9820c786bf` |
+| Production boot hotfx | `7b71b8ee204f14bb6b58b82d767b7fb1db3d951b` |
+| Release tag | `m3-r5-production-ready` → merge commit |
 
 ## Full test suite
 
@@ -86,9 +89,11 @@ All counters treated as **0** for buyer-facing packages in R5 corpus validation 
 - Mechanism: **Railway** (`railway.toml` → `scripts/start_railway.sh`; auto-deploys from `main`)
 - Production URL: `https://samgov-production.up.railway.app`
 - First post-merge deploy (`1734d881…`): **CRASHED** — SQLAlchemy defaulted to `psycopg` v3 while requirements ship `psycopg2-binary`
-- Hotfix on `main`: force `postgresql+psycopg2://` in `database.py` / `shared_db.py`
-- Redeploy status: see final report / Railway deployment list
-- Non-destructive checks: `/api/health`, `/login.html`, `/ops` (no SAM spend, no submissions)
+- Hotfix on `main` (`7b71b8e`): force `postgresql+psycopg2://` in `database.py` / `shared_db.py`
+- Redeploy (`7a0bf44a…`): **SUCCESS** · service **Online**
+- `/api/health` → 200 (`build_version` = `20260929-m3-owner-ui-15-minute-operator-training`, `startup_ready=true`)
+- `/login.html` → 200
+- `/` and `/ops` without session → auth redirect to login (expected; no production credentials used in this pass)
 
 ## Remaining operational blockers (not software failures)
 
