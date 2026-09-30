@@ -177,7 +177,8 @@ def test_no_caps_resilient_canonical():
     assert obsolete_rule_active("LEGACY_BIDNET_AUTH_HISTORY_AS_CURRENT_PRIORITY") is False
     report = legacy_cleanup_report()
     assert report["l14_reconciled"]["bidnet_auth_history_parked"] is True
-    assert "l14_rescue" in report["canonical_entrypoints"]["live_runner"]
+    assert "l23_full_population_funnel" in report["canonical_entrypoints"]["live_runner"]
+    assert "historical_rescue_modules_deleted" in report
 
 
 def test_live_fetchers_registered():

@@ -76,33 +76,39 @@ STATUS_MIGRATIONS: dict[str, str] = {
     "LEGACY_STRICT_STAGE2_FAIL": "L5_PERMISSIVE_ADMISSION_COUNTERFACTUAL_ONLY",
 }
 
-# Modules retained for historical rescues / telemetry (not live alternate funnel)
+# Compatibility retained (modules still present — not live alternate funnel)
 COMPATIBILITY_MODULES = {
-    "phase_l.l21_rescue": "historical L.2.1 rescue runner — not live funnel",
-    "phase_l.l22_rescue": "historical L.2.2 rescue runner — not live funnel",
-    "phase_l.l23_rescue": "historical L.2.3 rescue runner — not live funnel",
-    "phase_l.l24_rescue": "historical L.2.4 rescue runner — not live funnel",
-    "phase_l.l25_rescue": "historical L.2.5 rescue runner — not live funnel",
-    "phase_l.l26_rescue": "historical L.2.6 rescue runner — not live funnel",
-    "phase_l.l27_rescue": "historical L.2.7 rescue runner — not live funnel",
-    "phase_l.l28_rescue": "historical L.2.8 rescue runner — not live funnel",
-    "phase_l.l29_rescue": "historical L.2.9 rescue runner — not live funnel",
-    "phase_l.l3_rescue": "historical L.3 rescue — lane/econ patterns reused via imports",
-    "phase_l.l4_rescue": "historical L.4 rescue",
-    "phase_l.l5_rescue": "historical L.5 rescue",
-    "phase_l.l9_rescue": "historical L.9 quality audit — not live alternate funnel",
-    "phase_l.l8_rescue": "historical L.8 population recovery",
-    "phase_l.l7_rescue": "historical L.7 quote readiness",
-    "phase_l.l6_rescue": "L.6 economics — still callable; L.10 wraps via exact workflow",
-    "phase_l.l10_rescue": "historical L.10 exact evidence — superseded by L.11/L.12",
-    "phase_l.l11_rescue": "historical L.11 exact history — L.12 wraps with buyer-pivot auth recovery",
-    "phase_l.l12_rescue": "historical L.12 auth-walled recovery — L.13 adds public artifact branch before registration",
     "phase_l.exact_history_recovery.classify_auth_wall": "delegates to auth_access; legacy alias map only",
-    "phase_l.platform_history.run_buyer_pivot": "seeds buyer URLs; L.12 auth_history_recovery is canonical pivot",
+    "phase_l.platform_history.run_buyer_pivot": "seeds buyer URLs; auth_history_recovery is canonical pivot",
     "phase_l.acquisition_pricing.NO_PRICE_INFORMATION": "public-price path failure class only; not quote-required dead end",
     "phase_l.stage2_admission.legacy_strict_would_pass": "counterfactual telemetry only; not admission gate",
     "phase_l.source_roles.STAGE3_NO_ROW_CAP": "re-exported from acquisition_lanes (single source of truth)",
 }
+
+# Historical l*_rescue runners removed in 20260930 consolidation (see remaining_compatibility.json)
+DELETED_HISTORICAL_RESCUE_MODULES = (
+    "phase_l.l3_rescue",
+    "phase_l.l4_rescue",
+    "phase_l.l5_rescue",
+    "phase_l.l6_rescue",
+    "phase_l.l7_rescue",
+    "phase_l.l8_rescue",
+    "phase_l.l9_rescue",
+    "phase_l.l10_rescue",
+    "phase_l.l11_rescue",
+    "phase_l.l12_rescue",
+    "phase_l.l13_rescue",
+    "phase_l.l14_rescue",
+    "phase_l.l21_rescue",
+    "phase_l.l22_rescue",
+    "phase_l.l23_rescue",
+    "phase_l.l24_rescue",
+    "phase_l.l25_rescue",
+    "phase_l.l26_rescue",
+    "phase_l.l27_rescue",
+    "phase_l.l28_rescue",
+    "phase_l.l29_rescue",
+)
 
 
 def assert_canonical_caps() -> dict[str, bool]:
@@ -164,6 +170,7 @@ def legacy_cleanup_report() -> dict[str, Any]:
         "obsolete_rules_active_on_live_path": False,
         "status_migrations": dict(STATUS_MIGRATIONS),
         "compatibility_retained": dict(COMPATIBILITY_MODULES),
+        "historical_rescue_modules_deleted": list(DELETED_HISTORICAL_RESCUE_MODULES),
         "l12_reconciled": {
             "duplicate_auth_classifiers": "auth_access is sole taxonomy; exact_history_recovery maps legacy aliases",
             "duplicate_buyer_history_branches": "auth_history_recovery + buyer_history_paths canonical; platform_history pivot seeds only",
@@ -190,7 +197,7 @@ def legacy_cleanup_report() -> dict[str, Any]:
         "no_fixed_32_cap": True,
         "duplicate_lane_classifier": "resolved — only acquisition_lanes.classify_acquisition_lane",
         "duplicate_cap_flags": "source_roles re-exports acquisition_lanes constants",
-        "dead_code_policy": "historical rescue scripts retained; not invoked by L.10 live runner",
+        "dead_code_policy": "historical l*_rescue runners deleted in 20260930 consolidation; live path is L.23 funnel",
         "category_benchmark_policy": "Gov D recon-only unless model-specific band → Gov C",
         "generic_supplier_policy": "Supplier D cannot validate; seeds never exact evidence",
     }

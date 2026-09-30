@@ -1,9 +1,9 @@
 # Phase History Changelog (compact)
 
-Build: `20260929-m3-repository-fat-trim-runtime-consolidation`
+Build: `20260930-m3-production-repository-consolidation`  
+Baseline: `r5_known_good_commit` = `2fe3e1629e4844846057ddcf564e73b83b421791`
 
-Obsolete per-phase design notes were removed in the repository fat-trim.
-Git history retains full prior documentation.
+Obsolete per-phase design notes and historical `l*_rescue` runners were removed in the production consolidation. Git history retains full prior documentation.
 
 ## Milestones retained in current system
 
@@ -15,5 +15,11 @@ Git history retains full prior documentation.
 - **L.22** — supplier call desk
 - **L.23** — full-population canonical funnel
 - **L.23.1** — population audit, dedupe repair, deep-tier / WATCH split
+- **R1–R5** — response engine (intake → CLIN/economics → company compliance → documents → preflight/submission UI)
 
-Earlier L.3–L.16 and Phase G–K research scaffolding informed the above and is no longer required as separate living docs.
+## 20260930 consolidation
+
+- Deleted historical `phase_l/l*_rescue.py` runners + matching one-shot scripts/tests
+- Deleted obsolete phase/pilot design docs (kept CURRENT_* / R* / M3 operator / SAM policy)
+- Canonical next-action: `response_engine.operator_state_service`
+- See `artifacts/repository_cleanup/remaining_compatibility.json`

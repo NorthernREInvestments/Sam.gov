@@ -1,90 +1,84 @@
-# Repository Cleanup Results
+# M3 Production Repository Consolidation Results
 
-Build: `20260929-m3-repository-fat-trim-runtime-consolidation`
+**Build:** `20260930-m3-production-repository-consolidation`  
+**Branch:** `cleanup/m3-r5-production-consolidation`  
+**Baseline (`r5_known_good_commit`):** `2fe3e1629e4844846057ddcf564e73b83b421791`
 
 ## Verdict
 
-`M3_REPOSITORY_CLEANUP_COMPLETE`
+`M3_PRODUCTION_REPOSITORY_CONSOLIDATED_READY`
 
-## Size
+## Before / after
 
-| | Bytes | MB |
-|--|------:|---:|
-| Before | 206,580,446 | 197.0 |
-| After | 116,191,565 | 116.2 |
-| Removed | 90,388,881 | 90.4 |
-| Reduction | | **43.8%** |
+| Metric | Before (baseline) | After |
+|--------|------------------:|-----:|
+| Docs (`docs/*.md`) | ~410 | 123 |
+| Tests (`tests/test_*.py`) | 206 | 188 |
+| `phase_l/l*_rescue.py` | 21 | **0** |
+| `phase_l/*.py` | ~100 | 79 |
+| Synthetic DEAD_END_DEALS | — | **0** |
+| Live SAM calls in validation | — | **0** |
+| External side effects | — | **0** |
 
-### Breakdown
+Deleted vs baseline (on disk): **346** paths — see `artifacts/repository_cleanup/deletion_manifest.json`.
 
-| Area | Before MB | After MB |
-|------|----------:|---------:|
-| artifacts/ | 116.5 | ~51 |
-| data/ | 33.9 | 33.9 (preserved) |
-| Python caches | ~18.3 | ~0 |
+## What was removed (proven)
 
-## Files
+1. **Historical rescue scaffolding** — all `phase_l/l*_rescue.py` + matching one-shot `scripts/run_phase_l*` rescue runners + rescue-only tests  
+2. **Orphan top-level utilities** — `check_status.py`, `claude_export.py`, `clear_db.py`, `refresh_workflow.py` (0 refs)  
+3. **Obsolete phase/pilot/audit docs** — early L.* design dumps, G–K/F/E1 reports (kept CURRENT_*, R1–R5, M3 operator/owner, SAM policy, L.21–L.23.1 live docs)  
+4. **Obsolete phase F/E1 tests**  
+5. **Caches / pytest junk** where unlocked  
 
-- Before: 5,277
-- After: ~4,200
-- Removed: ~1,077+
+## What was preserved
 
-## Removed (major categories)
+- Response engine R1–R5 + operator UI sync  
+- Discovery, supplier, quote, economics, financing, registrations, SAM budget, firewall  
+- Canonical funnel L.23 / L.23.1, call desk L.22, quote prep L.21  
+- `phase_g/h/i/j` (still live-imported via hunt/enrichment)  
+- `validation_harness/`, `operator_workflow/`, `execution_requirements/`  
+- Canonical corpus `data/response_corpus/real/` + registries  
+- Uncertainty list: `artifacts/repository_cleanup/remaining_compatibility.json`
 
-| Category | Approx |
-|----------|--------|
-| REGENERABLE_CACHE (`__pycache__`, `.pytest_cache`) | ~18 MB |
-| SUPERSEDED phase dumps (L.3–L.17, L.24–L.29, G/H/I/J/K) | large |
-| TEMP (`_t`, `_temp_live_autonomous`, `live_inspect`) | ~7 MB |
-| DUPLICATE / COMPACTED (`tiny_end_to_end` 30→0.04 MB; `l23_canonical_population` 8.5→0.001 MB) | ~38 MB |
-| ARCHIVE_ONLY (obsolete phase docs, WIP backup) | ~1+ MB |
-| Handoff survivors + obsolete reports | ~10 MB |
-| Gazetteer zips | ~1+ MB |
-| DEAD_CODE (`phase_l/l13_rescue.py`) | small |
+## Canonical authorities (single)
 
-## Preserved
+| Concern | Authority |
+|---------|-----------|
+| Operator next action | `response_engine.operator_state_service` |
+| Funnel | `phase_l.l23_full_population_funnel` |
+| Call desk | `phase_l.l22_supplier_call_desk` |
+| Quote economics | `phase_l.quote_economics` |
+| Response docs | `response_engine.r4_service` |
+| Preflight / submission | `response_engine.r5_service` |
+| UI entry | `/ops` |
 
-- `data/l23_canonical_population_store.json` — **1,465** opportunities
-  - READY_TO_CALL **18**
-  - DEEP_RESEARCH_COMPLETE **376**
-  - WATCH_FEDERAL_ACCESS **673**
-- `artifacts/phase_l/accessible_latest.json`
-- L.18–L.23.1 CURRENT operational artifacts
-- `data/jurisdiction_procurement_registry.json`
-- transactional evidence / packets / deal packets
-- buyer/product/supplier intelligence under `data/`
-- Call desk workspaces / sheets
+## Migrations
 
-## Consolidated
+- `phase_l.legacy_cleanup` updated: rescue modules marked deleted; live runner remains L.23  
+- Domain smoke suite: `tests/test_m3_domain_smoke.py`  
+- `static/index.html` cache-bust aligned to `APP_BUILD_VERSION`  
+- Essential L.21–L.23.1 + operator UI audit docs restored after over-aggressive first doc pass  
 
-| Old | New |
-|-----|-----|
-| Full `l23_canonical_population.json` duplicate | `data/l23_canonical_population_store.json` + compact summary |
-| 30 MB `tiny_end_to_end_results.json` | ~37 KB representative fixture |
-| `_t` / `_temp_*` PDF clones | `transactional_procurement_evidence/` only |
-| Hundreds of obsolete `phase_*.md` | `CURRENT_M3_ARCHITECTURE.md` + `PHASE_HISTORY_CHANGELOG.md` |
+## Validation
 
-## Canonical runtime
+| Check | Result |
+|-------|--------|
+| Boot / import | OK |
+| Today sections include owner/responses/submissions | OK |
+| Unresolved imports to deleted rescues | 0 |
+| Synthetic DEAD_END | 0 |
+| Core regression (R1–R5, owner UI, L21–L231, domain smoke) | **300+ passed** (prior batch); critical recheck **104 passed** |
+| SAM / external side effects | 0 |
 
-- One funnel: L.23 / L.23.1
-- One opportunity store: `data/l23_canonical_population_store.json`
-- One call workflow: L.22
-- Intelligence preserved: **yes**
-- `save_store()` no longer writes full population copies into artifacts/
+## Remaining limitations
 
-## Tests
+- Many `m3_*_read.py` modules kept pending full route audit  
+- Early L.15–L.20 modules kept (scripts removed); listed in remaining_compatibility  
+- `refresh_pricing.py` kept (intake/backfill references)  
+- Not all of the 188 tests were re-run in one mega-suite this pass; core production paths were  
 
-- L.21 / L.22 / L.23 / L.23.1: **54 passed**
-- SAM credits consumed: **0**
+## Rollback
 
-## Remaining large files (intentional)
-
-1. `data/jurisdiction_procurement_registry.json` (~22 MB) — master data; future SQLite optional
-2. `artifacts/phase_l/accessible_latest.json` (~20 MB) — current live feed
-3. `data/l23_canonical_population_store.json` (~8.6 MB) — canonical store
-4. Source registries / L.22 workspaces / evidence PDFs — CURRENT or PERMANENT
-
-## Packaging
-
-- `.gitignore` updated for caches, temps, probes, gaz zips
-- `packaging_exclusions.txt` excludes `.git/`, caches, WIP, temp artifacts
+```text
+git checkout 2fe3e1629e4844846057ddcf564e73b83b421791
+```

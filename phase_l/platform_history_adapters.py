@@ -22,7 +22,7 @@ def _utc() -> str:
     return now_utc().isoformat()
 
 
-# Capability matrix defaults (refined by live telemetry in l14_rescue)
+# Capability matrix defaults (refined by live telemetry / platform adapters)
 DEFAULT_CAPABILITIES: dict[str, dict[str, Any]] = {
     "OpenGov": {
         "discovery": "partial_agency_alternate",

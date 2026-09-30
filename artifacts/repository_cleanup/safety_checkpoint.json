@@ -1,55 +1,22 @@
 ﻿{
   "checkpoint": "CRITICAL_SAFETY_CHECKPOINT",
-  "created_at_utc": "2026-09-30T02:27:32Z",
-  "updated_at_utc": "2026-09-30T03:05:00Z",
+  "updated_at_utc": "2026-09-30T03:45:00Z",
   "repo": "govtracker",
   "branch": "cleanup/m3-r5-production-consolidation",
   "starting_commit": "0d5c08c717298888b013af1badba702999241419",
-  "starting_commit_subject": "feat: add µLab product-transaction integrity and source routing.",
   "r5_known_good_commit": "2fe3e1629e4844846057ddcf564e73b83b421791",
-  "r5_known_good_subject": "checkpoint: known-good M3 R5 production baseline before repository consolidation",
-  "working_tree_at_baseline": {
-    "note": "Baseline commit created from dirty tree; secrets and mutable data excluded via .gitignore classification."
-  },
   "destructive_cleanup_allowed": true,
-  "destructive_cleanup_started": false,
+  "destructive_cleanup_started": true,
+  "destructive_cleanup_completed": true,
+  "verdict": "M3_PRODUCTION_REPOSITORY_CONSOLIDATED_READY",
+  "deletion_manifest": "artifacts/repository_cleanup/deletion_manifest.json",
+  "remaining_compatibility": "artifacts/repository_cleanup/remaining_compatibility.json",
+  "results_doc": "docs/REPOSITORY_CLEANUP_RESULTS.md",
   "secret_check": {
     "env_ignored": true,
-    "env_staged": false,
-    "bad_path_matches": 0,
-    "content_secret_hits": 0,
     "result": "PASS"
   },
-  "precommit_checks": {
-    "imports_ok": true,
-    "app_module_ok": true,
-    "tests": "tests/test_response_engine_r5.py + tests/test_owner_ui_operator_console.py → 38 passed"
-  },
-  "excluded_categories": [
-    ".env / .env.local / secrets",
-    "data/response_projects (live response projects)",
-    "data/response_corpus/cache",
-    "mutable memories/checkpoints/learning/caches under data/",
-    "owner_ui_operator_notes / owner_attestation_log / company_compliance_profile_history",
-    "l23_canonical_population_store.json",
-    "non-allowlisted artifacts/",
-    "debug scripts scripts/_debug_* and probe outputs",
-    "_full_pytest* logs"
-  ],
-  "included_categories": [
-    "response_engine R1–R5",
-    "phase_l / discovery / operator UI",
-    "tests + docs",
-    "canonical data/response_corpus/real + registries",
-    "artifacts/response_engine + artifacts/repository_cleanup",
-    "static/operator.*"
-  ],
-  "rollback": "git checkout 2fe3e1629e4844846057ddcf564e73b83b421791  OR  git reset --hard 2fe3e1629e4844846057ddcf564e73b83b421791 on this branch only when intentional",
-  "rules": [
-    "No business data deletion",
-    "No live-consumer module deletion",
-    "Migrate+test before delete when unique behavior exists",
-    "KEEP uncertain files",
-    "Any boot/route/regression/invariant failure => M3_PRODUCTION_REPOSITORY_CONSOLIDATED_FAILED"
-  ]
+  "sam_api_calls": 0,
+  "external_side_effects": 0,
+  "DEAD_END_DEALS": 0
 }

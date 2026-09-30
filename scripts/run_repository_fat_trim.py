@@ -983,7 +983,7 @@ def main() -> dict[str, Any]:
             "rescue_scripts_deleted": [
                 d["path"] for d in result["deleted"] if "rescue" in d.get("path", "")
             ],
-            "note": "Most l*_rescue.py retained when still imported by historical runners/tests; l13_rescue removed as zero-ref orphan",
+            "note": "20260930 consolidation deleted remaining historical l*_rescue runners; see artifacts/repository_cleanup/deletion_manifest.json",
         },
         "artifact_retention": {
             "PERMANENT": "data intelligence + evidence",

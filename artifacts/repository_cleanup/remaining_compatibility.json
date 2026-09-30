@@ -1,0 +1,140 @@
+{
+  "build": "20260930-m3-production-repository-consolidation",
+  "r5_known_good_commit": "2fe3e1629e4844846057ddcf564e73b83b421791",
+  "policy": "Uncertainty => KEEP. Listed items retained because they still have live/indirect consumers or unique behavior not fully migrated.",
+  "kept_with_uncertainty": [
+    {
+      "path": "phase_g/",
+      "reason": "Imported by phase_i.hunt and phase_l.hunt enrichment path"
+    },
+    {
+      "path": "phase_h/",
+      "reason": "Imported by phase_i and eligibility tests; deep research still referenced"
+    },
+    {
+      "path": "phase_i/",
+      "reason": "Live import from phase_l.hunt (cheap_product_screen / early_hard_reject)"
+    },
+    {
+      "path": "phase_j/",
+      "reason": "Live import from phase_l.enrichment (identity/history reconciliation)"
+    },
+    {
+      "path": "validation_harness/",
+      "reason": "Active test/CLI harness; not proven obsolete"
+    },
+    {
+      "path": "refresh_pricing.py",
+      "reason": "String/call references from intake/prior_contract/workflow_backfill — unique pricing refresh behavior"
+    },
+    {
+      "path": "phase_l/l15_structured_expansion.py",
+      "reason": "Module retained; one-shot script removed. May still be imported by discovery expansion paths"
+    },
+    {
+      "path": "phase_l/l16_public_structured_expansion.py",
+      "reason": "Module retained; one-shot script removed"
+    },
+    {
+      "path": "phase_l/l17_lower48_coverage.py",
+      "reason": "Supports jurisdiction coverage; registry data still canonical"
+    },
+    {
+      "path": "phase_l/l172_coverage_saturation.py",
+      "reason": "Coverage saturation utilities; not proven unused"
+    },
+    {
+      "path": "phase_l/l173_platform_expansion.py",
+      "reason": "Platform adapter expansion; not proven unused"
+    },
+    {
+      "path": "phase_l/l18_research_conversion.py",
+      "reason": "In production import graph / research conversion"
+    },
+    {
+      "path": "phase_l/l19_buyer_history_recovery.py",
+      "reason": "Buyer history recovery — unique behavior"
+    },
+    {
+      "path": "phase_l/l20_supplier_acquisition.py",
+      "reason": "Supplier acquisition — unique behavior"
+    },
+    {
+      "path": "phase_l/l21_quote_outreach_prep.py",
+      "reason": "Quote outreach prep (not l21_rescue); keep"
+    },
+    {
+      "path": "phase_l/auth_access.py",
+      "reason": "Canonical auth taxonomy referenced by legacy_cleanup and history recovery"
+    },
+    {
+      "path": "phase_l/canonical_workflow.py",
+      "reason": "Named canonical workflow in legacy_cleanup entrypoints"
+    },
+    {
+      "path": "phase_l/exact_history_recovery.py",
+      "reason": "Canonical exact history entrypoint"
+    },
+    {
+      "path": "phase_l/public_artifact_recovery.py",
+      "reason": "Canonical public artifact branch"
+    },
+    {
+      "path": "phase_l/platform_history_adapters.py",
+      "reason": "Canonical platform history adapters"
+    },
+    {
+      "path": "operator_workflow/",
+      "reason": "Attached on m3 pipeline API responses"
+    },
+    {
+      "path": "execution_requirements/",
+      "reason": "Compliance execution package; consumers not fully audited"
+    },
+    {
+      "path": "m3_*_read.py top-level read models",
+      "reason": "Many exposed via app routes / mobile read models — do not delete without route audit"
+    },
+    {
+      "path": "data/jurisdiction_procurement_registry.json",
+      "reason": "Canonical large registry — intentionally versioned"
+    },
+    {
+      "path": "docs/eligibility_gate_design.md",
+      "reason": "Design retained; audit/report siblings removed"
+    }
+  ],
+  "deleted_historical_rescue_modules": [
+    "phase_l/l3_rescue.py",
+    "phase_l/l4_rescue.py",
+    "phase_l/l5_rescue.py",
+    "phase_l/l6_rescue.py",
+    "phase_l/l7_rescue.py",
+    "phase_l/l8_rescue.py",
+    "phase_l/l9_rescue.py",
+    "phase_l/l10_rescue.py",
+    "phase_l/l11_rescue.py",
+    "phase_l/l12_rescue.py",
+    "phase_l/l13_rescue.py",
+    "phase_l/l14_rescue.py",
+    "phase_l/l21_rescue.py",
+    "phase_l/l22_rescue.py",
+    "phase_l/l23_rescue.py",
+    "phase_l/l24_rescue.py",
+    "phase_l/l25_rescue.py",
+    "phase_l/l26_rescue.py",
+    "phase_l/l27_rescue.py",
+    "phase_l/l28_rescue.py",
+    "phase_l/l29_rescue.py"
+  ],
+  "canonical_authorities": {
+    "operator_next_action": "response_engine.operator_state_service.build_operator_state",
+    "funnel": "phase_l.l23_full_population_funnel.run_phase_l23",
+    "call_desk": "phase_l.l22_supplier_call_desk",
+    "quote_economics": "phase_l.quote_economics",
+    "response_generation": "response_engine.r4_service.run_r4_generation",
+    "preflight_submission": "response_engine.r5_service",
+    "company_compliance": "response_engine.r3_service",
+    "ui_entry": "/ops"
+  }
+}
