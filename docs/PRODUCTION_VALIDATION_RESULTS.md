@@ -11,7 +11,7 @@
 | Consolidated cleanup | `00680643d21478d7269705a920b8edba68b87994` |
 | Preproduction tag | `m3-preproduction-r5-consolidated` → consolidated |
 | Validation branch | `cleanup/m3-r5-production-consolidation` |
-| Final validated cleanup commit | *(see git log after validation fix commit)* |
+| Final validated cleanup commit | `b5e288895d34e1ae181258832db21d0b0e705da9` |
 | Previous `main` | `0d5c08c717298888b013af1badba702999241419` |
 
 ## Full test suite
