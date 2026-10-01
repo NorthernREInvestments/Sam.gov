@@ -49,8 +49,12 @@ def isolated_ledger(tmp_path, monkeypatch):
     (tmp_path / "response_cache").mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SAM_DAILY_CALL_BUDGET", "10")
     monkeypatch.setenv("SAM_DAILY_RESERVE_CALLS", "1")
-    # Avoid DB sync interfering
+    # Isolate from production DB counter — unified pool must not see real Railway/local usage
+    monkeypatch.setattr(sbc, "_db_sam_used_today", lambda: 0)
     monkeypatch.setattr(sbc, "_sync_db_budget", lambda credits=1: True)
+    import api_budget
+
+    monkeypatch.setattr(api_budget, "set_sam_used_today", lambda used: None)
     return tmp_path
 
 

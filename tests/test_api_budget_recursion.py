@@ -26,6 +26,12 @@ def test_get_usage_snapshot_no_recursion(monkeypatch):
     monkeypatch.setattr(api_budget, "scheduled_sync_attachments_only_from", lambda: None)
     monkeypatch.setattr(api_budget, "scheduled_sync_attachments_only_until", lambda: None)
 
+    # Unified SAM pool may also consult file ledger — keep it aligned with mocked DB counts
+    monkeypatch.setattr(
+        "discovery.sam_budgeted_client.unified_calls_used_today",
+        lambda ledger=None: 1,
+    )
+
     # If recursion returns, this blows the stack
     snap = api_budget.get_usage_snapshot()
     assert snap["sam_remaining"] == 99

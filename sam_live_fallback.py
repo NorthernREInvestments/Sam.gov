@@ -301,13 +301,22 @@ def fetch_sam_api_opportunity(
             import httpx
 
             with httpx.Client(timeout=15.0) as client:
+                from api_budget import can_spend_sam, record_sam_usage
+
+                if not can_spend_sam(1):
+                    return {
+                        "ok": False,
+                        "api_failure": "SAM_BUDGET_EXHAUSTED",
+                        "status_code": None,
+                        "error": "SAM_DAILY_BUDGET_EXHAUSTED",
+                        "raw": None,
+                        "body_excerpt": "",
+                    }
                 resp = client.get(SAM_SEARCH_URL, params=params)
                 status = resp.status_code
                 body = resp.text or ""
                 data = resp.json() if status == 200 else {}
                 try:
-                    from api_budget import record_sam_usage
-
                     record_sam_usage(1)
                 except Exception:
                     pass

@@ -863,8 +863,11 @@
             <div class="deal-actions">
               ${d.response_project_id ? `<button type="button" class="btn ghost" data-preflight="${esc(d.response_project_id)}">RUN FINAL PREFLIGHT</button>` : ""}
               ${d.response_project_id && d.r5 && d.r5.preflight && d.r5.preflight.status && (d.r5.preflight.status === "PASS" || d.r5.preflight.status === "WARNING") ? `<button type="button" class="btn primary" data-owner-approve="${esc(d.response_project_id)}">APPROVE FOR SUBMISSION</button>` : ""}
+              ${d.response_project_id && d.r5 && d.r5.approval && d.r5.approval.status === "APPROVED" ? `<button type="button" class="btn ghost" data-freeze="${esc(d.response_project_id)}">FREEZE APPROVED PACKAGE</button>` : ""}
+              ${d.response_project_id && d.r5 && d.r5.approval && d.r5.approval.status === "APPROVED" ? `<button type="button" class="btn primary" data-dry-run-submit="${esc(d.response_project_id)}">GUIDED DRY-RUN SUBMIT</button>` : ""}
+              ${d.response_project_id && d.r5 && d.r5.approval && d.r5.approval.status === "APPROVED" ? `<button type="button" class="btn ghost" data-dry-receipt="${esc(d.response_project_id)}">RECORD DRY-RUN RECEIPT</button>` : ""}
             </div>
-            <p class="muted">Guided submission only · receipts required · never auto-submit</p>
+            <p class="muted">Guided dry-run only · never contacts portals · rebuild after approve invalidates approval</p>
           </section>` : ""}
         ` : `<p class="muted">No response project yet. Start Bid Prep to fetch/read the solicitation package automatically.</p>`;
         return `
@@ -948,6 +951,54 @@
           renderBidPrep();
         } catch (e) {
           toast(e.message || "Approval failed");
+        }
+      };
+    });
+    main.querySelectorAll("[data-freeze]").forEach((b) => {
+      b.onclick = async () => {
+        const rid = b.getAttribute("data-freeze");
+        try {
+          toast("Freezing approved package…");
+          const res = await api("/api/response-projects/" + encodeURIComponent(rid) + "/freeze-submission", {
+            method: "POST",
+            body: JSON.stringify({}),
+          });
+          toast(res.ok ? "Package frozen (not submitted)" : (res.error || "Freeze failed"));
+          renderBidPrep();
+        } catch (e) {
+          toast(e.message || "Freeze failed");
+        }
+      };
+    });
+    main.querySelectorAll("[data-dry-run-submit]").forEach((b) => {
+      b.onclick = async () => {
+        const rid = b.getAttribute("data-dry-run-submit");
+        try {
+          toast("Running guided dry-run submission (no portal contact)…");
+          const res = await api("/api/response-projects/" + encodeURIComponent(rid) + "/submission-events", {
+            method: "POST",
+            body: JSON.stringify({ dry_run: true, submitted_by: "operator" }),
+          });
+          toast(res.ok ? "Dry-run recorded · TEST SUBMISSION — NOT SENT" : (res.error || "Dry-run failed"));
+          renderBidPrep();
+        } catch (e) {
+          toast(e.message || "Dry-run failed");
+        }
+      };
+    });
+    main.querySelectorAll("[data-dry-receipt]").forEach((b) => {
+      b.onclick = async () => {
+        const rid = b.getAttribute("data-dry-receipt");
+        try {
+          toast("Capturing dry-run receipt…");
+          const res = await api("/api/response-projects/" + encodeURIComponent(rid) + "/receipt", {
+            method: "POST",
+            body: JSON.stringify({ dry_run: true, confirmation_number: "DRY-UI-" + Date.now(), source: "operator_ui" }),
+          });
+          toast(res.ok ? "Dry-run receipt captured" : (res.error || "Receipt failed"));
+          renderBidPrep();
+        } catch (e) {
+          toast(e.message || "Receipt failed");
         }
       };
     });

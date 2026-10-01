@@ -15,7 +15,13 @@ _AI_USAGE_KEYS = ("ai_screen", "anthropic_screen")
 
 
 def _today() -> str:
-    return today_local().isoformat()
+    """Operational day for SAM + AI counters — same timezone as sam_budgeted_client."""
+    try:
+        from discovery.sam_budgeted_client import budget_day_key
+
+        return budget_day_key()
+    except Exception:
+        return today_local().isoformat()
 
 
 def _daily_limit(env_key: str, default: int) -> int:
@@ -26,16 +32,40 @@ def _daily_limit(env_key: str, default: int) -> int:
         return default
 
 
+def sam_used_today_raw() -> int:
+    """DB SAM counter only — safe for sam_budgeted_client unified gate (no recursion)."""
+    session = SessionLocal()
+    try:
+        return _get_usage(session, "sam_api")
+    finally:
+        session.close()
+
+
+def set_sam_used_today(used: int) -> None:
+    """Set absolute DB SAM usage for the operational day (mirror of unified ledger)."""
+    session = SessionLocal()
+    try:
+        _set_usage(session, "sam_api", max(0, int(used)))
+        session.commit()
+    finally:
+        session.close()
+
+
 def sam_daily_limit() -> int:
     """SAM.gov search + enrich calls per day (protect API key credits).
 
     Prefer SAM_DAILY_CALL_BUDGET, then SAM_API_CALL_LIMIT, then SAM_DAILY_API_BUDGET (default 10).
     """
-    if os.getenv("SAM_DAILY_CALL_BUDGET") is not None:
-        return _daily_limit("SAM_DAILY_CALL_BUDGET", 10)
-    if os.getenv("SAM_API_CALL_LIMIT") is not None:
-        return _daily_limit("SAM_API_CALL_LIMIT", 10)
-    return _daily_limit("SAM_DAILY_API_BUDGET", 10)
+    try:
+        from discovery.sam_budgeted_client import sam_daily_call_budget
+
+        return sam_daily_call_budget()
+    except Exception:
+        if os.getenv("SAM_DAILY_CALL_BUDGET") is not None:
+            return _daily_limit("SAM_DAILY_CALL_BUDGET", 10)
+        if os.getenv("SAM_API_CALL_LIMIT") is not None:
+            return _daily_limit("SAM_API_CALL_LIMIT", 10)
+        return _daily_limit("SAM_DAILY_API_BUDGET", 10)
 
 
 def scheduled_naics_per_sync() -> int:
@@ -236,7 +266,12 @@ def get_usage_snapshot() -> dict[str, Any]:
     from csv_attachment_policy import sam_attachments_csv_only_snapshot
 
     counts = _usage_counts()
-    sam_used = counts["sam_used_today"]
+    try:
+        from discovery.sam_budgeted_client import unified_calls_used_today
+
+        sam_used = max(int(counts["sam_used_today"] or 0), int(unified_calls_used_today() or 0))
+    except Exception:
+        sam_used = counts["sam_used_today"]
     sam_pdf_used = counts["sam_pdf_downloads_today"]
     screen_used = counts["screens_used_today"]
 
@@ -248,6 +283,7 @@ def get_usage_snapshot() -> dict[str, Any]:
         "sam_used_today": sam_used,
         "sam_daily_limit": sam_limit,
         "sam_remaining": max(0, sam_limit - sam_used),
+        "sam_single_pool": True,
         "sam_pdf_downloads_today": sam_pdf_used,
         "sam_pdf_download_limit": sam_pdf_limit,
         "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used) if sam_pdf_limit else None,
@@ -311,10 +347,16 @@ def _can_screen_from_counts(*, screen_used: int, screen_limit: int) -> bool:
 
 
 def can_spend_sam(credits: int = 1) -> bool:
+    """Unified gate: never allow a second independent 10-call pool."""
     if credits <= 0:
         return True
-    counts = _usage_counts()
-    return max(0, sam_daily_limit() - counts["sam_used_today"]) >= credits
+    try:
+        from discovery.sam_budgeted_client import can_afford_live_calls
+
+        return can_afford_live_calls(credits)
+    except Exception:
+        counts = _usage_counts()
+        return max(0, sam_daily_limit() - counts["sam_used_today"]) >= credits
 
 
 def can_download_screening_pdf() -> bool:
@@ -350,20 +392,25 @@ def can_screen() -> bool:
     )
 
 def record_sam_usage(credits: int = 1) -> bool:
-    """Record SAM.gov API usage. Returns False if budget would be exceeded."""
+    """Record SAM.gov API usage against the single unified daily pool. Returns False if exhausted."""
     if credits <= 0:
         return True
-    session = SessionLocal()
     try:
-        used = _get_usage(session, "sam_api")
-        limit = sam_daily_limit()
-        if used + credits > limit:
-            return False
-        _set_usage(session, "sam_api", used + credits)
-        session.commit()
-        return True
-    finally:
-        session.close()
+        from discovery.sam_budgeted_client import consume_live_credits
+
+        return consume_live_credits(credits, reason="api_budget.record_sam_usage")
+    except Exception:
+        session = SessionLocal()
+        try:
+            used = _get_usage(session, "sam_api")
+            limit = sam_daily_limit()
+            if used + credits > limit:
+                return False
+            _set_usage(session, "sam_api", used + credits)
+            session.commit()
+            return True
+        finally:
+            session.close()
 
 
 def record_screen_usage() -> bool:

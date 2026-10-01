@@ -5948,11 +5948,21 @@ def api_r5_submission_event(response_project_id: str, body: dict | None = None):
         raise HTTPException(status_code=403, detail="Live external submission is disabled. Use dry_run / guided checklist + receipt.")
     if body.get("dry_run", True):
         return {**r5_dry_run_submit(project, submitted_by=body.get("submitted_by") or "operator"), "sam_api_calls": 0}
+    # Non-dry-run event still does not contact portals — but must not mark SUBMITTED without
+    # an approved+frozen package (prevents false "submitted" status pollution).
+    approval = project.get("owner_submission_approval") or {}
+    freeze = project.get("frozen_submission_package") or {}
+    if approval.get("approval_status") != "APPROVED":
+        raise HTTPException(status_code=400, detail="Owner approval required before recording a non-dry-run submission event.")
+    if not freeze or freeze.get("invalidated"):
+        raise HTTPException(status_code=400, detail="Freeze the approved package before recording a non-dry-run submission event.")
+    if freeze.get("package_id") and approval.get("package_id") and freeze.get("package_id") != approval.get("package_id"):
+        raise HTTPException(status_code=400, detail="Frozen package does not match owner-approved package.")
     event = new_submission_event(project, submitted_by=body.get("submitted_by") or "operator", dry_run=False)
     from response_engine.store import save_project
 
     save_project(project)
-    return {"ok": True, "event": event, "status": "SUBMITTED_UNCONFIRMED", "note": "Capture receipt to confirm", "sam_api_calls": 0, "external_side_effects": 0}
+    return {"ok": True, "event": event, "status": "SUBMITTED_UNCONFIRMED", "note": "Capture receipt to confirm — no portal contact made", "sam_api_calls": 0, "external_side_effects": 0}
 
 
 @app.post("/api/response-projects/{response_project_id}/receipt")
@@ -5964,12 +5974,20 @@ def api_r5_receipt(response_project_id: str, body: dict | None = None):
     if not project:
         raise HTTPException(status_code=404, detail="Response project not found.")
     body = body or {}
+    dry_run = bool(body.get("dry_run", True))
+    if not dry_run:
+        approval = project.get("owner_submission_approval") or {}
+        freeze = project.get("frozen_submission_package") or {}
+        if approval.get("approval_status") != "APPROVED":
+            raise HTTPException(status_code=400, detail="Owner approval required before confirming a live receipt.")
+        if not freeze or freeze.get("invalidated"):
+            raise HTTPException(status_code=400, detail="Frozen package required before confirming a live receipt.")
     receipt = r5_record_receipt(
         project,
         confirmation_number=body.get("confirmation_number"),
         receipt_path=body.get("receipt_path"),
         source=body.get("source") or "manual",
-        dry_run=bool(body.get("dry_run", True)),
+        dry_run=dry_run,
     )
     return {"ok": True, "receipt": receipt, "sam_api_calls": 0, "external_side_effects": 0}
 

@@ -10,6 +10,7 @@ from response_engine.r5_constants import (
     BUILD,
     DRY_RUN_SUBMITTED_CONFIRMED,
     FAIL,
+    MANUAL_REVIEW_REQUIRED,
     OWNER_ACTION_REQUIRED,
     ROLE_OPERATOR,
     ROLE_OWNER,
@@ -134,20 +135,20 @@ def build_operator_state(project: dict[str, Any] | None, *, base_card: dict[str,
         plain_status = STATUS_READY_FOR_APPROVAL
         next_action = _nba("OWNER_APPROVE", "OWNER REVIEW REQUIRED", "Preflight passed — ready for your approval", ROLE_OWNER, "bid-prep", True)
     elif not next_action and (project.get("generated_package") or {}).get("package_id"):
-        if pf.get("overall_status") in (FAIL, OWNER_ACTION_REQUIRED) or not pf:
-            if not pf:
-                plain_status = STATUS_NEEDS_ACTION
-                next_action = _nba("PREFLIGHT", "RUN FINAL PREFLIGHT", "Response package built — run final checks", ROLE_OPERATOR, "bid-prep", True)
-            else:
-                plain_status = STATUS_NEEDS_ACTION
-                next_action = _nba(
-                    "FIX_PREFLIGHT",
-                    pf.get("next_action_plain") or "FIX PREFLIGHT ISSUES",
-                    pf.get("next_action_plain") or "Resolve preflight blockers",
-                    ROLE_OWNER if pf.get("owner_action_count") else ROLE_OPERATOR,
-                    "bid-prep",
-                    True,
-                )
+        overall = pf.get("overall_status")
+        if not pf:
+            plain_status = STATUS_NEEDS_ACTION
+            next_action = _nba("PREFLIGHT", "RUN FINAL PREFLIGHT", "Response package built — run final checks", ROLE_OPERATOR, "bid-prep", True)
+        elif overall in (FAIL, OWNER_ACTION_REQUIRED, MANUAL_REVIEW_REQUIRED) or not pf.get("approval_eligible"):
+            plain_status = STATUS_NEEDS_ACTION
+            next_action = _nba(
+                "FIX_PREFLIGHT",
+                pf.get("next_action_plain") or "FIX PREFLIGHT ISSUES",
+                pf.get("next_action_plain") or "Resolve preflight blockers before approval",
+                ROLE_OWNER if pf.get("owner_action_count") else ROLE_OPERATOR,
+                "bid-prep",
+                True,
+            )
     elif not next_action and project.get("documents"):
         # Have solicitation but no package
         r4 = project.get("r4_package_status")

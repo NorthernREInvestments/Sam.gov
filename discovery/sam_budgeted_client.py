@@ -172,10 +172,88 @@ def calls_used_today(ledger: dict[str, Any] | None = None) -> int:
     return int(day_info.get("live_calls") or 0)
 
 
+def _db_sam_used_today() -> int:
+    """Read DB counter only — never calls can_spend_sam (no recursion)."""
+    try:
+        from api_budget import sam_used_today_raw
+
+        return int(sam_used_today_raw() or 0)
+    except Exception:
+        return 0
+
+
+def unified_calls_used_today(ledger: dict[str, Any] | None = None) -> int:
+    """Single authority: max(file ledger, DB). Prevents two independent 10-call pools."""
+    return max(calls_used_today(ledger), _db_sam_used_today())
+
+
+def can_afford_live_calls(credits: int = 1) -> bool:
+    if credits <= 0:
+        return True
+    with _THREAD_LOCK:
+        return unified_calls_used_today() + int(credits) <= sam_daily_call_budget()
+
+
+def _consume_live_credits_locked(credits: int, *, reason: str) -> bool:
+    """Caller MUST hold _file_lock. Updates file + DB to the same absolute used count."""
+    credits = int(credits)
+    if credits <= 0:
+        return True
+    ledger = load_ledger()
+    used = unified_calls_used_today(ledger)
+    limit = sam_daily_call_budget()
+    if used + credits > limit:
+        return False
+    new_used = used + credits
+    day = budget_day_key()
+    days = ledger.setdefault("days", {})
+    day_info = days.setdefault(
+        day,
+        {"live_calls": 0, "cache_hits": 0, "live_rows": 0, "unique_rows": 0, "failures": 0},
+    )
+    day_info["live_calls"] = new_used
+    ledger.setdefault("entries", []).append(
+        {
+            "date": day,
+            "timestamp": _utc(),
+            "endpoint": "budget",
+            "query_fingerprint": None,
+            "page": 0,
+            "result_count": 0,
+            "success": True,
+            "http_status": None,
+            "cache_hit": False,
+            "credits_consumed": credits,
+            "reason": reason,
+            "params": {},
+            "unified_used_after": new_used,
+        }
+    )
+    if len(ledger["entries"]) > 500:
+        ledger["entries"] = ledger["entries"][-500:]
+    save_ledger(ledger)
+    try:
+        from api_budget import set_sam_used_today
+
+        set_sam_used_today(new_used)
+    except Exception:
+        pass
+    return True
+
+
+def consume_live_credits(credits: int = 1, *, reason: str = "live") -> bool:
+    """Atomically consume credits against the unified 10/day cap. Updates file + DB together."""
+    if credits <= 0:
+        return True
+    with _file_lock():
+        with _THREAD_LOCK:
+            return _consume_live_credits_locked(int(credits), reason=reason)
+
+
 def dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
     led = ledger or load_ledger()
     day = budget_day_key()
-    used = calls_used_today(led)
+    used = unified_calls_used_today(led)
     limit = sam_daily_call_budget()
     remaining = max(0, limit - used)
     res = reserve_calls()
@@ -186,6 +264,8 @@ def dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
         "timezone": operational_timezone(),
         "daily_limit": limit,
         "calls_used": used,
+        "file_ledger_used": calls_used_today(led),
+        "db_ledger_used": _db_sam_used_today(),
         "calls_remaining": remaining,
         "reserve_calls": res,
         "reserve_available": remaining > 0 and used < (limit - res) or (remaining > 0 and day_info.get("reserve_authorized")),
@@ -195,19 +275,13 @@ def dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
         "unique_rows_today": int(day_info.get("unique_rows") or 0),
         "display": f"SAM: {used}/{limit} calls used | {remaining} remaining",
         "status": SAM_DAILY_BUDGET_EXHAUSTED if remaining <= 0 else "OK",
+        "single_pool": True,
     }
 
 
 def _sync_db_budget(credits: int = 1) -> bool:
-    """Best-effort sync with legacy api_budget DB counter."""
-    try:
-        from api_budget import can_spend_sam, record_sam_usage
-
-        if not can_spend_sam(credits):
-            return False
-        return record_sam_usage(credits)
-    except Exception:
-        return True  # file ledger is authoritative when DB unavailable
+    """Deprecated path — use consume_live_credits. Kept for callers; never fail-open."""
+    return consume_live_credits(credits, reason="legacy_sync_db_budget")
 
 
 def _record_entry(
@@ -223,6 +297,7 @@ def _record_entry(
     credits: int,
     reason: str,
     params_public: dict[str, Any],
+    count_against_budget: bool = True,
 ) -> None:
     day = budget_day_key()
     days = ledger.setdefault("days", {})
@@ -232,8 +307,13 @@ def _record_entry(
     )
     if cache_hit:
         day_info["cache_hits"] = int(day_info.get("cache_hits") or 0) + 1
-    else:
+    elif count_against_budget and credits:
         day_info["live_calls"] = int(day_info.get("live_calls") or 0) + int(credits)
+        if success:
+            day_info["live_rows"] = int(day_info.get("live_rows") or 0) + int(result_count)
+        else:
+            day_info["failures"] = int(day_info.get("failures") or 0) + 1
+    elif not cache_hit:
         if success:
             day_info["live_rows"] = int(day_info.get("live_rows") or 0) + int(result_count)
         else:
@@ -248,7 +328,7 @@ def _record_entry(
         "success": success,
         "http_status": http_status,
         "cache_hit": cache_hit,
-        "credits_consumed": 0 if cache_hit else credits,
+        "credits_consumed": 0 if cache_hit or not count_against_budget else credits,
         "reason": reason,
         "params": params_public,
     }
@@ -281,7 +361,7 @@ def build_daily_query_plan(
     """Plan the day's SAM calls before spending. Does not execute."""
     limit = sam_daily_call_budget()
     res = reserve_calls()
-    used = calls_used_today()
+    used = unified_calls_used_today()
     remaining = max(0, limit - used)
     prod_cap = max_production_calls if max_production_calls is not None else max(0, limit - res - used)
     prod_cap = min(prod_cap, max(0, remaining - res) if remaining > res else 0)
@@ -479,7 +559,7 @@ def search_opportunities(
 
     with _file_lock():
         ledger = load_ledger()
-        used = calls_used_today(ledger)
+        used = unified_calls_used_today(ledger)
         limit = sam_daily_call_budget()
         remaining = limit - used
         if remaining <= 0:
@@ -495,6 +575,7 @@ def search_opportunities(
                 credits=0,
                 reason=SAM_DAILY_BUDGET_EXHAUSTED,
                 params_public=public_params,
+                count_against_budget=False,
             )
             save_ledger(ledger)
             return {
@@ -526,6 +607,7 @@ def search_opportunities(
                 credits=0,
                 reason=SAM_RESERVE_PROTECTED,
                 params_public=public_params,
+                count_against_budget=False,
             )
             save_ledger(ledger)
             return {
@@ -555,7 +637,20 @@ def search_opportunities(
                 },
             }
 
-        # Pre-reserve credit in ledger BEFORE HTTP (multi-process safety)
+        # Single unified consume — updates file + DB together (never a second pool)
+        if not _consume_live_credits_locked(1, reason=reason + ":pending"):
+            return {
+                "opportunitiesData": [],
+                "totalRecords": 0,
+                "_meta": {
+                    "status": SAM_DAILY_BUDGET_EXHAUSTED,
+                    "credits_consumed": 0,
+                    "blocked": True,
+                    "fingerprint": fp,
+                },
+            }
+        # Audit-only row (credit already counted by consume)
+        ledger = load_ledger()
         _record_entry(
             ledger,
             endpoint=endpoint,
@@ -568,23 +663,9 @@ def search_opportunities(
             credits=1,
             reason=reason + ":pending",
             params_public=public_params,
+            count_against_budget=False,
         )
         save_ledger(ledger)
-        if not _sync_db_budget(1):
-            # Roll back file credit if DB says exhausted
-            day = budget_day_key()
-            ledger["days"][day]["live_calls"] = max(0, int(ledger["days"][day]["live_calls"]) - 1)
-            save_ledger(ledger)
-            return {
-                "opportunitiesData": [],
-                "totalRecords": 0,
-                "_meta": {
-                    "status": SAM_DAILY_BUDGET_EXHAUSTED,
-                    "credits_consumed": 0,
-                    "blocked": True,
-                    "fingerprint": fp,
-                },
-            }
 
     # HTTP outside lock (credit already reserved)
     req_params = {**public_params, "api_key": api_key}

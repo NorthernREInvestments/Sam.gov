@@ -286,11 +286,27 @@ def run_r4_generation(
         package_hashes=[{"filename": e.get("filename"), "hash": e.get("hash")} for e in manifest.get("entries") or []],
     )
 
-    # Supersede prior package
+    # Supersede prior package — any prior R5 approval/freeze is stale
     if project.get("generated_package"):
         project.setdefault("generated_package_history", []).append(
             {**project["generated_package"], "package_status": "SUPERSEDED"}
         )
+        try:
+            from response_engine.r5_service import invalidate_r5_on_change
+
+            invalidate_r5_on_change(project, reason="PACKAGE_REGENERATED")
+        except Exception:
+            # Keep R4 generation succeeding even if R5 helpers fail to import
+            from response_engine.r5_constants import APPROVAL_APPROVED, APPROVAL_EXPIRED
+
+            appr = project.get("owner_submission_approval")
+            if appr and appr.get("approval_status") == APPROVAL_APPROVED:
+                appr["approval_status"] = APPROVAL_EXPIRED
+                appr["expired_reason"] = "PACKAGE_REGENERATED"
+            frz = project.get("frozen_submission_package")
+            if frz:
+                frz["invalidated"] = True
+                frz["invalidated_reason"] = "PACKAGE_REGENERATED"
     project["generated_package"] = package
     project["submission_handoff"] = handoff
     project["r4_readiness"] = readiness

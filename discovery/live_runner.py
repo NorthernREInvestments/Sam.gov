@@ -797,16 +797,13 @@ def run_live_discovery(
             )
             from discovery.dla_product_extract import enrich_with_dla_structure, classify_federal_product_cheap
 
-            # NATIONAL/BROAD: Federal SAM is first-class when API key present (opt-out via SAM_FEDERAL_DISCOVERY_ENABLED=0)
+            # NATIONAL/BROAD: Federal SAM is first-class only when explicitly enabled
+            # (SAM_FEDERAL_DISCOVERY_ENABLED=1). Presence of SAM_GOV_API_KEY alone must NOT
+            # burn the daily budget during ordinary discovery / UI testing.
             _fed_env = (os.environ.get("SAM_FEDERAL_DISCOVERY_ENABLED") or "").strip().lower()
-            _fed_opt_out = _fed_env in {"0", "false", "no", "off"}
-            _fed_on = (
-                (not _fed_opt_out)
-                and (
-                    federal_sam_discovery_enabled(authorize=False)
-                    or _fed_env in {"1", "true", "yes"}
-                    or bool((os.environ.get("SAM_GOV_API_KEY") or "").strip())
-                )
+            _fed_opt_out = _fed_env in {"0", "false", "no", "off", ""}
+            _fed_on = (not _fed_opt_out) and (
+                federal_sam_discovery_enabled(authorize=False) or _fed_env in {"1", "true", "yes"}
             )
             if _fed_on:
                 # Use remaining budget; NATIONAL may raise SAM_API_CALL_LIMIT in env for bootstrap

@@ -115,6 +115,18 @@ def freeze_submission_package(project: dict[str, Any]) -> dict[str, Any]:
     if approval.get("approval_status") != APPROVAL_APPROVED:
         return {"ok": False, "error": "not_approved"}
     pkg = project.get("generated_package") or {}
+    approved_pkg = approval.get("package_id")
+    current_pkg = pkg.get("package_id")
+    if approved_pkg and current_pkg and approved_pkg != current_pkg:
+        return {
+            "ok": False,
+            "error": "approval_package_mismatch",
+            "detail": "Owner approved a different package version — re-run preflight and approve the current package.",
+            "approved_package_id": approved_pkg,
+            "current_package_id": current_pkg,
+        }
+    if not current_pkg:
+        return {"ok": False, "error": "no_generated_package"}
     handoff = project.get("submission_handoff") or {}
     freeze = {
         "kind": "FrozenSubmissionPackage",
