@@ -1,5 +1,7 @@
 [build]
-buildCommand = "pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers python -m playwright install --with-deps chromium"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "sh scripts/start_railway.sh"
+restartPolicyType = "ON_FAILURE"

@@ -1,0 +1,226 @@
+{
+  "kind": "UniversePassReport",
+  "run_id": "UNI-332d4272d69d",
+  "started_at": "2026-10-02T21:02:37.762939+00:00",
+  "completed_at": "2026-10-02T21:03:16.593427+00:00",
+  "before_canonical_live": 19109,
+  "after_freshness_cleanup": 19089,
+  "after_canonical_live": 19089,
+  "removed_from_live": 20,
+  "duplicates_amendments_collapsed": 21,
+  "expiry_sweep": {
+    "expired": 205,
+    "canceled": 6,
+    "closed": 0,
+    "amended": 0,
+    "active": 19345,
+    "due_soon": 49,
+    "status_changed_ids": [
+      "b364591ecb563947",
+      "574649dbbf14f674",
+      "7dbdf243ecbf92a5",
+      "0ca93635e14b42eb",
+      "735e4f10d957c897",
+      "3f2c30631c09d3ca",
+      "643b514a07601f33",
+      "a4292102f370ed81",
+      "48a4a8951cda3a19",
+      "ba3c3c9015bc06b8",
+      "dfc63e5eb090d0d3",
+      "7ad93efcb2cbd2a7",
+      "ab73ef48f7be00ce",
+      "3f5b78ebec556ed2"
+    ],
+    "expired_or_removed_from_available": 211
+  },
+  "classified": 19556,
+  "classification": {
+    "TANGIBLE_PRODUCT": 17414,
+    "MIXED_PRODUCT_SERVICE": 33,
+    "PURE_SERVICE": 729,
+    "CONSTRUCTION": 121,
+    "UNKNOWN": 792
+  },
+  "product_candidates": 17447,
+  "freshness": {
+    "EXPIRED": 196,
+    "LIVE_CONFIRMED": 263,
+    "DUPLICATE": 21,
+    "UNKNOWN_FRESHNESS": 1441,
+    "LIVE_PROBABLE": 17629,
+    "STALE": 6
+  },
+  "freshness_unknown_still_live": 1233,
+  "bidnet_audit": {
+    "checked": 17629,
+    "live_confirmed": 0,
+    "live_probable": 17629,
+    "stale": 0,
+    "expired": 0,
+    "duplicates": 0,
+    "unknown_freshness": 0
+  },
+  "by_source": [
+    {
+      "source": "BidNet",
+      "live": 17623,
+      "product": 16791,
+      "mixed": 4,
+      "service": 708,
+      "construction": 119,
+      "unknown": 1,
+      "stale": 0
+    },
+    {
+      "source": "Other",
+      "live": 987,
+      "product": 552,
+      "mixed": 26,
+      "service": 0,
+      "construction": 0,
+      "unknown": 409,
+      "stale": 189
+    },
+    {
+      "source": "Socrata",
+      "live": 240,
+      "product": 39,
+      "mixed": 3,
+      "service": 13,
+      "construction": 1,
+      "unknown": 184,
+      "stale": 8
+    },
+    {
+      "source": "SAM",
+      "live": 147,
+      "product": 9,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 138,
+      "stale": 22
+    },
+    {
+      "source": "OpenGov",
+      "live": 32,
+      "product": 2,
+      "mixed": 0,
+      "service": 8,
+      "construction": 1,
+      "unknown": 21,
+      "stale": 2
+    },
+    {
+      "source": "Bonfire",
+      "live": 25,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 25,
+      "stale": 0
+    },
+    {
+      "source": "Jaggaer",
+      "live": 20,
+      "product": 20,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 0,
+      "stale": 0
+    },
+    {
+      "source": "mirror:az:city:0455000:phoenix_city",
+      "live": 5,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 5,
+      "stale": 2
+    },
+    {
+      "source": "controlled_state_local",
+      "live": 5,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 5,
+      "stale": 0
+    },
+    {
+      "source": "mirror:ma:city:2507000:boston_city",
+      "live": 1,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 1,
+      "stale": 0
+    },
+    {
+      "source": "mirror:ia:county:19113:linn_county",
+      "live": 1,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 1,
+      "stale": 0
+    },
+    {
+      "source": "mirror:va:county:51107:loudoun_county",
+      "live": 1,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 1,
+      "stale": 0
+    },
+    {
+      "source": "mirror:wa:county:53033:king_county",
+      "live": 1,
+      "product": 0,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 1,
+      "stale": 0
+    },
+    {
+      "source": "accessible_latest",
+      "live": 1,
+      "product": 1,
+      "mixed": 0,
+      "service": 0,
+      "construction": 0,
+      "unknown": 0,
+      "stale": 0
+    }
+  ],
+  "product_economics": {
+    "product_candidates_routed": 17447,
+    "product_candidates_total": 17447,
+    "acquisition_evidence_found": 1,
+    "government_value_evidence_found": 1,
+    "both_sides_known": 1,
+    "profitable_at_public_retail": 1,
+    "proven_profitable": 1,
+    "likely_profitable": 0,
+    "possible_profit": 0,
+    "unproven": 17446,
+    "unprofitable": 0,
+    "execution_blocked": 0,
+    "unresolved": 17446,
+    "status_counts": {
+      "UNPROVEN": 17446,
+      "PROVEN_PROFITABLE": 1,
+      "PROFITABLE_AT_PUBLIC_RETAIL": 1
+    }
+  },
+  "SAM_API_CALLS": 0
+}

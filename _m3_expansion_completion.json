@@ -1,0 +1,478 @@
+{
+  "RAW_LIVE": 19109,
+  "CANONICAL_LIVE": 19109,
+  "PRODUCT_CANDIDATES": 480,
+  "TOTAL_LIVE_DISCOVERY_UNIVERSE": 19109,
+  "gap_to_target": 0,
+  "progress_pct": 100.0,
+  "by_segment": {
+    "Federal": 806,
+    "State": 64,
+    "Local": 16944,
+    "Education": 553,
+    "Utilities": 560,
+    "Cooperative": 0,
+    "Other": 182
+  },
+  "by_platform_in_store": {
+    "live_bidnet": 17623,
+    "live_structured": 241,
+    "sam_gov_api": 149,
+    "live_opengov": 34,
+    "live_bonfire": 22,
+    "live_jaggaer": 20,
+    "structured_socrata_la_ramp_open_bids": 7,
+    "mirror:AZ:CITY:0455000:phoenix_city": 7,
+    "controlled_state_local": 5,
+    "platform:Bonfire": 3,
+    "mirror:MA:CITY:2507000:boston_city": 1,
+    "mirror:IA:COUNTY:19113:linn_county": 1,
+    "mirror:VA:COUNTY:51107:loudoun_county": 1,
+    "mirror:WA:COUNTY:53033:king_county": 1,
+    "accessible_latest": 1
+  },
+  "platforms": [
+    {
+      "platform": "BidNet",
+      "entities": 145,
+      "live_opps": 17646,
+      "sources_ok": 51,
+      "sources_failed": 0,
+      "status": "WORKING",
+      "expected_coverage_gain": 45153.0,
+      "blocker": null
+    },
+    {
+      "platform": "Other",
+      "entities": 427,
+      "live_opps": 1,
+      "sources_ok": 17,
+      "sources_failed": 21,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 1174.2,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "Socrata",
+      "entities": 6,
+      "live_opps": 799,
+      "sources_ok": 6,
+      "sources_failed": 0,
+      "status": "WORKING",
+      "expected_coverage_gain": 719.1,
+      "blocker": null
+    },
+    {
+      "platform": "Bonfire",
+      "entities": 138,
+      "live_opps": 23,
+      "sources_ok": 3,
+      "sources_failed": 23,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 581.9,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "DIBBS",
+      "entities": 9,
+      "live_opps": 102,
+      "sources_ok": 1,
+      "sources_failed": 2,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 504.9,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "StateHosted",
+      "entities": 50,
+      "live_opps": 114,
+      "sources_ok": 9,
+      "sources_failed": 41,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 348.3,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "Jaggaer",
+      "entities": 19,
+      "live_opps": 40,
+      "sources_ok": 2,
+      "sources_failed": 2,
+      "status": "WORKING",
+      "expected_coverage_gain": 342.0,
+      "blocker": null
+    },
+    {
+      "platform": "OpenGov",
+      "entities": 32,
+      "live_opps": 34,
+      "sources_ok": 2,
+      "sources_failed": 30,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 299.2,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "SimpleHTML",
+      "entities": 98,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 269.5,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "Cooperative",
+      "entities": 22,
+      "live_opps": 11,
+      "sources_ok": 1,
+      "sources_failed": 5,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 133.1,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "StateOwned",
+      "entities": 46,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 126.5,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "PlanetBids",
+      "entities": 45,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 21,
+      "status": "AUTH_REQUIRED",
+      "expected_coverage_gain": 78.8,
+      "blocker": "Login/captcha required"
+    },
+    {
+      "platform": "PublicPurchase",
+      "entities": 31,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 3,
+      "status": "BROKEN",
+      "expected_coverage_gain": 23.2,
+      "blocker": "Parser/schema failure"
+    },
+    {
+      "platform": "JSON",
+      "entities": 8,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 22.0,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "IonWave",
+      "entities": 22,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 22,
+      "status": "BROKEN",
+      "expected_coverage_gain": 16.5,
+      "blocker": "Parser/schema failure"
+    },
+    {
+      "platform": "SAM_GOV",
+      "entities": 4,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 11.0,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "COOPERATIVE",
+      "entities": 3,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 8.2,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "PIEE",
+      "entities": 2,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 5.5,
+      "blocker": "Partial / zero yield"
+    },
+    {
+      "platform": "DemandStar",
+      "entities": 2,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 2,
+      "status": "AUTH_REQUIRED",
+      "expected_coverage_gain": 3.5,
+      "blocker": "Login/captcha required"
+    },
+    {
+      "platform": "BidsAndTenders",
+      "entities": 1,
+      "live_opps": 0,
+      "sources_ok": 0,
+      "sources_failed": 0,
+      "status": "PARTIAL",
+      "expected_coverage_gain": 2.8,
+      "blocker": "Partial / zero yield"
+    }
+  ],
+  "largest_coverage_gaps": [
+    {
+      "platform": "Other",
+      "known_entities": 427,
+      "live_entities": 17,
+      "current_opportunities": 1,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 1174.2
+    },
+    {
+      "platform": "Bonfire",
+      "known_entities": 138,
+      "live_entities": 3,
+      "current_opportunities": 23,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 581.9
+    },
+    {
+      "platform": "DIBBS",
+      "known_entities": 9,
+      "live_entities": 1,
+      "current_opportunities": 102,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 504.9
+    },
+    {
+      "platform": "StateHosted",
+      "known_entities": 50,
+      "live_entities": 9,
+      "current_opportunities": 114,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 348.3
+    },
+    {
+      "platform": "Jaggaer",
+      "known_entities": 19,
+      "live_entities": 2,
+      "current_opportunities": 40,
+      "status": "WORKING",
+      "blocker": null,
+      "expected_coverage_gain": 342.0
+    },
+    {
+      "platform": "OpenGov",
+      "known_entities": 32,
+      "live_entities": 2,
+      "current_opportunities": 34,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 299.2
+    },
+    {
+      "platform": "SimpleHTML",
+      "known_entities": 98,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 269.5
+    },
+    {
+      "platform": "Cooperative",
+      "known_entities": 22,
+      "live_entities": 1,
+      "current_opportunities": 11,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 133.1
+    },
+    {
+      "platform": "StateOwned",
+      "known_entities": 46,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 126.5
+    },
+    {
+      "platform": "PlanetBids",
+      "known_entities": 45,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "AUTH_REQUIRED",
+      "blocker": "Login/captcha required",
+      "expected_coverage_gain": 78.8
+    },
+    {
+      "platform": "PublicPurchase",
+      "known_entities": 31,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "BROKEN",
+      "blocker": "Parser/schema failure",
+      "expected_coverage_gain": 23.2
+    },
+    {
+      "platform": "JSON",
+      "known_entities": 8,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 22.0
+    },
+    {
+      "platform": "IonWave",
+      "known_entities": 22,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "BROKEN",
+      "blocker": "Parser/schema failure",
+      "expected_coverage_gain": 16.5
+    },
+    {
+      "platform": "SAM_GOV",
+      "known_entities": 4,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 11.0
+    },
+    {
+      "platform": "COOPERATIVE",
+      "known_entities": 3,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 8.2
+    },
+    {
+      "platform": "PIEE",
+      "known_entities": 2,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 5.5
+    },
+    {
+      "platform": "DemandStar",
+      "known_entities": 2,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "AUTH_REQUIRED",
+      "blocker": "Login/captcha required",
+      "expected_coverage_gain": 3.5
+    },
+    {
+      "platform": "BidsAndTenders",
+      "known_entities": 1,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 2.8
+    },
+    {
+      "platform": "VendorLink",
+      "known_entities": 1,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 2.8
+    },
+    {
+      "platform": "WebProcure",
+      "known_entities": 1,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "PARTIAL",
+      "blocker": "Partial / zero yield",
+      "expected_coverage_gain": 2.8
+    }
+  ],
+  "state_coverage": {
+    "live": 51,
+    "partial": 0,
+    "broken": 0,
+    "auth_required": 0,
+    "research_needed": 0,
+    "no_source": 0,
+    "total_live_opportunities": 17760
+  },
+  "known_entities": 22523,
+  "entities_with_portals": 402,
+  "entities_producing_records": 15,
+  "entities_not_producing": 22121,
+  "authentication_blockers": [
+    {
+      "platform": "PlanetBids",
+      "known_entities": 45,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "AUTH_REQUIRED",
+      "blocker": "Login/captcha required",
+      "expected_coverage_gain": 78.8
+    },
+    {
+      "platform": "DemandStar",
+      "known_entities": 2,
+      "live_entities": 0,
+      "current_opportunities": 0,
+      "status": "AUTH_REQUIRED",
+      "blocker": "Login/captcha required",
+      "expected_coverage_gain": 3.5
+    }
+  ],
+  "last_harvest": {
+    "run_id": "EXP-844602db1d4a",
+    "raw_discovered": 18522,
+    "duplicates_removed": 528,
+    "unique_records": 17994,
+    "platform_family_counts": {
+      "BidNet": 17646,
+      "OpenGov": 34,
+      "Bonfire": 23,
+      "Jaggaer": 20,
+      "Socrata": 799
+    },
+    "TOTAL_LIVE_DISCOVERY_UNIVERSE": 19109,
+    "completed_at": "2026-10-02T20:05:23.462967+00:00"
+  },
+  "priority_build_order": [
+    "Other",
+    "Bonfire",
+    "DIBBS",
+    "StateHosted",
+    "OpenGov",
+    "SimpleHTML",
+    "Cooperative",
+    "StateOwned",
+    "PlanetBids",
+    "PublicPurchase"
+  ]
+}

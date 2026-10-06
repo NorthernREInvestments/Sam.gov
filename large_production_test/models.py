@@ -1,0 +1,84 @@
+"""M3 large 500-opportunity production test.
+
+Build: 20261005-m3-large-production-test-v1
+"""
+
+from __future__ import annotations
+
+BUILD = "20261005-m3-large-production-test-v1"
+SEED = 20261005
+TARGET_SAMPLE = 500
+MIN_SAMPLE = 250
+
+CORPUS = "LARGE_TEST_CORPUS_V1.json"
+CK = "m3_large_production_test_v1_checkpoint.json"
+JOB = "m3_large_production_test_v1_job.json"
+REPORT = "m3_large_production_test_v1_last_report.json"
+REPORT_TXT = "m3_large_production_test_v1_last_report.txt"
+PROGRESS = "m3_large_production_test_v1_progress.json"
+RESULTS = "m3_large_production_test_v1_results.json"
+CONSERVATION = "m3_large_production_test_v1_conservation.json"
+BUDGETS = "m3_large_production_test_v1_budgets.json"
+UI_SYNC = "m3_large_production_test_v1_ui.json"
+
+SAM_DAILY_MAX = 10
+CHECKPOINT_EVERY = 25
+
+STAGES = [
+    "DISCOVERED",
+    "CANONICALIZED",
+    "PRODUCT_QUALIFIED",
+    "PACKAGE_ACQUIRED",
+    "PACKAGE_VERIFIED",
+    "ELIGIBILITY_CLEARED",
+    "LINES_EXTRACTED",
+    "COMMERCIAL_IDENTITY_READY",
+    "REVENUE_EVIDENCE_READY",
+    "ACQUISITION_COST_READY",
+    "QUOTE_REQUIRED",
+    "BASKET_READY",
+    "FREIGHT_READY",
+    "FINANCING_READY",
+    "ECONOMICS_READY",
+    "EXECUTION_CHECKED",
+    "LENDER_READY",
+    "BID_READY",
+]
+
+EXIT_BUCKETS = [
+    "ADVANCED",
+    "RETRYABLE",
+    "OWNER_ACTION_REQUIRED",
+    "QUOTE_RESERVE",
+    "BLOCKED",
+    "REJECTED",
+    "TERMINAL",
+]
+
+DROP_CLASS = {
+    "PACKAGE_UNAVAILABLE_FREE": "RETRYABLE",
+    "PACKAGE_INCOMPLETE": "RETRYABLE",
+    "BID_INELIGIBLE": "TERMINAL",
+    "ELIGIBILITY_ACTION_REQUIRED": "OWNER_ACTION_REQUIRED",
+    "ELIGIBILITY_UNKNOWN": "RETRYABLE",
+    "IDENTITY_AMBIGUOUS": "RETRYABLE",
+    "NO_USABLE_REVENUE": "RETRYABLE",
+    "NO_CURRENT_PUBLIC_PRICE": "RETRYABLE",
+    "QUOTE_REQUIRED": "QUOTE_RESERVE",
+    "OEM_QUOTE_REQUIRED": "QUOTE_RESERVE",
+    "DISTRIBUTOR_QUOTE_REQUIRED": "QUOTE_RESERVE",
+    "SUPPLIER_QUOTE_REQUIRED": "QUOTE_RESERVE",
+    "INSUFFICIENT_BASKET_COVERAGE": "RETRYABLE",
+    "FREIGHT_NOT_READY": "RETRYABLE",
+    "FINANCING_BLOCKED": "TERMINAL",
+    "FINANCING_UNKNOWN": "RETRYABLE",
+    "EXECUTION_COMPLEX": "OWNER_ACTION_REQUIRED",
+    "DEADLINE_TOO_CLOSE": "TERMINAL",
+    "UNPROFITABLE": "TERMINAL",
+    "RESEARCH_BUDGET_EXHAUSTED": "RETRYABLE",
+    "SAM_BUDGET_EXHAUSTED": "RETRYABLE",
+    "NOT_PRODUCT": "TERMINAL",
+    "NO_LINES": "RETRYABLE",
+    "WEAK_IDENTITY": "TERMINAL",
+    "BID_NOT_READY": "OWNER_ACTION_REQUIRED",
+}

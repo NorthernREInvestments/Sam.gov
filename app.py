@@ -33,7 +33,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20260929-m3-owner-ui-15-minute-operator-training"
+APP_BUILD_VERSION = "20261006-m3-bidnet-gap-closure-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -77,6 +77,24 @@ def _run_background_startup() -> None:
             maybe_startup_discovery()
         except Exception:
             log.exception("M3 startup discovery check failed")
+        try:
+            from bidnet_auth import startup_health_report
+
+            startup_health_report()
+        except Exception:
+            log.exception("BidNet auth startup health report failed (non-fatal)")
+        try:
+            from opengov_auth import startup_health_report as opengov_startup_health_report
+
+            opengov_startup_health_report()
+        except Exception:
+            log.exception("OpenGov auth startup health report failed (non-fatal)")
+        try:
+            from euna_auth import startup_health_report as euna_startup_health_report
+
+            euna_startup_health_report()
+        except Exception:
+            log.exception("Euna auth startup health report failed (non-fatal)")
         try:
             from m3_research_service import maybe_startup_research
 
@@ -133,6 +151,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(f"govtracker: accepting traffic ({APP_BUILD_VERSION})", flush=True)
+    try:
+        from m3_data_root import log_data_root_startup
+
+        log_data_root_startup()
+    except Exception as exc:
+        print(f"govtracker: data root startup log failed: {exc}", flush=True)
     threading.Thread(target=_run_background_startup, name="govtracker-startup", daemon=True).start()
     yield
     stop_scheduler()
@@ -795,6 +819,1695 @@ def api_m3_discovery_status():
     return discovery_status()
 
 
+@app.get("/api/m3/discovery/coverage")
+def api_m3_discovery_coverage():
+    """Discovery Coverage dashboard — RAW LIVE vs PRODUCT CANDIDATES (no profit filter)."""
+    from discovery_expansion import discovery_coverage_dashboard
+
+    return discovery_coverage_dashboard()
+
+
+@app.post("/api/m3/discovery/expansion-harvest")
+def api_m3_discovery_expansion_harvest(body: dict | None = None):
+    """Free national expansion harvest — BidNet + platform families → L23 merge. Does not burn SAM."""
+    from discovery_expansion import run_expansion_harvest
+
+    payload = body or {}
+    return run_expansion_harvest(
+        include_bidnet=bool(payload.get("include_bidnet", True)),
+        include_structured=bool(payload.get("include_structured", True)),
+        include_platform_catalog=bool(payload.get("include_platform_catalog", True)),
+        max_pages=int(payload.get("max_pages") or 80),
+        max_catalog_entities_per_family=int(payload.get("max_catalog_entities_per_family") or 40),
+        persist=True,
+    )
+
+
+@app.get("/api/m3/universe-pass/funnel")
+def api_m3_universe_pass_funnel():
+    """Classification → freshness → profit-evidence funnel for the live universe."""
+    from universe_pass import universe_funnel_dashboard
+
+    return universe_funnel_dashboard()
+
+
+@app.post("/api/m3/universe-pass/run")
+def api_m3_universe_pass_run(body: dict | None = None):
+    """Classify full live universe, BidNet freshness cleanup, profit-first product routing."""
+    from universe_pass import run_universe_pass
+
+    payload = body or {}
+    return run_universe_pass(
+        classify=bool(payload.get("classify", True)),
+        freshness=bool(payload.get("freshness", True)),
+        profit_route=bool(payload.get("profit_route", True)),
+        limit=payload.get("limit"),
+        profit_limit=payload.get("profit_limit"),
+        resume=bool(payload.get("resume", True)),
+        persist=bool(payload.get("persist", True)),
+        force_reclassify=bool(payload.get("force_reclassify", False)),
+    )
+
+
+@app.post("/api/m3/full-production-e2e/run")
+def api_m3_full_production_e2e_run(body: dict | None = None):
+    """Async full free-source discovery → universe → recovery → profit report."""
+    from m3_auth_jobs import start_full_production_e2e_job
+
+    payload = body or {}
+    pl = payload.get("profit_limit")
+    return start_full_production_e2e_job(
+        skip_bidnet=bool(payload.get("skip_bidnet", False)),
+        skip_opengov=bool(payload.get("skip_opengov", False)),
+        skip_expansion=bool(payload.get("skip_expansion", False)),
+        bidnet_max_results=int(payload.get("bidnet_max_results") or 25000),
+        opengov_max_pages=int(payload.get("opengov_max_pages") or 40),
+        recovery_bidnet_limit=int(payload.get("recovery_bidnet_limit") or 400),
+        recovery_opengov_limit=int(payload.get("recovery_opengov_limit") or 200),
+        profit_limit=None if pl in (None, "", "all") else int(pl),
+    )
+
+
+@app.post("/api/m3/full-funnel-sweep/run")
+def api_m3_full_funnel_sweep_run(body: dict | None = None):
+    """Async full-universe sweep through END_OF_FUNNEL_READY."""
+    from m3_auth_jobs import start_full_funnel_sweep_job
+
+    payload = body or {}
+    og_lim = payload.get("opengov_recovery_limit")
+    return start_full_funnel_sweep_job(
+        skip_bidnet=bool(payload.get("skip_bidnet", False)),
+        skip_opengov=bool(payload.get("skip_opengov", False)),
+        skip_expansion=bool(payload.get("skip_expansion", False)),
+        skip_discovery=bool(payload.get("skip_discovery", False)),
+        bidnet_max_results=int(payload.get("bidnet_max_results") or 25000),
+        opengov_max_pages=int(payload.get("opengov_max_pages") or 40),
+                    free_package_batch_size=int(payload.get("free_package_batch_size") or 5000),
+                    free_package_max_batches=int(payload.get("free_package_max_batches") or 40),
+        opengov_recovery_limit=None if og_lim in (None, "", "all") else int(og_lim),
+        resume=bool(payload.get("resume", True)),
+    )
+
+
+@app.get("/api/m3/full-funnel-sweep/last-report")
+def api_m3_full_funnel_sweep_last_report():
+    """Last persisted full-funnel sweep completion report."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_funnel_sweep_last_report.json")
+    if not path.exists():
+        return {"kind": None, "status": "NO_REPORT"}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"kind": None, "status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/basket-full-funnel/last-report")
+def api_m3_basket_full_funnel_last_report():
+    """Last basket completion + canonical funnel reconciliation report."""
+    import json
+
+    from m3_data_root import data_path
+
+    # Prefer strict-economics build report when present
+    strict = data_path("m3_line_basket_completion_strict_economics_v1_last_report.json")
+    path = strict if strict.exists() else data_path("m3_basket_full_funnel_reconcile_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/line-basket-strict/last-report")
+def api_m3_line_basket_strict_last_report():
+    """Line-level basket completion + strict economics gate report."""
+    import json
+
+    from m3_data_root import data_path
+
+    # Prefer material-line recovery report when present
+    recovery = data_path("m3_material_line_identity_price_recovery_v1_last_report.json")
+    path = recovery if recovery.exists() else data_path("m3_line_basket_completion_strict_economics_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/material-line-recovery/last-report")
+def api_m3_material_line_recovery_last_report():
+    """Material line identity + production price recovery report."""
+    import json
+
+    from m3_data_root import data_path
+
+    deep = data_path("m3_deep_completion_3to5_v1_last_report.json")
+    path = deep if deep.exists() else data_path("m3_material_line_identity_price_recovery_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/deep-completion/last-report")
+def api_m3_deep_completion_last_report():
+    """Deep completion 3–5 quote conversion report."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_deep_completion_3to5_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/deep-completion/opportunity/{opportunity_id}")
+def api_m3_deep_completion_opportunity(opportunity_id: str):
+    """Owner UI: deep completion candidate — no profit until ECONOMICS_READY."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_deep_completion_3to5_v1_checkpoint.json")
+    if not path.exists():
+        return {"status": "NO_CHECKPOINT", "opportunity_id": opportunity_id}
+    ck = json.loads(path.read_text(encoding="utf-8"))
+    row = (ck.get("opportunities") or {}).get(opportunity_id)
+    if not row:
+        return {"status": "NOT_IN_CORPUS", "opportunity_id": opportunity_id}
+    owner = row.get("owner_view") or {}
+    return {
+        "opportunity_id": opportunity_id,
+        "deep_completion": True,
+        "owner_view": {
+            "material_lines": owner.get("material_lines"),
+            "public_priced": owner.get("public_priced"),
+            "quote_required": owner.get("quote_required"),
+            "quote_packets": owner.get("quote_packets"),
+            "suppliers": owner.get("suppliers"),
+            "revenue_evidence": owner.get("revenue_evidence"),
+            "target_acquisition_ceiling": owner.get("target_acquisition_ceiling"),
+            "financing_state": owner.get("financing_state"),
+            "execution_risk": owner.get("execution_risk"),
+            "deadline": owner.get("deadline"),
+            "next_action": owner.get("next_action"),
+            "expected_profit": None,
+            "headline": "PROFIT NOT YET PROVEN",
+        },
+        "revenue": row.get("revenue"),
+        "execution": row.get("execution"),
+        "quote_packets": {
+            k: (row.get("quote_packets") or {}).get(k)
+            for k in ("packet_count", "coverage", "suppliers", "quote_ready_lines", "consolidation_ratio")
+        },
+        "financing": row.get("financing"),
+        "target_economics": row.get("target_economics"),
+        "coverage": row.get("coverage"),
+    }
+
+
+@app.get("/api/m3/deep-completion/outreach-queue")
+def api_m3_deep_completion_outreach_queue():
+    """Owner quote outreach queue — do not auto-send."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_final_pre_scale_outreach_queue_v1.json")
+    if not path.exists():
+        path = data_path("m3_deep_completion_outreach_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "queue": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data["build_version"] = APP_BUILD_VERSION
+            data["do_not_send_automatically"] = True
+            return data
+        return {"queue": data, "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/final-pre-scale/last-report")
+def api_m3_final_pre_scale_last_report():
+    """Final pre-scale proof — revenue hardening + owner-ready quote gate."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_final_pre_scale_proof_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["build_version"] = APP_BUILD_VERSION
+        return data
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/final-pre-scale/gap-register")
+def api_m3_final_pre_scale_gap_register():
+    """PRE_SCALE_GAP_REGISTER_V1."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("PRE_SCALE_GAP_REGISTER_V1.json")
+    if not path.exists():
+        return {"status": "NO_REGISTER", "build_version": APP_BUILD_VERSION}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["build_version"] = APP_BUILD_VERSION
+        return data
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/p0-hardening/last-report")
+def api_m3_p0_hardening_last_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_p0_prescale_hardening_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["build_version"] = APP_BUILD_VERSION
+        return data
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/owner-channel/packets")
+def api_m3_owner_channel_packets():
+    """Owner channel test packets — do not auto-send."""
+    import json
+
+    from m3_data_root import data_path
+
+    # Prefer frozen corpus
+    path = data_path("OWNER_CHANNEL_TEST_CORPUS_V1.json")
+    if not path.exists():
+        path = data_path("m3_owner_channel_test_packets_v1.json")
+    if not path.exists():
+        return {"status": "NO_PACKETS", "build_version": APP_BUILD_VERSION, "packets": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["build_version"] = APP_BUILD_VERSION
+        data["do_not_send_automatically"] = True
+        return data
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/owner-channel/last-report")
+def api_m3_owner_channel_last_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_owner_channel_tests_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["build_version"] = APP_BUILD_VERSION
+        return data
+    except Exception as exc:
+        return {"status": "READ_ERROR", "error": type(exc).__name__}
+
+
+@app.get("/api/m3/owner-channel/cards")
+def api_m3_owner_channel_cards():
+    """Owner Channel Tests action cards — four suppliers."""
+    import json
+
+    from m3_data_root import data_path
+
+    report = data_path("m3_owner_channel_tests_v1_last_report.json")
+    outreach = data_path("m3_owner_channel_outreach_texts_v1.json")
+    sent = data_path("m3_owner_channel_sent_state_v1.json")
+    resp = data_path("m3_owner_channel_responses_v1.json")
+    obs_ui = data_path("m3_quote_observability_ui_v1.json")
+    if not report.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION, "cards": []}
+    r = json.loads(report.read_text(encoding="utf-8"))
+    o = json.loads(outreach.read_text(encoding="utf-8")) if outreach.exists() else {"requests": []}
+    s = json.loads(sent.read_text(encoding="utf-8")) if sent.exists() else {"by_packet": {}}
+    responses = json.loads(resp.read_text(encoding="utf-8")) if resp.exists() else {"by_packet": {}}
+    obs_by = (
+        json.loads(obs_ui.read_text(encoding="utf-8")).get("by_packet") or {}
+        if obs_ui.exists()
+        else {}
+    )
+    by_supplier = {(x.get("Supplier") or ""): x for x in o.get("requests") or []}
+    cards = []
+    for p in (r.get("OWNER_CHANNEL_PACKETS") or {}).get("packets") or []:
+        name = p.get("Supplier") or ""
+        req = by_supplier.get(name) or {}
+        pid = p.get("packet_id")
+        sent_row = (s.get("by_packet") or {}).get(pid)
+        resp_row = (responses.get("by_packet") or {}).get(pid)
+        obs = obs_by.get(pid) or {}
+        cards.append(
+            {
+                **p,
+                "subject": req.get("Subject"),
+                "request_body": req.get("Request_body") or req.get("Request_body_preview"),
+                "exports": req.get("Packet_attachment_export") or req.get("exports"),
+                "sent_state": sent_row,
+                "response_state": resp_row,
+                "observability": {
+                    "packet_status": obs.get("packet_status")
+                    or (sent_row or {}).get("channel_test_state")
+                    or p.get("Status"),
+                    "sent_date": obs.get("sent_date") or (sent_row or {}).get("sent_timestamp"),
+                    "supplier_response": obs.get("supplier_response")
+                    or (resp_row or {}).get("outcome"),
+                    "quote_status": obs.get("quote_status"),
+                    "line_match_count": obs.get("line_match_count"),
+                    "rejected_line_count": obs.get("rejected_line_count"),
+                    "basket_before": obs.get("basket_before"),
+                    "basket_after": obs.get("basket_after"),
+                    "economics_before": obs.get("economics_before"),
+                    "economics_after": obs.get("economics_after"),
+                    "current_next_action": obs.get("current_next_action")
+                    or "Copy request → send externally → Mark Sent",
+                    "plain_english": obs.get("plain_english"),
+                    "can_revert": obs.get("can_revert"),
+                    "active_quote_id": obs.get("active_quote_id"),
+                    "event_count": obs.get("event_count") or 0,
+                },
+                "do_not_send_automatically": True,
+            }
+        )
+    return {"build_version": APP_BUILD_VERSION, "cards": cards, "do_not_send_automatically": True}
+
+
+@app.get("/api/m3/quote-observability/{packet_id}")
+def api_m3_quote_observability(packet_id: str):
+    """Owner audit trail for a channel packet quote loop."""
+    import json
+
+    from m3_data_root import data_path
+
+    ledger = data_path("QUOTE_EVENT_LEDGER.json")
+    snaps = data_path("m3_quote_before_after_snapshots_v1.json")
+    ui = data_path("m3_quote_observability_ui_v1.json")
+    events = []
+    snapshots = []
+    card = {}
+    if ledger.exists():
+        events = [
+            e
+            for e in (json.loads(ledger.read_text(encoding="utf-8")).get("events") or [])
+            if e.get("packet") == packet_id
+        ]
+    if snaps.exists():
+        snapshots = [
+            s
+            for s in (json.loads(snaps.read_text(encoding="utf-8")).get("snapshots") or [])
+            if s.get("packet") == packet_id
+        ]
+    if ui.exists():
+        card = (json.loads(ui.read_text(encoding="utf-8")).get("by_packet") or {}).get(packet_id) or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "packet_id": packet_id,
+        "card": card,
+        "events": events,
+        "snapshots": snapshots,
+    }
+
+
+@app.post("/api/m3/quote-observability/deactivate")
+def api_m3_quote_deactivate(body: dict | None = None):
+    from p1_prescale_hardening.quote_observability import deactivate_quote
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **deactivate_quote(str(payload.get("quote_id") or ""), reason=str(payload.get("reason") or "owner_revert")),
+    }
+
+
+@app.get("/api/m3/p1-prescale/report")
+def api_m3_p1_prescale_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_p1_prescale_hardening_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/large-production-test/report")
+def api_m3_large_production_test_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_large_production_test_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/large-production-test/progress")
+def api_m3_large_production_test_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_large_production_test_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "build_version": APP_BUILD_VERSION, "progress_pct": 0}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/large-production-test/ui")
+def api_m3_large_production_test_ui():
+    """Canonical /ops sync for large-test top deals, quote reserve, blocked."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_large_production_test_v1_ui.json")
+    if not path.exists():
+        return {"status": "NO_UI", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["REAL_SUPPLIER_LOOP_PROVEN"] = "NO"
+    return data
+
+
+@app.get("/api/m3/package-recovery/report")
+def api_m3_package_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_recovery_sam_budget_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/package-recovery/progress")
+def api_m3_package_recovery_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_recovery_sam_budget_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "build_version": APP_BUILD_VERSION, "progress_pct": 0}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/package-recovery/ui")
+def api_m3_package_recovery_ui():
+    """Explicit package states + SAM credit meter for /ops."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_recovery_sam_budget_v1_ui.json")
+    if not path.exists():
+        return {"status": "NO_UI", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    # Live SAM meter overlay
+    try:
+        from package_recovery_sam_budget.sam_manager import SamDailyCreditManager
+
+        data["sam_meter"] = SamDailyCreditManager().snapshot()
+    except Exception as exc:
+        data["sam_meter_error"] = type(exc).__name__
+    return data
+
+
+@app.post("/api/m3/package-recovery/promote-sam")
+def api_m3_package_recovery_promote_sam(body: dict | None = None):
+    """Owner promotes one SAM opportunity — still respects hard 10/day unless override=true."""
+    import json
+
+    from m3_data_root import data_path
+    from package_recovery_sam_budget.models import BUILD, SAM_QUEUE
+    from package_recovery_sam_budget.sam_manager import SamDailyCreditManager
+
+    payload = body or {}
+    oid = str(payload.get("opportunity_id") or "").strip()
+    override = bool(payload.get("owner_override"))
+    if not oid:
+        return {"ok": False, "error": "opportunity_id_required", "build_version": APP_BUILD_VERSION}
+    manager = SamDailyCreditManager()
+    snap = manager.snapshot()
+    if not override and not manager.can_spend_automated(1):
+        return {
+            "ok": False,
+            "error": "SAM_BUDGET_EXHAUSTED",
+            "sam_meter": snap,
+            "hint": "Set owner_override=true to spend reserved credit",
+            "build_version": APP_BUILD_VERSION,
+        }
+    qpath = data_path(SAM_QUEUE)
+    queue = {}
+    if qpath.exists():
+        queue = json.loads(qpath.read_text(encoding="utf-8"))
+    promoted = list(queue.get("owner_promoted") or [])
+    if oid not in promoted:
+        promoted.append(oid)
+    queue["owner_promoted"] = promoted
+    queue["updated_at"] = __import__("application_clock").now_utc().isoformat()
+    queue["build"] = BUILD
+    qpath.write_text(json.dumps(queue, indent=2), encoding="utf-8")
+    return {
+        "ok": True,
+        "promoted": oid,
+        "use_reserve": override,
+        "sam_meter": manager.snapshot(),
+        "build_version": APP_BUILD_VERSION,
+        "auto_spent": False,
+    }
+
+
+@app.get("/api/m3/bidnet-full-production/report")
+def api_m3_bidnet_full_production_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_full_production_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-full-production/progress")
+def api_m3_bidnet_full_production_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_full_production_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "build_version": APP_BUILD_VERSION, "progress_pct": 0}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-full-production/ui")
+def api_m3_bidnet_full_production_ui():
+    """BidNet source health + 192 acceptance for /ops."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_full_production_v1_ui.json")
+    if not path.exists():
+        return {"status": "NO_UI", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    try:
+        from bidnet_auth import owner_connection_status
+
+        data["bidnet_auth"] = owner_connection_status()
+    except Exception as exc:
+        data["bidnet_auth_error"] = type(exc).__name__
+    return data
+
+
+@app.get("/api/m3/bidnet-full-production/architecture")
+def api_m3_bidnet_full_production_architecture():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_full_production_architecture_audit.json")
+    if not path.exists():
+        from bidnet_full_production.architecture_audit import build_architecture_audit
+
+        return build_architecture_audit()
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.post("/api/m3/bidnet-full-production/run")
+def api_m3_bidnet_full_production_run(body: dict | None = None):
+    """Kick authenticated BidNet full-production acceptance (background job)."""
+    from m3_auth_jobs import start_bidnet_full_production_job
+
+    payload = body or {}
+    return start_bidnet_full_production_job(
+        fresh=bool(payload.get("fresh", True)),
+        full_discovery=bool(payload.get("full_discovery", False)),
+    )
+
+
+@app.post("/api/m3/bidnet-full-production/seed-corpus")
+def api_m3_bidnet_full_production_seed_corpus(body: dict | None = None):
+    """Seed LARGE_TEST_CORPUS_V1 onto M3_DATA_ROOT (immutable frozen 500)."""
+    import json
+
+    from m3_data_root import data_path
+
+    payload = body or {}
+    corpus = payload.get("corpus") if isinstance(payload.get("corpus"), dict) else payload
+    ids = corpus.get("opportunity_ids") or []
+    items = corpus.get("items") or []
+    if not ids or not items or len(ids) != len(items):
+        return {"ok": False, "error": "invalid_corpus_shape", "build_version": APP_BUILD_VERSION}
+    bidnet = sum(1 for i in items if i.get("source_bucket") == "BidNet")
+    if bidnet != 192:
+        return {
+            "ok": False,
+            "error": "bidnet_count_must_be_192",
+            "bidnet": bidnet,
+            "build_version": APP_BUILD_VERSION,
+        }
+    path = data_path("LARGE_TEST_CORPUS_V1.json")
+    path.write_text(json.dumps(corpus, indent=2, default=str), encoding="utf-8")
+    return {
+        "ok": True,
+        "path": str(path),
+        "count": len(ids),
+        "bidnet": bidnet,
+        "build_version": APP_BUILD_VERSION,
+    }
+
+
+@app.get("/api/m3/bidnet-full-production/env-check")
+def api_m3_bidnet_full_production_env_check():
+    """Confirm BidNet auth env + storage state + corpus (no secrets)."""
+    from bidnet_auth.config import load_bidnet_auth_config
+    from bidnet_auth.session_store import storage_state_exists, storage_state_path
+    from m3_data_root import data_path, get_data_root
+    import json
+
+    cfg = load_bidnet_auth_config()
+    corpus_path = data_path("LARGE_TEST_CORPUS_V1.json")
+    bidnet = 0
+    count = 0
+    if corpus_path.exists():
+        try:
+            c = json.loads(corpus_path.read_text(encoding="utf-8"))
+            count = len(c.get("opportunity_ids") or [])
+            bidnet = sum(1 for i in (c.get("items") or []) if i.get("source_bucket") == "BidNet")
+        except Exception as exc:
+            return {"ok": False, "error": type(exc).__name__, "build_version": APP_BUILD_VERSION}
+    return {
+        "ok": True,
+        "build_version": APP_BUILD_VERSION,
+        "gap_walker": 3,
+        "data_root": str(get_data_root()),
+        "auth_enabled": cfg.auth_enabled,
+        "credentials_configured": cfg.credentials_present,
+        "storage_state_present": storage_state_exists(),
+        "storage_state_path": str(storage_state_path()),
+        "corpus_present": corpus_path.exists(),
+        "corpus_count": count,
+        "corpus_bidnet": bidnet,
+    }
+
+
+@app.get("/api/m3/bidnet-full-production/job/{job_id}")
+def api_m3_bidnet_full_production_job(job_id: str):
+    from m3_auth_jobs import get_job
+
+    job = get_job(job_id)
+    if not job:
+        return {"status": "NO_JOB", "job_id": job_id, "build_version": APP_BUILD_VERSION}
+    job = dict(job)
+    job["build_version"] = APP_BUILD_VERSION
+    return job
+
+
+@app.post("/api/m3/owner-channel/mark-sent")
+def api_m3_owner_channel_mark_sent(body: dict | None = None):
+    """Owner manually marks quote request sent externally — never auto-sends."""
+    from owner_channel_tests.lifecycle import mark_quote_request_sent
+
+    payload = body or {}
+    row = mark_quote_request_sent(
+        packet_id=str(payload.get("packet_id") or ""),
+        supplier=str(payload.get("supplier") or ""),
+        method=str(payload.get("method") or "MANUAL_EXTERNAL"),
+        contact_used=payload.get("contact_used"),
+        requested_response_date=payload.get("requested_response_date"),
+        owner_notes=payload.get("owner_notes"),
+    )
+    return {"ok": True, "build_version": APP_BUILD_VERSION, "sent": row, "auto_sent": False}
+
+
+@app.post("/api/m3/owner-channel/record-response")
+def api_m3_owner_channel_record_response(body: dict | None = None):
+    from owner_channel_tests.lifecycle import record_response
+
+    payload = body or {}
+    row = record_response(
+        packet_id=str(payload.get("packet_id") or ""),
+        outcome=str(payload.get("outcome") or "OTHER"),
+        owner_notes=payload.get("owner_notes"),
+    )
+    return {"ok": True, "build_version": APP_BUILD_VERSION, "response": row}
+
+
+@app.post("/api/m3/owner-channel/ingest-quote")
+def api_m3_owner_channel_ingest_quote(body: dict | None = None):
+    """Ingest REAL_SUPPLIER_QUOTE only — fixtures blocked."""
+    import json
+
+    from m3_data_root import data_path
+    from owner_channel_tests.lifecycle import ingest_real_quote
+
+    payload = body or {}
+    quote = payload.get("quote") or payload
+    packet_id = payload.get("packet_id") or quote.get("packet_id")
+    corpus = data_path("OWNER_CHANNEL_TEST_CORPUS_V1.json")
+    packet = None
+    if corpus.exists():
+        packets = json.loads(corpus.read_text(encoding="utf-8")).get("packets") or []
+        packet = next((p for p in packets if p.get("packet_id") == packet_id), None)
+    if not packet:
+        return {"ok": False, "error": "PACKET_NOT_FOUND", "build_version": APP_BUILD_VERSION}
+    result = ingest_real_quote(packet=packet, quote=quote)
+    return {"ok": bool(result.get("accepted")), "build_version": APP_BUILD_VERSION, "result": result}
+
+
+@app.post("/api/m3/quotes/process-real")
+def api_m3_process_real_supplier_quote(body: dict | None = None):
+    """PROCESS_REAL_SUPPLIER_QUOTE — fixtures blocked; no auto outreach."""
+    from copy import deepcopy
+
+    from p0_prescale_hardening.quote_pipeline import init_basket_from_packet, process_real_supplier_quote
+    from m3_data_root import data_path
+    import json
+
+    payload = body or {}
+    quote = payload.get("quote") or payload
+    packet = payload.get("packet")
+    if not packet:
+        ch = data_path("m3_owner_channel_test_packets_v1.json")
+        if ch.exists():
+            packets = (json.loads(ch.read_text(encoding="utf-8")).get("channel_packets") or [])
+            pid = payload.get("packet_id")
+            packet = next((p for p in packets if p.get("packet_id") == pid), packets[0] if packets else None)
+    if not packet:
+        return {"ok": False, "error": "NO_PACKET", "build_version": APP_BUILD_VERSION}
+    basket = init_basket_from_packet(packet)
+    audit = process_real_supplier_quote(quote, basket_state=deepcopy(basket), opportunity_state={})
+    return {"ok": True, "build_version": APP_BUILD_VERSION, "audit": audit, "do_not_send_automatically": True}
+
+
+@app.get("/api/m3/material-line-recovery/opportunity/{opportunity_id}")
+def api_m3_material_line_recovery_opportunity(opportunity_id: str):
+    """Owner UI: material identity/price recovery — no profit until ECONOMICS_READY."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_material_line_identity_price_recovery_v1_checkpoint.json")
+    if not path.exists():
+        return {"status": "NO_CHECKPOINT", "opportunity_id": opportunity_id}
+    ck = json.loads(path.read_text(encoding="utf-8"))
+    row = (ck.get("opportunities") or {}).get(opportunity_id)
+    if not row:
+        return {"status": "NOT_IN_CORPUS", "opportunity_id": opportunity_id}
+    owner = row.get("owner_view") or {}
+    return {
+        "opportunity_id": opportunity_id,
+        "owner_view": {
+            "material_lines": owner.get("material_lines"),
+            "identity_ready": owner.get("identity_ready"),
+            "production_priced": owner.get("production_priced"),
+            "quote_required": owner.get("quote_required"),
+            "ambiguous": owner.get("ambiguous"),
+            "material_coverage": owner.get("material_coverage"),
+            "revenue_confidence": owner.get("revenue_confidence"),
+            "next_blocker": owner.get("next_blocker"),
+            "expected_profit": None,
+            "headline": "PROFIT NOT YET PROVEN",
+        },
+        "coverage": row.get("coverage"),
+        "source_stats": row.get("source_stats"),
+    }
+
+
+@app.get("/api/m3/basket-full-funnel/opportunity/{opportunity_id}")
+def api_m3_basket_full_funnel_opportunity(opportunity_id: str):
+    """Owner-facing canonical stage, next action, and what-can-hurt-us for one opportunity."""
+    import json
+
+    from m3_data_root import data_path
+
+    strict_ck = data_path("m3_line_basket_completion_strict_economics_v1_checkpoint.json")
+    path = strict_ck if strict_ck.exists() else data_path("m3_basket_full_funnel_reconcile_v1_checkpoint.json")
+    if not path.exists():
+        return {"status": "NO_CHECKPOINT", "opportunity_id": opportunity_id}
+    ck = json.loads(path.read_text(encoding="utf-8"))
+    row = (ck.get("opportunities") or {}).get(opportunity_id)
+    if not row:
+        return {"status": "NOT_IN_CORPUS", "opportunity_id": opportunity_id}
+    owner = row.get("owner_view") or {}
+    econ = row.get("economics") or {}
+    # Never surface positive profit as actionable when economics not ready
+    if econ.get("economics_status") == "ECONOMICS_NOT_READY" or econ.get("profit_confidence") == "PROFIT_UNPROVEN":
+        owner = {
+            **owner,
+            "expected_profit": None,
+            "headline": "PROFIT NOT YET PROVEN",
+        }
+    return {
+        "opportunity_id": opportunity_id,
+        "canonical_stage": row.get("canonical_stage"),
+        "next_action": row.get("next_action") or owner.get("next_action"),
+        "what_can_hurt_us": row.get("what_can_hurt_us"),
+        "owner_view": {
+            **owner,
+            "basket_coverage": owner.get("basket_coverage") or (row.get("coverage") or {}).get("LINE_COUNT_COVERAGE"),
+            "material_coverage": owner.get("material_coverage") or (row.get("coverage") or {}).get("MATERIAL_VALUE_COVERAGE"),
+            "lines_priced": owner.get("lines_priced") or (row.get("coverage") or {}).get("priced_executable"),
+            "material_lines_unresolved": owner.get("material_lines_unresolved"),
+            "expected_profit": owner.get("expected_profit"),
+            "profit_confidence": owner.get("profit_confidence") or econ.get("profit_confidence"),
+            "unresolved_cost_exposure": owner.get("unresolved_cost_exposure") or econ.get("unresolved_cost_exposure"),
+            "next_action": owner.get("next_action"),
+        },
+        "basket": row.get("basket"),
+        "economics": econ,
+        "coverage": row.get("coverage"),
+        "lines_summary": {
+            k: (row.get("lines") or {}).get(k)
+            for k in (
+                "TOTAL_LINES",
+                "PRICED_LINES",
+                "line_coverage",
+                "QUOTE_REQUIRED_LINES",
+            )
+        },
+    }
+
+
+@app.get("/api/m3/full-production-e2e/last-report")
+def api_m3_full_production_e2e_last_report():
+    """Last persisted full-production E2E completion report."""
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_production_e2e_last_report.json")
+    if not path.exists():
+        return {"error": "no_report"}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/m3/bidnet-recovery/funnel")
+def api_m3_bidnet_recovery_funnel():
+    from bidnet_recovery import bidnet_recovery_funnel
+
+    return bidnet_recovery_funnel()
+
+
+@app.get("/api/m3/bidnet-auth/status")
+def api_m3_bidnet_auth_status():
+    from bidnet_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/m3/bidnet-auth/test-connection")
+def api_m3_bidnet_auth_test_connection():
+    """Attempt BidNet session reuse or automatic login. Never returns credentials."""
+    from bidnet_auth import test_connection
+
+    return test_connection()
+
+
+@app.post("/api/m3/bidnet-auth/debug-fetch")
+def api_m3_bidnet_auth_debug_fetch(body: dict | None = None):
+    """Authenticated fetch diagnostics for one BidNet URL — no HTML body, no secrets."""
+    import re
+
+    from bidnet_auth import BidNetAuthenticatedClient
+
+    payload = body or {}
+    url = str(payload.get("url") or "").strip()
+    if not url.startswith("http") or "bidnet" not in url.lower():
+        return {"ok": False, "error": "bidnet_url_required"}
+    with BidNetAuthenticatedClient() as client:
+        auth = client.ensure_authenticated()
+        if not auth.authenticated:
+            return {"ok": False, "auth": auth.to_dict()}
+        html = client.fetch_html(url)
+        low = (html or "").lower()
+        title_m = re.search(r"<title>([^<]{0,160})</title>", html or "", re.I)
+        page_opts = re.findall(
+            r'data-page-number="(\d+)"[^>]*data-href="([^"]*)"', html or "", re.I
+        )[:8]
+        if not page_opts:
+            page_opts = re.findall(
+                r'data-href="([^"]*)"[^>]*data-page-number="(\d+)"', html or "", re.I
+            )[:8]
+            page_opts = [(b, a) for a, b in page_opts]
+        return {
+            "ok": True,
+            "auth": auth.to_dict(),
+            "final_url": str(getattr(client._page, "url", "") or "")[:220],
+            "html_len": len(html or ""),
+            "title_snippet": (title_m.group(1) if title_m else "")[:120],
+            "has_mets_field": "mets-field" in low,
+            "has_member_only": "member-only" in low or "registered members only" in low,
+            "has_closing_date": "closing date" in low,
+            "has_issuing_org": "issuing organization" in low,
+            "has_solicitation_number": "solicitation number" in low,
+            "has_login_form": 'type="password"' in low or "authentication/login" in low,
+            "has_pdf_link": bool(re.search(r"\.pdf", low)),
+            "locked_field_hits": len(re.findall(r"member-only-info|registered members only", low)),
+            "has_mets_table_row": "mets-table-row" in low,
+            "has_mets_pagination": "mets-pagination" in low,
+            "page_number_select": "pagenumberselect" in low or 'id="pagenumber' in low,
+            "reported_results": (
+                re.search(r"([\d,]+)\s+results", html or "", re.I).group(1)
+                if re.search(r"([\d,]+)\s+results", html or "", re.I)
+                else None
+            ),
+            "pagination_options_sample": [{"page": p, "href": h[:160]} for p, h in page_opts],
+        }
+
+
+@app.post("/api/m3/bidnet-discovery/harvest")
+def api_m3_bidnet_discovery_harvest(body: dict | None = None):
+    """Harvest BidNet search results.
+
+    Default async=true so long Playwright work does not trip proxy timeouts.
+    Pass async=false only for tiny smoke tests.
+    max_results>=7000 or mode=partitioned → state-partitioned full universe.
+    """
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+    max_results = int(payload.get("max_results") or 20)
+    max_pages = int(payload.get("max_pages") or 4)
+    open_details = bool(payload.get("open_details", True))
+    detail_limit = payload.get("detail_limit")
+    persist = bool(payload.get("persist", True))
+    mode = payload.get("mode")
+    if async_mode:
+        from m3_auth_jobs import start_bidnet_harvest_job
+
+        return start_bidnet_harvest_job(
+            max_results=max_results,
+            max_pages=max_pages,
+            open_details=open_details,
+            detail_limit=int(detail_limit) if detail_limit is not None else None,
+            persist=persist,
+            mode=str(mode) if mode else None,
+        )
+    if (mode or "").lower() in {"partitioned", "full", "state"} or max_results >= 7000:
+        from bidnet_discovery import run_bidnet_partitioned_harvest
+
+        return run_bidnet_partitioned_harvest(
+            max_results=max_results,
+            max_pages_per_partition=min(max(max_pages, 50), 400),
+            persist=persist,
+            use_auth_seed=bool(payload.get("use_auth", True)),
+        )
+    from bidnet_discovery import run_bidnet_authenticated_harvest
+
+    return run_bidnet_authenticated_harvest(
+        max_results=max_results,
+        max_pages=max_pages,
+        open_details=open_details,
+        detail_limit=detail_limit,
+        persist=persist,
+        use_auth=bool(payload.get("use_auth", True)),
+    )
+
+
+@app.post("/api/m3/bidnet-gap-closure/run")
+def api_m3_bidnet_gap_closure_run():
+    """Classify and retry the 2,403-id harvest gap. Does not retune coverage thresholds."""
+    from m3_auth_jobs import start_bidnet_gap_closure_job
+
+    return start_bidnet_gap_closure_job()
+
+
+@app.get("/api/m3/bidnet-gap-closure/report")
+def api_m3_bidnet_gap_closure_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_gap_closure_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_gap_closure.report import format_gap_report
+
+        return Response(content=format_gap_report(report), media_type="text/plain")
+    return report
+
+
+@app.get("/api/m3/auth-jobs/latest")
+def api_m3_auth_job_latest():
+    from m3_auth_jobs import latest_job
+
+    job = latest_job()
+    if not job:
+        return {"ok": False, "error": "no_jobs"}
+    return {"ok": True, **job}
+
+
+@app.get("/api/m3/auth-jobs/{job_id}")
+def api_m3_auth_job_status(job_id: str):
+    from m3_auth_jobs import get_job
+
+    job = get_job(job_id)
+    if not job:
+        return {"ok": False, "error": "job_not_found", "job_id": job_id}
+    return {"ok": True, **job}
+
+
+@app.get("/api/m3/opengov-auth/status")
+def api_m3_opengov_auth_status():
+    from opengov_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/m3/opengov-auth/test-connection")
+def api_m3_opengov_auth_test_connection():
+    from opengov_auth import test_connection
+
+    return test_connection()
+
+
+@app.post("/api/m3/opengov-discovery/run")
+@app.post("/api/m3/opengov-discovery/harvest")
+def api_m3_opengov_discovery_run(body: dict | None = None):
+    """OpenGov cascade discovery. Default async=true to avoid proxy timeouts."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+    max_entities = payload.get("max_entities")
+    max_pages = int(payload.get("max_pages") or 8)
+    persist = bool(payload.get("persist", True))
+    mode = str(payload.get("mode") or "cascade")
+    allow_browser = bool(payload.get("allow_browser", False))
+    # None / "all" → full known entity set
+    if max_entities in (None, "", "all", "ALL"):
+        me: int | None = None if mode == "cascade" else 10
+    else:
+        me = int(max_entities)
+    if async_mode:
+        from m3_auth_jobs import start_opengov_discovery_job
+
+        return start_opengov_discovery_job(
+            max_entities=me if me is not None else None,
+            max_pages=max_pages,
+            persist=persist,
+            mode=mode,
+            allow_browser=allow_browser,
+        )
+    from opengov_discovery.cascade import run_opengov_cascade_discovery
+
+    return run_opengov_cascade_discovery(
+        max_entities=me,
+        max_pages=max_pages,
+        persist=persist,
+        use_auth=bool(payload.get("use_auth", True)),
+        allow_browser=allow_browser,
+    )
+
+
+@app.post("/api/m3/opengov-discovery/route-map")
+def api_m3_opengov_route_map(body: dict | None = None):
+    """Async route-mapping pass across known OpenGov entities."""
+    payload = body or {}
+    max_entities = payload.get("max_entities")
+    me = None if max_entities in (None, "", "all", "ALL") else int(max_entities)
+    from m3_auth_jobs import start_opengov_discovery_job
+
+    return start_opengov_discovery_job(
+        max_entities=me,
+        max_pages=int(payload.get("max_pages") or 2),
+        persist=bool(payload.get("persist", False)),
+        mode="cascade",
+        allow_browser=bool(payload.get("allow_browser", False)),
+    )
+
+
+@app.get("/api/m3/opengov-discovery/resolver")
+def api_m3_opengov_resolver_status():
+    from opengov_discovery.route_resolver import OpenGovRouteResolver
+
+    r = OpenGovRouteResolver()
+    return {"kind": "OpenGovRouteResolverStatus", **r.telemetry_summary()}
+
+
+@app.get("/api/m3/euna-auth/status")
+def api_m3_euna_auth_status():
+    from euna_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/m3/euna-auth/test-connection")
+def api_m3_euna_auth_test_connection():
+    """Async diagnostic — Playwright login must not block the proxy."""
+    from m3_auth_jobs import start_euna_auth_diagnostic_job
+
+    return start_euna_auth_diagnostic_job()
+
+
+@app.post("/api/m3/euna-auth/diagnostic")
+def api_m3_euna_auth_diagnostic(body: dict | None = None):
+    """Stage A auth diagnostic. Default async=true."""
+    payload = body or {}
+    if bool(payload.get("async", True)):
+        from m3_auth_jobs import start_euna_auth_diagnostic_job
+
+        return start_euna_auth_diagnostic_job()
+    from euna_auth import run_auth_diagnostic
+
+    return run_auth_diagnostic(persist_screenshot=bool(payload.get("screenshot", True)))
+
+
+@app.post("/api/m3/euna-discovery/api-probe")
+def api_m3_euna_api_probe(body: dict | None = None):
+    """Discover real opportunity API endpoints from authenticated session."""
+    from m3_auth_jobs import start_euna_api_probe_job
+
+    return start_euna_api_probe_job()
+
+
+@app.post("/api/m3/euna-discovery/run")
+@app.post("/api/m3/euna-discovery/harvest")
+def api_m3_euna_discovery_run(body: dict | None = None):
+    """Euna Supplier Network discovery (central by default). Default async=true."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+    max_entities = payload.get("max_entities")
+    max_pages = int(payload.get("max_pages") or 40)
+    max_results = int(payload.get("max_results") or 5000)
+    persist = bool(payload.get("persist", True))
+    mode = payload.get("mode") or "central"
+    if async_mode:
+        from m3_auth_jobs import start_euna_discovery_job
+
+        return start_euna_discovery_job(
+            max_entities=int(max_entities) if max_entities is not None else 10,
+            max_pages=max_pages,
+            max_results=max_results,
+            persist=persist,
+            mode=str(mode),
+        )
+    if str(mode).lower() in {"portals", "agency", "hubs"}:
+        from euna_discovery import run_euna_discovery
+
+        return run_euna_discovery(
+            max_entities=max_entities,
+            max_pages=max_pages,
+            persist=persist,
+            use_auth=bool(payload.get("use_auth", True)),
+        )
+    from euna_discovery import run_euna_central_discovery
+
+    return run_euna_central_discovery(
+        max_results=max_results,
+        max_pages=max_pages,
+        persist=persist,
+        use_auth=bool(payload.get("use_auth", True)),
+    )
+
+
+@app.get("/api/m3/source-coverage/roadmap")
+def api_m3_source_coverage_roadmap():
+    """Free-national source priority + coverage categories (Euna = PAID_OPTIONAL)."""
+    from free_source_roadmap import source_coverage_categories
+
+    payload = source_coverage_categories()
+    payload["build_version"] = APP_BUILD_VERSION
+    try:
+        from m3_canonical_discovery_bridge import discovery_health_payload
+
+        health = discovery_health_payload()
+        payload["canonical_live"] = health.get("currently_available")
+        payload["canonical_total"] = health.get("canonical_opportunities")
+    except Exception:
+        payload["canonical_live"] = None
+    return payload
+
+
+@app.get("/api/m3/source-coverage/production")
+def api_m3_source_coverage_production():
+    """Owner coverage: BidNet + OpenGov free health; Euna tracked as PAID_OPTIONAL only."""
+    import json
+
+    out: dict = {
+        "kind": "FreeNationalSourceCoverage",
+        "build_version": APP_BUILD_VERSION,
+        "strategy": "FREE_NATIONAL_MULTI_STATE_FIRST",
+        "owner": {},
+        "combined": {},
+        "national_health_sources": ["bidnet", "opengov"],
+        "paid_optional_sources": ["euna"],
+    }
+    try:
+        from bidnet_auth import owner_connection_status as bn
+
+        out["bidnet"] = bn()
+    except Exception as exc:
+        out["bidnet"] = {"error": type(exc).__name__}
+    try:
+        from opengov_auth import owner_connection_status as og
+
+        out["opengov"] = og()
+    except Exception as exc:
+        out["opengov"] = {"error": type(exc).__name__}
+    try:
+        from euna_auth import owner_connection_status as eu
+
+        out["euna"] = eu()
+    except Exception as exc:
+        out["euna"] = {"error": type(exc).__name__}
+    try:
+        from m3_data_root import data_path
+
+        reports: dict[str, Any] = {}
+        for key, rel in (
+            ("bidnet_last_harvest", "bidnet_auth/last_harvest_report.json"),
+            ("bidnet_partitioned", "bidnet_auth/last_partitioned_harvest.json"),
+            ("opengov_last_discovery", "opengov_auth/last_discovery_report.json"),
+            ("opengov_public", "opengov_auth/last_public_discovery_report.json"),
+            ("euna_last_discovery", "euna_auth/last_discovery_report.json"),
+        ):
+            p = data_path(rel)
+            if p.exists():
+                reports[key] = json.loads(p.read_text(encoding="utf-8"))
+                out[key] = reports[key]
+
+        bn_p = reports.get("bidnet_partitioned") or reports.get("bidnet_last_harvest") or {}
+        bn_h = bn_p.get("harvest") if isinstance(bn_p.get("harvest"), dict) else bn_p
+        reported = bn_h.get("reported_open_ui") or bn_h.get("reported_total") or (out.get("bidnet") or {}).get("reported_open")
+        retrieved = bn_h.get("retrieved_unique") or bn_h.get("retrieved_total") or (out.get("bidnet") or {}).get("harvested")
+        out["owner"]["bidnet"] = {
+            "reported_open": reported,
+            "retrieved": retrieved,
+            "retrieval_pct": bn_h.get("retrieval_pct")
+            or (
+                round(100.0 * float(retrieved) / max(1, float(reported)), 2)
+                if reported and retrieved
+                else None
+            ),
+            "pagination_complete": bn_h.get("pagination_complete"),
+            "partition_method": bn_h.get("partition_method") or bn_p.get("partition_method"),
+            "net_new": bn_h.get("net_new") or (bn_h.get("canonical_merge") or {}).get("new"),
+            "details": (bn_h.get("detail_stats") or {}).get("details_opened")
+            if isinstance(bn_h.get("detail_stats"), dict)
+            else None,
+            "documents": (bn_h.get("detail_stats") or {}).get("documents_found")
+            if isinstance(bn_h.get("detail_stats"), dict)
+            else None,
+            "remaining_gap": bn_h.get("remaining_gap"),
+        }
+
+        og_d = reports.get("opengov_last_discovery") or reports.get("opengov_public") or {}
+        pub = og_d.get("public_discovery") if isinstance(og_d.get("public_discovery"), dict) else {}
+        out["owner"]["opengov"] = {
+            "known_entities": og_d.get("known_entities") or (out.get("opengov") or {}).get("known_entities"),
+            "attempted": og_d.get("entities_attempted"),
+            "public_working": og_d.get("working_public") or pub.get("working_public"),
+            "auth_working": og_d.get("working_auth"),
+            "anti_bot": og_d.get("anti_bot_public") or pub.get("anti_bot"),
+            "raw": og_d.get("raw_opportunities") or pub.get("raw_opportunities"),
+            "net_new": og_d.get("net_new") or (og_d.get("canonical_merge") or {}).get("new"),
+            "documents": og_d.get("documents_recovered"),
+        }
+
+        eu_d = reports.get("euna_last_discovery") or {}
+        eu_status = out.get("euna") or {}
+        out["owner"]["euna"] = {
+            "coverage_category": "PAID_OPTIONAL",
+            "source_role": eu_status.get("source_role") or "OPTIONAL_TARGETED_SOURCE",
+            "owner_label": eu_status.get("owner_label") or "OPTIONAL — PAID STATE ACCESS",
+            "national_discovery_enabled": eu_status.get("national_discovery_enabled", False),
+            "enabled_states": eu_status.get("enabled_states_display") or "NONE",
+            "counts_toward_national_health": False,
+            "auth_state": eu_status.get("auth_status")
+            or (
+                (eu_d.get("auth") or {}).get("status")
+                if isinstance(eu_d.get("auth"), dict)
+                else eu_status.get("status")
+            ),
+            "status": eu_status.get("status") or "PAID_OPTIONAL",
+            "central_reachable": eu_d.get("central_reachable"),
+            "reported_open": eu_d.get("reported_total"),
+            "retrieved": eu_d.get("retrieved_total") or eu_d.get("unique_records"),
+            "net_new": eu_d.get("net_new") or (eu_d.get("canonical_merge") or {}).get("new"),
+            "documents": eu_d.get("documents_recovered"),
+            "blocker": eu_d.get("blocker"),
+        }
+
+        # Free-source national health — Euna net-new excluded from success metrics
+        try:
+            from m3_canonical_discovery_bridge import discovery_health_payload
+            from free_source_roadmap import source_coverage_categories
+
+            health = discovery_health_payload()
+            free_net = sum(
+                int(x or 0)
+                for x in (
+                    out["owner"]["bidnet"].get("net_new"),
+                    out["owner"]["opengov"].get("net_new"),
+                )
+                if x is not None
+            )
+            out["combined"] = {
+                "canonical_live": health.get("currently_available"),
+                "canonical_total": health.get("canonical_opportunities"),
+                "free_source_net_new_this_run": free_net,
+                "paid_optional_net_new": out["owner"]["euna"].get("net_new") or 0,
+                "net_new_this_run": free_net,  # national metric = free only
+                "target_canonical_live": 50000,
+                "product_candidates": None,
+                "economics_ready": None,
+                "profitable": None,
+            }
+            out["roadmap"] = source_coverage_categories()
+            # National readiness uses BidNet + OpenGov only
+            bn_ok = bool(
+                out["owner"]["bidnet"].get("retrieval_pct") is None
+                or (out["owner"]["bidnet"].get("retrieval_pct") or 0) >= 90
+                or out["owner"]["bidnet"].get("pagination_complete")
+            )
+            og_partial = True  # OpenGov is active repair; not a hard fail for Euna absence
+            out["national_source_health"] = {
+                "bidnet_ok": bn_ok,
+                "opengov_in_repair": og_partial,
+                "euna_affects_score": False,
+                "unattended_free_ready": bn_ok,
+                "free_source_coverage_score_inputs": ["bidnet", "opengov"],
+            }
+        except Exception:
+            out["combined"] = {"canonical_live": None}
+    except Exception:
+        pass
+    return out
+
+
+@app.get("/api/m3/opengov-recovery/funnel")
+def api_m3_opengov_recovery_funnel():
+    from opengov_recovery import opengov_recovery_funnel
+
+    return opengov_recovery_funnel()
+
+
+@app.post("/api/m3/opengov-recovery/run")
+def api_m3_opengov_recovery_run(body: dict | None = None):
+    from opengov_recovery import run_opengov_recovery
+
+    payload = body or {}
+    use_auth = payload.get("use_auth")
+    return run_opengov_recovery(
+        limit=payload.get("limit"),
+        resume=bool(payload.get("resume", True)),
+        persist=bool(payload.get("persist", True)),
+        force=bool(payload.get("force", False)),
+        use_auth=None if use_auth is None else bool(use_auth),
+    )
+
+
+@app.post("/api/m3/opengov-public-docs/run")
+def api_m3_opengov_public_docs_run(body: dict | None = None):
+    """Async OpenGov public document recovery (quality-gated, free routes only)."""
+    from m3_auth_jobs import start_opengov_public_docs_job
+
+    payload = body or {}
+    return start_opengov_public_docs_job(
+        limit=int(payload.get("limit") or 20),
+        resume=bool(payload.get("resume", True)),
+        download=bool(payload.get("download", True)),
+        max_entities=payload.get("max_entities"),
+        handoff_line_items=bool(payload.get("handoff_line_items", True)),
+    )
+
+
+@app.get("/api/m3/opengov-public-docs/last-report")
+def api_m3_opengov_public_docs_last_report():
+    from m3_data_root import data_path
+
+    path = data_path("m3_opengov_public_docs_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    import json
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.post("/api/m3/official-source/run")
+def api_m3_official_source_run(body: dict | None = None):
+    """Async BidNet → official source resolution + free package recovery."""
+    from m3_auth_jobs import start_official_source_job
+
+    payload = body or {}
+    return start_official_source_job(
+        limit=int(payload.get("limit") or 500),
+        resume=bool(payload.get("resume", True)),
+        download=bool(payload.get("download", True)),
+        handoff_line_items=bool(payload.get("handoff_line_items", True)),
+    )
+
+
+@app.get("/api/m3/official-source/last-report")
+def api_m3_official_source_last_report():
+    from m3_data_root import data_path
+
+    path = data_path("m3_official_source_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    import json
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.post("/api/m3/product-identity/run")
+def api_m3_product_identity_run(body: dict | None = None):
+    """Async product-identity breakthrough on recovered OpenGov packages."""
+    from m3_auth_jobs import start_product_identity_job
+
+    payload = body or {}
+    return start_product_identity_job(
+        line_limit=int(payload.get("line_limit") or 500),
+        resume=bool(payload.get("resume", True)),
+        handoff=bool(payload.get("handoff", True)),
+        max_packages=payload.get("max_packages"),
+    )
+
+
+@app.get("/api/m3/product-identity/last-report")
+def api_m3_product_identity_last_report():
+    from m3_data_root import data_path
+
+    path = data_path("m3_product_identity_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    import json
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.post("/api/m3/evidence-breakthrough/run")
+def api_m3_evidence_breakthrough_run(body: dict | None = None):
+    """Async evidence breakthrough: gov-value + public acquisition cost on identity corpus."""
+    from m3_auth_jobs import start_evidence_breakthrough_job
+
+    payload = body or {}
+    return start_evidence_breakthrough_job(
+        stage_limit=int(payload.get("stage_limit") or payload.get("limit") or 50),
+        resume=bool(payload.get("resume", True)),
+        skip_acquisition=bool(payload.get("skip_acquisition", False)),
+    )
+
+
+@app.get("/api/m3/evidence-breakthrough/last-report")
+def api_m3_evidence_breakthrough_last_report():
+    from m3_data_root import data_path
+    import json
+
+    path = data_path("m3_evidence_breakthrough_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/m3/evidence-breakthrough/status")
+def api_m3_evidence_breakthrough_status():
+    from m3_data_root import data_path
+    import json
+
+    store_path = data_path("m3_evidence_breakthrough_store.json")
+    ck_path = data_path("m3_evidence_breakthrough_checkpoint.json")
+    out: dict = {"ok": True, "build_version": APP_BUILD_VERSION}
+    if store_path.exists():
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+        out["stats"] = store.get("stats")
+        out["lines"] = len(store.get("by_line") or {})
+        out["opportunities"] = len(store.get("by_opportunity") or {})
+    if ck_path.exists():
+        ck = json.loads(ck_path.read_text(encoding="utf-8"))
+        out["checkpoint"] = {"done": len(ck.get("done_keys") or []), "run_id": ck.get("run_id")}
+    return out
+
+
+@app.post("/api/m3/scale-evidence-profit/run")
+def api_m3_scale_evidence_profit_run(body: dict | None = None):
+    """Async scale both-sides → basket economics → lender pipeline."""
+    from m3_auth_jobs import start_scale_evidence_profit_job
+
+    payload = body or {}
+    return start_scale_evidence_profit_job(
+        mine_buyers=int(payload.get("mine_buyers") or 50),
+        resume=bool(payload.get("resume", True)),
+        identity_limit=payload.get("identity_limit"),
+    )
+
+
+@app.post("/api/m3/public-price-search/run")
+def api_m3_public_price_search_run(body: dict | None = None):
+    """Async human-like public price search (staged A→B→C)."""
+    from m3_auth_jobs import start_public_price_search_job
+
+    payload = body or {}
+    grades = payload.get("grades") or ["A"]
+    if isinstance(grades, str):
+        grades = [g.strip() for g in grades.split(",") if g.strip()]
+    return start_public_price_search_job(
+        stage_limit=int(payload.get("stage_limit") or 25),
+        grades=tuple(grades),
+        go_metro_priority=bool(payload.get("go_metro_priority", True)),
+        resume=bool(payload.get("resume", False)),
+    )
+
+
+@app.get("/api/m3/public-price-search/last-report")
+def api_m3_public_price_search_last_report():
+    from m3_data_root import data_path
+    import json
+
+    path = data_path("m3_public_price_search_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/m3/scale-evidence-profit/last-report")
+def api_m3_scale_evidence_profit_last_report():
+    from m3_data_root import data_path
+    import json
+
+    path = data_path("m3_scale_evidence_profit_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/m3/scale-evidence-profit/status")
+def api_m3_scale_evidence_profit_status():
+    from m3_data_root import data_path
+    import json
+
+    store_path = data_path("m3_scale_evidence_profit_store.json")
+    out: dict = {"ok": True, "build_version": APP_BUILD_VERSION}
+    if store_path.exists():
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+        out["stats"] = store.get("stats")
+        out["lines"] = len(store.get("by_line") or {})
+        out["opportunities"] = len(store.get("by_opportunity") or {})
+        out["lender_ready"] = len(store.get("lender_ready") or [])
+        out["near_ready"] = len(store.get("near_ready_24h") or [])
+        out["index_meta"] = store.get("index_meta")
+    return out
+
+
+@app.post("/api/m3/bidnet-recovery/run")
+def api_m3_bidnet_recovery_run(body: dict | None = None):
+    """Staged BidNet detail/document recovery. Default limit=100 for safe validation."""
+    from bidnet_recovery import run_bidnet_recovery
+
+    payload = body or {}
+    use_auth = payload.get("use_auth")
+    target_ids = payload.get("target_ids")
+    if isinstance(target_ids, str):
+        target_ids = [x.strip() for x in target_ids.split(",") if x.strip()]
+    return run_bidnet_recovery(
+        limit=int(payload.get("limit") or 100),
+        batch_size=int(payload.get("batch_size") or 25),
+        resume=bool(payload.get("resume", True)),
+        persist=bool(payload.get("persist", True)),
+        force=bool(payload.get("force", False)),
+        min_tier=int(payload.get("min_tier") or 3),
+        use_auth=None if use_auth is None else bool(use_auth),
+        recovery_batch_size=payload.get("recovery_batch_size"),
+        backlog_batch_size=payload.get("backlog_batch_size"),
+        target_ids=list(target_ids) if isinstance(target_ids, list) else None,
+        require_auth_blocker=bool(payload.get("require_auth_blocker", False)),
+    )
+
+
+@app.post("/api/m3/bidnet-free-package/run")
+def api_m3_bidnet_free_package_run(body: dict | None = None):
+    """Async BidNet free-package chase on AUTH_REQUIRED backlog (no membership)."""
+    from m3_auth_jobs import start_bidnet_free_package_job
+
+    payload = body or {}
+    return start_bidnet_free_package_job(
+        limit=int(payload.get("limit") or 500),
+        resume=bool(payload.get("resume", True)),
+        force=bool(payload.get("force", False)),
+        stop_if_yield_below=payload.get("stop_if_yield_below", 0.005),
+        universe_mode=bool(payload.get("universe_mode", False)),
+    )
+
+
+@app.get("/api/m3/bidnet-free-package/funnel")
+def api_m3_bidnet_free_package_funnel():
+    from bidnet_recovery import free_package_funnel_report
+
+    return free_package_funnel_report()
+
+
 @app.get("/api/m3/federal-dla/coverage")
 def api_m3_federal_dla_coverage():
     """Federal + DLA coverage snapshot, reconciliation, gap queue (minimal operator surface)."""
@@ -1139,7 +2852,30 @@ def api_m3_next_action(canonical_id: str):
     row = store.get(canonical_id)
     if not row:
         raise HTTPException(status_code=404, detail="opportunity not found")
-    return determine_next_action(row)
+    legacy = determine_next_action(row)
+    try:
+        from p0_prescale_hardening.next_action import determine_canonical_next_action
+
+        ctx = {
+            "hard_reject": str((legacy or {}).get("next_action") or "").upper()
+            in {"SKIP", "REJECT", "HARD_REJECT"},
+            "waiting_for_quote": "QUOTE" in str((legacy or {}).get("next_action") or "").upper(),
+            "has_quote_packet": False,
+            "revenue_not_ready": True,
+            "needs_economics": False,
+        }
+        canonical = determine_canonical_next_action(ctx)
+        return {
+            **(legacy if isinstance(legacy, dict) else {"legacy": legacy}),
+            "canonical_next_action": canonical.get("primary_next_action"),
+            "canonical_detail": canonical,
+            "engine": "p0_prescale_hardening.next_action",
+            "build_version": APP_BUILD_VERSION,
+        }
+    except Exception:
+        if isinstance(legacy, dict):
+            return {**legacy, "build_version": APP_BUILD_VERSION}
+        return {"result": legacy, "build_version": APP_BUILD_VERSION}
 
 
 @app.post("/api/m3/pipeline/advance")
@@ -6079,12 +7815,21 @@ def api_ui_deals(
     q: str | None = None,
     buyer: str | None = None,
     state: str | None = None,
+    filter: str | None = Query("available"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ):
     from phase_l.owner_ui_service import list_deals
 
-    return list_deals(status=status, q=q, buyer=buyer, state=state, page=page, page_size=page_size)
+    return list_deals(
+        status=status,
+        q=q,
+        buyer=buyer,
+        state=state,
+        filter=filter,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @app.get("/api/ui/deals/{deal_id:path}")
@@ -6095,6 +7840,137 @@ def api_ui_deal(deal_id: str):
         return get_deal(deal_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Could not find that deal. It may have moved.") from None
+
+
+@app.get("/api/ui/line-item-economics/{opportunity_id:path}")
+def api_ui_line_item_economics_get(opportunity_id: str):
+    from line_item_economics.engine import load_analysis, owner_summary
+
+    oid = opportunity_id[2:] if opportunity_id.startswith("c:") else opportunity_id
+    analysis = load_analysis(oid) or load_analysis(opportunity_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="No line-item economics analysis")
+    return {
+        "kind": "LineItemEconomicsView",
+        "opportunity_id": oid,
+        "owner_summary": owner_summary(analysis),
+        "analysis": analysis,
+    }
+
+
+@app.post("/api/ui/line-item-economics/{opportunity_id:path}/analyze")
+def api_ui_line_item_economics_analyze(opportunity_id: str, body: dict | None = None):
+    """Analyze multi-line economics from schedule rows + attached price evidence."""
+    from line_item_economics.engine import analyze_line_item_economics, owner_summary
+
+    payload = body or {}
+    oid = opportunity_id[2:] if opportunity_id.startswith("c:") else opportunity_id
+    analysis = analyze_line_item_economics(
+        opportunity_id=oid,
+        title=payload.get("title"),
+        buyer=payload.get("buyer"),
+        schedule_rows=payload.get("schedule_rows") or payload.get("lines"),
+        csv_text=payload.get("csv_text"),
+        body_text=payload.get("body_text"),
+        existing_lines=payload.get("existing_lines"),
+        retail_by_line=payload.get("retail_by_line"),
+        retail_equal_by_line=payload.get("retail_equal_by_line"),
+        historical_by_line=payload.get("historical_by_line"),
+        suppliers_by_line=payload.get("suppliers_by_line"),
+        freight=payload.get("freight"),
+        financing_cost=payload.get("financing_cost"),
+        buyer_history=payload.get("buyer_history"),
+        flags=payload.get("flags"),
+        persist=payload.get("persist", True),
+    )
+    return {"ok": True, "owner_summary": owner_summary(analysis), "analysis": analysis}
+
+
+@app.get("/api/ui/source-coverage-gaps")
+def api_ui_source_coverage_gaps(limit: int = Query(100, ge=1, le=500)):
+    from line_item_economics.coverage_gap import source_coverage_gap_report
+
+    return source_coverage_gap_report(limit=limit)
+
+
+@app.post("/api/ui/source-coverage-gaps")
+def api_ui_source_coverage_gaps_record(body: dict | None = None):
+    from line_item_economics.coverage_gap import record_source_coverage_gap
+
+    payload = body or {}
+    return record_source_coverage_gap(
+        source_portal=str(payload.get("source_portal") or payload.get("source") or "unknown"),
+        buyer=payload.get("buyer"),
+        opportunity_id=payload.get("opportunity_id"),
+        category=payload.get("category"),
+        why_missed=str(payload.get("why_missed") or payload.get("why_m3_missed_it") or "unknown"),
+        title=payload.get("title"),
+        notes=payload.get("notes"),
+    )
+
+
+@app.get("/api/ui/profit-first/{opportunity_id:path}")
+def api_ui_profit_first_get(opportunity_id: str):
+    from line_item_economics.engine import load_analysis
+    from phase_l.l23_full_population_funnel import load_store
+    from profit_first.router import evaluate_opportunity_profit
+
+    oid = opportunity_id[2:] if opportunity_id.startswith("c:") else opportunity_id
+    store = load_store()
+    rec = store.get(oid) or {}
+    lie = load_analysis(oid)
+    return evaluate_opportunity_profit(
+        opportunity_id=oid,
+        rec=rec,
+        title=rec.get("title"),
+        buyer=rec.get("buyer"),
+        line_item_analysis=lie,
+    )
+
+
+@app.post("/api/ui/profit-first/evaluate")
+def api_ui_profit_first_evaluate(body: dict | None = None):
+    from profit_first.router import evaluate_opportunity_profit
+
+    payload = body or {}
+    return evaluate_opportunity_profit(
+        opportunity_id=str(payload.get("opportunity_id") or "adhoc"),
+        title=payload.get("title"),
+        buyer=payload.get("buyer"),
+        expected_revenue=payload.get("expected_revenue"),
+        product_cost=payload.get("product_cost"),
+        freight=payload.get("freight"),
+        financing=payload.get("financing"),
+        other_costs=payload.get("other_costs"),
+        price_basis=payload.get("price_basis"),
+        completeness_pct=payload.get("completeness_pct"),
+        evidence_grade=payload.get("evidence_grade"),
+        execution_pass=payload.get("execution_pass"),
+        execution_blockers=payload.get("execution_blockers"),
+        ranking_signals=payload.get("ranking_signals"),
+        line_item_analysis=payload.get("line_item_analysis"),
+        targets=payload.get("targets"),
+    )
+
+
+@app.get("/api/ui/profit-first-telemetry")
+def api_ui_profit_first_telemetry():
+    from profit_first.telemetry import profit_funnel_telemetry
+
+    return profit_funnel_telemetry()
+
+
+@app.post("/api/ui/profit-first/reevaluate")
+def api_ui_profit_first_reevaluate(body: dict | None = None):
+    from profit_first.reevaluate import reevaluate_canonical_population
+
+    payload = body or {}
+    return reevaluate_canonical_population(
+        limit=payload.get("limit"),
+        include_dead=bool(payload.get("include_dead")),
+        persist=payload.get("persist", True),
+        attach_to_store=bool(payload.get("attach_to_store")),
+    )
 
 
 @app.get("/api/ui/advanced/{deal_id:path}")
@@ -6186,6 +8062,260 @@ def api_ui_registrations():
     return build_registrations()
 
 
+@app.get("/api/ui/registrations/{portal_id}/opportunities")
+def api_ui_registration_opportunities(portal_id: str):
+    from phase_l.owner_ui_service import registration_opportunity_drilldown
+
+    result = registration_opportunity_drilldown(portal_id)
+    if not result.get("ok") and result.get("error") == "portal_not_found":
+        raise HTTPException(status_code=404, detail="Registration unlock not found")
+    return result
+
+
+@app.get("/api/ui/opportunity-health")
+def api_ui_opportunity_health():
+    from phase_l.owner_ui_service import opportunity_data_health
+
+    return opportunity_data_health()
+
+
+@app.get("/api/ui/opportunity-diagnostics")
+def api_ui_opportunity_diagnostics():
+    from phase_l.owner_ui_service import opportunity_visibility_diagnostics
+
+    return opportunity_visibility_diagnostics()
+
+
+@app.get("/api/ui/discovery-health")
+def api_ui_discovery_health():
+    from m3_canonical_discovery_bridge import discovery_health_payload
+
+    return discovery_health_payload()
+
+
+@app.get("/api/ui/discovery-coverage")
+def api_ui_discovery_coverage():
+    """Owner Discovery Coverage — raw live universe vs product candidates."""
+    from discovery_expansion import discovery_coverage_dashboard
+
+    return discovery_coverage_dashboard()
+
+
+@app.post("/api/ui/discovery-expansion/harvest")
+def api_ui_discovery_expansion_harvest(body: dict | None = None):
+    """Run free national expansion harvest (BidNet + platform families). SAM unused."""
+    from discovery_expansion import run_expansion_harvest
+
+    payload = body or {}
+    return run_expansion_harvest(
+        include_bidnet=bool(payload.get("include_bidnet", True)),
+        include_structured=bool(payload.get("include_structured", True)),
+        include_platform_catalog=bool(payload.get("include_platform_catalog", True)),
+        max_pages=int(payload.get("max_pages") or 80),
+        max_catalog_entities_per_family=int(payload.get("max_catalog_entities_per_family") or 40),
+        persist=True,
+    )
+
+
+@app.get("/api/ui/universe-funnel")
+def api_ui_universe_funnel():
+    from universe_pass import universe_funnel_dashboard
+
+    return universe_funnel_dashboard()
+
+
+@app.post("/api/ui/universe-pass/run")
+def api_ui_universe_pass_run(body: dict | None = None):
+    from universe_pass import run_universe_pass
+
+    payload = body or {}
+    return run_universe_pass(
+        classify=bool(payload.get("classify", True)),
+        freshness=bool(payload.get("freshness", True)),
+        profit_route=bool(payload.get("profit_route", True)),
+        limit=payload.get("limit"),
+        profit_limit=payload.get("profit_limit"),
+        resume=bool(payload.get("resume", True)),
+        persist=True,
+        force_reclassify=bool(payload.get("force_reclassify", False)),
+    )
+
+
+@app.get("/api/ui/bidnet-recovery/funnel")
+def api_ui_bidnet_recovery_funnel():
+    from bidnet_recovery import bidnet_recovery_funnel
+
+    return bidnet_recovery_funnel()
+
+
+@app.get("/api/ui/bidnet-auth/status")
+def api_ui_bidnet_auth_status():
+    from bidnet_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/ui/bidnet-auth/test-connection")
+def api_ui_bidnet_auth_test_connection():
+    from bidnet_auth import test_connection
+
+    return test_connection()
+
+
+@app.get("/api/ui/opengov-auth/status")
+def api_ui_opengov_auth_status():
+    from opengov_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/ui/opengov-auth/test-connection")
+def api_ui_opengov_auth_test_connection():
+    from opengov_auth import test_connection
+
+    return test_connection()
+
+
+@app.get("/api/ui/euna-auth/status")
+def api_ui_euna_auth_status():
+    from euna_auth import owner_connection_status
+
+    return owner_connection_status()
+
+
+@app.post("/api/ui/euna-auth/test-connection")
+def api_ui_euna_auth_test_connection():
+    from m3_auth_jobs import start_euna_auth_diagnostic_job
+
+    return start_euna_auth_diagnostic_job()
+
+
+@app.post("/api/ui/euna-auth/diagnostic")
+def api_ui_euna_auth_diagnostic(body: dict | None = None):
+    from m3_auth_jobs import start_euna_auth_diagnostic_job
+
+    return start_euna_auth_diagnostic_job()
+
+
+@app.post("/api/ui/euna-discovery/run")
+def api_ui_euna_discovery_run(body: dict | None = None):
+    """Kick Euna central discovery as async job (UI convenience)."""
+    from m3_auth_jobs import start_euna_discovery_job
+
+    payload = body or {}
+    return start_euna_discovery_job(
+        max_results=int(payload.get("max_results") or 5000),
+        max_pages=int(payload.get("max_pages") or 40),
+        persist=True,
+        mode=str(payload.get("mode") or "central"),
+    )
+
+
+@app.post("/api/ui/euna-recovery/run")
+def api_ui_euna_recovery_run(body: dict | None = None):
+    """Placeholder recovery kick — reuses central discovery with small detail-oriented batch."""
+    from m3_auth_jobs import start_euna_discovery_job
+
+    payload = body or {}
+    return start_euna_discovery_job(
+        max_results=int(payload.get("max_results") or 100),
+        max_pages=int(payload.get("max_pages") or 10),
+        persist=True,
+        mode="central",
+    )
+
+
+@app.post("/api/ui/opengov-discovery/run")
+def api_ui_opengov_discovery_run(body: dict | None = None):
+    from m3_auth_jobs import start_opengov_discovery_job
+
+    payload = body or {}
+    raw_me = payload.get("max_entities")
+    if raw_me in (None, "", "all", "ALL"):
+        me = None
+    else:
+        me = int(raw_me)
+    return start_opengov_discovery_job(
+        max_entities=me,
+        max_pages=int(payload.get("max_pages") or 8),
+        persist=bool(payload.get("persist", True)),
+        mode=str(payload.get("mode") or "cascade"),
+        allow_browser=bool(payload.get("allow_browser", False)),
+    )
+
+
+@app.get("/api/ui/opengov-recovery/funnel")
+def api_ui_opengov_recovery_funnel():
+    from opengov_recovery import opengov_recovery_funnel
+
+    return opengov_recovery_funnel()
+
+
+@app.post("/api/ui/opengov-recovery/run")
+def api_ui_opengov_recovery_run(body: dict | None = None):
+    from opengov_recovery import run_opengov_recovery
+
+    payload = body or {}
+    use_auth = payload.get("use_auth")
+    return run_opengov_recovery(
+        limit=payload.get("limit"),
+        resume=bool(payload.get("resume", True)),
+        persist=True,
+        force=bool(payload.get("force", False)),
+        use_auth=None if use_auth is None else bool(use_auth),
+    )
+
+
+@app.post("/api/ui/bidnet-recovery/run")
+def api_ui_bidnet_recovery_run(body: dict | None = None):
+    from bidnet_recovery import run_bidnet_recovery
+
+    payload = body or {}
+    use_auth = payload.get("use_auth")
+    return run_bidnet_recovery(
+        limit=int(payload.get("limit") or 100),
+        batch_size=int(payload.get("batch_size") or 25),
+        resume=bool(payload.get("resume", True)),
+        persist=True,
+        force=bool(payload.get("force", False)),
+        min_tier=int(payload.get("min_tier") or 3),
+        use_auth=None if use_auth is None else bool(use_auth),
+        recovery_batch_size=payload.get("recovery_batch_size"),
+        backlog_batch_size=payload.get("backlog_batch_size"),
+    )
+
+
+@app.get("/api/ui/discovery-diagnostics")
+def api_ui_discovery_diagnostics():
+    from m3_canonical_discovery_bridge import discovery_diagnostics
+
+    return discovery_diagnostics()
+
+
+@app.get("/api/ui/discovery-history")
+def api_ui_discovery_history():
+    from m3_canonical_discovery_bridge import load_daily_history, load_run_history
+
+    return {
+        "kind": "DiscoveryHistory",
+        "daily": load_daily_history(),
+        "runs": load_run_history(limit=14),
+    }
+
+
+@app.post("/api/ui/discovery/run")
+def api_ui_discovery_run(body: dict | None = None):
+    """Owner RUN DISCOVERY NOW — same lock/budget as /api/m3/discovery/run."""
+    from m3_discovery_service import TRIGGER_MANUAL, request_discovery_run
+
+    payload = body or {}
+    return request_discovery_run(
+        trigger_type=TRIGGER_MANUAL,
+        profile=payload.get("profile"),
+        bootstrap=bool(payload.get("bootstrap")),
+    )
+
+
 @app.post("/api/ui/registrations/{portal_id}/mark")
 def api_ui_registration_mark(portal_id: str, body: UiRegisterBody):
     from phase_l.owner_ui_service import mark_registered
@@ -6236,6 +8366,167 @@ def api_ui_preservation():
     from phase_l.owner_ui_service import preservation_snapshot
 
     return preservation_snapshot()
+
+
+@app.get("/api/ui/financing")
+def api_ui_financing(tab: str = "sources"):
+    from financing_intelligence.service import ui_page
+
+    return ui_page(tab=tab)
+
+
+@app.get("/api/financing/dashboard")
+def api_financing_dashboard():
+    from financing_intelligence.service import dashboard
+
+    return dashboard()
+
+
+@app.get("/api/financing/sources")
+def api_financing_sources():
+    from financing_intelligence.sources import list_sources, source_display
+
+    return {"sources": [source_display(s) for s in list_sources()], "sam_api_calls": 0}
+
+
+@app.post("/api/financing/sources")
+def api_financing_upsert_source(body: dict | None = None):
+    from financing_intelligence.sources import upsert_source
+
+    return {"ok": True, "source": upsert_source(body or {})}
+
+
+@app.post("/api/financing/notes")
+def api_financing_notes(body: dict | None = None):
+    from financing_intelligence.notes_extract import ingest_call_notes
+
+    body = body or {}
+    return ingest_call_notes(
+        raw_notes=str(body.get("raw_notes") or body.get("notes") or ""),
+        source_id=body.get("source_id"),
+        company_name=body.get("company_name") or body.get("source"),
+        contact=body.get("contact"),
+        call_date=body.get("call_date"),
+        follow_up_date=body.get("follow_up_date"),
+    )
+
+
+@app.get("/api/financing/facts")
+def api_financing_facts(status: str | None = None, source_id: str | None = None):
+    from financing_intelligence.facts import list_facts
+
+    return {"facts": list_facts(status=status, source_id=source_id)}
+
+
+@app.post("/api/financing/facts/{fact_id}/decide")
+def api_financing_decide_fact(fact_id: str, body: dict | None = None):
+    from financing_intelligence.facts import decide_fact
+
+    body = body or {}
+    return decide_fact(
+        fact_id,
+        decision=str(body.get("decision") or ""),
+        edited_value=body.get("edited_value"),
+        decided_by=str(body.get("decided_by") or "operator"),
+    )
+
+
+@app.get("/api/financing/capital")
+def api_financing_capital_get():
+    from financing_intelligence.capital import capital_snapshot
+
+    return capital_snapshot()
+
+
+@app.post("/api/financing/capital")
+def api_financing_capital_update(body: dict | None = None):
+    from financing_intelligence.capital import capital_snapshot, update_capital
+
+    update_capital(**{k: v for k, v in (body or {}).items() if k in {
+        "business_cash",
+        "unrestricted_additional_capital",
+        "minimum_operating_reserve",
+        "max_deploy_per_deal",
+        "owner_contribution_allowed",
+        "max_owner_contribution",
+        "notes",
+    }})
+    return {"ok": True, "capital": capital_snapshot()}
+
+
+@app.post("/api/financing/preferences")
+def api_financing_prefs(body: dict | None = None):
+    from financing_intelligence.store import load_owner_prefs, save_owner_prefs
+
+    prefs = load_owner_prefs()
+    prefs.update({k: v for k, v in (body or {}).items() if k in prefs or k.endswith("_allowed")})
+    return {"ok": True, "preferences": save_owner_prefs(prefs)}
+
+
+@app.post("/api/financing/opportunities/{opportunity_id}/assess")
+def api_financing_assess(opportunity_id: str, body: dict | None = None):
+    from financing_intelligence.assess import assess_opportunity_financing
+
+    body = body or {}
+    return assess_opportunity_financing(
+        opportunity_id=opportunity_id,
+        contract_value=body.get("contract_value") or body.get("estimated_value") or 0,
+        supplier_cost=body.get("supplier_cost") or body.get("estimated_supplier_cost") or 0,
+        freight=body.get("freight") or 0,
+        other_prepay=body.get("other_prepay") or 0,
+        verified_upfront_fees=body.get("verified_upfront_fees") or 0,
+        supplier_terms=body.get("supplier_terms"),
+        jurisdiction=str(body.get("jurisdiction") or "FEDERAL"),
+        timing_dates=body.get("timing_dates") or body.get("financing_timing"),
+        financed_days=body.get("financed_days") or body.get("expected_financed_days"),
+        deal_type=str(body.get("deal_type") or "PRODUCT_RESALE"),
+        persist=True,
+    )
+
+
+@app.post("/api/financing/opportunities/{opportunity_id}/capital-reserve")
+def api_financing_propose_reserve(opportunity_id: str, body: dict | None = None):
+    from financing_intelligence.capital import propose_reservation
+
+    body = body or {}
+    return {"ok": True, "reservation": propose_reservation(
+        opportunity_id=opportunity_id,
+        amount=body.get("amount") or 0,
+        reason=str(body.get("reason") or "deal_capital_need"),
+    )}
+
+
+@app.post("/api/financing/capital-reservations/{reservation_id}/confirm")
+def api_financing_confirm_reserve(reservation_id: str, body: dict | None = None):
+    from financing_intelligence.capital import confirm_reservation
+
+    body = body or {}
+    return confirm_reservation(
+        reservation_id=reservation_id,
+        confirmed_by=str(body.get("confirmed_by") or "owner"),
+        actual_available_balance_today=body.get("actual_available_balance_today"),
+    )
+
+
+@app.get("/api/financing/blocked-profit")
+def api_financing_blocked_profit():
+    from financing_intelligence.assess import blocked_profit_summary
+
+    return blocked_profit_summary()
+
+
+@app.get("/api/financing/outcomes")
+def api_financing_outcomes(source_id: str | None = None, opportunity_id: str | None = None):
+    from financing_intelligence.outcomes import list_outcomes
+
+    return {"ok": True, "outcomes": list_outcomes(source_id=source_id, opportunity_id=opportunity_id)}
+
+
+@app.post("/api/financing/outcomes")
+def api_financing_record_outcome(body: dict | None = None):
+    from financing_intelligence.outcomes import record_outcome
+
+    return {"ok": True, "outcome": record_outcome(body or {})}
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

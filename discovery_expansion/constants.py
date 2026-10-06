@@ -1,0 +1,43 @@
+"""Access-type and pagination health constants for free discovery."""
+
+from __future__ import annotations
+
+PUBLIC_ANONYMOUS = "PUBLIC_ANONYMOUS"
+FREE_ACCOUNT_REQUIRED = "FREE_ACCOUNT_REQUIRED"
+AUTHENTICATED = "AUTHENTICATED"
+AUTH_EXPIRED = "AUTH_EXPIRED"
+AUTH_FAILED = "AUTH_FAILED"
+
+ADAPTER_WORKING = "WORKING"
+ADAPTER_PARTIAL = "PARTIAL"
+ADAPTER_BROKEN = "BROKEN"
+ADAPTER_METADATA_ONLY = "METADATA_ONLY"
+ADAPTER_AUTH_REQUIRED = "AUTH_REQUIRED"
+ADAPTER_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+
+STATE_LIVE = "LIVE"
+STATE_PARTIAL = "PARTIAL"
+STATE_BROKEN = "BROKEN"
+STATE_AUTH_REQUIRED = "AUTH_REQUIRED"
+STATE_RESEARCH_NEEDED = "RESEARCH_NEEDED"
+STATE_NO_SOURCE = "NO_SOURCE_FOUND"
+
+DISCOVERY_TRUNCATED = "DISCOVERY_TRUNCATED"
+
+PRIORITY_FAMILIES = (
+    "PublicPurchase",
+    "PlanetBids",
+    "OpenGov",
+    "Bonfire",
+    "IonWave",
+    "DemandStar",
+    "BidNet",
+    "Periscope",
+    "Jaggaer",
+    "StateHosted",
+    "Socrata",
+    "ArcGIS",
+    "SAM",
+    "DIBBS",
+    "Cooperative",
+)

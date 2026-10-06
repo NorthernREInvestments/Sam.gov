@@ -361,8 +361,8 @@
       "auth_requirements": null,
       "source_health": "unknown",
       "commercial_yield": 0,
-      "opportunity_count": 7,
-      "last_checked": "2026-09-28T18:14:27.737381+00:00"
+      "opportunity_count": 8,
+      "last_checked": "2026-10-01T20:11:48.802017+00:00"
     },
     "SOURCEWELL": {
       "buyer": "Sourcewell",
@@ -394,5 +394,5 @@
     }
   },
   "build": "20260928-m3-phase-l11-exact-award-history-recovery",
-  "updated_at": "2026-09-28T18:14:27.737670+00:00"
+  "updated_at": "2026-10-01T20:11:48.802215+00:00"
 }

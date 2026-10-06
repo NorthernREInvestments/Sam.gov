@@ -900,16 +900,26 @@ class BidNetLiveFetcher(LiveFetcher):
             if title.lower() in {"open solicitations", "closed solicitations"}:
                 continue
             closing = re.search(
+                r'class="[^"]*closingDate[^"]*"[^>]*>[\s\S]*?class="dateValue">\s*([^<]+)',
+                row,
+                re.I,
+            ) or re.search(
                 r'class="[^"]*sol-closing-date[^"]*"[\s\S]*?class="date-value">([^<]+)<',
                 row,
                 re.I,
             )
             published = re.search(
+                r'class="[^"]*publicationDate[^"]*"[^>]*>[\s\S]*?class="dateValue">\s*([^<]+)',
+                row,
+                re.I,
+            ) or re.search(
                 r'class="[^"]*sol-publication-date[^"]*"[\s\S]*?class="date-value">([^<]+)<',
                 row,
                 re.I,
             )
-            region = re.search(r'class="sol-region-item">([^<]+)<', row, re.I)
+            region = re.search(r'class="location">\s*([^<]+)', row, re.I) or re.search(
+                r'class="sol-region-item">([^<]+)<', row, re.I
+            )
             # ID from statewide/{id}/abstract or path slug
             sid_m = re.search(r"/solicitations/(?:statewide/)?(\d+)/abstract", href, re.I)
             if not sid_m:

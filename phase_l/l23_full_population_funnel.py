@@ -32,9 +32,31 @@ BUILD = "20260929-m3-phase-l23-full-source-population-funnel-continuous-conversi
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts" / "phase_l"
 OUT.mkdir(parents=True, exist_ok=True)
-DATA = ROOT / "data"
+
+
+def _data_dir() -> Path:
+    try:
+        from m3_data_root import get_data_root
+
+        return get_data_root()
+    except Exception:
+        p = ROOT / "data"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+
+def _store_path() -> Path:
+    try:
+        from m3_data_root import canonical_opportunity_store_path
+
+        return canonical_opportunity_store_path()
+    except Exception:
+        return _data_dir() / "l23_canonical_population_store.json"
+
+
+DATA = ROOT / "data"  # legacy alias; prefer _data_dir()
 DATA.mkdir(parents=True, exist_ok=True)
-STORE_PATH = DATA / "l23_canonical_population_store.json"
+STORE_PATH = DATA / "l23_canonical_population_store.json"  # legacy default; load/save use _store_path()
 DOCS = ROOT / "docs"
 
 AUTO_SEND = False
@@ -826,8 +848,9 @@ def import_prior_call_ready(store: dict[str, dict[str, Any]]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def load_store() -> dict[str, dict[str, Any]]:
-    if STORE_PATH.exists():
-        data = json.loads(STORE_PATH.read_text(encoding="utf-8"))
+    path = _store_path()
+    if path.exists():
+        data = json.loads(path.read_text(encoding="utf-8"))
         rows = data.get("opportunities") or {}
         if isinstance(rows, list):
             return {r["canonical_opportunity_id"]: r for r in rows if r.get("canonical_opportunity_id")}
@@ -835,7 +858,22 @@ def load_store() -> dict[str, dict[str, Any]]:
     return {}
 
 
+def available_count(store: dict[str, dict[str, Any]] | None = None) -> int:
+    """Count currently available canonical opportunities (real availability gate).
+
+    Re-exports the canonical bridge counter so funnel/reporting callers can import
+    from this module without guessing. Does not invent or approximate counts.
+    """
+    from m3_canonical_discovery_bridge import available_count as _available_count
+
+    if store is None:
+        store = load_store()
+    return _available_count(store)
+
+
 def save_store(store: dict[str, dict[str, Any]]) -> None:
+    path = _store_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "kind": "L23CanonicalStore",
         "build": BUILD,
@@ -843,7 +881,7 @@ def save_store(store: dict[str, dict[str, Any]]) -> None:
         "count": len(store),
         "opportunities": store,
     }
-    STORE_PATH.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     # Compact summary only — do not duplicate full population into artifacts/
     states: dict[str, int] = {}
     for r in store.values():
@@ -856,10 +894,10 @@ def save_store(store: dict[str, dict[str, Any]]) -> None:
             "build": BUILD,
             "updated_at": _utc(),
             "count": len(store),
-            "canonical_store": "data/l23_canonical_population_store.json",
+            "canonical_store": str(path),
             "funnel_state_counts": states,
             "sample_ids": list(store.keys())[:25],
-            "note": "Full records live in data/l23_canonical_population_store.json",
+            "note": "Full records live in the canonical opportunity store path above",
         },
     )
 

@@ -283,13 +283,13 @@
         }
       ],
       "live_sources": [],
-      "queries_attempted": 6,
+      "queries_attempted": 7,
       "matches": 0,
       "exact_matches": 0,
       "gov_upgrades": 0,
       "competition_evidence": 0,
       "recurring_buy_signals": 0,
-      "updated_at": "2026-09-29T05:00:49.589444+00:00"
+      "updated_at": "2026-10-01T20:11:52.785479+00:00"
     },
     "MAYOR'S OFFICE OF CRIMINAL JUSTICE": {
       "kind": "BuyerHistoryProfile",
@@ -6837,5 +6837,5 @@
       "updated_at": "2026-09-29T04:30:33.741739+00:00"
     }
   },
-  "updated_at": "2026-09-29T05:00:49.589697+00:00"
+  "updated_at": "2026-10-01T20:11:52.785696+00:00"
 }

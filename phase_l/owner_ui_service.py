@@ -33,12 +33,42 @@ from phase_l.registration_tracker import load_tracker, save_tracker
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts" / "phase_l"
-DATA = ROOT / "data"
-BUILD = "20260929-m3-owner-ui-15-minute-operator-training"
+BUILD = "20261002-m3-owner-ui-opportunity-visibility-unlock-repair"
+
+
+def _data_dir() -> Path:
+    try:
+        from m3_data_root import get_data_root
+
+        return get_data_root()
+    except Exception:
+        return ROOT / "data"
+
+
+DATA = ROOT / "data"  # legacy; prefer _data_dir()
 
 # Operator session notes (does not alter canonical funnel without explicit complete)
+def _ui_notes_path() -> Path:
+    return _data_dir() / "owner_ui_operator_notes.json"
+
+
+def _ui_quotes_path() -> Path:
+    return _data_dir() / "owner_ui_quote_reviews.json"
+
+
 UI_NOTES_PATH = DATA / "owner_ui_operator_notes.json"
 UI_QUOTES_PATH = DATA / "owner_ui_quote_reviews.json"
+
+DEAD_FUNNEL_STATES = {
+    "FAST_REJECT",
+    "REJECTED",
+    "HARD_REJECT",
+    "EXPIRED",
+    "CANCELED",
+    "CANCELLED",
+}
+DATA_SOURCE_MISSING = "DATA_SOURCE_MISSING"
+OPPORTUNITY_STORE_MISSING = "OPPORTUNITY_STORE_MISSING"
 
 
 def _utc() -> str:
@@ -49,6 +79,101 @@ def _load_store() -> dict[str, Any]:
     from phase_l.l23_full_population_funnel import load_store
 
     return load_store()
+
+
+def _canonical_store_meta() -> dict[str, Any]:
+    try:
+        from m3_data_root import canonical_opportunity_store_path
+
+        path = canonical_opportunity_store_path()
+    except Exception:
+        path = _data_dir() / "l23_canonical_population_store.json"
+    exists = path.exists()
+    updated = None
+    if exists:
+        try:
+            raw = load_json(path)
+            updated = raw.get("updated_at") if isinstance(raw, dict) else None
+        except Exception:
+            updated = None
+    return {"path": str(path), "exists": exists, "updated_at": updated}
+
+
+def _is_available_rec(rec: dict[str, Any]) -> bool:
+    """Exclude only expired/canceled/hard-rejected — keep UNKNOWN economics/financing visible."""
+    st = str(rec.get("current_funnel_state") or "")
+    if st in DEAD_FUNNEL_STATES:
+        return False
+    if str(rec.get("freshness") or "").upper() in {"EXPIRED", "CANCELED", "CANCELLED"}:
+        return False
+    if str(rec.get("source_status") or "").upper() in {"CANCELED", "CANCELLED", "CLOSED_EXPIRED"}:
+        return False
+    return True
+
+
+def _jurisdiction_bucket(rec: dict[str, Any]) -> str:
+    if rec.get("is_federal") or str(rec.get("jurisdiction") or "").upper() == "FEDERAL":
+        return "FEDERAL"
+    j = str(rec.get("jurisdiction") or "").upper()
+    if "COOP" in j:
+        return "COOPERATIVE"
+    if j in {"STATE", "LOCAL", "CITY", "COUNTY", "MULTI_AGENCY_NETWORK"}:
+        return "STATE_LOCAL" if j != "LOCAL" and j != "CITY" and j != "COUNTY" else "LOCAL"
+    if j:
+        return j
+    return "UNKNOWN"
+
+
+def _econ_fields(rec: dict[str, Any]) -> dict[str, Any]:
+    rr = rec.get("row_ref") if isinstance(rec.get("row_ref"), dict) else {}
+    econ = rr.get("economics") if isinstance(rr.get("economics"), dict) else {}
+    return {
+        "estimated_value": econ.get("expected_revenue") or rec.get("estimated_value") or "UNKNOWN",
+        "historical_government_price": rr.get("historical_award_price")
+        or econ.get("historical_unit_price")
+        or "UNKNOWN",
+        "acquisition_cost": econ.get("acquisition_cost")
+        or econ.get("public_retail_total")
+        or "UNKNOWN",
+        "potential_profit": econ.get("expected_net_profit") or "UNKNOWN",
+        "supplier_status": "UNKNOWN",
+        "financing_status": "UNKNOWN",
+        "eligibility_access_status": rec.get("access_status") or "UNKNOWN",
+        "registration_needed": str(rec.get("source_status") or "").upper().find("REGISTRATION") >= 0
+        or str(rec.get("registration_status") or "").upper() in {"REQUIRED", "NOT_REGISTERED"},
+    }
+
+
+def _available_deal_card(cid: str, rec: dict[str, Any]) -> dict[str, Any]:
+    status = map_funnel_to_owner_status(rec)
+    econ = _econ_fields(rec)
+    return _deal_card(
+        deal_id=f"c:{cid}",
+        buyer=rec.get("buyer"),
+        solicitation=rec.get("solicitation_event_id"),
+        product=_product_from_rec(rec),
+        deadline=rec.get("deadline"),
+        delivery=None,
+        estimated_value=econ.get("estimated_value") if econ.get("estimated_value") != "UNKNOWN" else None,
+        status_packet=status,
+        extras={
+            "canonical_id": cid,
+            "title": rec.get("title"),
+            "jurisdiction_bucket": _jurisdiction_bucket(rec),
+            "jurisdiction": rec.get("jurisdiction"),
+            "product_service_classification": rec.get("product_service_classification") or "UNKNOWN",
+            "m3_status": rec.get("current_funnel_state"),
+            "estimated_value": econ.get("estimated_value"),
+            "historical_government_price": econ.get("historical_government_price"),
+            "acquisition_cost": econ.get("acquisition_cost"),
+            "potential_profit": econ.get("potential_profit"),
+            "supplier_status": econ.get("supplier_status"),
+            "financing_status": econ.get("financing_status"),
+            "eligibility_access_status": econ.get("eligibility_access_status"),
+            "registration_needed": bool(econ.get("registration_needed")),
+            "next_owner_action": status.get("ui_next_action_label") or status.get("ui_next_action"),
+        },
+    )
 
 
 def _load_today_calls() -> dict[str, Any]:
@@ -171,9 +296,10 @@ def _deal_card(
 
 
 def _notes_store() -> dict[str, Any]:
-    if UI_NOTES_PATH.exists():
+    path = _ui_notes_path()
+    if path.exists():
         try:
-            return load_json(UI_NOTES_PATH)
+            return load_json(path)
         except Exception:
             pass
     return {"kind": "OwnerUiOperatorNotes", "by_deal": {}, "updated_at": None}
@@ -182,13 +308,14 @@ def _notes_store() -> dict[str, Any]:
 def _save_notes(store: dict[str, Any]) -> None:
     store["updated_at"] = _utc()
     store["kind"] = "OwnerUiOperatorNotes"
-    save_json(UI_NOTES_PATH, store)
+    save_json(_ui_notes_path(), store)
 
 
 def _quotes_store() -> dict[str, Any]:
-    if UI_QUOTES_PATH.exists():
+    path = _ui_quotes_path()
+    if path.exists():
         try:
-            return load_json(UI_QUOTES_PATH)
+            return load_json(path)
         except Exception:
             pass
     return {"kind": "OwnerUiQuoteReviews", "quotes": [], "updated_at": None}
@@ -207,6 +334,17 @@ def build_home() -> dict[str, Any]:
         + counts["bid_prep"]
         + counts.get("submissions", 0)
     )
+    health = opportunity_data_health()
+    try:
+        from m3_canonical_discovery_bridge import discovery_health_payload
+
+        discovery_health = discovery_health_payload()
+    except Exception as exc:
+        discovery_health = {
+            "kind": "DiscoveryHealth",
+            "run_status": "NEVER_RUN",
+            "error": str(exc)[:200],
+        }
     return {
         "kind": "OwnerUiHome",
         "build": BUILD,
@@ -214,6 +352,7 @@ def build_home() -> dict[str, Any]:
         "headline": "WHAT NEEDS MY ATTENTION TODAY?",
         "cards": [
             {"id": "call_today", "label": "CALL TODAY", "count": counts["call_today"], "color": "green", "href": "#/today/call_today"},
+            {"id": "available", "label": "AVAILABLE DEALS", "count": health.get("currently_available") or 0, "color": "green", "href": "#/deals?filter=available"},
             {"id": "follow_up", "label": "FOLLOW UP", "count": counts["follow_up"], "color": "yellow", "href": "#/today/follow_up"},
             {"id": "quotes", "label": "QUOTES RECEIVED", "count": counts["quotes"], "color": "yellow", "href": "#/quotes"},
             {"id": "registrations", "label": "REGISTER", "count": counts["registrations"], "color": "yellow", "href": "#/registrations"},
@@ -231,9 +370,15 @@ def build_home() -> dict[str, Any]:
             "potential_profit": None,  # only when defensible — intentionally null
             "note": "Potential profit shown only when quote economics are defensible.",
         },
-        "caught_up": active == 0,
+        "data_health": health,
+        "discovery_health": discovery_health,
+        "caught_up": active == 0 and (health.get("status") != DATA_SOURCE_MISSING),
         "caught_up_message": "You're caught up." if active == 0 else None,
-        "next_useful": "Review Watch list for future opportunities." if active == 0 else "Open Today and work the top CALL TODAY item.",
+        "next_useful": (
+            "Opportunity data store is missing — check Settings / Railway volume."
+            if health.get("status") == DATA_SOURCE_MISSING
+            else ("Open Available Deals to browse the current population." if active == 0 else "Open Today and work the top CALL TODAY item.")
+        ),
     }
 
 
@@ -597,18 +742,36 @@ def list_deals(
     q: str | None = None,
     buyer: str | None = None,
     state: str | None = None,
+    filter: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict[str, Any]:
+    meta = _canonical_store_meta()
+    if not meta["exists"]:
+        return {
+            "kind": "OwnerUiDealList",
+            "build": BUILD,
+            "page": 1,
+            "page_size": page_size,
+            "total": 0,
+            "has_more": False,
+            "items": [],
+            "data_status": DATA_SOURCE_MISSING,
+            "error_code": OPPORTUNITY_STORE_MISSING,
+            "message": "Opportunity store is missing — not a legitimate empty population.",
+            "store_path": meta["path"],
+            "filter": filter or "available",
+        }
+
     store = _load_store()
     page = max(1, int(page or 1))
     page_size = min(100, max(1, int(page_size or 50)))
     qn = _norm(q)
     buyer_n = _norm(buyer)
     status_n = (status or "").strip().upper()
+    filt = (filter or "available").strip().lower()
 
     cards: list[dict[str, Any]] = []
-    # Prefer actionable states; paginate
     actionable_first = (
         "READY_TO_CALL",
         "CALLS_IN_PROGRESS",
@@ -631,15 +794,71 @@ def list_deals(
             ordered.append((cid, rec))
 
     for cid, rec in ordered:
+        if not isinstance(rec, dict):
+            continue
+        # Default available filter excludes dead/rejected only
+        if filt in {"", "available", "all_available", "all"}:
+            if filt != "all" and not _is_available_rec(rec):
+                continue
+        elif filt == "product_resale":
+            if not _is_available_rec(rec):
+                continue
+            cls = str(rec.get("product_service_classification") or "").upper()
+            if "SERVICE" in cls and "PRODUCT" not in cls:
+                continue
+        elif filt == "common_commercial":
+            if not _is_available_rec(rec):
+                continue
+            cls = str(rec.get("product_service_classification") or "").upper()
+            if cls and cls not in {"COMMON_COMMERCIAL", "COMMERCIAL", "CORE_PRODUCT", "PRODUCT", "UNKNOWN", ""}:
+                if "PRODUCT" not in cls and "COMMERCIAL" not in cls:
+                    continue
+        elif filt == "ready_to_research":
+            if rec.get("current_funnel_state") not in {"DEEP_RESEARCH_COMPLETE", "FAST_RESEARCH_COMPLETE", "ACCESSIBLE_PRODUCT", "WATCH", "WATCH_OTHER"}:
+                continue
+        elif filt == "ready_to_call":
+            if rec.get("current_funnel_state") != "READY_TO_CALL":
+                continue
+        elif filt == "ready_to_quote":
+            if rec.get("current_funnel_state") not in {"QUOTE_PENDING", "QUOTES_RECEIVED", "CALLS_IN_PROGRESS"}:
+                continue
+        elif filt == "registration_blocked":
+            if not _is_available_rec(rec):
+                continue
+            if not (
+                "REGISTRATION" in str(rec.get("source_status") or "").upper()
+                or rec.get("current_funnel_state") == "WATCH_FEDERAL_ACCESS"
+                or str(rec.get("registration_status") or "").upper() in {"REQUIRED", "NOT_REGISTERED"}
+            ):
+                continue
+        elif filt == "financing_blocked":
+            if not _is_available_rec(rec):
+                continue
+            # Soft: show opportunities with financing/access uncertainty — never invent blocked
+            if str(rec.get("financing_status") or "").upper() not in {"BLOCKED", "FINANCING_GAP", "EXECUTION_FAIL"}:
+                # Keep visible via filter only when explicit; otherwise skip
+                fin = ((rec.get("row_ref") or {}) if isinstance(rec.get("row_ref"), dict) else {}).get("economics") or {}
+                if not (isinstance(fin, dict) and fin.get("blocker")):
+                    continue
+        elif filt == "federal":
+            if not _is_available_rec(rec) or _jurisdiction_bucket(rec) != "FEDERAL":
+                continue
+        elif filt in {"state_local", "state", "local"}:
+            if not _is_available_rec(rec):
+                continue
+            bucket = _jurisdiction_bucket(rec)
+            if filt == "federal":
+                continue
+            if bucket == "FEDERAL":
+                continue
+
         status_packet = map_funnel_to_owner_status(rec)
         if status_n and status_packet["ui_status"] != status_n and status_packet["ui_status"].replace(" ", "_") != status_n.replace(" ", "_"):
-            # also allow queue ids
             if status_packet.get("ui_queue") != status_n.lower() and status_packet["ui_status"] != status_n:
                 continue
         if buyer_n and buyer_n not in _norm(rec.get("buyer")):
             continue
         if state and state.upper() not in _norm(rec.get("jurisdiction") or rec.get("buyer") or ""):
-            # soft filter on jurisdiction text
             if state.upper() not in str(rec.get("jurisdiction") or "").upper():
                 continue
         hay = " ".join(
@@ -648,23 +867,42 @@ def list_deals(
         )
         if qn and qn not in _norm(hay):
             continue
-        cards.append(
-            _deal_card(
-                deal_id=f"c:{cid}",
-                buyer=rec.get("buyer"),
-                solicitation=rec.get("solicitation_event_id"),
-                product=_product_from_rec(rec),
-                deadline=rec.get("deadline"),
-                delivery=None,
-                estimated_value=None,
-                status_packet=status_packet,
-                extras={"canonical_id": cid},
-            )
-        )
+        cards.append(_available_deal_card(cid, rec))
 
     total = len(cards)
     start = (page - 1) * page_size
     slice_ = cards[start : start + page_size]
+
+    # Quote outreach reserve — count only; collapsed by default on Available Deals
+    quote_reserve_count = 0
+    quote_reserve_surfaced = False
+    try:
+        from evidence_exhaustion.owner_surface import should_surface_quote_reserve
+        from m3_data_root import data_path
+        import json as _json
+
+        ee = data_path("m3_evidence_exhaustion_v1_store.json")
+        if ee.exists():
+            raw = _json.loads(ee.read_text(encoding="utf-8"))
+            by = raw.get("by_opportunity") or {}
+            quote_reserve_count = sum(
+                1
+                for o in by.values()
+                if isinstance(o, dict) and o.get("terminal_status") == "QUOTE_OUTREACH_RESERVE"
+            )
+            strong = sum(
+                1
+                for o in by.values()
+                if isinstance(o, dict)
+                and (
+                    o.get("readiness") in {"LENDER_READY", "NEAR_READY_24H"}
+                    or o.get("profit_status") in {"PROVEN_PROFITABLE", "LIKELY_PROFITABLE"}
+                )
+            )
+            quote_reserve_surfaced = should_surface_quote_reserve(strong_lead_count=strong)
+    except Exception:
+        pass
+
     return {
         "kind": "OwnerUiDealList",
         "build": BUILD,
@@ -673,6 +911,14 @@ def list_deals(
         "total": total,
         "has_more": start + page_size < total,
         "items": slice_,
+        "filter": filt,
+        "data_status": "LOADED",
+        "canonical_count": len(store),
+        "store_path": meta["path"],
+        "quote_outreach_reserve_count": quote_reserve_count,
+        "quote_outreach_reserve_collapsed": True,
+        "quote_outreach_reserve_surfaced": quote_reserve_surfaced,
+        "quote_outreach_reserve_label": f"Quote Outreach Reserve: {quote_reserve_count}",
     }
 
 
@@ -767,7 +1013,7 @@ def get_deal(deal_id: str) -> dict[str, Any]:
         uniq.append(s)
 
     dr = rec.get("deep_research") if isinstance(rec.get("deep_research"), dict) else {}
-    return {
+    payload = {
         "kind": "OwnerUiDealDetail",
         "build": BUILD,
         "deal_id": deal_id if deal_id.startswith(("c:", "l22:")) else f"c:{cid or deal_id}",
@@ -803,7 +1049,142 @@ def get_deal(deal_id: str) -> dict[str, Any]:
         "has_advanced": True,
         "opportunity_id": (entry or {}).get("opportunity_id") or l22_oid,
         "canonical_id": cid,
+        "line_item_economics": _line_item_economics_for_deal(cid or deal_id, rec),
+        "profit_first": _profit_first_for_deal(cid or deal_id, rec),
+        "ui_path": "CANONICAL_OPERATOR",
+        "legacy_suppressed": True,
     }
+    try:
+        from p0_prescale_hardening.ui_canonical import attach_canonical_deal_panel
+        from p0_prescale_hardening.next_action import opportunity_owner_snapshot
+        from m3_data_root import data_path
+        import json as _json
+
+        snap = None
+        ch_path = data_path("m3_owner_channel_outreach_queue_v1.json")
+        if ch_path.exists():
+            q = _json.loads(ch_path.read_text(encoding="utf-8"))
+            oid_guess = str((entry or {}).get("opportunity_id") or cid or "")
+            for row in q.get("queue") or []:
+                if oid_guess and oid_guess in str(row.get("Opportunity") or ""):
+                    snap = opportunity_owner_snapshot(
+                        opportunity_id=str(row.get("Opportunity")),
+                        packet={
+                            "status": row.get("Packet_status"),
+                            "line_count": row.get("Lines"),
+                            "packet_audit_status": row.get("Source_trace"),
+                            "DIFF": row.get("Qty_reconciliation"),
+                            "delivery_destination": row.get("Delivery"),
+                            "deadline": row.get("Deadline"),
+                            "supplier": {"supplier_name": row.get("Supplier")},
+                            "fail_reasons": [],
+                        },
+                        revenue_usable=False,
+                    )
+                    break
+        payload = attach_canonical_deal_panel(payload, snapshot=snap)
+    except Exception:
+        payload["canonical_funnel"] = {
+            "stages": [
+                "OPPORTUNITY",
+                "PACKAGE",
+                "ELIGIBILITY",
+                "PRODUCTS",
+                "REVENUE",
+                "ACQUISITION",
+                "QUOTES",
+                "BASKET",
+                "FREIGHT",
+                "FINANCING",
+                "ECONOMICS",
+                "EXECUTION",
+                "LENDER READY",
+                "BID READY",
+            ],
+            "current_stage": "OPPORTUNITY",
+            "do_not_send_automatically": True,
+        }
+    return payload
+
+
+def _profit_first_for_deal(opportunity_id: str | None, rec: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not opportunity_id and not rec:
+        return None
+    try:
+        from line_item_economics.engine import load_analysis
+        from profit_first.router import evaluate_opportunity_profit
+
+        oid = str(opportunity_id or "")
+        if oid.startswith("c:"):
+            oid = oid[2:]
+        lie = None
+        try:
+            lie = load_analysis(oid)
+        except Exception:
+            lie = None
+        # Prefer attached evaluation on record
+        attached = (rec or {}).get("profit_first") if isinstance((rec or {}).get("profit_first"), dict) else None
+        if attached and attached.get("owner_card") and not lie:
+            return attached
+        ev = evaluate_opportunity_profit(
+            opportunity_id=oid or "unknown",
+            rec=rec or {},
+            title=(rec or {}).get("title"),
+            buyer=(rec or {}).get("buyer"),
+            line_item_analysis=lie,
+            ranking_signals={
+                "exact_identity": bool((rec or {}).get("solicitation_event_id")),
+                "public_retail_available": bool(lie),
+                "multiline_priceable": bool(lie),
+            },
+        )
+        return {
+            "profit_status": (ev.get("economics") or {}).get("profit_status"),
+            "expected_profit": (ev.get("economics") or {}).get("expected_profit"),
+            "post_financing_profit": (ev.get("economics") or {}).get("post_financing_profit"),
+            "route": ev.get("route"),
+            "owner_card": ev.get("owner_card"),
+            "ranking_score": (ev.get("ranking") or {}).get("profit_probability_score"),
+            "research_priority": (ev.get("research") or {}).get("priority"),
+            "economics": ev.get("economics"),
+            "evaluated_at": ev.get("evaluated_at"),
+        }
+    except Exception:
+        return None
+
+
+def _line_item_economics_for_deal(opportunity_id: str | None, rec: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not opportunity_id:
+        return None
+    try:
+        from line_item_economics.engine import load_analysis, owner_summary
+
+        oid = str(opportunity_id)
+        # Also try bare canonical without prefix
+        for key in (oid, oid[2:] if oid.startswith("c:") else oid):
+            analysis = load_analysis(key)
+            if analysis:
+                return {
+                    "owner_summary": owner_summary(analysis),
+                    "rollup": analysis.get("rollup"),
+                    "line_table": analysis.get("line_table"),
+                    "freight": analysis.get("freight"),
+                    "supplier_coverage": analysis.get("supplier_coverage"),
+                    "simple_resale": analysis.get("simple_resale"),
+                    "next_action": analysis.get("next_action"),
+                    "analyzed_at": analysis.get("analyzed_at"),
+                }
+        # Surface embedded schedule if present on record without full analysis
+        rr = (rec or {}).get("row_ref") if isinstance((rec or {}).get("row_ref"), dict) else {}
+        if rr.get("line_items") or (rec or {}).get("line_items"):
+            return {
+                "owner_summary": None,
+                "pending": True,
+                "message": "Line items present — run line-item economics analysis.",
+            }
+    except Exception:
+        return None
+    return None
 
 
 def get_advanced(deal_id: str) -> dict[str, Any]:
@@ -1179,13 +1560,18 @@ def upsert_quote_review(deal_id: str, payload: dict[str, Any]) -> dict[str, Any]
     else:
         quotes.append(row)
     qstore["updated_at"] = _utc()
-    save_json(UI_QUOTES_PATH, qstore)
+    save_json(_ui_quotes_path(), qstore)
     return {"ok": True, "saved": True, "saved_at": row["updated_at"], "message": "Saved", "quote": row}
 
 
 def build_registrations() -> dict[str, Any]:
+    from phase_l.unlock_opportunity_links import summarize_unlock_links
+
     tracker = load_tracker()
+    meta = _canonical_store_meta()
+    store = _load_store() if meta["exists"] else {}
     items = []
+    all_blocked_ids: set[str] = set()
     for sid, row in (tracker.get("portals") or {}).items():
         if not isinstance(row, dict):
             continue
@@ -1197,21 +1583,37 @@ def build_registrations() -> dict[str, Any]:
             # still show recurring buyers with sightings
             if int(row.get("relevant_opportunities_seen") or 0) < 2:
                 continue
-        buyers_unlocked = 1  # portal maps to recurring buyer entity
-        live = int(row.get("currently_live_relevant_opportunities") or 0)
-        seen = int(row.get("relevant_opportunities_seen") or 0)
+
+        links = summarize_unlock_links(portal_id=sid, portal_row=row, store=store)
+        opp_ids = list(links.get("opportunity_ids") or [])
+        opp_count = int(links.get("opportunity_count") or 0)
+        # Never fabricate fallback capped counts when store is missing
+        if not meta["exists"]:
+            opp_count = 0
+            opp_ids = []
+        buyers_unlocked = max(1, int(links.get("buyer_count") or 1))
         free = str(row.get("registration_type") or "").startswith("EASY")
-        priority = "HIGH" if action.endswith("RECURRING_BUYER") or live >= 3 else ("NORMAL" if seen >= 2 else "LOW")
+        priority = "HIGH" if action.endswith("RECURRING_BUYER") or opp_count >= 3 else ("NORMAL" if opp_count >= 1 or int(row.get("relevant_opportunities_seen") or 0) >= 2 else "LOW")
+        all_blocked_ids.update(opp_ids)
         items.append(
             {
                 "portal_id": sid,
                 "portal": row.get("buyer_name") or row.get("portal") or sid,
+                "state_jurisdiction": row.get("jurisdiction"),
                 "free_or_paid": "Free" if free else "May require documents",
                 "estimated_time": "~10 minutes" if free else "~20–40 minutes",
                 "buyers_unlocked": buyers_unlocked,
-                "opportunities_unlocked": max(live, min(seen, 9)),
+                "buyer_ids": links.get("buyer_ids") or [],
+                "opportunities_unlocked": opp_count,
+                "opportunity_ids": opp_ids,
+                "opportunity_count": opp_count,
                 "priority": priority,
-                "why": f"Unlocks {buyers_unlocked} buyers · {max(live, min(seen, 9))} relevant opportunities",
+                "why": (
+                    f"Unlocks {buyers_unlocked} buyers · {opp_count} relevant opportunities"
+                    if meta["exists"]
+                    else "Opportunity store missing — count unavailable (not fabricated)."
+                ),
+                "why_registration_matters": row.get("recommended_action") or "Register to unlock buyers and current opportunities.",
                 "registration_url": row.get("registration_url"),
                 "walkthrough": {
                     "steps": [
@@ -1222,6 +1624,7 @@ def build_registrations() -> dict[str, Any]:
                     ]
                 },
                 "recommended_action": action or "REGISTER_NOW",
+                "data_status": "LOADED" if meta["exists"] else DATA_SOURCE_MISSING,
             }
         )
     items.sort(key=lambda x: (0 if x["priority"] == "HIGH" else 1 if x["priority"] == "NORMAL" else 2, -x["opportunities_unlocked"]))
@@ -1231,7 +1634,142 @@ def build_registrations() -> dict[str, Any]:
         "generated_at": _utc(),
         "items": items,
         "count": len(items),
+        "unique_blocked_opportunities": len(all_blocked_ids),
+        "data_status": "LOADED" if meta["exists"] else DATA_SOURCE_MISSING,
         "empty": "No registrations need attention right now.",
+    }
+
+
+def registration_opportunity_drilldown(portal_id: str) -> dict[str, Any]:
+    """Exact unique opportunity IDs behind an unlock card count."""
+    from phase_l.unlock_opportunity_links import summarize_unlock_links
+
+    tracker = load_tracker()
+    row = (tracker.get("portals") or {}).get(portal_id)
+    if not isinstance(row, dict):
+        return {"ok": False, "error": "portal_not_found", "portal_id": portal_id}
+    meta = _canonical_store_meta()
+    if not meta["exists"]:
+        return {
+            "ok": False,
+            "error": OPPORTUNITY_STORE_MISSING,
+            "data_status": DATA_SOURCE_MISSING,
+            "portal_id": portal_id,
+            "opportunity_ids": [],
+            "opportunity_count": 0,
+            "message": "Cannot derive unlock opportunities — store missing.",
+        }
+    store = _load_store()
+    links = summarize_unlock_links(portal_id=portal_id, portal_row=row, store=store)
+    cards = []
+    for cid in links.get("opportunity_ids") or []:
+        rec = store.get(cid)
+        if isinstance(rec, dict):
+            cards.append(_available_deal_card(cid, rec))
+    return {
+        "ok": True,
+        "kind": "OwnerUiRegistrationDrilldown",
+        "portal_id": portal_id,
+        "portal": row.get("buyer_name") or row.get("portal") or portal_id,
+        "opportunity_ids": links.get("opportunity_ids") or [],
+        "opportunity_count": links.get("opportunity_count") or 0,
+        "buyer_ids": links.get("buyer_ids") or [],
+        "items": cards,
+        "count_matches_ids": len(links.get("opportunity_ids") or []) == int(links.get("opportunity_count") or 0),
+    }
+
+
+def opportunity_data_health() -> dict[str, Any]:
+    meta = _canonical_store_meta()
+    if not meta["exists"]:
+        return {
+            "kind": "OpportunityDataHealth",
+            "status": DATA_SOURCE_MISSING,
+            "error_code": OPPORTUNITY_STORE_MISSING,
+            "canonical_count": None,
+            "currently_available": None,
+            "last_updated": None,
+            "store_path": meta["path"],
+            "message": "Opportunity store missing — do not treat as zero legitimate opportunities.",
+            "registration_unlocks": None,
+            "unique_blocked_opportunities": None,
+        }
+    store = _load_store()
+    available = sum(1 for r in store.values() if isinstance(r, dict) and _is_available_rec(r))
+    regs = build_registrations()
+    return {
+        "kind": "OpportunityDataHealth",
+        "status": "LOADED",
+        "canonical_count": len(store),
+        "currently_available": available,
+        "last_updated": meta.get("updated_at"),
+        "store_path": meta["path"],
+        "registration_unlocks": regs.get("count"),
+        "unique_blocked_opportunities": regs.get("unique_blocked_opportunities"),
+        "message": None,
+    }
+
+
+def opportunity_visibility_diagnostics() -> dict[str, Any]:
+    """Production diagnostic for opportunity visibility + unlock integrity."""
+    from collections import Counter
+
+    from m3_data_root import get_data_root
+
+    meta = _canonical_store_meta()
+    root = str(get_data_root())
+    if not meta["exists"]:
+        return {
+            "kind": "OpportunityVisibilityDiagnostics",
+            "build": BUILD,
+            "data_root": root,
+            "store_path": meta["path"],
+            "file_exists": False,
+            "data_status": DATA_SOURCE_MISSING,
+            "error_code": OPPORTUNITY_STORE_MISSING,
+            "record_count": 0,
+            "canonical_count": 0,
+            "note": "Missing store is not a legitimate empty population.",
+        }
+    store = _load_store()
+    by_status = Counter(str(r.get("current_funnel_state") or "UNKNOWN") for r in store.values() if isinstance(r, dict))
+    by_class = Counter(str(r.get("product_service_classification") or "UNKNOWN") for r in store.values() if isinstance(r, dict))
+    by_jur = Counter(_jurisdiction_bucket(r) for r in store.values() if isinstance(r, dict))
+    available = sum(1 for r in store.values() if isinstance(r, dict) and _is_available_rec(r))
+    today = build_today()
+    deals = list_deals(filter="available", page=1, page_size=1)
+    watch = build_watch(page=1, page_size=1)
+    regs = build_registrations()
+    unlock_examples = [
+        {
+            "portal_id": i.get("portal_id"),
+            "portal": i.get("portal"),
+            "opportunity_count": i.get("opportunity_count"),
+            "sample_ids": (i.get("opportunity_ids") or [])[:5],
+        }
+        for i in (regs.get("items") or [])[:8]
+    ]
+    return {
+        "kind": "OpportunityVisibilityDiagnostics",
+        "build": BUILD,
+        "data_root": root,
+        "store_path": meta["path"],
+        "file_exists": True,
+        "data_status": "LOADED",
+        "record_count": len(store),
+        "canonical_count": len(store),
+        "currently_available": available,
+        "counts_by_status": dict(by_status),
+        "counts_by_product_service_classification": dict(by_class),
+        "counts_by_jurisdiction": dict(by_jur),
+        "visible_today_call_today": (today.get("counts") or {}).get("call_today"),
+        "visible_today_blocked": (today.get("counts") or {}).get("blocked"),
+        "visible_deals_available": deals.get("total"),
+        "visible_watch": watch.get("total"),
+        "last_updated": meta.get("updated_at"),
+        "registration_unlocks": regs.get("count"),
+        "unique_blocked_opportunities": regs.get("unique_blocked_opportunities"),
+        "unlock_examples": unlock_examples,
     }
 
 

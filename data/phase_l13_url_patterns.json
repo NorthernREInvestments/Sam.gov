@@ -18,11 +18,11 @@
       "host": "www.bidnetdirect.com",
       "path_template": "/public/supplier/solicitations/statewide/{SOLICITATION}/abstract",
       "artifact_type": "SOLICITATION_PRINT_VIEW",
-      "solicitation_linkage": "444176299094",
-      "access_status": "PUBLIC",
-      "discovery_method": "public_fetch",
-      "date_last_verified": "2026-09-29T04:30:51.754042+00:00",
-      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444176299094/abstract?purchasingGroupId=182876351&origin=1"
+      "solicitation_linkage": "444171205790",
+      "access_status": "INDEXED_OR_SEEDED",
+      "discovery_method": "seed_or_index",
+      "date_last_verified": "2026-10-01T20:11:47.401518+00:00",
+      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444171205790/abstract?purchasingGroupId=182876351&origin=1"
     },
     {
       "platform": "BidNet",
@@ -30,11 +30,11 @@
       "host": "www.bidnetdirect.com",
       "path_template": "/public/supplier/solicitations/statewide/{SOLICITATION}/abstract",
       "artifact_type": "SOLICITATION_PRINT_VIEW",
-      "solicitation_linkage": "444174676828",
-      "access_status": "PUBLIC",
-      "discovery_method": "public_fetch",
-      "date_last_verified": "2026-09-29T04:28:56.597064+00:00",
-      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444174676828/abstract?purchasingGroupId=700141301&origin=1"
+      "solicitation_linkage": "444171205790",
+      "access_status": "INDEXED_OR_SEEDED",
+      "discovery_method": "seed_or_index",
+      "date_last_verified": "2026-10-01T20:11:47.425195+00:00",
+      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444171205790/abstract?purchasingGroupId=700141301&origin=1"
     },
     {
       "platform": "BidNet",
@@ -42,11 +42,11 @@
       "host": "www.bidnetdirect.com",
       "path_template": "/public/supplier/solicitations/statewide/{SOLICITATION}/abstract",
       "artifact_type": "SOLICITATION_PRINT_VIEW",
-      "solicitation_linkage": "444174542652",
-      "access_status": "PUBLIC",
-      "discovery_method": "public_fetch",
-      "date_last_verified": "2026-09-29T04:30:36.662066+00:00",
-      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444174542652/abstract?purchasingGroupId=58111501&origin=1"
+      "solicitation_linkage": "444171205790",
+      "access_status": "INDEXED_OR_SEEDED",
+      "discovery_method": "seed_or_index",
+      "date_last_verified": "2026-10-01T20:11:47.447017+00:00",
+      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444171205790/abstract?purchasingGroupId=58111501&origin=1"
     },
     {
       "platform": "BidNet",
@@ -57,7 +57,7 @@
       "solicitation_linkage": "444171205790",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.486534+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.473980+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444171205790/abstract?purchasingGroupId=845225251&origin=1"
     },
     {
@@ -69,7 +69,7 @@
       "solicitation_linkage": "1",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.624655+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.616033+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/1/abstract"
     },
     {
@@ -150,11 +150,11 @@
       "host": "www.bidnetdirect.com",
       "path_template": "/public/supplier/solicitations/statewide/{SOLICITATION}/abstract",
       "artifact_type": "SOLICITATION_PRINT_VIEW",
-      "solicitation_linkage": "444176688887",
-      "access_status": "PUBLIC",
-      "discovery_method": "public_fetch",
-      "date_last_verified": "2026-09-29T04:28:53.382086+00:00",
-      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444176688887/abstract?purchasingGroupId=88021351&origin=1"
+      "solicitation_linkage": "444171205790",
+      "access_status": "INDEXED_OR_SEEDED",
+      "discovery_method": "seed_or_index",
+      "date_last_verified": "2026-10-01T20:11:47.373405+00:00",
+      "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444171205790/abstract?purchasingGroupId=88021351&origin=1"
     },
     {
       "platform": "BidNet",
@@ -189,7 +189,7 @@
       "solicitation_linkage": "1",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.521485+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.510830+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/1/abstract?purchasingGroupId=182876351&origin=1"
     },
     {
@@ -201,7 +201,7 @@
       "solicitation_linkage": "1",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.546447+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.537195+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/1/abstract?purchasingGroupId=700141301&origin=1"
     },
     {
@@ -213,7 +213,7 @@
       "solicitation_linkage": "1",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.572332+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.563716+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/1/abstract?purchasingGroupId=58111501&origin=1"
     },
     {
@@ -225,7 +225,7 @@
       "solicitation_linkage": "1",
       "access_status": "INDEXED_OR_SEEDED",
       "discovery_method": "seed_or_index",
-      "date_last_verified": "2026-09-28T18:14:26.598218+00:00",
+      "date_last_verified": "2026-10-01T20:11:47.588384+00:00",
       "example_url": "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/1/abstract?purchasingGroupId=845225251&origin=1"
     },
     {
@@ -350,5 +350,5 @@
     }
   ],
   "build": "20260928-m3-phase-l13-public-artifact-recovery",
-  "updated_at": "2026-09-29T04:30:51.754547+00:00"
+  "updated_at": "2026-10-01T20:11:47.616281+00:00"
 }

@@ -247,8 +247,9 @@ def compute_transactional_priority(row: dict[str, Any]) -> dict[str, Any]:
     qty = 10 if _hits(_QUANTITY_SIGNALS, _blob(row)) else 0
     service_penalty = -40 if tier == TIER_F_LOW_FIT else 0
     strategic_penalty = -25 if tier == TIER_D_STRATEGIC else 0
+    financing_penalty = -int(row.get("financing_rank_penalty") or 0)
 
-    total = tier_score + deadline_score + value_score + qty + service_penalty + strategic_penalty
+    total = tier_score + deadline_score + value_score + qty + service_penalty + strategic_penalty + financing_penalty
     return {
         "transactional_priority_score": total,
         "priority_components": {
@@ -258,6 +259,7 @@ def compute_transactional_priority(row: dict[str, Any]) -> dict[str, Any]:
             "quantity_signal": qty,
             "service_penalty": service_penalty,
             "strategic_penalty": strategic_penalty,
+            "financing_penalty": financing_penalty,
         },
         "priority_reasons": list(row.get("launch_tier_reasons") or [])
         + list(row.get("value_potential_reasons") or []),
@@ -290,6 +292,14 @@ def enrich_for_transactional_ranking(row: dict[str, Any], *, now: datetime | Non
     out.update(val)
     tier = assign_launch_tier(out)
     out.update(tier)
+    # Financing intelligence affects ranking only when cost data exists; UNKNOWN ≠ fail.
+    try:
+        from financing_intelligence.assess import attach_financing_to_opportunity_row
+
+        attach_financing_to_opportunity_row(out)
+    except Exception:
+        out.setdefault("financing_status", "FINANCING_UNKNOWN")
+        out.setdefault("financing_rank_penalty", 0)
     pri = compute_transactional_priority(out)
     out.update(pri)
 

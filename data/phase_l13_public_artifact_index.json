@@ -18,7 +18,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.379003+00:00"
+      "updated_at": "2026-10-01T20:11:47.369080+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -58,7 +58,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.305449+00:00"
+      "updated_at": "2026-10-01T20:11:47.288975+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -118,7 +118,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.611048+00:00"
+      "updated_at": "2026-10-01T20:11:47.601825+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1598,7 +1598,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.395015+00:00"
+      "updated_at": "2026-10-01T20:11:47.387006+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1618,7 +1618,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.449211+00:00"
+      "updated_at": "2026-10-01T20:11:47.435680+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1658,7 +1658,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.213917+00:00"
+      "updated_at": "2026-10-01T20:11:47.190786+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1678,7 +1678,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.257616+00:00"
+      "updated_at": "2026-10-01T20:11:47.235104+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1698,7 +1698,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.517735+00:00"
+      "updated_at": "2026-10-01T20:11:47.507390+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -1718,7 +1718,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.557321+00:00"
+      "updated_at": "2026-10-01T20:11:47.549359+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10744,7 +10744,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.421961+00:00"
+      "updated_at": "2026-10-01T20:11:47.413070+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10764,7 +10764,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.473949+00:00"
+      "updated_at": "2026-10-01T20:11:47.457105+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10784,7 +10784,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.227246+00:00"
+      "updated_at": "2026-10-01T20:11:47.207235+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10804,7 +10804,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.281399+00:00"
+      "updated_at": "2026-10-01T20:11:47.262337+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10824,7 +10824,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.532544+00:00"
+      "updated_at": "2026-10-01T20:11:47.523740+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -10844,7 +10844,7 @@
       "exact_match_basis": [
         "solicitation_number_in_artifact"
       ],
-      "updated_at": "2026-09-28T18:14:26.583608+00:00"
+      "updated_at": "2026-10-01T20:11:47.573743+00:00"
     },
     {
       "kind": "PublicArtifactIndex",
@@ -11858,5 +11858,5 @@
     }
   ],
   "build": "20260928-m3-phase-l13-public-artifact-recovery",
-  "updated_at": "2026-09-29T04:30:51.772139+00:00"
+  "updated_at": "2026-10-01T20:11:47.602144+00:00"
 }

@@ -1,0 +1,113 @@
+"""Completion report formatter."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from bidnet_full_production.models import BUILD
+
+
+def format_report(report: dict[str, Any]) -> str:
+    s = report.get("session") or {}
+    d = report.get("discovery") or {}
+    acc = report.get("acceptance_192") or {}
+    lines = [
+        "BIDNET SESSION",
+        "",
+        f"Authenticated: {s.get('authenticated')}",
+        f"Session reused: {s.get('session_reused')}",
+        f"Session expiry: {s.get('session_expiry')}",
+        f"Registration redirects: {s.get('registration_redirects')}",
+        f"Access denied: {s.get('access_denied')}",
+        "",
+        "DISCOVERY",
+        "",
+        f"Reported open: {d.get('reported_open')}",
+        f"Pages: {d.get('pages')}",
+        f"Raw retrieved: {d.get('raw_retrieved')}",
+        f"Unique: {d.get('unique')}",
+        f"New: {d.get('new')}",
+        f"Updated: {d.get('updated')}",
+        f"Unchanged: {d.get('unchanged')}",
+        f"Truncated: {d.get('truncated')}",
+        f"Complete: {d.get('complete')}",
+        "",
+        "CLASSIFICATION",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("classification") or {}).items()),
+        "",
+        "DETAILS",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("details") or {}).items()),
+        "",
+        "BUYER RESOLUTION",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("buyer_resolution") or {}).items()),
+        f"Buyer resolution rate: {report.get('buyer_resolution_rate')}",
+        "",
+        "SOLICITATION IDENTITY",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("solicitation_identity") or {}).items()),
+        f"Identity resolution rate: {report.get('identity_resolution_rate')}",
+        "",
+        "DOCUMENTS",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("documents") or {}).items()),
+        "",
+        "PACKAGE ACCESS",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("package_access") or {}).items()),
+        "",
+        "OFFICIAL SOURCE RECOVERY",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("official_recovery") or {}).items()),
+        "",
+        "BUYER DIRECTORY",
+        "",
+        f"Buyers learned: {report.get('buyers_learned')}",
+        f"Portal mappings learned: {report.get('portal_mappings_learned')}",
+        "",
+        "SAME-192 ACCEPTANCE",
+        "",
+        f"Sample: {acc.get('sample')}",
+        f"Buyer resolved: {acc.get('buyer_resolved')}",
+        f"Solicitation ID resolved: {acc.get('solicitation_resolved')}",
+        f"Detail acquired/partial: {acc.get('detail_acquired')}",
+        f"Official portal identified: {acc.get('official_portal')}",
+        f"Package acquired: {acc.get('package_acquired')}",
+        f"Exact package state explained: {acc.get('package_explained')}",
+        "",
+        "Targets:",
+        f"Buyer >=90%: {acc.get('target_buyer')}",
+        f"Solicitation >=90%: {acc.get('target_solicitation')}",
+        f"Detail >=85%: {acc.get('target_detail')}",
+        f"Package-state explained =100%: {acc.get('target_package_explained')}",
+        "",
+        f"PASS/FAIL: {acc.get('PASS_FAIL')}",
+        "",
+        "FULL BIDNET INGESTION",
+        "",
+        *(f"{k}: {v}" for k, v in (report.get("full_ingestion") or {}).items()),
+        "",
+        "BIDNET SOURCE HEALTH",
+        "",
+        *(f"{k}: {report.get('source_health', {}).get(k)}" for k in (
+            "discovery_complete", "details_production_ready", "buyer_identity_production_ready",
+            "official_portal_routing_production_ready", "package_state_classification_production_ready",
+            "canonical_merge_production_ready",
+        )),
+        f"PASS/FAIL: {report.get('source_health_pass')}",
+        "",
+        "CONSERVATION",
+        "",
+        *(f"{k}: {report.get('conservation', {}).get(k)}" for k in (
+            "discovery_diff", "detail_diff", "document_diff", "package_state_diff", "canonical_merge_diff",
+        )),
+        "",
+        "MOST IMPORTANT ANSWERS",
+        "",
+    ]
+    for i, ans in enumerate(report.get("answers") or [], 1):
+        lines.append(f"{i}. {ans}")
+    lines.extend(["", f"BUILD: {BUILD}", f"BIDNET_PRODUCTION_PASS: {report.get('BIDNET_PRODUCTION_PASS')}"])
+    return "\n".join(lines)

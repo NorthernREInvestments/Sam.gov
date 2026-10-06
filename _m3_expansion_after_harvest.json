@@ -1,0 +1,28 @@
+{
+  "run_id": "EXP-844602db1d4a",
+  "raw_discovered": 18522,
+  "raw_opportunities": 18522,
+  "duplicates_removed": 528,
+  "unique_records": 17994,
+  "sources_attempted": 149,
+  "sources_successful": 63,
+  "sources_failed": 86,
+  "platform_family_counts": {
+    "BidNet": 17646,
+    "OpenGov": 34,
+    "Bonfire": 23,
+    "Jaggaer": 20,
+    "Socrata": 799
+  },
+  "pagination_truncated_sources": [],
+  "TOTAL_LIVE_DISCOVERY_UNIVERSE": 19109,
+  "canonical_merge": {
+    "new": 17863,
+    "updated": 115,
+    "duplicates_detected": 131,
+    "canonical_after": 19556,
+    "available_after": 19109,
+    "run_status": "PARTIAL"
+  },
+  "completed_at": "2026-10-02T20:05:23.462967+00:00"
+}

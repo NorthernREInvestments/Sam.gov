@@ -20,13 +20,13 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 31,
+      "past_m3_usage": 33,
       "price_kind": "MANUFACTURER_LIST_PRICE",
       "grades_seen": [
         "SUPPLIER_B",
         "SUPPLIER_C"
       ],
-      "updated_at": "2026-09-30T01:57:06.430635+00:00"
+      "updated_at": "2026-10-01T20:11:56.594228+00:00"
     },
     "ebay.com": {
       "kind": "SupplierProfile",
@@ -45,12 +45,12 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 6,
+      "past_m3_usage": 7,
       "price_kind": "QUOTE_REQUIRED",
       "grades_seen": [
         "SUPPLIER_D"
       ],
-      "updated_at": "2026-09-29T05:26:35.387710+00:00"
+      "updated_at": "2026-10-01T20:11:53.228709+00:00"
     },
     "cat.com": {
       "kind": "SupplierProfile",
@@ -69,13 +69,13 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 30,
+      "past_m3_usage": 31,
       "price_kind": "QUOTE_REQUIRED",
       "grades_seen": [
         "SUPPLIER_B",
         "SUPPLIER_C"
       ],
-      "updated_at": "2026-09-30T01:57:06.243676+00:00"
+      "updated_at": "2026-10-01T20:11:56.032434+00:00"
     },
     "sourcewellmn.gov": {
       "kind": "SupplierProfile",
@@ -96,13 +96,13 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 37,
+      "past_m3_usage": 38,
       "price_kind": "CONTRACT_CATALOG_PRICE",
       "grades_seen": [
         "SUPPLIER_D",
         "SUPPLIER_C"
       ],
-      "updated_at": "2026-09-30T01:57:06.265018+00:00"
+      "updated_at": "2026-10-01T20:11:56.059499+00:00"
     },
     "3kingsenvironmentalinc.com": {
       "kind": "SupplierProfile",
@@ -368,14 +368,14 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 30,
+      "past_m3_usage": 31,
       "price_kind": "QUOTE_REQUIRED",
       "grades_seen": [
         "SUPPLIER_B",
         "SUPPLIER_C",
         "SUPPLIER_D"
       ],
-      "updated_at": "2026-09-30T01:57:06.459114+00:00"
+      "updated_at": "2026-10-01T20:11:56.631590+00:00"
     },
     "insight.com": {
       "kind": "SupplierProfile",
@@ -401,14 +401,14 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 26,
+      "past_m3_usage": 27,
       "price_kind": "QUOTE_REQUIRED",
       "grades_seen": [
         "SUPPLIER_B",
         "SUPPLIER_C",
         "SUPPLIER_D"
       ],
-      "updated_at": "2026-09-30T01:57:06.492476+00:00"
+      "updated_at": "2026-10-01T20:11:56.664742+00:00"
     },
     "shi.com": {
       "kind": "SupplierProfile",
@@ -432,14 +432,14 @@
       "terms": "unknown",
       "freight": "unknown",
       "financing_compatibility": "unknown",
-      "past_m3_usage": 25,
+      "past_m3_usage": 26,
       "price_kind": "QUOTE_REQUIRED",
       "grades_seen": [
         "SUPPLIER_B",
         "SUPPLIER_C",
         "SUPPLIER_D"
       ],
-      "updated_at": "2026-09-30T01:57:06.525677+00:00"
+      "updated_at": "2026-10-01T20:11:56.696604+00:00"
     },
     "dell.com": {
       "kind": "SupplierProfile",
@@ -1339,5 +1339,5 @@
       "updated_at": "2026-09-29T05:00:33.287518+00:00"
     }
   },
-  "updated_at": "2026-09-30T01:57:06.526419+00:00"
+  "updated_at": "2026-10-01T20:11:56.697450+00:00"
 }

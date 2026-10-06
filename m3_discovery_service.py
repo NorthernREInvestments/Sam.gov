@@ -35,7 +35,7 @@ TRIGGER_SCHEDULED = "SCHEDULED"
 TRIGGER_MANUAL = "MANUAL"
 TRIGGER_CATCH_UP = "CATCH_UP"
 
-DEFAULT_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_discovery_run_state.json"
+_LEGACY_STATE_PATH = Path(__file__).resolve().parent / "artifacts" / "m3_discovery_run_state.json"
 SETTINGS_KEY = "m3_discovery_run_state"
 PIPELINE_SETTINGS_KEY = "m3_pipeline_store_v1"  # kept for compatibility; store owns persistence
 
@@ -44,6 +44,20 @@ FRESHNESS_MULTIPLIER = 1.5
 
 _lock = threading.Lock()
 _worker: threading.Thread | None = None
+
+
+def _state_path() -> Path:
+    """Authoritative discovery lock/state under M3_DATA_ROOT (with legacy fallback read)."""
+    try:
+        from m3_data_root import data_path
+
+        return data_path("m3_discovery_run_state.json")
+    except Exception:
+        return _LEGACY_STATE_PATH
+
+
+# Back-compat alias used by older imports/tests
+DEFAULT_PATH = _LEGACY_STATE_PATH
 
 
 def _utc() -> str:
@@ -128,15 +142,22 @@ def _load_state() -> dict[str, Any]:
     db_data = _load_state_from_db()
     if db_data:
         state.update(db_data)
-    if DEFAULT_PATH.exists():
+    for path in (_state_path(), _LEGACY_STATE_PATH):
+        if not path.exists():
+            continue
         try:
-            data = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 # File may be ephemeral; only fill gaps, never wipe durable success
                 if not state.get("last_successful_completion") and data.get("last_successful_completion"):
                     state["last_successful_completion"] = data["last_successful_completion"]
                 if not state.get("current_run") and not state.get("last_successful_completion") and not state.get("last_attempt"):
                     state.update(data)
+                if not state.get("last_attempt") and data.get("last_attempt"):
+                    state["last_attempt"] = data["last_attempt"]
+                if data.get("current_run") and not state.get("current_run"):
+                    state["current_run"] = data["current_run"]
+                    state["lock"] = data.get("lock") or state.get("lock")
         except Exception:
             pass
     return state
@@ -156,11 +177,12 @@ def _save_state(state: dict[str, Any]) -> None:
     ):
         state["last_successful_completion"] = prior["last_successful_completion"]
     state["updated_at"] = _utc()
-    try:
-        DEFAULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        DEFAULT_PATH.write_text(json.dumps(state, indent=2, default=str), encoding="utf-8")
-    except Exception:
-        log.exception("Failed writing discovery state file")
+    for path in {_state_path(), _LEGACY_STATE_PATH}:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(state, indent=2, default=str), encoding="utf-8")
+        except Exception:
+            log.exception("Failed writing discovery state file %s", path)
     try:
         from database import SessionLocal
         from models import AppSetting
@@ -185,6 +207,97 @@ def _persist_pipeline_store(store: Any) -> None:
         store.save()  # durable AppSetting + file when store.durable
     except Exception:
         log.exception("Failed dual-writing M3 pipeline store")
+
+
+def _trigger_label(trigger_type: str) -> str:
+    mapping = {
+        TRIGGER_SCHEDULED: "scheduled",
+        TRIGGER_MANUAL: "manual",
+        TRIGGER_STARTUP: "startup",
+        TRIGGER_CATCH_UP: "startup",
+    }
+    return mapping.get(trigger_type, str(trigger_type or "manual").lower())
+
+
+def _source_lists_from_metrics(metrics: dict[str, Any]) -> tuple[list[str], list[str], list[str], dict[str, Any]]:
+    per = metrics.get("per_source") or {}
+    attempted: list[str] = []
+    succeeded: list[str] = []
+    failed: list[str] = []
+    counts: dict[str, Any] = {}
+    for sid, row in per.items():
+        if not isinstance(row, dict):
+            continue
+        sid_s = str(sid)
+        attempted.append(sid_s)
+        ok = bool(row.get("ok"))
+        counts[sid_s] = {
+            "ok": ok,
+            "raw": row.get("raw") or row.get("records_fetched"),
+            "unique": row.get("unique"),
+            "stop_reason": row.get("source_stop_reason") or row.get("root_cause"),
+        }
+        if ok:
+            succeeded.append(sid_s)
+        else:
+            failed.append(sid_s)
+    return attempted, succeeded, failed, counts
+
+
+def _merge_into_canonical_population(
+    *,
+    run_id: str,
+    trigger_type: str,
+    records: list[dict[str, Any]],
+    survivors: list[dict[str, Any]],
+    metrics: dict[str, Any],
+    live: dict[str, Any],
+    started_at: str | None,
+    error_summary: str | None = None,
+) -> dict[str, Any] | None:
+    """Incremental merge + expiry into L23 store under M3_DATA_ROOT."""
+    try:
+        from m3_canonical_discovery_bridge import merge_discovery_into_canonical
+
+        attempted, succeeded, failed, source_counts = _source_lists_from_metrics(metrics)
+        # Build merge set: all unique open/normalized records, survivors upgraded
+        merge_rows: list[dict[str, Any]] = []
+        survivor_keys: set[str] = set()
+        for s in survivors:
+            key = str(s.get("external_id") or s.get("solicitation_number") or s.get("title") or id(s))
+            survivor_keys.add(key)
+            row = dict(s)
+            row["cheap_screen_survive"] = True
+            merge_rows.append(row)
+        for r in records:
+            key = str(r.get("external_id") or r.get("solicitation_number") or r.get("title") or id(r))
+            if key in survivor_keys:
+                continue
+            merge_rows.append(dict(r))
+
+        return merge_discovery_into_canonical(
+            run_id=run_id,
+            trigger=_trigger_label(trigger_type),
+            records=merge_rows,
+            sources_attempted=attempted,
+            sources_succeeded=succeeded,
+            sources_failed=failed,
+            source_counts=source_counts,
+            raw_opportunities_found=int(metrics.get("raw_records") or metrics.get("listing_records") or len(records)),
+            records_normalized=len(records),
+            error_summary=error_summary,
+            api_usage={
+                "SAM": live.get("SAM") or 0,
+                "OpenAI": live.get("OpenAI") or 0,
+                "paid": live.get("paid") or 0,
+                "LIVE_API_REQUESTS": live.get("LIVE_API_REQUESTS"),
+            },
+            started_at=started_at,
+            persist=True,
+        )
+    except Exception:
+        log.exception("Canonical population merge failed for %s", run_id)
+        return None
 
 
 def restore_pipeline_store_from_db(store: Any) -> bool:
@@ -218,6 +331,10 @@ def _progress_for_phase(phase: str, sources_completed: int, sources_total: int) 
         "CHEAP_SCREENING": 70,
         "PIPELINE_UPDATE": 80,
         "TRACKED_CHANGE_CHECK": 90,
+        "CANONICAL_MERGE": 91,
+        "BIDNET_AUTH_RECOVERY": 91,
+        "OPENGOV_AUTH_DISCOVERY": 93,
+        "EUNA_DISCOVERY": 94,
         "FINALIZING": 95,
     }.get(phase, 5)
     if phase == "DISCOVERING" and sources_total > 0:
@@ -790,6 +907,7 @@ def _check_tracked_changes(store: Any, survivors: list[dict[str, Any]]) -> int:
 
 def _execute_run(run_id: str, trigger_type: str) -> None:
     print(f"govtracker: discovery execute begin {run_id} trigger={trigger_type}", flush=True)
+    run_started_at = _utc()
     _update_run(run_id, status=STATUS_RUNNING, phase="PREPARING", progress_percent=2)
     try:
         from database import SessionLocal
@@ -878,6 +996,24 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             on_source_complete=_on_source,
         )
         if live.get("error"):
+            try:
+                from m3_canonical_discovery_bridge import merge_discovery_into_canonical
+
+                merge_discovery_into_canonical(
+                    run_id=run_id,
+                    trigger=_trigger_label(trigger_type),
+                    records=[],
+                    sources_attempted=[],
+                    sources_succeeded=[],
+                    sources_failed=["discovery_live_runner"],
+                    raw_opportunities_found=0,
+                    records_normalized=0,
+                    error_summary=str(live.get("error")),
+                    started_at=run_started_at,
+                    persist=True,
+                )
+            except Exception:
+                log.exception("Failed recording canonical run history after live error")
             _finalize_run(run_id, status=STATUS_FAILED, error=str(live.get("error")))
             return
 
@@ -1060,6 +1196,190 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
             session.rollback()
 
         handoff_ok = batch.get("status") == "COMPLETE" and bool(recon.get("match", False))
+
+        canonical_merge = _merge_into_canonical_population(
+            run_id=run_id,
+            trigger_type=trigger_type,
+            records=records,
+            survivors=survivors,
+            metrics=metrics,
+            live=live,
+            started_at=run_started_at,
+            error_summary=(
+                None
+                if handoff_ok
+                else (
+                    f"PIPELINE_HANDOFF_MISMATCH discovery={recon.get('DISCOVERY_COUNT')} "
+                    f"pipeline={recon.get('PIPELINE_COUNT')} missing={recon.get('MISSING_FROM_PIPELINE')}"
+                )
+            ),
+        )
+        if canonical_merge:
+            _update_run(
+                run_id,
+                canonical_new=canonical_merge.get("new_canonical_opportunities_added"),
+                canonical_updated=canonical_merge.get("existing_opportunities_updated"),
+                canonical_available_after=canonical_merge.get("currently_available_after"),
+                canonical_total_after=canonical_merge.get("canonical_total_after"),
+                canonical_run_status=canonical_merge.get("run_status"),
+                phase="CANONICAL_MERGE",
+            )
+
+        # BidNet authenticated recovery — same scheduled discovery path (not a second scheduler).
+        # Failures must not abort non-BidNet discovery / handoff finalization.
+        bidnet_auth_report: dict[str, Any] | None = None
+        try:
+            _update_run(run_id, phase="BIDNET_AUTH_RECOVERY", progress_percent=92)
+            from bidnet_auth import run_scheduled_bidnet_auth_recovery
+
+            bidnet_auth_report = run_scheduled_bidnet_auth_recovery(
+                run_id=run_id,
+                trigger_type=trigger_type,
+            )
+            _update_run(
+                run_id,
+                bidnet_auth=bidnet_auth_report.get("auth"),
+                bidnet_auth_blocker=bidnet_auth_report.get("blocker"),
+                bidnet_recovery_stats=(bidnet_auth_report.get("recovery") or {}).get("stats"),
+            )
+            if bidnet_auth_report.get("blocker"):
+                log.warning(
+                    "M3 discovery %s BidNet auth blocker=%s (non-fatal)",
+                    run_id,
+                    bidnet_auth_report.get("blocker"),
+                )
+        except Exception:
+            log.exception("BidNet auth recovery failed (non-fatal to discovery)")
+
+        # OpenGov authenticated discovery + recovery — same scheduled path (not a second scheduler).
+        opengov_auth_report: dict[str, Any] | None = None
+        try:
+            _update_run(run_id, phase="OPENGOV_AUTH_DISCOVERY", progress_percent=94)
+            from opengov_auth import run_scheduled_opengov_auth_pipeline
+
+            opengov_auth_report = run_scheduled_opengov_auth_pipeline(
+                run_id=run_id,
+                trigger_type=trigger_type,
+            )
+            _update_run(
+                run_id,
+                opengov_auth=opengov_auth_report.get("auth"),
+                opengov_auth_blocker=opengov_auth_report.get("blocker"),
+                opengov_discovery=(opengov_auth_report.get("discovery") or {}),
+                opengov_recovery_stats=(opengov_auth_report.get("recovery") or {}).get("stats"),
+            )
+            if opengov_auth_report.get("blocker"):
+                log.warning(
+                    "M3 discovery %s OpenGov auth blocker=%s (non-fatal)",
+                    run_id,
+                    opengov_auth_report.get("blocker"),
+                )
+        except Exception:
+            log.exception("OpenGov auth pipeline failed (non-fatal to discovery)")
+
+        # Package access: OpenGov public docs + BidNet official-source resolve
+        # (same twice-daily discovery path — not a second scheduler).
+        package_access_report: dict[str, Any] | None = None
+        try:
+            _update_run(run_id, phase="PACKAGE_ACCESS", progress_percent=96)
+            from opengov_recovery.public_docs_batch import run_opengov_public_docs_stage
+            from official_source.batch import run_official_source_batch
+
+            og_docs = run_opengov_public_docs_stage(
+                limit=int(os.environ.get("M3_PACKAGE_ACCESS_OPENGOV_LIMIT") or 100),
+                resume=True,
+                download=True,
+                max_entities=120,
+                run_id=f"{run_id}-ogdocs",
+                handoff_line_items=True,
+            )
+            osr = run_official_source_batch(
+                limit=int(os.environ.get("M3_PACKAGE_ACCESS_BIDNET_LIMIT") or 200),
+                resume=True,
+                download=True,
+                run_id=f"{run_id}-osr",
+                handoff_line_items=True,
+            )
+            package_access_report = {
+                "opengov_public_docs": {
+                    "attempted": og_docs.get("attempted"),
+                    "valid_or_partial": og_docs.get("valid_or_partial"),
+                    "yield": og_docs.get("opengov_public_doc_yield"),
+                },
+                "official_source": {
+                    "attempted": osr.get("attempted"),
+                    "resolved": osr.get("official_source_resolved"),
+                    "valid_or_partial": int(osr.get("valid_packages") or 0)
+                    + int(osr.get("partial_packages") or 0),
+                    "yield": osr.get("valid_or_partial_package_yield"),
+                },
+            }
+            _update_run(run_id, package_access=package_access_report)
+        except Exception:
+            log.exception("Package access stage failed (non-fatal to discovery)")
+
+        # Product identity on recovered OpenGov packages (same discovery path).
+        try:
+            _update_run(run_id, phase="PRODUCT_IDENTITY", progress_percent=97)
+            from product_identity.batch import run_product_identity_stage
+
+            pi = run_product_identity_stage(
+                line_limit=int(os.environ.get("M3_PRODUCT_IDENTITY_LINE_LIMIT") or 500),
+                resume=True,
+                handoff=True,
+                run_id=f"{run_id}-pi",
+            )
+            _update_run(
+                run_id,
+                product_identity={
+                    "packages_tested": (pi.get("PACKAGE_LEVEL") or {}).get("Packages tested"),
+                    "usable_abc": sum(int((pi.get("CONFIDENCE") or {}).get(g) or 0) for g in ("A", "B", "C")),
+                    "researchable_rate": (pi.get("PACKAGE_LEVEL") or {}).get(
+                        "Commercially researchable line rate"
+                    ),
+                },
+            )
+        except Exception:
+            log.exception("Product identity stage failed (non-fatal to discovery)")
+
+        # Euna/Bonfire — OPTIONAL_TARGETED / PAID_OPTIONAL (skipped by default).
+        euna_report: dict[str, Any] | None = None
+        try:
+            from euna_auth import run_scheduled_euna_pipeline
+
+            _update_run(run_id, phase="EUNA_OPTIONAL", progress_percent=94)
+            euna_report = run_scheduled_euna_pipeline(
+                run_id=run_id,
+                trigger_type=trigger_type,
+            )
+            skipped = bool(euna_report.get("skipped"))
+            _update_run(
+                run_id,
+                euna_auth=None if skipped else euna_report.get("auth"),
+                euna_discovery=(
+                    {"skipped": True, "skip_reason": euna_report.get("skip_reason")}
+                    if skipped
+                    else (euna_report.get("discovery") or {})
+                ),
+                euna_blocker=None if skipped else euna_report.get("blocker"),
+                euna_skipped=skipped,
+                euna_coverage_category="PAID_OPTIONAL",
+            )
+            if skipped:
+                log.info(
+                    "M3 discovery %s Euna skipped (%s)",
+                    run_id,
+                    euna_report.get("skip_reason"),
+                )
+            elif euna_report.get("blocker"):
+                log.warning(
+                    "M3 discovery %s Euna blocker=%s (non-fatal; excluded from national health)",
+                    run_id,
+                    euna_report.get("blocker"),
+                )
+        except Exception:
+            log.exception("Euna pipeline failed (non-fatal to discovery)")
+
         if not handoff_ok:
             # Do not silently succeed — expose mismatch and keep checkpoint for resume
             final_status = STATUS_COMPLETED_WITH_WARNINGS

@@ -13,6 +13,17 @@ from typing import Any
 from application_clock import now_utc
 
 _ROOT = Path(__file__).resolve().parents[1]
+
+
+def _tracker_path() -> Path:
+    try:
+        from m3_data_root import registration_tracker_path
+
+        return registration_tracker_path()
+    except Exception:
+        return _ROOT / "data" / "buyer_portal_registration_tracker.json"
+
+
 _TRACKER_PATH = _ROOT / "data" / "buyer_portal_registration_tracker.json"
 
 NONE = "NONE"
@@ -43,7 +54,7 @@ def default_tracker() -> dict[str, Any]:
 
 
 def load_tracker(path: Path | None = None) -> dict[str, Any]:
-    path = path or _TRACKER_PATH
+    path = path or _tracker_path()
     if not path.exists():
         return default_tracker()
     try:
@@ -56,7 +67,7 @@ def load_tracker(path: Path | None = None) -> dict[str, Any]:
 
 
 def save_tracker(tracker: dict[str, Any], path: Path | None = None) -> Path:
-    path = path or _TRACKER_PATH
+    path = path or _tracker_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     out = dict(tracker)
     out["kind"] = "BuyerPortalRegistrationTracker"
@@ -114,6 +125,7 @@ def record_portal_sighting(
     registration_type: str = EASY_REGISTRATION,
     is_relevant_product: bool = True,
     is_live: bool = True,
+    opportunity_id: str | None = None,
     path: Path | None = None,
 ) -> dict[str, Any]:
     """Upsert sighting; recommend REGISTER_NOW_RECURRING_BUYER when repeated."""
@@ -132,6 +144,7 @@ def record_portal_sighting(
             "registration_status": STATUS_NOT_REGISTERED,
             "relevant_opportunities_seen": 0,
             "currently_live_relevant_opportunities": 0,
+            "opportunity_ids": [],
             "first_seen": _utc(),
             "last_seen": _utc(),
             "recommended_action": REGISTER_BEFORE_BID,
@@ -145,6 +158,12 @@ def record_portal_sighting(
         row["currently_live_relevant_opportunities"] = int(
             row.get("currently_live_relevant_opportunities") or 0
         ) + 1
+    if opportunity_id:
+        ids = list(row.get("opportunity_ids") or [])
+        oid = str(opportunity_id).strip()
+        if oid and oid not in ids:
+            ids.append(oid)
+        row["opportunity_ids"] = ids
     if buyer_name:
         row["buyer_name"] = buyer_name
     if jurisdiction:
@@ -154,6 +173,7 @@ def record_portal_sighting(
     row["registration_type"] = registration_type or row.get("registration_type") or EASY_REGISTRATION
     row["last_seen"] = _utc()
     row.setdefault("first_seen", _utc())
+    row.setdefault("opportunity_ids", list(row.get("opportunity_ids") or []))
 
     seen = int(row.get("relevant_opportunities_seen") or 0)
     status = str(row.get("registration_status") or STATUS_NOT_REGISTERED).upper()

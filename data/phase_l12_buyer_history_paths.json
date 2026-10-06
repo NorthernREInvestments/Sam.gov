@@ -11,7 +11,7 @@
       "po_check_register_location": null,
       "auth_requirements": null,
       "document_naming_patterns": [],
-      "last_successful_recovery": "2026-09-29T04:31:08.162021+00:00",
+      "last_successful_recovery": "2026-10-01T20:11:46.712512+00:00",
       "supported_evidence_types": [
         "board_award"
       ],
@@ -54,7 +54,7 @@
         "https://www.austin.gov/agendas/award.pdf"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-29T05:00:49.592069+00:00"
+      "updated_at": "2026-10-01T20:11:52.787921+00:00"
     },
     "TOWN": {
       "kind": "BuyerHistoryPath",
@@ -107,7 +107,7 @@
         "https://town.gov/search?q=NOMATCH999+bid+tabulation+award"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-29T04:31:08.367861+00:00"
+      "updated_at": "2026-10-01T20:11:47.156663+00:00"
     },
     "DEPT OF DEFENSE": {
       "kind": "BuyerHistoryPath",
@@ -235,7 +235,7 @@
         "https://illinois.gov/search?q=444171205790+Bridge+Inspection+Crane+Truck+bid+tabulation+award"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-29T04:28:52.254842+00:00"
+      "updated_at": "2026-10-01T20:11:47.325077+00:00"
     },
     "MARYLAND": {
       "kind": "BuyerHistoryPath",
@@ -1177,7 +1177,7 @@
         "https://seattle.gov/search?q=IT-2025-1+bid+tabulation+award"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-28T18:14:26.720400+00:00"
+      "updated_at": "2026-10-01T20:11:47.735700+00:00"
     },
     "CITY": {
       "kind": "BuyerHistoryPath",
@@ -1230,7 +1230,7 @@
         "https://city.gov/search?q=PB-1+bid+tabulation+award"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-28T18:14:27.248482+00:00"
+      "updated_at": "2026-10-01T20:11:48.220163+00:00"
     },
     "AGENCY": {
       "kind": "BuyerHistoryPath",
@@ -1281,7 +1281,7 @@
         "https://agency.gov/search?q=X-1+bid+tabulation+award"
       ],
       "agenda_system_type": null,
-      "updated_at": "2026-09-28T18:14:27.694628+00:00"
+      "updated_at": "2026-10-01T20:11:48.764324+00:00"
     },
     "SOURCEWELL": {
       "kind": "BuyerHistoryPath",
@@ -2379,5 +2379,5 @@
     }
   },
   "build": "20260928-m3-phase-l12-auth-walled-history-recovery",
-  "updated_at": "2026-09-29T05:00:49.592281+00:00"
+  "updated_at": "2026-10-01T20:11:52.788120+00:00"
 }

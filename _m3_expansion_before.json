@@ -1,0 +1,106 @@
+{
+  "RAW_LIVE": 1249,
+  "CANONICAL_LIVE": 1249,
+  "PRODUCT_CANDIDATES": 1249,
+  "by_segment": {
+    "Federal": 809,
+    "State": 4,
+    "Local": 235,
+    "Education": 3,
+    "Utilities": 15,
+    "Cooperative": 0,
+    "Other": 183
+  },
+  "platforms": [
+    {
+      "platform": "BidNet",
+      "entities": 145,
+      "live_opps": 13255,
+      "status": "WORKING"
+    },
+    {
+      "platform": "Other",
+      "entities": 427,
+      "live_opps": 1,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "Socrata",
+      "entities": 6,
+      "live_opps": 795,
+      "status": "WORKING"
+    },
+    {
+      "platform": "DIBBS",
+      "entities": 9,
+      "live_opps": 102,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "StateHosted",
+      "entities": 50,
+      "live_opps": 114,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "Jaggaer",
+      "entities": 19,
+      "live_opps": 20,
+      "status": "WORKING"
+    },
+    {
+      "platform": "SimpleHTML",
+      "entities": 98,
+      "live_opps": 0,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "Cooperative",
+      "entities": 22,
+      "live_opps": 11,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "StateOwned",
+      "entities": 46,
+      "live_opps": 0,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "Bonfire",
+      "entities": 138,
+      "live_opps": 0,
+      "status": "BROKEN"
+    },
+    {
+      "platform": "OpenGov",
+      "entities": 29,
+      "live_opps": 1,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "PlanetBids",
+      "entities": 45,
+      "live_opps": 0,
+      "status": "BROKEN"
+    },
+    {
+      "platform": "PublicPurchase",
+      "entities": 31,
+      "live_opps": 0,
+      "status": "BROKEN"
+    },
+    {
+      "platform": "JSON",
+      "entities": 8,
+      "live_opps": 0,
+      "status": "PARTIAL"
+    },
+    {
+      "platform": "SAM_GOV",
+      "entities": 4,
+      "live_opps": 0,
+      "status": "PARTIAL"
+    }
+  ]
+}

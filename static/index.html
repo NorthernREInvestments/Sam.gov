@@ -16,7 +16,8 @@
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
-      if (!params.has("legacy") && !params.has("stay")) {
+      // P0-1: only canonical operator path for daily work. Legacy research requires explicit ?legacy=1.
+      if (!params.has("legacy")) {
         location.replace("/ops");
       }
     })();
