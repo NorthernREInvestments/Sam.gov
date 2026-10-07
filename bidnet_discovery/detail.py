@@ -222,7 +222,7 @@ def _apply_parsed(out: dict[str, Any], parsed: dict[str, Any], final_url: str) -
     out["raw_metadata"] = meta
 
 
-def _download_docs(client: Any, docs: list[dict[str, Any]], *, row: dict[str, Any], limit: int = 8) -> int:
+def _download_docs(client: Any, docs: list[dict[str, Any]], *, row: dict[str, Any], limit: int = 20) -> int:
     """Download a capped set of document bytes when authenticated client supports it."""
     if not docs or not hasattr(client, "download_bytes"):
         return 0

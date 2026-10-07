@@ -37,7 +37,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261007-m3-schedule-backed-product-canary-v1"
+APP_BUILD_VERSION = "20261007-m3-bidnet-package-materialization-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1566,6 +1566,7 @@ def api_m3_bidnet_full_production_env_check():
         "money_path_walker": 1,
         "channel_fit_canary_walker": 1,
         "schedule_backed_canary_walker": 1,
+        "package_materialization_walker": 1,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
@@ -2138,6 +2139,50 @@ def api_m3_schedule_backed_canary_run(body: dict | None = None):
         canary_n=int(payload.get("canary_n") or 20),
         price_budget=int(payload.get("price_budget") or 25),
     )
+
+
+@app.post("/api/m3/package-materialization/run")
+def api_m3_package_materialization_run(body: dict | None = None):
+    """Recover packages for same-13 SBC cohort (then new-20 only if gates pass)."""
+    from m3_auth_jobs import start_package_materialization_job
+
+    payload = body or {}
+    return start_package_materialization_job(
+        mode=str(payload.get("mode") or "same_13"),
+        canary_n=int(payload.get("canary_n") or 20),
+        price_budget=int(payload.get("price_budget") or 25),
+    )
+
+
+@app.get("/api/m3/package-materialization/status")
+def api_m3_package_materialization_status():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_materialization_v1_status.json")
+    if not path.exists():
+        return {"status": "NO_STATUS", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/package-materialization/report")
+def api_m3_package_materialization_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_materialization_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_engine.package_recovery_canary import format_report
+
+        return Response(content=format_report(report), media_type="text/plain")
+    return report
 
 
 @app.get("/api/m3/schedule-backed/canary/status")

@@ -407,7 +407,9 @@ def process_money_opportunity(
     lie: dict[str, Any] = {}
     lines: list[dict[str, Any]] = []
     schedule_extract: dict[str, Any] = {}
+    package_materialization: dict[str, Any] = {}
     try:
+        from bidnet_engine.package_materialization import materialize_attachments, primary_line_blocker
         from bidnet_engine.schedule_extraction import extract_schedules_from_package
         from line_item_economics.engine import analyze_line_item_economics
 
@@ -421,6 +423,16 @@ def process_money_opportunity(
         )
         if not isinstance(docs, list):
             docs = []
+        # Materialize: download + validate before extraction (closes PACKAGE_ACQUIRED URL-only gap)
+        package_materialization = materialize_attachments(
+            docs,
+            opportunity_id=cid,
+            client=client,
+            limit=20,
+        )
+        docs = package_materialization.get("docs_for_extraction") or docs
+        if package_materialization.get("package_state_truthful"):
+            package = str(package_materialization["package_state_truthful"])
         gate_expected = None
         try:
             from bidnet_engine.schedule_selection import detect_schedule_evidence
@@ -437,6 +449,17 @@ def process_money_opportunity(
             body_text=body,
             gate_expected=gate_expected if isinstance(gate_expected, int) else None,
         )
+        # If selection expected a schedule but none acquired — do not pretend parser failed
+        if (
+            not package_materialization.get("AUTHORITATIVE_PRODUCT_DOC_FOUND")
+            and not (schedule_extract.get("schedule_rows") or [])
+        ):
+            schedule_extract["PRODUCT_SCHEDULE_NOT_ACQUIRED"] = True
+            schedule_extract["primary_blocker"] = primary_line_blocker(
+                package_result=package_materialization,
+                lines_ready=False,
+                schedule_extract=schedule_extract,
+            )
         schedule_rows = schedule_extract.get("schedule_rows") or []
         lie = analyze_line_item_economics(
             opportunity_id=cid,
@@ -456,6 +479,8 @@ def process_money_opportunity(
     except Exception as exc:
         errors.append(f"lines:{type(exc).__name__}:{exc}"[:180])
         schedule_extract = {"error": f"{type(exc).__name__}:{exc}"[:200]}
+        if not package_materialization:
+            package_materialization = {"error": f"{type(exc).__name__}:{exc}"[:200]}
 
     grades = Counter()
     material = 0
@@ -660,8 +685,17 @@ def process_money_opportunity(
             "SCHEDULE_PRESENT_EXTRACTION_ZERO": schedule_extract.get("SCHEDULE_PRESENT_EXTRACTION_ZERO") or [],
             "DOCUMENT_INVENTORY": schedule_extract.get("DOCUMENT_INVENTORY") or [],
             "parsers_used": schedule_extract.get("parsers_used") or [],
+            "PRODUCT_SCHEDULE_NOT_ACQUIRED": schedule_extract.get("PRODUCT_SCHEDULE_NOT_ACQUIRED"),
+            "primary_blocker": schedule_extract.get("primary_blocker"),
             "error": schedule_extract.get("error"),
         },
+        "package_materialization": package_materialization,
+        "PACKAGE_COMPLETENESS": package_materialization.get("PACKAGE_COMPLETENESS"),
+        "PACKAGE_READY_FOR_LINE_EXTRACTION": package_materialization.get("PACKAGE_READY_FOR_LINE_EXTRACTION"),
+        "AUTHORITATIVE_PRODUCT_DOC_FOUND": package_materialization.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"),
+        "package_operator_message": package_materialization.get("operator_message"),
+        "package_primary_blocker": package_materialization.get("primary_blocker")
+        or schedule_extract.get("primary_blocker"),
         "buyer": meta.get("buyer") or item.get("buyer") or store_row.get("buyer"),
         "title": meta.get("title") or item.get("title") or store_row.get("title"),
         "historical_bidders": (

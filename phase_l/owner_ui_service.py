@@ -1051,6 +1051,7 @@ def get_deal(deal_id: str) -> dict[str, Any]:
         "canonical_id": cid,
         "line_item_economics": _line_item_economics_for_deal(cid or deal_id, rec),
         "profit_first": _profit_first_for_deal(cid or deal_id, rec),
+        "package_and_product_data": _package_and_product_data_for_deal(cid, rec),
         "ui_path": "CANONICAL_OPERATOR",
         "legacy_suppressed": True,
     }
@@ -1105,6 +1106,92 @@ def get_deal(deal_id: str) -> dict[str, Any]:
             "do_not_send_automatically": True,
         }
     return payload
+
+
+def _package_and_product_data_for_deal(cid: str | None, rec: dict[str, Any] | None) -> dict[str, Any]:
+    """Plain-language PACKAGE & PRODUCT DATA for Deal page (no engine jargon as primary text)."""
+    rec = rec or {}
+    pm = rec.get("package_materialization") if isinstance(rec.get("package_materialization"), dict) else {}
+    # Fall back to latest package recovery / schedule canary rows
+    if not pm and cid:
+        try:
+            from m3_data_root import data_path
+            import json as _json
+
+            for fname in (
+                "m3_package_materialization_v1_rows.json",
+                "m3_schedule_backed_canary_v1_rows.json",
+                "m3_channel_fit_live_scores_v1.json",
+            ):
+                path = data_path(fname)
+                if not path.exists():
+                    continue
+                doc = _json.loads(path.read_text(encoding="utf-8"))
+                for row in doc.get("rows") or []:
+                    if not isinstance(row, dict):
+                        continue
+                    keys = {
+                        str(row.get("canonical_opportunity_id") or ""),
+                        str(row.get("stable_key") or ""),
+                    }
+                    if cid in keys or str(rec.get("stable_key") or "") in keys:
+                        pm = row.get("package_materialization") if isinstance(row.get("package_materialization"), dict) else {}
+                        if pm:
+                            lines = int(row.get("raw_lines") or row.get("material_lines") or 0)
+                            msg = row.get("package_operator_message") or pm.get("operator_message")
+                            completeness = str(pm.get("PACKAGE_COMPLETENESS") or "UNKNOWN")
+                            discovered = int(pm.get("PACKAGE_DOCUMENT_COUNT_DISCOVERED") or 0)
+                            valid = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
+                            auth = bool(pm.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"))
+                            schedule = "Found" if auth else ("Locked" if "REGISTRATION" in str(pm.get("package_state_truthful") or "") else "Missing")
+                            pkg_label = {
+                                "COMPLETE": "Complete",
+                                "LIKELY_COMPLETE": "Complete",
+                                "PARTIAL": "Partial",
+                                "DETAIL_ONLY": "Missing",
+                                "NONE": "Missing",
+                            }.get(completeness, "Missing")
+                            return {
+                                "package_label": pkg_label,
+                                "documents_acquired": valid,
+                                "documents_discovered": discovered,
+                                "product_schedule": schedule,
+                                "lines_extracted": lines,
+                                "blocker_plain": msg or "Package status not yet assessed.",
+                                "authoritative_doc": (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename"),
+                                "completeness": completeness,
+                                "ready_for_line_extraction": bool(pm.get("PACKAGE_READY_FOR_LINE_EXTRACTION")),
+                            }
+        except Exception:
+            pass
+    completeness = str(pm.get("PACKAGE_COMPLETENESS") or "UNKNOWN")
+    pkg_label = {
+        "COMPLETE": "Complete",
+        "LIKELY_COMPLETE": "Complete",
+        "PARTIAL": "Partial",
+        "DETAIL_ONLY": "Missing",
+        "NONE": "Missing",
+    }.get(completeness, "Unknown")
+    discovered = int(pm.get("PACKAGE_DOCUMENT_COUNT_DISCOVERED") or len(rec.get("attachments_metadata") or []))
+    valid = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
+    auth = bool(pm.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"))
+    schedule = "Found" if auth else "Missing"
+    lines = int(rec.get("raw_lines") or rec.get("material_lines") or 0)
+    msg = pm.get("operator_message") or "Package status not yet assessed."
+    if auth and lines:
+        name = (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename") or "product schedule"
+        msg = f"Pricing workbook found and {lines} product lines extracted ({name})."
+    return {
+        "package_label": pkg_label,
+        "documents_acquired": valid,
+        "documents_discovered": discovered,
+        "product_schedule": schedule,
+        "lines_extracted": lines,
+        "blocker_plain": msg,
+        "authoritative_doc": (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename"),
+        "completeness": completeness,
+        "ready_for_line_extraction": bool(pm.get("PACKAGE_READY_FOR_LINE_EXTRACTION")),
+    }
 
 
 def _profit_first_for_deal(opportunity_id: str | None, rec: dict[str, Any] | None) -> dict[str, Any] | None:

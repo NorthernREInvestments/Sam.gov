@@ -100,6 +100,8 @@ def _fail_stale_locked() -> None:
             limit = MONEY_STALE_SECONDS
         elif kind == "schedule_backed_canary":
             limit = MONEY_STALE_SECONDS
+        elif kind == "package_materialization":
+            limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
         elif kind == "full_production_e2e":
@@ -530,6 +532,104 @@ def start_bidnet_engine_job(
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_package_materialization_job(
+    *,
+    mode: str = "same_13",
+    canary_n: int = 20,
+    price_budget: int = 25,
+) -> dict[str, Any]:
+    """Materialize BidNet packages for same-13 recovery (new-20 only if gates pass)."""
+    job_id = f"PMR-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "package_materialization",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "mode": str(mode or "same_13"),
+            "canary_n": int(canary_n),
+            "price_budget": int(price_budget),
+            "expand_to_100_forbidden": True,
+            "sam_calls": 0,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run_pmr() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "PACKAGE_MATERIALIZATION"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "completed": kwargs.get("completed"),
+                    },
+                )
+
+            from bidnet_engine.package_recovery_canary import run_package_recovery
+
+            result = run_package_recovery(
+                mode=str(mode or "same_13"),
+                canary_n=int(canary_n),
+                price_budget=int(price_budget),
+                on_progress=_progress,
+            )
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "STATUS": result.get("STATUS"),
+                    "gates": result.get("gates"),
+                    "after": result.get("after"),
+                    "NEW_20": result.get("NEW_20"),
+                    "runtime_s": result.get("runtime_s"),
+                    "EXPAND_TO_100": "NO",
+                },
+            )
+        except Exception as exc:
+            log.exception("Package materialization job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run_pmr, name=f"package-materialization-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "package_materialization",
         "active_running": _active_running_id(),
     }
 

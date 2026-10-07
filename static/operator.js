@@ -467,6 +467,20 @@
               <span>Delivery: ${esc(w.delivery_requirement || "—")}</span>
             </div>
           </section>
+          <section class="panel" id="package-product-data">
+            <h2>Package &amp; product data</h2>
+            ${(() => {
+              const pp = data.package_and_product_data || {};
+              return `<div class="meta-row">
+                <span>Package: <strong>${esc(pp.package_label || "Unknown")}</strong></span>
+                <span>Documents: <strong>${esc(pp.documents_acquired ?? "—")}</strong> of ${esc(pp.documents_discovered ?? "—")} acquired</span>
+                <span>Product schedule: <strong>${esc(pp.product_schedule || "—")}</strong></span>
+                <span>Lines: <strong>${esc(pp.lines_extracted ?? "—")}</strong> extracted</span>
+              </div>
+              <p><strong>Current blocker:</strong> ${esc(pp.blocker_plain || "Not assessed yet.")}</p>
+              ${pp.authoritative_doc ? `<p class="muted">Schedule file: ${esc(pp.authoritative_doc)}</p>` : ""}`;
+            })()}
+          </section>
           <section class="panel" id="profit-first-card">
             <h2>Profit check</h2>
             <p class="muted">Loading…</p>
@@ -2210,6 +2224,7 @@
         <p>Ready-to-call preserved: <strong>${esc(prev.ready_to_call)}</strong> · Canonical rows: <strong>${esc(prev.canonical_rows)}</strong></p>
         <p class="muted">Operator path is <strong>/ops</strong> only. Legacy research UIs are not part of the daily workflow.</p>
         <div id="schedule-backed-canary" class="muted" style="margin-top:.5rem">Schedule-backed canary: loading…</div>
+        <div id="package-recovery-admin" class="muted" style="margin-top:.75rem">Package recovery: loading…</div>
       </section>`;
     document.getElementById("set-train").onchange = (e) => {
       training = e.target.checked;
@@ -2264,6 +2279,34 @@
     } catch (e) {
       const el = document.getElementById("schedule-backed-canary");
       if (el) el.textContent = "Schedule-backed canary: " + (e.message || "unavailable");
+    }
+    try {
+      const [pst, prep] = await Promise.all([
+        api("/api/m3/package-materialization/status").catch(() => ({ status: "NO_STATUS" })),
+        api("/api/m3/package-materialization/report").catch(() => ({ status: "NO_REPORT" })),
+      ]);
+      const el = document.getElementById("package-recovery-admin");
+      if (el) {
+        if (prep.status === "NO_REPORT") {
+          el.innerHTML = `<strong>PACKAGE RECOVERY</strong> · ${esc(pst.phase || pst.status || "NO_STATUS")}`;
+        } else {
+          const a = prep.after || {};
+          const g = prep.gates || {};
+          const tops = (prep.top_recovered || []).slice(0, 5);
+          el.innerHTML = `<strong>PACKAGE RECOVERY</strong>
+            · Pass: <strong>${esc((g.PACKAGE_RECOVERY_WORKING || g.NEW_20_PASS) ? "YES" : "NO")}</strong><br>
+            Auth docs <strong>${esc(a.AUTHORITATIVE_PRODUCT_DOC_FOUND ?? "—")}</strong>
+            · Lines <strong>${esc(a.LINES_READY ?? "—")}</strong>
+            · Valid files <strong>${esc(a.VALID_LOCAL_DOCUMENTS ?? "—")}</strong>
+            · Discovered <strong>${esc(a.DOCUMENTS_DISCOVERED ?? "—")}</strong>
+            <details style="margin-top:.35rem"><summary>Top recovered</summary>
+              <ul>${tops.map((t) => `<li>${esc(t.title || t.opportunity || "—")} · ${esc(t.product_schedule)} · lines ${esc(t.extracted_lines ?? 0)} · ${esc(t.blocker || "")}<br><span class="muted">${esc(t.operator_ui_message || "")}</span></li>`).join("")}</ul>
+            </details>`;
+        }
+      }
+    } catch (e) {
+      const el = document.getElementById("package-recovery-admin");
+      if (el) el.textContent = "Package recovery: " + (e.message || "unavailable");
     }
     try {
       const dh = await api("/api/ui/discovery-health");
