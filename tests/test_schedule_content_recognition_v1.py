@@ -166,6 +166,19 @@ def test_extensionless_document_1_sniffed_as_pdf(tmp_path: Path):
     assert r["classification"] == "LINES_RECOVERED"
 
 
+def test_html_document_1_classified_inaccessible_not_no_product(tmp_path: Path):
+    p = tmp_path / "document_1"
+    p.write_bytes(
+        b"<!DOCTYPE html><html><body>item line each box set Please log in</body></html>"
+    )
+    r = inspect_document(p, filename="document_1")
+    assert r["classification"] == "PRODUCT_SCHEDULE_INACCESSIBLE"
+    assert r["extracted_line_count"] == 0
+    assert "web page" in (r.get("operator_status") or "").lower() or "could not open" in (
+        r.get("operator_status") or ""
+    ).lower()
+
+
 def test_partial_extraction_coverage_message(tmp_path: Path):
     p = tmp_path / "Exhibit.pdf"
     lines = ["Item Description Qty Unit\n"] + [f"{i} Part SKU-{i:03d} 1 EA\n" for i in range(1, 9)]

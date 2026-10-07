@@ -2194,6 +2194,61 @@ def api_m3_package_materialization_report(format: str = "json"):
     return report
 
 
+@app.get("/api/m3/schedule-recovery/validate-probe")
+def api_m3_schedule_recovery_validate_probe():
+    """Live proof: does current runtime reject HTML document_1 caches?"""
+    import json
+    from pathlib import Path
+
+    from bidnet_engine.package_materialization import (
+        PATCH,
+        looks_like_html_bytes,
+        validate_local_file,
+        _sig_ok,
+    )
+    from m3_data_root import data_path
+
+    bom_html = b"\xef\xbb\xbf<!DOCTYPE html><html><body>x</body></html>"
+    plain_html = b"<!DOCTYPE html><html><body>Please log in</body></html>"
+    synthetic = {
+        "bom_html_rejected": _sig_ok(bom_html, "")[0] is False,
+        "plain_html_rejected": _sig_ok(plain_html, "")[0] is False,
+        "bom_reason": _sig_ok(bom_html, "")[1],
+        "plain_reason": _sig_ok(plain_html, "")[1],
+        "patch": PATCH,
+    }
+    samples = []
+    rows_path = data_path("m3_schedule_recovery_v1_rows.json")
+    if rows_path.exists():
+        doc = json.loads(rows_path.read_text(encoding="utf-8"))
+        for r in (doc.get("rows") or [])[:6]:
+            pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+            for m in (pm.get("materialized") or [])[:2]:
+                path_s = (m or {}).get("LOCAL_PATH") or (m or {}).get("local_path")
+                if not path_s or not Path(path_s).exists():
+                    continue
+                raw = Path(path_s).read_bytes()[:64]
+                v = validate_local_file(path_s, claimed_ext=(m or {}).get("extension"))
+                samples.append(
+                    {
+                        "title": (r.get("title") or "")[:80],
+                        "filename": (m or {}).get("filename"),
+                        "magic_hex": raw[:8].hex(),
+                        "looks_html": looks_like_html_bytes(Path(path_s).read_bytes()[:4096]),
+                        "DOCUMENT_CONTENT_VALID": v.get("DOCUMENT_CONTENT_VALID"),
+                        "reason": v.get("reason"),
+                    }
+                )
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "synthetic": synthetic,
+        "on_disk_samples": samples,
+        "html_reject_live": bool(
+            synthetic["bom_html_rejected"] and synthetic["plain_html_rejected"]
+        ),
+    }
+
+
 @app.get("/api/m3/schedule-recovery/content-samples")
 def api_m3_schedule_recovery_content_samples(limit: int = 6):
     """Diagnostic: re-inspect same-13 local PDFs and return text samples + classification."""

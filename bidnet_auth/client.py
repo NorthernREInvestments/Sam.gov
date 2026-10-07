@@ -227,13 +227,69 @@ class BidNetAuthenticatedClient:
     def download_bytes(self, url: str, *, timeout_ms: int = 90_000) -> bytes | None:
         if not self.is_authenticated or self._context is None:
             return None
+
+        def _is_html(body: bytes | None) -> bool:
+            if not body or len(body) < 5:
+                return False
+            try:
+                from bidnet_engine.package_materialization import looks_like_html_bytes
+
+                return looks_like_html_bytes(body)
+            except Exception:
+                head = body.lstrip()[:64].lower()
+                return head.startswith((b"<!doctype", b"<html", b"<head"))
+
+        # 1) API-style fetch with attachment-friendly Accept
         try:
-            resp = self._context.request.get(url, timeout=timeout_ms)
+            resp = self._context.request.get(
+                url,
+                timeout=timeout_ms,
+                headers={
+                    "Accept": (
+                        "application/pdf,application/vnd.ms-excel,"
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+                        "application/octet-stream,*/*"
+                    ),
+                },
+            )
             if resp.ok:
-                return resp.body()
+                body = resp.body()
+                ctype = str((resp.headers or {}).get("content-type") or "").lower()
+                if body and not _is_html(body) and "text/html" not in ctype:
+                    return body
+                api_html = body if body and (_is_html(body) or "text/html" in ctype) else None
+            else:
+                api_html = None
         except Exception as exc:
             log.warning("BidNet authenticated download failed: %s", type(exc).__name__)
-        return None
+            api_html = None
+
+        # 2) Browser download: many BidNet attachment URLs only emit bytes via navigation
+        if self._page is not None:
+            try:
+                with self._page.expect_download(timeout=min(timeout_ms, 90_000)) as dl_info:
+                    self._page.goto(url, wait_until="commit", timeout=timeout_ms)
+                download = dl_info.value
+                path = download.path()
+                if path:
+                    data = open(path, "rb").read()
+                    if data and not _is_html(data):
+                        return data
+            except Exception as exc:
+                log.info("BidNet browser download fallback: %s", type(exc).__name__)
+            # 3) If navigation landed on HTML, return it so caller can harvest links
+            try:
+                content = self._page.content()
+                if content and len(content) > 64:
+                    raw = content.encode("utf-8", errors="ignore")
+                    if api_html is None:
+                        return raw
+                    # Prefer longer HTML (more link harvest surface)
+                    return raw if len(raw) >= len(api_html or b"") else api_html
+            except Exception:
+                pass
+
+        return api_html
 
     def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:
         """Navigate URL and capture JSON XHR/fetch payloads for structured harvest."""

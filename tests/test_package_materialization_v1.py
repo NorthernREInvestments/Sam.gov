@@ -9,12 +9,15 @@ from bidnet_engine.package_materialization import (
     PACKAGE_DOCUMENTS_COMPLETE,
     PACKAGE_DOCUMENTS_PARTIAL,
     build_attachment_index,
+    harvest_attachment_urls_from_html,
+    looks_like_html_bytes,
     legacy_package_implies_complete,
     materialize_attachments,
     operator_package_message,
     primary_line_blocker,
     reconcile_package_state,
     validate_local_file,
+    _sig_ok,
 )
 
 
@@ -75,6 +78,49 @@ def test_html_doctype_extensionless_document_1_rejected(tmp_path: Path):
     v = validate_local_file(p, claimed_ext="")
     assert v["DOCUMENT_CONTENT_VALID"] is False
     assert "html" in str(v.get("reason") or "").lower()
+
+
+def test_utf8_bom_html_rejected():
+    bom = b"\xef\xbb\xbf<!DOCTYPE html><html><body>Hi</body></html>"
+    assert looks_like_html_bytes(bom) is True
+    ok, reason = _sig_ok(bom, "")
+    assert ok is False
+    assert "html" in (reason or "").lower()
+
+
+def test_html_viewer_harvests_pdf_links():
+    html = b"""<!DOCTYPE html><html><body>
+    <a href="/files/Equipment%20List.pdf">Equipment List</a>
+    <a href="https://cdn.example.com/BidSchedule.xlsx">Schedule</a>
+    <a href="/login">Login</a>
+    </body></html>"""
+    found = harvest_attachment_urls_from_html(
+        html, base_url="https://www.bidnetdirect.com/private/supplier/solicitations/123"
+    )
+    urls = [f["document_url"] for f in found]
+    assert any(u.endswith(".pdf") or "Equipment" in u for u in urls)
+    assert any("BidSchedule.xlsx" in u for u in urls)
+    assert not any("login" in u.lower() for u in urls)
+
+
+def test_html_poison_not_materialized_as_valid(tmp_path: Path):
+    p = tmp_path / "document_1"
+    p.write_bytes(
+        b"<!DOCTYPE html><html><body>"
+        b'<a href="https://files.example.com/schedule.pdf">schedule.pdf</a>'
+        b"</body></html>"
+    )
+    docs = [
+        {
+            "filename": "document_1",
+            "local_path": str(p),
+            "document_url": "https://www.bidnetdirect.com/private/supplier/doc/1",
+        }
+    ]
+    out = materialize_attachments(docs, opportunity_id="ny1", client=None)
+    assert out["PACKAGE_DOCUMENT_COUNT_MATERIALIZED"] == 0
+    assert out["HARVESTED_FROM_HTML"] >= 1
+    assert any("schedule.pdf" in str(e.get("source_url") or "") for e in (out.get("PACKAGE_ATTACHMENT_INDEX") or []))
 
 
 def test_valid_xlsx_materializes(tmp_path: Path):

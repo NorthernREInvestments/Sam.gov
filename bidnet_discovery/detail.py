@@ -253,6 +253,16 @@ def _download_docs(client: Any, docs: list[dict[str, Any]], *, row: dict[str, An
             if not body or len(body) < 40:
                 doc["retrieval_status"] = "DOWNLOAD_EMPTY"
                 continue
+            try:
+                from bidnet_engine.package_materialization import looks_like_html_bytes
+
+                if looks_like_html_bytes(body):
+                    doc["retrieval_status"] = "INVALID_HTML_PAGE"
+                    doc["byte_size"] = len(body)
+                    # Keep URL; materialize will harvest attachment links from a fresh fetch
+                    continue
+            except Exception:
+                pass
             h = hashlib.sha256(body).hexdigest()[:16]
             name = str(doc.get("document_name") or url.rsplit("/", 1)[-1] or "doc")[:120]
             safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", name)[:80]

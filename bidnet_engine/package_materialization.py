@@ -16,6 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
+PATCH = "asr-v13-html-harvest-browser-dl"
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
@@ -59,9 +60,117 @@ _GENERIC_NAME = re.compile(
 )
 
 
+def _strip_bom(data: bytes) -> bytes:
+    if data.startswith(b"\xef\xbb\xbf"):
+        return data[3:]
+    if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
+        return data[2:]
+    return data
+
+
+def looks_like_html_bytes(data: bytes) -> bool:
+    """True when bytes are an HTML/XML page (incl. UTF-8 BOM), not a binary attachment."""
+    if not data or len(data) < 5:
+        return False
+    raw = _strip_bom(data)
+    head = raw.lstrip()[:64].lower()
+    if head.startswith((b"<!doctype", b"<html", b"<head", b"<?xml")):
+        return True
+    sample = raw[:2500].lower()
+    if b"<!doctype html" in sample or b"<html" in sample[:800]:
+        return True
+    try:
+        text = raw[:800].decode("utf-8", errors="ignore").lstrip("\ufeff").lstrip().lower()
+    except Exception:
+        return False
+    return text.startswith(("<!doctype", "<html", "<head", "<?xml"))
+
+
+def harvest_attachment_urls_from_html(html: bytes | str, *, base_url: str = "") -> list[dict[str, Any]]:
+    """When BidNet returns a viewer/listing HTML page, pull real file links from it."""
+    from urllib.parse import urljoin
+
+    if isinstance(html, bytes):
+        text = _strip_bom(html).decode("utf-8", errors="ignore")
+    else:
+        text = html or ""
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    patterns = (
+        r'href=["\']([^"\']+\.(?:pdf|docx?|xlsx?|csv|zip)(?:\?[^"\']*)?)["\']',
+        r'href=["\']([^"\']*(?:/download|/file|/attachment|/document)[^"\']*)["\']',
+        r'data-url=["\']([^"\']+\.(?:pdf|docx?|xlsx?|csv|zip)(?:\?[^"\']*)?)["\']',
+        r'(https?://[^"\'\s<>]+\.(?:pdf|docx?|xlsx?|csv)(?:\?[^"\'\s<>]*)?)',
+    )
+    for pat in patterns:
+        for m in re.finditer(pat, text, re.I):
+            href = (m.group(1) or "").strip()
+            if not href or href.startswith("#") or href.lower().startswith("javascript:"):
+                continue
+            low = href.lower()
+            if any(x in low for x in ("login", "logout", "register", "captcha", "authentication")):
+                continue
+            url = urljoin(base_url or "", href) if base_url else href
+            if not url.startswith("http") or url in seen:
+                continue
+            seen.add(url)
+            name = url.split("?")[0].rsplit("/", 1)[-1] or "attachment"
+            if len(name) < 3 or name in {"download", "file", "attachment", "document"}:
+                name = f"harvested_{len(found)+1}"
+            ext = Path(name).suffix.lower().lstrip(".")
+            found.append(
+                {
+                    "document_name": name[:160],
+                    "filename": name[:160],
+                    "document_url": url,
+                    "url": url,
+                    "source_url": url,
+                    "extension": ext or None,
+                    "retrieval_status": "URL_DISCOVERED_FROM_HTML",
+                    "requires_auth": True,
+                    "harvested_from_html": True,
+                }
+            )
+            if len(found) >= 24:
+                return found
+    return found
+
+
+def purge_html_document_caches(*, limit: int = 500) -> dict[str, Any]:
+    """Delete poisoned HTML files under bidnet_auth/documents so re-download can run."""
+    from m3_data_root import data_path
+
+    root = data_path("bidnet_auth", "documents")
+    removed = 0
+    scanned = 0
+    if not root.exists():
+        return {"scanned": 0, "removed": 0, "root": str(root)}
+    for p in root.rglob("*"):
+        if not p.is_file():
+            continue
+        scanned += 1
+        if scanned > limit * 4:
+            break
+        try:
+            data = p.read_bytes()[:4096]
+        except Exception:
+            continue
+        if looks_like_html_bytes(data):
+            try:
+                p.unlink(missing_ok=True)
+                removed += 1
+            except Exception:
+                pass
+            if removed >= limit:
+                break
+    return {"scanned": scanned, "removed": removed, "root": str(root), "patch": PATCH}
+
+
 def _sig_ok(data: bytes, ext: str) -> tuple[bool, str | None]:
     if not data or len(data) < 8:
         return False, "empty_or_tiny"
+    data = _strip_bom(data)
     head = data[:16]
     ext = (ext or "").lower().lstrip(".")
     # Sniff when extension missing/wrong (BidNet often saves as document_1)
@@ -72,17 +181,16 @@ def _sig_ok(data: bytes, ext: str) -> tuple[bool, str | None]:
             ext = "xlsx"
         elif head[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1":
             ext = "xls"
-    # HTML masquerading — reject for ANY claimed/sniffed extension (incl. blank)
-    text_head = data[:400].decode("utf-8", errors="ignore")
-    stripped = text_head.lstrip().lower()
-    if (
-        _LOGIN_HTML.search(text_head)
-        or stripped.startswith("<!doctype html")
-        or stripped.startswith("<html")
-        or data[:9].lower() == b"<!doctype"
-        or data[:5].lower() == b"<html"
-    ):
+    # HTML masquerading — reject for ANY claimed/sniffed extension (incl. blank / BOM)
+    if looks_like_html_bytes(data):
         return False, "html_or_login_page_saved_as_binary"
+    text_head = data[:400].decode("utf-8", errors="ignore")
+    if _LOGIN_HTML.search(text_head):
+        return False, "html_or_login_page_saved_as_binary"
+    # Never accept bare markup as an "unknown" binary attachment
+    stripped_bytes = data.lstrip()[:1]
+    if stripped_bytes == b"<" and ext not in {"svg"}:
+        return False, "markup_bytes_not_binary_attachment"
     if ext == "pdf":
         if data[:5] == b"%PDF-":
             return True, None
@@ -109,16 +217,15 @@ def _sig_ok(data: bytes, ext: str) -> tuple[bool, str | None]:
             sample = data[:4000].decode("utf-8", errors="replace")
         except Exception:
             return False, "not_text"
-        if _LOGIN_HTML.search(sample):
+        if _LOGIN_HTML.search(sample) or looks_like_html_bytes(data):
             return False, "html_login_as_text"
         if sample.count(",") + sample.count("\t") + sample.count("\n") < 2:
             return False, "not_parseable_tabular_text"
         return True, None
     if ext in {"html", "htm"}:
-        if _LOGIN_HTML.search(text_head):
-            return False, "auth_or_error_html"
-        return True, None
-    # Unknown extension — accept non-empty non-login blobs
+        # HTML is never a product-schedule binary for materialization
+        return False, "html_not_materializable_attachment"
+    # Unknown extension — accept non-empty non-login / non-markup blobs
     if _LOGIN_HTML.search(text_head):
         return False, "login_or_challenge_content"
     return True, None
@@ -232,19 +339,53 @@ def materialize_attachments(
     """Download missing attachments, validate content, return materialized index."""
     from m3_data_root import data_path
 
-    index = build_attachment_index(docs, opportunity_id=opportunity_id)
+    working_docs = [d for d in (docs or []) if isinstance(d, dict)]
+    index = build_attachment_index(working_docs, opportunity_id=opportunity_id)
     safe_sid = re.sub(r"[^a-zA-Z0-9_-]+", "_", opportunity_id or "unknown")[:48]
     downloaded = 0
     valid = 0
     invalid: list[dict[str, Any]] = []
     materialized: list[dict[str, Any]] = []
+    harvested_extra = 0
+    seen_urls = {
+        str(e.get("source_url") or "").split("#")[0]
+        for e in index
+        if e.get("source_url")
+    }
 
-    # Prefer high-value first
-    for entry in index[:limit]:
+    def _enqueue_harvested(html_body: bytes, base_url: str) -> None:
+        nonlocal harvested_extra, index
+        kids = harvest_attachment_urls_from_html(html_body, base_url=base_url)
+        new_raw: list[dict[str, Any]] = []
+        for kid in kids:
+            u = str(kid.get("document_url") or "").split("#")[0]
+            if not u or u in seen_urls:
+                continue
+            seen_urls.add(u)
+            new_raw.append(kid)
+            harvested_extra += 1
+        if not new_raw:
+            return
+        working_docs.extend(new_raw)
+        extra_idx = build_attachment_index(new_raw, opportunity_id=opportunity_id)
+        # Append so the main loop can process them (expand beyond original slice)
+        index.extend(extra_idx)
+
+    # Prefer high-value first; allow index to grow via HTML harvest mid-loop
+    i = 0
+    while i < len(index) and i < max(limit, 12) + harvested_extra:
+        entry = index[i]
+        i += 1
+        if len(materialized) >= limit and harvested_extra == 0:
+            break
         raw = entry.get("_raw") if isinstance(entry.get("_raw"), dict) else {}
         path_s = entry.get("local_path") or raw.get("local_path")
         # Re-validate existing
         if path_s and Path(path_s).exists():
+            try:
+                existing_bytes = Path(path_s).read_bytes()
+            except Exception:
+                existing_bytes = b""
             v = validate_local_file(path_s, claimed_ext=entry.get("extension"))
             entry["LOCAL_PATH"] = path_s
             entry["CONTENT_HASH"] = v.get("content_hash") or raw.get("content_hash")
@@ -260,7 +401,9 @@ def materialize_attachments(
                 materialized.append(entry)
             else:
                 invalid.append({**entry, "failure": v.get("reason")})
-                # Remove poisoned local cache (e.g. HTML saved as document_1) then re-download
+                # HTML poison: harvest real attachment links before deleting cache
+                if looks_like_html_bytes(existing_bytes):
+                    _enqueue_harvested(existing_bytes, str(entry.get("source_url") or ""))
                 try:
                     Path(path_s).unlink(missing_ok=True)  # type: ignore[arg-type]
                 except Exception:
@@ -290,32 +433,40 @@ def materialize_attachments(
         safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", str(name))[:80]
         path = data_path("bidnet_auth", "documents", safe_sid, f"{h}_{safe}")
         path.parent.mkdir(parents=True, exist_ok=True)
-        if body:
-            path.write_bytes(body)
-        entry["LOCAL_PATH"] = str(path)
-        entry["CONTENT_HASH"] = h
-        entry["BYTE_SIZE"] = len(body or b"")
-        entry["DOWNLOAD_TIME"] = now_utc().isoformat()
-        entry["SOURCE_URL"] = url
-        entry["SOURCE_DOCUMENT_ID"] = entry.get("document_id")
-        entry["MIME_TYPE"] = entry.get("mime_type")
-        entry["DOCUMENT_CONTENT_VALID"] = v[0]
-        entry["DOCUMENT_VALIDATION_FAILURE_REASON"] = v[1]
-        entry["retrieval_status"] = "DOWNLOADED" if v[0] else "INVALID_CONTENT"
-        # Mirror onto raw doc for downstream extractors
-        raw["local_path"] = str(path)
-        raw["content_hash"] = h
-        raw["retrieval_status"] = entry["retrieval_status"]
-        raw["retrieved_at"] = entry["DOWNLOAD_TIME"]
-        raw["size_bytes"] = entry["BYTE_SIZE"]
         downloaded += 1
-        if v[0]:
+        if v[0] and body:
+            path.write_bytes(body)
+            entry["LOCAL_PATH"] = str(path)
+            entry["CONTENT_HASH"] = h
+            entry["BYTE_SIZE"] = len(body or b"")
+            entry["DOWNLOAD_TIME"] = now_utc().isoformat()
+            entry["SOURCE_URL"] = url
+            entry["SOURCE_DOCUMENT_ID"] = entry.get("document_id")
+            entry["MIME_TYPE"] = entry.get("mime_type")
+            entry["DOCUMENT_CONTENT_VALID"] = True
+            entry["DOCUMENT_VALIDATION_FAILURE_REASON"] = None
+            entry["retrieval_status"] = "DOWNLOADED"
+            # Mirror onto raw doc for downstream extractors
+            raw["local_path"] = str(path)
+            raw["content_hash"] = h
+            raw["retrieval_status"] = entry["retrieval_status"]
+            raw["retrieved_at"] = entry["DOWNLOAD_TIME"]
+            raw["size_bytes"] = entry["BYTE_SIZE"]
             valid += 1
             materialized.append(entry)
         else:
+            entry["DOCUMENT_CONTENT_VALID"] = False
+            entry["DOCUMENT_VALIDATION_FAILURE_REASON"] = v[1]
+            entry["retrieval_status"] = "INVALID_CONTENT"
+            entry["BYTE_SIZE"] = len(body or b"")
+            entry["SOURCE_URL"] = url
             invalid.append({**entry, "failure": v[1]})
+            if body and looks_like_html_bytes(body):
+                _enqueue_harvested(body, url)
+            # Do not persist HTML/invalid bytes on disk
             try:
-                path.unlink(missing_ok=True)  # type: ignore[arg-type]
+                if path.exists():
+                    path.unlink(missing_ok=True)  # type: ignore[arg-type]
             except Exception:
                 pass
 
@@ -456,10 +607,12 @@ def materialize_attachments(
 
     return {
         "build": BUILD,
+        "patch": PATCH,
         "opportunity_id": opportunity_id,
         "PACKAGE_ATTACHMENT_INDEX": [{k: v for k, v in e.items() if k != "_raw"} for e in index],
         "materialized": [{k: v for k, v in e.items() if k != "_raw"} for e in materialized],
         "invalid_downloads": [{k: v for k, v in e.items() if k != "_raw"} for e in invalid],
+        "HARVESTED_FROM_HTML": harvested_extra,
         "PACKAGE_DOCUMENT_COUNT_EXPECTED": expected,
         "PACKAGE_DOCUMENT_COUNT_DISCOVERED": discovered,
         "PACKAGE_DOCUMENT_COUNT_DOWNLOADED": downloaded,
@@ -494,7 +647,7 @@ def materialize_attachments(
         "operator_product_status": content_recognition.get("operator_product_status"),
         "product_classification": (
             "PRODUCT_SCHEDULE_INACCESSIBLE"
-            if valid == 0 and downloaded > 0
+            if valid == 0 and (downloaded > 0 or invalid)
             else content_recognition.get("classification")
         ),
         "content_schedule_rows": content_recognition.get("authoritative_rows") or [],

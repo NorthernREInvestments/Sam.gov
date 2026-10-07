@@ -320,6 +320,23 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
         result["operator_status"] = "Document file is missing or empty."
         return result
 
+    # Reject HTML viewer/login pages masquerading as attachments (never classify as no-product)
+    try:
+        from bidnet_engine.package_materialization import looks_like_html_bytes
+
+        head = path.read_bytes()[:4096]
+        if looks_like_html_bytes(head):
+            result["classification"] = "PRODUCT_SCHEDULE_INACCESSIBLE"
+            result["document_role_content"] = "UNKNOWN"
+            result["operator_status"] = (
+                "The downloaded file was a web page, not a bid attachment. "
+                "M3 could not open the real product schedule yet."
+            )
+            result["signal_hits"] = []
+            return result
+    except Exception:
+        pass
+
     rows: list[dict[str, Any]] = []
     product_pages: list[int] = []
     agg_signals = {

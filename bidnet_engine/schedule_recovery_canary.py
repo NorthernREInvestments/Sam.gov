@@ -106,6 +106,21 @@ def run_schedule_recovery(
     )
 
     from bidnet_auth.client import BidNetAuthenticatedClient
+    from bidnet_engine.package_materialization import PATCH as PKG_PATCH, purge_html_document_caches
+
+    # Clear poisoned HTML document_1 caches before re-download / harvest
+    purge_stats = purge_html_document_caches(limit=800)
+    write_status(
+        phase="PURGED_HTML_CACHE",
+        completed=0,
+        remaining=len(candidates),
+        run_id=run_id,
+        mode=mode,
+        selected=len(candidates),
+        iteration=iteration,
+        purge=purge_stats,
+        patch=PKG_PATCH,
+    )
 
     client = BidNetAuthenticatedClient()
     auth = client.ensure_authenticated()

@@ -556,6 +556,15 @@ def recover_one(
                 try:
                     raw = auth_client.download_bytes(u)
                     if raw and len(raw) > 64:
+                        try:
+                            from bidnet_engine.package_materialization import looks_like_html_bytes
+
+                            if looks_like_html_bytes(raw):
+                                d["retrieval_status"] = "INVALID_HTML_PAGE"
+                                d["byte_size"] = len(raw)
+                                continue
+                        except Exception:
+                            pass
                         d["retrieval_status"] = "DOWNLOADED"
                         d["byte_size"] = len(raw)
                         # Persist under data root attachments cache when possible
