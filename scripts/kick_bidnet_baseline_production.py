@@ -32,7 +32,7 @@ def main() -> int:
     _load_dotenv()
     client = httpx.Client(base_url=BASE, timeout=45, follow_redirects=True)
     ready = False
-    for i in range(36):  # <= 6 minutes wait for deploy
+    for i in range(30):  # <= 5 minutes wait for deploy
         try:
             login = client.post(
                 "/api/login",
