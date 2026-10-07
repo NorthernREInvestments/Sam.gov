@@ -68,6 +68,15 @@ def test_cloudflare_html_as_pdf_rejected(tmp_path: Path):
     assert v["DOCUMENT_CONTENT_VALID"] is False
 
 
+def test_html_doctype_extensionless_document_1_rejected(tmp_path: Path):
+    """BidNet often saves HTML as document_1 with no extension — must not count as valid."""
+    p = tmp_path / "document_1"
+    p.write_bytes(b"<!DOCTYPE html><html><body>Please log in</body></html>")
+    v = validate_local_file(p, claimed_ext="")
+    assert v["DOCUMENT_CONTENT_VALID"] is False
+    assert "html" in str(v.get("reason") or "").lower()
+
+
 def test_valid_xlsx_materializes(tmp_path: Path):
     import openpyxl
 

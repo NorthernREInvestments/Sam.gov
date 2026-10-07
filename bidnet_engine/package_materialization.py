@@ -64,11 +64,25 @@ def _sig_ok(data: bytes, ext: str) -> tuple[bool, str | None]:
         return False, "empty_or_tiny"
     head = data[:16]
     ext = (ext or "").lower().lstrip(".")
-    # HTML masquerading
+    # Sniff when extension missing/wrong (BidNet often saves as document_1)
+    if not ext:
+        if data[:5] == b"%PDF-":
+            ext = "pdf"
+        elif data[:2] == b"PK":
+            ext = "xlsx"
+        elif head[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1":
+            ext = "xls"
+    # HTML masquerading — reject for ANY claimed/sniffed extension (incl. blank)
     text_head = data[:400].decode("utf-8", errors="ignore")
-    if _LOGIN_HTML.search(text_head) or text_head.lstrip().lower().startswith("<!doctype html") or text_head.lstrip().lower().startswith("<html"):
-        if ext in {"pdf", "xlsx", "xls", "docx", "doc", "csv"}:
-            return False, "html_or_login_page_saved_as_binary"
+    stripped = text_head.lstrip().lower()
+    if (
+        _LOGIN_HTML.search(text_head)
+        or stripped.startswith("<!doctype html")
+        or stripped.startswith("<html")
+        or data[:9].lower() == b"<!doctype"
+        or data[:5].lower() == b"<html"
+    ):
+        return False, "html_or_login_page_saved_as_binary"
     if ext == "pdf":
         if data[:5] == b"%PDF-":
             return True, None
