@@ -1567,7 +1567,7 @@ def api_m3_bidnet_full_production_env_check():
         "channel_fit_canary_walker": 1,
         "schedule_backed_canary_walker": 1,
         "package_materialization_walker": 1,
-        "schedule_recovery_walker": 1,
+        "schedule_recovery_walker": 2,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
