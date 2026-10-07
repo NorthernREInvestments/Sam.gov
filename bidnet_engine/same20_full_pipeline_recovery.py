@@ -537,7 +537,12 @@ def run_same20_full_pipeline(
         nonlocal cache_hits, cache_misses, redownloads, reparses
         sk = str(item.get("stable_key") or "")
         cid = str(item.get("canonical_opportunity_id") or sk)
-        store_row = store_by_cid.get(cid) or item.get("_store_row") or {}
+        store_row = (
+            item.get("_store_row")
+            or store_by_cid.get(cid)
+            or store_by_cid.get(sk)
+            or {}
+        )
         t0 = time.perf_counter()
         timings: dict[str, float] = {}
 
