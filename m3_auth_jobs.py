@@ -26,6 +26,7 @@ JOB_FILE = "auth_jobs/last_job_status.json"
 STALE_SECONDS = 90 * 60  # national ~900 pages + state fill-in; heartbeats via progress
 E2E_STALE_SECONDS = 180 * 60  # full production E2E can exceed 90m with harvest+universe+recovery
 FFS_STALE_SECONDS = 720 * 60  # full funnel sweep: discovery + universe free-package batches + economics
+BASELINE_STALE_SECONDS = 36 * 3600  # one-time BidNet baseline ~24–30h with checkpoint heartbeats
 
 
 def _utc() -> str:
@@ -90,7 +91,9 @@ def _fail_stale_locked() -> None:
             ts = ts.replace(tzinfo=timezone.utc)
         age = (now - ts).total_seconds()
         kind = str(job.get("kind") or "")
-        if kind == "full_funnel_sweep":
+        if kind == "bidnet_baseline_production":
+            limit = BASELINE_STALE_SECONDS
+        elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
         elif kind == "full_production_e2e":
             limit = E2E_STALE_SECONDS
@@ -520,6 +523,124 @@ def start_bidnet_engine_job(
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_baseline_production_job(
+    *,
+    canary_s: int = 3600,
+    baseline_budget_s: int = 30 * 3600,
+    skip_canary: bool = False,
+) -> dict[str, Any]:
+    """Canary-gated one-time baseline, then freeze + incremental production activation."""
+    job_id = f"BNP-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_baseline_production",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "canary_s": int(canary_s),
+            "baseline_budget_s": int(baseline_budget_s),
+            "skip_canary": bool(skip_canary),
+            "logical_workers": 5,
+            "browser_workers": 2,
+            "sam_calls": 0,
+            "rerun_discovery": False,
+            "full_universe_deep_forbidden_after_baseline": True,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "BASELINE"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "workers": kwargs.get("workers"),
+                        "browser_workers": kwargs.get("browser_workers"),
+                        "completed": kwargs.get("completed"),
+                        "remaining": kwargs.get("remaining"),
+                        "rate": kwargs.get("rate"),
+                    },
+                )
+
+            from bidnet_engine.production import run_bidnet_baseline_production
+
+            result = run_bidnet_baseline_production(
+                canary_s=int(canary_s),
+                baseline_budget_s=int(baseline_budget_s),
+                skip_canary=bool(skip_canary),
+                on_progress=_progress,
+            )
+            try:
+                from m3_data_root import data_path
+
+                path = data_path("m3_bidnet_production_v1_last_report.json")
+                if path.exists():
+                    saved = json.loads(path.read_text(encoding="utf-8"))
+                    saved["job_id"] = job_id
+                    path.write_text(json.dumps(saved, indent=2, default=str), encoding="utf-8")
+            except Exception:
+                log.exception("BidNet baseline production report patch failed")
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "PASS_FAIL": result.get("PASS_FAIL"),
+                    "BIDNET_BASELINE_COMPLETE": result.get("BIDNET_BASELINE_COMPLETE"),
+                    "BIDNET_INCREMENTAL_PRODUCTION_READY": result.get("BIDNET_INCREMENTAL_PRODUCTION_READY"),
+                    "NEXT_RUN_ALLOWED": result.get("NEXT_RUN_ALLOWED"),
+                    "canary": result.get("canary"),
+                    "baseline": result.get("baseline"),
+                    "performance": result.get("performance"),
+                    "answers": result.get("answers"),
+                    "runtime_s": result.get("runtime_s"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet baseline production job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run, name=f"bidnet-baseline-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_baseline_production",
         "active_running": _active_running_id(),
     }
 

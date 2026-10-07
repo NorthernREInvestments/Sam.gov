@@ -1011,12 +1011,14 @@
   }
 
   async function renderBidnetEngine() {
-    setHint("BidNet engine recovery — thread caps, browser pool ≤2, resume from durable checkpoint.");
-    const [report, progress, recovery, recoveryProgress] = await Promise.all([
+    setHint("BidNet baseline → twice-daily incremental production. Canary then unattended baseline.");
+    const [report, progress, recovery, recoveryProgress, prodStatus, prodProgress] = await Promise.all([
       api("/api/m3/bidnet-engine/report").catch(() => ({ status: "NO_REPORT" })),
       api("/api/m3/bidnet-engine/progress").catch(() => ({ progress_pct: 0 })),
       api("/api/m3/bidnet-engine/recovery/report").catch(() => ({ status: "NO_REPORT" })),
       api("/api/m3/bidnet-engine/recovery/progress").catch(() => ({ progress_pct: 0 })),
+      api("/api/m3/bidnet-production/status").catch(() => ({ status: "NO_STATUS" })),
+      api("/api/m3/bidnet-production/progress").catch(() => ({ progress_pct: 0 })),
     ]);
     const b = report.baseline || {};
     const after = report.after || {};
@@ -1034,32 +1036,39 @@
           )}</td><td>${esc(s.errors)}</td><td>${esc(s.auth_failures)}</td></tr>`
       )
       .join("");
+    const canary = prodStatus.canary || {};
     main.innerHTML = `<h1>BidNet Engine</h1>
-      <p class="lead">Recovery build: logical workers ≠ browser workers. Discovery frozen. Existing 120 preserved.</p>
-      <p class="muted">Build ${esc(report.build || recovery.build || "")} · engine ${esc(
-        progress.stage || "idle"
-      )} ${esc(progress.progress_pct || 0)}% · recovery ${esc(recoveryProgress.stage || "idle")} ${esc(
-        recoveryProgress.progress_pct || 0
-      )}% · Pass ${esc(
+      <p class="lead">One-time baseline (5L/2B) then permanent 06:10/14:10 incremental sync. Discovery frozen.</p>
+      <p class="muted">Build ${esc(prodStatus.build || report.build || recovery.build || "")} · production ${esc(
+        prodProgress.stage || prodStatus.phase || "idle"
+      )} ${esc(prodProgress.progress_pct || prodStatus.percent || 0)}% · recovery ${esc(
+        recoveryProgress.stage || "idle"
+      )} ${esc(recoveryProgress.progress_pct || 0)}% · Pass ${esc(
         recovery.BIDNET_ENGINE_RECOVERY_PASS || report.BIDNET_INCREMENTAL_PARALLEL_PASS || report.PASS_FAIL || "—"
       )}</p>
       <div class="meta-row">
         <span>Valid open: <strong>21,976</strong></span>
         <span>Product/Mixed: ${esc(b.product_mixed_total ?? 13270)}</span>
-        <span>Durably saved: ${esc(rec.durably_saved ?? b.cumulative_complete ?? "—")}</span>
-        <span>Remaining: ${esc(rec.remaining_baseline ?? b.remaining ?? "—")}</span>
-        <span>Logical: ${esc((stab.selected || {}).logical ?? report.selected_workers ?? "—")}</span>
-        <span>Browsers: ${esc((stab.selected || {}).browsers ?? "—")}</span>
-        <span>Throughput/min: ${esc((recovery.performance || {}).throughput_per_min ?? after.throughput_per_min ?? "—")}</span>
+        <span>Completed: ${esc(prodStatus.completed ?? rec.durably_saved ?? b.cumulative_complete ?? "—")}</span>
+        <span>Remaining: ${esc(prodStatus.remaining ?? rec.remaining_baseline ?? b.remaining ?? "—")}</span>
+        <span>Logical: ${esc(prodStatus.logical_workers ?? (stab.selected || {}).logical ?? 5)}</span>
+        <span>Browsers: ${esc(prodStatus.browser_workers ?? (stab.selected || {}).browsers ?? 2)}</span>
+        <span>5m/15m/60m: ${esc(prodStatus.throughput_5m ?? "—")}/${esc(prodStatus.throughput_15m ?? "—")}/${esc(
+          prodStatus.throughput_60m ?? "—"
+        )}</span>
+        <span>ETA h: ${esc(prodStatus.eta_hours ?? "—")}</span>
       </div>
       <div class="meta-row">
-        <span>OPENBLAS: ${esc(thr.OPENBLAS_NUM_THREADS ?? "—")}</span>
-        <span>Threads active: ${esc(thr.verified_active ?? "—")}</span>
-        <span>Resource fixed: ${esc(fin.RESOURCE_EXHAUSTION_FIXED ?? "—")}</span>
-        <span>Safe resume: ${esc(fin.SAFE_TO_RESUME_BASELINE ?? "—")}</span>
-        <span>Next: ${esc(fin.NEXT_RUN_ALLOWED || report.NEXT_RUN_ALLOWED || "—")}</span>
+        <span>Canary 15/30/60: ${esc((canary["15"] || {}).PASS_FAIL || "—")}/${esc(
+          (canary["30"] || {}).PASS_FAIL || "—"
+        )}/${esc((canary["60"] || {}).PASS_FAIL || "—")}</span>
+        <span>API: ${esc(prodStatus.api_health ?? "—")}</span>
+        <span>502: ${esc(prodStatus.http_502 ?? 0)}</span>
+        <span>Thread fails: ${esc(prodStatus.thread_failures ?? 0)}</span>
+        <span>Checkpoint age s: ${esc(prodStatus.checkpoint_age_s ?? "—")}</span>
+        <span>OPENBLAS: ${esc(thr.OPENBLAS_NUM_THREADS ?? "1")}</span>
+        <span>Next: ${esc(fin.NEXT_RUN_ALLOWED || report.NEXT_RUN_ALLOWED || "CONTINUE_BASELINE")}</span>
         <span>Queued: ${esc(q.total_queued ?? "—")}</span>
-        <span>Backlog: ${esc(bl.current ?? "—")}</span>
       </div>
       <h2>Concurrency test</h2>
       <table class="data"><thead><tr><th>Logical</th><th>Browsers</th><th>Throughput/min</th><th>Errors</th><th>Auth failures</th></tr></thead><tbody>${

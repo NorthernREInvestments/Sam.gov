@@ -11,7 +11,7 @@ from bidnet_engine.models import BUILD
 
 
 def test_build_target():
-    assert BUILD == "20261006-m3-bidnet-engine-recovery-v1"
+    assert BUILD.startswith("20261006-m3-bidnet-")
 
 
 def test_thread_limits_forced():

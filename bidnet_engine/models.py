@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-BUILD = "20261006-m3-bidnet-engine-recovery-v1"
+BUILD = "20261006-m3-bidnet-baseline-to-incremental-production-v1"
 PREV_DOWNSTREAM_BUILD = "20261006-m3-bidnet-downstream-processing-v1"
 VALID_OPEN = 21976
 PRODUCT_MIXED_TOTAL = 13270

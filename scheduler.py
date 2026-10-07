@@ -174,6 +174,44 @@ def configure_m3_research_job() -> None:
     logger.info("M3 portfolio scheduler: 06:05 and 14:05 %s (hourly research disabled)", tz)
 
 
+def _run_bidnet_incremental_tick() -> None:
+    try:
+        from bidnet_engine.production import scheduled_bidnet_incremental_tick
+
+        result = scheduled_bidnet_incremental_tick()
+        logger.info(
+            "BidNet incremental tick: skipped=%s no_change=%s deep=%s full_universe=%s",
+            result.get("skipped"),
+            (result.get("sync") or {}).get("NO_CHANGE"),
+            (result.get("sync") or {}).get("deep_processing_required"),
+            result.get("full_universe_deep"),
+        )
+    except Exception:
+        logger.exception("BidNet incremental tick failed")
+
+
+def configure_bidnet_incremental_job() -> None:
+    """Fingerprint sync + bounded queue drain at 06:10/14:10. Never deep-processes all 13,270."""
+    from settings_store import get_scheduler_settings
+
+    settings = get_scheduler_settings()
+    tz = _timezone(settings["timezone"])
+    if not scheduler.running:
+        scheduler.start()
+    job = scheduler.get_job("bidnet_incremental_sync")
+    if job:
+        scheduler.remove_job("bidnet_incremental_sync")
+    scheduler.add_job(
+        _run_bidnet_incremental_tick,
+        CronTrigger(hour="6,14", minute=10, timezone=tz),
+        id="bidnet_incremental_sync",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("BidNet incremental sync scheduler: 06:10 and 14:10 %s", tz)
+
+
 def configure_scheduler() -> None:
     from settings_store import get_scheduler_settings
 
@@ -188,6 +226,7 @@ def configure_scheduler() -> None:
         # M3 discovery/research still run independently of legacy SAM sync toggle
         configure_m3_discovery_job()
         configure_m3_research_job()
+        configure_bidnet_incremental_job()
         return
 
     hour = settings["hour"]
@@ -229,6 +268,7 @@ def configure_scheduler() -> None:
 
     configure_m3_discovery_job()
     configure_m3_research_job()
+    configure_bidnet_incremental_job()
 
     logger.info(
         "Scheduler configured: tiered sync at %02d:%02d %s (T1 daily, T2 Mon/Wed/Fri, T3 Sun)",

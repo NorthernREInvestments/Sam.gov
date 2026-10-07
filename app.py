@@ -37,7 +37,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261006-m3-bidnet-engine-recovery-v1"
+APP_BUILD_VERSION = "20261006-m3-bidnet-baseline-to-incremental-production-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -81,6 +81,37 @@ def _run_background_startup() -> None:
             maybe_startup_discovery()
         except Exception:
             log.exception("M3 startup discovery check failed")
+        try:
+            from bidnet_engine.production import _load, PRODUCT_MIXED_TOTAL, DOWNSTREAM_CHECKPOINT
+            from bidnet_downstream.models import PRODUCT_CLASSES
+            from m3_auth_jobs import start_bidnet_baseline_production_job, _active_running_id
+
+            meta = _load("m3_bidnet_baseline_v1_meta.json")
+            status = _load("m3_bidnet_production_v1_status.json")
+            canary = status.get("canary") or {}
+            canary_ok = (canary.get("60") or {}).get("PASS_FAIL") == "PASS" or status.get("phase") in {
+                "BASELINE_RUN",
+                "PAUSED",
+            }
+            rows = [r for r in (_load(DOWNSTREAM_CHECKPOINT).get("rows") or []) if isinstance(r, dict)]
+            deep = sum(
+                1 for r in rows if r.get("classification") in PRODUCT_CLASSES and r.get("deep_complete")
+            )
+            if (
+                canary_ok
+                and not meta.get("BIDNET_BASELINE_COMPLETED_AT")
+                and rows
+                and deep < PRODUCT_MIXED_TOTAL
+                and not _active_running_id()
+            ):
+                log.info(
+                    "Resuming BidNet baseline after canary/redeploy (%s/%s)",
+                    deep,
+                    PRODUCT_MIXED_TOTAL,
+                )
+                start_bidnet_baseline_production_job(skip_canary=True, baseline_budget_s=30 * 3600)
+        except Exception:
+            log.exception("BidNet baseline auto-resume check failed (non-fatal)")
         try:
             from bidnet_auth import startup_health_report
 
@@ -1561,6 +1592,7 @@ def api_m3_bidnet_full_production_env_check():
         "downstream_walker": 4,
         "engine_walker": 2,
         "recovery_walker": 1,
+        "production_walker": 1,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
@@ -1958,6 +1990,64 @@ def api_m3_bidnet_engine_recovery_run(body: dict | None = None):
         stability_sample=int(payload.get("stability_sample") or 6),
         resume_batch=int(payload.get("resume_batch") or 40),
     )
+
+
+@app.post("/api/m3/bidnet-production/run")
+def api_m3_bidnet_production_run(body: dict | None = None):
+    """Canary-gated baseline completion → permanent incremental production."""
+    from m3_auth_jobs import start_bidnet_baseline_production_job
+
+    payload = body or {}
+    return start_bidnet_baseline_production_job(
+        canary_s=int(payload.get("canary_s") or 3600),
+        baseline_budget_s=int(payload.get("baseline_budget_s") or 30 * 3600),
+        skip_canary=bool(payload.get("skip_canary") or False),
+    )
+
+
+@app.get("/api/m3/bidnet-production/status")
+def api_m3_bidnet_production_status():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_production_v1_status.json")
+    if not path.exists():
+        return {"status": "NO_STATUS", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-production/progress")
+def api_m3_bidnet_production_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_production_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "progress_pct": 0, "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-production/report")
+def api_m3_bidnet_production_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_production_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_engine.production import format_production_report
+
+        return Response(content=format_production_report(report), media_type="text/plain")
+    return report
 
 
 @app.get("/api/m3/bidnet-engine/report")
