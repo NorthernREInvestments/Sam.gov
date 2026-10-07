@@ -86,50 +86,17 @@ def _signal_score(text: str) -> dict[str, Any]:
     }
 
 
-def _pdf_pages(path: Path, *, max_pages: int = 60) -> list[dict[str, Any]]:
+def _pdf_pages(path: Path, *, max_pages: int = 40) -> list[dict[str, Any]]:
+    """Extract page text/tables. Prefer fast fitz text; use pdfplumber tables selectively."""
     pages: list[dict[str, Any]] = []
-    # Prefer pdfplumber for tables + words; fall back to fitz text.
-    try:
-        import pdfplumber
-
-        with pdfplumber.open(str(path)) as pdf:
-            for i, page in enumerate(pdf.pages[:max_pages]):
-                text = page.extract_text() or ""
-                tables = []
-                try:
-                    raw_tables = page.extract_tables() or []
-                except Exception:
-                    raw_tables = []
-                for ti, table in enumerate(raw_tables):
-                    if not table:
-                        continue
-                    rows = [[(c or "").strip() for c in row] for row in table if row]
-                    tables.append({"table_index": ti, "rows": rows, "n_rows": len(rows)})
-                words = []
-                try:
-                    words = page.extract_words() or []
-                except Exception:
-                    words = []
-                pages.append(
-                    {
-                        "page": i + 1,
-                        "text": text,
-                        "tables": tables,
-                        "word_count": len(words),
-                        "char_count": len(text),
-                        "image_only": len(text.strip()) < 40 and len(words) < 8,
-                    }
-                )
-        if pages:
-            return pages
-    except Exception:
-        pass
+    # Fast path: fitz text for all pages (avoids pdfplumber hangs on large packages)
     try:
         import fitz
 
         doc = fitz.open(str(path))
         try:
-            for i in range(min(max_pages, doc.page_count)):
+            limit = min(max_pages, doc.page_count)
+            for i in range(limit):
                 text = doc.load_page(i).get_text("text") or ""
                 pages.append(
                     {
@@ -143,6 +110,72 @@ def _pdf_pages(path: Path, *, max_pages: int = 60) -> list[dict[str, Any]]:
                 )
         finally:
             doc.close()
+    except Exception:
+        pages = []
+
+    # Selective pdfplumber table pass only on pages that look product-like and lack rows yet
+    candidate_idxs = []
+    for p in pages:
+        sig = _signal_score(p.get("text") or "")
+        if sig["signal_count"] >= 3 or sig["has_qty_uom"] or sig["has_pn"]:
+            candidate_idxs.append(int(p["page"]) - 1)
+    if candidate_idxs:
+        try:
+            import pdfplumber
+
+            with pdfplumber.open(str(path)) as pdf:
+                for idx in candidate_idxs[:20]:
+                    if idx >= len(pdf.pages):
+                        continue
+                    page = pdf.pages[idx]
+                    try:
+                        raw_tables = page.extract_tables() or []
+                    except Exception:
+                        raw_tables = []
+                    tables = []
+                    for ti, table in enumerate(raw_tables[:8]):
+                        if not table:
+                            continue
+                        rows = [[(c or "").strip() for c in row] for row in table if row]
+                        if rows:
+                            tables.append({"table_index": ti, "rows": rows, "n_rows": len(rows)})
+                    if tables and idx < len(pages):
+                        pages[idx]["tables"] = tables
+                        # Prefer plumber text when richer
+                        try:
+                            t2 = page.extract_text() or ""
+                            if len(t2) > len(pages[idx].get("text") or ""):
+                                pages[idx]["text"] = t2
+                                pages[idx]["char_count"] = len(t2)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+    if pages:
+        return pages
+
+    # Last resort: pdfplumber-only open
+    try:
+        import pdfplumber
+
+        with pdfplumber.open(str(path)) as pdf:
+            for i, page in enumerate(pdf.pages[:max_pages]):
+                text = ""
+                try:
+                    text = page.extract_text() or ""
+                except Exception:
+                    text = ""
+                pages.append(
+                    {
+                        "page": i + 1,
+                        "text": text,
+                        "tables": [],
+                        "word_count": len(text.split()),
+                        "char_count": len(text),
+                        "image_only": len(text.strip()) < 40,
+                    }
+                )
     except Exception:
         pass
     return pages
@@ -291,7 +324,7 @@ def _classify_role(
     return "UNKNOWN", 0.3
 
 
-def inspect_document(path: str | Path, *, filename: str | None = None, max_pages: int = 60) -> dict[str, Any]:
+def inspect_document(path: str | Path, *, filename: str | None = None, max_pages: int = 40) -> dict[str, Any]:
     path = Path(path)
     name = filename or path.name
     ext = path.suffix.lower().lstrip(".")

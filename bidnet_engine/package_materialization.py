@@ -306,6 +306,7 @@ def materialize_attachments(
     try:
         from bidnet_engine.schedule_content_recognition import inspect_package_documents
 
+        # Cap inspection volume so one huge PDF cannot stall the same-13 walker
         content_recognition = inspect_package_documents(
             [
                 {
@@ -314,7 +315,7 @@ def materialize_attachments(
                     "document_id": e.get("document_id"),
                     "source_url": e.get("source_url"),
                 }
-                for e in materialized
+                for e in materialized[:12]
             ]
         )
         # Stamp content roles onto materialized entries
