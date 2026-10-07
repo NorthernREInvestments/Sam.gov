@@ -260,7 +260,11 @@ def materialize_attachments(
                 materialized.append(entry)
             else:
                 invalid.append({**entry, "failure": v.get("reason")})
-                # try re-download if URL available
+                # Remove poisoned local cache (e.g. HTML saved as document_1) then re-download
+                try:
+                    Path(path_s).unlink(missing_ok=True)  # type: ignore[arg-type]
+                except Exception:
+                    pass
                 path_s = None
             if path_s:
                 continue
