@@ -546,6 +546,7 @@ def start_package_materialization_job(
 ) -> dict[str, Any]:
     """Authoritative schedule recovery on same-13 (content-first); new-20 only if gates pass."""
     job_id = f"ASR-{uuid4().hex[:12]}"
+    mode_s = str(mode or "same_13")
     job = {
         "job_id": job_id,
         "kind": "schedule_recovery",
@@ -554,7 +555,7 @@ def start_package_materialization_job(
         "updated_at": _utc(),
         "completed_at": None,
         "params": {
-            "mode": str(mode or "same_13"),
+            "mode": mode_s,
             "canary_n": int(canary_n),
             "price_budget": int(price_budget),
             "iteration": int(iteration or 1),
@@ -595,16 +596,26 @@ def start_package_materialization_job(
                     },
                 )
 
-            from bidnet_engine.schedule_recovery_canary import run_schedule_recovery
+            if mode_s in {"new_20_reconcile", "new20_reconcile", "reconcile_new20"}:
+                from bidnet_engine.schedule_recovery_canary import reconcile_new20_acceptance
 
-            result = run_schedule_recovery(
-                mode=str(mode or "same_13"),
-                canary_n=int(canary_n),
-                price_budget=int(price_budget),
-                iteration=int(iteration or 1),
-                change_made=str(change_made or "content-first schedule recognition"),
-                on_progress=_progress,
-            )
+                result = reconcile_new20_acceptance(
+                    target_valid=int(canary_n or 20),
+                    price_budget=int(price_budget),
+                    iteration=int(iteration or 1),
+                    on_progress=_progress,
+                )
+            else:
+                from bidnet_engine.schedule_recovery_canary import run_schedule_recovery
+
+                result = run_schedule_recovery(
+                    mode=mode_s,
+                    canary_n=int(canary_n),
+                    price_budget=int(price_budget),
+                    iteration=int(iteration or 1),
+                    change_made=str(change_made or "content-first schedule recognition"),
+                    on_progress=_progress,
+                )
             _set(
                 job_id,
                 status="COMPLETED",
@@ -616,6 +627,7 @@ def start_package_materialization_job(
                     "after": result.get("after"),
                     "downstream": result.get("downstream"),
                     "NEW_20": result.get("NEW_20"),
+                    "new20_acceptance": result.get("new20_acceptance"),
                     "iteration_log": result.get("iteration_log"),
                     "ITERATIONS_COMPLETED": result.get("ITERATIONS_COMPLETED"),
                     "unrecovered_cases": result.get("unrecovered_cases"),

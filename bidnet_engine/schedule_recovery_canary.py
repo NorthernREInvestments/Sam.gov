@@ -91,6 +91,12 @@ def run_schedule_recovery(
         from bidnet_engine.schedule_selection import select_schedule_backed_candidates
         from bidnet_downstream.models import PRODUCT_CLASSES
 
+        from bidnet_engine.schedule_selection import (
+            assess_product_dominance_for_new20,
+            exclusion_reason,
+            product_canary_selection_gate,
+        )
+
         product_rows = [r for r in rows if r.get("classification") in PRODUCT_CLASSES]
         # Checkpoint may be thin after same-13 — expand from store product / parts-like rows
         seen_cids = {str(r.get("canonical_opportunity_id") or "") for r in product_rows}
@@ -106,6 +112,9 @@ def run_schedule_recovery(
             docs = sr.get("attachments_metadata") or sr.get("document_inventory") or []
             if cls not in PRODUCT_CLASSES and not (_parts_ish.search(title) and docs):
                 continue
+            # Never expand pool with install/service/repair-dominant titles
+            if exclusion_reason(title):
+                continue
             product_rows.append(
                 {
                     "canonical_opportunity_id": cid,
@@ -118,14 +127,18 @@ def run_schedule_recovery(
                 }
             )
             seen_cids.add(cid)
-            if len(product_rows) >= canary_n * 8:
+            if len(product_rows) >= canary_n * 12:
                 break
-        candidates, _excl = select_schedule_backed_candidates(product_rows, store_by_cid, limit=canary_n * 3)
+        # Over-select reserve pool so EXCLUDED_* after inspection can be replaced
+        pool_limit = max(canary_n * 4, 40)
+        candidates, _excl = select_schedule_backed_candidates(
+            product_rows, store_by_cid, limit=pool_limit
+        )
         # Prefer content-evidence when available; exclude same-13
         same = set(SAME_13_STABLE_KEYS)
-        candidates = [c for c in candidates if str(c.get("stable_key") or "") not in same][:canary_n]
-        # Last resort: take parts-ish store rows with any attachment URLs
-        if len(candidates) < max(5, canary_n // 2):
+        candidates = [c for c in candidates if str(c.get("stable_key") or "") not in same]
+        # Last resort filler — MUST pass product gate (no EXCLUDED_* bypass)
+        if len(candidates) < canary_n:
             filler = []
             for cid, sr in store_by_cid.items():
                 if not isinstance(sr, dict):
@@ -137,26 +150,42 @@ def run_schedule_recovery(
                 docs = sr.get("attachments_metadata") or []
                 if not _parts_ish.search(title):
                     continue
-                if not any(isinstance(d, dict) and (d.get("document_url") or d.get("url") or d.get("local_path")) for d in docs):
+                if exclusion_reason(title):
                     continue
-                filler.append(
-                    {
-                        "canonical_opportunity_id": cid,
-                        "stable_key": sk,
-                        "title": title,
-                        "buyer": sr.get("buyer"),
-                        "classification": sr.get("classification") or "PRODUCT",
-                        "deadline": sr.get("deadline"),
-                        "_provisional_schedule": True,
-                    }
-                )
+                if not any(
+                    isinstance(d, dict)
+                    and (d.get("document_url") or d.get("url") or d.get("local_path"))
+                    for d in docs
+                ):
+                    continue
+                row = {
+                    "canonical_opportunity_id": cid,
+                    "stable_key": sk,
+                    "title": title,
+                    "buyer": sr.get("buyer"),
+                    "classification": sr.get("classification")
+                    if sr.get("classification") in PRODUCT_CLASSES
+                    else "PRODUCT",
+                    "deadline": sr.get("deadline"),
+                    "_provisional_schedule": True,
+                }
+                gate = product_canary_selection_gate(row, sr)
+                # Allow provisional schedule miss, but never install/service/etc.
+                if gate.get("exclusion"):
+                    continue
+                if any(
+                    x.startswith("EXCLUDED_")
+                    for x in (gate.get("fail_reasons") or [])
+                ):
+                    continue
+                filler.append(row)
             seen = {str(c.get("stable_key") or "") for c in candidates}
             for f in filler:
                 if f["stable_key"] in seen:
                     continue
                 candidates.append(f)
                 seen.add(f["stable_key"])
-                if len(candidates) >= canary_n:
+                if len(candidates) >= pool_limit:
                     break
 
     write_status(
@@ -193,10 +222,26 @@ def run_schedule_recovery(
         raise RuntimeError(f"BidNet auth required: {auth.status} {auth.message}")
 
     results: list[dict[str, Any]] = []
+    excluded_results: list[dict[str, Any]] = []
     # Synchronous processing — text-only content inspection is bounded.
     # Do NOT recreate the BidNet client mid-run (breaks authenticated downloads → HTML).
+    # NEW-20: process reserve until canary_n VALID product-dominant opps (replace EXCLUDED_*).
+    target_valid = canary_n if mode == "new_20" else len(candidates)
+    pool = list(candidates)
+    processed_idx = 0
+    source_exhausted = False
 
-    for i, item in enumerate(candidates):
+    while True:
+        if mode == "new_20" and len(results) >= target_valid:
+            break
+        if processed_idx >= len(pool):
+            source_exhausted = mode == "new_20" and len(results) < target_valid
+            break
+        if mode != "new_20" and processed_idx >= len(candidates):
+            break
+
+        item = pool[processed_idx]
+        processed_idx += 1
         cid = str(item.get("canonical_opportunity_id") or "")
         store_row = store_by_cid.get(cid) or {}
         if not store_row:
@@ -206,16 +251,76 @@ def run_schedule_recovery(
                     item = {**item, "canonical_opportunity_id": k}
                     cid = k
                     break
+
+        title = str(item.get("title") or "")
+        valid_n = len(results)
+        excl_n = len(excluded_results)
+        attempted = valid_n + excl_n
+        denom = target_valid if mode == "new_20" else max(len(candidates), 1)
         write_status(
             phase=f"SCHEDULE_RECOVERY_{mode.upper()}_OPP",
-            completed=len(results),
-            remaining=max(0, len(candidates) - len(results)),
-            percent=int(100 * len(results) / max(len(candidates), 1)),
+            completed=valid_n if mode == "new_20" else attempted,
+            remaining=max(0, denom - (valid_n if mode == "new_20" else attempted)),
+            percent=int(100 * (valid_n if mode == "new_20" else attempted) / denom),
             run_id=run_id,
             iteration=iteration,
             current_stable_key=item.get("stable_key"),
-            current_title=str(item.get("title") or "")[:120],
+            current_title=title[:120],
+            valid_counted=valid_n,
+            excluded_counted=excl_n,
+            attempted=attempted,
+            pool_remaining=max(0, len(pool) - processed_idx),
+            heartbeat_at=now_utc().isoformat(),
         )
+
+        # Pre-inspect title gate for NEW-20 — skip install/service without burning BidNet time
+        if mode == "new_20":
+            from bidnet_engine.schedule_selection import assess_product_dominance_for_new20
+
+            pre = assess_product_dominance_for_new20(title=title)
+            if not pre.get("counts_toward_new20"):
+                skip = {
+                    "canonical_opportunity_id": cid,
+                    "stable_key": item.get("stable_key"),
+                    "title": title,
+                    "buyer": item.get("buyer"),
+                    "raw_lines": 0,
+                    "material_lines": 0,
+                    "usable_ae": 0,
+                    "public_prices": 0,
+                    "live_bidnet": False,
+                    "recovery_cohort": mode,
+                    "schedule_recovery_iteration": iteration,
+                    "new20_dominance": pre,
+                    "exclusion": pre.get("exclusion") or "EXCLUDED_INSTALL",
+                    "counts_toward_new20": False,
+                    "package_materialization": {
+                        "primary_blocker": pre.get("exclusion") or "EXCLUDED",
+                        "operator_product_status": pre.get("reason"),
+                        "product_classification": "EXCLUDED_PRE_INSPECT",
+                        "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                    },
+                    "package_primary_blocker": pre.get("exclusion") or "EXCLUDED",
+                }
+                excluded_results.append(skip)
+                write_status(
+                    phase=f"SCHEDULE_RECOVERY_{mode.upper()}_HEARTBEAT",
+                    completed=len(results),
+                    remaining=max(0, target_valid - len(results)),
+                    percent=int(100 * len(results) / target_valid),
+                    run_id=run_id,
+                    iteration=iteration,
+                    last_title=title[:120],
+                    last_exclusion=pre.get("exclusion"),
+                    valid_counted=len(results),
+                    excluded_counted=len(excluded_results),
+                    attempted=len(results) + len(excluded_results),
+                    pool_remaining=max(0, len(pool) - processed_idx),
+                    heartbeat_at=now_utc().isoformat(),
+                    replaced=True,
+                )
+                continue
+
         try:
             r = process_money_opportunity(
                 item, store_row, client=client, store=store_by_cid, price_budget=price_budget
@@ -242,36 +347,90 @@ def run_schedule_recovery(
         r["live_bidnet"] = True
         r["recovery_cohort"] = mode
         r["schedule_recovery_iteration"] = iteration
+
+        if mode == "new_20":
+            from bidnet_engine.schedule_selection import assess_product_dominance_for_new20
+
+            pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+            post = assess_product_dominance_for_new20(
+                title=str(r.get("title") or title),
+                product_classification=str(pm.get("product_classification") or ""),
+                extracted_lines=int(r.get("raw_lines") or 0),
+                operator_status=str(pm.get("operator_product_status") or ""),
+            )
+            r["new20_dominance"] = post
+            r["counts_toward_new20"] = bool(post.get("counts_toward_new20"))
+            r["exclusion"] = post.get("exclusion")
+            if not r["counts_toward_new20"]:
+                excluded_results.append(r)
+                write_status(
+                    phase=f"SCHEDULE_RECOVERY_{mode.upper()}_HEARTBEAT",
+                    completed=len(results),
+                    remaining=max(0, target_valid - len(results)),
+                    percent=int(100 * len(results) / target_valid),
+                    run_id=run_id,
+                    iteration=iteration,
+                    last_title=str(r.get("title") or "")[:120],
+                    last_exclusion=post.get("exclusion"),
+                    valid_counted=len(results),
+                    excluded_counted=len(excluded_results),
+                    attempted=len(results) + len(excluded_results),
+                    pool_remaining=max(0, len(pool) - processed_idx),
+                    heartbeat_at=now_utc().isoformat(),
+                    replaced=True,
+                )
+                if on_progress:
+                    try:
+                        on_progress(
+                            phase=f"SCHEDULE_RECOVERY_{mode}_excluded",
+                            pct=int(100 * len(results) / target_valid),
+                            completed=len(results),
+                        )
+                    except Exception:
+                        pass
+                continue
+
         results.append(r)
-        if (i + 1) % 2 == 0 or i == len(candidates) - 1:
-            write_status(
-                phase=f"SCHEDULE_RECOVERY_{mode.upper()}",
-                completed=len(results),
-                remaining=max(0, len(candidates) - len(results)),
-                percent=int(100 * len(results) / max(len(candidates), 1)),
-                run_id=run_id,
-                iteration=iteration,
-            )
-            if on_progress:
-                try:
-                    on_progress(
-                        phase=f"SCHEDULE_RECOVERY_{mode}",
-                        pct=int(100 * len(results) / max(len(candidates), 1)),
-                        completed=len(results),
-                    )
-                except Exception:
-                    pass
-            merged = _merge_checkpoint(rows, results)
-            _save(
-                DOWNSTREAM_CHECKPOINT,
-                {
-                    "build": BUILD,
-                    "engine": BUILD,
-                    "updated_at": now_utc().isoformat(),
-                    "classified": len(merged),
-                    "rows": merged,
-                },
-            )
+        # Heartbeat after EVERY completed opportunity (valid count for new_20)
+        done_n = len(results) if mode == "new_20" else len(results)
+        rem_n = max(0, (target_valid if mode == "new_20" else len(candidates)) - done_n)
+        write_status(
+            phase=f"SCHEDULE_RECOVERY_{mode.upper()}_HEARTBEAT",
+            completed=done_n,
+            remaining=rem_n,
+            percent=int(100 * done_n / max(target_valid if mode == "new_20" else len(candidates), 1)),
+            run_id=run_id,
+            iteration=iteration,
+            last_title=str(r.get("title") or "")[:120],
+            last_stable_key=r.get("stable_key"),
+            valid_counted=len(results),
+            excluded_counted=len(excluded_results),
+            attempted=len(results) + len(excluded_results),
+            pool_remaining=max(0, len(pool) - processed_idx),
+            heartbeat_at=now_utc().isoformat(),
+            material_lines=r.get("material_lines"),
+            raw_lines=r.get("raw_lines"),
+        )
+        if on_progress:
+            try:
+                on_progress(
+                    phase=f"SCHEDULE_RECOVERY_{mode}",
+                    pct=int(100 * done_n / max(target_valid if mode == "new_20" else len(candidates), 1)),
+                    completed=done_n,
+                )
+            except Exception:
+                pass
+        merged = _merge_checkpoint(rows, results)
+        _save(
+            DOWNSTREAM_CHECKPOINT,
+            {
+                "build": BUILD,
+                "engine": BUILD,
+                "updated_at": now_utc().isoformat(),
+                "classified": len(merged),
+                "rows": merged,
+            },
+        )
 
     client.close()
     report = _build_report(
@@ -283,6 +442,38 @@ def run_schedule_recovery(
         iteration=iteration,
         change_made=change_made,
     )
+    if mode == "new_20":
+        report["new20_acceptance"] = {
+            "target_valid": target_valid,
+            "valid_counted": len(results),
+            "excluded_counted": len(excluded_results),
+            "attempted": len(results) + len(excluded_results),
+            "source_exhausted": source_exhausted,
+            "excluded_titles": [
+                {
+                    "title": e.get("title"),
+                    "exclusion": e.get("exclusion"),
+                    "stable_key": e.get("stable_key"),
+                }
+                for e in excluded_results
+            ],
+        }
+        report["excluded_rows"] = excluded_results
+        if source_exhausted and len(results) < target_valid:
+            report["STATUS"] = "FAIL_SOURCE_EXHAUSTED"
+            report["gates"] = {
+                **(report.get("gates") or {}),
+                "NEW_20_VALID_PRODUCT_DOMINANT_GE_20": False,
+                "SOURCE_EXHAUSTED_PROVEN": True,
+            }
+        else:
+            gates = dict(report.get("gates") or {})
+            gates["NEW_20_VALID_PRODUCT_DOMINANT_GE_20"] = len(results) >= target_valid
+            gates["SOURCE_EXHAUSTED_PROVEN"] = False
+            # Acceptance requires 20 valid product-dominant processed
+            if len(results) >= target_valid:
+                gates["NEW_20_ACCEPTANCE_SET"] = True
+            report["gates"] = gates
     iters = _append_iteration(
         {
             "iteration": iteration,
@@ -316,9 +507,40 @@ def run_schedule_recovery(
         )
         report["NEW_20"] = {
             "RUN": "YES",
-            **{k: new20.get(k) for k in ("canary_input", "after", "gates", "downstream", "top_recovered", "STATUS")},
+            **{
+                k: new20.get(k)
+                for k in (
+                    "canary_input",
+                    "after",
+                    "gates",
+                    "downstream",
+                    "top_recovered",
+                    "STATUS",
+                    "new20_acceptance",
+                    "excluded_rows",
+                )
+            },
         }
         report["STATUS"] = "PASS" if (new20.get("gates") or {}).get("NEW_20_PASS") else "SAME13_PASS_NEW20_FAIL"
+        # Nested new_20 call wrote ROWS_JSON — copy before same-13 overwrite below
+        nested_rows = _load(ROWS_JSON)
+        if nested_rows.get("mode") == "new_20" and nested_rows.get("rows"):
+            _save("m3_schedule_recovery_v1_new20_rows.json", nested_rows)
+            report["NEW_20"]["rows_persisted"] = len(nested_rows.get("rows") or [])
+        else:
+            _save(
+                "m3_schedule_recovery_v1_new20_rows.json",
+                {
+                    "build": BUILD,
+                    "run_id": new20.get("run_id") or run_id,
+                    "mode": "new_20",
+                    "rows": [],
+                    "acceptance": new20.get("new20_acceptance"),
+                    "excluded": new20.get("excluded_rows") or [],
+                    "top_recovered": new20.get("top_recovered") or [],
+                    "updated_at": now_utc().isoformat(),
+                },
+            )
     elif mode == "same_13":
         report["NEW_20"] = {"RUN": "NO", "reason": "same_13_gates_not_met"}
 
@@ -580,13 +802,37 @@ def _build_report(
             for r in results
             if int((r.get("package_materialization") or {}).get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0) > 0
         )
+        from bidnet_engine.schedule_selection import assess_product_dominance_for_new20
+
+        product_dominant = 0
+        for r in results:
+            if r.get("counts_toward_new20") is False:
+                continue
+            pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+            dom = r.get("new20_dominance") if isinstance(r.get("new20_dominance"), dict) else None
+            if not dom:
+                dom = assess_product_dominance_for_new20(
+                    title=str(r.get("title") or ""),
+                    product_classification=str(pm.get("product_classification") or ""),
+                    extracted_lines=int(r.get("raw_lines") or 0),
+                    operator_status=str(pm.get("operator_product_status") or ""),
+                )
+            if dom.get("counts_toward_new20"):
+                product_dominant += 1
         gates = {
             "VALID_LOCAL_PACKAGE_GE_18": valid_pkgs >= 18,
             "ITEMIZABLE_PRODUCT_GE_15": itemizable >= 15,
             "LINES_READY_GE_12": lines_ready >= 12,
             "A_E_GE_8": ae_opps >= 8,
             "PUBLIC_PRICE_READY_GE_5": pub_opps >= 5,
-            "NEW_20_PASS": valid_pkgs >= 18 and lines_ready >= 12 and ae_opps >= 8 and pub_opps >= 5,
+            "NEW_20_VALID_PRODUCT_DOMINANT_GE_20": product_dominant >= 20,
+            "NEW_20_PASS": (
+                product_dominant >= 20
+                and valid_pkgs >= 18
+                and lines_ready >= 12
+                and ae_opps >= 8
+                and pub_opps >= 5
+            ),
         }
         status = "PASS" if gates["NEW_20_PASS"] else "FAIL"
 
@@ -657,3 +903,330 @@ def format_report(report: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+JEFFERSON_JEF_ATCT_MEL = {
+    "title": "Jefferson City Memorial Airport (JEF) ATCT Minimum Equipment List Installation",
+    "exclusion": "EXCLUDED_INSTALL",
+    "counts_toward_new20": False,
+    "primary_requirement": "INSTALLATION_OR_SERVICE",
+    "why_passed_gate": (
+        "LIKELY_PRODUCT_SCHEDULE from 'Equipment List' schedule keyword; "
+        "last-resort store filler bypassed product_canary_selection_gate "
+        "(gate itself correctly returns accepted=False / EXCLUDED_INSTALL)."
+    ),
+    "material_product_lines_estimate": "unknown_pre_docs; title scope is MEL Installation — install-primary",
+    "tangible_product_pct_estimate": "<50% (installation of MEL is primary scope)",
+}
+
+
+def reconcile_new20_acceptance(
+    *,
+    target_valid: int = 20,
+    price_budget: int = 25,
+    iteration: int = 22,
+    on_progress: Any | None = None,
+) -> dict[str, Any]:
+    """Post-run: drop EXCLUDED_* from NEW-20 rows and replace until target_valid product-dominant."""
+    from bidnet_engine.schedule_selection import (
+        assess_product_dominance_for_new20,
+        exclusion_reason,
+        select_schedule_backed_candidates,
+    )
+    from bidnet_downstream.models import PRODUCT_CLASSES
+    from phase_l.l23_full_population_funnel import load_store
+
+    apply_thread_limits(n=1)
+    started = time.time()
+    run_id = f"ASR-TOPUP-{now_utc().strftime('%Y%m%d%H%M%S')}"
+    doc = _load("m3_schedule_recovery_v1_new20_rows.json")
+    if not doc.get("rows"):
+        doc = _load(ROWS_JSON)
+    prior = [r for r in (doc.get("rows") or []) if isinstance(r, dict)]
+    # Prefer new_20 cohort if present; else hydrate from last report top_recovered
+    new20_prior = [r for r in prior if r.get("recovery_cohort") == "new_20"]
+    if not new20_prior:
+        new20_prior = [r for r in prior if isinstance(r, dict)]
+    if len(new20_prior) < 5:
+        report_doc = _load(REPORT_JSON)
+        top = ((report_doc.get("NEW_20") or {}).get("top_recovered") or [])
+        for t in top:
+            if not isinstance(t, dict):
+                continue
+            new20_prior.append(
+                {
+                    "stable_key": t.get("opportunity"),
+                    "title": t.get("title"),
+                    "buyer": t.get("buyer"),
+                    "raw_lines": t.get("extracted_lines") or 0,
+                    "material_lines": t.get("extracted_lines") or 0,
+                    "usable_ae": 1 if t.get("identity_handoff") else 0,
+                    "public_prices": 1 if t.get("public_pricing_handoff") else 0,
+                    "recovery_cohort": "new_20",
+                    "package_materialization": {
+                        "product_classification": t.get("classification"),
+                        "operator_product_status": t.get("operator_status"),
+                        "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": t.get("documents_acquired") or 0,
+                        "AUTHORITATIVE_PRODUCT_DOC_FOUND": t.get("product_schedule") == "Found",
+                    },
+                }
+            )
+
+    valid: list[dict[str, Any]] = []
+    excluded: list[dict[str, Any]] = []
+    for r in new20_prior:
+        title = str(r.get("title") or "")
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        dom = assess_product_dominance_for_new20(
+            title=title,
+            product_classification=str(pm.get("product_classification") or ""),
+            extracted_lines=int(r.get("raw_lines") or 0),
+            operator_status=str(pm.get("operator_product_status") or ""),
+        )
+        r = {**r, "new20_dominance": dom, "counts_toward_new20": bool(dom.get("counts_toward_new20")), "exclusion": dom.get("exclusion")}
+        if r["counts_toward_new20"]:
+            valid.append(r)
+        else:
+            # Force Jefferson / install titles into EXCLUDED_INSTALL
+            if "jefferson city memorial airport" in title.lower() or exclusion_reason(title) == "INSTALL":
+                r["exclusion"] = "EXCLUDED_INSTALL"
+            excluded.append(r)
+
+    write_status(
+        phase="NEW20_RECONCILE",
+        completed=len(valid),
+        remaining=max(0, target_valid - len(valid)),
+        percent=int(100 * len(valid) / max(target_valid, 1)),
+        run_id=run_id,
+        iteration=iteration,
+        valid_counted=len(valid),
+        excluded_counted=len(excluded),
+        heartbeat_at=now_utc().isoformat(),
+        jefferson=JEFFERSON_JEF_ATCT_MEL,
+    )
+
+    if len(valid) >= target_valid:
+        report = _build_report(
+            valid[:target_valid],
+            mode="new_20",
+            run_id=run_id,
+            started=started,
+            before=None,
+            iteration=iteration,
+            change_made="new20 reconcile — product-dominant acceptance set",
+        )
+        report["new20_acceptance"] = {
+            "target_valid": target_valid,
+            "valid_counted": target_valid,
+            "excluded_counted": len(excluded),
+            "source_exhausted": False,
+            "reconcile": True,
+            "excluded_titles": [
+                {"title": e.get("title"), "exclusion": e.get("exclusion"), "stable_key": e.get("stable_key")}
+                for e in excluded
+            ],
+        }
+        report["excluded_rows"] = excluded
+        _save(REPORT_JSON, report)
+        _save(REPORT_TXT, format_report(report))
+        _save(ROWS_JSON, {"build": BUILD, "run_id": run_id, "mode": "new_20", "rows": valid[:target_valid], "excluded": excluded, "updated_at": now_utc().isoformat()})
+        write_status(phase="DONE", percent=100, completed=target_valid, STATUS=report.get("STATUS"), run_id=run_id, iteration=iteration, valid_counted=target_valid, excluded_counted=len(excluded))
+        return report
+
+    # Need replacements
+    store = load_store()
+    store_by_cid = {str(r.get("canonical_opportunity_id") or k): r for k, r in store.items() if isinstance(r, dict)}
+    seen_sk = {str(r.get("stable_key") or "") for r in valid + excluded}
+    same = set(SAME_13_STABLE_KEYS)
+    ckpt = _load(DOWNSTREAM_CHECKPOINT)
+    rows = [r for r in (ckpt.get("rows") or []) if isinstance(r, dict)]
+    product_rows = [r for r in rows if r.get("classification") in PRODUCT_CLASSES]
+    for cid, sr in store_by_cid.items():
+        if not isinstance(sr, dict):
+            continue
+        title = str(sr.get("title") or "")
+        if exclusion_reason(title):
+            continue
+        sk = str(sr.get("stable_key") or cid)
+        if sk in seen_sk or sk in same:
+            continue
+        product_rows.append(
+            {
+                "canonical_opportunity_id": cid,
+                "stable_key": sk,
+                "title": title,
+                "buyer": sr.get("buyer"),
+                "classification": sr.get("classification") if sr.get("classification") in PRODUCT_CLASSES else "PRODUCT",
+                "deadline": sr.get("deadline"),
+                "attachments_metadata": sr.get("attachments_metadata") or [],
+            }
+        )
+        if len(product_rows) >= target_valid * 12:
+            break
+
+    pool, _ = select_schedule_backed_candidates(product_rows, store_by_cid, limit=target_valid * 4)
+    pool = [c for c in pool if str(c.get("stable_key") or "") not in seen_sk and str(c.get("stable_key") or "") not in same]
+
+    from bidnet_auth.client import BidNetAuthenticatedClient
+
+    client = BidNetAuthenticatedClient()
+    auth = client.ensure_authenticated()
+    if not auth.authenticated:
+        client.close()
+        raise RuntimeError(f"BidNet auth required: {auth.status} {auth.message}")
+
+    source_exhausted = False
+    for item in pool:
+        if len(valid) >= target_valid:
+            break
+        title = str(item.get("title") or "")
+        pre = assess_product_dominance_for_new20(title=title)
+        if not pre.get("counts_toward_new20"):
+            excluded.append(
+                {
+                    **item,
+                    "exclusion": pre.get("exclusion"),
+                    "counts_toward_new20": False,
+                    "new20_dominance": pre,
+                    "recovery_cohort": "new_20",
+                }
+            )
+            write_status(
+                phase="NEW20_RECONCILE_HEARTBEAT",
+                completed=len(valid),
+                remaining=max(0, target_valid - len(valid)),
+                percent=int(100 * len(valid) / target_valid),
+                run_id=run_id,
+                iteration=iteration,
+                last_title=title[:120],
+                last_exclusion=pre.get("exclusion"),
+                valid_counted=len(valid),
+                excluded_counted=len(excluded),
+                heartbeat_at=now_utc().isoformat(),
+                replaced=True,
+            )
+            continue
+        cid = str(item.get("canonical_opportunity_id") or "")
+        store_row = store_by_cid.get(cid) or {}
+        write_status(
+            phase="NEW20_RECONCILE_OPP",
+            completed=len(valid),
+            remaining=max(0, target_valid - len(valid)),
+            percent=int(100 * len(valid) / target_valid),
+            run_id=run_id,
+            iteration=iteration,
+            current_title=title[:120],
+            valid_counted=len(valid),
+            excluded_counted=len(excluded),
+            heartbeat_at=now_utc().isoformat(),
+        )
+        try:
+            r = process_money_opportunity(
+                item, store_row, client=client, store=store_by_cid, price_budget=price_budget
+            )
+        except Exception as exc:
+            r = {
+                "canonical_opportunity_id": cid,
+                "stable_key": item.get("stable_key"),
+                "title": title,
+                "raw_lines": 0,
+                "material_lines": 0,
+                "usable_ae": 0,
+                "public_prices": 0,
+                "package_materialization": {
+                    "primary_blocker": "OPP_ERROR",
+                    "operator_product_status": f"{type(exc).__name__}",
+                    "product_classification": "PARSER_DEFECT_REMAINS",
+                    "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                },
+            }
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        post = assess_product_dominance_for_new20(
+            title=str(r.get("title") or title),
+            product_classification=str(pm.get("product_classification") or ""),
+            extracted_lines=int(r.get("raw_lines") or 0),
+            operator_status=str(pm.get("operator_product_status") or ""),
+        )
+        r["live_bidnet"] = True
+        r["recovery_cohort"] = "new_20"
+        r["schedule_recovery_iteration"] = iteration
+        r["new20_dominance"] = post
+        r["counts_toward_new20"] = bool(post.get("counts_toward_new20"))
+        r["exclusion"] = post.get("exclusion")
+        if r["counts_toward_new20"]:
+            valid.append(r)
+        else:
+            excluded.append(r)
+        write_status(
+            phase="NEW20_RECONCILE_HEARTBEAT",
+            completed=len(valid),
+            remaining=max(0, target_valid - len(valid)),
+            percent=int(100 * len(valid) / target_valid),
+            run_id=run_id,
+            iteration=iteration,
+            last_title=str(r.get("title") or "")[:120],
+            last_exclusion=r.get("exclusion"),
+            valid_counted=len(valid),
+            excluded_counted=len(excluded),
+            heartbeat_at=now_utc().isoformat(),
+        )
+        if on_progress:
+            try:
+                on_progress(phase="NEW20_RECONCILE", pct=int(100 * len(valid) / target_valid), completed=len(valid))
+            except Exception:
+                pass
+    else:
+        if len(valid) < target_valid:
+            source_exhausted = True
+
+    client.close()
+    report = _build_report(
+        valid[:target_valid],
+        mode="new_20",
+        run_id=run_id,
+        started=started,
+        before=None,
+        iteration=iteration,
+        change_made="new20 reconcile — replace EXCLUDED_INSTALL/SERVICE with product-dominant",
+    )
+    report["new20_acceptance"] = {
+        "target_valid": target_valid,
+        "valid_counted": len(valid),
+        "excluded_counted": len(excluded),
+        "source_exhausted": source_exhausted,
+        "reconcile": True,
+        "jefferson": JEFFERSON_JEF_ATCT_MEL,
+        "excluded_titles": [
+            {"title": e.get("title"), "exclusion": e.get("exclusion"), "stable_key": e.get("stable_key")}
+            for e in excluded
+        ],
+    }
+    report["excluded_rows"] = excluded
+    if source_exhausted and len(valid) < target_valid:
+        report["STATUS"] = "FAIL_SOURCE_EXHAUSTED"
+    _save(REPORT_JSON, report)
+    _save(REPORT_TXT, format_report(report))
+    _save(
+        ROWS_JSON,
+        {
+            "build": BUILD,
+            "run_id": run_id,
+            "mode": "new_20",
+            "rows": valid[:target_valid],
+            "excluded": excluded,
+            "updated_at": now_utc().isoformat(),
+        },
+    )
+    write_status(
+        phase="DONE",
+        percent=100,
+        completed=len(valid),
+        STATUS=report.get("STATUS"),
+        run_id=run_id,
+        iteration=iteration,
+        valid_counted=len(valid),
+        excluded_counted=len(excluded),
+        source_exhausted=source_exhausted,
+        jefferson_exclusion="EXCLUDED_INSTALL",
+    )
+    return report

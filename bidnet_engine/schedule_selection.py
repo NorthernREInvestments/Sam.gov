@@ -32,15 +32,40 @@ _EXCLUDE_REASON = [
     ("ROOF", re.compile(r"\b(roof(?:ing|er)?|re-?roof)\b", re.I)),
     ("REPAIR", re.compile(r"\b(repair(?:s|ing)?|service\s+and\s+repair)\b", re.I)),
     ("MAINTENANCE", re.compile(r"\b(maintenance|preventive\s+maintenance)\b", re.I)),
-    ("INSTALL", re.compile(r"\b(install(?:ation|ing)?)\b", re.I)),
+    # Installation as primary scope (not "supply only" / incidental install)
+    (
+        "INSTALL",
+        re.compile(
+            r"(?:"
+            r"\binstall(?:ation|ing)?\b|"
+            r"\bupfitting\b|"
+            r"minimum\s+equipment\s+list\s+installation|"
+            r"\bMEL\s+installation\b"
+            r")",
+            re.I,
+        ),
+    ),
     ("CONSTRUCTION", re.compile(r"\b(construction|excavation|paving|demolition)\b", re.I)),
     ("CATALOG_DISCOUNT", re.compile(r"\b(catalog\s+discount|percentage[- ]off|percent\s+off\s+list)\b", re.I)),
     ("SERVICE", re.compile(
-        r"\b(janitorial\s+service|custodial|landscap|rental|inspection|calibration|"
-        r"consulting|training|engineering\s+service|groundskeeping)\b",
+        r"\b("
+        r"janitorial\s+service|custodial|landscap|rental|inspection|calibration|"
+        r"consulting|training|engineering\s+service|groundskeeping|"
+        r"veterinary\s+services?|professional\s+services?|"
+        r"services?\s+including|service\s+contract|"
+        r"and\s+services|on[\-\s]?call\s+services?|"
+        r"parts,?\s+and\s+services"
+        r")\b",
         re.I,
     )),
 ]
+
+# Supply-dominant overrides: install/service words may appear but tangible supply is primary
+_SUPPLY_DOMINANT = re.compile(
+    r"\b(supply\s+only|commodit(?:y|ies)|parts?\s+only|equipment\s+only|"
+    r"purchase\s+of\s+(?:equipment|supplies|materials)|furnish(?:\s+only)?)\b",
+    re.I,
+)
 
 _SCHEDULE_NAME = re.compile(
     r"\b("
@@ -88,12 +113,67 @@ def _doc_blob(row: dict[str, Any], store_row: dict[str, Any] | None = None) -> s
 
 def exclusion_reason(title: str, blob: str = "") -> str | None:
     text = f"{title}\n{blob}"
+    # Tangible-supply-primary titles may mention incidental install — allow through
+    supply_dominant = bool(_SUPPLY_DOMINANT.search(title or ""))
     for label, rx in _EXCLUDE_REASON:
-        if rx.search(text):
-            return label
-    if _HARD_EXCLUDE.search(title or ""):
+        if not rx.search(text):
+            continue
+        if supply_dominant and label in {"INSTALL", "SERVICE"}:
+            continue
+        return label
+    if _HARD_EXCLUDE.search(title or "") and not supply_dominant:
         return "SERVICE"
     return None
+
+
+def assess_product_dominance_for_new20(
+    *,
+    title: str,
+    product_classification: str | None = None,
+    extracted_lines: int = 0,
+    operator_status: str = "",
+) -> dict[str, Any]:
+    """Post-selection / post-inspection gate for NEW-20 acceptance counting."""
+    title = title or ""
+    clf = str(product_classification or "")
+    excl = exclusion_reason(title)
+    if excl == "INSTALL":
+        return {
+            "counts_toward_new20": False,
+            "exclusion": "EXCLUDED_INSTALL",
+            "primary_requirement": "INSTALLATION_OR_SERVICE",
+            "reason": "Title/scope is installation-dominant, not product-resale supply.",
+        }
+    if excl in {"SERVICE", "REPAIR", "MAINTENANCE", "CONSTRUCTION", "ROOF"}:
+        return {
+            "counts_toward_new20": False,
+            "exclusion": f"EXCLUDED_{excl}",
+            "primary_requirement": "SERVICE_OR_NON_PRODUCT",
+            "reason": f"Title/scope is {excl.lower()}-dominant, not tangible product resale.",
+        }
+    if excl == "CATALOG_DISCOUNT" or clf == "CATALOG_DISCOUNT_ONLY":
+        return {
+            "counts_toward_new20": False,
+            "exclusion": "EXCLUDED_CATALOG_DISCOUNT",
+            "primary_requirement": "CATALOG_DISCOUNT",
+            "reason": "Catalog-discount / percentage-off scope — not itemized product demand.",
+        }
+    if clf == "NO_PRODUCT_LINES_ACTUALLY_PRESENT":
+        low = (operator_status or "").lower()
+        if any(x in low for x in ("service", "grant", "administration", "labor")):
+            return {
+                "counts_toward_new20": False,
+                "exclusion": "EXCLUDED_SERVICE",
+                "primary_requirement": "SERVICE_OR_NON_PRODUCT",
+                "reason": "Document inspection found no itemized product requirement.",
+            }
+    return {
+        "counts_toward_new20": True,
+        "exclusion": None,
+        "primary_requirement": "PRODUCT_SUPPLY",
+        "reason": "Product-dominant / eligible for NEW-20 acceptance set.",
+        "extracted_lines": int(extracted_lines or 0),
+    }
 
 
 def detect_schedule_evidence(blob: str, *, docs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
