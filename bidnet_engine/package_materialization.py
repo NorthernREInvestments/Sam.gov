@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v3-private-title-search-discovery"
+PATCH = "s20-v4-statewide-id-namespace-fix"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -27,6 +27,20 @@ _PRIVATE_VIEW = re.compile(
     r"/private/supplier/solicitations/(?P<id>\d{6,})",
     re.I,
 )
+_STATEWIDE_ID = re.compile(
+    r"/solicitations/statewide/(?P<id>\d{6,})",
+    re.I,
+)
+
+
+def is_statewide_bidnet_url(url: str) -> bool:
+    u = (url or "").lower()
+    return "bidnet" in u and "/statewide/" in u
+
+
+def extract_statewide_id(url: str) -> str | None:
+    m = _STATEWIDE_ID.search(url or "")
+    return m.group("id") if m else None
 
 
 def is_bidnet_detail_page_url(url: str) -> bool:
@@ -38,6 +52,7 @@ def is_bidnet_detail_page_url(url: str) -> bool:
     return bool(
         "/open-bids/" in u
         or "/private/supplier/solicitations/" in u
+        or "/statewide/" in u
         or re.search(r"/solicitations/\d{6,}", u)
     )
 
@@ -49,15 +64,23 @@ def resolve_bidnet_private_detail_url(url: str) -> str | None:
 
 
 def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
-    """Candidate private detail URLs (with/without leading zeros, /view and /abstract)."""
+    """Candidate private detail URLs (with/without leading zeros, /view and /abstract).
+
+    Statewide abstract IDs live in a different namespace than private solicitation
+    IDs — never synthesize /private/.../{statewide_id}/view from them.
+    """
     if not url or not url.startswith("http") or "bidnet" not in url.lower():
+        return []
+    # Statewide IDs ≠ private solicitation IDs
+    if is_statewide_bidnet_url(url):
         return []
     sid: str | None = None
     m = _PRIVATE_VIEW.search(url) or _OPEN_BIDS_ID.search(url)
     if m:
         sid = m.group("id")
     else:
-        m2 = re.search(r"/(\d{6,})(?:/abstract|/view)?(?:\?|$)", url)
+        # Avoid bare statewide-style long IDs already handled above
+        m2 = re.search(r"/solicitations/(?!statewide/)(\d{6,})(?:/abstract|/view)?(?:\?|$)", url)
         if m2:
             sid = m2.group(1)
     if not sid:
@@ -68,11 +91,54 @@ def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
         ids.append(stripped)
     out: list[str] = []
     for i in ids:
-        for suffix in ("view", "abstract"):
+        for suffix in ("view", "abstract", "documents"):
             u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{i}/{suffix}"
             if u not in out:
                 out.append(u)
     return out
+
+
+def extract_private_solicitation_refs_from_html(html: str | bytes, *, base_url: str = "") -> list[str]:
+    """Pull real private/open-bids solicitation URLs out of authenticated HTML/JSON text."""
+    if isinstance(html, bytes):
+        text = html.decode("utf-8", errors="ignore")
+    else:
+        text = html or ""
+    if not text:
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+    patterns = [
+        r"https?://[^\"'\s]*bidnetdirect\.com/private/supplier/solicitations/\d{6,}(?:/(?:view|abstract|documents))?",
+        r"/private/supplier/solicitations/(\d{6,})(?:/(?:view|abstract|documents))?",
+        r"/[a-z\-]+/solicitations/open-bids/[^\"'\s]+/(\d{6,})",
+        r"[\"']solicitationId[\"']\s*:\s*[\"']?(\d{6,})",
+        r"[\"']solicitation(?:Number|No)?[\"']\s*:\s*[\"']?(\d{6,})",
+    ]
+    for pat in patterns:
+        for m in re.finditer(pat, text, re.I):
+            g = m.group(0)
+            if g.startswith("http"):
+                u = g.split("?")[0].rstrip("\"'")
+            elif g.startswith("/"):
+                sid_m = re.search(r"(\d{6,})", g)
+                if not sid_m:
+                    continue
+                if "/open-bids/" in g:
+                    from urllib.parse import urljoin
+
+                    u = urljoin(base_url or "https://www.bidnetdirect.com/", g.split("?")[0])
+                else:
+                    u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid_m.group(1)}/view"
+            else:
+                sid = m.group(1) if m.lastindex else None
+                if not sid:
+                    continue
+                u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
+            if u not in seen:
+                seen.add(u)
+                found.append(u)
+    return found[:20]
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
@@ -665,23 +731,39 @@ def materialize_attachments(
                 pass
 
     # If still no valid binaries, DOM-scrape BidNet private detail for real attachment hrefs
+    discovery_meta: dict[str, Any] = {
+        "statewide": False,
+        "statewide_id": None,
+        "resolved_private": [],
+        "title_queries": [],
+        "page_docs": 0,
+        "route": None,
+    }
     if valid == 0 and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
+        statewide_seeds: list[str] = []
         if seed_detail.startswith("http"):
-            detail_candidates.extend(resolve_bidnet_private_detail_url_candidates(seed_detail) or [])
+            if is_statewide_bidnet_url(seed_detail):
+                statewide_seeds.append(seed_detail)
+            else:
+                detail_candidates.extend(resolve_bidnet_private_detail_url_candidates(seed_detail) or [])
             detail_candidates.append(seed_detail)
         for e in index:
             u = str(e.get("source_url") or "")
-            if u.startswith("http") and "bidnet" in u.lower():
+            if not (u.startswith("http") and "bidnet" in u.lower()):
+                continue
+            if is_statewide_bidnet_url(u):
+                statewide_seeds.append(u)
+            else:
                 detail_candidates.extend(resolve_bidnet_private_detail_url_candidates(u) or [])
-                if is_bidnet_detail_page_url(u):
-                    detail_candidates.append(u)
-        # Prefer private /view first
+            if is_bidnet_detail_page_url(u):
+                detail_candidates.append(u)
+        # Prefer private /view first (never synthetic statewide→private)
         detail_url = ""
         seen_d: set[str] = set()
         uniq_details: list[str] = []
         for u in detail_candidates:
-            if u and u not in seen_d:
+            if u and u not in seen_d and not is_statewide_bidnet_url(u):
                 seen_d.add(u)
                 uniq_details.append(u)
         for u in uniq_details:
@@ -690,38 +772,76 @@ def materialize_attachments(
                 break
         if not detail_url and uniq_details:
             detail_url = uniq_details[0]
-        if detail_url or opp_title:
+        sw_id = None
+        for su in statewide_seeds:
+            sw_id = extract_statewide_id(su)
+            if sw_id:
+                break
+        discovery_meta["statewide"] = bool(statewide_seeds)
+        discovery_meta["statewide_id"] = sw_id
+        if detail_url or opp_title or statewide_seeds:
             try:
-                page_docs = []
-                if detail_url:
+                page_docs: list[dict[str, Any]] = []
+                # 1) Statewide abstract → scrape real private/open-bids solicitation id
+                if not page_docs and statewide_seeds and hasattr(client, "discover_attachments_from_statewide"):
+                    for su in statewide_seeds[:2]:
+                        page_docs = (
+                            client.discover_attachments_from_statewide(
+                                su, title=opp_title, statewide_id=sw_id
+                            )
+                            or []
+                        )
+                        if page_docs:
+                            discovery_meta["route"] = "statewide_resolve"
+                            break
+                # 2) Known private/open-bids detail
+                if not page_docs and detail_url:
                     page_docs = client.discover_attachment_links(detail_url) or []
-                # Statewide/public abstracts often bounce to Welcome — search by title
-                if not page_docs and opp_title and hasattr(client, "discover_attachments_by_title"):
-                    page_docs = client.discover_attachments_by_title(opp_title) or []
-                # If HTML walls were harvested, also parse solicitation id from diag HTML
+                    if page_docs:
+                        discovery_meta["route"] = "private_detail"
+                # 3) Keyword / title search (statewide ID is often indexed)
+                search_queries: list[str] = []
+                if sw_id:
+                    search_queries.append(sw_id)
+                if opp_title and len(opp_title.strip()) >= 8:
+                    search_queries.append(opp_title.strip()[:120])
+                    # Distinctive short query from title tokens
+                    toks = [t for t in re.split(r"\W+", opp_title) if len(t) >= 4]
+                    if len(toks) >= 3:
+                        search_queries.append(" ".join(toks[:5]))
+                discovery_meta["title_queries"] = search_queries
+                if not page_docs and search_queries and hasattr(client, "discover_attachments_by_title"):
+                    for q in search_queries:
+                        page_docs = client.discover_attachments_by_title(q) or []
+                        if page_docs:
+                            discovery_meta["route"] = f"title_search:{q[:40]}"
+                            break
+                # 4) Parse HTML walls for embedded private solicitation ids
                 if not page_docs:
                     for e in list(invalid)[:6]:
                         u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
                         if "bidnet" not in u.lower():
                             continue
-                        # Re-fetch HTML and look for private solicitation id
                         try:
-                            html_b = client.download_bytes(u, timeout_ms=45_000) if hasattr(client, "download_bytes") else None
+                            html_b = (
+                                client.download_bytes(u, timeout_ms=45_000)
+                                if hasattr(client, "download_bytes")
+                                else None
+                            )
                         except Exception:
                             html_b = None
                         if not html_b or not looks_like_html_bytes(html_b):
                             continue
-                        text = html_b.decode("utf-8", errors="ignore")
-                        m = re.search(
-                            r"/private/supplier/solicitations/(\d{6,})/(?:view|abstract|documents)",
-                            text,
-                            re.I,
-                        )
-                        if m:
-                            priv = f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}/view"
+                        refs = extract_private_solicitation_refs_from_html(html_b, base_url=u)
+                        discovery_meta["resolved_private"] = refs[:5]
+                        for priv in refs[:3]:
                             page_docs = client.discover_attachment_links(priv) or []
                             if page_docs:
+                                discovery_meta["route"] = "html_ref"
                                 break
+                        if page_docs:
+                            break
+                discovery_meta["page_docs"] = len(page_docs or [])
                 added = _enqueue_docs(page_docs, counter="page")
                 # Continue download loop for newly discovered links
                 if added:
@@ -735,6 +855,8 @@ def materialize_attachments(
                         raw = entry.get("_raw") if isinstance(entry.get("_raw"), dict) else {}
                         url = str(entry.get("source_url") or "")
                         if not url.startswith("http") or url in already_ok:
+                            continue
+                        if is_bidnet_detail_page_url(url):
                             continue
                         try:
                             body = client.download_bytes(url, timeout_ms=60_000)
@@ -767,8 +889,8 @@ def materialize_attachments(
                             invalid.append({**entry, "failure": reason})
                             if body and looks_like_html_bytes(body):
                                 _enqueue_harvested(body, url)
-            except Exception:
-                pass
+            except Exception as exc:
+                discovery_meta["error"] = f"{type(exc).__name__}:{exc}"[:160]
 
     # BidNet membership / portal wall / empty downloads → chase free public package documents
     bidnet_wall = any(
@@ -1070,6 +1192,7 @@ def materialize_attachments(
         "HARVESTED_FROM_HTML": harvested_extra,
         "PAGE_DISCOVERED_ATTACHMENTS": page_discovered,
         "FREE_CHASE": free_chase_meta,
+        "DISCOVERY": discovery_meta,
         "PACKAGE_DOCUMENT_COUNT_EXPECTED": expected,
         "PACKAGE_DOCUMENT_COUNT_DISCOVERED": discovered,
         "PACKAGE_DOCUMENT_COUNT_DOWNLOADED": downloaded,

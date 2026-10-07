@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bidnet_engine.package_materialization import (
     BUILD,
+    PATCH,
     PACKAGE_DOCUMENTS_COMPLETE,
     PACKAGE_DOCUMENTS_PARTIAL,
     build_attachment_index,
@@ -24,7 +25,8 @@ from bidnet_engine.package_materialization import (
 
 
 def test_build():
-    assert BUILD == "20261007-m3-authoritative-schedule-recovery-v1"
+    assert BUILD == "20261007-m3-same20-full-pipeline-recovery-v1"
+    assert "statewide" in PATCH
 
 
 def test_detail_html_only_not_complete():
@@ -103,6 +105,31 @@ def test_resolve_open_bids_to_private_view():
     cands = resolve_bidnet_private_detail_url_candidates(pub)
     assert "https://www.bidnetdirect.com/private/supplier/solicitations/437119/view" in cands
     assert any(u.endswith("/abstract") for u in cands)
+
+
+def test_statewide_id_not_mapped_to_private_solicitation():
+    """Statewide abstract IDs are a different namespace — never invent private /view URLs."""
+    from bidnet_engine.package_materialization import (
+        extract_private_solicitation_refs_from_html,
+        extract_statewide_id,
+        is_statewide_bidnet_url,
+        resolve_bidnet_private_detail_url_candidates,
+    )
+
+    sw = (
+        "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/"
+        "444176688887/abstract?purchasingGroupId=88021351&origin=1"
+    )
+    assert is_statewide_bidnet_url(sw)
+    assert extract_statewide_id(sw) == "444176688887"
+    assert resolve_bidnet_private_detail_url_candidates(sw) == []
+    html = """
+    <a href="/private/supplier/solicitations/438277/view">View</a>
+    {"solicitationId":"0000438277"}
+    """
+    refs = extract_private_solicitation_refs_from_html(html, base_url=sw)
+    assert any("438277" in r for r in refs)
+    assert any("0000438277" in r for r in refs)
 
 
 def test_html_viewer_harvests_pdf_links():

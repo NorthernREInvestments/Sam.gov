@@ -454,32 +454,59 @@ class BidNetAuthenticatedClient:
         *,
         timeout_ms: int = 75_000,
     ) -> list[dict[str, Any]]:
-        """When detail URL variants 404/Welcome, search private BidNet by title then scrape docs."""
+        """When detail URL variants 404/Welcome, search private BidNet by title/id then scrape docs."""
         if not self.is_authenticated or self._page is None:
             return []
         q = (title or "").strip()
-        if len(q) < 8:
+        # Numeric statewide/solicitation ids are short but highly selective
+        if len(q) < 6 and not re.fullmatch(r"\d{6,}", q):
             return []
-        # Trim noisy suffixes for search
         q = re.sub(r"\s+", " ", q)[:120]
+        from urllib.parse import quote, urljoin
+
         search_urls = [
+            f"https://www.bidnetdirect.com/private/supplier/solicitations/search?keywords={quote(q)}",
+            f"https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init&keywords={quote(q)}",
             "https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init",
             "https://www.bidnetdirect.com/private/supplier/solicitations/open-bids",
         ]
         try:
             for su in search_urls:
                 try:
-                    self.fetch_html(su, timeout_ms=timeout_ms)
+                    html, payloads = self.navigate_and_collect_json(su, timeout_ms=timeout_ms)
                 except Exception:
-                    continue
-                # Fill search box if present
+                    try:
+                        html = self.fetch_html(su, timeout_ms=timeout_ms)
+                        payloads = []
+                    except Exception:
+                        continue
+                # Resolve solicitation ids from captured JSON first
+                for payload in payloads or []:
+                    try:
+                        blob = str(payload) if not isinstance(payload, str) else payload
+                        ids = re.findall(
+                            r"[\"'](?:solicitationId|id)[\"']\s*:\s*[\"']?(\d{6,})",
+                            blob,
+                            re.I,
+                        )
+                        for sid in ids[:5]:
+                            priv = f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
+                            docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
+                            if docs:
+                                return docs
+                    except Exception:
+                        continue
+                # Fill search box when URL keywords alone didn't land results
                 filled = False
                 for sel in (
                     "input[type='search']",
                     "input[name*='search' i]",
+                    "input[name*='keyword' i]",
                     "input[id*='search' i]",
+                    "input[id*='keyword' i]",
                     "input[placeholder*='Search' i]",
                     "input[placeholder*='Keyword' i]",
+                    "textarea[name*='search' i]",
                 ):
                     try:
                         loc = self._page.locator(sel)
@@ -488,37 +515,150 @@ class BidNetAuthenticatedClient:
                         box = loc.first
                         box.fill(q, timeout=3_000)
                         box.press("Enter")
-                        self._page.wait_for_timeout(1_500)
+                        self._page.wait_for_timeout(2_000)
                         filled = True
                         break
                     except Exception:
                         continue
-                if not filled:
+                if not filled and "keywords=" not in su:
                     continue
-                # Click first result that looks like a solicitation
+                # Prefer private solicitation links; fall back to open-bids
                 try:
-                    links = self._page.locator("a[href*='/solicitations/']").all()
-                    for a in links[:20]:
+                    links = self._page.locator(
+                        "a[href*='/private/supplier/solicitations/'], "
+                        "a[href*='/solicitations/open-bids/'], "
+                        "a[href*='/solicitations/']"
+                    ).all()
+                    tokens = [t for t in re.split(r"\W+", q.lower()) if len(t) >= 4][:8]
+                    numeric = bool(re.fullmatch(r"\d{6,}", q))
+                    ranked: list[tuple[int, str]] = []
+                    for a in links[:40]:
                         try:
                             href = a.get_attribute("href") or ""
                             text = (a.inner_text() or "").strip()
                             if not href or "/search" in href.lower():
                                 continue
-                            # Prefer title token overlap
-                            tokens = [t for t in re.split(r"\W+", q.lower()) if len(t) >= 4][:6]
                             hay = (text + " " + href).lower()
-                            if tokens and sum(1 for t in tokens if t in hay) < max(2, len(tokens) // 3):
+                            if numeric:
+                                score = 10 if q in hay else 0
+                            else:
+                                score = sum(1 for t in tokens if t in hay)
+                                if tokens and score < max(1, min(2, len(tokens) // 3)):
+                                    continue
+                            if "/private/supplier/solicitations/" in href:
+                                score += 5
+                            if score <= 0:
                                 continue
-                            from urllib.parse import urljoin
-
-                            abs_u = urljoin(self._page.url or su, href)
-                            return self.discover_attachment_links(abs_u, timeout_ms=timeout_ms)
+                            ranked.append((score, urljoin(self._page.url or su, href)))
                         except Exception:
                             continue
+                    ranked.sort(key=lambda x: -x[0])
+                    for _score, abs_u in ranked[:6]:
+                        docs = self.discover_attachment_links(abs_u, timeout_ms=timeout_ms)
+                        if docs:
+                            return docs
                 except Exception:
                     continue
+                # Last resort: scrape current HTML for private ids
+                try:
+                    from bidnet_engine.package_materialization import (
+                        extract_private_solicitation_refs_from_html,
+                    )
+
+                    refs = extract_private_solicitation_refs_from_html(
+                        html or (self._page.content() or ""), base_url=self._page.url or su
+                    )
+                    for priv in refs[:4]:
+                        docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
+                        if docs:
+                            return docs
+                except Exception:
+                    pass
         except Exception as exc:
             log.info("discover_attachments_by_title failed: %s", type(exc).__name__)
+        return []
+
+    def discover_attachments_from_statewide(
+        self,
+        statewide_url: str,
+        *,
+        title: str | None = None,
+        statewide_id: str | None = None,
+        timeout_ms: int = 75_000,
+    ) -> list[dict[str, Any]]:
+        """Resolve statewide abstract → private solicitation → attachment hrefs.
+
+        Statewide IDs are a different namespace from private solicitation IDs; never
+        invent /private/.../{statewide_id}/view.
+        """
+        if not self.is_authenticated or self._page is None or not statewide_url:
+            return []
+        from bidnet_engine.package_materialization import (
+            extract_private_solicitation_refs_from_html,
+            extract_statewide_id,
+        )
+
+        sw = statewide_id or extract_statewide_id(statewide_url)
+        try:
+            html, payloads = self.navigate_and_collect_json(statewide_url, timeout_ms=timeout_ms)
+        except Exception:
+            try:
+                html = self.fetch_html(statewide_url, timeout_ms=timeout_ms)
+                payloads = []
+            except Exception:
+                html, payloads = "", []
+
+        # Click through common "View solicitation" / "Go to bid" CTAs
+        for label in (
+            r"View\s*(Solicitation|Bid|Opportunity)",
+            r"Go\s*to\s*(Solicitation|Bid)",
+            r"Open\s*(Solicitation|Bid)",
+            r"Documents",
+            r"Attachments",
+        ):
+            try:
+                loc = self._page.get_by_role("link", name=re.compile(label, re.I))
+                if loc.count() > 0:
+                    loc.first.click(timeout=3_000)
+                    self._page.wait_for_timeout(1_200)
+                    html = self._page.content() or html
+                    break
+            except Exception:
+                pass
+
+        refs: list[str] = []
+        try:
+            refs.extend(extract_private_solicitation_refs_from_html(html or "", base_url=statewide_url))
+        except Exception:
+            pass
+        for payload in payloads or []:
+            try:
+                blob = str(payload)
+                refs.extend(extract_private_solicitation_refs_from_html(blob, base_url=statewide_url))
+            except Exception:
+                continue
+        # Dedupe
+        seen: set[str] = set()
+        uniq_refs: list[str] = []
+        for r in refs:
+            if r and r not in seen and "/statewide/" not in r.lower():
+                seen.add(r)
+                uniq_refs.append(r)
+        for priv in uniq_refs[:6]:
+            docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
+            if docs:
+                return docs
+
+        # Keyword search: statewide id first (often indexed), then title
+        queries: list[str] = []
+        if sw:
+            queries.append(sw)
+        if title and len(str(title).strip()) >= 8:
+            queries.append(str(title).strip()[:120])
+        for q in queries:
+            docs = self.discover_attachments_by_title(q, timeout_ms=timeout_ms)
+            if docs:
+                return docs
         return []
 
     def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:

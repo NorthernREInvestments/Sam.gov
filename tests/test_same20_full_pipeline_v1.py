@@ -69,3 +69,16 @@ def test_enrich_result_plain_blocker_and_decision():
 
 def test_build_id():
     assert BUILD == "20261007-m3-same20-full-pipeline-recovery-v1"
+
+
+def test_statewide_namespace_guard_in_materialization():
+    from bidnet_engine.package_materialization import (
+        PATCH,
+        is_statewide_bidnet_url,
+        resolve_bidnet_private_detail_url_candidates,
+    )
+
+    assert "statewide" in PATCH
+    sw = "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444169970078/abstract"
+    assert is_statewide_bidnet_url(sw)
+    assert resolve_bidnet_private_detail_url_candidates(sw) == []
