@@ -78,7 +78,7 @@ def test_statewide_namespace_guard_in_materialization():
         resolve_bidnet_private_detail_url_candidates,
     )
 
-    assert "playwright-same-thread" in PATCH or "statewide" in PATCH
+    assert any(x in PATCH for x in ("playwright-same-thread", "statewide", "intercept-download"))
     sw = "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444169970078/abstract"
     assert is_statewide_bidnet_url(sw)
     assert resolve_bidnet_private_detail_url_candidates(sw) == []

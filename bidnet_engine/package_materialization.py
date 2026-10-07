@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v5-playwright-same-thread-discovery"
+PATCH = "s20-v6-intercept-download-and-doc-tab-capture"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -43,9 +43,28 @@ def extract_statewide_id(url: str) -> str | None:
     return m.group("id") if m else None
 
 
+def is_bidnet_download_endpoint(url: str) -> bool:
+    """True for BidNet URLs that emit binaries (intercept/getFile/download), not HTML viewers."""
+    u = (url or "").lower()
+    if "bidnet" not in u:
+        return False
+    return bool(
+        "/download/intercept" in u
+        or "/abstract/download" in u
+        or "/download?" in u
+        or "getfile" in u
+        or "fileid=" in u
+        or "docid=" in u
+        or re.search(r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)", u)
+    )
+
+
 def is_bidnet_detail_page_url(url: str) -> bool:
     u = (url or "").lower()
     if "bidnetdirect.com" not in u and "bidnet.com" not in u:
+        return False
+    # Intercept / getFile endpoints are downloadable binaries — never treat as detail HTML
+    if is_bidnet_download_endpoint(u):
         return False
     if re.search(r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)", u):
         return False
@@ -853,6 +872,22 @@ def materialize_attachments(
                         entry = index[i]
                         i += 1
                         raw = entry.get("_raw") if isinstance(entry.get("_raw"), dict) else {}
+                        # Browser click-download may already have a validated local file
+                        path_s = entry.get("local_path") or raw.get("local_path")
+                        if path_s and Path(str(path_s)).exists():
+                            v = validate_local_file(path_s, claimed_ext=entry.get("extension"))
+                            if v.get("DOCUMENT_CONTENT_VALID"):
+                                entry["LOCAL_PATH"] = str(path_s)
+                                entry["CONTENT_HASH"] = v.get("content_hash")
+                                entry["BYTE_SIZE"] = v.get("byte_size")
+                                entry["DOCUMENT_CONTENT_VALID"] = True
+                                entry["retrieval_status"] = "BROWSER_DOWNLOAD"
+                                entry["SOURCE_URL"] = entry.get("source_url") or str(path_s)
+                                valid += 1
+                                downloaded += 1
+                                materialized.append(entry)
+                                already_ok.add(str(entry.get("source_url") or path_s))
+                                continue
                         url = str(entry.get("source_url") or "")
                         if not url.startswith("http") or url in already_ok:
                             continue

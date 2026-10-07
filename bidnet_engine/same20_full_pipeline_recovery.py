@@ -760,6 +760,7 @@ def run_same20_full_pipeline(
                 "opportunity": r.get("stable_key"),
                 "title": r.get("title"),
                 "buyer": r.get("buyer"),
+                "discovery": ((r.get("package_materialization") or {}).get("DISCOVERY") or {}),
                 "documents_acquired": (r.get("package_materialization") or {}).get(
                     "PACKAGE_DOCUMENT_COUNT_MATERIALIZED"
                 ),

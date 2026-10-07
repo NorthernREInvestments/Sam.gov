@@ -295,6 +295,8 @@ class BidNetAuthenticatedClient:
         """DOM-scrape BidNet detail/documents UI for real attachment hrefs (not viewer HTML)."""
         if not self.is_authenticated or self._page is None or not detail_url:
             return []
+        from pathlib import Path
+
         found: list[dict[str, Any]] = []
         seen: set[str] = set()
         candidates: list[str] = []
@@ -306,11 +308,53 @@ class BidNetAuthenticatedClient:
             candidates = resolve_bidnet_private_detail_url_candidates(detail_url)
         except Exception:
             candidates = []
+        # Prefer /documents when we already know the private solicitation id
+        extra: list[str] = []
+        for u in list(candidates):
+            m = re.search(r"/private/supplier/solicitations/(\d{6,})", u)
+            if m:
+                base = f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}"
+                for suf in ("documents", "view", "abstract"):
+                    cu = f"{base}/{suf}"
+                    if cu not in candidates and cu not in extra:
+                        extra.append(cu)
+        candidates = extra + candidates
         if detail_url and detail_url not in candidates:
             candidates.append(detail_url)
 
         landed = False
+        network_urls: list[str] = []
+
+        def _on_response(response: Any) -> None:
+            try:
+                u = response.url or ""
+                ctype = str((response.headers or {}).get("content-type") or "").lower()
+                if response.status != 200:
+                    return
+                low = u.lower()
+                if any(
+                    x in low
+                    for x in (
+                        "download",
+                        "getfile",
+                        "attachment",
+                        "document",
+                        "fileid",
+                        "intercept",
+                        ".pdf",
+                        ".xlsx",
+                        ".xls",
+                        ".docx",
+                        ".zip",
+                        ".csv",
+                    )
+                ) or any(x in ctype for x in ("pdf", "sheet", "zip", "msword", "octet-stream")):
+                    network_urls.append(u)
+            except Exception:
+                pass
+
         try:
+            self._page.on("response", _on_response)
             for navigate_url in candidates:
                 self.fetch_html(navigate_url, timeout_ms=timeout_ms)
                 title = ""
@@ -342,6 +386,10 @@ class BidNetAuthenticatedClient:
                 pass
         except Exception as exc:
             log.warning("discover_attachment_links navigate failed: %s", type(exc).__name__)
+            try:
+                self._page.remove_listener("response", _on_response)
+            except Exception:
+                pass
             return []
 
         # Open Documents / Attachments tab when present
@@ -351,12 +399,14 @@ class BidNetAuthenticatedClient:
             r"Bid\s*Documents",
             r"Files",
             r"Solicitation\s*Documents",
+            r"Download\s*Documents",
+            r"Addenda?",
         ):
             try:
                 tab = self._page.get_by_role("tab", name=re.compile(label, re.I))
                 if tab.count() > 0:
                     tab.first.click(timeout=3_000)
-                    self._page.wait_for_timeout(800)
+                    self._page.wait_for_timeout(1_200)
                     break
             except Exception:
                 pass
@@ -364,13 +414,40 @@ class BidNetAuthenticatedClient:
                 link = self._page.get_by_role("link", name=re.compile(label, re.I))
                 if link.count() > 0:
                     link.first.click(timeout=3_000)
-                    self._page.wait_for_timeout(800)
+                    self._page.wait_for_timeout(1_200)
+                    break
+            except Exception:
+                pass
+            try:
+                btn = self._page.get_by_role("button", name=re.compile(label, re.I))
+                if btn.count() > 0:
+                    btn.first.click(timeout=3_000)
+                    self._page.wait_for_timeout(1_200)
                     break
             except Exception:
                 pass
 
-        def _add(href: str, name: str) -> None:
+        def _add(href: str, name: str, *, local_path: str | None = None) -> None:
             href = (href or "").strip()
+            if local_path:
+                key = f"local:{local_path}"
+                if key in seen:
+                    return
+                seen.add(key)
+                found.append(
+                    {
+                        "document_name": (name or Path(local_path).name)[:160],
+                        "document_url": href or f"file://{local_path}",
+                        "filename": (name or Path(local_path).name)[:160],
+                        "url": href or f"file://{local_path}",
+                        "source_url": href or f"file://{local_path}",
+                        "local_path": local_path,
+                        "retrieval_status": "BROWSER_DOWNLOAD",
+                        "requires_auth": True,
+                        "page_discovered": True,
+                    }
+                )
+                return
             if not href or href.startswith("#") or href.lower().startswith("javascript:"):
                 return
             low = href.lower()
@@ -387,7 +464,7 @@ class BidNetAuthenticatedClient:
                 return
             # Prefer file-like or download endpoints
             if not re.search(
-                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download|attachment|document|fileId|docId|getFile|solicitation",
+                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download|attachment|document|fileId|docId|getFile|solicitation|intercept",
                 href,
                 re.I,
             ):
@@ -422,15 +499,19 @@ class BidNetAuthenticatedClient:
         except Exception as exc:
             log.info("discover_attachment_links anchor scan: %s", type(exc).__name__)
 
-        # data-download / button hooks
+        # data-download / button hooks + onclick URL harvest
         try:
             for sel in (
                 "[data-download-url]",
                 "[data-file-url]",
                 "[data-document-url]",
                 "a[download]",
+                "button[onclick*='download' i]",
+                "a[onclick*='download' i]",
+                "[href*='download/intercept']",
+                "[href*='getFile']",
             ):
-                for el in self._page.locator(sel).all()[:40]:
+                for el in self._page.locator(sel).all()[:50]:
                     try:
                         href = (
                             el.get_attribute("data-download-url")
@@ -439,10 +520,68 @@ class BidNetAuthenticatedClient:
                             or el.get_attribute("href")
                             or ""
                         )
+                        onclick = el.get_attribute("onclick") or ""
+                        if not href and onclick:
+                            m = re.search(r"https?://[^\"'\s]+", onclick)
+                            if m:
+                                href = m.group(0)
                         name = (el.inner_text() or el.get_attribute("download") or "").strip()
                         _add(href, name)
                     except Exception:
                         continue
+        except Exception:
+            pass
+
+        # Network-captured file URLs from Documents tab / XHR
+        for u in network_urls:
+            _add(u, u.rsplit("/", 1)[-1][:80])
+
+        # Click Download controls that only emit bytes via browser download (no stable href)
+        if not found:
+            try:
+                from m3_data_root import data_path
+                import hashlib as _hl
+                import shutil
+
+                dl_btns = self._page.get_by_role(
+                    "button",
+                    name=re.compile(r"download(\s+all)?|save|export", re.I),
+                )
+                link_btns = self._page.get_by_role(
+                    "link",
+                    name=re.compile(r"download(\s+all)?|\.pdf|\.xlsx|addendum", re.I),
+                )
+                clickables = []
+                try:
+                    clickables.extend(dl_btns.all()[:6])
+                except Exception:
+                    pass
+                try:
+                    clickables.extend(link_btns.all()[:8])
+                except Exception:
+                    pass
+                out_dir = data_path("bidnet_auth", "documents", "_browser_dl")
+                out_dir.mkdir(parents=True, exist_ok=True)
+                for el in clickables[:8]:
+                    try:
+                        with self._page.expect_download(timeout=20_000) as dl_info:
+                            el.click(timeout=3_000)
+                        download = dl_info.value
+                        src = download.path()
+                        suggested = download.suggested_filename or "bidnet_doc.bin"
+                        if not src:
+                            continue
+                        h = _hl.sha256(Path(src).read_bytes()).hexdigest()[:16]
+                        dest = out_dir / f"{h}_{re.sub(r'[^a-zA-Z0-9._-]+', '_', suggested)[:80]}"
+                        shutil.copyfile(src, dest)
+                        _add(download.url or "", suggested, local_path=str(dest))
+                    except Exception:
+                        continue
+            except Exception as exc:
+                log.info("discover_attachment_links browser download: %s", type(exc).__name__)
+
+        try:
+            self._page.remove_listener("response", _on_response)
         except Exception:
             pass
 

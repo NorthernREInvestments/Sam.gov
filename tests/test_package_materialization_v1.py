@@ -26,7 +26,7 @@ from bidnet_engine.package_materialization import (
 
 def test_build():
     assert BUILD == "20261007-m3-same20-full-pipeline-recovery-v1"
-    assert "playwright-same-thread" in PATCH or "statewide" in PATCH
+    assert any(x in PATCH for x in ("playwright-same-thread", "statewide", "intercept-download"))
 
 
 def test_detail_html_only_not_complete():
@@ -105,6 +105,21 @@ def test_resolve_open_bids_to_private_view():
     cands = resolve_bidnet_private_detail_url_candidates(pub)
     assert "https://www.bidnetdirect.com/private/supplier/solicitations/437119/view" in cands
     assert any(u.endswith("/abstract") for u in cands)
+
+
+def test_intercept_download_not_treated_as_detail_page():
+    from bidnet_engine.package_materialization import is_bidnet_download_endpoint
+
+    intercept = (
+        "https://www.bidnetdirect.com/public/solicitations/9745644552/abstract/download/intercept"
+    )
+    assert is_bidnet_download_endpoint(intercept)
+    assert is_bidnet_detail_page_url(intercept) is False
+    open_bids = (
+        "https://www.bidnetdirect.com/florida/solicitations/open-bids/"
+        "ITB-27-002-Welding-Lab-Equipment/0000436279"
+    )
+    assert is_bidnet_detail_page_url(open_bids) is True
 
 
 def test_statewide_id_not_mapped_to_private_solicitation():
