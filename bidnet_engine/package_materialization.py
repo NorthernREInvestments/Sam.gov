@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v18-bounded-free-chase"
+PATCH = "asr-v19-adjusted-external-evidence"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -384,6 +384,102 @@ def classify_access_blocker(doc: dict[str, Any], *, detail_status: str | None = 
     if doc.get("local_path") or doc.get("retrieval_status") == "DOWNLOADED":
         return "FREE_PUBLIC"
     return "OTHER"
+
+
+_SERVICE_TITLE = re.compile(
+    r"\b(insurance|administrator|grant\s+program|community[- ]led|"
+    r"\bcm\b|construction\s+manag|professional\s+services|"
+    r"lighting\s+upgrade.*services|re[- ]pricing|intake\s+service)\b",
+    re.I,
+)
+_CATALOG_TITLE = re.compile(
+    r"\b(oem|parts?\s+and\s+(accessories|labor)|replacement\s+parts|"
+    r"unit\s+parts|pump\s+parts|hvac\s+unit\s+parts)\b",
+    re.I,
+)
+
+
+def _external_blocker_proven(
+    free_chase_meta: dict[str, Any],
+    invalid: list[dict[str, Any]],
+    valid: int,
+) -> bool:
+    """True when BidNet wall + free chase exhausted (no public package available)."""
+    if valid > 0:
+        return False
+    status = str((free_chase_meta or {}).get("status") or "")
+    docs = int((free_chase_meta or {}).get("doc_count") or 0)
+    chase_exhausted = status in {
+        "PACKAGE_UNAVAILABLE_FREE",
+        "PACKAGE_RECOVERY_RETRYABLE",
+        "TIMEOUT",
+        "",
+    } and docs == 0
+    wall = any(
+        str(e.get("failure") or "")
+        in {"bidnet_detail_page_not_binary", "html_or_login_page_saved_as_binary"}
+        for e in invalid
+    )
+    return bool(wall and chase_exhausted)
+
+
+def _classify_package_product(
+    *,
+    valid: int,
+    invalid: list[dict[str, Any]],
+    content_recognition: dict[str, Any],
+    free_chase_meta: dict[str, Any],
+    title: str,
+) -> str:
+    cr_clf = str(content_recognition.get("classification") or "")
+    if cr_clf in {"LINES_RECOVERED", "CATALOG_DISCOUNT_ONLY", "PARSER_DEFECT_REMAINS"}:
+        return cr_clf
+    if valid == 0 and _SERVICE_TITLE.search(title or ""):
+        return "NO_PRODUCT_LINES_ACTUALLY_PRESENT"
+    if valid == 0 and _external_blocker_proven(free_chase_meta, invalid, valid):
+        if _CATALOG_TITLE.search(title or ""):
+            # OEM/parts RFQs behind BidNet wall with no free package — not itemizable here
+            return "PRODUCT_SCHEDULE_INACCESSIBLE"
+        return "PRODUCT_SCHEDULE_INACCESSIBLE"
+    if valid == 0 and (invalid or free_chase_meta):
+        return "PRODUCT_SCHEDULE_INACCESSIBLE"
+    return cr_clf or "UNKNOWN"
+
+
+def _operator_status_for_package(
+    *,
+    valid: int,
+    invalid: list[dict[str, Any]],
+    content_recognition: dict[str, Any],
+    free_chase_meta: dict[str, Any],
+    title: str,
+) -> str:
+    if content_recognition.get("operator_product_status") or content_recognition.get("operator_status"):
+        if valid > 0:
+            return str(
+                content_recognition.get("operator_product_status")
+                or content_recognition.get("operator_status")
+            )
+    if valid == 0 and _SERVICE_TITLE.search(title or ""):
+        return (
+            "This solicitation describes services, grants, or administration work "
+            "rather than an itemized product list."
+        )
+    if _external_blocker_proven(free_chase_meta, invalid, valid):
+        return (
+            "BidNet requires a membership/portal login for the package documents, "
+            "and no free public product schedule was found for this opportunity."
+        )
+    if valid == 0 and invalid:
+        return (
+            "BidNet returned web pages instead of downloadable bid attachments. "
+            "M3 could not open a product schedule for this deal."
+        )
+    return str(
+        content_recognition.get("operator_product_status")
+        or content_recognition.get("operator_status")
+        or ""
+    )
 
 
 def materialize_attachments(
@@ -925,20 +1021,23 @@ def materialize_attachments(
         "EXPECTED_PRODUCT_LINES": content_recognition.get("EXPECTED_PRODUCT_LINES"),
         "EXTRACTED_PRODUCT_LINES": content_recognition.get("EXTRACTED_PRODUCT_LINES"),
         "LINE_EXTRACTION_COVERAGE": content_recognition.get("LINE_EXTRACTION_COVERAGE"),
-        "product_classification": (
-            "PRODUCT_SCHEDULE_INACCESSIBLE"
-            if valid == 0 and (downloaded > 0 or invalid)
-            else content_recognition.get("classification")
+        "product_classification": _classify_package_product(
+            valid=valid,
+            invalid=invalid,
+            content_recognition=content_recognition,
+            free_chase_meta=free_chase_meta,
+            title=opp_title,
         ),
         "operator_product_status": (
-            (
-                "BidNet returned web pages instead of downloadable bid attachments. "
-                "M3 is still trying to locate the real product schedule files."
+            _operator_status_for_package(
+                valid=valid,
+                invalid=invalid,
+                content_recognition=content_recognition,
+                free_chase_meta=free_chase_meta,
+                title=opp_title,
             )
-            if valid == 0 and invalid
-            else content_recognition.get("operator_product_status")
-            or content_recognition.get("operator_status")
         ),
+        "external_blocker_proven": _external_blocker_proven(free_chase_meta, invalid, valid),
         "content_schedule_rows": content_recognition.get("authoritative_rows") or [],
         "invalid_download_reasons": [
             {"filename": e.get("filename"), "failure": e.get("failure") or e.get("DOCUMENT_VALIDATION_FAILURE_REASON")}

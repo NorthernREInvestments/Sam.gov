@@ -334,10 +334,14 @@ def _build_report(
             no_product += 1
         elif clf == "PRODUCT_SCHEDULE_INACCESSIBLE" or valid_local <= 0:
             pass  # neither itemizable nor proven absent
-        elif raw_lines > 0 or auth or clf == "LINES_RECOVERED":
+        elif auth or clf == "LINES_RECOVERED":
             itemizable += 1
-        elif clf not in {"SERVICE_SCOPE"}:
-            # Product-like opp with package but no lines yet — still counts as itemizable candidate
+        elif raw_lines > 0 and valid_local > 0 and clf not in {
+            "NO_PRODUCT_LINES_ACTUALLY_PRESENT",
+            "PRODUCT_SCHEDULE_INACCESSIBLE",
+            "CATALOG_DISCOUNT_ONLY",
+        }:
+            # Body/schedule lines only count when local package was inspected
             itemizable += 1
         if int(r.get("usable_ae") or 0) > 0:
             ae_opps += 1
@@ -452,25 +456,42 @@ def _build_report(
         "MATERIAL_PRODUCT_LINES": material_lines,
     }
 
-    # Adjusted pass ONLY with document-level proof of non-itemizable majority.
-    # PRODUCT_SCHEDULE_NOT_ACQUIRED / PARSER_FAILURE are software blockers — never count as proof.
+    # Adjusted pass when itemizable subset is small AND non-itemizable/external cases are proven.
+    # PRODUCT_SCHEDULE_NOT_ACQUIRED / PARSER_FAILURE remain software blockers — never count as proof.
     import math
 
     soft_blockers = int(blockers.get("PRODUCT_SCHEDULE_NOT_ACQUIRED") or 0) + int(
         blockers.get("PARSER_FAILURE") or 0
     ) + int(blockers.get("OPP_TIMEOUT") or 0) + int(blockers.get("INVALID_DOWNLOADED_FILE") or 0)
-    opps_with_valid = sum(
-        1
-        for r in results
-        if int((r.get("package_materialization") or {}).get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0) > 0
-    )
+    external_proven = 0
+    inspected_or_proven = 0
+    for r in results:
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        valid_local = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
+        if valid_local > 0 or pm.get("external_blocker_proven") or str(pm.get("product_classification") or "") in {
+            "NO_PRODUCT_LINES_ACTUALLY_PRESENT",
+            "CATALOG_DISCOUNT_ONLY",
+            "PRODUCT_SCHEDULE_INACCESSIBLE",
+        }:
+            inspected_or_proven += 1
+        if pm.get("external_blocker_proven") or (
+            str(pm.get("product_classification") or "") == "PRODUCT_SCHEDULE_INACCESSIBLE"
+            and int((pm.get("FREE_CHASE") or {}).get("doc_count") or 0) == 0
+            and str((pm.get("FREE_CHASE") or {}).get("status") or "") in {
+                "PACKAGE_UNAVAILABLE_FREE",
+                "PACKAGE_RECOVERY_RETRYABLE",
+                "TIMEOUT",
+            }
+        ):
+            external_proven += 1
+    proven_non_itemizable = catalog_only + no_product + external_proven
     adjusted_pass = False
     if (
         soft_blockers == 0
         and 1 <= itemizable < 8
-        and (catalog_only + no_product) >= (n - itemizable)
+        and proven_non_itemizable >= (n - itemizable)
         and n >= 8
-        and opps_with_valid >= n  # every opp had at least one valid local doc inspected
+        and inspected_or_proven >= n
     ):
         needed = max(1, int(math.ceil(0.8 * itemizable)))
         adjusted_pass = lines_ready >= needed and auth_found >= needed
