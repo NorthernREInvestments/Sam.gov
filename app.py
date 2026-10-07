@@ -2224,25 +2224,39 @@ def api_m3_schedule_recovery_content_samples(limit: int = 6):
                 samples.append({"filename": m.get("filename"), "missing": True})
                 continue
             text = ""
+            magic = ""
+            size = 0
             try:
+                raw = Path(path_s).read_bytes()[:16]
+                magic = raw[:8].hex()
+                size = Path(path_s).stat().st_size
                 text = extract_pdf_text(path_s, max_pages=4) or ""
             except Exception as exc:
                 text = f"ERR:{type(exc).__name__}"
             insp = {}
             try:
-                insp = inspect_document(path_s, filename=str(m.get("filename") or Path(path_s).name))
+                # Force PDF sniff path the same way materialization should
+                fname = str(m.get("filename") or Path(path_s).name)
+                if m.get("extension") and not fname.lower().endswith(f".{m.get('extension')}"):
+                    fname = f"{fname}.{m.get('extension')}"
+                insp = inspect_document(path_s, filename=fname)
             except Exception as exc:
                 insp = {"error": f"{type(exc).__name__}:{exc}"[:160]}
             samples.append(
                 {
                     "filename": m.get("filename"),
-                    "bytes": m.get("BYTE_SIZE"),
+                    "extension_claimed": m.get("extension"),
+                    "path_suffix": Path(path_s).suffix,
+                    "magic_hex": magic,
+                    "bytes": size or m.get("BYTE_SIZE"),
                     "text_chars": len(text),
                     "text_sample": text[:1200],
+                    "sniffed_ext": insp.get("extension"),
                     "role": insp.get("document_role_content"),
                     "classification": insp.get("classification"),
                     "rows": insp.get("extracted_line_count"),
                     "pages": insp.get("product_signal_pages"),
+                    "page_diagnostics": (insp.get("page_diagnostics") or [])[:4],
                     "signals": insp.get("signal_hits"),
                     "operator_status": insp.get("operator_status"),
                 }
