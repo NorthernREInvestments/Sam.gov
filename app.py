@@ -2194,6 +2194,71 @@ def api_m3_package_materialization_report(format: str = "json"):
     return report
 
 
+@app.get("/api/m3/schedule-recovery/content-samples")
+def api_m3_schedule_recovery_content_samples(limit: int = 6):
+    """Diagnostic: re-inspect same-13 local PDFs and return text samples + classification."""
+    import json
+    from pathlib import Path
+
+    from m3_data_root import data_path
+
+    rows_path = data_path("m3_schedule_recovery_v1_rows.json")
+    if not rows_path.exists():
+        rows_path = data_path("m3_package_materialization_v1_rows.json")
+    if not rows_path.exists():
+        return {"status": "NO_ROWS", "build_version": APP_BUILD_VERSION}
+    doc = json.loads(rows_path.read_text(encoding="utf-8"))
+    from bidnet_engine.schedule_content_recognition import inspect_document
+    from document_quality import extract_pdf_text
+
+    out = []
+    for r in (doc.get("rows") or [])[: max(1, min(int(limit), 13))]:
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        mats = pm.get("materialized") or []
+        samples = []
+        for m in mats[:3]:
+            if not isinstance(m, dict):
+                continue
+            path_s = m.get("LOCAL_PATH") or m.get("local_path")
+            if not path_s or not Path(path_s).exists():
+                samples.append({"filename": m.get("filename"), "missing": True})
+                continue
+            text = ""
+            try:
+                text = extract_pdf_text(path_s, max_pages=4) or ""
+            except Exception as exc:
+                text = f"ERR:{type(exc).__name__}"
+            insp = {}
+            try:
+                insp = inspect_document(path_s, filename=str(m.get("filename") or Path(path_s).name))
+            except Exception as exc:
+                insp = {"error": f"{type(exc).__name__}:{exc}"[:160]}
+            samples.append(
+                {
+                    "filename": m.get("filename"),
+                    "bytes": m.get("BYTE_SIZE"),
+                    "text_chars": len(text),
+                    "text_sample": text[:1200],
+                    "role": insp.get("document_role_content"),
+                    "classification": insp.get("classification"),
+                    "rows": insp.get("extracted_line_count"),
+                    "pages": insp.get("product_signal_pages"),
+                    "signals": insp.get("signal_hits"),
+                    "operator_status": insp.get("operator_status"),
+                }
+            )
+        out.append(
+            {
+                "stable_key": r.get("stable_key"),
+                "title": r.get("title"),
+                "raw_lines": r.get("raw_lines"),
+                "product_classification": pm.get("product_classification"),
+                "samples": samples,
+            }
+        )
+    return {"build_version": APP_BUILD_VERSION, "opportunities": out}
+
+
 @app.get("/api/m3/schedule-backed/canary/status")
 def api_m3_schedule_backed_canary_status():
     import json
