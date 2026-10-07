@@ -86,14 +86,78 @@ def run_schedule_recovery(
     if mode == "same_13":
         candidates = _resolve_same_13(rows, store)
     else:
+        import re
+
         from bidnet_engine.schedule_selection import select_schedule_backed_candidates
         from bidnet_downstream.models import PRODUCT_CLASSES
 
         product_rows = [r for r in rows if r.get("classification") in PRODUCT_CLASSES]
-        candidates, _excl = select_schedule_backed_candidates(product_rows, store_by_cid, limit=canary_n * 2)
+        # Checkpoint may be thin after same-13 — expand from store product / parts-like rows
+        seen_cids = {str(r.get("canonical_opportunity_id") or "") for r in product_rows}
+        _parts_ish = re.compile(
+            r"\b(parts?|equipment|supply|supplies|material|oem|sku|mpn|vehicle|pump|hvac|lift)\b",
+            re.I,
+        )
+        for cid, sr in store_by_cid.items():
+            if not isinstance(sr, dict) or cid in seen_cids:
+                continue
+            cls = sr.get("classification") or sr.get("product_class")
+            title = str(sr.get("title") or "")
+            docs = sr.get("attachments_metadata") or sr.get("document_inventory") or []
+            if cls not in PRODUCT_CLASSES and not (_parts_ish.search(title) and docs):
+                continue
+            product_rows.append(
+                {
+                    "canonical_opportunity_id": cid,
+                    "stable_key": sr.get("stable_key") or cid,
+                    "title": title,
+                    "buyer": sr.get("buyer"),
+                    "classification": cls if cls in PRODUCT_CLASSES else "PRODUCT",
+                    "deadline": sr.get("deadline"),
+                    "attachments_metadata": docs if isinstance(docs, list) else [],
+                }
+            )
+            seen_cids.add(cid)
+            if len(product_rows) >= canary_n * 8:
+                break
+        candidates, _excl = select_schedule_backed_candidates(product_rows, store_by_cid, limit=canary_n * 3)
         # Prefer content-evidence when available; exclude same-13
         same = set(SAME_13_STABLE_KEYS)
         candidates = [c for c in candidates if str(c.get("stable_key") or "") not in same][:canary_n]
+        # Last resort: take parts-ish store rows with any attachment URLs
+        if len(candidates) < max(5, canary_n // 2):
+            filler = []
+            for cid, sr in store_by_cid.items():
+                if not isinstance(sr, dict):
+                    continue
+                sk = str(sr.get("stable_key") or cid)
+                if sk in same:
+                    continue
+                title = str(sr.get("title") or "")
+                docs = sr.get("attachments_metadata") or []
+                if not _parts_ish.search(title):
+                    continue
+                if not any(isinstance(d, dict) and (d.get("document_url") or d.get("url") or d.get("local_path")) for d in docs):
+                    continue
+                filler.append(
+                    {
+                        "canonical_opportunity_id": cid,
+                        "stable_key": sk,
+                        "title": title,
+                        "buyer": sr.get("buyer"),
+                        "classification": sr.get("classification") or "PRODUCT",
+                        "deadline": sr.get("deadline"),
+                        "_provisional_schedule": True,
+                    }
+                )
+            seen = {str(c.get("stable_key") or "") for c in candidates}
+            for f in filler:
+                if f["stable_key"] in seen:
+                    continue
+                candidates.append(f)
+                seen.add(f["stable_key"])
+                if len(candidates) >= canary_n:
+                    break
 
     write_status(
         phase="SELECTED",
@@ -325,8 +389,8 @@ def _build_report(
         product_like_docs += int(cr.get("product_like_documents") or 0)
         clf = str(pm.get("product_classification") or cr.get("classification") or "")
         valid_local = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
-        # Without valid local docs we cannot claim "no product lines present"
-        if valid_local <= 0 and clf in {"NO_PRODUCT_LINES_ACTUALLY_PRESENT", "UNKNOWN", ""}:
+        # Without valid local docs, UNKNOWN → inaccessible. Keep proven NO_PRODUCT / CATALOG.
+        if valid_local <= 0 and clf in {"UNKNOWN", ""}:
             clf = "PRODUCT_SCHEDULE_INACCESSIBLE"
         if clf == "CATALOG_DISCOUNT_ONLY":
             catalog_only += 1

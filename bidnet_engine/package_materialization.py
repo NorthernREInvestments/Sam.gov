@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v19-adjusted-external-evidence"
+PATCH = "asr-v20-new20-selection-fix"
 
 
 _OPEN_BIDS_ID = re.compile(
