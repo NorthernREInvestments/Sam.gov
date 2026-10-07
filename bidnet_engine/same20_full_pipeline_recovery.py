@@ -466,14 +466,33 @@ def run_same20_full_pipeline(
             corpus = ensure_corpus_frozen(prior_report)
     store = load_store()
     candidates = resolve_same20(store, corpus)
-    store_by_cid = {
-        str(c.get("canonical_opportunity_id") or ""): (c.get("_store_row") or {})
-        for c in candidates
-    }
-    # Also index full store for process_money
+    store_by_cid: dict[str, dict[str, Any]] = {}
+    # Base index from full store
     for k, v in store.items():
         if isinstance(v, dict):
-            store_by_cid[str(v.get("canonical_opportunity_id") or k)] = v
+            store_by_cid[str(v.get("canonical_opportunity_id") or k)] = dict(v)
+    # Overlay corpus-enriched rows LAST so seeded attachment URLs are not wiped
+    for c in candidates:
+        cid = str(c.get("canonical_opportunity_id") or "")
+        enriched = c.get("_store_row") if isinstance(c.get("_store_row"), dict) else {}
+        if not cid:
+            continue
+        base = dict(store_by_cid.get(cid) or {})
+        # Prefer enriched attachments / authoritative URL
+        if enriched.get("attachments_metadata"):
+            base["attachments_metadata"] = enriched["attachments_metadata"]
+        if enriched.get("authoritative_url"):
+            base["authoritative_url"] = enriched["authoritative_url"]
+        if enriched.get("row_ref"):
+            base["row_ref"] = enriched["row_ref"]
+        for field in ("title", "buyer", "deadline", "stable_key"):
+            if enriched.get(field) and not base.get(field):
+                base[field] = enriched[field]
+        store_by_cid[cid] = base
+        # Also key by stable_key for lookups
+        sk = str(c.get("stable_key") or "")
+        if sk:
+            store_by_cid[sk] = base
 
     write_status(
         phase="SAME20_SELECTED",
