@@ -333,6 +333,10 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                 "M3 could not open the real product schedule yet."
             )
             result["signal_hits"] = []
+            result["extracted_line_count"] = 0
+            result["extracted_rows"] = []
+            result["expected_product_lines"] = 0
+            result["is_product_like"] = False
             return result
     except Exception:
         pass
