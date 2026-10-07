@@ -24,7 +24,8 @@ from bidnet_engine.priority import priority_class
 from bidnet_engine.thread_limits import apply_thread_limits, verify_thread_limits
 from bidnet_engine.worker import run_pool
 
-BUILD = "20261006-m3-bidnet-baseline-to-incremental-production-v1"
+from bidnet_engine.models import BUILD
+
 STATUS = "m3_bidnet_production_v1_status.json"
 PROGRESS = "m3_bidnet_production_v1_progress.json"
 REPORT_JSON = "m3_bidnet_production_v1_last_report.json"
