@@ -114,6 +114,10 @@ def run_schedule_recovery(
         raise RuntimeError(f"BidNet auth required: {auth.status} {auth.message}")
 
     results: list[dict[str, Any]] = []
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    OPP_TIMEOUT_S = 240  # one heavy PDF/BidNet opp must not stall the whole same-13 walker
+
     for i, item in enumerate(candidates):
         cid = str(item.get("canonical_opportunity_id") or "")
         store_row = store_by_cid.get(cid) or {}
@@ -124,7 +128,78 @@ def run_schedule_recovery(
                     item = {**item, "canonical_opportunity_id": k}
                     cid = k
                     break
-        r = process_money_opportunity(item, store_row, client=client, store=store_by_cid, price_budget=price_budget)
+        write_status(
+            phase=f"SCHEDULE_RECOVERY_{mode.upper()}_OPP",
+            completed=len(results),
+            remaining=max(0, len(candidates) - len(results)),
+            percent=int(100 * len(results) / max(len(candidates), 1)),
+            run_id=run_id,
+            iteration=iteration,
+            current_stable_key=item.get("stable_key"),
+            current_title=str(item.get("title") or "")[:120],
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                fut = pool.submit(
+                    process_money_opportunity,
+                    item,
+                    store_row,
+                    client=client,
+                    store=store_by_cid,
+                    price_budget=price_budget,
+                )
+                r = fut.result(timeout=OPP_TIMEOUT_S)
+        except FuturesTimeout:
+            r = {
+                "canonical_opportunity_id": cid,
+                "stable_key": item.get("stable_key"),
+                "title": item.get("title"),
+                "buyer": item.get("buyer"),
+                "raw_lines": 0,
+                "material_lines": 0,
+                "usable_ae": 0,
+                "public_prices": 0,
+                "package_materialization": {
+                    "primary_blocker": "OPP_TIMEOUT",
+                    "operator_product_status": (
+                        f"Analysis timed out after {OPP_TIMEOUT_S}s while inspecting this package. "
+                        "Will retry with a narrower extractor."
+                    ),
+                    "product_classification": "PARSER_DEFECT_REMAINS",
+                    "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": 0,
+                    "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                },
+                "package_primary_blocker": "OPP_TIMEOUT",
+                "error": f"OPP_TIMEOUT_{OPP_TIMEOUT_S}s",
+            }
+            # Recreate BidNet client — prior thread may still hold the browser
+            try:
+                client.close()
+            except Exception:
+                pass
+            client = BidNetAuthenticatedClient()
+            auth2 = client.ensure_authenticated()
+            if not auth2.authenticated:
+                raise RuntimeError(f"BidNet re-auth failed after timeout: {auth2.status}")
+        except Exception as exc:
+            r = {
+                "canonical_opportunity_id": cid,
+                "stable_key": item.get("stable_key"),
+                "title": item.get("title"),
+                "buyer": item.get("buyer"),
+                "raw_lines": 0,
+                "material_lines": 0,
+                "usable_ae": 0,
+                "public_prices": 0,
+                "package_materialization": {
+                    "primary_blocker": "OPP_ERROR",
+                    "operator_product_status": f"Package analysis failed: {type(exc).__name__}",
+                    "product_classification": "PARSER_DEFECT_REMAINS",
+                    "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                },
+                "package_primary_blocker": "OPP_ERROR",
+                "error": f"{type(exc).__name__}:{exc}"[:200],
+            }
         r["live_bidnet"] = True
         r["recovery_cohort"] = mode
         r["schedule_recovery_iteration"] = iteration

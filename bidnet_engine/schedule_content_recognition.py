@@ -113,71 +113,44 @@ def _pdf_pages(path: Path, *, max_pages: int = 40) -> list[dict[str, Any]]:
     except Exception:
         pages = []
 
-    # Selective pdfplumber table pass only on pages that look product-like and lack rows yet
-    candidate_idxs = []
-    for p in pages:
-        sig = _signal_score(p.get("text") or "")
-        if sig["signal_count"] >= 3 or sig["has_qty_uom"] or sig["has_pn"]:
-            candidate_idxs.append(int(p["page"]) - 1)
-    if candidate_idxs:
+    # Intentionally no pdfplumber here — it has hung Railway workers on large BidNet PDFs.
+    # Row recovery uses text/regex reconstruction + optional fitz find_tables below.
+    if pages:
         try:
-            import pdfplumber
+            import fitz
 
-            with pdfplumber.open(str(path)) as pdf:
-                for idx in candidate_idxs[:20]:
-                    if idx >= len(pdf.pages):
+            doc = fitz.open(str(path))
+            try:
+                for i, p in enumerate(pages):
+                    if i >= doc.page_count:
+                        break
+                    sig = _signal_score(p.get("text") or "")
+                    if sig["signal_count"] < 3 and not sig["has_qty_uom"] and not sig["has_pn"]:
                         continue
-                    page = pdf.pages[idx]
+                    page = doc.load_page(i)
+                    tables = []
                     try:
-                        raw_tables = page.extract_tables() or []
+                        finder = page.find_tables()  # type: ignore[attr-defined]
+                        raw_tables = finder.tables if finder else []
                     except Exception:
                         raw_tables = []
-                    tables = []
-                    for ti, table in enumerate(raw_tables[:8]):
-                        if not table:
+                    for ti, table in enumerate(list(raw_tables)[:6]):
+                        try:
+                            data = table.extract()
+                        except Exception:
+                            data = None
+                        if not data:
                             continue
-                        rows = [[(c or "").strip() for c in row] for row in table if row]
+                        rows = [[(c or "").strip() for c in row] for row in data if row]
                         if rows:
                             tables.append({"table_index": ti, "rows": rows, "n_rows": len(rows)})
-                    if tables and idx < len(pages):
-                        pages[idx]["tables"] = tables
-                        # Prefer plumber text when richer
-                        try:
-                            t2 = page.extract_text() or ""
-                            if len(t2) > len(pages[idx].get("text") or ""):
-                                pages[idx]["text"] = t2
-                                pages[idx]["char_count"] = len(t2)
-                        except Exception:
-                            pass
+                    if tables:
+                        p["tables"] = tables
+            finally:
+                doc.close()
         except Exception:
             pass
-
-    if pages:
         return pages
-
-    # Last resort: pdfplumber-only open
-    try:
-        import pdfplumber
-
-        with pdfplumber.open(str(path)) as pdf:
-            for i, page in enumerate(pdf.pages[:max_pages]):
-                text = ""
-                try:
-                    text = page.extract_text() or ""
-                except Exception:
-                    text = ""
-                pages.append(
-                    {
-                        "page": i + 1,
-                        "text": text,
-                        "tables": [],
-                        "word_count": len(text.split()),
-                        "char_count": len(text),
-                        "image_only": len(text.strip()) < 40,
-                    }
-                )
-    except Exception:
-        pass
     return pages
 
 
@@ -403,14 +376,10 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                 key = (r.get("description"), r.get("quantity"), r.get("item"))
                 if key not in seen:
                     page_rows.append(r)
-            # Image-only fallback: light OCR only when native text empty
+            # OCR disabled by default in production walker (hang risk). Mark for diagnostics.
             if p.get("image_only") and not page_rows:
-                ocr_text = _ocr_page_fallback(path, page_no - 1)
-                if ocr_text:
-                    text = ocr_text
-                    sig = _signal_score(text)
-                    page_rows, header = _rows_from_text(text, page=page_no, path=path, inherited_header=header)
-                    p["ocr_used"] = True
+                p["ocr_used"] = False
+                p["ocr_skipped"] = True
             product_like = (
                 len(page_rows) >= 1
                 or (sig["signal_count"] >= 5 and (sig["has_qty_uom"] or sig["has_pn"]))
