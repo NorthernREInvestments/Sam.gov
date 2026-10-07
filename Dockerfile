@@ -4,7 +4,16 @@ FROM python:3.12-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers \
-    M3_DATA_ROOT=/data
+    M3_DATA_ROOT=/data \
+    OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    VECLIB_MAXIMUM_THREADS=1 \
+    BIDNET_LOGICAL_WORKERS=5 \
+    BIDNET_BROWSER_WORKERS=2 \
+    BIDNET_MAX_BROWSER_PROCESSES=2 \
+    BIDNET_CHECKPOINT_EVERY=10
 
 WORKDIR /app
 
@@ -48,7 +57,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY . .
 
-RUN chmod +x scripts/start_railway.sh \
+RUN chmod +x scripts/start_railway.sh scripts/start_railway_worker.sh \
     && mkdir -p /data /app/.playwright-browsers
 
 EXPOSE 8080

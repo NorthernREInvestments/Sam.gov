@@ -1,6 +1,10 @@
 """GovTracker web API and dashboard."""
 
 from __future__ import annotations
+
+# Cap BLAS/OpenMP threads before any numpy/scipy-backed import chain.
+import bidnet_engine.thread_limits  # noqa: F401
+
 from application_clock import now_utc, today_local
 
 import logging
@@ -33,7 +37,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261006-m3-bidnet-gap-closure-v1"
+APP_BUILD_VERSION = "20261006-m3-bidnet-engine-recovery-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1547,10 +1551,16 @@ def api_m3_bidnet_full_production_env_check():
             bidnet = sum(1 for i in (c.get("items") or []) if i.get("source_bucket") == "BidNet")
         except Exception as exc:
             return {"ok": False, "error": type(exc).__name__, "build_version": APP_BUILD_VERSION}
+    from bidnet_engine.thread_limits import verify_thread_limits
+
+    threads = verify_thread_limits()
     return {
         "ok": True,
         "build_version": APP_BUILD_VERSION,
         "gap_walker": 3,
+        "downstream_walker": 4,
+        "engine_walker": 2,
+        "recovery_walker": 1,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
@@ -1559,6 +1569,9 @@ def api_m3_bidnet_full_production_env_check():
         "corpus_present": corpus_path.exists(),
         "corpus_count": count,
         "corpus_bidnet": bidnet,
+        "thread_limits": threads,
+        "bidnet_logical_workers": __import__("os").environ.get("BIDNET_LOGICAL_WORKERS"),
+        "bidnet_browser_workers": __import__("os").environ.get("BIDNET_BROWSER_WORKERS"),
     }
 
 
@@ -1898,6 +1911,146 @@ def api_m3_bidnet_gap_closure_report(format: str = "json"):
 
         return Response(content=format_gap_report(report), media_type="text/plain")
     return report
+
+
+@app.post("/api/m3/bidnet-downstream/run")
+def api_m3_bidnet_downstream_run():
+    """Classify the frozen 21,976 valid-open BidNet corpus. Does not rerun discovery."""
+    from m3_auth_jobs import start_bidnet_downstream_job
+
+    return start_bidnet_downstream_job()
+
+
+@app.post("/api/m3/bidnet-downstream/deep")
+def api_m3_bidnet_downstream_deep(body: dict | None = None):
+    """Authenticated detail/package for PRODUCT + MIXED. Does not rerun discovery or call SAM."""
+    from m3_auth_jobs import start_bidnet_downstream_deep_job
+
+    payload = body or {}
+    max_items = payload.get("max_items")
+    return start_bidnet_downstream_deep_job(
+        time_budget_s=int(payload.get("time_budget_s") or 5400),
+        max_items=int(max_items) if max_items is not None else None,
+    )
+
+
+@app.post("/api/m3/bidnet-engine/run")
+def api_m3_bidnet_engine_run(body: dict | None = None):
+    """Incremental/parallel BidNet engine validation + accelerated baseline batch."""
+    from m3_auth_jobs import start_bidnet_engine_job
+
+    payload = body or {}
+    return start_bidnet_engine_job(
+        scale_sample_size=int(payload.get("scale_sample_size") or 8),
+        baseline_batch=int(payload.get("baseline_batch") or 60),
+        stress_n=int(payload.get("stress_n") or 5000),
+        time_budget_s=int(payload.get("time_budget_s") or 2400),
+    )
+
+
+@app.post("/api/m3/bidnet-engine/recovery/run")
+def api_m3_bidnet_engine_recovery_run(body: dict | None = None):
+    """Recover hung engine job, isolate resources, stability-retest, resume baseline."""
+    from m3_auth_jobs import start_bidnet_engine_recovery_job
+
+    payload = body or {}
+    return start_bidnet_engine_recovery_job(
+        stability_sample=int(payload.get("stability_sample") or 6),
+        resume_batch=int(payload.get("resume_batch") or 40),
+    )
+
+
+@app.get("/api/m3/bidnet-engine/report")
+def api_m3_bidnet_engine_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_engine_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_engine.run import format_engine_report
+
+        return Response(content=format_engine_report(report), media_type="text/plain")
+    return report
+
+
+@app.get("/api/m3/bidnet-engine/recovery/report")
+def api_m3_bidnet_engine_recovery_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_engine_recovery_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_engine.recovery import format_recovery_report
+
+        return Response(content=format_recovery_report(report), media_type="text/plain")
+    return report
+
+
+@app.get("/api/m3/bidnet-engine/progress")
+def api_m3_bidnet_engine_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_engine_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "progress_pct": 0, "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-engine/recovery/progress")
+def api_m3_bidnet_engine_recovery_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_engine_recovery_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "progress_pct": 0, "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-downstream/report")
+def api_m3_bidnet_downstream_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_downstream_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_downstream.census import format_downstream_report
+
+        return Response(content=format_downstream_report(report), media_type="text/plain")
+    return report
+
+
+@app.get("/api/m3/bidnet-downstream/progress")
+def api_m3_bidnet_downstream_progress():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_downstream_v1_progress.json")
+    if not path.exists():
+        return {"status": "NO_PROGRESS", "progress_pct": 0, "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
 
 
 @app.get("/api/m3/auth-jobs/latest")

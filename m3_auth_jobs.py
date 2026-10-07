@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
@@ -390,6 +391,472 @@ def start_bidnet_gap_closure_job() -> dict[str, Any]:
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_gap_closure",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_engine_job(
+    *,
+    scale_sample_size: int = 8,
+    baseline_batch: int = 60,
+    stress_n: int = 5000,
+    time_budget_s: int = 2400,
+) -> dict[str, Any]:
+    """Parallel/incremental BidNet engine. Preserves prior 120. Uses playwright slot."""
+    job_id = f"BNE-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_engine",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "scale_sample_size": int(scale_sample_size),
+            "baseline_batch": int(baseline_batch),
+            "stress_n": int(stress_n),
+            "time_budget_s": int(time_budget_s),
+            "sam_calls": 0,
+            "rerun_discovery": False,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "ENGINE"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "workers": kwargs.get("workers"),
+                        "completed": kwargs.get("completed"),
+                        "total": kwargs.get("total"),
+                        "rate": kwargs.get("rate"),
+                        "throughput": kwargs.get("throughput"),
+                    },
+                )
+
+            from bidnet_engine.run import run_bidnet_engine
+
+            result = run_bidnet_engine(
+                scale_sample_size=int(scale_sample_size),
+                baseline_batch=int(baseline_batch),
+                stress_n=int(stress_n),
+                time_budget_s=int(time_budget_s),
+                on_progress=_progress,
+            )
+            try:
+                from m3_data_root import data_path
+
+                path = data_path("m3_bidnet_engine_v1_last_report.json")
+                if path.exists():
+                    saved = json.loads(path.read_text(encoding="utf-8"))
+                    saved["run_id"] = job_id
+                    path.write_text(json.dumps(saved, indent=2, default=str), encoding="utf-8")
+                    from bidnet_engine.run import format_engine_report
+
+                    data_path("m3_bidnet_engine_v1_last_report.txt").write_text(
+                        format_engine_report(saved),
+                        encoding="utf-8",
+                    )
+            except Exception:
+                log.exception("BidNet engine report patch failed")
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "BIDNET_INCREMENTAL_PARALLEL_PASS": result.get("BIDNET_INCREMENTAL_PARALLEL_PASS"),
+                    "PASS_FAIL": result.get("PASS_FAIL"),
+                    "NEXT_RUN_ALLOWED": result.get("NEXT_RUN_ALLOWED"),
+                    "selected_workers": result.get("selected_workers"),
+                    "after": result.get("after"),
+                    "baseline": result.get("baseline"),
+                    "concurrency": result.get("concurrency"),
+                    "stress_5000": {
+                        k: (result.get("stress_5000") or {}).get(k)
+                        for k in ("input", "conservation_diff", "runtime_s", "deep_processing_required")
+                    },
+                    "gates": result.get("gates"),
+                    "answers": result.get("answers"),
+                    "runtime_s": result.get("runtime_s"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet engine job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run, name=f"bidnet-engine-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_engine_recovery_job(
+    *,
+    stability_sample: int = 6,
+    resume_batch: int = 40,
+) -> dict[str, Any]:
+    """Recover hung BNE job, retest concurrency under thread/browser isolation, resume baseline."""
+    job_id = f"BNR-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_engine_recovery",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "stability_sample": int(stability_sample),
+            "resume_batch": int(resume_batch),
+            "hung_job": "BNE-7fc7c8ba0dfa",
+            "sam_calls": 0,
+            "rerun_discovery": False,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "RECOVERY"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "workers": kwargs.get("logical") or kwargs.get("workers"),
+                        "browser_workers": kwargs.get("browsers") or kwargs.get("browser_workers"),
+                        "completed": kwargs.get("completed"),
+                        "remaining": kwargs.get("remaining"),
+                        "checkpoint_at": kwargs.get("checkpoint_at"),
+                    },
+                )
+
+            from bidnet_engine.recovery import run_bidnet_engine_recovery
+
+            result = run_bidnet_engine_recovery(
+                stability_sample=int(stability_sample),
+                resume_batch=int(resume_batch),
+                on_progress=_progress,
+            )
+            try:
+                from m3_data_root import data_path
+
+                path = data_path("m3_bidnet_engine_recovery_v1_last_report.json")
+                if path.exists():
+                    saved = json.loads(path.read_text(encoding="utf-8"))
+                    saved["job_id"] = job_id
+                    path.write_text(json.dumps(saved, indent=2, default=str), encoding="utf-8")
+            except Exception:
+                log.exception("BidNet recovery report patch failed")
+            fin = result.get("final") or {}
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "BIDNET_ENGINE_RECOVERY_PASS": result.get("BIDNET_ENGINE_RECOVERY_PASS"),
+                    "PASS_FAIL": result.get("PASS_FAIL"),
+                    "RESOURCE_EXHAUSTION_FIXED": fin.get("RESOURCE_EXHAUSTION_FIXED"),
+                    "SAFE_TO_RESUME_BASELINE": fin.get("SAFE_TO_RESUME_BASELINE"),
+                    "NEXT_RUN_ALLOWED": fin.get("NEXT_RUN_ALLOWED"),
+                    "recovery": result.get("recovery"),
+                    "stability": result.get("stability"),
+                    "thread_control": result.get("thread_control"),
+                    "performance": result.get("performance"),
+                    "runtime_s": result.get("runtime_s"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet engine recovery job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run, name=f"bidnet-engine-recovery-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_engine_recovery",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_downstream_deep_job(
+    *,
+    time_budget_s: int = 5400,
+    max_items: int | None = None,
+) -> dict[str, Any]:
+    """Authenticated detail/package for PRODUCT + MIXED. Requires playwright slot."""
+    job_id = f"BDD-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_downstream_deep",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "time_budget_s": int(time_budget_s),
+            "max_items": max_items,
+            "rerun_discovery": False,
+            "sam_calls": 0,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=120)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "DEEP"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "completed": kwargs.get("completed"),
+                        "total": kwargs.get("total"),
+                        "pending_remaining": kwargs.get("pending_remaining"),
+                        "last_package": kwargs.get("last_package"),
+                        "rate_per_min": kwargs.get("rate_per_min"),
+                    },
+                )
+
+            _progress(phase="AUTH", pct=1)
+            from bidnet_downstream.deep import run_bidnet_downstream_deep
+
+            result = run_bidnet_downstream_deep(
+                time_budget_s=int(time_budget_s),
+                max_items=max_items,
+                on_progress=_progress,
+            )
+            try:
+                from m3_data_root import data_path
+
+                report_path = data_path("m3_bidnet_downstream_v1_last_report.json")
+                if report_path.exists():
+                    saved = json.loads(report_path.read_text(encoding="utf-8"))
+                    saved["run_id"] = job_id
+                    report_path.write_text(json.dumps(saved, indent=2, default=str), encoding="utf-8")
+                    from bidnet_downstream.census import format_downstream_report
+
+                    data_path("m3_bidnet_downstream_v1_last_report.txt").write_text(
+                        format_downstream_report(saved),
+                        encoding="utf-8",
+                    )
+            except Exception:
+                log.exception("BidNet deep report patch failed")
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "BIDNET_DOWNSTREAM_PASS": result.get("BIDNET_DOWNSTREAM_PASS"),
+                    "PASS_FAIL": result.get("PASS_FAIL"),
+                    "NEXT_RUN_ALLOWED": result.get("NEXT_RUN_ALLOWED"),
+                    "deep": result.get("deep"),
+                    "package": result.get("package"),
+                    "product_pipeline": result.get("product_pipeline"),
+                    "classification": result.get("classification"),
+                    "pending_deep_remaining": result.get("pending_deep_remaining"),
+                    "runtime_s": result.get("runtime_s"),
+                    "safety": result.get("safety"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet downstream deep failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run, name=f"bidnet-downstream-deep-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_downstream_deep",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_downstream_job() -> dict[str, Any]:
+    """Classify the frozen valid-open BidNet corpus. Does not rerun discovery or call SAM."""
+    job_id = f"BDS-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_downstream",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "valid_open_target": 21976,
+            "rerun_discovery": False,
+            "sam_calls": 0,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        started = time.time()
+
+        def _progress(**kwargs: Any) -> None:
+            _set(
+                job_id,
+                status="RUNNING",
+                progress={
+                    "phase": str(kwargs.get("phase") or "CLASSIFY"),
+                    "pct": int(kwargs.get("pct") or 0),
+                    "completed": kwargs.get("completed"),
+                    "total": kwargs.get("total"),
+                },
+            )
+
+        try:
+            _progress(phase="LOAD", pct=1)
+            from bidnet_downstream.census import run_bidnet_downstream_census
+
+            result = run_bidnet_downstream_census(on_progress=_progress)
+            result["runtime_s"] = round(time.time() - started, 1)
+            try:
+                from m3_data_root import data_path
+
+                report_path = data_path("m3_bidnet_downstream_v1_last_report.json")
+                if report_path.exists():
+                    saved = json.loads(report_path.read_text(encoding="utf-8"))
+                    saved["runtime_s"] = result["runtime_s"]
+                    saved["run_id"] = job_id
+                    report_path.write_text(json.dumps(saved, indent=2, default=str), encoding="utf-8")
+                    from bidnet_downstream.census import format_downstream_report
+
+                    data_path("m3_bidnet_downstream_v1_last_report.txt").write_text(
+                        format_downstream_report(saved),
+                        encoding="utf-8",
+                    )
+            except Exception:
+                log.exception("BidNet downstream report runtime patch failed")
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "BIDNET_DOWNSTREAM_PASS": result.get("BIDNET_DOWNSTREAM_PASS"),
+                    "PASS_FAIL": result.get("PASS_FAIL"),
+                    "NEXT_RUN_ALLOWED": result.get("NEXT_RUN_ALLOWED"),
+                    "input_valid_open": result.get("input_valid_open"),
+                    "corpus_selection": result.get("corpus_selection"),
+                    "corpus_hash": result.get("corpus_hash"),
+                    "classification": result.get("classification"),
+                    "classification_diff": result.get("classification_diff"),
+                    "product_pipeline": result.get("product_pipeline"),
+                    "package": result.get("package"),
+                    "conservation": result.get("conservation"),
+                    "gates": result.get("gates"),
+                    "safety": result.get("safety"),
+                    "runtime_s": result.get("runtime_s"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet downstream census failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+
+    threading.Thread(target=_run, name=f"bidnet-downstream-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_downstream",
         "active_running": _active_running_id(),
     }
 

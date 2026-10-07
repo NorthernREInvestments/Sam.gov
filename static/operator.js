@@ -376,7 +376,7 @@
         ${s.rfq_url ? ` · <a href="${esc(s.rfq_url)}" target="_blank" rel="noopener">RFQ</a>` : ""}
         <div class="muted">${esc(s.why || "")}</div>
       </li>`).join("");
-    <main.innerHTML = `
+    main.innerHTML = `
       <p><button type="button" class="btn ghost" data-back>← Back</button></p>
       <h1>${esc(w.buyer)} — ${esc(w.product)}</h1>
       <div class="deal-card-top" style="margin-bottom:1rem">
@@ -1008,6 +1008,141 @@
         if (res.ok) renderPackageRecovery();
       });
     });
+  }
+
+  async function renderBidnetEngine() {
+    setHint("BidNet engine recovery — thread caps, browser pool ≤2, resume from durable checkpoint.");
+    const [report, progress, recovery, recoveryProgress] = await Promise.all([
+      api("/api/m3/bidnet-engine/report").catch(() => ({ status: "NO_REPORT" })),
+      api("/api/m3/bidnet-engine/progress").catch(() => ({ progress_pct: 0 })),
+      api("/api/m3/bidnet-engine/recovery/report").catch(() => ({ status: "NO_REPORT" })),
+      api("/api/m3/bidnet-engine/recovery/progress").catch(() => ({ progress_pct: 0 })),
+    ]);
+    const b = report.baseline || {};
+    const after = report.after || {};
+    const q = report.queue || {};
+    const bl = report.backlog || {};
+    const rec = recovery.recovery || {};
+    const stab = recovery.stability || {};
+    const fin = recovery.final || {};
+    const thr = recovery.thread_control || {};
+    const conc = (report.concurrency || [])
+      .map(
+        (s) =>
+          `<tr><td>${esc(s.logical_workers ?? s.workers)}</td><td>${esc(s.browser_workers ?? "—")}</td><td>${esc(
+            s.throughput_per_min
+          )}</td><td>${esc(s.errors)}</td><td>${esc(s.auth_failures)}</td></tr>`
+      )
+      .join("");
+    main.innerHTML = `<h1>BidNet Engine</h1>
+      <p class="lead">Recovery build: logical workers ≠ browser workers. Discovery frozen. Existing 120 preserved.</p>
+      <p class="muted">Build ${esc(report.build || recovery.build || "")} · engine ${esc(
+        progress.stage || "idle"
+      )} ${esc(progress.progress_pct || 0)}% · recovery ${esc(recoveryProgress.stage || "idle")} ${esc(
+        recoveryProgress.progress_pct || 0
+      )}% · Pass ${esc(
+        recovery.BIDNET_ENGINE_RECOVERY_PASS || report.BIDNET_INCREMENTAL_PARALLEL_PASS || report.PASS_FAIL || "—"
+      )}</p>
+      <div class="meta-row">
+        <span>Valid open: <strong>21,976</strong></span>
+        <span>Product/Mixed: ${esc(b.product_mixed_total ?? 13270)}</span>
+        <span>Durably saved: ${esc(rec.durably_saved ?? b.cumulative_complete ?? "—")}</span>
+        <span>Remaining: ${esc(rec.remaining_baseline ?? b.remaining ?? "—")}</span>
+        <span>Logical: ${esc((stab.selected || {}).logical ?? report.selected_workers ?? "—")}</span>
+        <span>Browsers: ${esc((stab.selected || {}).browsers ?? "—")}</span>
+        <span>Throughput/min: ${esc((recovery.performance || {}).throughput_per_min ?? after.throughput_per_min ?? "—")}</span>
+      </div>
+      <div class="meta-row">
+        <span>OPENBLAS: ${esc(thr.OPENBLAS_NUM_THREADS ?? "—")}</span>
+        <span>Threads active: ${esc(thr.verified_active ?? "—")}</span>
+        <span>Resource fixed: ${esc(fin.RESOURCE_EXHAUSTION_FIXED ?? "—")}</span>
+        <span>Safe resume: ${esc(fin.SAFE_TO_RESUME_BASELINE ?? "—")}</span>
+        <span>Next: ${esc(fin.NEXT_RUN_ALLOWED || report.NEXT_RUN_ALLOWED || "—")}</span>
+        <span>Queued: ${esc(q.total_queued ?? "—")}</span>
+        <span>Backlog: ${esc(bl.current ?? "—")}</span>
+      </div>
+      <h2>Concurrency test</h2>
+      <table class="data"><thead><tr><th>Logical</th><th>Browsers</th><th>Throughput/min</th><th>Errors</th><th>Auth failures</th></tr></thead><tbody>${
+        conc || "<tr><td colspan='5'>No concurrency results yet.</td></tr>"
+      }</tbody></table>`;
+  }
+
+  async function renderBidnetDownstream() {
+    setHint("BidNet downstream census of the frozen 21,976 valid-open corpus. Discovery is not rerun.");
+    const [report, progress] = await Promise.all([
+      api("/api/m3/bidnet-downstream/report").catch(() => ({ status: "NO_REPORT" })),
+      api("/api/m3/bidnet-downstream/progress").catch(() => ({ progress_pct: 0 })),
+    ]);
+    const cls = report.classification || {};
+    const pipe = report.product_pipeline || {};
+    const pkg = report.package || {};
+    const elig = report.eligibility || {};
+    const econ = report.economics || {};
+    const acq = report.acquisition || {};
+    const basket = report.basket || {};
+    const deep = report.deep || {};
+    const ready =
+      Number(pkg.PACKAGE_ACQUIRED_BIDNET || 0) + Number(pkg.PACKAGE_ACQUIRED_OFFICIAL_SOURCE || 0);
+    const blockers = (report.bottlenecks || [])
+      .map(
+        (b) =>
+          `<tr><td>${esc(b.reason)}</td><td>${esc(b.count)}</td><td>${esc(b.percent)}%</td><td>${esc(
+            b.recommended_action
+          )}</td></tr>`
+      )
+      .join("");
+    const top = (report.top_25_readiness || [])
+      .map(
+        (r) =>
+          `<tr><td>${esc(r.buyer)}</td><td>${esc(r.title)}</td><td>${esc(r.category)}</td><td>${esc(
+            r.package
+          )}</td><td>${esc(r.next_action)}</td></tr>`
+      )
+      .join("");
+    main.innerHTML = `<h1>BidNet Downstream</h1>
+      <p class="lead">Production census of the frozen valid-open BidNet corpus. Missing package access is not a product rejection.</p>
+      <p class="muted">Build ${esc(report.build || progress.build_version || "")} · ${esc(
+        progress.stage || progress.phase || "idle"
+      )} · ${esc(progress.progress_pct || 0)}%</p>
+      <div class="meta-row">
+        <span>Valid open: <strong>${esc(report.input_valid_open ?? "21,976")}</strong></span>
+        <span>Distinct: ${esc(report.distinct_opportunities ?? "—")}</span>
+        <span>Collapsed duplicates: ${esc(report.collapsed_duplicate_list_identities ?? "—")}</span>
+        <span>Pass: <strong>${esc(report.BIDNET_DOWNSTREAM_PASS || report.PASS_FAIL || "—")}</strong></span>
+        <span>Next: ${esc(report.NEXT_RUN_ALLOWED || "—")}</span>
+        <span>Deep done: ${esc(deep.deep_complete_total ?? "—")}</span>
+        <span>Deep pending: ${esc(report.pending_deep_remaining ?? deep.pending_remaining ?? "—")}</span>
+      </div>
+      <h2>Classification</h2>
+      <div class="meta-row">
+        <span>Classified: ${esc(report.classification_accounted ?? "—")}</span>
+        <span>Product: ${esc(cls.PRODUCT ?? "—")}</span>
+        <span>Mixed: ${esc(cls.MIXED_PRODUCT_MATERIAL ?? "—")}</span>
+        <span>Service: ${esc(cls.SERVICE ?? "—")}</span>
+        <span>Construction: ${esc(cls.CONSTRUCTION ?? "—")}</span>
+        <span>Unknown: ${esc(cls.UNKNOWN ?? "—")}</span>
+      </div>
+      <h2>Downstream funnel</h2>
+      <div class="meta-row">
+        <span>Detail complete: ${esc(pipe.DETAIL_COMPLETE ?? "—")}</span>
+        <span>Package ready: ${esc(ready)}</span>
+        <span>Eligibility clear: ${esc(elig.ELIGIBILITY_CLEAR ?? "—")}</span>
+        <span>Lines extracted: 0</span>
+        <span>Identity ready: 0</span>
+        <span>Revenue ready: 0</span>
+        <span>Public acquisition ready: ${esc(acq.public_price_ready ?? 0)}</span>
+        <span>Quote required: ${esc(acq.quote_required_opportunities ?? 0)}</span>
+        <span>Basket ready: ${esc(basket.ready ?? 0)}</span>
+        <span>Economics ready: ${esc(econ.ready ?? 0)}</span>
+      </div>
+      <h2>Bottlenecks</h2>
+      <table class="data"><thead><tr><th>Reason</th><th>Count</th><th>Percent</th><th>Action</th></tr></thead><tbody>${
+        blockers || "<tr><td colspan='4'>No census yet.</td></tr>"
+      }</tbody></table>
+      <h2>Top opportunities</h2>
+      <table class="data"><thead><tr><th>Buyer</th><th>Title</th><th>Category</th><th>Package</th><th>Next action</th></tr></thead><tbody>${
+        top || "<tr><td colspan='5'>No ranked product opportunities yet.</td></tr>"
+      }</tbody></table>`;
   }
 
   async function renderBidnetProduction() {
@@ -2633,6 +2768,8 @@
       else if (path === "large-test") await renderLargeTest();
       else if (path === "package-recovery") await renderPackageRecovery();
       else if (path === "bidnet-production") await renderBidnetProduction();
+      else if (path === "bidnet-downstream") await renderBidnetDownstream();
+      else if (path === "bidnet-engine") await renderBidnetEngine();
       else if (path === "quote") await renderQuote(params);
       else if (path === "registrations") await renderRegistrations();
       else if (path === "registration") await renderRegistration(params);

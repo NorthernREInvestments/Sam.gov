@@ -167,13 +167,41 @@ class BidNetAuthenticatedClient:
         self.last_result = login
         return login
 
-    def fetch_html(self, url: str, *, timeout_ms: int = 90_000) -> str:
+    def fetch_html(self, url: str, *, timeout_ms: int = 90_000, prefer_http: bool = True) -> str:
+        """Fetch HTML. Prefer authenticated HTTP request; fall back to page navigation."""
         if not self.is_authenticated:
             raise RuntimeError("BidNet client is not authenticated")
+        if prefer_http and self._context is not None:
+            try:
+                resp = self._context.request.get(url, timeout=timeout_ms)
+                if resp.ok:
+                    html = resp.text()
+                    final = str(getattr(resp, "url", None) or url)
+                    challenge = self._detect_challenge(html, final)
+                    if challenge and re.search(r"captcha|mfa|two.?factor|recaptcha", challenge, re.I):
+                        raise RuntimeError(f"AUTH_CHALLENGE:{challenge}")
+                    # Enough solicitation content → skip slow page.goto/networkidle
+                    low = (html or "").lower()
+                    if any(
+                        marker in low
+                        for marker in (
+                            "mets-field",
+                            "issuing organization",
+                            "closing date",
+                            "solicitation number",
+                            "ai-public-overview",
+                        )
+                    ):
+                        return html
+            except RuntimeError:
+                raise
+            except Exception as exc:
+                log.debug("BidNet HTTP fetch fallback to page: %s", type(exc).__name__)
+
         assert self._page is not None
         self._page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         try:
-            self._page.wait_for_load_state("networkidle", timeout=20_000)
+            self._page.wait_for_load_state("networkidle", timeout=12_000)
         except Exception:
             pass
         # Wait for abstract / solicitation content markers (member view)
@@ -186,7 +214,7 @@ class BidNetAuthenticatedClient:
             "text=Solicitation Number",
         ):
             try:
-                self._page.wait_for_selector(sel, timeout=8_000)
+                self._page.wait_for_selector(sel, timeout=5_000)
                 break
             except Exception:
                 continue
