@@ -291,6 +291,122 @@ class BidNetAuthenticatedClient:
 
         return api_html
 
+    def discover_attachment_links(self, detail_url: str, *, timeout_ms: int = 75_000) -> list[dict[str, Any]]:
+        """DOM-scrape BidNet detail/documents UI for real attachment hrefs (not viewer HTML)."""
+        if not self.is_authenticated or self._page is None or not detail_url:
+            return []
+        found: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        try:
+            self.fetch_html(detail_url, timeout_ms=timeout_ms)
+        except Exception as exc:
+            log.warning("discover_attachment_links navigate failed: %s", type(exc).__name__)
+            return []
+
+        # Open Documents / Attachments tab when present
+        for label in (
+            r"Documents",
+            r"Attachments",
+            r"Bid\s*Documents",
+            r"Files",
+            r"Solicitation\s*Documents",
+        ):
+            try:
+                tab = self._page.get_by_role("tab", name=re.compile(label, re.I))
+                if tab.count() > 0:
+                    tab.first.click(timeout=3_000)
+                    self._page.wait_for_timeout(800)
+                    break
+            except Exception:
+                pass
+            try:
+                link = self._page.get_by_role("link", name=re.compile(label, re.I))
+                if link.count() > 0:
+                    link.first.click(timeout=3_000)
+                    self._page.wait_for_timeout(800)
+                    break
+            except Exception:
+                pass
+
+        def _add(href: str, name: str) -> None:
+            href = (href or "").strip()
+            if not href or href.startswith("#") or href.lower().startswith("javascript:"):
+                return
+            low = href.lower()
+            if any(x in low for x in ("login", "logout", "register", "captcha", "authentication")):
+                return
+            if href.startswith("/"):
+                try:
+                    from urllib.parse import urljoin
+
+                    href = urljoin(self._page.url or detail_url, href)
+                except Exception:
+                    return
+            if not href.startswith("http") or href in seen:
+                return
+            # Prefer file-like or download endpoints
+            if not re.search(
+                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download|attachment|document|fileId|docId|getFile|solicitation",
+                href,
+                re.I,
+            ):
+                # Keep named document links even without extension
+                if not re.search(r"\.(pdf|docx?|xlsx?|csv|zip)\b", name or "", re.I):
+                    if not re.search(r"addend|amend|attach|exhibit|schedule|spec|bid\s*form|pricing", name or "", re.I):
+                        return
+            seen.add(href)
+            found.append(
+                {
+                    "document_name": (name or href.rsplit("/", 1)[-1] or "attachment")[:160],
+                    "document_url": href,
+                    "filename": (name or href.rsplit("/", 1)[-1] or "attachment")[:160],
+                    "url": href,
+                    "source_url": href,
+                    "retrieval_status": "URL_DISCOVERED_FROM_PAGE",
+                    "requires_auth": True,
+                    "page_discovered": True,
+                }
+            )
+
+        try:
+            anchors = self._page.locator("a[href]").all()
+            for a in anchors[:250]:
+                try:
+                    href = a.get_attribute("href") or ""
+                    text = (a.inner_text() or "").strip()
+                    title = a.get_attribute("title") or ""
+                    _add(href, text or title)
+                except Exception:
+                    continue
+        except Exception as exc:
+            log.info("discover_attachment_links anchor scan: %s", type(exc).__name__)
+
+        # data-download / button hooks
+        try:
+            for sel in (
+                "[data-download-url]",
+                "[data-file-url]",
+                "[data-document-url]",
+                "a[download]",
+            ):
+                for el in self._page.locator(sel).all()[:40]:
+                    try:
+                        href = (
+                            el.get_attribute("data-download-url")
+                            or el.get_attribute("data-file-url")
+                            or el.get_attribute("data-document-url")
+                            or el.get_attribute("href")
+                            or ""
+                        )
+                        name = (el.inner_text() or el.get_attribute("download") or "").strip()
+                        _add(href, name)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+        return found[:30]
+
     def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:
         """Navigate URL and capture JSON XHR/fetch payloads for structured harvest."""
         if not self.is_authenticated:

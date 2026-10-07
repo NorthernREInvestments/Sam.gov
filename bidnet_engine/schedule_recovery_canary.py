@@ -405,9 +405,22 @@ def _build_report(
                     "classification": clf or b,
                     "blocker_type": (
                         "external"
-                        if clf in {"CATALOG_DISCOUNT_ONLY", "NO_PRODUCT_LINES_ACTUALLY_PRESENT", "PRODUCT_SCHEDULE_INACCESSIBLE"}
-                        else "software"
+                        if clf in {"CATALOG_DISCOUNT_ONLY", "NO_PRODUCT_LINES_ACTUALLY_PRESENT"}
+                        else (
+                            # HTML/auth download failures are software until page discovery is exhausted
+                            "software"
+                            if clf == "PRODUCT_SCHEDULE_INACCESSIBLE"
+                            else "software"
+                        )
                     ),
+                    "invalid_reasons": (pm.get("invalid_download_reasons") or [])[:6],
+                    "harvested_from_html": pm.get("HARVESTED_FROM_HTML"),
+                    "page_discovered": pm.get("PAGE_DISCOVERED_ATTACHMENTS"),
+                    "attachment_urls": [
+                        (e.get("source_url") or "")[:180]
+                        for e in (pm.get("PACKAGE_ATTACHMENT_INDEX") or [])[:6]
+                        if isinstance(e, dict)
+                    ],
                 }
             )
 

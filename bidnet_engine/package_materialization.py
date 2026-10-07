@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v13-html-harvest-browser-dl"
+PATCH = "asr-v14-page-discover-attachments"
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
@@ -99,9 +99,10 @@ def harvest_attachment_urls_from_html(html: bytes | str, *, base_url: str = "") 
 
     patterns = (
         r'href=["\']([^"\']+\.(?:pdf|docx?|xlsx?|csv|zip)(?:\?[^"\']*)?)["\']',
-        r'href=["\']([^"\']*(?:/download|/file|/attachment|/document)[^"\']*)["\']',
-        r'data-url=["\']([^"\']+\.(?:pdf|docx?|xlsx?|csv|zip)(?:\?[^"\']*)?)["\']',
+        r'href=["\']([^"\']*(?:/download|/file|/attachment|/document|downloadDocument|getDocument|getFile|fileId|docId|documentId)[^"\']*)["\']',
+        r'data-(?:url|download-url|file-url|document-url)=["\']([^"\']+)["\']',
         r'(https?://[^"\'\s<>]+\.(?:pdf|docx?|xlsx?|csv)(?:\?[^"\'\s<>]*)?)',
+        r'["\'](/[^"\']*(?:SolicitationDocument|solicitation-document|bidDocument)[^"\']*)["\']',
     )
     for pat in patterns:
         for m in re.finditer(pat, text, re.I):
@@ -347,33 +348,51 @@ def materialize_attachments(
     invalid: list[dict[str, Any]] = []
     materialized: list[dict[str, Any]] = []
     harvested_extra = 0
+    page_discovered = 0
     seen_urls = {
         str(e.get("source_url") or "").split("#")[0]
         for e in index
         if e.get("source_url")
     }
 
-    def _enqueue_harvested(html_body: bytes, base_url: str) -> None:
-        nonlocal harvested_extra, index
-        kids = harvest_attachment_urls_from_html(html_body, base_url=base_url)
-        new_raw: list[dict[str, Any]] = []
-        for kid in kids:
-            u = str(kid.get("document_url") or "").split("#")[0]
+    def _save_html_diag(html_body: bytes, label: str) -> None:
+        try:
+            diag = data_path("bidnet_auth", "html_diag")
+            diag.mkdir(parents=True, exist_ok=True)
+            safe = re.sub(r"[^a-zA-Z0-9_-]+", "_", f"{safe_sid}_{label}")[:80]
+            (diag / f"{safe}.html").write_bytes(html_body[:80_000])
+        except Exception:
+            pass
+
+    def _enqueue_docs(new_raw: list[dict[str, Any]], *, counter: str = "harvest") -> int:
+        nonlocal harvested_extra, page_discovered, index
+        added = 0
+        kept: list[dict[str, Any]] = []
+        for kid in new_raw:
+            u = str(kid.get("document_url") or kid.get("source_url") or "").split("#")[0]
             if not u or u in seen_urls:
                 continue
             seen_urls.add(u)
-            new_raw.append(kid)
-            harvested_extra += 1
-        if not new_raw:
-            return
-        working_docs.extend(new_raw)
-        extra_idx = build_attachment_index(new_raw, opportunity_id=opportunity_id)
-        # Append so the main loop can process them (expand beyond original slice)
-        index.extend(extra_idx)
+            kept.append(kid)
+            added += 1
+            if counter == "page":
+                page_discovered += 1
+            else:
+                harvested_extra += 1
+        if not kept:
+            return 0
+        working_docs.extend(kept)
+        index.extend(build_attachment_index(kept, opportunity_id=opportunity_id))
+        return added
 
-    # Prefer high-value first; allow index to grow via HTML harvest mid-loop
+    def _enqueue_harvested(html_body: bytes, base_url: str) -> None:
+        _save_html_diag(html_body, "harvest")
+        kids = harvest_attachment_urls_from_html(html_body, base_url=base_url)
+        _enqueue_docs(kids, counter="harvest")
+
+    # Prefer high-value first; allow index to grow via HTML harvest / page discovery
     i = 0
-    while i < len(index) and i < max(limit, 12) + harvested_extra:
+    while i < len(index) and i < max(limit, 12) + harvested_extra + page_discovered:
         entry = index[i]
         i += 1
         if len(materialized) >= limit and harvested_extra == 0:
@@ -467,6 +486,72 @@ def materialize_attachments(
             try:
                 if path.exists():
                     path.unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+
+    # If still no valid binaries, DOM-scrape the BidNet detail page for real attachment hrefs
+    if valid == 0 and client is not None and hasattr(client, "discover_attachment_links"):
+        detail_candidates: list[str] = []
+        for e in index:
+            u = str(e.get("source_url") or "")
+            if u.startswith("http") and "bidnet" in u.lower():
+                detail_candidates.append(u)
+        # Prefer non-download viewer/detail URLs
+        detail_url = ""
+        for u in detail_candidates:
+            if not re.search(r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)", u, re.I):
+                detail_url = u
+                break
+        if not detail_url and detail_candidates:
+            detail_url = detail_candidates[0]
+        if detail_url:
+            try:
+                page_docs = client.discover_attachment_links(detail_url) or []
+                added = _enqueue_docs(page_docs, counter="page")
+                # Continue download loop for newly discovered links
+                if added:
+                    already_ok = {
+                        str(m.get("SOURCE_URL") or m.get("source_url") or "")
+                        for m in materialized
+                    }
+                    while i < len(index) and i < max(limit, 12) + harvested_extra + page_discovered:
+                        entry = index[i]
+                        i += 1
+                        raw = entry.get("_raw") if isinstance(entry.get("_raw"), dict) else {}
+                        url = str(entry.get("source_url") or "")
+                        if not url.startswith("http") or url in already_ok:
+                            continue
+                        try:
+                            body = client.download_bytes(url, timeout_ms=60_000)
+                        except Exception:
+                            continue
+                        name = entry.get("filename") or "doc"
+                        ext = entry.get("extension") or Path(str(name)).suffix.lower().lstrip(".")
+                        ok, reason = _sig_ok(body or b"", ext)
+                        downloaded += 1
+                        if ok and body:
+                            h = hashlib.sha256(body).hexdigest()[:16]
+                            safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", str(name))[:80]
+                            path = data_path("bidnet_auth", "documents", safe_sid, f"{h}_{safe}")
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            path.write_bytes(body)
+                            entry["LOCAL_PATH"] = str(path)
+                            entry["CONTENT_HASH"] = h
+                            entry["BYTE_SIZE"] = len(body)
+                            entry["DOWNLOAD_TIME"] = now_utc().isoformat()
+                            entry["SOURCE_URL"] = url
+                            entry["DOCUMENT_CONTENT_VALID"] = True
+                            entry["retrieval_status"] = "DOWNLOADED"
+                            raw["local_path"] = str(path)
+                            raw["content_hash"] = h
+                            raw["retrieval_status"] = "DOWNLOADED"
+                            valid += 1
+                            materialized.append(entry)
+                            already_ok.add(url)
+                        else:
+                            invalid.append({**entry, "failure": reason})
+                            if body and looks_like_html_bytes(body):
+                                _enqueue_harvested(body, url)
             except Exception:
                 pass
 
@@ -613,6 +698,7 @@ def materialize_attachments(
         "materialized": [{k: v for k, v in e.items() if k != "_raw"} for e in materialized],
         "invalid_downloads": [{k: v for k, v in e.items() if k != "_raw"} for e in invalid],
         "HARVESTED_FROM_HTML": harvested_extra,
+        "PAGE_DISCOVERED_ATTACHMENTS": page_discovered,
         "PACKAGE_DOCUMENT_COUNT_EXPECTED": expected,
         "PACKAGE_DOCUMENT_COUNT_DISCOVERED": discovered,
         "PACKAGE_DOCUMENT_COUNT_DOWNLOADED": downloaded,
@@ -644,11 +730,19 @@ def materialize_attachments(
         "EXPECTED_PRODUCT_LINES": content_recognition.get("EXPECTED_PRODUCT_LINES"),
         "EXTRACTED_PRODUCT_LINES": content_recognition.get("EXTRACTED_PRODUCT_LINES"),
         "LINE_EXTRACTION_COVERAGE": content_recognition.get("LINE_EXTRACTION_COVERAGE"),
-        "operator_product_status": content_recognition.get("operator_product_status"),
         "product_classification": (
             "PRODUCT_SCHEDULE_INACCESSIBLE"
             if valid == 0 and (downloaded > 0 or invalid)
             else content_recognition.get("classification")
+        ),
+        "operator_product_status": (
+            (
+                "BidNet returned web pages instead of downloadable bid attachments. "
+                "M3 is still trying to locate the real product schedule files."
+            )
+            if valid == 0 and invalid
+            else content_recognition.get("operator_product_status")
+            or content_recognition.get("operator_status")
         ),
         "content_schedule_rows": content_recognition.get("authoritative_rows") or [],
         "invalid_download_reasons": [

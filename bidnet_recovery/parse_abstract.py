@@ -97,43 +97,57 @@ def parse_bidnet_abstract(html: str, *, detail_url: str | None = None) -> dict[s
     }
     pub_norm = normalize_deadline(publication) if publication else {}
 
-    # Document links (rare on anonymous teaser)
+    # Document links (rare on anonymous teaser; richer on authenticated BidNet)
     docs: list[dict[str, Any]] = []
+    seen_doc_urls: set[str] = set()
+
+    def _add_doc(href: str, name: str, kind: str = "attachment") -> None:
+        if not href or href.startswith("#") or "javascript:" in href.lower():
+            return
+        if any(x in href.lower() for x in ("login", "logout", "register", "captcha")):
+            return
+        url = urljoin(detail_url or "", href) if detail_url else href
+        if not url.startswith("http") or url in seen_doc_urls:
+            return
+        seen_doc_urls.add(url)
+        docs.append(
+            {
+                "document_type": kind,
+                "document_name": (name or href.rsplit("/", 1)[-1])[:160],
+                "document_url": url,
+                "retrieval_status": "URL_DISCOVERED",
+                "last_verified": None,
+            }
+        )
+
     for m in re.finditer(
         r'href="([^"]+\.(?:pdf|docx?|xlsx?|csv|zip)(?:\?[^"]*)?)"',
         body,
         re.I,
     ):
         href = m.group(1)
-        url = urljoin(detail_url or "", href) if detail_url else href
-        docs.append(
-            {
-                "document_type": "attachment",
-                "document_name": href.rsplit("/", 1)[-1][:160],
-                "document_url": url,
-                "retrieval_status": "URL_DISCOVERED",
-                "last_verified": None,
-            }
-        )
+        _add_doc(href, href.rsplit("/", 1)[-1], "attachment")
     for m in re.finditer(
-        r'href="([^"]+)"[^>]*>([^<]{0,120}(?:Addendum|Amendment|Attachment|Specification|Bid\s*Sheet)[^<]{0,40})</a>',
+        r'href="([^"]+)"[^>]*>([^<]{0,120}(?:Addendum|Amendment|Attachment|Specification|Bid\s*Sheet|'
+        r"Exhibit|Schedule|Pricing|Equipment\s*List|Item\s*List|Solicitation)[^<]{0,40})</a>",
         body,
         re.I,
     ):
         href, name = m.group(1), re.sub(r"\s+", " ", m.group(2)).strip()
-        if "login" in href.lower() or "register" in href.lower():
-            continue
-        url = urljoin(detail_url or "", href) if detail_url else href
-        if not any(d.get("document_url") == url for d in docs):
-            docs.append(
-                {
-                    "document_type": "linked",
-                    "document_name": name[:160],
-                    "document_url": url,
-                    "retrieval_status": "URL_DISCOVERED",
-                    "last_verified": None,
-                }
-            )
+        _add_doc(href, name, "linked")
+    for m in re.finditer(
+        r'href=["\']([^"\']*(?:downloadDocument|getDocument|getFile|documentId|fileId|'
+        r'SolicitationDocument|/download|/attachment)[^"\']*)["\']',
+        body,
+        re.I,
+    ):
+        _add_doc(m.group(1), m.group(1).rsplit("/", 1)[-1], "download_endpoint")
+    for m in re.finditer(
+        r'data-(?:download-url|file-url|document-url)=["\']([^"\']+)["\']',
+        body,
+        re.I,
+    ):
+        _add_doc(m.group(1), m.group(1).rsplit("/", 1)[-1], "data_attr")
 
     auth_wall = bool(locked_fields) or bool(
         re.search(r"Registered members only|Get instant access|abstractRegisterNowButton", body, re.I)

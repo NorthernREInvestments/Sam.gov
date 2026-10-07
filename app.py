@@ -2194,6 +2194,92 @@ def api_m3_package_materialization_report(format: str = "json"):
     return report
 
 
+@app.get("/api/m3/schedule-recovery/row-diagnostics")
+def api_m3_schedule_recovery_row_diagnostics(limit: int = 13):
+    """Per-opportunity attachment URLs, harvest counts, invalid reasons (same-13)."""
+    import json
+    from pathlib import Path
+
+    from m3_data_root import data_path
+
+    rows_path = data_path("m3_schedule_recovery_v1_rows.json")
+    if not rows_path.exists():
+        return {"status": "NO_ROWS", "build_version": APP_BUILD_VERSION}
+    doc = json.loads(rows_path.read_text(encoding="utf-8"))
+    out = []
+    for r in (doc.get("rows") or [])[: max(1, min(int(limit), 13))]:
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        idx = pm.get("PACKAGE_ATTACHMENT_INDEX") or []
+        out.append(
+            {
+                "title": (r.get("title") or "")[:100],
+                "stable_key": r.get("stable_key"),
+                "raw_lines": r.get("raw_lines"),
+                "classification": pm.get("product_classification"),
+                "valid": pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED"),
+                "downloaded": pm.get("PACKAGE_DOCUMENT_COUNT_DOWNLOADED"),
+                "harvested": pm.get("HARVESTED_FROM_HTML"),
+                "page_discovered": pm.get("PAGE_DISCOVERED_ATTACHMENTS"),
+                "invalid_reasons": (pm.get("invalid_download_reasons") or [])[:8],
+                "attachments": [
+                    {
+                        "filename": e.get("filename"),
+                        "url": (e.get("source_url") or "")[:220],
+                        "ext": e.get("extension"),
+                        "valid": e.get("DOCUMENT_CONTENT_VALID"),
+                        "failure": e.get("DOCUMENT_VALIDATION_FAILURE_REASON") or e.get("failure"),
+                        "harvested": e.get("harvested_from_html") or (e.get("_raw") or {}).get("harvested_from_html")
+                        if isinstance(e.get("_raw"), dict)
+                        else e.get("harvested_from_html"),
+                    }
+                    for e in idx[:10]
+                    if isinstance(e, dict)
+                ],
+                "materialized": [
+                    {
+                        "filename": m.get("filename"),
+                        "bytes": m.get("BYTE_SIZE"),
+                        "role": m.get("document_role_content") or m.get("document_role_guess"),
+                        "rows": m.get("extracted_line_count"),
+                    }
+                    for m in (pm.get("materialized") or [])[:6]
+                    if isinstance(m, dict)
+                ],
+            }
+        )
+    diag_root = data_path("bidnet_auth", "html_diag")
+    diags = []
+    if diag_root.exists():
+        for p in sorted(diag_root.glob("*.html"))[:20]:
+            diags.append({"name": p.name, "bytes": p.stat().st_size})
+    return {"build_version": APP_BUILD_VERSION, "opportunities": out, "html_diag_files": diags}
+
+
+@app.get("/api/m3/schedule-recovery/html-diag/{name}")
+def api_m3_schedule_recovery_html_diag(name: str):
+    """Return a short sample of a saved BidNet HTML diagnostic file."""
+    import re
+    from pathlib import Path
+
+    from m3_data_root import data_path
+
+    safe = re.sub(r"[^a-zA-Z0-9._-]+", "", name)[:120]
+    path = data_path("bidnet_auth", "html_diag", safe)
+    if not path.exists() or not path.is_file():
+        return {"status": "MISSING", "name": safe}
+    raw = path.read_bytes()[:12000]
+    text = raw.decode("utf-8", errors="ignore")
+    # Extract href candidates for operator debugging
+    hrefs = re.findall(r'href=["\']([^"\']+)["\']', text, re.I)[:40]
+    return {
+        "name": safe,
+        "bytes": path.stat().st_size,
+        "sample": text[:4000],
+        "href_sample": hrefs,
+        "build_version": APP_BUILD_VERSION,
+    }
+
+
 @app.get("/api/m3/schedule-recovery/validate-probe")
 def api_m3_schedule_recovery_validate_probe():
     """Live proof: does current runtime reject HTML document_1 caches?"""
