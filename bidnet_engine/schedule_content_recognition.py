@@ -46,6 +46,12 @@ _ITEM_ROW = re.compile(
     r"(?P<uom>EA|EACH|CS|CASE|BX|BOX|PK|PACK|FT|LF|GAL|LB|SET|KIT|PAIR|LOT)?\b",
     re.I,
 )
+# Tab/multi-space separated item rows common in PDF text extraction
+_ITEM_ROW_LOOSE = re.compile(
+    r"^\s*(?P<item>\d{1,4})\s{2,}(?P<desc>.{6,200}?)\s{2,}(?P<qty>\d[\d,]*(?:\.\d+)?)"
+    r"(?:\s+(?P<uom>EA|EACH|CS|CASE|BX|BOX|PK|PACK|FT|LF|GAL|LB|SET|KIT|PAIR|LOT))?\b",
+    re.I,
+)
 _CLIN = re.compile(r"\bCLIN\s*[:#]?\s*(\d{1,6})\b", re.I)
 _CATALOG_DISCOUNT = re.compile(
     r"\b(percent(?:age)?\s+discount|discount\s+(?:off|from|of)\s+(?:list|catalog|msrp|oem)|"
@@ -191,14 +197,14 @@ def _rows_from_text(text: str, *, page: int, path: Path, inherited_header: str |
             # Keep mixed product+labor: skip pure labor lines
             if not _PRODUCTISH.search(line):
                 continue
-        m = _ITEM_ROW.match(line)
+        m = _ITEM_ROW.match(line) or _ITEM_ROW_LOOSE.match(line)
         if m:
             rows.append(
                 {
                     "item": m.group("item"),
                     "description": m.group("desc").strip()[:500],
                     "quantity": m.group("qty"),
-                    "uom": m.group("uom"),
+                    "uom": m.group("uom") if "uom" in m.groupdict() else None,
                     "part_number": (_LABELED_PN.search(line).group(1) if _LABELED_PN.search(line) else None),
                     "equal_allowed": bool(re.search(r"\bor\s+equal\b", line, re.I)),
                     "_source_path": str(path),
