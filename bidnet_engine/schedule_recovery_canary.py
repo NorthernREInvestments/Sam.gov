@@ -6,7 +6,6 @@ import json
 import threading
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from typing import Any
 
 from application_clock import now_utc
@@ -154,91 +153,35 @@ def _process_opp_with_guards(
     hb_thread = threading.Thread(target=_heartbeat_loop, name=f"asr-hb-{sk}", daemon=True)
     hb_thread.start()
     try:
-        # Separate worker so we can bound wait; Playwright may still finish in background.
-        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="asr-opp") as pool:
-            fut = pool.submit(
-                process_money_opportunity,
-                item,
-                store_row,
-                client=client,
-                store=store_by_cid,
-                price_budget=price_budget,
-            )
-            deadline = started + OPP_HARD_TIMEOUT_S
-            while True:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    stage_box["stage"] = "STALLED_TIMEOUT"
-                    write_status(
-                        phase="STALLED_OPPORTUNITY",
-                        completed=valid_n,
-                        remaining=max(0, target_valid - valid_n),
-                        percent=int(100 * valid_n / max(target_valid, 1)),
-                        run_id=run_id,
-                        iteration=iteration,
-                        current_stable_key=sk,
-                        current_title=title[:120],
-                        current_stage="STALLED_TIMEOUT",
-                        time_in_current_stage_s=round(time.time() - started, 1),
-                        valid_counted=valid_n,
-                        excluded_counted=excl_n + 1,
-                        pool_remaining=pool_remaining,
-                        heartbeat_at=now_utc().isoformat(),
-                        stalled_reason=f"No completion within {OPP_HARD_TIMEOUT_S}s hard timeout",
-                        STALLED_OPPORTUNITY=True,
-                    )
-                    return {
-                        "canonical_opportunity_id": cid,
-                        "stable_key": sk,
-                        "title": title,
-                        "buyer": item.get("buyer"),
-                        "raw_lines": 0,
-                        "material_lines": 0,
-                        "usable_ae": 0,
-                        "public_prices": 0,
-                        "live_bidnet": True,
-                        "recovery_cohort": mode,
-                        "schedule_recovery_iteration": iteration,
-                        "counts_toward_new20": False,
-                        "exclusion": "STALLED_OPPORTUNITY",
-                        "stalled": True,
-                        "stalled_stage": "PROCESS_MONEY",
-                        "stalled_reason": f"Exceeded {OPP_HARD_TIMEOUT_S}s without completion",
-                        "time_in_stage_s": round(time.time() - started, 1),
-                        "package_materialization": {
-                            "primary_blocker": "STALLED_OPPORTUNITY",
-                            "operator_product_status": (
-                                f"Quarantined after {OPP_HARD_TIMEOUT_S}s hard timeout "
-                                "with no completion — replaced from pool"
-                            ),
-                            "product_classification": "STALLED_OPPORTUNITY",
-                            "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
-                        },
-                        "package_primary_blocker": "STALLED_OPPORTUNITY",
-                    }
-                try:
-                    return fut.result(timeout=min(HEARTBEAT_INTERVAL_S, max(0.5, remaining)))
-                except FuturesTimeout:
-                    elapsed = time.time() - started
-                    write_status(
-                        phase=f"SCHEDULE_RECOVERY_{mode.upper()}_OPP",
-                        completed=valid_n if mode == "new_20" else valid_n + excl_n,
-                        remaining=max(0, target_valid - valid_n),
-                        percent=int(100 * valid_n / max(target_valid, 1)),
-                        run_id=run_id,
-                        iteration=iteration,
-                        current_stable_key=sk,
-                        current_title=title[:120],
-                        current_stage=stage_box.get("stage"),
-                        time_in_current_stage_s=round(elapsed, 1),
-                        valid_counted=valid_n,
-                        excluded_counted=excl_n,
-                        attempted=valid_n + excl_n,
-                        pool_remaining=pool_remaining,
-                        heartbeat_at=now_utc().isoformat(),
-                        waiting_on="process_money_opportunity",
-                    )
-                    continue
+        # CRITICAL: Playwright sync API is thread-affine. The BidNet browser/page/context
+        # must be used on the same thread that created them. Running process_money in a
+        # ThreadPoolExecutor caused discover/download to fail instantly (~2s/opp) while
+        # the membership-wall fallback looked like an external BidNet lock.
+        #
+        # Hard timeout is enforced cooperatively via per-call Playwright/HTTP timeouts
+        # inside materialize/discovery (and a wall-clock stall mark after return).
+        stage_box["stage"] = "PROCESS_MONEY"
+        result = process_money_opportunity(
+            item,
+            store_row,
+            client=client,
+            store=store_by_cid,
+            price_budget=price_budget,
+        )
+        elapsed = time.time() - started
+        if elapsed > OPP_HARD_TIMEOUT_S:
+            result = dict(result or {})
+            result["stalled"] = True
+            result["exclusion"] = "STALLED_OPPORTUNITY"
+            result["stalled_reason"] = f"Exceeded {OPP_HARD_TIMEOUT_S}s wall clock"
+            result["time_in_stage_s"] = round(elapsed, 1)
+            pm = result.get("package_materialization") if isinstance(result.get("package_materialization"), dict) else {}
+            result["package_materialization"] = {
+                **pm,
+                "primary_blocker": "STALLED_OPPORTUNITY",
+                "product_classification": "STALLED_OPPORTUNITY",
+            }
+        return result
     finally:
         stop_hb.set()
 

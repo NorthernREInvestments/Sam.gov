@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v4-statewide-id-namespace-fix"
+PATCH = "s20-v5-playwright-same-thread-discovery"
 
 
 _OPEN_BIDS_ID = re.compile(

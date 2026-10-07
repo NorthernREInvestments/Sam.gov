@@ -385,7 +385,8 @@ def resolve_same20(
                     merged.append(d)
                     seen.add(u)
             sr["attachments_metadata"] = merged
-        if frozen.get("authoritative_url") and not sr.get("authoritative_url"):
+        if frozen.get("authoritative_url"):
+            # Frozen corpus URLs win — store rows are often thin/stale for SAME-20
             sr["authoritative_url"] = frozen.get("authoritative_url")
             ref = sr.get("row_ref") if isinstance(sr.get("row_ref"), dict) else {}
             ref = {**ref, "detail_url": frozen.get("authoritative_url")}

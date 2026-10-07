@@ -78,7 +78,22 @@ def test_statewide_namespace_guard_in_materialization():
         resolve_bidnet_private_detail_url_candidates,
     )
 
-    assert "statewide" in PATCH
+    assert "playwright-same-thread" in PATCH or "statewide" in PATCH
     sw = "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444169970078/abstract"
     assert is_statewide_bidnet_url(sw)
     assert resolve_bidnet_private_detail_url_candidates(sw) == []
+
+
+def test_process_opp_guards_runs_on_calling_thread():
+    """Regression: must not hand Playwright client to a worker thread."""
+    import inspect
+    import re
+
+    from bidnet_engine import schedule_recovery_canary as src
+
+    src_text = inspect.getsource(src._process_opp_with_guards)
+    # Strip comments before checking for banned executor usage
+    code_only = re.sub(r"#.*", "", src_text)
+    assert "ThreadPoolExecutor" not in code_only
+    assert "pool.submit" not in code_only
+    assert "process_money_opportunity(" in code_only
