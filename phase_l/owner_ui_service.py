@@ -1119,6 +1119,7 @@ def _package_and_product_data_for_deal(cid: str | None, rec: dict[str, Any] | No
             import json as _json
 
             for fname in (
+                "m3_schedule_recovery_v1_rows.json",
                 "m3_package_materialization_v1_rows.json",
                 "m3_schedule_backed_canary_v1_rows.json",
                 "m3_channel_fit_live_scores_v1.json",
@@ -1137,33 +1138,14 @@ def _package_and_product_data_for_deal(cid: str | None, rec: dict[str, Any] | No
                     if cid in keys or str(rec.get("stable_key") or "") in keys:
                         pm = row.get("package_materialization") if isinstance(row.get("package_materialization"), dict) else {}
                         if pm:
-                            lines = int(row.get("raw_lines") or row.get("material_lines") or 0)
-                            msg = row.get("package_operator_message") or pm.get("operator_message")
-                            completeness = str(pm.get("PACKAGE_COMPLETENESS") or "UNKNOWN")
-                            discovered = int(pm.get("PACKAGE_DOCUMENT_COUNT_DISCOVERED") or 0)
-                            valid = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
-                            auth = bool(pm.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"))
-                            schedule = "Found" if auth else ("Locked" if "REGISTRATION" in str(pm.get("package_state_truthful") or "") else "Missing")
-                            pkg_label = {
-                                "COMPLETE": "Complete",
-                                "LIKELY_COMPLETE": "Complete",
-                                "PARTIAL": "Partial",
-                                "DETAIL_ONLY": "Missing",
-                                "NONE": "Missing",
-                            }.get(completeness, "Missing")
-                            return {
-                                "package_label": pkg_label,
-                                "documents_acquired": valid,
-                                "documents_discovered": discovered,
-                                "product_schedule": schedule,
-                                "lines_extracted": lines,
-                                "blocker_plain": msg or "Package status not yet assessed.",
-                                "authoritative_doc": (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename"),
-                                "completeness": completeness,
-                                "ready_for_line_extraction": bool(pm.get("PACKAGE_READY_FOR_LINE_EXTRACTION")),
-                            }
+                            return _format_product_data_card(pm, row)
         except Exception:
             pass
+    return _format_product_data_card(pm, rec)
+
+
+def _format_product_data_card(pm: dict[str, Any], row: dict[str, Any] | None = None) -> dict[str, Any]:
+    row = row or {}
     completeness = str(pm.get("PACKAGE_COMPLETENESS") or "UNKNOWN")
     pkg_label = {
         "COMPLETE": "Complete",
@@ -1172,25 +1154,55 @@ def _package_and_product_data_for_deal(cid: str | None, rec: dict[str, Any] | No
         "DETAIL_ONLY": "Missing",
         "NONE": "Missing",
     }.get(completeness, "Unknown")
-    discovered = int(pm.get("PACKAGE_DOCUMENT_COUNT_DISCOVERED") or len(rec.get("attachments_metadata") or []))
+    discovered = int(pm.get("PACKAGE_DOCUMENT_COUNT_DISCOVERED") or 0)
     valid = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
     auth = bool(pm.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"))
-    schedule = "Found" if auth else "Missing"
-    lines = int(rec.get("raw_lines") or rec.get("material_lines") or 0)
-    msg = pm.get("operator_message") or "Package status not yet assessed."
-    if auth and lines:
-        name = (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename") or "product schedule"
-        msg = f"Pricing workbook found and {lines} product lines extracted ({name})."
+    auth_doc = pm.get("AUTHORITATIVE_PRODUCT_DOC") if isinstance(pm.get("AUTHORITATIVE_PRODUCT_DOC"), dict) else {}
+    lines = int(
+        pm.get("EXTRACTED_PRODUCT_LINES")
+        or row.get("raw_lines")
+        or row.get("material_lines")
+        or 0
+    )
+    expected = int(pm.get("EXPECTED_PRODUCT_LINES") or 0)
+    coverage = pm.get("LINE_EXTRACTION_COVERAGE")
+    pages = auth_doc.get("product_signal_pages") or []
+    pages_s = ""
+    if pages:
+        pages_s = f"page {pages[0]}" if len(pages) == 1 else f"pages {pages[0]}–{pages[-1]}"
+    msg = (
+        pm.get("operator_product_status")
+        or row.get("package_operator_message")
+        or pm.get("operator_message")
+        or "Package status not yet assessed."
+    )
+    if auth and lines and not pm.get("operator_product_status"):
+        name = auth_doc.get("filename") or "product schedule"
+        msg = f"{lines} product lines found in {name}" + (f", {pages_s}." if pages_s else ".")
+        if expected and lines < expected:
+            msg = f"Product table detected but extraction incomplete: {lines} of {expected} rows."
+    schedule = "Found" if auth else (
+        "Locked" if "REGISTRATION" in str(pm.get("package_state_truthful") or "") else "Missing"
+    )
+    identity_ready = int(row.get("usable_ae") or 0)
+    public_priced = int(row.get("public_prices") or 0)
     return {
         "package_label": pkg_label,
         "documents_acquired": valid,
         "documents_discovered": discovered,
         "product_schedule": schedule,
+        "product_data_status": msg,
         "lines_extracted": lines,
+        "expected_lines": expected or None,
+        "extraction_coverage": coverage,
+        "source_pages": pages_s or None,
+        "identity_ready_lines": identity_ready or None,
+        "public_priced_lines": public_priced or None,
         "blocker_plain": msg,
-        "authoritative_doc": (pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}).get("filename"),
+        "authoritative_doc": auth_doc.get("filename"),
         "completeness": completeness,
         "ready_for_line_extraction": bool(pm.get("PACKAGE_READY_FOR_LINE_EXTRACTION")),
+        "product_classification": pm.get("product_classification"),
     }
 
 

@@ -448,7 +448,14 @@ def process_money_opportunity(
             opportunity_id=cid,
             body_text=body,
             gate_expected=gate_expected if isinstance(gate_expected, int) else None,
+            precomputed_content_rows=package_materialization.get("content_schedule_rows") or None,
         )
+        # Prefer content-recognition expected/coverage when richer
+        if package_materialization.get("EXPECTED_PRODUCT_LINES") and not schedule_extract.get("EXPECTED_PRODUCT_LINES"):
+            schedule_extract["EXPECTED_PRODUCT_LINES"] = package_materialization.get("EXPECTED_PRODUCT_LINES")
+        if package_materialization.get("operator_product_status"):
+            schedule_extract["operator_product_status"] = package_materialization.get("operator_product_status")
+            package_materialization["operator_message"] = package_materialization.get("operator_product_status")
         # If selection expected a schedule but none acquired — do not pretend parser failed
         if (
             not package_materialization.get("AUTHORITATIVE_PRODUCT_DOC_FOUND")
@@ -461,6 +468,17 @@ def process_money_opportunity(
                 schedule_extract=schedule_extract,
             )
         schedule_rows = schedule_extract.get("schedule_rows") or []
+        # Content rows may use slightly different field names — normalize for LIE
+        if schedule_rows:
+            normalized = []
+            for r in schedule_rows:
+                if not isinstance(r, dict):
+                    continue
+                nr = dict(r)
+                if not nr.get("description") and nr.get("desc"):
+                    nr["description"] = nr.get("desc")
+                normalized.append(nr)
+            schedule_rows = normalized
         lie = analyze_line_item_economics(
             opportunity_id=cid,
             title=str(meta.get("title") or ""),

@@ -100,7 +100,7 @@ def _fail_stale_locked() -> None:
             limit = MONEY_STALE_SECONDS
         elif kind == "schedule_backed_canary":
             limit = MONEY_STALE_SECONDS
-        elif kind == "package_materialization":
+        elif kind in {"package_materialization", "schedule_recovery"}:
             limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
@@ -541,12 +541,14 @@ def start_package_materialization_job(
     mode: str = "same_13",
     canary_n: int = 20,
     price_budget: int = 25,
+    iteration: int = 1,
+    change_made: str = "content-first schedule recognition",
 ) -> dict[str, Any]:
-    """Materialize BidNet packages for same-13 recovery (new-20 only if gates pass)."""
-    job_id = f"PMR-{uuid4().hex[:12]}"
+    """Authoritative schedule recovery on same-13 (content-first); new-20 only if gates pass."""
+    job_id = f"ASR-{uuid4().hex[:12]}"
     job = {
         "job_id": job_id,
-        "kind": "package_materialization",
+        "kind": "schedule_recovery",
         "status": "QUEUED",
         "started_at": _utc(),
         "updated_at": _utc(),
@@ -555,8 +557,11 @@ def start_package_materialization_job(
             "mode": str(mode or "same_13"),
             "canary_n": int(canary_n),
             "price_budget": int(price_budget),
+            "iteration": int(iteration or 1),
+            "change_made": str(change_made or "content-first schedule recognition"),
             "expand_to_100_forbidden": True,
             "sam_calls": 0,
+            "build": "20261007-m3-authoritative-schedule-recovery-v1",
         },
         "progress": {"phase": "QUEUED", "pct": 0},
         "result": None,
@@ -566,7 +571,7 @@ def start_package_materialization_job(
         _jobs[job_id] = job
         _persist(job)
 
-    def _run_pmr() -> None:
+    def _run_asr() -> None:
         acquired = _runner_lock.acquire(blocking=True, timeout=180)
         if not acquired:
             _set(
@@ -584,18 +589,20 @@ def start_package_materialization_job(
                     job_id,
                     status="RUNNING",
                     progress={
-                        "phase": str(kwargs.get("phase") or "PACKAGE_MATERIALIZATION"),
+                        "phase": str(kwargs.get("phase") or "SCHEDULE_RECOVERY"),
                         "pct": int(kwargs.get("pct") or 0),
                         "completed": kwargs.get("completed"),
                     },
                 )
 
-            from bidnet_engine.package_recovery_canary import run_package_recovery
+            from bidnet_engine.schedule_recovery_canary import run_schedule_recovery
 
-            result = run_package_recovery(
+            result = run_schedule_recovery(
                 mode=str(mode or "same_13"),
                 canary_n=int(canary_n),
                 price_budget=int(price_budget),
+                iteration=int(iteration or 1),
+                change_made=str(change_made or "content-first schedule recognition"),
                 on_progress=_progress,
             )
             _set(
@@ -607,13 +614,17 @@ def start_package_materialization_job(
                     "STATUS": result.get("STATUS"),
                     "gates": result.get("gates"),
                     "after": result.get("after"),
+                    "downstream": result.get("downstream"),
                     "NEW_20": result.get("NEW_20"),
+                    "iteration_log": result.get("iteration_log"),
+                    "ITERATIONS_COMPLETED": result.get("ITERATIONS_COMPLETED"),
+                    "unrecovered_cases": result.get("unrecovered_cases"),
                     "runtime_s": result.get("runtime_s"),
                     "EXPAND_TO_100": "NO",
                 },
             )
         except Exception as exc:
-            log.exception("Package materialization job failed")
+            log.exception("Schedule recovery job failed")
             _set(
                 job_id,
                 status="FAILED",
@@ -624,12 +635,12 @@ def start_package_materialization_job(
         finally:
             _runner_lock.release()
 
-    threading.Thread(target=_run_pmr, name=f"package-materialization-{job_id}", daemon=True).start()
+    threading.Thread(target=_run_asr, name=f"schedule-recovery-{job_id}", daemon=True).start()
     return {
         "accepted": True,
         "job_id": job_id,
         "status": "QUEUED",
-        "kind": "package_materialization",
+        "kind": "schedule_recovery",
         "active_running": _active_running_id(),
     }
 

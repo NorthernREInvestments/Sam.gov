@@ -348,21 +348,73 @@ def extract_schedules_from_package(
     opportunity_id: str = "",
     body_text: str = "",
     gate_expected: int | None = None,
+    precomputed_content_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Inventory docs, extract in priority order, record SCHEDULE_PRESENT_EXTRACTION_ZERO.
     Returns schedule_rows ready for analyze_line_item_economics.
+
+    Content-first: inspect every local document for embedded product tables before
+    relying on filename-based schedule roles.
     """
     inventory = build_document_inventory(attachments, opportunity_id=opportunity_id)
-    schedule_roles = {"PRICING_SCHEDULE", "LINE_ITEM_SCHEDULE", "BID_FORM", "BOM"}
+    schedule_roles = {
+        "PRICING_SCHEDULE",
+        "LINE_ITEM_SCHEDULE",
+        "BID_FORM",
+        "BOM",
+        "PRODUCT_SCHEDULE",
+        "ITEM_LIST",
+        "SPECIFICATION_WITH_PRODUCT_TABLE",
+        "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES",
+    }
+    # Mark inventory entries that content recognition already flagged
+    for d in inventory:
+        if d.get("line_schedule_likely") or str(d.get("document_type") or "") == "pricing_sheet":
+            d["line_schedule_likely"] = True
     schedule_docs = [d for d in inventory if d.get("document_role") in schedule_roles or d.get("line_schedule_likely")]
-    # Always try high-priority docs first; then other extractable docs
     ordered = list(inventory)
 
     all_rows: list[dict[str, Any]] = []
     per_doc: list[dict[str, Any]] = []
     hard_failures: list[dict[str, Any]] = []
     parsers_used: list[str] = []
+    content_meta: dict[str, Any] = {}
+
+    # Content-first package inspection (generic solicitation PDFs included)
+    try:
+        from bidnet_engine.schedule_content_recognition import inspect_package_documents
+
+        if precomputed_content_rows is not None:
+            all_rows.extend(list(precomputed_content_rows))
+            parsers_used.append("schedule_content_recognition.precomputed")
+        else:
+            content_meta = inspect_package_documents(
+                [
+                    {
+                        "local_path": d.get("local_path"),
+                        "filename": d.get("filename"),
+                        "document_id": d.get("document_id"),
+                        "source_url": d.get("source_url") or d.get("document_url"),
+                    }
+                    for d in inventory
+                    if d.get("exists_local")
+                ]
+            )
+            crow = content_meta.get("authoritative_rows") or []
+            if crow:
+                all_rows.extend(crow)
+                parsers_used.append("schedule_content_recognition.inspect_package")
+            # Promote product-like docs in inventory
+            for insp in content_meta.get("full_inspections") or []:
+                for d in inventory:
+                    if str(d.get("local_path") or "") == str(insp.get("path") or ""):
+                        if insp.get("is_product_like"):
+                            d["line_schedule_likely"] = True
+                            d["document_role"] = insp.get("document_role_content") or d.get("document_role")
+                        break
+    except Exception as exc:
+        content_meta = {"error": f"{type(exc).__name__}:{exc}"[:160]}
 
     for doc in ordered:
         if not doc.get("exists_local"):
@@ -371,7 +423,7 @@ def extract_schedules_from_package(
         if doc.get("document_role") not in schedule_roles and not doc.get("line_schedule_likely"):
             if all_rows:
                 continue
-            if doc.get("document_role") not in {"PRIMARY_SOLICITATION", "SPECIFICATION", "ATTACHMENT"}:
+            if doc.get("document_role") not in {"PRIMARY_SOLICITATION", "SPECIFICATION", "ATTACHMENT", "OTHER"}:
                 continue
         extracted = _extract_one_document(doc)
         per_doc.append(extracted)
@@ -379,21 +431,22 @@ def extract_schedules_from_package(
         rows = extracted.get("rows") or []
         if rows:
             all_rows.extend(rows)
-        elif doc.get("document_role") in schedule_roles and doc.get("exists_local"):
-            hard_failures.append(
-                {
-                    "opportunity_id": opportunity_id,
-                    "document": doc.get("filename"),
-                    "format": doc.get("extension"),
-                    "role": doc.get("document_role"),
-                    "expected_lines": gate_expected,
-                    "parser": (extracted.get("parsers_tried") or ["none"])[-1],
-                    "parsers_tried": extracted.get("parsers_tried"),
-                    "failure": extracted.get("error") or "SCHEDULE_PRESENT_EXTRACTION_ZERO",
-                    "fallback_result": extracted.get("fallback_used") or "none_succeeded",
-                    "code": "SCHEDULE_PRESENT_EXTRACTION_ZERO",
-                }
-            )
+        elif (doc.get("document_role") in schedule_roles or doc.get("line_schedule_likely")) and doc.get("exists_local"):
+            if not all_rows:
+                hard_failures.append(
+                    {
+                        "opportunity_id": opportunity_id,
+                        "document": doc.get("filename"),
+                        "format": doc.get("extension"),
+                        "role": doc.get("document_role"),
+                        "expected_lines": gate_expected,
+                        "parser": (extracted.get("parsers_tried") or ["none"])[-1],
+                        "parsers_tried": extracted.get("parsers_tried"),
+                        "failure": extracted.get("error") or "SCHEDULE_PRESENT_EXTRACTION_ZERO",
+                        "fallback_result": extracted.get("fallback_used") or "none_succeeded",
+                        "code": "SCHEDULE_PRESENT_EXTRACTION_ZERO",
+                    }
+                )
 
     # Dedup by description+qty+pn
     seen: set[str] = set()
@@ -408,7 +461,11 @@ def extract_schedules_from_package(
         seen.add(key)
         deduped.append(r)
 
-    expected = gate_expected or estimate_expected_lines(deduped, inventory, body_text)
+    expected = (
+        gate_expected
+        or content_meta.get("EXPECTED_PRODUCT_LINES")
+        or estimate_expected_lines(deduped, inventory, body_text)
+    )
     coverage_pct = None
     if expected and expected > 0:
         coverage_pct = round(100.0 * len(deduped) / expected, 1)
@@ -416,7 +473,7 @@ def extract_schedules_from_package(
 
     return {
         "DOCUMENT_INVENTORY": inventory,
-        "schedule_docs_found": len(schedule_docs),
+        "schedule_docs_found": len(schedule_docs) or int(content_meta.get("product_like_documents") or 0),
         "schedule_roles_present": sorted({str(d.get("document_role")) for d in schedule_docs}),
         "schedule_rows": deduped,
         "EXTRACTED_PRODUCT_LINES": len(deduped),
@@ -428,4 +485,11 @@ def extract_schedules_from_package(
         "parsers_used": sorted(set(parsers_used)),
         "extracted_at": now_utc().isoformat(),
         "source_priority_applied": True,
+        "content_recognition": {
+            k: v
+            for k, v in (content_meta or {}).items()
+            if k not in {"full_inspections", "authoritative_rows"}
+        },
+        "operator_product_status": content_meta.get("operator_product_status"),
+        "product_classification": content_meta.get("classification"),
     }

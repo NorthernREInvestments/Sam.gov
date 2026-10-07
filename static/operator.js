@@ -471,14 +471,26 @@
             <h2>Package &amp; product data</h2>
             ${(() => {
               const pp = data.package_and_product_data || {};
-              return `<div class="meta-row">
+              const cov = pp.extraction_coverage != null
+                ? (Number(pp.extraction_coverage) <= 1
+                    ? Math.round(Number(pp.extraction_coverage) * 100) + "%"
+                    : esc(pp.extraction_coverage))
+                : "—";
+              return `<p><strong>Product data status:</strong> ${esc(pp.product_data_status || pp.blocker_plain || "Not assessed yet.")}</p>
+              <div class="meta-row">
                 <span>Package: <strong>${esc(pp.package_label || "Unknown")}</strong></span>
                 <span>Documents: <strong>${esc(pp.documents_acquired ?? "—")}</strong> of ${esc(pp.documents_discovered ?? "—")} acquired</span>
-                <span>Product schedule: <strong>${esc(pp.product_schedule || "—")}</strong></span>
-                <span>Lines: <strong>${esc(pp.lines_extracted ?? "—")}</strong> extracted</span>
+                <span>Product document: <strong>${esc(pp.authoritative_doc || pp.product_schedule || "—")}</strong></span>
+                <span>Source: <strong>${esc(pp.source_pages || "—")}</strong></span>
               </div>
-              <p><strong>Current blocker:</strong> ${esc(pp.blocker_plain || "Not assessed yet.")}</p>
-              ${pp.authoritative_doc ? `<p class="muted">Schedule file: ${esc(pp.authoritative_doc)}</p>` : ""}`;
+              <div class="meta-row">
+                <span>Expected lines: <strong>${esc(pp.expected_lines ?? "—")}</strong></span>
+                <span>Extracted lines: <strong>${esc(pp.lines_extracted ?? "—")}</strong></span>
+                <span>Coverage: <strong>${cov}</strong></span>
+                <span>Identity-ready: <strong>${esc(pp.identity_ready_lines ?? "—")}</strong></span>
+                <span>Public-priced: <strong>${esc(pp.public_priced_lines ?? "—")}</strong></span>
+              </div>
+              <p><strong>Current blocker:</strong> ${esc(pp.blocker_plain || "Not assessed yet.")}</p>`;
             })()}
           </section>
           <section class="panel" id="profit-first-card">

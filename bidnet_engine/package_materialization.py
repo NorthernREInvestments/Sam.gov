@@ -15,7 +15,7 @@ from typing import Any
 
 from application_clock import now_utc
 
-BUILD = "20261007-m3-bidnet-package-materialization-v1"
+BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
@@ -301,24 +301,72 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # Amendment graph (filename heuristics)
+    # Content-first recognition — inspect every valid local file (filename secondary)
+    content_recognition: dict[str, Any] = {}
+    try:
+        from bidnet_engine.schedule_content_recognition import inspect_package_documents
+
+        content_recognition = inspect_package_documents(
+            [
+                {
+                    "local_path": e.get("LOCAL_PATH") or e.get("local_path"),
+                    "filename": e.get("filename"),
+                    "document_id": e.get("document_id"),
+                    "source_url": e.get("source_url"),
+                }
+                for e in materialized
+            ]
+        )
+        # Stamp content roles onto materialized entries
+        by_path = {
+            str(i.get("path") or ""): i
+            for i in (content_recognition.get("full_inspections") or [])
+        }
+        for e in materialized:
+            insp = by_path.get(str(e.get("LOCAL_PATH") or e.get("local_path") or ""))
+            if not insp:
+                continue
+            e["document_role_content"] = insp.get("document_role_content")
+            e["role_confidence"] = insp.get("role_confidence")
+            e["content_authority_score"] = insp.get("authority_score")
+            e["expected_product_lines"] = insp.get("expected_product_lines")
+            e["extracted_line_count"] = insp.get("extracted_line_count")
+            e["product_signal_pages"] = insp.get("product_signal_pages")
+            e["content_classification"] = insp.get("classification")
+            if insp.get("is_product_like"):
+                e["document_role_guess"] = insp.get("document_role_content") or e.get("document_role_guess")
+                e["high_value"] = True
+    except Exception as exc:
+        content_recognition = {"error": f"{type(exc).__name__}:{exc}"[:200]}
+
+    # Amendment graph (filename heuristics) + content authority
     amendments = [e for e in index if e.get("document_role_guess") == "AMENDMENT" or "addend" in str(e.get("filename") or "").lower()]
-    pricing = [e for e in materialized if e.get("document_role_guess") in {"PRICING_SCHEDULE", "LINE_ITEM_SCHEDULE", "BID_FORM", "BOM"}]
+    product_roles = {
+        "PRICING_SCHEDULE", "LINE_ITEM_SCHEDULE", "BID_FORM", "BOM",
+        "PRODUCT_SCHEDULE", "ITEM_LIST", "SPECIFICATION_WITH_PRODUCT_TABLE",
+        "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES", "CATALOG_REFERENCE",
+    }
+    pricing = [
+        e for e in materialized
+        if e.get("document_role_guess") in product_roles
+        or e.get("document_role_content") in product_roles
+        or int(e.get("extracted_line_count") or 0) >= 1
+    ]
     for e in pricing:
         e["CURRENT_AUTHORITATIVE"] = True
         e["SUPERSEDES"] = None
         e["SUPERSEDED_BY"] = None
     if len(pricing) >= 2:
-        # Prefer names with revised/addendum/final
-        def _rank(e: dict[str, Any]) -> int:
+        def _rank(e: dict[str, Any]) -> float:
             n = str(e.get("filename") or "").lower()
-            score = 0
+            score = float(e.get("content_authority_score") or 0)
             if "revis" in n or "final" in n or "updated" in n:
                 score += 3
             if "addend" in n or "amend" in n:
                 score += 2
             if e.get("extension") in {"xlsx", "xls", "csv"}:
                 score += 2
+            score += min(int(e.get("extracted_line_count") or 0), 40) * 0.1
             return score
 
         pricing_sorted = sorted(pricing, key=_rank, reverse=True)
@@ -329,24 +377,40 @@ def materialize_attachments(
         pricing_sorted[0]["CURRENT_AUTHORITATIVE"] = True
 
     auth_doc = None
-    for e in materialized:
-        if e.get("CURRENT_AUTHORITATIVE") and e.get("document_role_guess") in {
-            "PRICING_SCHEDULE", "LINE_ITEM_SCHEDULE", "BID_FORM", "BOM"
-        }:
-            auth_doc = e
-            break
+    # Prefer content-recognition winner when it recovered lines
+    auth_from_content = content_recognition.get("AUTHORITATIVE_PRODUCT_DOC") if isinstance(content_recognition, dict) else None
+    if auth_from_content and content_recognition.get("AUTHORITATIVE_PRODUCT_DOC_FOUND"):
+        auth_path = str(auth_from_content.get("path") or "")
+        for e in materialized:
+            if str(e.get("LOCAL_PATH") or e.get("local_path") or "") == auth_path:
+                auth_doc = e
+                e["CURRENT_AUTHORITATIVE"] = True
+                break
+    if not auth_doc:
+        for e in materialized:
+            if e.get("CURRENT_AUTHORITATIVE") and (
+                e.get("document_role_guess") in product_roles
+                or int(e.get("extracted_line_count") or 0) >= 1
+            ):
+                auth_doc = e
+                break
     if not auth_doc:
         for e in materialized:
             if e.get("high_value") or e.get("document_role_guess") == "GENERIC_ATTACHMENT":
-                # Generic Attachment/Exhibit may still hold the schedule
                 if e.get("extension") in {"xlsx", "xls", "csv", "docx", "pdf"}:
                     auth_doc = e
                     break
     if not auth_doc and materialized:
-        # Prefer any spreadsheet
         for e in materialized:
             if e.get("extension") in {"xlsx", "xls", "csv"}:
                 auth_doc = e
+                break
+    # Content found product lines even if role unclear — still authoritative
+    if not auth_doc:
+        for e in sorted(materialized, key=lambda x: int(x.get("extracted_line_count") or 0), reverse=True):
+            if int(e.get("extracted_line_count") or 0) >= 1:
+                auth_doc = e
+                e["CURRENT_AUTHORITATIVE"] = True
                 break
 
     discovered = len(index)
@@ -373,10 +437,33 @@ def materialize_attachments(
         "PACKAGE_COMPLETENESS": completeness,
         "package_state_truthful": package_state,
         "PACKAGE_READY_FOR_LINE_EXTRACTION": ready,
-        "AUTHORITATIVE_PRODUCT_DOC_FOUND": bool(auth_doc),
+        "AUTHORITATIVE_PRODUCT_DOC_FOUND": bool(
+            auth_doc
+            and (
+                int(auth_doc.get("extracted_line_count") or 0) >= 1
+                or auth_doc.get("document_role_content") in {
+                    "PRICING_SCHEDULE", "PRODUCT_SCHEDULE", "BID_FORM", "ITEM_LIST",
+                    "SPECIFICATION_WITH_PRODUCT_TABLE", "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES",
+                    "LINE_ITEM_SCHEDULE", "BOM",
+                }
+                or content_recognition.get("AUTHORITATIVE_PRODUCT_DOC_FOUND")
+            )
+        ),
         "AUTHORITATIVE_PRODUCT_DOC_ID": (auth_doc or {}).get("document_id"),
-        "AUTHORITATIVE_PRODUCT_DOC_ROLE": (auth_doc or {}).get("document_role_guess"),
+        "AUTHORITATIVE_PRODUCT_DOC_ROLE": (auth_doc or {}).get("document_role_content")
+        or (auth_doc or {}).get("document_role_guess"),
         "AUTHORITATIVE_PRODUCT_DOC": {k: v for k, v in (auth_doc or {}).items() if k != "_raw"} if auth_doc else None,
+        "content_recognition": {
+            k: v
+            for k, v in (content_recognition or {}).items()
+            if k not in {"full_inspections", "authoritative_rows"}
+        },
+        "EXPECTED_PRODUCT_LINES": content_recognition.get("EXPECTED_PRODUCT_LINES"),
+        "EXTRACTED_PRODUCT_LINES": content_recognition.get("EXTRACTED_PRODUCT_LINES"),
+        "LINE_EXTRACTION_COVERAGE": content_recognition.get("LINE_EXTRACTION_COVERAGE"),
+        "operator_product_status": content_recognition.get("operator_product_status"),
+        "product_classification": content_recognition.get("classification"),
+        "content_schedule_rows": content_recognition.get("authoritative_rows") or [],
         "amendments_count": len(amendments),
         "primary_blocker": blocker,
         "docs_for_extraction": [
@@ -386,15 +473,33 @@ def materialize_attachments(
                 "filename": e.get("filename"),
                 "document_name": e.get("filename"),
                 "document_url": e.get("source_url"),
-                "document_type": "pricing_sheet"
-                if e.get("document_role_guess") in {"PRICING_SCHEDULE", "LINE_ITEM_SCHEDULE"}
-                else e.get("document_role_guess"),
+                "document_type": (
+                    "pricing_sheet"
+                    if (
+                        e.get("document_role_guess")
+                        in {
+                            "PRICING_SCHEDULE",
+                            "LINE_ITEM_SCHEDULE",
+                            "PRODUCT_SCHEDULE",
+                            "ITEM_LIST",
+                            "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES",
+                            "SPECIFICATION_WITH_PRODUCT_TABLE",
+                            "BID_FORM",
+                        }
+                        or int(e.get("extracted_line_count") or 0) >= 1
+                    )
+                    else e.get("document_role_guess")
+                ),
+                "document_role_content": e.get("document_role_content"),
                 "content_hash": e.get("CONTENT_HASH"),
                 "retrieval_status": e.get("retrieval_status") or "DOWNLOADED",
+                "line_schedule_likely": int(e.get("extracted_line_count") or 0) >= 1
+                or e.get("document_role_content") in product_roles,
             }
             for e in materialized
         ],
-        "operator_message": operator_package_message(
+        "operator_message": content_recognition.get("operator_product_status")
+        or operator_package_message(
             completeness=completeness,
             ready=ready,
             auth_doc=auth_doc,

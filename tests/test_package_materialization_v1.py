@@ -19,7 +19,7 @@ from bidnet_engine.package_materialization import (
 
 
 def test_build():
-    assert BUILD == "20261007-m3-bidnet-package-materialization-v1"
+    assert BUILD == "20261007-m3-authoritative-schedule-recovery-v1"
 
 
 def test_detail_html_only_not_complete():
