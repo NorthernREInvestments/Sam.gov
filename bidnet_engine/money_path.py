@@ -406,14 +406,44 @@ def process_money_opportunity(
     body = _gather_body_text(out, {**store_row, **can}, item)
     lie: dict[str, Any] = {}
     lines: list[dict[str, Any]] = []
+    schedule_extract: dict[str, Any] = {}
     try:
+        from bidnet_engine.schedule_extraction import extract_schedules_from_package
         from line_item_economics.engine import analyze_line_item_economics
 
+        # Prefer authoritative package schedules over body/filename text alone
+        docs = (
+            out.get("documents")
+            or (out.get("canonical") or {}).get("document_inventory")
+            or store_row.get("attachments_metadata")
+            or store_row.get("document_inventory")
+            or []
+        )
+        if not isinstance(docs, list):
+            docs = []
+        gate_expected = None
+        try:
+            from bidnet_engine.schedule_selection import detect_schedule_evidence
+
+            gate_expected = detect_schedule_evidence(
+                body,
+                docs=[d for d in docs if isinstance(d, dict)],
+            ).get("EXPECTED_PRODUCT_LINES")
+        except Exception:
+            gate_expected = None
+        schedule_extract = extract_schedules_from_package(
+            docs,
+            opportunity_id=cid,
+            body_text=body,
+            gate_expected=gate_expected if isinstance(gate_expected, int) else None,
+        )
+        schedule_rows = schedule_extract.get("schedule_rows") or []
         lie = analyze_line_item_economics(
             opportunity_id=cid,
             title=str(meta.get("title") or ""),
             buyer=str(meta.get("buyer") or ""),
             body_text=body,
+            schedule_rows=schedule_rows if schedule_rows else None,
             existing_lines=store_row.get("line_items") if isinstance(store_row.get("line_items"), list) else None,
             persist=True,
         )
@@ -425,6 +455,7 @@ def process_money_opportunity(
         stages["BASKET_COMPLETE"] = bool((lie.get("rollup") or {}).get("total_line_count"))
     except Exception as exc:
         errors.append(f"lines:{type(exc).__name__}:{exc}"[:180])
+        schedule_extract = {"error": f"{type(exc).__name__}:{exc}"[:200]}
 
     grades = Counter()
     material = 0
@@ -619,6 +650,18 @@ def process_money_opportunity(
         "service_install_lines": service,
         "material_lines": material,
         "government_value": revenue_value,
+        "schedule_extraction": {
+            "EXPECTED_PRODUCT_LINES": schedule_extract.get("EXPECTED_PRODUCT_LINES"),
+            "EXTRACTED_PRODUCT_LINES": schedule_extract.get("EXTRACTED_PRODUCT_LINES"),
+            "LINE_EXTRACTION_COVERAGE": schedule_extract.get("LINE_EXTRACTION_COVERAGE"),
+            "LINE_EXTRACTION_COVERAGE_CLASS": schedule_extract.get("LINE_EXTRACTION_COVERAGE_CLASS"),
+            "schedule_docs_found": schedule_extract.get("schedule_docs_found"),
+            "schedule_roles_present": schedule_extract.get("schedule_roles_present"),
+            "SCHEDULE_PRESENT_EXTRACTION_ZERO": schedule_extract.get("SCHEDULE_PRESENT_EXTRACTION_ZERO") or [],
+            "DOCUMENT_INVENTORY": schedule_extract.get("DOCUMENT_INVENTORY") or [],
+            "parsers_used": schedule_extract.get("parsers_used") or [],
+            "error": schedule_extract.get("error"),
+        },
         "buyer": meta.get("buyer") or item.get("buyer") or store_row.get("buyer"),
         "title": meta.get("title") or item.get("title") or store_row.get("title"),
         "historical_bidders": (

@@ -98,6 +98,8 @@ def _fail_stale_locked() -> None:
             limit = MONEY_STALE_SECONDS
         elif kind == "channel_fit_canary":
             limit = MONEY_STALE_SECONDS
+        elif kind == "schedule_backed_canary":
+            limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
         elif kind == "full_production_e2e":
@@ -528,6 +530,106 @@ def start_bidnet_engine_job(
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_schedule_backed_canary_job(
+    *,
+    canary_n: int = 20,
+    price_budget: int = 25,
+) -> dict[str, Any]:
+    """Run schedule-backed product canary (20). Does not expand to 100."""
+    job_id = f"SBC-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "schedule_backed_canary",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "canary_n": int(canary_n),
+            "price_budget": int(price_budget),
+            "expand_forbidden": True,
+            "sam_calls": 0,
+            "rerun_discovery": False,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run_sbc() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "SCHEDULE_BACKED_CANARY"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "completed": kwargs.get("completed"),
+                    },
+                )
+
+            from bidnet_engine.schedule_backed_canary import run_schedule_backed_canary
+
+            result = run_schedule_backed_canary(
+                canary_n=int(canary_n),
+                price_budget=int(price_budget),
+                on_progress=_progress,
+            )
+            gates = result.get("gates") or {}
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "SCHEDULE_BACKED_PRODUCT_CANARY_PASS": gates.get("SCHEDULE_BACKED_PRODUCT_CANARY_PASS"),
+                    "gates": gates,
+                    "line_extraction": result.get("line_extraction"),
+                    "identity": result.get("identity"),
+                    "public_pricing": result.get("public_pricing"),
+                    "REAL_LIVE_CALL_TODAY": result.get("REAL_LIVE_CALL_TODAY"),
+                    "NEXT_TRUE_BOTTLENECK": result.get("NEXT_TRUE_BOTTLENECK"),
+                    "runtime_s": result.get("runtime_s"),
+                    "EXPAND_TO_100": "NO",
+                },
+            )
+        except Exception as exc:
+            log.exception("Schedule-backed canary job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run_sbc, name=f"schedule-backed-canary-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "schedule_backed_canary",
         "active_running": _active_running_id(),
     }
 

@@ -2209,6 +2209,7 @@
         <p class="muted">Build ${esc(BUILD)}</p>
         <p>Ready-to-call preserved: <strong>${esc(prev.ready_to_call)}</strong> · Canonical rows: <strong>${esc(prev.canonical_rows)}</strong></p>
         <p class="muted">Operator path is <strong>/ops</strong> only. Legacy research UIs are not part of the daily workflow.</p>
+        <div id="schedule-backed-canary" class="muted" style="margin-top:.5rem">Schedule-backed canary: loading…</div>
       </section>`;
     document.getElementById("set-train").onchange = (e) => {
       training = e.target.checked;
@@ -2229,6 +2230,40 @@
     } catch (e) {
       const el = document.getElementById("opp-health");
       if (el) el.textContent = e.message || "Could not load opportunity health";
+    }
+    try {
+      const [st, rep] = await Promise.all([
+        api("/api/m3/schedule-backed/canary/status").catch(() => ({ status: "NO_STATUS" })),
+        api("/api/m3/schedule-backed/canary/report").catch(() => ({ status: "NO_REPORT" })),
+      ]);
+      const el = document.getElementById("schedule-backed-canary");
+      if (el) {
+        if (rep.status === "NO_REPORT") {
+          el.innerHTML = `<strong>SCHEDULE-BACKED CANARY</strong> · ${esc(st.phase || st.status || "NO_STATUS")} · Selected ${esc(st.selected ?? st.completed ?? "—")}`;
+        } else {
+          const sel = rep.selection || {};
+          const pkg = rep.package || {};
+          const sch = rep.schedule_discovery || {};
+          const le = rep.line_extraction || {};
+          const idn = rep.identity || {};
+          const pub = rep.public_pricing || {};
+          const rev = rep.revenue || {};
+          const g = rep.gates || {};
+          el.innerHTML = `<strong>SCHEDULE-BACKED CANARY</strong>
+            · Pass: <strong>${esc(g.SCHEDULE_BACKED_PRODUCT_CANARY_PASS ? "YES" : "NO")}</strong><br>
+            Selected <strong>${esc(sel.SELECTED ?? rep.canary_input ?? "—")}</strong>
+            · Package <strong>${esc(pkg.PACKAGE_READY ?? "—")}</strong>
+            · Schedule <strong>${esc(sch.LIKELY_PRODUCT_SCHEDULE ?? "—")}</strong>
+            · Lines <strong>${esc(le.OPPORTUNITIES_WITH_LINES ?? "—")}</strong>
+            · Identity <strong>${esc(idn.OPPORTUNITIES_WITH_A_E ?? "—")}</strong>
+            · Public price <strong>${esc(pub.OPPORTUNITIES_PUBLIC_PRICE_READY ?? "—")}</strong>
+            · Revenue <strong>${esc(rev.REVENUE_READY ?? "—")}</strong>
+            · CALL_TODAY <strong>${esc(rep.REAL_LIVE_CALL_TODAY ?? 0)}</strong>`;
+        }
+      }
+    } catch (e) {
+      const el = document.getElementById("schedule-backed-canary");
+      if (el) el.textContent = "Schedule-backed canary: " + (e.message || "unavailable");
     }
     try {
       const dh = await api("/api/ui/discovery-health");
