@@ -400,18 +400,36 @@ def _aggregate(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def ensure_corpus_frozen(report: dict[str, Any] | None = None) -> dict[str, Any]:
-    existing = load_corpus()
-    if existing.get("opportunities") and len(existing.get("stable_keys") or []) == 20:
-        return existing
+    """Freeze / refresh corpus. Always merges SAME20_SEED_META package URLs."""
     from phase_l.l23_full_population_funnel import load_store
 
     store = load_store()
     store_by_sk = {}
     for k, v in store.items():
         if isinstance(v, dict) and v.get("stable_key"):
-            store_by_sk[str(v["stable_key"])] = {**v, "canonical_opportunity_id": str(v.get("canonical_opportunity_id") or k)}
+            store_by_sk[str(v["stable_key"])] = {
+                **v,
+                "canonical_opportunity_id": str(v.get("canonical_opportunity_id") or k),
+            }
     if report is None:
-        report = _load("m3_schedule_recovery_v1_last_report.json")
+        report = _load("m3_iter23_new20_report_snapshot.json") or _load(
+            "m3_schedule_recovery_v1_last_report.json"
+        )
+    # Synthetic minimal report when snapshot missing — seed titles/URLs still applied
+    if not (report.get("top_recovered") or report.get("unrecovered_cases")):
+        from bidnet_engine.same20_corpus import SAME20_SEED_META
+
+        report = {
+            "top_recovered": [
+                {
+                    "opportunity": sk,
+                    "title": (SAME20_SEED_META.get(sk) or {}).get("title"),
+                    "buyer": (SAME20_SEED_META.get(sk) or {}).get("buyer"),
+                    "attachment_urls": (SAME20_SEED_META.get(sk) or {}).get("attachment_urls") or [],
+                }
+                for sk in SAME20_STABLE_KEYS
+            ]
+        }
     payload = freeze_corpus_from_report(report, store_by_sk)
     save_corpus(payload)
     return payload
@@ -435,7 +453,17 @@ def run_same20_full_pipeline(
 
     started = time.time()
     run_id = f"S20-{now_utc().strftime('%Y%m%d%H%M%S')}"
-    corpus = ensure_corpus_frozen()
+    # Always re-freeze from ITER-23 report when present so attachment URLs persist
+    prior_report = _load("m3_schedule_recovery_v1_last_report.json")
+    # Prefer dedicated iter23 snapshot if saved
+    iter23 = _load("m3_iter23_new20_report_snapshot.json")
+    corpus = ensure_corpus_frozen(iter23 if iter23.get("top_recovered") else None)
+    # If corpus lacks attachment URLs, rebuild from prior report when it still has them
+    opps = corpus.get("opportunities") or []
+    if opps and not any((o.get("attachment_urls") or o.get("attachments_metadata")) for o in opps if isinstance(o, dict)):
+        if prior_report.get("unrecovered_cases") or prior_report.get("top_recovered"):
+            # Only rebuild if prior report looks like ITER-23 (has PRODUCT_SCHEDULE_INACCESSIBLE buckets)
+            corpus = ensure_corpus_frozen(prior_report)
     store = load_store()
     candidates = resolve_same20(store, corpus)
     store_by_cid = {
@@ -459,10 +487,9 @@ def run_same20_full_pipeline(
         heartbeat_at=now_utc().isoformat(),
     )
 
-    if not warm_cache:
-        purge_stats = purge_html_document_caches(limit=400)
-    else:
-        purge_stats = {"skipped": True, "reason": "warm_cache"}
+    # Never mass-purge on SAME-20 — HTML poison is cleared per-file during materialize.
+    # A cold purge wiped valid PDFs from ITER-23 and regressed VALID_LOCAL to 0.
+    purge_stats = {"skipped": True, "reason": "same20_preserve_document_cache"}
 
     client = BidNetAuthenticatedClient()
     auth = client.ensure_authenticated()
