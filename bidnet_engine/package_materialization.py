@@ -15,8 +15,8 @@ from typing import Any
 
 from application_clock import now_utc
 
-BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v21-invalid-html-not-soft-blocker"
+BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
+PATCH = "s20-v1-free-chase-90s-parse-cache"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -760,7 +760,7 @@ def materialize_attachments(
             with ThreadPoolExecutor(max_workers=1) as pool:
                 fut = pool.submit(_run_chase)
                 try:
-                    chase = fut.result(timeout=45)
+                    chase = fut.result(timeout=90)
                 except FuturesTimeout:
                     free_chase_meta = {"status": "TIMEOUT", "doc_count": 0, "route": None}
                     chase = {}

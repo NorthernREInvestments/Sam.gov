@@ -468,28 +468,40 @@
             </div>
           </section>
           <section class="panel" id="package-product-data">
-            <h2>Package &amp; product data</h2>
+            <h2>Product pipeline status</h2>
             ${(() => {
               const pp = data.package_and_product_data || {};
+              const pipe = pp.product_pipeline_status || {};
               const cov = pp.extraction_coverage != null
                 ? (Number(pp.extraction_coverage) <= 1
                     ? Math.round(Number(pp.extraction_coverage) * 100) + "%"
                     : esc(pp.extraction_coverage))
                 : "—";
+              const pubCov = pp.public_price_coverage_pct != null
+                ? Math.round(Number(pp.public_price_coverage_pct)) + "%"
+                : "—";
+              const head = pp.visible_headroom != null
+                ? ("$" + Number(pp.visible_headroom).toLocaleString() +
+                   (pp.visible_headroom_percent != null ? ` (${pp.visible_headroom_percent}%)` : ""))
+                : "—";
               return `<p><strong>Product data status:</strong> ${esc(pp.product_data_status || pp.blocker_plain || "Not assessed yet.")}</p>
               <div class="meta-row">
-                <span>Package: <strong>${esc(pp.package_label || "Unknown")}</strong></span>
+                <span>Package: <strong>${esc(pp.package_label || pipe.package || "Unknown")}</strong></span>
                 <span>Documents: <strong>${esc(pp.documents_acquired ?? "—")}</strong> of ${esc(pp.documents_discovered ?? "—")} acquired</span>
-                <span>Product document: <strong>${esc(pp.authoritative_doc || pp.product_schedule || "—")}</strong></span>
+                <span>Product document: <strong>${esc(pp.product_schedule || "—")}${pp.authoritative_doc ? " · " + esc(pp.authoritative_doc) : ""}</strong></span>
                 <span>Source: <strong>${esc(pp.source_pages || "—")}</strong></span>
               </div>
               <div class="meta-row">
-                <span>Expected lines: <strong>${esc(pp.expected_lines ?? "—")}</strong></span>
-                <span>Extracted lines: <strong>${esc(pp.lines_extracted ?? "—")}</strong></span>
-                <span>Coverage: <strong>${cov}</strong></span>
-                <span>Identity-ready: <strong>${esc(pp.identity_ready_lines ?? "—")}</strong></span>
-                <span>Public-priced: <strong>${esc(pp.public_priced_lines ?? "—")}</strong></span>
+                <span>Lines: <strong>${esc(pp.expected_lines ?? "—")}</strong> expected / <strong>${esc(pp.lines_extracted ?? "—")}</strong> extracted · coverage <strong>${cov}</strong></span>
+                <span>Identity: <strong>${esc(pp.identity_ready_lines ?? 0)}</strong> A–E / <strong>${esc(pp.identity_unresolved ?? "—")}</strong> unresolved</span>
               </div>
+              <div class="meta-row">
+                <span>Government value: <strong>${esc(pp.government_value || "Missing")}</strong></span>
+                <span>Public pricing: <strong>${esc(pp.public_priced_lines ?? 0)}</strong> lines · <strong>${pubCov}</strong> coverage${pp.public_basket_value != null ? ` · basket $${esc(Number(pp.public_basket_value).toLocaleString())}` : ""}</span>
+                <span>Channel: <strong>${esc(pp.channel_class || "UNKNOWN")}</strong></span>
+                <span>Visible headroom: <strong>${esc(head)}</strong></span>
+              </div>
+              <p><strong>Decision:</strong> ${esc(pp.decision || "—")}</p>
               <p><strong>Current blocker:</strong> ${esc(pp.blocker_plain || "Not assessed yet.")}</p>`;
             })()}
           </section>

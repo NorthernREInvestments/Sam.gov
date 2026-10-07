@@ -1119,6 +1119,7 @@ def _package_and_product_data_for_deal(cid: str | None, rec: dict[str, Any] | No
             import json as _json
 
             for fname in (
+                "m3_same20_full_pipeline_v1_rows.json",
                 "m3_schedule_recovery_v1_rows.json",
                 "m3_package_materialization_v1_rows.json",
                 "m3_schedule_backed_canary_v1_rows.json",
@@ -1186,6 +1187,33 @@ def _format_product_data_card(pm: dict[str, Any], row: dict[str, Any] | None = N
     )
     identity_ready = int(row.get("usable_ae") or 0)
     public_priced = int(row.get("public_prices") or 0)
+    material = int(row.get("material_lines") or lines or 0)
+    unresolved = max(0, material - identity_ready)
+    try:
+        cov_pct = float(row.get("public_price_coverage_pct") or 0)
+    except (TypeError, ValueError):
+        cov_pct = round(100.0 * public_priced / max(material, 1), 1) if material else 0.0
+    rev_ready = row.get("revenue_state") == "ECONOMIC_REVENUE_USABLE"
+    channel = str(row.get("channel_class") or "UNKNOWN")
+    headroom = row.get("visible_headroom")
+    headroom_pct = row.get("visible_headroom_percent")
+    decision = str(row.get("decision") or "")
+    if not decision:
+        if headroom is not None and float(headroom or 0) > 0 and cov_pct >= 50 and identity_ready >= 3:
+            decision = "CALL_TODAY"
+        elif rev_ready and public_priced > 0:
+            decision = "QUOTE_IF_CAPACITY"
+        elif auth and lines > 0:
+            decision = "WATCH"
+        elif str(pm.get("product_classification") or "") == "PRODUCT_SCHEDULE_INACCESSIBLE":
+            decision = "INSUFFICIENT_EVIDENCE"
+        else:
+            decision = "WATCH"
+    plain = str(row.get("blocker_plain") or msg)
+    # Prefer operator plain language over engine codes
+    if plain and "_" in plain and plain == plain.upper():
+        plain = msg
+    pipe = row.get("operator_pipeline_status") if isinstance(row.get("operator_pipeline_status"), dict) else {}
     return {
         "package_label": pkg_label,
         "documents_acquired": valid,
@@ -1197,12 +1225,37 @@ def _format_product_data_card(pm: dict[str, Any], row: dict[str, Any] | None = N
         "extraction_coverage": coverage,
         "source_pages": pages_s or None,
         "identity_ready_lines": identity_ready or None,
+        "identity_unresolved": unresolved,
         "public_priced_lines": public_priced or None,
-        "blocker_plain": msg,
+        "public_price_coverage_pct": cov_pct,
+        "public_basket_value": row.get("public_basket_value")
+        or (pipe.get("public_pricing") or {}).get("basket_value"),
+        "government_value": "Ready" if rev_ready else "Missing",
+        "channel_class": channel,
+        "visible_headroom": headroom,
+        "visible_headroom_percent": headroom_pct,
+        "decision": decision,
+        "blocker_plain": plain,
         "authoritative_doc": auth_doc.get("filename"),
         "completeness": completeness,
         "ready_for_line_extraction": bool(pm.get("PACKAGE_READY_FOR_LINE_EXTRACTION")),
         "product_classification": pm.get("product_classification"),
+        "product_pipeline_status": pipe or {
+            "package": pkg_label,
+            "product_document": schedule,
+            "lines": {"expected": expected, "extracted": lines, "coverage": coverage},
+            "identity": {"ae_count": identity_ready, "unresolved": unresolved},
+            "government_value": "Ready" if rev_ready else "Missing",
+            "public_pricing": {
+                "priced_lines": public_priced,
+                "coverage_pct": cov_pct,
+                "basket_value": row.get("public_basket_value"),
+            },
+            "channel": {"class": channel},
+            "visible_headroom": {"amount": headroom, "percent": headroom_pct},
+            "decision": decision,
+            "blocker_plain": plain,
+        },
     }
 
 

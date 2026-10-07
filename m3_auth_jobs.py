@@ -100,7 +100,7 @@ def _fail_stale_locked() -> None:
             limit = MONEY_STALE_SECONDS
         elif kind == "schedule_backed_canary":
             limit = MONEY_STALE_SECONDS
-        elif kind in {"package_materialization", "schedule_recovery"}:
+        elif kind in {"package_materialization", "schedule_recovery", "same20_full_pipeline"}:
             limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
@@ -588,13 +588,19 @@ def start_package_materialization_job(
     price_budget: int = 25,
     iteration: int = 1,
     change_made: str = "content-first schedule recognition",
+    warm_cache: bool = False,
 ) -> dict[str, Any]:
-    """Authoritative schedule recovery on same-13 (content-first); new-20 only if gates pass."""
+    """Authoritative schedule recovery / SAME-20 full pipeline recovery."""
     job_id = f"ASR-{uuid4().hex[:12]}"
     mode_s = str(mode or "same_13")
+    build = (
+        "20261007-m3-same20-full-pipeline-recovery-v1"
+        if mode_s in {"same_20", "same20", "same20_full_pipeline"}
+        else "20261007-m3-authoritative-schedule-recovery-v1"
+    )
     job = {
         "job_id": job_id,
-        "kind": "schedule_recovery",
+        "kind": "schedule_recovery" if mode_s not in {"same_20", "same20", "same20_full_pipeline"} else "same20_full_pipeline",
         "status": "QUEUED",
         "started_at": _utc(),
         "updated_at": _utc(),
@@ -605,9 +611,10 @@ def start_package_materialization_job(
             "price_budget": int(price_budget),
             "iteration": int(iteration or 1),
             "change_made": str(change_made or "content-first schedule recognition"),
+            "warm_cache": bool(warm_cache),
             "expand_to_100_forbidden": True,
             "sam_calls": 0,
-            "build": "20261007-m3-authoritative-schedule-recovery-v1",
+            "build": build,
         },
         "progress": {"phase": "QUEUED", "pct": 0},
         "result": None,
@@ -641,7 +648,17 @@ def start_package_materialization_job(
                     },
                 )
 
-            if mode_s in {"new_20_reconcile", "new20_reconcile", "reconcile_new20"}:
+            if mode_s in {"same_20", "same20", "same20_full_pipeline"}:
+                from bidnet_engine.same20_full_pipeline_recovery import run_same20_full_pipeline
+
+                result = run_same20_full_pipeline(
+                    iteration=int(iteration or 1),
+                    change_made=str(change_made or "same-20 full pipeline recovery"),
+                    price_budget=int(price_budget or 40),
+                    warm_cache=bool(warm_cache),
+                    on_progress=_progress,
+                )
+            elif mode_s in {"new_20_reconcile", "new20_reconcile", "reconcile_new20"}:
                 from bidnet_engine.schedule_recovery_canary import reconcile_new20_acceptance
 
                 result = reconcile_new20_acceptance(
@@ -671,12 +688,16 @@ def start_package_materialization_job(
                     "gates": result.get("gates"),
                     "after": result.get("after"),
                     "downstream": result.get("downstream"),
+                    "baseline": result.get("baseline"),
+                    "blockers": result.get("blockers"),
+                    "performance": result.get("performance"),
                     "NEW_20": result.get("NEW_20"),
                     "new20_acceptance": result.get("new20_acceptance"),
                     "iteration_log": result.get("iteration_log"),
                     "ITERATIONS_COMPLETED": result.get("ITERATIONS_COMPLETED"),
                     "unrecovered_cases": result.get("unrecovered_cases"),
                     "runtime_s": result.get("runtime_s"),
+                    "corpus": result.get("corpus"),
                     "EXPAND_TO_100": "NO",
                 },
             )
@@ -697,7 +718,7 @@ def start_package_materialization_job(
         "accepted": True,
         "job_id": job_id,
         "status": "QUEUED",
-        "kind": "schedule_recovery",
+        "kind": job["kind"],
         "active_running": _active_running_id(),
     }
 

@@ -10,7 +10,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
+BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
+PARSER_CACHE_VERSION = "s20-content-v1"
+_PARSE_CACHE_FILE = "m3_schedule_parse_cache_v1.json"
 
 PRODUCT_ROLES = {
     "PRODUCT_SCHEDULE",
@@ -320,7 +322,42 @@ def _classify_role(
     return "UNKNOWN", 0.3
 
 
+def _parse_cache_load() -> dict[str, Any]:
+    try:
+        from m3_data_root import data_path
+
+        path = data_path(_PARSE_CACHE_FILE)
+        if path.exists():
+            import json
+
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"version": PARSER_CACHE_VERSION, "by_hash": {}}
+
+
+def _parse_cache_save(cache: dict[str, Any]) -> None:
+    try:
+        from m3_data_root import data_path
+        import json
+
+        path = data_path(_PARSE_CACHE_FILE)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Cap cache size
+        by = cache.get("by_hash") or {}
+        if len(by) > 400:
+            # drop oldest half by inserted_at
+            items = sorted(by.items(), key=lambda kv: str((kv[1] or {}).get("inserted_at") or ""))
+            by = dict(items[len(items) // 2 :])
+            cache["by_hash"] = by
+        path.write_text(json.dumps(cache, indent=2, default=str), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def inspect_document(path: str | Path, *, filename: str | None = None, max_pages: int = 30) -> dict[str, Any]:
+    import hashlib
+
     path = Path(path)
     name = filename or path.name
     ext = path.suffix.lower().lstrip(".")
@@ -356,6 +393,23 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
         result["classification"] = "PRODUCT_SCHEDULE_INACCESSIBLE"
         result["operator_status"] = "Document file is missing or empty."
         return result
+
+    # Content-hash parse cache — skip reparse of unchanged documents
+    try:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:24]
+    except Exception:
+        digest = None
+    if digest:
+        cache = _parse_cache_load()
+        if cache.get("version") == PARSER_CACHE_VERSION:
+            hit = (cache.get("by_hash") or {}).get(digest)
+            if isinstance(hit, dict) and hit.get("result"):
+                cached = dict(hit["result"])
+                cached["path"] = str(path)
+                cached["filename"] = name
+                cached["cache_hit"] = True
+                cached["content_hash"] = digest
+                return cached
 
     # Reject HTML viewer/login pages masquerading as attachments (never classify as no-product)
     try:
@@ -595,6 +649,44 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
             "authority_score": _authority_score(role, conf, name, len(rows), catalog_only),
         }
     )
+    if digest:
+        try:
+            from application_clock import now_utc
+
+            cache = _parse_cache_load()
+            if cache.get("version") != PARSER_CACHE_VERSION:
+                cache = {"version": PARSER_CACHE_VERSION, "by_hash": {}}
+            slim = {
+                k: result.get(k)
+                for k in (
+                    "build",
+                    "extension",
+                    "document_role_content",
+                    "role_confidence",
+                    "product_signal_pages",
+                    "expected_product_lines",
+                    "extracted_rows",
+                    "extracted_line_count",
+                    "extraction_coverage",
+                    "catalog_discount_only",
+                    "classification",
+                    "operator_status",
+                    "signals",
+                    "signal_hits",
+                    "is_product_like",
+                    "authority_score",
+                    "page_diagnostics",
+                )
+            }
+            cache.setdefault("by_hash", {})[digest] = {
+                "inserted_at": now_utc().isoformat(),
+                "result": slim,
+            }
+            result["content_hash"] = digest
+            result["cache_hit"] = False
+            _parse_cache_save(cache)
+        except Exception:
+            pass
     return result
 
 

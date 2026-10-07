@@ -733,6 +733,14 @@ def process_money_opportunity(
         "revenue_value": revenue_value,
         "acquisition_state": acquisition_state,
         "public_prices": priced,
+        "public_price_coverage_pct": (
+            round(100.0 * priced / max(material, 1), 1) if material > 0 else (100.0 if priced > 0 else 0.0)
+        ),
+        "public_price_hits": [
+            li.get("retail")
+            for li in lines
+            if isinstance(li, dict) and isinstance(li.get("retail"), dict)
+        ][:priced],
         "quote_required": quote_required,
         "quote_packets": quote_packets,
         "suppliers": sorted(set(suppliers))[:10],
