@@ -149,6 +149,23 @@ def test_generic_filename_valid_schedule(tmp_path: Path):
     assert r["is_product_like"]
 
 
+def test_extensionless_document_1_sniffed_as_pdf(tmp_path: Path):
+    """BidNet often materializes files as document_1 with no suffix."""
+    p = tmp_path / "document_1"
+    _write_pdf(
+        p,
+        [
+            "Item Description Qty Unit\n"
+            "1 OEM Oil Filter Part Number 90915 10 EA\n"
+            "2 Brake Pad Set MPN 04465 4 EA\n",
+        ],
+    )
+    r = inspect_document(p, filename="document_1")
+    assert r["extension"] == "pdf"
+    assert r["extracted_line_count"] >= 1
+    assert r["classification"] == "LINES_RECOVERED"
+
+
 def test_partial_extraction_coverage_message(tmp_path: Path):
     p = tmp_path / "Exhibit.pdf"
     lines = ["Item Description Qty Unit\n"] + [f"{i} Part SKU-{i:03d} 1 EA\n" for i in range(1, 9)]

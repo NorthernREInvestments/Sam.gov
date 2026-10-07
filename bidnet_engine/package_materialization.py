@@ -311,7 +311,18 @@ def materialize_attachments(
             [
                 {
                     "local_path": e.get("LOCAL_PATH") or e.get("local_path"),
-                    "filename": e.get("filename"),
+                    # Prefer real filename+extension so PDF sniffing is not required
+                    "filename": (
+                        e.get("filename")
+                        if str(e.get("filename") or "").lower().endswith(
+                            (".pdf", ".xlsx", ".xls", ".csv", ".docx", ".doc")
+                        )
+                        else (
+                            f"{e.get('filename') or 'document'}.{e.get('extension')}"
+                            if e.get("extension")
+                            else e.get("filename")
+                        )
+                    ),
                     "document_id": e.get("document_id"),
                     "source_url": e.get("source_url"),
                 }

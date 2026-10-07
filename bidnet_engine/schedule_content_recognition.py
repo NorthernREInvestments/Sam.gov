@@ -287,6 +287,18 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
     path = Path(path)
     name = filename or path.name
     ext = path.suffix.lower().lstrip(".")
+    # BidNet often saves as document_1 with no extension — sniff magic bytes
+    if not ext and path.is_file():
+        try:
+            head = path.read_bytes()[:8]
+            if head.startswith(b"%PDF"):
+                ext = "pdf"
+            elif head[:2] == b"PK":
+                ext = "xlsx"
+            elif head[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1":
+                ext = "xls"
+        except Exception:
+            pass
     result: dict[str, Any] = {
         "build": BUILD,
         "path": str(path),
