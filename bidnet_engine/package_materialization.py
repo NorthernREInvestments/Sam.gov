@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v2-empty-download-detail-chase"
+PATCH = "s20-v3-private-title-search-discovery"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -690,9 +690,38 @@ def materialize_attachments(
                 break
         if not detail_url and uniq_details:
             detail_url = uniq_details[0]
-        if detail_url:
+        if detail_url or opp_title:
             try:
-                page_docs = client.discover_attachment_links(detail_url) or []
+                page_docs = []
+                if detail_url:
+                    page_docs = client.discover_attachment_links(detail_url) or []
+                # Statewide/public abstracts often bounce to Welcome — search by title
+                if not page_docs and opp_title and hasattr(client, "discover_attachments_by_title"):
+                    page_docs = client.discover_attachments_by_title(opp_title) or []
+                # If HTML walls were harvested, also parse solicitation id from diag HTML
+                if not page_docs:
+                    for e in list(invalid)[:6]:
+                        u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
+                        if "bidnet" not in u.lower():
+                            continue
+                        # Re-fetch HTML and look for private solicitation id
+                        try:
+                            html_b = client.download_bytes(u, timeout_ms=45_000) if hasattr(client, "download_bytes") else None
+                        except Exception:
+                            html_b = None
+                        if not html_b or not looks_like_html_bytes(html_b):
+                            continue
+                        text = html_b.decode("utf-8", errors="ignore")
+                        m = re.search(
+                            r"/private/supplier/solicitations/(\d{6,})/(?:view|abstract|documents)",
+                            text,
+                            re.I,
+                        )
+                        if m:
+                            priv = f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}/view"
+                            page_docs = client.discover_attachment_links(priv) or []
+                            if page_docs:
+                                break
                 added = _enqueue_docs(page_docs, counter="page")
                 # Continue download loop for newly discovered links
                 if added:

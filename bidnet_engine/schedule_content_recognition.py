@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PARSER_CACHE_VERSION = "s20-content-v1"
+PARSER_CACHE_VERSION = "s20-content-v2"
 _PARSE_CACHE_FILE = "m3_schedule_parse_cache_v1.json"
 
 PRODUCT_ROLES = {
@@ -517,6 +517,21 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
             if product_like:
                 product_pages.append(page_no)
             rows.extend(page_rows)
+            # pdfplumber table fallback when signals strong but text/fitz tables empty
+            if not page_rows and (sig["has_qty_uom"] or sig["has_pn"] or sig["signal_count"] >= 5):
+                try:
+                    import pdfplumber
+
+                    with pdfplumber.open(str(path)) as pdf:
+                        if 0 <= page_no - 1 < len(pdf.pages):
+                            for table in pdf.pages[page_no - 1].extract_tables() or []:
+                                page_rows.extend(_rows_from_table(table, page=page_no, path=path))
+                    if page_rows:
+                        rows.extend(page_rows)
+                        if page_no not in product_pages:
+                            product_pages.append(page_no)
+                except Exception:
+                    pass
             result["page_diagnostics"].append(
                 {
                     "page": page_no,

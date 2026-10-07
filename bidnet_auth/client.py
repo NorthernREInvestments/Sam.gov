@@ -448,6 +448,79 @@ class BidNetAuthenticatedClient:
 
         return found[:30]
 
+    def discover_attachments_by_title(
+        self,
+        title: str,
+        *,
+        timeout_ms: int = 75_000,
+    ) -> list[dict[str, Any]]:
+        """When detail URL variants 404/Welcome, search private BidNet by title then scrape docs."""
+        if not self.is_authenticated or self._page is None:
+            return []
+        q = (title or "").strip()
+        if len(q) < 8:
+            return []
+        # Trim noisy suffixes for search
+        q = re.sub(r"\s+", " ", q)[:120]
+        search_urls = [
+            "https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init",
+            "https://www.bidnetdirect.com/private/supplier/solicitations/open-bids",
+        ]
+        try:
+            for su in search_urls:
+                try:
+                    self.fetch_html(su, timeout_ms=timeout_ms)
+                except Exception:
+                    continue
+                # Fill search box if present
+                filled = False
+                for sel in (
+                    "input[type='search']",
+                    "input[name*='search' i]",
+                    "input[id*='search' i]",
+                    "input[placeholder*='Search' i]",
+                    "input[placeholder*='Keyword' i]",
+                ):
+                    try:
+                        loc = self._page.locator(sel)
+                        if loc.count() == 0:
+                            continue
+                        box = loc.first
+                        box.fill(q, timeout=3_000)
+                        box.press("Enter")
+                        self._page.wait_for_timeout(1_500)
+                        filled = True
+                        break
+                    except Exception:
+                        continue
+                if not filled:
+                    continue
+                # Click first result that looks like a solicitation
+                try:
+                    links = self._page.locator("a[href*='/solicitations/']").all()
+                    for a in links[:20]:
+                        try:
+                            href = a.get_attribute("href") or ""
+                            text = (a.inner_text() or "").strip()
+                            if not href or "/search" in href.lower():
+                                continue
+                            # Prefer title token overlap
+                            tokens = [t for t in re.split(r"\W+", q.lower()) if len(t) >= 4][:6]
+                            hay = (text + " " + href).lower()
+                            if tokens and sum(1 for t in tokens if t in hay) < max(2, len(tokens) // 3):
+                                continue
+                            from urllib.parse import urljoin
+
+                            abs_u = urljoin(self._page.url or su, href)
+                            return self.discover_attachment_links(abs_u, timeout_ms=timeout_ms)
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+        except Exception as exc:
+            log.info("discover_attachments_by_title failed: %s", type(exc).__name__)
+        return []
+
     def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:
         """Navigate URL and capture JSON XHR/fetch payloads for structured harvest."""
         if not self.is_authenticated:
