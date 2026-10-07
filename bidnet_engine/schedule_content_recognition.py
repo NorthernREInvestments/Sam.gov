@@ -56,7 +56,11 @@ _CLIN = re.compile(r"\bCLIN\s*[:#]?\s*(\d{1,6})\b", re.I)
 _CATALOG_DISCOUNT = re.compile(
     r"\b(percent(?:age)?\s+discount|discount\s+(?:off|from|of)\s+(?:list|catalog|msrp|oem)|"
     r"catalog\s+discount|percentage\s+off|%?\s*off\s+(?:list|catalog|oem)|"
-    r"discount\s+from\s+(?:the\s+)?(?:manufacturer|oem)\s+catalog)\b",
+    r"discount\s+from\s+(?:the\s+)?(?:manufacturer|oem)\s+catalog|"
+    r"manufacturer(?:'s)?\s+(?:current\s+)?(?:price\s+)?list|"
+    r"oem\s+(?:price\s+)?list|list\s+price\s+less|"
+    r"percentage\s+off\s+(?:the\s+)?(?:manufacturer|dealer|oem)|"
+    r"bid\s+a\s+percentage| bid\s+percentage|%?\s*discount\s+from)\b",
     re.I,
 )
 _SERVICE_ONLY = re.compile(
@@ -352,8 +356,9 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                 p["ocr_skipped"] = True
             product_like = (
                 len(page_rows) >= 1
-                or (sig["signal_count"] >= 5 and (sig["has_qty_uom"] or sig["has_pn"]))
-                or (sig["has_productish"] and sig["has_qty_uom"] and sig["signal_count"] >= 3)
+                or (sig["signal_count"] >= 4 and (sig["has_qty_uom"] or sig["has_pn"] or sig["has_clin"]))
+                or (sig["has_productish"] and sig["has_qty_uom"] and sig["signal_count"] >= 2)
+                or (sig["has_catalog_discount"] and sig["has_productish"])
             )
             if product_like:
                 product_pages.append(page_no)
@@ -413,16 +418,21 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
         product_pages=product_pages,
     )
 
-    if catalog_only:
+    # Title/filename hints for OEM parts RFQs that are often catalog-discount
+    name_parts = bool(re.search(r"\b(parts?|oem|automotive|equipment)\b", name, re.I))
+    if catalog_only or (agg_signals.get("has_catalog_discount") and len(rows) < 2):
+        catalog_only = True
         classification = "CATALOG_DISCOUNT_ONLY"
         status = (
             "This solicitation asks for a discount from the manufacturer catalog "
             "rather than a fixed item list."
         )
-    elif len(rows) >= 1 and role in PRODUCT_ROLES:
+    elif len(rows) >= 1 and (role in PRODUCT_ROLES or len(rows) >= 1):
         classification = "LINES_RECOVERED"
         pages_s = _pages_phrase(product_pages)
         status = f"{len(rows)} product lines found in {name}" + (f", {pages_s}." if pages_s else ".")
+        role = role if role in PRODUCT_ROLES else "PRODUCT_SCHEDULE"
+        conf = max(conf, 0.75)
     elif product_pages and len(rows) == 0:
         classification = "PARSER_DEFECT_REMAINS"
         status = (
@@ -432,6 +442,21 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
     elif role == "SERVICE_SCOPE":
         classification = "NO_PRODUCT_LINES_ACTUALLY_PRESENT"
         status = "The available bid package describes services/labor rather than an itemized product list."
+    elif agg_signals.get("has_productish") and name_parts and len(rows) == 0 and not product_pages:
+        # Parts RFQ language without recoverable rows — likely catalog or parser gap
+        if agg_signals.get("has_catalog_discount"):
+            catalog_only = True
+            classification = "CATALOG_DISCOUNT_ONLY"
+            status = (
+                "This solicitation asks for a discount from the manufacturer catalog "
+                "rather than a fixed item list."
+            )
+        else:
+            classification = "PARSER_DEFECT_REMAINS"
+            status = (
+                f"M3 found parts/equipment language in {name} but could not extract an item list yet. "
+                "This deal is still being analyzed."
+            )
     elif role == "NON_PRODUCT_DOCUMENT" or (not product_pages and len(rows) == 0):
         classification = "NO_PRODUCT_LINES_ACTUALLY_PRESENT"
         status = "The available bid package does not contain an itemized product requirement."

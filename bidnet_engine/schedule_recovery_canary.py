@@ -342,6 +342,12 @@ def _build_report(
         if cov_f >= 75:
             cov75 += 1
         b = str(r.get("package_primary_blocker") or pm.get("primary_blocker") or "OTHER")
+        if clf == "PARSER_DEFECT_REMAINS":
+            b = "PARSER_FAILURE"
+        elif clf == "CATALOG_DISCOUNT_ONLY":
+            b = "CATALOG_DISCOUNT_ONLY"
+        elif clf == "PRODUCT_SCHEDULE_INACCESSIBLE":
+            b = "PRODUCT_SCHEDULE_INACCESSIBLE"
         blockers[b] += 1
         auth_doc = pm.get("AUTHORITATIVE_PRODUCT_DOC") or {}
         top.append(
@@ -418,12 +424,26 @@ def _build_report(
         "MATERIAL_PRODUCT_LINES": material_lines,
     }
 
-    # Adjusted pass ONLY when we proved most of the 13 are non-itemizable AND recovered
-    # ≥80% of the remaining itemizable set (minimum 1 itemizable). Never pass on zero itemizable.
+    # Adjusted pass ONLY with document-level proof of non-itemizable majority.
+    # PRODUCT_SCHEDULE_NOT_ACQUIRED / PARSER_FAILURE are software blockers — never count as proof.
     import math
 
+    soft_blockers = int(blockers.get("PRODUCT_SCHEDULE_NOT_ACQUIRED") or 0) + int(
+        blockers.get("PARSER_FAILURE") or 0
+    ) + int(blockers.get("OPP_TIMEOUT") or 0) + int(blockers.get("INVALID_DOWNLOADED_FILE") or 0)
+    opps_with_valid = sum(
+        1
+        for r in results
+        if int((r.get("package_materialization") or {}).get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0) > 0
+    )
     adjusted_pass = False
-    if 1 <= itemizable < 8 and (catalog_only + no_product) >= (n - itemizable) and n >= 8:
+    if (
+        soft_blockers == 0
+        and 1 <= itemizable < 8
+        and (catalog_only + no_product) >= (n - itemizable)
+        and n >= 8
+        and opps_with_valid >= n  # every opp had at least one valid local doc inspected
+    ):
         needed = max(1, int(math.ceil(0.8 * itemizable)))
         adjusted_pass = lines_ready >= needed and auth_found >= needed
 
@@ -432,6 +452,7 @@ def _build_report(
             "AUTHORITATIVE_PRODUCT_DOC_FOUND_GE_8": auth_found >= 8,
             "LINES_READY_GE_8": lines_ready >= 8,
             "ADJUSTED_ITEMIZABLE_PASS": adjusted_pass,
+            # Prefer hard 8/8; adjusted only when soft blockers are gone and absence is proven
             "PACKAGE_RECOVERY_WORKING": (auth_found >= 8 and lines_ready >= 8) or adjusted_pass,
             "A_E_IDENTITY_OPPS_GE_5": ae_opps >= 5,
             "PUBLIC_PRICE_READY_OPPS_GE_3": pub_opps >= 3,
