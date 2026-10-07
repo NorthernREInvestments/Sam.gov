@@ -82,6 +82,18 @@ _BOILER = re.compile(
 
 
 def _signal_score(text: str) -> dict[str, Any]:
+    # Ignore near-empty text — short tokens like "set"/"box" must not fire on blank pages
+    if not text or len(text.strip()) < 40:
+        return {
+            "signal_hits": [],
+            "signal_count": 0,
+            "has_qty_uom": False,
+            "has_pn": False,
+            "has_clin": False,
+            "has_catalog_discount": False,
+            "has_productish": False,
+            "has_service_only": False,
+        }
     low = f" {text.lower()} "
     hits = [t for t in SIGNAL_TERMS if t in low]
     return {
@@ -336,6 +348,8 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
     elif ext == "pdf":
         pages = _pdf_pages(path, max_pages=max_pages)
         header: str | None = None
+        # Cap OCR pages per document to avoid worker hangs (PyMuPDF OCR / tesseract)
+        image_only_budget = 8
         for p in pages:
             page_no = int(p["page"])
             text = p.get("text") or ""
@@ -350,8 +364,24 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                 key = (r.get("description"), r.get("quantity"), r.get("item"))
                 if key not in seen:
                     page_rows.append(r)
-            # OCR disabled by default in production walker (hang risk). Mark for diagnostics.
-            if p.get("image_only") and not page_rows:
+            # Bounded OCR only for truly image-only pages (NY BidNet scans often have zero native text)
+            if p.get("image_only") and not page_rows and image_only_budget > 0:
+                ocr_text = _ocr_page_fallback(path, page_no - 1)
+                image_only_budget -= 1
+                if ocr_text and len(ocr_text.strip()) >= 40:
+                    text = ocr_text
+                    sig = _signal_score(text)
+                    page_rows, header = _rows_from_text(
+                        text, page=page_no, path=path, inherited_header=header
+                    )
+                    p["ocr_used"] = True
+                    p["text"] = text
+                    p["char_count"] = len(text)
+                    p["image_only"] = False
+                else:
+                    p["ocr_used"] = False
+                    p["ocr_empty"] = True
+            elif p.get("image_only") and not page_rows:
                 p["ocr_used"] = False
                 p["ocr_skipped"] = True
             product_like = (
@@ -370,6 +400,8 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                     "rows": len(page_rows),
                     "image_only": bool(p.get("image_only")),
                     "ocr_used": bool(p.get("ocr_used")),
+                    "ocr_skipped": bool(p.get("ocr_skipped")),
+                    "ocr_empty": bool(p.get("ocr_empty")),
                     "char_count": p.get("char_count"),
                 }
             )
@@ -457,6 +489,12 @@ def inspect_document(path: str | Path, *, filename: str | None = None, max_pages
                 f"M3 found parts/equipment language in {name} but could not extract an item list yet. "
                 "This deal is still being analyzed."
             )
+    elif any(bool(d.get("image_only") or d.get("ocr_skipped") or d.get("ocr_empty")) for d in (result.get("page_diagnostics") or [])) and len(rows) == 0:
+        classification = "PARSER_DEFECT_REMAINS"
+        status = (
+            f"{name} appears to be a scanned/image PDF with little extractable text. "
+            "M3 is still analyzing this package for product lines."
+        )
     elif role == "NON_PRODUCT_DOCUMENT" or (not product_pages and len(rows) == 0):
         classification = "NO_PRODUCT_LINES_ACTUALLY_PRESENT"
         status = "The available bid package does not contain an itemized product requirement."
