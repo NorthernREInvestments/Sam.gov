@@ -86,8 +86,8 @@ def _signal_score(text: str) -> dict[str, Any]:
     }
 
 
-def _pdf_pages(path: Path, *, max_pages: int = 40) -> list[dict[str, Any]]:
-    """Extract page text/tables. Prefer fast fitz text; use pdfplumber tables selectively."""
+def _pdf_pages(path: Path, *, max_pages: int = 30) -> list[dict[str, Any]]:
+    """Extract page text only (fitz). Avoid table finders that can freeze the worker."""
     pages: list[dict[str, Any]] = []
     # Fast path: fitz text for all pages (avoids pdfplumber hangs on large packages)
     try:
@@ -113,44 +113,8 @@ def _pdf_pages(path: Path, *, max_pages: int = 40) -> list[dict[str, Any]]:
     except Exception:
         pages = []
 
-    # Intentionally no pdfplumber here — it has hung Railway workers on large BidNet PDFs.
-    # Row recovery uses text/regex reconstruction + optional fitz find_tables below.
-    if pages:
-        try:
-            import fitz
-
-            doc = fitz.open(str(path))
-            try:
-                for i, p in enumerate(pages):
-                    if i >= doc.page_count:
-                        break
-                    sig = _signal_score(p.get("text") or "")
-                    if sig["signal_count"] < 3 and not sig["has_qty_uom"] and not sig["has_pn"]:
-                        continue
-                    page = doc.load_page(i)
-                    tables = []
-                    try:
-                        finder = page.find_tables()  # type: ignore[attr-defined]
-                        raw_tables = finder.tables if finder else []
-                    except Exception:
-                        raw_tables = []
-                    for ti, table in enumerate(list(raw_tables)[:6]):
-                        try:
-                            data = table.extract()
-                        except Exception:
-                            data = None
-                        if not data:
-                            continue
-                        rows = [[(c or "").strip() for c in row] for row in data if row]
-                        if rows:
-                            tables.append({"table_index": ti, "rows": rows, "n_rows": len(rows)})
-                    if tables:
-                        p["tables"] = tables
-            finally:
-                doc.close()
-        except Exception:
-            pass
-        return pages
+    # Text-only path. Do NOT call page.find_tables() — it can hold the GIL and freeze
+    # the whole worker so opp timeouts never fire.
     return pages
 
 
@@ -297,7 +261,7 @@ def _classify_role(
     return "UNKNOWN", 0.3
 
 
-def inspect_document(path: str | Path, *, filename: str | None = None, max_pages: int = 40) -> dict[str, Any]:
+def inspect_document(path: str | Path, *, filename: str | None = None, max_pages: int = 30) -> dict[str, Any]:
     path = Path(path)
     name = filename or path.name
     ext = path.suffix.lower().lstrip(".")
