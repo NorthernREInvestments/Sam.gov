@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v20-new20-selection-fix"
+PATCH = "asr-v21-invalid-html-not-soft-blocker"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -979,6 +979,24 @@ def materialize_attachments(
         index=index,
         detail_present=True,
     )
+    product_clf = _classify_package_product(
+        valid=valid,
+        invalid=invalid,
+        content_recognition=content_recognition,
+        free_chase_meta=free_chase_meta,
+        title=opp_title,
+    )
+    # HTML/detail-page rejects after BidNet wall + free chase are access evidence, not soft parser bugs
+    if product_clf in {
+        "PRODUCT_SCHEDULE_INACCESSIBLE",
+        "NO_PRODUCT_LINES_ACTUALLY_PRESENT",
+        "CATALOG_DISCOUNT_ONLY",
+    } and blocker in {"INVALID_DOWNLOADED_FILE", "DOWNLOAD_FAILED", "OTHER"}:
+        blocker = (
+            "SCHEDULE_NOT_PRESENT"
+            if product_clf == "NO_PRODUCT_LINES_ACTUALLY_PRESENT"
+            else "PRODUCT_SCHEDULE_INACCESSIBLE"
+        )
 
     return {
         "build": BUILD,
@@ -1021,13 +1039,7 @@ def materialize_attachments(
         "EXPECTED_PRODUCT_LINES": content_recognition.get("EXPECTED_PRODUCT_LINES"),
         "EXTRACTED_PRODUCT_LINES": content_recognition.get("EXTRACTED_PRODUCT_LINES"),
         "LINE_EXTRACTION_COVERAGE": content_recognition.get("LINE_EXTRACTION_COVERAGE"),
-        "product_classification": _classify_package_product(
-            valid=valid,
-            invalid=invalid,
-            content_recognition=content_recognition,
-            free_chase_meta=free_chase_meta,
-            title=opp_title,
-        ),
+        "product_classification": product_clf,
         "operator_product_status": (
             _operator_status_for_package(
                 valid=valid,

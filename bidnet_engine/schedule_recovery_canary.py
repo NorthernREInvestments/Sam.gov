@@ -524,9 +524,11 @@ def _build_report(
     # PRODUCT_SCHEDULE_NOT_ACQUIRED / PARSER_FAILURE remain software blockers — never count as proof.
     import math
 
+    # INVALID_DOWNLOADED_FILE for BidNet HTML/detail pages is access evidence once classified
+    # as inaccessible/no-product — do not treat those as soft software blockers.
     soft_blockers = int(blockers.get("PRODUCT_SCHEDULE_NOT_ACQUIRED") or 0) + int(
         blockers.get("PARSER_FAILURE") or 0
-    ) + int(blockers.get("OPP_TIMEOUT") or 0) + int(blockers.get("INVALID_DOWNLOADED_FILE") or 0)
+    ) + int(blockers.get("OPP_TIMEOUT") or 0)
     external_proven = 0
     inspected_or_proven = 0
     for r in results:
