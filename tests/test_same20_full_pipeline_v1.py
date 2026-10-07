@@ -67,6 +67,25 @@ def test_enrich_result_plain_blocker_and_decision():
     assert _blocker_bucket(r) == "PACKAGE_INCOMPLETE"
 
 
+def test_enrich_local_package_missing_schedule_not_fake_revenue_blocker():
+    r = _enrich_result(
+        {
+            "raw_lines": 0,
+            "material_lines": 0,
+            "usable_ae": 0,
+            "public_prices": 0,
+            "package_materialization": {
+                "product_classification": "NO_PRODUCT_LINES_ACTUALLY_PRESENT",
+                "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": 2,
+                "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+            },
+        }
+    )
+    assert "authoritative product schedule" in (r.get("blocker_plain") or "").lower()
+    assert "government contract value" not in (r.get("blocker_plain") or "").lower()
+    assert _blocker_bucket(r) == "NO_AUTHORITATIVE_PRODUCT_DOC"
+
+
 def test_build_id():
     assert BUILD == "20261007-m3-same20-full-pipeline-recovery-v1"
 
@@ -78,7 +97,10 @@ def test_statewide_namespace_guard_in_materialization():
         resolve_bidnet_private_detail_url_candidates,
     )
 
-    assert any(x in PATCH for x in ("playwright-same-thread", "statewide", "intercept-download"))
+    assert any(
+        x in PATCH
+        for x in ("playwright-same-thread", "statewide", "intercept-download", "unzip", "auth-doc")
+    )
     sw = "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/444169970078/abstract"
     assert is_statewide_bidnet_url(sw)
     assert resolve_bidnet_private_detail_url_candidates(sw) == []

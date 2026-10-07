@@ -213,6 +213,14 @@ def _enrich_result(r: dict[str, Any]) -> dict[str, Any]:
             f"A product table was detected but line extraction recovered only "
             f"{lines} usable rows — parser needs another pass."
         )
+    elif not auth and lines <= 0:
+        n_docs = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
+        plain = (
+            f"Package has {n_docs} local document(s), but no authoritative product schedule "
+            f"was recognized yet — need pricing/bid form/item list extraction."
+            if n_docs > 0
+            else "No local package documents available yet."
+        )
     elif lines <= 0 and auth:
         plain = "Authoritative product document found, but no itemized lines were extracted yet."
     elif lines > 0 and ae <= 0:
@@ -225,7 +233,7 @@ def _enrich_result(r: dict[str, Any]) -> dict[str, Any]:
         plain = (
             f"{priced} lines priced publicly ({cov_f:.0f}% coverage) — still below 50% basket coverage."
         )
-    elif not rev_ok:
+    elif lines > 0 and not rev_ok:
         plain = "Product lines exist, but usable government contract value is not yet recovered."
     else:
         plain = pm.get("operator_product_status") or "Pipeline stages advancing."
@@ -275,7 +283,11 @@ def _blocker_bucket(r: dict[str, Any]) -> str:
         if clf != "NO_PRODUCT_LINES_ACTUALLY_PRESENT":
             return "PACKAGE_INCOMPLETE"
     if not pm.get("AUTHORITATIVE_PRODUCT_DOC_FOUND") and lines <= 0:
-        if clf == "NO_PRODUCT_LINES_ACTUALLY_PRESENT":
+        # Local package present but schedule not recognized is still an auth-doc gap
+        # (not "OTHER") — keeps operator buckets actionable.
+        if clf == "NO_PRODUCT_LINES_ACTUALLY_PRESENT" and int(
+            pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0
+        ) <= 0:
             return "OTHER"
         return "NO_AUTHORITATIVE_PRODUCT_DOC"
     if lines <= 0:

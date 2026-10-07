@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v6-intercept-download-and-doc-tab-capture"
+PATCH = "s20-v7-unzip-and-auth-doc-recognition"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -862,6 +862,41 @@ def materialize_attachments(
                             break
                 discovery_meta["page_docs"] = len(page_docs or [])
                 added = _enqueue_docs(page_docs, counter="page")
+                # Prefer schedule-like binaries over BidNet viewer HTML for remaining downloads
+                if added and i < len(index):
+                    def _dl_prio(e: dict[str, Any]) -> tuple[int, str]:
+                        fn = str(e.get("filename") or e.get("source_url") or "").lower()
+                        url = str(e.get("source_url") or "")
+                        score = 50
+                        if is_bidnet_detail_page_url(url):
+                            score += 100
+                        if any(x in fn for x in (".xlsx", ".xls", ".csv")):
+                            score -= 40
+                        if any(
+                            x in fn
+                            for x in (
+                                "price",
+                                "pricing",
+                                "bid",
+                                "schedule",
+                                "item",
+                                "bom",
+                                "equipment",
+                                "material",
+                                "spec",
+                                "form",
+                            )
+                        ):
+                            score -= 20
+                        if fn.endswith(".pdf") or ".pdf" in fn:
+                            score -= 10
+                        if is_bidnet_download_endpoint(url):
+                            score -= 30
+                        return (score, fn)
+
+                    tail = index[i:]
+                    tail.sort(key=_dl_prio)
+                    index[i:] = tail
                 # Continue download loop for newly discovered links
                 if added:
                     already_ok = {
@@ -1064,12 +1099,114 @@ def materialize_attachments(
         except Exception as exc:
             free_chase_meta = {"error": f"{type(exc).__name__}:{exc}"[:160]}
 
+    # Expand BidNet package ZIPs into member PDFs/XLSX before recognition
+    zip_expanded = 0
+    try:
+        expanded_entries: list[dict[str, Any]] = []
+        for e in list(materialized):
+            path_s = e.get("LOCAL_PATH") or e.get("local_path")
+            if not path_s:
+                continue
+            path = Path(str(path_s))
+            if not path.exists():
+                continue
+            fname = str(e.get("filename") or path.name).lower()
+            if fname.endswith((".xlsx", ".docx", ".xls")):
+                continue
+            try:
+                head = path.read_bytes()[:8]
+            except Exception:
+                continue
+            looks_zip = fname.endswith(".zip") or head[:2] == b"PK"
+            if not looks_zip:
+                continue
+            try:
+                if not zipfile.is_zipfile(path):
+                    continue
+                with zipfile.ZipFile(path) as zf:
+                    names = zf.namelist()
+                    # Skip OpenXML workbooks/docs (already valid attachments)
+                    if any(n.startswith("xl/") or n.startswith("word/") for n in names):
+                        continue
+                    for info in zf.infolist()[:40]:
+                        if info.is_dir() or info.filename.startswith("__MACOSX"):
+                            continue
+                        member = Path(info.filename).name
+                        ext = Path(member).suffix.lower().lstrip(".")
+                        if ext not in {"pdf", "xlsx", "xls", "csv", "docx", "doc"}:
+                            continue
+                        try:
+                            body = zf.read(info)
+                        except Exception:
+                            continue
+                        ok, _reason = _sig_ok(body or b"", ext)
+                        if not ok or not body:
+                            continue
+                        h = hashlib.sha256(body).hexdigest()[:16]
+                        safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", member)[:80]
+                        out = data_path("bidnet_auth", "documents", safe_sid, f"{h}_{safe}")
+                        out.parent.mkdir(parents=True, exist_ok=True)
+                        if not out.exists():
+                            out.write_bytes(body)
+                        entry = {
+                            "filename": member,
+                            "extension": ext,
+                            "LOCAL_PATH": str(out),
+                            "local_path": str(out),
+                            "CONTENT_HASH": h,
+                            "BYTE_SIZE": len(body),
+                            "SOURCE_URL": e.get("SOURCE_URL") or e.get("source_url"),
+                            "DOCUMENT_CONTENT_VALID": True,
+                            "retrieval_status": "ZIP_EXPANDED",
+                            "high_value": bool(
+                                re.search(
+                                    r"pric|bid\s*form|schedule|item|bom|equipment|material|spec",
+                                    member,
+                                    re.I,
+                                )
+                            ),
+                            "document_role_guess": "GENERIC_ATTACHMENT",
+                            "zip_parent": str(path),
+                        }
+                        expanded_entries.append(entry)
+                        zip_expanded += 1
+            except Exception:
+                continue
+        if expanded_entries:
+            # Prefer schedule-like members first for recognition
+            expanded_entries.sort(key=lambda x: (0 if x.get("high_value") else 1, str(x.get("filename") or "")))
+            materialized.extend(expanded_entries)
+            valid = len([m for m in materialized if m.get("DOCUMENT_CONTENT_VALID") or m.get("LOCAL_PATH")])
+    except Exception:
+        zip_expanded = 0
+
     # Content-first recognition — inspect every valid local file (filename secondary)
     content_recognition: dict[str, Any] = {}
     try:
         from bidnet_engine.schedule_content_recognition import inspect_package_documents
 
         # Cap inspection volume so one huge PDF cannot stall the same-13 walker
+        # Prefer high-value / spreadsheet members when many files exist
+        inspect_docs = sorted(
+            [
+                e
+                for e in materialized
+                if e.get("LOCAL_PATH") or e.get("local_path")
+            ],
+            key=lambda e: (
+                0
+                if str(e.get("extension") or "").lower() in {"xlsx", "xls", "csv"}
+                else 1,
+                0 if e.get("high_value") else 1,
+                0
+                if re.search(
+                    r"pric|bid|schedule|item|bom|equipment|material|spec|form",
+                    str(e.get("filename") or ""),
+                    re.I,
+                )
+                else 1,
+            ),
+        )[:16]
         content_recognition = inspect_package_documents(
             [
                 {
@@ -1089,7 +1226,7 @@ def materialize_attachments(
                     "document_id": e.get("document_id"),
                     "source_url": e.get("source_url"),
                 }
-                for e in materialized[:12]
+                for e in inspect_docs
             ]
         )
         # Stamp content roles onto materialized entries
@@ -1228,6 +1365,7 @@ def materialize_attachments(
         "PAGE_DISCOVERED_ATTACHMENTS": page_discovered,
         "FREE_CHASE": free_chase_meta,
         "DISCOVERY": discovery_meta,
+        "ZIP_EXPANDED_MEMBERS": zip_expanded,
         "PACKAGE_DOCUMENT_COUNT_EXPECTED": expected,
         "PACKAGE_DOCUMENT_COUNT_DISCOVERED": discovered,
         "PACKAGE_DOCUMENT_COUNT_DOWNLOADED": downloaded,

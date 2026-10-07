@@ -26,7 +26,10 @@ from bidnet_engine.package_materialization import (
 
 def test_build():
     assert BUILD == "20261007-m3-same20-full-pipeline-recovery-v1"
-    assert any(x in PATCH for x in ("playwright-same-thread", "statewide", "intercept-download"))
+    assert any(
+        x in PATCH
+        for x in ("playwright-same-thread", "statewide", "intercept-download", "unzip", "auth-doc")
+    )
 
 
 def test_detail_html_only_not_complete():
