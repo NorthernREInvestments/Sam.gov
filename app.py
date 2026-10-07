@@ -8,6 +8,7 @@ import bidnet_engine.thread_limits  # noqa: F401
 from application_clock import now_utc, today_local
 
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -465,11 +466,12 @@ class ProposalExportRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
+    """Lightweight liveness — must never reload durable pipeline stores (that path can hang the API)."""
     with _startup_lock:
         state = dict(_startup_state)
     status = "ok" if state.get("ready") else "starting"
     from operating_mode import mode_snapshot
-    from legacy_runtime import is_m3_only_production, legacy_retirement_snapshot
+    from legacy_runtime import is_m3_only_production
 
     payload = {
         "status": status,
@@ -479,47 +481,17 @@ def health():
         "m3_only_production": is_m3_only_production(),
         "auth_enabled": auth_enabled(),
         "build_version": APP_BUILD_VERSION,
+        "git_commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("GIT_COMMIT") or "")[:12],
         "startup_ready": state.get("ready", False),
         "operating_mode": mode_snapshot(),
+        "pipeline_store": {"available": None, "note": "see /api/m3/pipeline/status — omitted from liveness"},
+        "legacy_retirement": {
+            "m3_only_production": is_m3_only_production(),
+            "active_application": "M3",
+        },
     }
     if state.get("error"):
         payload["startup_error"] = state["error"]
-    try:
-        from m3_procurement_profile import assert_m3_isolated_from_legacy, load_m3_procurement_profile
-
-        payload["procurement_profile"] = {
-            "kind": load_m3_procurement_profile().get("kind"),
-            "isolated": assert_m3_isolated_from_legacy().get("ok"),
-        }
-    except Exception as exc:
-        payload["procurement_profile"] = {"error": str(exc)}
-    try:
-        from m3_pipeline_store import M3PipelineStore
-
-        store = M3PipelineStore()
-        if hasattr(store, "reload_from_durable"):
-            store.reload_from_durable()
-        payload["pipeline_store"] = {
-            "available": True,
-            "opportunity_count": len(store.all()),
-            "path": str(store.path),
-        }
-    except Exception as exc:
-        payload["pipeline_store"] = {"available": False, "error": str(exc)}
-    try:
-        from gs_watchlist_service import watchlist_status
-
-        wl = watchlist_status()
-        payload["watchlist"] = {
-            "table": wl.get("table"),
-            "priority_target_count": wl.get("priority_target_count"),
-        }
-    except Exception:
-        payload["watchlist"] = {"table": None, "priority_target_count": 0}
-    payload["legacy_retirement"] = {
-        "m3_only_production": is_m3_only_production(),
-        "active_application": "M3",
-    }
     return payload
 
 

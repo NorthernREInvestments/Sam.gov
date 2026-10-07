@@ -69,7 +69,23 @@ def _read_durable_payload() -> dict[str, Any] | None:
                     if not path.is_absolute():
                         path = Path(__file__).resolve().parent / path
                     if path.exists():
-                        data = json.loads(path.read_text(encoding="utf-8"))
+                        try:
+                            raw = path.read_text(encoding="utf-8")
+                        except Exception as exc:
+                            log.error("FILE_PRIMARY unreadable at %s: %s", path, type(exc).__name__)
+                            return None
+                        if not raw or not raw.strip():
+                            log.error("FILE_PRIMARY empty at %s — refusing empty stub", path)
+                            return None
+                        try:
+                            data = json.loads(raw)
+                        except json.JSONDecodeError as exc:
+                            log.error(
+                                "FILE_PRIMARY corrupt JSON at %s (%s) — refusing wipe",
+                                path,
+                                exc,
+                            )
+                            return None
                         if isinstance(data, dict):
                             return data
                     # CRITICAL: never fall through to the empty FILE_PRIMARY stub

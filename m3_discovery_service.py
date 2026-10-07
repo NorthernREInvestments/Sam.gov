@@ -1541,6 +1541,15 @@ def maybe_startup_discovery() -> dict[str, Any]:
             )
     except Exception:
         log.exception("Boot handoff resume failed")
+    # SAME-20 / package recovery must not compete with startup CATCH_UP for Playwright.
+    if str(os.environ.get("M3_DISABLE_STARTUP_DISCOVERY") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        print("govtracker: startup discovery disabled via M3_DISABLE_STARTUP_DISCOVERY", flush=True)
+        return {"queued": False, "reason": "disabled_by_env", "status": discovery_status()}
     if is_data_fresh(state):
         print("govtracker: discovery data already fresh — skip startup run", flush=True)
         return {"queued": False, "reason": "already_fresh", "status": discovery_status()}
