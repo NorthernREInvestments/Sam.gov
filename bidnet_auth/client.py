@@ -297,8 +297,31 @@ class BidNetAuthenticatedClient:
             return []
         found: list[dict[str, Any]] = []
         seen: set[str] = set()
+        priv: str | None = None
         try:
-            self.fetch_html(detail_url, timeout_ms=timeout_ms)
+            from bidnet_engine.package_materialization import resolve_bidnet_private_detail_url
+
+            priv = resolve_bidnet_private_detail_url(detail_url)
+        except Exception:
+            priv = None
+        navigate_url = priv or detail_url
+        try:
+            self.fetch_html(navigate_url, timeout_ms=timeout_ms)
+            # If we landed on search/welcome, force private /view
+            title = ""
+            try:
+                title = (self._page.title() or "").lower()
+            except Exception:
+                pass
+            if "search" in title or "welcome" in title:
+                m = re.search(r"/(\d{7,})", detail_url or "")
+                forced = priv or (
+                    f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}/view"
+                    if m
+                    else None
+                )
+                if forced and forced != navigate_url:
+                    self.fetch_html(forced, timeout_ms=timeout_ms)
         except Exception as exc:
             log.warning("discover_attachment_links navigate failed: %s", type(exc).__name__)
             return []

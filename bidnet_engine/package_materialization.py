@@ -16,7 +16,53 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v14-page-discover-attachments"
+PATCH = "asr-v15-private-supplier-detail-urls"
+
+
+_OPEN_BIDS_ID = re.compile(
+    r"(?:/open-bids/[^/?#]+|/solicitations)/(?P<id>\d{6,})(?:/|\?|$)",
+    re.I,
+)
+_PRIVATE_VIEW = re.compile(
+    r"/private/supplier/solicitations/(?P<id>\d{6,})",
+    re.I,
+)
+
+
+def is_bidnet_detail_page_url(url: str) -> bool:
+    u = (url or "").lower()
+    if "bidnetdirect.com" not in u and "bidnet.com" not in u:
+        return False
+    if re.search(r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)", u):
+        return False
+    return bool(
+        "/open-bids/" in u
+        or "/private/supplier/solicitations/" in u
+        or re.search(r"/solicitations/\d{6,}", u)
+    )
+
+
+def resolve_bidnet_private_detail_url(url: str) -> str | None:
+    """Map public open-bids URLs to private supplier /view (auth session required).
+
+    Authenticated Playwright often rewrites public open-bids detail into search;
+    private /view is the stable document surface.
+    """
+    if not url or not url.startswith("http"):
+        return None
+    m = _PRIVATE_VIEW.search(url)
+    if m:
+        sid = m.group("id")
+        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
+    m = _OPEN_BIDS_ID.search(url)
+    if m:
+        sid = m.group("id")
+        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
+    m = re.search(r"/(\d{7,})(?:/abstract|/view)?(?:\?|$)", url)
+    if m and "bidnet" in url.lower():
+        sid = m.group(1)
+        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
+    return None
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
@@ -437,6 +483,13 @@ def materialize_attachments(
             if entry.get("downloadable"):
                 entry["blocker"] = "SCHEDULE_DISCOVERED_NOT_DOWNLOADABLE" if entry.get("high_value") else "DOWNLOAD_FAILED"
             continue
+        # Public open-bids "document" URLs are detail pages, not binaries — skip byte fetch
+        if is_bidnet_detail_page_url(url):
+            entry["DOCUMENT_CONTENT_VALID"] = False
+            entry["DOCUMENT_VALIDATION_FAILURE_REASON"] = "bidnet_detail_page_not_binary"
+            entry["retrieval_status"] = "DETAIL_PAGE"
+            invalid.append({**entry, "failure": "bidnet_detail_page_not_binary"})
+            continue
         try:
             body = client.download_bytes(url, timeout_ms=60_000)
         except Exception as exc:
@@ -489,17 +542,21 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # If still no valid binaries, DOM-scrape the BidNet detail page for real attachment hrefs
+    # If still no valid binaries, DOM-scrape BidNet private detail for real attachment hrefs
     if valid == 0 and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
         for e in index:
             u = str(e.get("source_url") or "")
             if u.startswith("http") and "bidnet" in u.lower():
-                detail_candidates.append(u)
-        # Prefer non-download viewer/detail URLs
+                priv = resolve_bidnet_private_detail_url(u)
+                if priv:
+                    detail_candidates.append(priv)
+                if is_bidnet_detail_page_url(u):
+                    detail_candidates.append(u)
+        # Prefer private /view first
         detail_url = ""
         for u in detail_candidates:
-            if not re.search(r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)", u, re.I):
+            if "/private/supplier/solicitations/" in u and u.endswith("/view"):
                 detail_url = u
                 break
         if not detail_url and detail_candidates:

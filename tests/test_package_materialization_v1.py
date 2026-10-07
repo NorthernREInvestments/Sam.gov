@@ -10,12 +10,14 @@ from bidnet_engine.package_materialization import (
     PACKAGE_DOCUMENTS_PARTIAL,
     build_attachment_index,
     harvest_attachment_urls_from_html,
+    is_bidnet_detail_page_url,
     looks_like_html_bytes,
     legacy_package_implies_complete,
     materialize_attachments,
     operator_package_message,
     primary_line_blocker,
     reconcile_package_state,
+    resolve_bidnet_private_detail_url,
     validate_local_file,
     _sig_ok,
 )
@@ -86,6 +88,16 @@ def test_utf8_bom_html_rejected():
     ok, reason = _sig_ok(bom, "")
     assert ok is False
     assert "html" in (reason or "").lower()
+
+
+def test_resolve_open_bids_to_private_view():
+    pub = (
+        "https://www.bidnetdirect.com/new-york/solicitations/open-bids/"
+        "Automotive-Parts-and-Accessories/0000437119?purchasingGroupId=1"
+    )
+    assert is_bidnet_detail_page_url(pub)
+    priv = resolve_bidnet_private_detail_url(pub)
+    assert priv == "https://www.bidnetdirect.com/private/supplier/solicitations/0000437119/view"
 
 
 def test_html_viewer_harvests_pdf_links():
