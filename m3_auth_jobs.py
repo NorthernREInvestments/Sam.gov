@@ -172,6 +172,51 @@ def _active_running_id() -> str | None:
     return None
 
 
+def mark_schedule_recovery_stalled(
+    *,
+    reason: str = "NO_FORWARD_PROGRESS",
+    stalled_opportunity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Mark the active schedule_recovery job STALLED without wiping durable checkpoints.
+
+    Does not kill OS processes by itself (Railway has no host PID API). Callers should
+    then kick a resume job (mode=new_20) which loads CHECKPOINT_PARTIAL and skips done keys.
+    """
+    jid = _active_running_id()
+    latest = latest_job() or {}
+    if not jid and latest.get("kind") == "schedule_recovery" and latest.get("status") == "RUNNING":
+        jid = str(latest.get("job_id") or "")
+    if not jid:
+        return {"ok": False, "error": "NO_RUNNING_SCHEDULE_RECOVERY_JOB"}
+    payload = {
+        "status": "STALLED",
+        "error": f"STALLED:{reason}"[:400],
+        "completed_at": _utc(),
+        "progress": {
+            "phase": "STALLED",
+            "pct": int((latest.get("progress") or {}).get("pct") or 0),
+            "completed": (latest.get("progress") or {}).get("completed"),
+            "stalled_opportunity": stalled_opportunity,
+            "preserve_checkpoints": True,
+        },
+    }
+    _set(jid, **payload)
+    try:
+        from bidnet_engine.schedule_recovery_canary import write_status
+
+        write_status(
+            phase="STALLED",
+            STATUS="STALLED",
+            stalled_reason=reason,
+            stalled_opportunity=stalled_opportunity,
+            heartbeat_at=_utc(),
+            preserve_checkpoints=True,
+        )
+    except Exception:
+        log.exception("Failed writing STALLED schedule-recovery status")
+    return {"ok": True, "job_id": jid, **payload}
+
+
 def start_bidnet_harvest_job(
     *,
     max_results: int = 100,

@@ -1567,7 +1567,7 @@ def api_m3_bidnet_full_production_env_check():
         "channel_fit_canary_walker": 1,
         "schedule_backed_canary_walker": 1,
         "package_materialization_walker": 1,
-        "schedule_recovery_walker": 3,
+        "schedule_recovery_walker": 4,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
@@ -2155,6 +2155,20 @@ def api_m3_package_materialization_run(body: dict | None = None):
         price_budget=int(payload.get("price_budget") or 25),
         iteration=int(payload.get("iteration") or 1),
         change_made=str(payload.get("change_made") or "content-first schedule recognition"),
+    )
+
+
+@app.post("/api/m3/schedule-recovery/mark-stalled")
+def api_m3_schedule_recovery_mark_stalled(body: dict | None = None):
+    """Mark RUNNING schedule-recovery STALLED; durable checkpoints preserved for resume."""
+    from m3_auth_jobs import mark_schedule_recovery_stalled
+
+    payload = body or {}
+    return mark_schedule_recovery_stalled(
+        reason=str(payload.get("reason") or "NO_FORWARD_PROGRESS"),
+        stalled_opportunity=payload.get("stalled_opportunity")
+        if isinstance(payload.get("stalled_opportunity"), dict)
+        else None,
     )
 
 

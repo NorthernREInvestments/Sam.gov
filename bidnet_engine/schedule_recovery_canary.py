@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from typing import Any
 
 from application_clock import now_utc
@@ -19,6 +21,10 @@ REPORT_JSON = "m3_schedule_recovery_v1_last_report.json"
 REPORT_TXT = "m3_schedule_recovery_v1_last_report.txt"
 ROWS_JSON = "m3_schedule_recovery_v1_rows.json"
 ITER_LOG = "m3_schedule_recovery_v1_iteration_log.json"
+CHECKPOINT_PARTIAL = "m3_schedule_recovery_v1_partial_checkpoint.json"
+# No single opportunity may hold the canary hostage
+OPP_HARD_TIMEOUT_S = 5 * 60
+HEARTBEAT_INTERVAL_S = 60
 
 BEFORE = {
     "AUTHORITATIVE_PRODUCT_DOC": 2,
@@ -51,6 +57,190 @@ def _save(name: str, payload: Any) -> None:
 
 def write_status(**kwargs: Any) -> None:
     _save(STATUS, {"build": BUILD, "updated_at": now_utc().isoformat(), **kwargs})
+
+
+def _save_partial_checkpoint(
+    *,
+    run_id: str,
+    iteration: int,
+    mode: str,
+    results: list[dict[str, Any]],
+    excluded_results: list[dict[str, Any]],
+    pool: list[dict[str, Any]],
+    processed_idx: int,
+    stalled: list[dict[str, Any]] | None = None,
+) -> None:
+    """Durable mid-run state so a stall kill can resume without redoing completed opps."""
+    _save(
+        CHECKPOINT_PARTIAL,
+        {
+            "build": BUILD,
+            "run_id": run_id,
+            "iteration": iteration,
+            "mode": mode,
+            "updated_at": now_utc().isoformat(),
+            "valid_counted": len(results),
+            "excluded_counted": len(excluded_results),
+            "processed_idx": processed_idx,
+            "completed_stable_keys": [
+                str(r.get("stable_key") or "") for r in results if r.get("stable_key")
+            ],
+            "excluded_stable_keys": [
+                str(r.get("stable_key") or "") for r in excluded_results if r.get("stable_key")
+            ],
+            "stalled": stalled or [],
+            "pool_stable_keys": [str(p.get("stable_key") or "") for p in pool],
+            "rows": results,
+            "excluded_rows": excluded_results,
+        },
+    )
+
+
+def _process_opp_with_guards(
+    *,
+    item: dict[str, Any],
+    store_row: dict[str, Any],
+    client: Any,
+    store_by_cid: dict[str, Any],
+    price_budget: int,
+    run_id: str,
+    iteration: int,
+    mode: str,
+    valid_n: int,
+    excl_n: int,
+    pool_remaining: int,
+    target_valid: int,
+    on_progress: Any | None,
+) -> dict[str, Any]:
+    """Run process_money_opportunity with 60s heartbeats and 5-minute hard timeout."""
+    title = str(item.get("title") or "")
+    sk = item.get("stable_key")
+    cid = str(item.get("canonical_opportunity_id") or "")
+    started = time.time()
+    stage_box: dict[str, Any] = {"stage": "PROCESS_MONEY", "started": started}
+    stop_hb = threading.Event()
+
+    def _heartbeat_loop() -> None:
+        while not stop_hb.wait(HEARTBEAT_INTERVAL_S):
+            elapsed = time.time() - started
+            write_status(
+                phase=f"SCHEDULE_RECOVERY_{mode.upper()}_OPP",
+                completed=valid_n if mode == "new_20" else valid_n + excl_n,
+                remaining=max(0, (target_valid if mode == "new_20" else target_valid) - valid_n),
+                percent=int(100 * valid_n / max(target_valid, 1)),
+                run_id=run_id,
+                iteration=iteration,
+                current_stable_key=sk,
+                current_title=title[:120],
+                current_stage=stage_box.get("stage"),
+                time_in_current_stage_s=round(elapsed, 1),
+                valid_counted=valid_n,
+                excluded_counted=excl_n,
+                attempted=valid_n + excl_n,
+                pool_remaining=pool_remaining,
+                heartbeat_at=now_utc().isoformat(),
+                opp_hard_timeout_s=OPP_HARD_TIMEOUT_S,
+            )
+            if on_progress:
+                try:
+                    on_progress(
+                        phase=f"SCHEDULE_RECOVERY_{mode}_heartbeat",
+                        pct=int(100 * valid_n / max(target_valid, 1)),
+                        completed=valid_n,
+                    )
+                except Exception:
+                    pass
+
+    hb_thread = threading.Thread(target=_heartbeat_loop, name=f"asr-hb-{sk}", daemon=True)
+    hb_thread.start()
+    try:
+        # Separate worker so we can bound wait; Playwright may still finish in background.
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="asr-opp") as pool:
+            fut = pool.submit(
+                process_money_opportunity,
+                item,
+                store_row,
+                client=client,
+                store=store_by_cid,
+                price_budget=price_budget,
+            )
+            deadline = started + OPP_HARD_TIMEOUT_S
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    stage_box["stage"] = "STALLED_TIMEOUT"
+                    write_status(
+                        phase="STALLED_OPPORTUNITY",
+                        completed=valid_n,
+                        remaining=max(0, target_valid - valid_n),
+                        percent=int(100 * valid_n / max(target_valid, 1)),
+                        run_id=run_id,
+                        iteration=iteration,
+                        current_stable_key=sk,
+                        current_title=title[:120],
+                        current_stage="STALLED_TIMEOUT",
+                        time_in_current_stage_s=round(time.time() - started, 1),
+                        valid_counted=valid_n,
+                        excluded_counted=excl_n + 1,
+                        pool_remaining=pool_remaining,
+                        heartbeat_at=now_utc().isoformat(),
+                        stalled_reason=f"No completion within {OPP_HARD_TIMEOUT_S}s hard timeout",
+                        STALLED_OPPORTUNITY=True,
+                    )
+                    return {
+                        "canonical_opportunity_id": cid,
+                        "stable_key": sk,
+                        "title": title,
+                        "buyer": item.get("buyer"),
+                        "raw_lines": 0,
+                        "material_lines": 0,
+                        "usable_ae": 0,
+                        "public_prices": 0,
+                        "live_bidnet": True,
+                        "recovery_cohort": mode,
+                        "schedule_recovery_iteration": iteration,
+                        "counts_toward_new20": False,
+                        "exclusion": "STALLED_OPPORTUNITY",
+                        "stalled": True,
+                        "stalled_stage": "PROCESS_MONEY",
+                        "stalled_reason": f"Exceeded {OPP_HARD_TIMEOUT_S}s without completion",
+                        "time_in_stage_s": round(time.time() - started, 1),
+                        "package_materialization": {
+                            "primary_blocker": "STALLED_OPPORTUNITY",
+                            "operator_product_status": (
+                                f"Quarantined after {OPP_HARD_TIMEOUT_S}s hard timeout "
+                                "with no completion — replaced from pool"
+                            ),
+                            "product_classification": "STALLED_OPPORTUNITY",
+                            "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                        },
+                        "package_primary_blocker": "STALLED_OPPORTUNITY",
+                    }
+                try:
+                    return fut.result(timeout=min(HEARTBEAT_INTERVAL_S, max(0.5, remaining)))
+                except FuturesTimeout:
+                    elapsed = time.time() - started
+                    write_status(
+                        phase=f"SCHEDULE_RECOVERY_{mode.upper()}_OPP",
+                        completed=valid_n if mode == "new_20" else valid_n + excl_n,
+                        remaining=max(0, target_valid - valid_n),
+                        percent=int(100 * valid_n / max(target_valid, 1)),
+                        run_id=run_id,
+                        iteration=iteration,
+                        current_stable_key=sk,
+                        current_title=title[:120],
+                        current_stage=stage_box.get("stage"),
+                        time_in_current_stage_s=round(elapsed, 1),
+                        valid_counted=valid_n,
+                        excluded_counted=excl_n,
+                        attempted=valid_n + excl_n,
+                        pool_remaining=pool_remaining,
+                        heartbeat_at=now_utc().isoformat(),
+                        waiting_on="process_money_opportunity",
+                    )
+                    continue
+    finally:
+        stop_hb.set()
 
 
 def _append_iteration(entry: dict[str, Any]) -> list[dict[str, Any]]:
@@ -231,6 +421,37 @@ def run_schedule_recovery(
     processed_idx = 0
     source_exhausted = False
 
+    # Resume from durable partial checkpoint (stall recover) — skip completed keys
+    if mode == "new_20":
+        partial = _load(CHECKPOINT_PARTIAL)
+        if partial.get("rows") and int(partial.get("valid_counted") or 0) > 0:
+            prior_rows = [r for r in (partial.get("rows") or []) if isinstance(r, dict)]
+            prior_excl = [r for r in (partial.get("excluded_rows") or []) if isinstance(r, dict)]
+            done_sk = {
+                str(r.get("stable_key") or "")
+                for r in prior_rows + prior_excl
+                if r.get("stable_key")
+            }
+            if prior_rows:
+                results = list(prior_rows)
+                excluded_results = list(prior_excl)
+                pool = [c for c in pool if str(c.get("stable_key") or "") not in done_sk]
+                processed_idx = 0
+                write_status(
+                    phase="RESUMED_FROM_CHECKPOINT",
+                    completed=len(results),
+                    remaining=max(0, target_valid - len(results)),
+                    percent=int(100 * len(results) / max(target_valid, 1)),
+                    run_id=run_id,
+                    iteration=iteration,
+                    valid_counted=len(results),
+                    excluded_counted=len(excluded_results),
+                    resumed_keys=len(done_sk),
+                    pool_remaining=len(pool),
+                    heartbeat_at=now_utc().isoformat(),
+                    prior_run_id=partial.get("run_id"),
+                )
+
     while True:
         if mode == "new_20" and len(results) >= target_valid:
             break
@@ -322,8 +543,20 @@ def run_schedule_recovery(
                 continue
 
         try:
-            r = process_money_opportunity(
-                item, store_row, client=client, store=store_by_cid, price_budget=price_budget
+            r = _process_opp_with_guards(
+                item=item,
+                store_row=store_row,
+                client=client,
+                store_by_cid=store_by_cid,
+                price_budget=price_budget,
+                run_id=run_id,
+                iteration=iteration,
+                mode=mode,
+                valid_n=valid_n,
+                excl_n=excl_n,
+                pool_remaining=max(0, len(pool) - processed_idx),
+                target_valid=target_valid if mode == "new_20" else max(len(candidates), 1),
+                on_progress=on_progress,
             )
         except Exception as exc:
             r = {
@@ -351,6 +584,44 @@ def run_schedule_recovery(
         if mode == "new_20":
             from bidnet_engine.schedule_selection import assess_product_dominance_for_new20
 
+            if r.get("stalled") or r.get("exclusion") == "STALLED_OPPORTUNITY":
+                excluded_results.append(r)
+                _save_partial_checkpoint(
+                    run_id=run_id,
+                    iteration=iteration,
+                    mode=mode,
+                    results=results,
+                    excluded_results=excluded_results,
+                    pool=pool,
+                    processed_idx=processed_idx,
+                    stalled=[
+                        {
+                            "stable_key": r.get("stable_key"),
+                            "title": r.get("title"),
+                            "stage": r.get("stalled_stage"),
+                            "reason": r.get("stalled_reason"),
+                        }
+                    ],
+                )
+                write_status(
+                    phase=f"SCHEDULE_RECOVERY_{mode.upper()}_HEARTBEAT",
+                    completed=len(results),
+                    remaining=max(0, target_valid - len(results)),
+                    percent=int(100 * len(results) / target_valid),
+                    run_id=run_id,
+                    iteration=iteration,
+                    last_title=str(r.get("title") or "")[:120],
+                    last_exclusion="STALLED_OPPORTUNITY",
+                    valid_counted=len(results),
+                    excluded_counted=len(excluded_results),
+                    attempted=len(results) + len(excluded_results),
+                    pool_remaining=max(0, len(pool) - processed_idx),
+                    heartbeat_at=now_utc().isoformat(),
+                    replaced=True,
+                    STALLED_OPPORTUNITY=True,
+                )
+                continue
+
             pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
             post = assess_product_dominance_for_new20(
                 title=str(r.get("title") or title),
@@ -363,6 +634,15 @@ def run_schedule_recovery(
             r["exclusion"] = post.get("exclusion")
             if not r["counts_toward_new20"]:
                 excluded_results.append(r)
+                _save_partial_checkpoint(
+                    run_id=run_id,
+                    iteration=iteration,
+                    mode=mode,
+                    results=results,
+                    excluded_results=excluded_results,
+                    pool=pool,
+                    processed_idx=processed_idx,
+                )
                 write_status(
                     phase=f"SCHEDULE_RECOVERY_{mode.upper()}_HEARTBEAT",
                     completed=len(results),
@@ -430,6 +710,15 @@ def run_schedule_recovery(
                 "classified": len(merged),
                 "rows": merged,
             },
+        )
+        _save_partial_checkpoint(
+            run_id=run_id,
+            iteration=iteration,
+            mode=mode,
+            results=results,
+            excluded_results=excluded_results,
+            pool=pool,
+            processed_idx=processed_idx,
         )
 
     client.close()
