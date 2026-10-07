@@ -27,14 +27,29 @@ def _load_dotenv() -> None:
             os.environ[key] = value.strip().strip('"').strip("'")
 
 
+def _login(client: httpx.Client) -> bool:
+    try:
+        r = client.post(
+            "/api/login",
+            json={"email": os.environ["APP_EMAIL"], "password": os.environ["APP_PASSWORD"]},
+        )
+        if r.status_code == 200:
+            return True
+        print(f"login_status={r.status_code}", flush=True)
+    except Exception as exc:
+        print(f"login_err={type(exc).__name__}: {exc}", flush=True)
+    return False
+
+
 def main() -> int:
     _load_dotenv()
     client = httpx.Client(base_url=BASE, timeout=120, follow_redirects=True)
-    client.post(
-        "/api/login",
-        json={"email": os.environ["APP_EMAIL"], "password": os.environ["APP_PASSWORD"]},
-    ).raise_for_status()
+    ready = False
     for i in range(90):
+        if not _login(client):
+            print(f"env {i}: waiting_for_api (login)", flush=True)
+            time.sleep(10)
+            continue
         try:
             env = client.get("/api/m3/bidnet-full-production/env-check").json()
             tl = env.get("thread_limits") or {}
@@ -45,11 +60,12 @@ def main() -> int:
                 flush=True,
             )
             if TARGET in str(env.get("build_version") or "") and int(env.get("recovery_walker") or 0) >= 1:
+                ready = True
                 break
         except Exception as exc:
             print(f"env {i}: {type(exc).__name__}: {exc}", flush=True)
         time.sleep(10)
-    else:
+    if not ready:
         print("build_timeout", flush=True)
         return 2
 
