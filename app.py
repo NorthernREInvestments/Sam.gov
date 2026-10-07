@@ -1592,7 +1592,7 @@ def api_m3_bidnet_full_production_env_check():
         "downstream_walker": 4,
         "engine_walker": 2,
         "recovery_walker": 1,
-        "production_walker": 1,
+        "production_walker": 2,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,

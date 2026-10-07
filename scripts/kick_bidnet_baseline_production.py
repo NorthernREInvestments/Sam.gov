@@ -47,7 +47,7 @@ def main() -> int:
                 f"wait {i}: build={env.get('build_version')} production={env.get('production_walker')}",
                 flush=True,
             )
-            if TARGET in str(env.get("build_version") or "") and int(env.get("production_walker") or 0) >= 1:
+            if TARGET in str(env.get("build_version") or "") and int(env.get("production_walker") or 0) >= 2:
                 ready = True
                 break
         except Exception as exc:
