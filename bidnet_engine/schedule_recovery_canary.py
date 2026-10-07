@@ -940,37 +940,41 @@ def reconcile_new20_acceptance(
     started = time.time()
     run_id = f"ASR-TOPUP-{now_utc().strftime('%Y%m%d%H%M%S')}"
     doc = _load("m3_schedule_recovery_v1_new20_rows.json")
-    if not doc.get("rows"):
-        doc = _load(ROWS_JSON)
     prior = [r for r in (doc.get("rows") or []) if isinstance(r, dict)]
-    # Prefer new_20 cohort if present; else hydrate from last report top_recovered
+    # Prefer explicit new_20 cohort only — never treat same-13 rows as the acceptance set
     new20_prior = [r for r in prior if r.get("recovery_cohort") == "new_20"]
-    if not new20_prior:
+    if not new20_prior and doc.get("mode") == "new_20":
         new20_prior = [r for r in prior if isinstance(r, dict)]
-    if len(new20_prior) < 5:
-        report_doc = _load(REPORT_JSON)
-        top = ((report_doc.get("NEW_20") or {}).get("top_recovered") or [])
-        for t in top:
-            if not isinstance(t, dict):
-                continue
-            new20_prior.append(
-                {
-                    "stable_key": t.get("opportunity"),
-                    "title": t.get("title"),
-                    "buyer": t.get("buyer"),
-                    "raw_lines": t.get("extracted_lines") or 0,
-                    "material_lines": t.get("extracted_lines") or 0,
-                    "usable_ae": 1 if t.get("identity_handoff") else 0,
-                    "public_prices": 1 if t.get("public_pricing_handoff") else 0,
-                    "recovery_cohort": "new_20",
-                    "package_materialization": {
-                        "product_classification": t.get("classification"),
-                        "operator_product_status": t.get("operator_status"),
-                        "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": t.get("documents_acquired") or 0,
-                        "AUTHORITATIVE_PRODUCT_DOC_FOUND": t.get("product_schedule") == "Found",
-                    },
-                }
-            )
+    # Always merge last-report NEW_20 top_recovered (iter-22) when available
+    report_doc = _load(REPORT_JSON)
+    top = ((report_doc.get("NEW_20") or {}).get("top_recovered") or [])
+    seen_sk = {str(r.get("stable_key") or "") for r in new20_prior}
+    for t in top:
+        if not isinstance(t, dict):
+            continue
+        sk = str(t.get("opportunity") or "")
+        if sk and sk in seen_sk:
+            continue
+        new20_prior.append(
+            {
+                "stable_key": sk or t.get("title"),
+                "title": t.get("title"),
+                "buyer": t.get("buyer"),
+                "raw_lines": t.get("extracted_lines") or 0,
+                "material_lines": t.get("extracted_lines") or 0,
+                "usable_ae": 1 if t.get("identity_handoff") else 0,
+                "public_prices": 1 if t.get("public_pricing_handoff") else 0,
+                "recovery_cohort": "new_20",
+                "package_materialization": {
+                    "product_classification": t.get("classification"),
+                    "operator_product_status": t.get("operator_status"),
+                    "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": t.get("documents_acquired") or 0,
+                    "AUTHORITATIVE_PRODUCT_DOC_FOUND": t.get("product_schedule") == "Found",
+                },
+            }
+        )
+        if sk:
+            seen_sk.add(sk)
 
     valid: list[dict[str, Any]] = []
     excluded: list[dict[str, Any]] = []
@@ -1064,8 +1068,41 @@ def reconcile_new20_acceptance(
         if len(product_rows) >= target_valid * 12:
             break
 
-    pool, _ = select_schedule_backed_candidates(product_rows, store_by_cid, limit=target_valid * 4)
+    pool, _ = select_schedule_backed_candidates(product_rows, store_by_cid, limit=target_valid * 6)
     pool = [c for c in pool if str(c.get("stable_key") or "") not in seen_sk and str(c.get("stable_key") or "") not in same]
+    # Aggressive filler from live store titles that are product-worded and not excluded
+    if len(pool) < target_valid * 2:
+        import re as _re
+
+        _parts_ish = _re.compile(
+            r"\b(parts?|equipment|supply|supplies|material|oem|sku|mpn|vehicle|pump|hvac|lift|"
+            r"furniture|tools?|hardware|commodit(?:y|ies)|purchase)\b",
+            _re.I,
+        )
+        pool_sk = {str(c.get("stable_key") or "") for c in pool}
+        for cid, sr in store_by_cid.items():
+            if not isinstance(sr, dict):
+                continue
+            title = str(sr.get("title") or "")
+            sk = str(sr.get("stable_key") or cid)
+            if sk in seen_sk or sk in same or sk in pool_sk:
+                continue
+            if exclusion_reason(title) or not _parts_ish.search(title):
+                continue
+            pool.append(
+                {
+                    "canonical_opportunity_id": cid,
+                    "stable_key": sk,
+                    "title": title,
+                    "buyer": sr.get("buyer"),
+                    "classification": "PRODUCT",
+                    "deadline": sr.get("deadline"),
+                    "_provisional_schedule": True,
+                }
+            )
+            pool_sk.add(sk)
+            if len(pool) >= target_valid * 8:
+                break
 
     from bidnet_auth.client import BidNetAuthenticatedClient
 
