@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v1-free-chase-90s-parse-cache"
+PATCH = "s20-v2-empty-download-detail-chase"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -490,12 +490,14 @@ def materialize_attachments(
     limit: int = 20,
     title: str | None = None,
     buyer: str | None = None,
+    detail_url: str | None = None,
 ) -> dict[str, Any]:
     """Download missing attachments, validate content, return materialized index."""
     from m3_data_root import data_path
 
     working_docs = [d for d in (docs or []) if isinstance(d, dict)]
     opp_title = (title or "").strip() or opportunity_id
+    seed_detail = str(detail_url or "").strip()
     index = build_attachment_index(working_docs, opportunity_id=opportunity_id)
     safe_sid = re.sub(r"[^a-zA-Z0-9_-]+", "_", opportunity_id or "unknown")[:48]
     downloaded = 0
@@ -608,6 +610,16 @@ def materialize_attachments(
             entry["blocker"] = "DOWNLOAD_FAILED"
             entry["error"] = f"{type(exc).__name__}:{exc}"[:200]
             continue
+        # Empty BidNet API responses: try plain HTTP (agency / intercept URLs)
+        if not body or len(body) < 32:
+            try:
+                import httpx as _httpx
+
+                resp = _httpx.get(url, timeout=45, follow_redirects=True)
+                if resp.status_code < 400 and resp.content and len(resp.content) >= 32:
+                    body = resp.content
+            except Exception:
+                pass
         name = entry.get("filename") or "doc"
         ext = entry.get("extension") or Path(name).suffix.lower().lstrip(".")
         v = _sig_ok(body or b"", ext)
@@ -655,22 +667,29 @@ def materialize_attachments(
     # If still no valid binaries, DOM-scrape BidNet private detail for real attachment hrefs
     if valid == 0 and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
+        if seed_detail.startswith("http"):
+            detail_candidates.extend(resolve_bidnet_private_detail_url_candidates(seed_detail) or [])
+            detail_candidates.append(seed_detail)
         for e in index:
             u = str(e.get("source_url") or "")
             if u.startswith("http") and "bidnet" in u.lower():
-                priv = resolve_bidnet_private_detail_url(u)
-                if priv:
-                    detail_candidates.append(priv)
+                detail_candidates.extend(resolve_bidnet_private_detail_url_candidates(u) or [])
                 if is_bidnet_detail_page_url(u):
                     detail_candidates.append(u)
         # Prefer private /view first
         detail_url = ""
+        seen_d: set[str] = set()
+        uniq_details: list[str] = []
         for u in detail_candidates:
-            if "/private/supplier/solicitations/" in u and u.endswith("/view"):
+            if u and u not in seen_d:
+                seen_d.add(u)
+                uniq_details.append(u)
+        for u in uniq_details:
+            if "/private/supplier/solicitations/" in u and u.rstrip("/").endswith("/view"):
                 detail_url = u
                 break
-        if not detail_url and detail_candidates:
-            detail_url = detail_candidates[0]
+        if not detail_url and uniq_details:
+            detail_url = uniq_details[0]
         if detail_url:
             try:
                 page_docs = client.discover_attachment_links(detail_url) or []
@@ -722,12 +741,13 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # BidNet membership / portal wall → chase free public package documents
+    # BidNet membership / portal wall / empty downloads → chase free public package documents
     bidnet_wall = any(
         str(e.get("failure") or e.get("DOCUMENT_VALIDATION_FAILURE_REASON") or "")
         in {
             "bidnet_detail_page_not_binary",
             "html_or_login_page_saved_as_binary",
+            "empty_or_tiny",
         }
         or "subscription" in str(e.get("SOURCE_URL") or e.get("source_url") or "").lower()
         for e in invalid
@@ -738,19 +758,32 @@ def materialize_attachments(
             from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
             from bidnet_recovery.free_package_chase import chase_free_package
 
+            chase_detail = seed_detail or next(
+                (
+                    str(e.get("source_url") or "")
+                    for e in index
+                    if is_bidnet_detail_page_url(str(e.get("source_url") or ""))
+                ),
+                None,
+            )
+            # candidate_free_urls: non-BidNet agency pages + intercept downloads
+            candidate_free = []
+            for e in index:
+                u = str(e.get("source_url") or "")
+                if not u.startswith("http"):
+                    continue
+                if "bidnet" not in u.lower() or "intercept" in u.lower() or "download" in u.lower():
+                    candidate_free.append(u)
+            if seed_detail and seed_detail not in candidate_free:
+                candidate_free.insert(0, seed_detail)
             rec = {
                 "title": opp_title,
                 "canonical_opportunity_id": opportunity_id,
                 "buyer": buyer,
                 "attachments_metadata": working_docs,
-                "detail_url": next(
-                    (
-                        str(e.get("source_url") or "")
-                        for e in index
-                        if is_bidnet_detail_page_url(str(e.get("source_url") or ""))
-                    ),
-                    None,
-                ),
+                "detail_url": chase_detail,
+                "authoritative_url": seed_detail or chase_detail,
+                "candidate_free_urls": candidate_free[:12],
             }
 
             def _run_chase() -> dict[str, Any]:
