@@ -617,6 +617,19 @@ def run_bidnet_baseline_production(
     def tick(phase: str, **extra: Any) -> None:
         deep_now = _deep_count(rows)
         rem = max(0, PRODUCT_MIXED_TOTAL - deep_now)
+        # Avoid colliding with computed fields when callers pass extras.
+        for k in (
+            "remaining",
+            "completed",
+            "phase",
+            "percent",
+            "progress_pct",
+            "job_id",
+            "throughput_5m",
+            "throughput_15m",
+            "throughput_60m",
+        ):
+            extra.pop(k, None)
         r5 = rates.rate(5 * 60)
         r15 = rates.rate(15 * 60)
         r60 = rates.rate(60 * 60)
