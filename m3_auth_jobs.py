@@ -27,6 +27,7 @@ STALE_SECONDS = 90 * 60  # national ~900 pages + state fill-in; heartbeats via p
 E2E_STALE_SECONDS = 180 * 60  # full production E2E can exceed 90m with harvest+universe+recovery
 FFS_STALE_SECONDS = 720 * 60  # full funnel sweep: discovery + universe free-package batches + economics
 BASELINE_STALE_SECONDS = 36 * 3600  # one-time BidNet baseline ~24–30h with checkpoint heartbeats
+MONEY_STALE_SECONDS = 6 * 3600  # focused money sprint
 
 
 def _utc() -> str:
@@ -93,6 +94,8 @@ def _fail_stale_locked() -> None:
         kind = str(job.get("kind") or "")
         if kind == "bidnet_baseline_production":
             limit = BASELINE_STALE_SECONDS
+        elif kind == "bidnet_money_path":
+            limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
         elif kind == "full_production_e2e":
@@ -523,6 +526,115 @@ def start_bidnet_engine_job(
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_bidnet_money_path_job(
+    *,
+    canary_n: int = 20,
+    sprint_n: int = 100,
+    max_n: int = 250,
+) -> dict[str, Any]:
+    """Terminate stalled baseline canary, run real downstream money sprint."""
+    job_id = f"MNY-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "bidnet_money_path",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "canary_n": int(canary_n),
+            "sprint_n": int(sprint_n),
+            "max_n": int(max_n),
+            "stalled_job": "BNP-97657480a0d0",
+            "sam_calls": 0,
+            "rerun_discovery": False,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        # Clear stalled baseline record so lock can be acquired after redeploy kill.
+        stalled = _jobs.get("BNP-97657480a0d0")
+        if stalled and stalled.get("status") == "RUNNING":
+            stalled["status"] = "TERMINATED_STALLED"
+            stalled["error"] = "STALLED_NO_HEARTBEAT_NO_PROGRESS"
+            stalled["completed_at"] = _utc()
+            stalled["updated_at"] = _utc()
+            _persist(stalled)
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "MONEY"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "completed": kwargs.get("completed"),
+                    },
+                )
+
+            from bidnet_engine.money_path import run_money_sprint
+
+            result = run_money_sprint(
+                canary_n=int(canary_n),
+                sprint_n=int(sprint_n),
+                max_n=int(max_n),
+                on_progress=_progress,
+            )
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "MONEY_SPRINT_PASS": result.get("MONEY_SPRINT_PASS"),
+                    "CANARY_PASS": (result.get("canary_20") or {}).get("CANARY_PASS"),
+                    "daily_kpi": result.get("daily_kpi"),
+                    "NEXT_RUN_ALLOWED": result.get("NEXT_RUN_ALLOWED"),
+                    "actionable": len(result.get("actionable_now") or []),
+                    "quote_ready": len(result.get("ready_for_quote") or []),
+                    "stalled_job": result.get("stalled_job"),
+                    "runtime_s": result.get("runtime_s"),
+                },
+            )
+        except Exception as exc:
+            log.exception("BidNet money path job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run, name=f"bidnet-money-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "bidnet_money_path",
         "active_running": _active_running_id(),
     }
 

@@ -86,12 +86,16 @@ def process_one(
             eligibility = _eligibility_from_text(blob, package)
         with timer.measure("lines"):
             metrics = _line_identity_revenue(cid, {**store_row, **(can or {})})
+        # deep_complete must NOT be set from store-read metrics alone.
+        # detail/package/eligibility ran; line/identity/revenue/pricing require money_path.
         result = {
             **item,
             "detail_state": detail,
             "package_state": package,
             "eligibility_state": eligibility,
-            "deep_complete": True,
+            "detail_package_complete": True,
+            "deep_complete": bool(item.get("money_path_complete")),
+            "legacy_store_metrics_only": True,
             "official_portal_identified": bool(out.get("official_portal_identified")),
             "portal_route": out.get("portal_route"),
             "raw_lines": metrics["raw_lines"],

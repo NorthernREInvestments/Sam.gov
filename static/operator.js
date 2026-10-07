@@ -242,12 +242,40 @@
   }
 
   async function renderToday(params) {
-    setHint("Work the top CALL TODAY item first.");
-    const data = await api("/api/ui/today");
+    setHint("Work actionable BidNet money deals and CALL TODAY items.");
+    const [data, money] = await Promise.all([
+      api("/api/ui/today"),
+      api("/api/m3/bidnet-money/today").catch(() => ({ NEW_ACTIONABLE_DEALS_TODAY: 0, TARGET: 10 })),
+    ]);
     const focus = params.section || "call_today";
     const order = ["call_today", "follow_up", "quotes", "registrations", "owner_actions", "responses", "bid_prep", "submissions", "awaiting_result", "blocked"];
-    let html = `<h1>Today's Work</h1><p class="lead">Choose the top item → do the next action → save → move on.</p>`;
-    if (data.caught_up) {
+    const actionable = money.actionable_now || [];
+    const quoteReady = money.ready_for_quote || [];
+    let html = `<h1>Today's Work</h1><p class="lead">Money path first — then calls, quotes, registrations.</p>
+      <div class="meta-row">
+        <span>New Actionable: <strong>${esc(money.NEW_ACTIONABLE_DEALS_TODAY ?? 0)}</strong> / ${esc(money.TARGET ?? 10)}</span>
+        <span>Ready for Quote: <strong>${esc(money.READY_FOR_QUOTE ?? 0)}</strong></span>
+        <span>Ready for Bid: <strong>${esc(money.READY_FOR_BID ?? 0)}</strong></span>
+        <span>Needs Financing: <strong>${esc(money.NEEDS_FINANCING ?? 0)}</strong></span>
+        <span>Needs Registration: <strong>${esc(money.NEEDS_REGISTRATION ?? 0)}</strong></span>
+        <span>Blocked: <strong>${esc(money.BLOCKED ?? 0)}</strong></span>
+      </div>`;
+    if (actionable.length) {
+      html += `<section class="section"><div class="section-head"><h2>Actionable Now</h2><span class="muted">${actionable.length}</span></div>
+        ${actionable.slice(0, 10).map((d) => `<article class="deal-card"><h3>${esc(d.title || d.opportunity || "—")}</h3>
+          <p class="muted">${esc(d.buyer || "")} · Deadline ${esc(d.deadline || "—")} · ${esc(d.days_remaining ?? "—")} days</p>
+          <p>Value ${esc(d.revenue_value ?? "—")} · Cost ${esc(d.our_cost ?? "—")} · Profit ${esc(d.expected_profit ?? "—")}</p>
+          <p><strong>Next:</strong> ${esc(d.next_action || "REVIEW")}</p></article>`).join("")}
+      </section>`;
+    }
+    if (quoteReady.length) {
+      html += `<section class="section"><div class="section-head"><h2>Ready for Supplier Quote</h2><span class="muted">${quoteReady.length}</span></div>
+        ${quoteReady.slice(0, 10).map((d) => `<article class="deal-card"><h3>${esc(d.title || d.opportunity || "—")}</h3>
+          <p class="muted">${esc(d.buyer || "")} · ${esc(d.deadline || "—")} · Lines ${esc(d.material_lines ?? "—")} · A–E ${esc(d.usable_ae ?? "—")}</p>
+          <p><strong>Next:</strong> ${esc(d.next_action || "REQUEST_QUOTES")} · Supplier ${esc(d.supplier || "—")}</p></article>`).join("")}
+      </section>`;
+    }
+    if (data.caught_up && !actionable.length && !quoteReady.length) {
       html += `<div class="caught-up"><h2>You're caught up.</h2><p>Review the Watch list or check registrations for future unlocks.</p></div>`;
     }
     for (const key of order) {

@@ -1,6 +1,7 @@
 """BidNet incremental + parallel downstream engine."""
 
 from bidnet_engine.models import BUILD
+from bidnet_engine.money_path import run_money_sprint
 from bidnet_engine.production import run_bidnet_baseline_production, scheduled_bidnet_incremental_tick
 from bidnet_engine.recovery import run_bidnet_engine_recovery
 from bidnet_engine.run import run_bidnet_engine
@@ -11,4 +12,5 @@ __all__ = [
     "run_bidnet_engine_recovery",
     "run_bidnet_baseline_production",
     "scheduled_bidnet_incremental_tick",
+    "run_money_sprint",
 ]

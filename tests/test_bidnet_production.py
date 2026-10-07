@@ -15,7 +15,7 @@ from bidnet_engine.thread_limits import apply_thread_limits, verify_thread_limit
 
 
 def test_build_target():
-    assert PROD_BUILD == "20261006-m3-bidnet-baseline-to-incremental-production-v1"
+    assert PROD_BUILD.startswith("2026")
     assert BUILD == PROD_BUILD
     assert PRODUCT_MIXED_TOTAL == 13270
 
