@@ -114,9 +114,8 @@ def run_schedule_recovery(
         raise RuntimeError(f"BidNet auth required: {auth.status} {auth.message}")
 
     results: list[dict[str, Any]] = []
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-
-    OPP_TIMEOUT_S = 150  # one heavy PDF/BidNet opp must not stall the whole same-13 walker
+    # Synchronous processing — text-only content inspection is bounded.
+    # Do NOT recreate the BidNet client mid-run (breaks authenticated downloads → HTML).
 
     for i, item in enumerate(candidates):
         cid = str(item.get("canonical_opportunity_id") or "")
@@ -138,43 +137,10 @@ def run_schedule_recovery(
             current_stable_key=item.get("stable_key"),
             current_title=str(item.get("title") or "")[:120],
         )
-        pool = ThreadPoolExecutor(max_workers=1)
-        timed_out = False
         try:
-            fut = pool.submit(
-                process_money_opportunity,
-                item,
-                store_row,
-                client=client,
-                store=store_by_cid,
-                price_budget=price_budget,
+            r = process_money_opportunity(
+                item, store_row, client=client, store=store_by_cid, price_budget=price_budget
             )
-            try:
-                r = fut.result(timeout=OPP_TIMEOUT_S)
-            except FuturesTimeout:
-                timed_out = True
-                r = {
-                    "canonical_opportunity_id": cid,
-                    "stable_key": item.get("stable_key"),
-                    "title": item.get("title"),
-                    "buyer": item.get("buyer"),
-                    "raw_lines": 0,
-                    "material_lines": 0,
-                    "usable_ae": 0,
-                    "public_prices": 0,
-                    "package_materialization": {
-                        "primary_blocker": "OPP_TIMEOUT",
-                        "operator_product_status": (
-                            f"Analysis timed out after {OPP_TIMEOUT_S}s while inspecting this package. "
-                            "Will retry with a narrower extractor."
-                        ),
-                        "product_classification": "PARSER_DEFECT_REMAINS",
-                        "PACKAGE_DOCUMENT_COUNT_MATERIALIZED": 0,
-                        "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
-                    },
-                    "package_primary_blocker": "OPP_TIMEOUT",
-                    "error": f"OPP_TIMEOUT_{OPP_TIMEOUT_S}s",
-                }
         except Exception as exc:
             r = {
                 "canonical_opportunity_id": cid,
@@ -194,24 +160,6 @@ def run_schedule_recovery(
                 "package_primary_blocker": "OPP_ERROR",
                 "error": f"{type(exc).__name__}:{exc}"[:200],
             }
-        finally:
-            # Never wait=True — a hung worker would block the whole same-13 walker
-            try:
-                pool.shutdown(wait=False, cancel_futures=True)
-            except Exception:
-                try:
-                    pool.shutdown(wait=False)
-                except Exception:
-                    pass
-        if timed_out:
-            try:
-                client.close()
-            except Exception:
-                pass
-            client = BidNetAuthenticatedClient()
-            auth2 = client.ensure_authenticated()
-            if not auth2.authenticated:
-                raise RuntimeError(f"BidNet re-auth failed after timeout: {auth2.status}")
         r["live_bidnet"] = True
         r["recovery_cohort"] = mode
         r["schedule_recovery_iteration"] = iteration
@@ -361,11 +309,20 @@ def _build_report(
         extracted_lines += int(pm.get("EXTRACTED_PRODUCT_LINES") or raw_lines or 0)
         product_like_docs += int(cr.get("product_like_documents") or 0)
         clf = str(pm.get("product_classification") or cr.get("classification") or "")
+        valid_local = int(pm.get("PACKAGE_DOCUMENT_COUNT_MATERIALIZED") or 0)
+        # Without valid local docs we cannot claim "no product lines present"
+        if valid_local <= 0 and clf in {"NO_PRODUCT_LINES_ACTUALLY_PRESENT", "UNKNOWN", ""}:
+            clf = "PRODUCT_SCHEDULE_INACCESSIBLE"
         if clf == "CATALOG_DISCOUNT_ONLY":
             catalog_only += 1
-        elif clf == "NO_PRODUCT_LINES_ACTUALLY_PRESENT":
+        elif clf in {"NO_PRODUCT_LINES_ACTUALLY_PRESENT"}:
             no_product += 1
-        else:
+        elif clf == "PRODUCT_SCHEDULE_INACCESSIBLE" or valid_local <= 0:
+            pass  # neither itemizable nor proven absent
+        elif raw_lines > 0 or auth or clf == "LINES_RECOVERED":
+            itemizable += 1
+        elif clf not in {"SERVICE_SCOPE"}:
+            # Product-like opp with package but no lines yet — still counts as itemizable candidate
             itemizable += 1
         if int(r.get("usable_ae") or 0) > 0:
             ae_opps += 1
@@ -461,13 +418,14 @@ def _build_report(
         "MATERIAL_PRODUCT_LINES": material_lines,
     }
 
-    adjusted_den = max(itemizable, 1)
-    adjusted_pass = lines_ready >= max(8, int(0.8 * adjusted_den)) and itemizable < 8
-    # Adjusted pass only when fewer than 8 are genuinely itemizable AND we hit 80% of those
-    if itemizable < 8:
-        adjusted_pass = lines_ready >= max(1, int(0.8 * itemizable)) and (catalog_only + no_product) >= (13 - itemizable)
-    else:
-        adjusted_pass = False
+    # Adjusted pass ONLY when we proved most of the 13 are non-itemizable AND recovered
+    # ≥80% of the remaining itemizable set (minimum 1 itemizable). Never pass on zero itemizable.
+    import math
+
+    adjusted_pass = False
+    if 1 <= itemizable < 8 and (catalog_only + no_product) >= (n - itemizable) and n >= 8:
+        needed = max(1, int(math.ceil(0.8 * itemizable)))
+        adjusted_pass = lines_ready >= needed and auth_found >= needed
 
     if mode == "same_13":
         gates = {

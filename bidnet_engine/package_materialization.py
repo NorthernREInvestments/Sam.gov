@@ -463,8 +463,16 @@ def materialize_attachments(
         "EXTRACTED_PRODUCT_LINES": content_recognition.get("EXTRACTED_PRODUCT_LINES"),
         "LINE_EXTRACTION_COVERAGE": content_recognition.get("LINE_EXTRACTION_COVERAGE"),
         "operator_product_status": content_recognition.get("operator_product_status"),
-        "product_classification": content_recognition.get("classification"),
+        "product_classification": (
+            "PRODUCT_SCHEDULE_INACCESSIBLE"
+            if valid == 0 and downloaded > 0
+            else content_recognition.get("classification")
+        ),
         "content_schedule_rows": content_recognition.get("authoritative_rows") or [],
+        "invalid_download_reasons": [
+            {"filename": e.get("filename"), "failure": e.get("failure") or e.get("DOCUMENT_VALIDATION_FAILURE_REASON")}
+            for e in invalid[:12]
+        ],
         "amendments_count": len(amendments),
         "primary_blocker": blocker,
         "docs_for_extraction": [
