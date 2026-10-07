@@ -91,6 +91,8 @@ def test_utf8_bom_html_rejected():
 
 
 def test_resolve_open_bids_to_private_view():
+    from bidnet_engine.package_materialization import resolve_bidnet_private_detail_url_candidates
+
     pub = (
         "https://www.bidnetdirect.com/new-york/solicitations/open-bids/"
         "Automotive-Parts-and-Accessories/0000437119?purchasingGroupId=1"
@@ -98,6 +100,9 @@ def test_resolve_open_bids_to_private_view():
     assert is_bidnet_detail_page_url(pub)
     priv = resolve_bidnet_private_detail_url(pub)
     assert priv == "https://www.bidnetdirect.com/private/supplier/solicitations/0000437119/view"
+    cands = resolve_bidnet_private_detail_url_candidates(pub)
+    assert "https://www.bidnetdirect.com/private/supplier/solicitations/437119/view" in cands
+    assert any(u.endswith("/abstract") for u in cands)
 
 
 def test_html_viewer_harvests_pdf_links():

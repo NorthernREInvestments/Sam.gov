@@ -297,31 +297,49 @@ class BidNetAuthenticatedClient:
             return []
         found: list[dict[str, Any]] = []
         seen: set[str] = set()
-        priv: str | None = None
+        candidates: list[str] = []
         try:
-            from bidnet_engine.package_materialization import resolve_bidnet_private_detail_url
+            from bidnet_engine.package_materialization import (
+                resolve_bidnet_private_detail_url_candidates,
+            )
 
-            priv = resolve_bidnet_private_detail_url(detail_url)
+            candidates = resolve_bidnet_private_detail_url_candidates(detail_url)
         except Exception:
-            priv = None
-        navigate_url = priv or detail_url
+            candidates = []
+        if detail_url and detail_url not in candidates:
+            candidates.append(detail_url)
+
+        landed = False
         try:
-            self.fetch_html(navigate_url, timeout_ms=timeout_ms)
-            # If we landed on search/welcome, force private /view
-            title = ""
+            for navigate_url in candidates:
+                self.fetch_html(navigate_url, timeout_ms=timeout_ms)
+                title = ""
+                final_u = ""
+                try:
+                    title = (self._page.title() or "").lower()
+                    final_u = (self._page.url or "").lower()
+                except Exception:
+                    pass
+                if "search" in title or "welcome" in title or "/search" in final_u:
+                    continue
+                landed = True
+                break
+            if not landed and candidates:
+                # Last attempt — keep whatever we have for diag scrape
+                self.fetch_html(candidates[0], timeout_ms=timeout_ms)
+            # Persist page HTML for diagnostics
             try:
-                title = (self._page.title() or "").lower()
+                from m3_data_root import data_path
+                import hashlib as _hl
+
+                html_now = self._page.content() or ""
+                if html_now:
+                    diag = data_path("bidnet_auth", "html_diag")
+                    diag.mkdir(parents=True, exist_ok=True)
+                    h = _hl.sha1((detail_url or "").encode()).hexdigest()[:12]
+                    (diag / f"{h}_discover.html").write_text(html_now[:80_000], encoding="utf-8")
             except Exception:
                 pass
-            if "search" in title or "welcome" in title:
-                m = re.search(r"/(\d{7,})", detail_url or "")
-                forced = priv or (
-                    f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}/view"
-                    if m
-                    else None
-                )
-                if forced and forced != navigate_url:
-                    self.fetch_html(forced, timeout_ms=timeout_ms)
         except Exception as exc:
             log.warning("discover_attachment_links navigate failed: %s", type(exc).__name__)
             return []

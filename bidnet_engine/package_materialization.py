@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v15-private-supplier-detail-urls"
+PATCH = "asr-v16-private-view-id-variants"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -43,26 +43,36 @@ def is_bidnet_detail_page_url(url: str) -> bool:
 
 
 def resolve_bidnet_private_detail_url(url: str) -> str | None:
-    """Map public open-bids URLs to private supplier /view (auth session required).
+    """Map public open-bids URLs to private supplier /view (auth session required)."""
+    variants = resolve_bidnet_private_detail_url_candidates(url)
+    return variants[0] if variants else None
 
-    Authenticated Playwright often rewrites public open-bids detail into search;
-    private /view is the stable document surface.
-    """
-    if not url or not url.startswith("http"):
-        return None
-    m = _PRIVATE_VIEW.search(url)
+
+def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
+    """Candidate private detail URLs (with/without leading zeros, /view and /abstract)."""
+    if not url or not url.startswith("http") or "bidnet" not in url.lower():
+        return []
+    sid: str | None = None
+    m = _PRIVATE_VIEW.search(url) or _OPEN_BIDS_ID.search(url)
     if m:
         sid = m.group("id")
-        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
-    m = _OPEN_BIDS_ID.search(url)
-    if m:
-        sid = m.group("id")
-        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
-    m = re.search(r"/(\d{7,})(?:/abstract|/view)?(?:\?|$)", url)
-    if m and "bidnet" in url.lower():
-        sid = m.group(1)
-        return f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
-    return None
+    else:
+        m2 = re.search(r"/(\d{6,})(?:/abstract|/view)?(?:\?|$)", url)
+        if m2:
+            sid = m2.group(1)
+    if not sid:
+        return []
+    ids = [sid]
+    stripped = sid.lstrip("0") or sid
+    if stripped != sid:
+        ids.append(stripped)
+    out: list[str] = []
+    for i in ids:
+        for suffix in ("view", "abstract"):
+            u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{i}/{suffix}"
+            if u not in out:
+                out.append(u)
+    return out
 
 # Truthful package stages (production)
 PACKAGE_SOURCE_IDENTIFIED = "PACKAGE_SOURCE_IDENTIFIED"
