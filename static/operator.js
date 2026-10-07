@@ -241,6 +241,21 @@
     });
   }
 
+  function channelFitCard(row) {
+    const cf = row.channel_fit || row;
+    const bs = cf.bidder_structure || {};
+    const hist = `Dist ${esc(bs.DISTRIBUTOR_BIDDER_PERCENT ?? "—")}% · Reseller ${esc(bs.RESELLER_BIDDER_PERCENT ?? "—")}%`;
+    return `<article class="deal-card">
+      <h3>${esc(cf.title || row.title || row.opportunity || "—")}</h3>
+      <p class="muted">${esc(cf.buyer || row.buyer || "")} · Deadline ${esc(cf.deadline || row.deadline || "—")} · ${esc(cf.days_remaining ?? "—")} days</p>
+      <p>Gov ${esc(cf.government_value ?? "—")} · Public basket ${esc(cf.PUBLIC_BASKET_VALUE ?? "—")} · Coverage ${esc(cf.PUBLIC_PRICE_COVERAGE_CLASS || "—")} (${esc(cf.PUBLIC_BASKET_VALUE_COVERAGE ?? cf.PUBLIC_BASKET_LINE_COVERAGE ?? "—")}%)</p>
+      <p>Headroom ${esc(cf.VISIBLE_HEADROOM ?? "—")} (${esc(cf.VISIBLE_HEADROOM_PERCENT ?? "—")}%) · Channel ${esc(cf.CHANNEL_COMPETITION_CLASS || "—")} · Dom ${esc(cf.CHANNEL_DOMINANCE_SCORE ?? "—")}</p>
+      <p>Bidders: ${hist} · Priority ${esc(cf.QUOTE_PRIORITY_SCORE ?? "—")} · <strong>${esc(cf.PRE_QUOTE_DECISION || "—")}</strong></p>
+      <p class="muted">${esc((cf.decision_reasons || []).join("; ") || cf.likely_supplier_strategy || "")}</p>
+      <p><strong>Next:</strong> ${esc(cf.next_action || "REVIEW")}</p>
+    </article>`;
+  }
+
   async function renderToday(params) {
     setHint("Work actionable BidNet money deals and CALL TODAY items.");
     const [data, money] = await Promise.all([
@@ -251,15 +266,30 @@
     const order = ["call_today", "follow_up", "quotes", "registrations", "owner_actions", "responses", "bid_prep", "submissions", "awaiting_result", "blocked"];
     const actionable = money.actionable_now || [];
     const quoteReady = money.ready_for_quote || [];
-    let html = `<h1>Today's Work</h1><p class="lead">Money path first — then calls, quotes, registrations.</p>
+    const cq = money.channel_queues || {};
+    const cs = money.channel_summary || {};
+    let html = `<h1>Today's Work</h1><p class="lead">Channel-fit + MSRP screen first — then calls, quotes, registrations.</p>
       <div class="meta-row">
-        <span>New Actionable: <strong>${esc(money.NEW_ACTIONABLE_DEALS_TODAY ?? 0)}</strong> / ${esc(money.TARGET ?? 10)}</span>
-        <span>Ready for Quote: <strong>${esc(money.READY_FOR_QUOTE ?? 0)}</strong></span>
-        <span>Ready for Bid: <strong>${esc(money.READY_FOR_BID ?? 0)}</strong></span>
-        <span>Needs Financing: <strong>${esc(money.NEEDS_FINANCING ?? 0)}</strong></span>
-        <span>Needs Registration: <strong>${esc(money.NEEDS_REGISTRATION ?? 0)}</strong></span>
-        <span>Blocked: <strong>${esc(money.BLOCKED ?? 0)}</strong></span>
+        <span>CALL TODAY: <strong>${esc(cs.CALL_TODAY ?? (cq.CALL_TODAY || []).length)}</strong></span>
+        <span>QUOTE IF CAPACITY: <strong>${esc(cs.QUOTE_IF_CAPACITY ?? (cq.QUOTE_IF_CAPACITY || []).length)}</strong></span>
+        <span>WATCH: <strong>${esc(cs.WATCH ?? (cq.WATCH || []).length)}</strong></span>
+        <span>PASS: <strong>${esc(cs.PASS ?? (cq.PASS || []).length)}</strong></span>
+        <span>INSUFFICIENT: <strong>${esc(cs.INSUFFICIENT_EVIDENCE ?? (cq.INSUFFICIENT_EVIDENCE || []).length)}</strong></span>
+        <span>Money actionable: <strong>${esc(money.NEW_ACTIONABLE_DEALS_TODAY ?? 0)}</strong> / ${esc(money.TARGET ?? 10)}</span>
       </div>`;
+    const channelSections = [
+      ["CALL_TODAY", "CALL TODAY"],
+      ["QUOTE_IF_CAPACITY", "QUOTE IF CAPACITY"],
+      ["WATCH", "WATCH"],
+      ["PASS", "PASS"],
+    ];
+    for (const [key, title] of channelSections) {
+      const items = cq[key] || [];
+      if (!items.length && key !== "CALL_TODAY") continue;
+      html += `<section class="section"><div class="section-head"><h2>${esc(title)}</h2><span class="muted">${items.length}</span></div>
+        ${items.length ? items.slice(0, 15).map(channelFitCard).join("") : `<div class="empty">No ${esc(title)} opportunities scored yet.</div>`}
+      </section>`;
+    }
     if (actionable.length) {
       html += `<section class="section"><div class="section-head"><h2>Actionable Now</h2><span class="muted">${actionable.length}</span></div>
         ${actionable.slice(0, 10).map((d) => `<article class="deal-card"><h3>${esc(d.title || d.opportunity || "—")}</h3>

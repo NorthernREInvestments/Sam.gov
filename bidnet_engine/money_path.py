@@ -614,9 +614,19 @@ def process_money_opportunity(
             "bid_ready": stages["BID_READY_EVALUATED"],
         },
         "raw_lines": len(lines),
+        "line_items": lines,
         "product_lines": material,
         "service_install_lines": service,
         "material_lines": material,
+        "government_value": revenue_value,
+        "buyer": meta.get("buyer") or item.get("buyer") or store_row.get("buyer"),
+        "title": meta.get("title") or item.get("title") or store_row.get("title"),
+        "historical_bidders": (
+            store_row.get("historical_bidders")
+            or store_row.get("bid_tab")
+            or store_row.get("prior_government_vendors")
+            or item.get("historical_bidders")
+        ),
         "P0": p0,
         "P1": p1,
         "identity_grades": dict(grades),
@@ -789,6 +799,22 @@ def run_money_sprint(
     _save(REPORT_JSON, report)
     _save(REPORT_TXT, format_money_report(report))
     _save(MONEY_ROWS, {"build": BUILD, "rows": results, "updated_at": now_utc().isoformat()})
+    # Channel-fit + MSRP pre-quote rescore (does not re-run pricing/outreach)
+    try:
+        from channel_fit.engine import persist_scores, queue_buckets, score_money_sprint_rows
+
+        scored = score_money_sprint_rows(results)
+        persist_scores(scored)
+        buckets = queue_buckets(scored)
+        report["channel_fit"] = {
+            "build": "20261007-m3-channel-fit-ranking-v1",
+            "scored": len(scored),
+            "counts": {k: len(v) for k, v in buckets.items()},
+        }
+        _save(REPORT_JSON, report)
+    except Exception as exc:
+        report["channel_fit"] = {"error": f"{type(exc).__name__}:{exc}"[:200]}
+        _save(REPORT_JSON, report)
     write_status(
         phase="DONE",
         percent=100,

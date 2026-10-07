@@ -96,6 +96,8 @@ def _fail_stale_locked() -> None:
             limit = BASELINE_STALE_SECONDS
         elif kind == "bidnet_money_path":
             limit = MONEY_STALE_SECONDS
+        elif kind == "channel_fit_canary":
+            limit = MONEY_STALE_SECONDS
         elif kind == "full_funnel_sweep":
             limit = FFS_STALE_SECONDS
         elif kind == "full_production_e2e":
@@ -526,6 +528,121 @@ def start_bidnet_engine_job(
         "job_id": job_id,
         "status": "QUEUED",
         "kind": "bidnet_engine",
+        "active_running": _active_running_id(),
+    }
+
+
+def start_channel_fit_canary_job(
+    *,
+    canary_n: int = 20,
+    expand_n: int = 100,
+    price_budget: int = 25,
+) -> dict[str, Any]:
+    """Terminate stuck money sprint; run real live channel-fit canary (20, expand only if CALL_TODAY≥1)."""
+    job_id = f"CFC-{uuid4().hex[:12]}"
+    job = {
+        "job_id": job_id,
+        "kind": "channel_fit_canary",
+        "status": "QUEUED",
+        "started_at": _utc(),
+        "updated_at": _utc(),
+        "completed_at": None,
+        "params": {
+            "canary_n": int(canary_n),
+            "expand_n": int(expand_n),
+            "price_budget": int(price_budget),
+            "terminate_job": "MNY-0525b77c8bf6",
+            "sam_calls": 0,
+            "rerun_discovery": False,
+        },
+        "progress": {"phase": "QUEUED", "pct": 0},
+        "result": None,
+        "error": None,
+    }
+    with _lock:
+        # Mark old money job terminated if still queued/running in memory
+        old = _jobs.get("MNY-0525b77c8bf6")
+        if old and old.get("status") in {"QUEUED", "RUNNING", "SELECTED"}:
+            old["status"] = "TERMINATED_NO_PROGRESS"
+            old["error"] = "TERMINATED_NO_PROGRESS"
+            old["completed_at"] = _utc()
+            old["updated_at"] = _utc()
+            _persist(old)
+        stalled = _jobs.get("BNP-97657480a0d0")
+        if stalled and stalled.get("status") == "RUNNING":
+            stalled["status"] = "TERMINATED_STALLED"
+            stalled["error"] = "STALLED_NO_HEARTBEAT_NO_PROGRESS"
+            stalled["completed_at"] = _utc()
+            stalled["updated_at"] = _utc()
+            _persist(stalled)
+        _jobs[job_id] = job
+        _persist(job)
+
+    def _run_cfc() -> None:
+        acquired = _runner_lock.acquire(blocking=True, timeout=180)
+        if not acquired:
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error="another_playwright_job_running",
+                progress={"phase": "FAILED", "pct": 100},
+            )
+            return
+        try:
+
+            def _progress(**kwargs: Any) -> None:
+                _set(
+                    job_id,
+                    status="RUNNING",
+                    progress={
+                        "phase": str(kwargs.get("phase") or "CHANNEL_FIT_CANARY"),
+                        "pct": int(kwargs.get("pct") or 0),
+                        "completed": kwargs.get("completed"),
+                    },
+                )
+
+            from bidnet_engine.channel_fit_canary import run_channel_fit_canary
+
+            result = run_channel_fit_canary(
+                canary_n=int(canary_n),
+                expand_n=int(expand_n),
+                price_budget=int(price_budget),
+                on_progress=_progress,
+            )
+            _set(
+                job_id,
+                status="COMPLETED",
+                completed_at=_utc(),
+                progress={"phase": "DONE", "pct": 100},
+                result={
+                    "REAL_LIVE_CALL_TODAY": result.get("REAL_LIVE_CALL_TODAY"),
+                    "EXPAND_TO_100": result.get("EXPAND_TO_100"),
+                    "blocker": result.get("blocker"),
+                    "PRE_QUOTE": result.get("PRE_QUOTE"),
+                    "top_opportunity": result.get("top_opportunity"),
+                    "runtime_s": result.get("runtime_s"),
+                    "FIXTURE_LEAKAGE": result.get("FIXTURE_LEAKAGE"),
+                },
+            )
+        except Exception as exc:
+            log.exception("Channel-fit canary job failed")
+            _set(
+                job_id,
+                status="FAILED",
+                completed_at=_utc(),
+                error=f"{type(exc).__name__}: {exc}"[:400],
+                progress={"phase": "FAILED", "pct": 100},
+            )
+        finally:
+            _runner_lock.release()
+
+    threading.Thread(target=_run_cfc, name=f"channel-fit-canary-{job_id}", daemon=True).start()
+    return {
+        "accepted": True,
+        "job_id": job_id,
+        "status": "QUEUED",
+        "kind": "channel_fit_canary",
         "active_running": _active_running_id(),
     }
 

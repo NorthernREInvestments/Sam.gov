@@ -37,7 +37,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261007-m3-money-path-recovery-v1"
+APP_BUILD_VERSION = "20261007-m3-live-channel-fit-canary-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1564,6 +1564,7 @@ def api_m3_bidnet_full_production_env_check():
         "recovery_walker": 1,
         "production_walker": 2,
         "money_path_walker": 1,
+        "channel_fit_canary_walker": 1,
         "data_root": str(get_data_root()),
         "auth_enabled": cfg.auth_enabled,
         "credentials_configured": cfg.credentials_present,
@@ -2045,12 +2046,59 @@ def api_m3_bidnet_money_today():
     from m3_data_root import data_path
 
     path = data_path("m3_money_path_v1_last_report.json")
+    # Prefer LIVE canary scores; never surface fixture/seed rows as CALL TODAY
+    live_path = data_path("m3_channel_fit_live_scores_v1.json")
+    seed_path = data_path("m3_channel_fit_scores_v1.json")
+    channel_path = live_path if live_path.exists() else None
+    channel_queues = {
+        "CALL_TODAY": [],
+        "QUOTE_IF_CAPACITY": [],
+        "WATCH": [],
+        "PASS": [],
+        "INSUFFICIENT_EVIDENCE": [],
+    }
+    channel_summary = {"scored": 0, "build": None, "live_only": True}
+    if channel_path and channel_path.exists():
+        try:
+            from bidnet_engine.channel_fit_canary import is_fixture_row
+            from channel_fit.engine import queue_buckets
+
+            cdoc = json.loads(channel_path.read_text(encoding="utf-8"))
+            rows = [
+                r
+                for r in (cdoc.get("rows") or [])
+                if isinstance(r, dict) and not is_fixture_row(r) and r.get("live_bidnet") is not False
+            ]
+            # Require live_bidnet True when source is live canary
+            if cdoc.get("source") == "live_bidnet_canary":
+                rows = [r for r in rows if r.get("live_bidnet") is True]
+            channel_queues = queue_buckets(rows)
+            channel_summary = {
+                "scored": len(rows),
+                "build": cdoc.get("build"),
+                "live_only": True,
+                "fixture_filtered": True,
+                "CALL_TODAY": len(channel_queues.get("CALL_TODAY") or []),
+                "QUOTE_IF_CAPACITY": len(channel_queues.get("QUOTE_IF_CAPACITY") or []),
+                "WATCH": len(channel_queues.get("WATCH") or []),
+                "PASS": len(channel_queues.get("PASS") or []),
+                "INSUFFICIENT_EVIDENCE": len(channel_queues.get("INSUFFICIENT_EVIDENCE") or []),
+            }
+        except Exception as exc:
+            channel_summary["error"] = str(exc)
+    elif seed_path.exists():
+        # Seed/fixture file exists but must not populate production CALL TODAY
+        channel_summary["seed_present_but_hidden"] = True
+        channel_summary["build"] = "fixtures_suppressed"
+
     if not path.exists():
         return {
             "NEW_ACTIONABLE_DEALS_TODAY": 0,
             "TARGET": 10,
             "READY_FOR_QUOTE": 0,
             "READY_FOR_BID": 0,
+            "channel_queues": channel_queues,
+            "channel_summary": channel_summary,
             "build_version": APP_BUILD_VERSION,
         }
     report = json.loads(path.read_text(encoding="utf-8"))
@@ -2060,7 +2108,136 @@ def api_m3_bidnet_money_today():
         "actionable_now": report.get("actionable_now") or [],
         "ready_for_quote": report.get("ready_for_quote") or [],
         "promising_blocked": report.get("promising_blocked") or [],
+        "channel_queues": channel_queues,
+        "channel_summary": channel_summary,
         "build_version": APP_BUILD_VERSION,
+    }
+
+
+@app.post("/api/m3/channel-fit/canary/run")
+def api_m3_channel_fit_canary_run(body: dict | None = None):
+    """Start real live BidNet channel-fit canary (20; expand to 100 only if CALL_TODAY≥1)."""
+    from m3_auth_jobs import start_channel_fit_canary_job
+
+    payload = body or {}
+    return start_channel_fit_canary_job(
+        canary_n=int(payload.get("canary_n") or 20),
+        expand_n=int(payload.get("expand_n") or 100),
+        price_budget=int(payload.get("price_budget") or 25),
+    )
+
+
+@app.get("/api/m3/channel-fit/canary/status")
+def api_m3_channel_fit_canary_status():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_channel_fit_canary_v1_status.json")
+    if not path.exists():
+        return {"status": "NO_STATUS", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/channel-fit/canary/report")
+def api_m3_channel_fit_canary_report(format: str = "json"):
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_channel_fit_canary_v1_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if format == "text":
+        from bidnet_engine.channel_fit_canary import format_canary_report
+
+        return Response(content=format_canary_report(report), media_type="text/plain")
+    return report
+
+
+@app.post("/api/m3/channel-fit/terminate-money")
+def api_m3_channel_fit_terminate_money(body: dict | None = None):
+    from bidnet_engine.channel_fit_canary import terminate_money_job
+
+    payload = body or {}
+    return terminate_money_job(str(payload.get("job_id") or "MNY-0525b77c8bf6"))
+
+
+@app.post("/api/m3/channel-fit/rescore")
+def api_m3_channel_fit_rescore(body: dict | None = None):
+    """Re-score money-sprint / provided rows with channel-fit + MSRP screen. Does not restart sprint."""
+    import json
+
+    from channel_fit.engine import BUILD, persist_scores, queue_buckets, score_money_sprint_rows
+    from m3_data_root import data_path
+
+    payload = body or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        money_rows = data_path("m3_money_path_v1_rows.json")
+        if money_rows.exists():
+            doc = json.loads(money_rows.read_text(encoding="utf-8"))
+            rows = doc.get("rows") or doc.get("items") or (doc if isinstance(doc, list) else [])
+        else:
+            rows = []
+    scored = score_money_sprint_rows(rows)
+    path = persist_scores(scored)
+    buckets = queue_buckets(scored)
+    return {
+        "build": BUILD,
+        "build_version": APP_BUILD_VERSION,
+        "scored": len(scored),
+        "path": str(path),
+        "counts": {k: len(v) for k, v in buckets.items()},
+        "CALL_TODAY": buckets.get("CALL_TODAY") or [],
+        "money_sprint_untouched": True,
+    }
+
+
+@app.get("/api/m3/channel-fit/queue")
+def api_m3_channel_fit_queue():
+    import json
+
+    from bidnet_engine.channel_fit_canary import is_fixture_row
+    from channel_fit.engine import BUILD, queue_buckets
+    from m3_data_root import data_path
+
+    live = data_path("m3_channel_fit_live_scores_v1.json")
+    path = live if live.exists() else data_path("m3_channel_fit_scores_v1.json")
+    if not path.exists() or path.name == "m3_channel_fit_scores_v1.json":
+        # Seed/fixture scores never become production queue
+        if not live.exists():
+            return {
+                "build": BUILD,
+                "build_version": APP_BUILD_VERSION,
+                "scored": 0,
+                "live_only": True,
+                "queues": {
+                    "CALL_TODAY": [],
+                    "QUOTE_IF_CAPACITY": [],
+                    "WATCH": [],
+                    "PASS": [],
+                    "INSUFFICIENT_EVIDENCE": [],
+                },
+            }
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    rows = [
+        r
+        for r in (doc.get("rows") or [])
+        if isinstance(r, dict) and not is_fixture_row(r) and r.get("live_bidnet") is True
+    ]
+    buckets = queue_buckets(rows)
+    return {
+        "build": doc.get("build") or BUILD,
+        "build_version": APP_BUILD_VERSION,
+        "scored": len(rows),
+        "live_only": True,
+        "updated_at": doc.get("updated_at"),
+        "counts": {k: len(v) for k, v in buckets.items()},
+        "queues": buckets,
     }
 
 
