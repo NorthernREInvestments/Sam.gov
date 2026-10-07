@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v16-private-view-id-variants"
+PATCH = "asr-v17-free-chase-on-bidnet-wall"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -392,11 +392,14 @@ def materialize_attachments(
     opportunity_id: str,
     client: Any | None = None,
     limit: int = 20,
+    title: str | None = None,
+    buyer: str | None = None,
 ) -> dict[str, Any]:
     """Download missing attachments, validate content, return materialized index."""
     from m3_data_root import data_path
 
     working_docs = [d for d in (docs or []) if isinstance(d, dict)]
+    opp_title = (title or "").strip() or opportunity_id
     index = build_attachment_index(working_docs, opportunity_id=opportunity_id)
     safe_sid = re.sub(r"[^a-zA-Z0-9_-]+", "_", opportunity_id or "unknown")[:48]
     downloaded = 0
@@ -405,6 +408,7 @@ def materialize_attachments(
     materialized: list[dict[str, Any]] = []
     harvested_extra = 0
     page_discovered = 0
+    free_chase_meta: dict[str, Any] = {}
     seen_urls = {
         str(e.get("source_url") or "").split("#")[0]
         for e in index
@@ -622,6 +626,116 @@ def materialize_attachments(
             except Exception:
                 pass
 
+    # BidNet membership / portal wall → chase free public package documents
+    bidnet_wall = any(
+        str(e.get("failure") or e.get("DOCUMENT_VALIDATION_FAILURE_REASON") or "")
+        in {
+            "bidnet_detail_page_not_binary",
+            "html_or_login_page_saved_as_binary",
+        }
+        or "subscription" in str(e.get("SOURCE_URL") or e.get("source_url") or "").lower()
+        for e in invalid
+    )
+    free_chase_meta: dict[str, Any] = {}
+    if valid == 0 or bidnet_wall:
+        try:
+            from bidnet_recovery.free_package_chase import chase_free_package
+
+            rec = {
+                "title": opp_title,
+                "canonical_opportunity_id": opportunity_id,
+                "buyer": buyer,
+                "attachments_metadata": working_docs,
+                "detail_url": next(
+                    (
+                        str(e.get("source_url") or "")
+                        for e in index
+                        if is_bidnet_detail_page_url(str(e.get("source_url") or ""))
+                    ),
+                    None,
+                ),
+            }
+            chase = chase_free_package(rec, refresh_overview=True)
+            free_chase_meta = {
+                "status": chase.get("status") or chase.get("chase_status"),
+                "doc_count": len(chase.get("documents") or []),
+                "route": chase.get("recovery_route") or chase.get("matched_source"),
+            }
+            chase_docs = [
+                {
+                    "document_name": d.get("document_name") or d.get("filename") or "free_doc",
+                    "filename": d.get("document_name") or d.get("filename") or "free_doc",
+                    "document_url": d.get("document_url") or d.get("url") or d.get("download_url"),
+                    "url": d.get("document_url") or d.get("url") or d.get("download_url"),
+                    "source_url": d.get("document_url") or d.get("url") or d.get("download_url"),
+                    "free_chase": True,
+                }
+                for d in (chase.get("documents") or [])
+                if isinstance(d, dict)
+                and (d.get("document_url") or d.get("url") or d.get("download_url"))
+            ]
+            if chase_docs:
+                added = _enqueue_docs(chase_docs, counter="page")
+                free_chase_meta["enqueued"] = added
+                already_ok = {
+                    str(m.get("SOURCE_URL") or m.get("source_url") or "")
+                    for m in materialized
+                }
+                while i < len(index) and i < max(limit, 16) + harvested_extra + page_discovered:
+                    entry = index[i]
+                    i += 1
+                    raw = entry.get("_raw") if isinstance(entry.get("_raw"), dict) else {}
+                    url = str(entry.get("source_url") or "")
+                    if not url.startswith("http") or url in already_ok or is_bidnet_detail_page_url(url):
+                        continue
+                    if client is None or not hasattr(client, "download_bytes"):
+                        # Non-BidNet free URLs: plain HTTP
+                        try:
+                            import httpx as _httpx
+
+                            resp = _httpx.get(url, timeout=45, follow_redirects=True)
+                            body = resp.content if resp.status_code < 400 else None
+                        except Exception:
+                            continue
+                    else:
+                        try:
+                            body = client.download_bytes(url, timeout_ms=60_000)
+                        except Exception:
+                            # Free CDN/agency URLs often work without BidNet session
+                            try:
+                                import httpx as _httpx
+
+                                resp = _httpx.get(url, timeout=45, follow_redirects=True)
+                                body = resp.content if resp.status_code < 400 else None
+                            except Exception:
+                                continue
+                    name = entry.get("filename") or "free_doc"
+                    ext = entry.get("extension") or Path(str(name)).suffix.lower().lstrip(".")
+                    ok, reason = _sig_ok(body or b"", ext)
+                    downloaded += 1
+                    if ok and body:
+                        h = hashlib.sha256(body).hexdigest()[:16]
+                        safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", str(name))[:80]
+                        path = data_path("bidnet_auth", "documents", safe_sid, f"{h}_{safe}")
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(body)
+                        entry["LOCAL_PATH"] = str(path)
+                        entry["CONTENT_HASH"] = h
+                        entry["BYTE_SIZE"] = len(body)
+                        entry["DOWNLOAD_TIME"] = now_utc().isoformat()
+                        entry["SOURCE_URL"] = url
+                        entry["DOCUMENT_CONTENT_VALID"] = True
+                        entry["retrieval_status"] = "DOWNLOADED"
+                        raw["local_path"] = str(path)
+                        raw["retrieval_status"] = "DOWNLOADED"
+                        valid += 1
+                        materialized.append(entry)
+                        already_ok.add(url)
+                    else:
+                        invalid.append({**entry, "failure": reason})
+        except Exception as exc:
+            free_chase_meta = {"error": f"{type(exc).__name__}:{exc}"[:160]}
+
     # Content-first recognition — inspect every valid local file (filename secondary)
     content_recognition: dict[str, Any] = {}
     try:
@@ -766,6 +880,7 @@ def materialize_attachments(
         "invalid_downloads": [{k: v for k, v in e.items() if k != "_raw"} for e in invalid],
         "HARVESTED_FROM_HTML": harvested_extra,
         "PAGE_DISCOVERED_ATTACHMENTS": page_discovered,
+        "FREE_CHASE": free_chase_meta,
         "PACKAGE_DOCUMENT_COUNT_EXPECTED": expected,
         "PACKAGE_DOCUMENT_COUNT_DISCOVERED": discovered,
         "PACKAGE_DOCUMENT_COUNT_DOWNLOADED": downloaded,

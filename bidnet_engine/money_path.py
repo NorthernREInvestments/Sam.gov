@@ -429,6 +429,8 @@ def process_money_opportunity(
             opportunity_id=cid,
             client=client,
             limit=20,
+            title=str(meta.get("title") or item.get("title") or ""),
+            buyer=str(meta.get("buyer") or item.get("buyer") or ""),
         )
         docs = package_materialization.get("docs_for_extraction") or docs
         if package_materialization.get("package_state_truthful"):
