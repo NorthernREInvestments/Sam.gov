@@ -2220,6 +2220,7 @@ def api_m3_schedule_recovery_row_diagnostics(limit: int = 13):
                 "downloaded": pm.get("PACKAGE_DOCUMENT_COUNT_DOWNLOADED"),
                 "harvested": pm.get("HARVESTED_FROM_HTML"),
                 "page_discovered": pm.get("PAGE_DISCOVERED_ATTACHMENTS"),
+                "free_chase": pm.get("FREE_CHASE"),
                 "invalid_reasons": (pm.get("invalid_download_reasons") or [])[:8],
                 "attachments": [
                     {

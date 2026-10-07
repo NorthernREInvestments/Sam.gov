@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-authoritative-schedule-recovery-v1"
-PATCH = "asr-v17-free-chase-on-bidnet-wall"
+PATCH = "asr-v18-bounded-free-chase"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -639,6 +639,7 @@ def materialize_attachments(
     free_chase_meta: dict[str, Any] = {}
     if valid == 0 or bidnet_wall:
         try:
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
             from bidnet_recovery.free_package_chase import chase_free_package
 
             rec = {
@@ -655,12 +656,24 @@ def materialize_attachments(
                     None,
                 ),
             }
-            chase = chase_free_package(rec, refresh_overview=True)
-            free_chase_meta = {
-                "status": chase.get("status") or chase.get("chase_status"),
-                "doc_count": len(chase.get("documents") or []),
-                "route": chase.get("recovery_route") or chase.get("matched_source"),
-            }
+
+            def _run_chase() -> dict[str, Any]:
+                return chase_free_package(rec, refresh_overview=True)
+
+            # Bound free chase so one portal cannot stall the same-13 walker
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                fut = pool.submit(_run_chase)
+                try:
+                    chase = fut.result(timeout=45)
+                except FuturesTimeout:
+                    free_chase_meta = {"status": "TIMEOUT", "doc_count": 0, "route": None}
+                    chase = {}
+            if chase:
+                free_chase_meta = {
+                    "status": chase.get("status") or chase.get("chase_status"),
+                    "doc_count": len(chase.get("documents") or []),
+                    "route": chase.get("recovery_route") or chase.get("matched_source"),
+                }
             chase_docs = [
                 {
                     "document_name": d.get("document_name") or d.get("filename") or "free_doc",

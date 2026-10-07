@@ -250,6 +250,43 @@ def _rows_from_text(text: str, *, page: int, path: Path, inherited_header: str |
                     "_kind": "signal_row",
                 }
             )
+            continue
+        # Equipment datasheet / model lines: Model XYZ … without explicit qty
+        if pn and len(line) >= 16 and _PRODUCTISH.search(line):
+            rows.append(
+                {
+                    "item": None,
+                    "description": line[:500],
+                    "quantity": "1",
+                    "uom": "EA",
+                    "part_number": pn.group(1),
+                    "equal_allowed": bool(re.search(r"\bor\s+equal\b", line, re.I)),
+                    "_source_path": str(path),
+                    "_sheet": f"pdf_p{page}",
+                    "_page": page,
+                    "_header": header,
+                    "_kind": "model_row",
+                }
+            )
+            continue
+        if re.search(r"\b(model|part\s*number|mpn|sku)\b.+\b[A-Z0-9][A-Z0-9\-./]{2,}\b", line, re.I) and len(line) >= 20:
+            if _BOILER.search(line) or _LABOR_ROW.search(line):
+                continue
+            rows.append(
+                {
+                    "item": None,
+                    "description": line[:500],
+                    "quantity": "1",
+                    "uom": "EA",
+                    "part_number": (_LABELED_PN.search(line).group(1) if _LABELED_PN.search(line) else None),
+                    "equal_allowed": bool(re.search(r"\bor\s+equal\b", line, re.I)),
+                    "_source_path": str(path),
+                    "_sheet": f"pdf_p{page}",
+                    "_page": page,
+                    "_header": header,
+                    "_kind": "equipment_row",
+                }
+            )
     return rows, header
 
 
