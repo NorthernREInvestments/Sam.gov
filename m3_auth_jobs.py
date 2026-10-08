@@ -589,18 +589,24 @@ def start_package_materialization_job(
     iteration: int = 1,
     change_made: str = "content-first schedule recognition",
     warm_cache: bool = False,
+    stable_keys: list[str] | None = None,
+    max_opps: int | None = None,
+    run_budget_s: int | None = None,
 ) -> dict[str, Any]:
     """Authoritative schedule recovery / SAME-20 full pipeline recovery."""
     job_id = f"ASR-{uuid4().hex[:12]}"
     mode_s = str(mode or "same_13")
+    keys = [str(k) for k in (stable_keys or []) if str(k).strip()]
     build = (
         "20261007-m3-same20-full-pipeline-recovery-v1"
-        if mode_s in {"same_20", "same20", "same20_full_pipeline"}
+        if mode_s in {"same_20", "same20", "same20_full_pipeline", "same20_canary"}
         else "20261007-m3-authoritative-schedule-recovery-v1"
     )
     job = {
         "job_id": job_id,
-        "kind": "schedule_recovery" if mode_s not in {"same_20", "same20", "same20_full_pipeline"} else "same20_full_pipeline",
+        "kind": "schedule_recovery"
+        if mode_s not in {"same_20", "same20", "same20_full_pipeline", "same20_canary"}
+        else "same20_full_pipeline",
         "status": "QUEUED",
         "started_at": _utc(),
         "updated_at": _utc(),
@@ -612,6 +618,9 @@ def start_package_materialization_job(
             "iteration": int(iteration or 1),
             "change_made": str(change_made or "content-first schedule recognition"),
             "warm_cache": bool(warm_cache),
+            "stable_keys": keys,
+            "max_opps": max_opps,
+            "run_budget_s": run_budget_s,
             "expand_to_100_forbidden": True,
             "sam_calls": 0,
             "build": build,
@@ -648,7 +657,7 @@ def start_package_materialization_job(
                     },
                 )
 
-            if mode_s in {"same_20", "same20", "same20_full_pipeline"}:
+            if mode_s in {"same_20", "same20", "same20_full_pipeline", "same20_canary"}:
                 from bidnet_engine.same20_full_pipeline_recovery import run_same20_full_pipeline
 
                 result = run_same20_full_pipeline(
@@ -657,6 +666,11 @@ def start_package_materialization_job(
                     price_budget=int(price_budget or 40),
                     warm_cache=bool(warm_cache),
                     on_progress=_progress,
+                    stable_keys=keys or None,
+                    max_opps=int(max_opps) if max_opps is not None else (2 if mode_s == "same20_canary" else None),
+                    run_budget_s=int(run_budget_s)
+                    if run_budget_s is not None
+                    else (15 * 60 if mode_s == "same20_canary" else None),
                 )
             elif mode_s in {"new_20_reconcile", "new20_reconcile", "reconcile_new20"}:
                 from bidnet_engine.schedule_recovery_canary import reconcile_new20_acceptance

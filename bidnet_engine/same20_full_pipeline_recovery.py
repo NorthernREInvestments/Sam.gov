@@ -86,8 +86,8 @@ def _clear_cancel_flag() -> None:
         pass
 
 
-def _budget_remaining(started: float) -> float:
-    return RUN_WALL_BUDGET_S - (time.time() - started)
+def _budget_remaining(started: float, wall_budget: int = RUN_WALL_BUDGET_S) -> float:
+    return wall_budget - (time.time() - started)
 
 
 def _append_iteration(entry: dict[str, Any]) -> list[dict[str, Any]]:
@@ -478,6 +478,9 @@ def run_same20_full_pipeline(
     price_budget: int = 40,
     warm_cache: bool = False,
     on_progress: Any | None = None,
+    stable_keys: list[str] | None = None,
+    max_opps: int | None = None,
+    run_budget_s: int | None = None,
 ) -> dict[str, Any]:
     apply_thread_limits(n=1)
     if not verify_thread_limits().get("verified_active"):
@@ -489,6 +492,7 @@ def run_same20_full_pipeline(
 
     started = time.time()
     _clear_cancel_flag()
+    wall_budget = int(run_budget_s or RUN_WALL_BUDGET_S)
     run_id = f"S20-{now_utc().strftime('%Y%m%d%H%M%S')}"
     # Always re-freeze from ITER-23 report when present so attachment URLs persist
     prior_report = _load("m3_schedule_recovery_v1_last_report.json")
@@ -503,6 +507,12 @@ def run_same20_full_pipeline(
             corpus = ensure_corpus_frozen(prior_report)
     store = load_store()
     candidates = resolve_same20(store, corpus)
+    if stable_keys:
+        want = {str(k) for k in stable_keys}
+        candidates = [c for c in candidates if str(c.get("stable_key") or "") in want]
+    if max_opps is not None and int(max_opps) > 0:
+        candidates = candidates[: int(max_opps)]
+    target_n = max(1, len(candidates) or 1)
     store_by_cid: dict[str, dict[str, Any]] = {}
     # Base index from full store
     for k, v in store.items():
@@ -534,12 +544,14 @@ def run_same20_full_pipeline(
     write_status(
         phase="SAME20_SELECTED",
         completed=0,
-        remaining=20,
+        remaining=target_n,
         run_id=run_id,
         iteration=iteration,
         corpus=SOURCE_RUN,
         warm_cache=warm_cache,
         selected=len(candidates),
+        wall_budget_s=wall_budget,
+        canary_keys=[str(c.get("stable_key") or "") for c in candidates],
         heartbeat_at=now_utc().isoformat(),
     )
 
@@ -594,8 +606,8 @@ def run_same20_full_pipeline(
         write_status(
             phase="SAME20_OPP",
             completed=len(results),
-            remaining=max(0, 20 - len(results)),
-            percent=int(100 * len(results) / 20),
+            remaining=max(0, target_n - len(results)),
+            percent=int(100 * len(results) / max(target_n, 1)),
             run_id=run_id,
             iteration=iteration,
             current_stable_key=sk,
@@ -617,8 +629,8 @@ def run_same20_full_pipeline(
                 mode="same_20",
                 valid_n=len(results),
                 excl_n=len(quarantined),
-                pool_remaining=max(0, 20 - len(results) - 1),
-                target_valid=20,
+                pool_remaining=max(0, target_n - len(results) - 1),
+                target_valid=target_n,
                 on_progress=on_progress,
                 opp_hard_timeout_s=SAME20_OPP_HARD_TIMEOUT_S,
             )
@@ -673,16 +685,16 @@ def run_same20_full_pipeline(
     pending = [c for c in candidates if str(c.get("stable_key") or "") not in done_sk]
     budget_stopped = False
     for opp_i, item in enumerate(pending):
-        if _cancel_requested() or _budget_remaining(started) < SAME20_OPP_HARD_TIMEOUT_S:
+        if _cancel_requested() or _budget_remaining(started, wall_budget) < SAME20_OPP_HARD_TIMEOUT_S:
             budget_stopped = True
             write_status(
                 phase="SAME20_BUDGET_STOP",
                 completed=len(results),
-                remaining=max(0, 20 - len(results)),
+                remaining=max(0, target_n - len(results)),
                 run_id=run_id,
                 iteration=iteration,
                 reason="cancel" if _cancel_requested() else "run_wall_budget",
-                budget_s=RUN_WALL_BUDGET_S,
+                budget_s=wall_budget,
                 elapsed_s=round(time.time() - started, 1),
                 heartbeat_at=now_utc().isoformat(),
             )
@@ -712,7 +724,7 @@ def run_same20_full_pipeline(
                 write_status(
                     phase="SAME20_REAUTH",
                     completed=len(results),
-                    remaining=max(0, 20 - len(results)),
+                    remaining=max(0, target_n - len(results)),
                     run_id=run_id,
                     iteration=iteration,
                     reauth_ok=bool(refresh.authenticated),
@@ -723,7 +735,7 @@ def run_same20_full_pipeline(
                 write_status(
                     phase="SAME20_REAUTH",
                     completed=len(results),
-                    remaining=max(0, 20 - len(results)),
+                    remaining=max(0, target_n - len(results)),
                     run_id=run_id,
                     iteration=iteration,
                     reauth_ok=False,
@@ -749,13 +761,15 @@ def run_same20_full_pipeline(
         write_status(
             phase="SAME20_HEARTBEAT",
             completed=len(results),
-            remaining=max(0, 20 - len(results)),
-            percent=int(100 * len(results) / 20),
+            remaining=max(0, target_n - len(results)),
+            percent=int(100 * len(results) / max(target_n, 1)),
             run_id=run_id,
             iteration=iteration,
             last_title=str(r.get("title") or "")[:120],
             quarantined=len(quarantined),
             warm_cache=warm_cache,
+            elapsed_s=round(time.time() - started, 1),
+            budget_s=wall_budget,
             heartbeat_at=now_utc().isoformat(),
         )
         _save(
@@ -786,7 +800,7 @@ def run_same20_full_pipeline(
     # Pass 2 — revisit quarantined (still in denominator); skip if budget exhausted
     still_q: list[dict[str, Any]] = []
     for q in list(quarantined):
-        if budget_stopped or _cancel_requested() or _budget_remaining(started) < SAME20_OPP_HARD_TIMEOUT_S:
+        if budget_stopped or _cancel_requested() or _budget_remaining(started, wall_budget) < SAME20_OPP_HARD_TIMEOUT_S:
             still_q.append(q)
             continue
         sk = str(q.get("stable_key") or "")

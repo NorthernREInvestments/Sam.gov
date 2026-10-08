@@ -2123,6 +2123,7 @@ def api_m3_package_materialization_run(body: dict | None = None):
     from m3_auth_jobs import start_package_materialization_job
 
     payload = body or {}
+    keys = payload.get("stable_keys") if isinstance(payload.get("stable_keys"), list) else None
     return start_package_materialization_job(
         mode=str(payload.get("mode") or "same_20"),
         canary_n=int(payload.get("canary_n") or 20),
@@ -2130,6 +2131,9 @@ def api_m3_package_materialization_run(body: dict | None = None):
         iteration=int(payload.get("iteration") or 1),
         change_made=str(payload.get("change_made") or "same-20 full pipeline recovery"),
         warm_cache=bool(payload.get("warm_cache") or False),
+        stable_keys=[str(k) for k in (keys or [])],
+        max_opps=int(payload["max_opps"]) if payload.get("max_opps") is not None else None,
+        run_budget_s=int(payload["run_budget_s"]) if payload.get("run_budget_s") is not None else None,
     )
 
 
