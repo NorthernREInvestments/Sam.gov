@@ -868,22 +868,61 @@ class BidNetAuthenticatedClient:
             if r and r not in seen and "/statewide/" not in r.lower():
                 seen.add(r)
                 uniq_refs.append(r)
-        for priv in uniq_refs[:6]:
-            docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
-            if docs:
-                return docs
+        def _score_docs(docs: list[dict[str, Any]]) -> int:
+            score = len(docs) * 2
+            for d in docs or []:
+                fn = str(d.get("filename") or d.get("document_name") or "").lower()
+                if d.get("local_path"):
+                    score += 6
+                if re.search(
+                    r"pric|schedule|bid\s*form|item|bom|equip|material|spec|\.xlsx|\.xls|\.csv|\.zip",
+                    fn,
+                    re.I,
+                ):
+                    score += 10
+                if re.search(r"notice|instruction|cover|terms\s+and|toc\b|agenda", fn, re.I):
+                    score -= 3
+            return score
 
-        # Keyword search: statewide id first (often indexed), then title
+        def _merge(dst: list[dict[str, Any]], src: list[dict[str, Any]], seen: set[str]) -> None:
+            for d in src or []:
+                key = str(d.get("local_path") or d.get("document_url") or d.get("source_url") or "")
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                dst.append(d)
+
+        merged: list[dict[str, Any]] = []
+        seen_keys: set[str] = set()
+        best: list[dict[str, Any]] = []
+        best_score = -1
+        for priv in uniq_refs[:6]:
+            docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms) or []
+            _merge(merged, docs, seen_keys)
+            sc = _score_docs(docs)
+            if sc > best_score:
+                best, best_score = docs, sc
+
+        # Keyword search: statewide id first (often indexed), then title — always try;
+        # first private hit is often cover/notice PDFs, not the schedule package.
         queries: list[str] = []
         if sw:
             queries.append(sw)
         if title and len(str(title).strip()) >= 8:
             queries.append(str(title).strip()[:120])
         for q in queries:
-            docs = self.discover_attachments_by_title(q, timeout_ms=timeout_ms)
-            if docs:
-                return docs
-        return []
+            docs = self.discover_attachments_by_title(q, timeout_ms=timeout_ms) or []
+            _merge(merged, docs, seen_keys)
+            sc = _score_docs(docs)
+            if sc > best_score:
+                best, best_score = docs, sc
+
+        # Prefer the richest merged package when it clearly beats a single route
+        if _score_docs(merged) >= max(best_score, 0) + 4 and len(merged) > len(best):
+            return merged[:40]
+        if best:
+            return best[:40]
+        return merged[:40]
 
     def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:
         """Navigate URL and capture JSON XHR/fetch payloads for structured harvest."""

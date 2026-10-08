@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v9-force-browser-package-downloads"
+PATCH = "s20-v10-merge-discovery-routes"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -881,66 +881,100 @@ def materialize_attachments(
         if detail_url or opp_title or statewide_seeds:
             try:
                 page_docs: list[dict[str, Any]] = []
-                # 1) Statewide abstract → scrape real private/open-bids solicitation id
-                if not page_docs and statewide_seeds and hasattr(client, "discover_attachments_from_statewide"):
+                seen_doc_keys: set[str] = set()
+                routes_hit: list[str] = []
+
+                def _absorb(docs: list[dict[str, Any]] | None, route: str) -> int:
+                    nonlocal page_docs
+                    added_n = 0
+                    for d in docs or []:
+                        if not isinstance(d, dict):
+                            continue
+                        key = str(
+                            d.get("local_path")
+                            or d.get("document_url")
+                            or d.get("source_url")
+                            or d.get("url")
+                            or ""
+                        )
+                        if not key or key in seen_doc_keys:
+                            continue
+                        seen_doc_keys.add(key)
+                        page_docs.append(d)
+                        added_n += 1
+                    if added_n:
+                        routes_hit.append(f"{route}+{added_n}")
+                    return added_n
+
+                # Merge routes — first statewide hit is often notice/cover PDFs only.
+                # 1) Statewide abstract → private solicitation docs
+                if statewide_seeds and hasattr(client, "discover_attachments_from_statewide"):
                     for su in statewide_seeds[:2]:
-                        page_docs = (
+                        _absorb(
                             client.discover_attachments_from_statewide(
                                 su, title=opp_title, statewide_id=sw_id
-                            )
-                            or []
+                            ),
+                            "statewide_resolve",
                         )
-                        if page_docs:
-                            discovery_meta["route"] = "statewide_resolve"
-                            break
                 # 2) Known private/open-bids detail
-                if not page_docs and detail_url:
-                    page_docs = client.discover_attachment_links(detail_url) or []
-                    if page_docs:
-                        discovery_meta["route"] = "private_detail"
+                if detail_url:
+                    _absorb(client.discover_attachment_links(detail_url), "private_detail")
                 # 3) Keyword / title search (statewide ID is often indexed)
                 search_queries: list[str] = []
                 if sw_id:
                     search_queries.append(sw_id)
                 if opp_title and len(opp_title.strip()) >= 8:
                     search_queries.append(opp_title.strip()[:120])
-                    # Distinctive short query from title tokens
                     toks = [t for t in re.split(r"\W+", opp_title) if len(t) >= 4]
                     if len(toks) >= 3:
                         search_queries.append(" ".join(toks[:5]))
                 discovery_meta["title_queries"] = search_queries
-                if not page_docs and search_queries and hasattr(client, "discover_attachments_by_title"):
+                if search_queries and hasattr(client, "discover_attachments_by_title"):
                     for q in search_queries:
-                        page_docs = client.discover_attachments_by_title(q) or []
-                        if page_docs:
-                            discovery_meta["route"] = f"title_search:{q[:40]}"
+                        n = _absorb(client.discover_attachments_by_title(q), f"title_search:{q[:40]}")
+                        if n >= 4:
                             break
                 # 4) Parse HTML walls for embedded private solicitation ids
-                if not page_docs:
-                    for e in list(invalid)[:6]:
-                        u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
-                        if "bidnet" not in u.lower():
-                            continue
-                        try:
-                            html_b = (
-                                client.download_bytes(u, timeout_ms=45_000)
-                                if hasattr(client, "download_bytes")
-                                else None
-                            )
-                        except Exception:
-                            html_b = None
-                        if not html_b or not looks_like_html_bytes(html_b):
-                            continue
-                        refs = extract_private_solicitation_refs_from_html(html_b, base_url=u)
-                        discovery_meta["resolved_private"] = refs[:5]
-                        for priv in refs[:3]:
-                            page_docs = client.discover_attachment_links(priv) or []
-                            if page_docs:
-                                discovery_meta["route"] = "html_ref"
-                                break
-                        if page_docs:
-                            break
+                for e in list(invalid)[:6]:
+                    u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
+                    if "bidnet" not in u.lower():
+                        continue
+                    try:
+                        html_b = (
+                            client.download_bytes(u, timeout_ms=45_000)
+                            if hasattr(client, "download_bytes")
+                            else None
+                        )
+                    except Exception:
+                        html_b = None
+                    if not html_b or not looks_like_html_bytes(html_b):
+                        continue
+                    refs = extract_private_solicitation_refs_from_html(html_b, base_url=u)
+                    discovery_meta["resolved_private"] = refs[:5]
+                    for priv in refs[:3]:
+                        _absorb(client.discover_attachment_links(priv), "html_ref")
                 discovery_meta["page_docs"] = len(page_docs or [])
+                discovery_meta["routes_hit"] = routes_hit
+                discovery_meta["browser_local"] = sum(
+                    1 for d in page_docs if d.get("local_path")
+                )
+                discovery_meta["route"] = (
+                    routes_hit[0].split("+", 1)[0] if routes_hit else None
+                )
+                # Prefer schedule-like / browser-captured binaries when enqueueing
+                page_docs.sort(
+                    key=lambda d: (
+                        0 if d.get("local_path") else 1,
+                        0
+                        if re.search(
+                            r"pric|schedule|bid|item|bom|equip|material|spec|\.xlsx|\.xls|\.zip",
+                            str(d.get("filename") or d.get("document_name") or ""),
+                            re.I,
+                        )
+                        else 1,
+                        str(d.get("filename") or ""),
+                    )
+                )
                 added = _enqueue_docs(page_docs, counter="page")
                 # Prefer schedule-like binaries over BidNet viewer HTML for remaining downloads
                 if added and i < len(index):
@@ -1454,16 +1488,20 @@ def materialize_attachments(
         "package_state_truthful": package_state,
         "PACKAGE_READY_FOR_LINE_EXTRACTION": ready,
         "AUTHORITATIVE_PRODUCT_DOC_FOUND": bool(
-            auth_doc
-            and (
-                int(auth_doc.get("extracted_line_count") or 0) >= 1
-                or auth_doc.get("document_role_content") in {
-                    "PRICING_SCHEDULE", "PRODUCT_SCHEDULE", "BID_FORM", "ITEM_LIST",
-                    "SPECIFICATION_WITH_PRODUCT_TABLE", "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES",
-                    "LINE_ITEM_SCHEDULE", "BOM",
-                }
-                or content_recognition.get("AUTHORITATIVE_PRODUCT_DOC_FOUND")
+            (
+                auth_doc
+                and (
+                    int(auth_doc.get("extracted_line_count") or 0) >= 1
+                    or auth_doc.get("document_role_content") in {
+                        "PRICING_SCHEDULE", "PRODUCT_SCHEDULE", "BID_FORM", "ITEM_LIST",
+                        "SPECIFICATION_WITH_PRODUCT_TABLE", "SOLICITATION_WITH_EMBEDDED_PRODUCT_LINES",
+                        "LINE_ITEM_SCHEDULE", "BOM",
+                    }
+                    or content_recognition.get("AUTHORITATIVE_PRODUCT_DOC_FOUND")
+                )
             )
+            or int(content_recognition.get("EXTRACTED_PRODUCT_LINES") or 0) >= 1
+            or int(content_recognition.get("AUTHORITATIVE_PRODUCT_DOC_FOUND") and 1 or 0) == 1
         ),
         "AUTHORITATIVE_PRODUCT_DOC_ID": (auth_doc or {}).get("document_id"),
         "AUTHORITATIVE_PRODUCT_DOC_ROLE": (auth_doc or {}).get("document_role_content")
