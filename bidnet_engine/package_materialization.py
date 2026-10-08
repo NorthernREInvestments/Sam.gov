@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v8-disk-cache-reuse-and-midrun-reauth"
+PATCH = "s20-v9-force-browser-package-downloads"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -834,9 +834,10 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # DOM-scrape BidNet private detail when package thin or empty
+    # DOM-scrape BidNet private detail when package thin or missing schedule-like docs.
+    # Disk-cache reuse alone often restores cover PDFs without the bid schedule.
     has_high_value = any(bool(e.get("high_value")) for e in materialized)
-    need_discovery = valid == 0 or (valid < 3 and not has_high_value)
+    need_discovery = valid == 0 or not has_high_value
     if need_discovery and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
         statewide_seeds: list[str] = []

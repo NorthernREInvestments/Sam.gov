@@ -536,56 +536,141 @@ class BidNetAuthenticatedClient:
         for u in network_urls:
             _add(u, u.rsplit("/", 1)[-1][:80])
 
-        # Click Download controls that only emit bytes via browser download (no stable href)
-        if not found:
-            try:
-                from m3_data_root import data_path
-                import hashlib as _hl
-                import shutil
+        # Always attempt browser downloads. BidNet often exposes viewer/detail hrefs that
+        # populate `found` without yielding real schedule binaries — Download All / row
+        # clicks are required for package ZIPs and pricing sheets.
+        browser_dl_hits = 0
+        try:
+            from m3_data_root import data_path
+            import hashlib as _hl
+            import shutil
 
-                dl_btns = self._page.get_by_role(
-                    "button",
-                    name=re.compile(r"download(\s+all)?|save|export", re.I),
-                )
-                link_btns = self._page.get_by_role(
-                    "link",
-                    name=re.compile(r"download(\s+all)?|\.pdf|\.xlsx|addendum", re.I),
-                )
-                clickables = []
+            out_dir = data_path("bidnet_auth", "documents", "_browser_dl")
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            def _click_download(el: Any, *, timeout_ms: int = 25_000) -> bool:
+                nonlocal browser_dl_hits
                 try:
-                    clickables.extend(dl_btns.all()[:6])
+                    with self._page.expect_download(timeout=timeout_ms) as dl_info:
+                        el.click(timeout=3_000)
+                    download = dl_info.value
+                    src = download.path()
+                    suggested = download.suggested_filename or "bidnet_doc.bin"
+                    if not src:
+                        return False
+                    raw = Path(src).read_bytes()
+                    if len(raw) < 64:
+                        return False
+                    # Skip HTML masquerading as downloads
+                    head = raw[:200].lstrip().lower()
+                    if head.startswith(b"<!doctype") or head.startswith(b"<html"):
+                        return False
+                    h = _hl.sha256(raw).hexdigest()[:16]
+                    dest = out_dir / f"{h}_{re.sub(r'[^a-zA-Z0-9._-]+', '_', suggested)[:80]}"
+                    shutil.copyfile(src, dest)
+                    _add(download.url or "", suggested, local_path=str(dest))
+                    browser_dl_hits += 1
+                    return True
+                except Exception:
+                    return False
+
+            # 1) Download All / package export first
+            for role, pattern in (
+                ("button", r"download\s*all|download\s*package|export\s*all|zip"),
+                ("link", r"download\s*all|download\s*package|export\s*all"),
+            ):
+                try:
+                    loc = self._page.get_by_role(role, name=re.compile(pattern, re.I))
+                    for el in loc.all()[:3]:
+                        if _click_download(el, timeout_ms=45_000):
+                            break
+                except Exception:
+                    pass
+
+            # 2) Schedule-like named links/buttons (even when generic hrefs already found)
+            schedule_pat = re.compile(
+                r"(\.xlsx|\.xls|\.csv|\.zip|price|pricing|bid\s*form|bid\s*schedule|"
+                r"item\s*list|line\s*item|bom|equipment|material|spec(?:ification)?|"
+                r"schedule|proposal\s*form|cost\s*sheet|unit\s*price)",
+                re.I,
+            )
+            for role in ("link", "button"):
+                try:
+                    loc = self._page.get_by_role(role, name=schedule_pat)
+                    for el in loc.all()[:10]:
+                        _click_download(el)
+                        if browser_dl_hits >= 8:
+                            break
+                except Exception:
+                    pass
+
+            # 3) Generic download controls if still thin
+            if browser_dl_hits < 2:
+                try:
+                    dl_btns = self._page.get_by_role(
+                        "button",
+                        name=re.compile(r"download|save|export", re.I),
+                    )
+                    for el in dl_btns.all()[:8]:
+                        _click_download(el)
+                        if browser_dl_hits >= 6:
+                            break
                 except Exception:
                     pass
                 try:
-                    clickables.extend(link_btns.all()[:8])
+                    link_btns = self._page.get_by_role(
+                        "link",
+                        name=re.compile(r"download|\.pdf|\.xlsx|addendum|attachment", re.I),
+                    )
+                    for el in link_btns.all()[:10]:
+                        _click_download(el)
+                        if browser_dl_hits >= 8:
+                            break
                 except Exception:
                     pass
-                out_dir = data_path("bidnet_auth", "documents", "_browser_dl")
-                out_dir.mkdir(parents=True, exist_ok=True)
-                for el in clickables[:8]:
-                    try:
-                        with self._page.expect_download(timeout=20_000) as dl_info:
-                            el.click(timeout=3_000)
-                        download = dl_info.value
-                        src = download.path()
-                        suggested = download.suggested_filename or "bidnet_doc.bin"
-                        if not src:
-                            continue
-                        h = _hl.sha256(Path(src).read_bytes()).hexdigest()[:16]
-                        dest = out_dir / f"{h}_{re.sub(r'[^a-zA-Z0-9._-]+', '_', suggested)[:80]}"
-                        shutil.copyfile(src, dest)
-                        _add(download.url or "", suggested, local_path=str(dest))
-                    except Exception:
-                        continue
-            except Exception as exc:
-                log.info("discover_attachment_links browser download: %s", type(exc).__name__)
+
+            # 4) Document grid / table download icons
+            if browser_dl_hits < 2:
+                try:
+                    for sel in (
+                        "table a[href*='download']",
+                        "table a[href*='intercept']",
+                        "table a[href*='getFile']",
+                        "[class*='document'] a[href*='download']",
+                        "a[title*='Download' i]",
+                        "button[title*='Download' i]",
+                    ):
+                        for el in self._page.locator(sel).all()[:12]:
+                            _click_download(el)
+                            if browser_dl_hits >= 8:
+                                break
+                        if browser_dl_hits >= 8:
+                            break
+                except Exception:
+                    pass
+        except Exception as exc:
+            log.info("discover_attachment_links browser download: %s", type(exc).__name__)
 
         try:
             self._page.remove_listener("response", _on_response)
         except Exception:
             pass
 
-        return found[:30]
+        # Prefer browser-captured binaries first for materialization
+        found.sort(
+            key=lambda d: (
+                0 if d.get("local_path") else 1,
+                0
+                if re.search(
+                    r"pric|schedule|bid|item|bom|equip|material|spec|\.xlsx|\.xls|\.zip",
+                    str(d.get("filename") or d.get("document_name") or ""),
+                    re.I,
+                )
+                else 1,
+                str(d.get("filename") or ""),
+            )
+        )
+        return found[:40]
 
     def discover_attachments_by_title(
         self,
