@@ -183,6 +183,125 @@ def _load_today_calls() -> dict[str, Any]:
     return load_json(path)
 
 
+def _load_buyer_intelligence_targets() -> dict[str, Any]:
+    path = _data_dir() / "m3_buyer_intelligence_v1_targets.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _buyer_intelligence_today_cards() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Map buyer-intel targets into Today cards (Small Buy Leads + Repeat Buyers)."""
+    doc = _load_buyer_intelligence_targets()
+    small: list[dict[str, Any]] = []
+    repeats: list[dict[str, Any]] = []
+    for t in (doc.get("SMALL_BUY_LEADS") or [])[:12]:
+        if not isinstance(t, dict):
+            continue
+        buyer = t.get("BUYER_NAME_CANONICAL") or "Buyer"
+        fam = str(t.get("product_family") or "OTHER").replace("_", " ").title()
+        med = t.get("MEDIAN_BUY")
+        small.append(
+            {
+                "deal_id": f"bi:{t.get('BUYER_ID')}:{t.get('product_family')}",
+                "buyer_id": t.get("BUYER_ID"),
+                "title": f"{buyer} — {fam}",
+                "buyer": buyer,
+                "product": fam,
+                "approx_size": f"${med:,.0f}" if isinstance(med, (int, float)) else "n/a",
+                "purchase_card_clue": t.get("PURCHASE_CARD_CLUE") or t.get("FAST_BUY_CLUE") or "NO",
+                "cash_flow_fit": t.get("CASH_FLOW_FIT_SCORE"),
+                "cash_risk": t.get("ESTIMATED_OWNER_CASH_RISK"),
+                "sourcing_simplicity": t.get("SOURCING_SIMPLICITY_SCORE"),
+                "deadline": t.get("LIVE_DEADLINE"),
+                "next_action": t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION"),
+                "target_score": t.get("TARGET_ACCOUNT_SCORE"),
+                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "kind": "SmallBuyLead",
+            }
+        )
+    for t in (doc.get("REPEAT_BUYERS") or doc.get("TARGET_BUYERS") or [])[:12]:
+        if not isinstance(t, dict):
+            continue
+        buyer = t.get("BUYER_NAME_CANONICAL") or "Buyer"
+        fam = str(t.get("product_family") or "OTHER").replace("_", " ").title()
+        med = t.get("MEDIAN_BUY")
+        cad = t.get("AVERAGE_DAYS_BETWEEN_BUYS")
+        repeats.append(
+            {
+                "deal_id": f"bi-r:{t.get('BUYER_ID')}:{t.get('product_family')}",
+                "buyer_id": t.get("BUYER_ID"),
+                "title": f"{buyer} — {fam}",
+                "buyer": buyer,
+                "product": fam,
+                "buy_count": t.get("BUY_COUNT"),
+                "median_buy": med,
+                "last_buy": t.get("LAST_BUY_DATE"),
+                "cadence_days": cad,
+                "vendors": t.get("RECURRING_VENDOR_COUNT"),
+                "known_vendors": t.get("KNOWN_VENDORS") or [],
+                "purchase_card_clue": t.get("PURCHASE_CARD_CLUE") or "NO",
+                "sourcing_simplicity": t.get("SOURCING_SIMPLICITY_SCORE"),
+                "cash_flow_fit": t.get("CASH_FLOW_FIT_SCORE"),
+                "cash_risk": t.get("ESTIMATED_OWNER_CASH_RISK"),
+                "target_score": t.get("TARGET_ACCOUNT_SCORE"),
+                "live_overlap": t.get("LIVE_OPPORTUNITY_OVERLAP"),
+                "live_title": t.get("LIVE_TITLE"),
+                "next_action": t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION"),
+                "why": t.get("WHY_IT_MATTERS"),
+                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "kind": "RepeatBuyer",
+            }
+        )
+    return small, repeats
+
+
+def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
+    """Buyer detail for Today drill-down."""
+    bid = str(buyer_id or "").strip()
+    profiles = _load_json_safe(_data_dir() / "m3_buyer_intelligence_v1_profiles.json") or {}
+    patterns = _load_json_safe(_data_dir() / "m3_buyer_intelligence_v1_patterns.json") or {}
+    targets = _load_buyer_intelligence_targets()
+    prof = next(
+        (p for p in (profiles.get("profiles") or []) if isinstance(p, dict) and str(p.get("BUYER_ID")) == bid),
+        None,
+    )
+    pats = [p for p in (patterns.get("patterns") or []) if isinstance(p, dict) and str(p.get("BUYER_ID")) == bid]
+    trows = [
+        t
+        for t in (targets.get("TARGET_BUYERS") or [])
+        if isinstance(t, dict) and str(t.get("BUYER_ID")) == bid
+    ]
+    if not prof and trows:
+        prof = {
+            "BUYER_ID": bid,
+            "BUYER_NAME_CANONICAL": trows[0].get("BUYER_NAME_CANONICAL"),
+            "AGENCY": trows[0].get("AGENCY"),
+        }
+    return {
+        "kind": "BuyerProfile",
+        "build": BUILD,
+        "buyer_id": bid,
+        "profile": prof,
+        "categories": pats,
+        "targets": trows,
+        "financing_note": (trows[0].get("FINANCING_NOTE") if trows else "Supplier terms unknown — financing not yet proven."),
+        "generated_at": _utc(),
+    }
+
+
+def _load_json_safe(path: Path) -> Any:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def _load_workspaces() -> dict[str, Any]:
     path = OUT / "l22_workspaces.json"
     if not path.exists():
@@ -647,11 +766,24 @@ def build_today() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Buyer Intelligence V1 — Small Buy Leads + Repeat Buyers (no new top-nav)
+    small_buy_cards, repeat_buyer_cards = _buyer_intelligence_today_cards()
+
     sections = {
         "call_today": {
             "title": "CALL TODAY",
             "empty": "No supplier calls need attention right now.",
             "items": call_today,
+        },
+        "small_buy_leads": {
+            "title": "SMALL BUY LEADS",
+            "empty": "No small-buy leads yet — run Buyer Intelligence.",
+            "items": small_buy_cards,
+        },
+        "repeat_buyers": {
+            "title": "REPEAT BUYERS",
+            "empty": "No repeat-buyer patterns yet — run Buyer Intelligence.",
+            "items": repeat_buyer_cards,
         },
         "follow_up": {
             "title": "FOLLOW UP",
@@ -699,10 +831,17 @@ def build_today() -> dict[str, Any]:
             "items": blocked,
             "total_available": blocked_count,
         },
+        "watch": {
+            "title": "WATCH",
+            "empty": "Nothing on the watch list.",
+            "items": watch[:15],
+        },
     }
 
     counts = {
         "call_today": len(call_today),
+        "small_buy_leads": len(small_buy_cards),
+        "repeat_buyers": len(repeat_buyer_cards),
         "follow_up": len(follow_up),
         "quotes": len(quotes),
         "registrations": len(registrations),
@@ -712,7 +851,7 @@ def build_today() -> dict[str, Any]:
         "submissions": len(submissions),
         "awaiting_result": len(awaiting_result),
         "blocked": blocked_count,
-        "watch": sum(1 for r in store.values() if r.get("current_funnel_state") in {"WATCH", "WATCH_OTHER"}),
+        "watch": len(watch),
     }
 
     return {

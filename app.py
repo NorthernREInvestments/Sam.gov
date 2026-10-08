@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261007-m3-same20-full-pipeline-recovery-v1"
+APP_BUILD_VERSION = "20261007-m3-buyer-intelligence-micro-cashflow-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -8655,6 +8655,48 @@ def api_ui_today():
     from phase_l.owner_ui_service import build_today
 
     return build_today()
+
+
+@app.get("/api/ui/today/buyer/{buyer_id}")
+def api_ui_today_buyer(buyer_id: str):
+    from phase_l.owner_ui_service import build_buyer_profile
+
+    return build_buyer_profile(buyer_id)
+
+
+@app.post("/api/m3/buyer-intelligence/run")
+def api_m3_buyer_intelligence_run():
+    from buyer_intelligence.engine import run_buyer_intelligence
+
+    return run_buyer_intelligence()
+
+
+@app.get("/api/m3/buyer-intelligence/report")
+def api_m3_buyer_intelligence_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_buyer_intelligence_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/buyer-intelligence/targets")
+def api_m3_buyer_intelligence_targets():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_buyer_intelligence_v1_targets.json")
+    if not path.exists():
+        return {"status": "NO_TARGETS", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
 
 
 @app.get("/api/ui/deals")
