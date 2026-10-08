@@ -110,14 +110,16 @@ def _process_opp_with_guards(
     pool_remaining: int,
     target_valid: int,
     on_progress: Any | None,
+    opp_hard_timeout_s: int | None = None,
 ) -> dict[str, Any]:
-    """Run process_money_opportunity with 60s heartbeats and 5-minute hard timeout."""
+    """Run process_money_opportunity with 60s heartbeats and hard wall timeout."""
     title = str(item.get("title") or "")
     sk = item.get("stable_key")
     cid = str(item.get("canonical_opportunity_id") or "")
     started = time.time()
     stage_box: dict[str, Any] = {"stage": "PROCESS_MONEY", "started": started}
     stop_hb = threading.Event()
+    hard_limit = int(opp_hard_timeout_s or OPP_HARD_TIMEOUT_S)
 
     def _heartbeat_loop() -> None:
         while not stop_hb.wait(HEARTBEAT_INTERVAL_S):
@@ -138,7 +140,7 @@ def _process_opp_with_guards(
                 attempted=valid_n + excl_n,
                 pool_remaining=pool_remaining,
                 heartbeat_at=now_utc().isoformat(),
-                opp_hard_timeout_s=OPP_HARD_TIMEOUT_S,
+                opp_hard_timeout_s=hard_limit,
             )
             if on_progress:
                 try:
@@ -169,11 +171,11 @@ def _process_opp_with_guards(
             price_budget=price_budget,
         )
         elapsed = time.time() - started
-        if elapsed > OPP_HARD_TIMEOUT_S:
+        if elapsed > hard_limit:
             result = dict(result or {})
             result["stalled"] = True
             result["exclusion"] = "STALLED_OPPORTUNITY"
-            result["stalled_reason"] = f"Exceeded {OPP_HARD_TIMEOUT_S}s wall clock"
+            result["stalled_reason"] = f"Exceeded {hard_limit}s wall clock"
             result["time_in_stage_s"] = round(elapsed, 1)
             pm = result.get("package_materialization") if isinstance(result.get("package_materialization"), dict) else {}
             result["package_materialization"] = {

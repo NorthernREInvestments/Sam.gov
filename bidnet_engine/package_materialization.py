@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v10-merge-discovery-routes"
+PATCH = "s20-v11-fast-expand-if-thin-discovery"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -906,53 +906,76 @@ def materialize_attachments(
                         routes_hit.append(f"{route}+{added_n}")
                     return added_n
 
-                # Merge routes — first statewide hit is often notice/cover PDFs only.
-                # 1) Statewide abstract → private solicitation docs
+                def _docs_look_thin() -> bool:
+                    if len(page_docs) < 3:
+                        return True
+                    scheduleish = 0
+                    for d in page_docs:
+                        fn = str(d.get("filename") or d.get("document_name") or "")
+                        if d.get("local_path"):
+                            scheduleish += 1
+                        if re.search(
+                            r"pric|schedule|bid\s*form|item|bom|\.xlsx|\.xls|\.csv|\.zip",
+                            fn,
+                            re.I,
+                        ):
+                            scheduleish += 2
+                    return scheduleish < 2
+
+                # Fast path: take first decent hit; expand only when thin (cover/notice PDFs).
                 if statewide_seeds and hasattr(client, "discover_attachments_from_statewide"):
-                    for su in statewide_seeds[:2]:
+                    for su in statewide_seeds[:1]:
                         _absorb(
                             client.discover_attachments_from_statewide(
                                 su, title=opp_title, statewide_id=sw_id
                             ),
                             "statewide_resolve",
                         )
-                # 2) Known private/open-bids detail
-                if detail_url:
+                        if not _docs_look_thin():
+                            break
+                if _docs_look_thin() and detail_url:
                     _absorb(client.discover_attachment_links(detail_url), "private_detail")
-                # 3) Keyword / title search (statewide ID is often indexed)
                 search_queries: list[str] = []
                 if sw_id:
                     search_queries.append(sw_id)
                 if opp_title and len(opp_title.strip()) >= 8:
                     search_queries.append(opp_title.strip()[:120])
-                    toks = [t for t in re.split(r"\W+", opp_title) if len(t) >= 4]
-                    if len(toks) >= 3:
-                        search_queries.append(" ".join(toks[:5]))
                 discovery_meta["title_queries"] = search_queries
-                if search_queries and hasattr(client, "discover_attachments_by_title"):
-                    for q in search_queries:
-                        n = _absorb(client.discover_attachments_by_title(q), f"title_search:{q[:40]}")
-                        if n >= 4:
-                            break
-                # 4) Parse HTML walls for embedded private solicitation ids
-                for e in list(invalid)[:6]:
-                    u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
-                    if "bidnet" not in u.lower():
-                        continue
-                    try:
-                        html_b = (
-                            client.download_bytes(u, timeout_ms=45_000)
-                            if hasattr(client, "download_bytes")
-                            else None
+                if (
+                    _docs_look_thin()
+                    and search_queries
+                    and hasattr(client, "discover_attachments_by_title")
+                ):
+                    for q in search_queries[:2]:
+                        _absorb(
+                            client.discover_attachments_by_title(q),
+                            f"title_search:{q[:40]}",
                         )
-                    except Exception:
-                        html_b = None
-                    if not html_b or not looks_like_html_bytes(html_b):
-                        continue
-                    refs = extract_private_solicitation_refs_from_html(html_b, base_url=u)
-                    discovery_meta["resolved_private"] = refs[:5]
-                    for priv in refs[:3]:
-                        _absorb(client.discover_attachment_links(priv), "html_ref")
+                        if not _docs_look_thin():
+                            break
+                if _docs_look_thin():
+                    for e in list(invalid)[:4]:
+                        u = str(e.get("SOURCE_URL") or e.get("source_url") or "")
+                        if "bidnet" not in u.lower():
+                            continue
+                        try:
+                            html_b = (
+                                client.download_bytes(u, timeout_ms=30_000)
+                                if hasattr(client, "download_bytes")
+                                else None
+                            )
+                        except Exception:
+                            html_b = None
+                        if not html_b or not looks_like_html_bytes(html_b):
+                            continue
+                        refs = extract_private_solicitation_refs_from_html(html_b, base_url=u)
+                        discovery_meta["resolved_private"] = refs[:5]
+                        for priv in refs[:2]:
+                            _absorb(client.discover_attachment_links(priv), "html_ref")
+                            if not _docs_look_thin():
+                                break
+                        if not _docs_look_thin():
+                            break
                 discovery_meta["page_docs"] = len(page_docs or [])
                 discovery_meta["routes_hit"] = routes_hit
                 discovery_meta["browser_local"] = sum(

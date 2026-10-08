@@ -31,6 +31,11 @@ ROWS_JSON = "m3_same20_full_pipeline_v1_rows.json"
 ITER_LOG = "m3_same20_full_pipeline_v1_iteration_log.json"
 PARTIAL = "m3_same20_full_pipeline_v1_partial_checkpoint.json"
 STAGE_CACHE = "m3_same20_stage_cache.json"
+CANCEL_FLAG = "m3_same20_cancel.flag"
+
+# Hard operator ceiling: one SAME-20 job must finish (or stop) inside 1 hour.
+RUN_WALL_BUDGET_S = 55 * 60
+SAME20_OPP_HARD_TIMEOUT_S = 150
 
 # Reuse schedule-recovery status filename aliases for UI that already polls ASR
 # — also write dedicated same20 status.
@@ -64,6 +69,25 @@ def write_status(**kwargs: Any) -> None:
     _save(STATUS, body)
     # Mirror into schedule-recovery status so existing monitors work
     _save("m3_schedule_recovery_v1_status.json", body)
+
+
+def _cancel_requested() -> bool:
+    from m3_data_root import data_path
+
+    return data_path(CANCEL_FLAG).exists()
+
+
+def _clear_cancel_flag() -> None:
+    from m3_data_root import data_path
+
+    try:
+        data_path(CANCEL_FLAG).unlink(missing_ok=True)  # type: ignore[arg-type]
+    except Exception:
+        pass
+
+
+def _budget_remaining(started: float) -> float:
+    return RUN_WALL_BUDGET_S - (time.time() - started)
 
 
 def _append_iteration(entry: dict[str, Any]) -> list[dict[str, Any]]:
@@ -464,6 +488,7 @@ def run_same20_full_pipeline(
     from phase_l.l23_full_population_funnel import load_store
 
     started = time.time()
+    _clear_cancel_flag()
     run_id = f"S20-{now_utc().strftime('%Y%m%d%H%M%S')}"
     # Always re-freeze from ITER-23 report when present so attachment URLs persist
     prior_report = _load("m3_schedule_recovery_v1_last_report.json")
@@ -595,6 +620,7 @@ def run_same20_full_pipeline(
                 pool_remaining=max(0, 20 - len(results) - 1),
                 target_valid=20,
                 on_progress=on_progress,
+                opp_hard_timeout_s=SAME20_OPP_HARD_TIMEOUT_S,
             )
         except Exception as exc:
             r = {
@@ -645,7 +671,40 @@ def run_same20_full_pipeline(
 
     # Pass 1 — all not-yet-done
     pending = [c for c in candidates if str(c.get("stable_key") or "") not in done_sk]
+    budget_stopped = False
     for opp_i, item in enumerate(pending):
+        if _cancel_requested() or _budget_remaining(started) < SAME20_OPP_HARD_TIMEOUT_S:
+            budget_stopped = True
+            write_status(
+                phase="SAME20_BUDGET_STOP",
+                completed=len(results),
+                remaining=max(0, 20 - len(results)),
+                run_id=run_id,
+                iteration=iteration,
+                reason="cancel" if _cancel_requested() else "run_wall_budget",
+                budget_s=RUN_WALL_BUDGET_S,
+                elapsed_s=round(time.time() - started, 1),
+                heartbeat_at=now_utc().isoformat(),
+            )
+            for skipped in pending[opp_i:]:
+                quarantined.append(
+                    {
+                        "stable_key": skipped.get("stable_key"),
+                        "canonical_opportunity_id": skipped.get("canonical_opportunity_id"),
+                        "title": skipped.get("title"),
+                        "buyer": skipped.get("buyer"),
+                        "raw_lines": 0,
+                        "stalled": True,
+                        "exclusion": "STALLED_OPPORTUNITY",
+                        "stalled_reason": "RUN_WALL_BUDGET_OR_CANCEL",
+                        "package_materialization": {
+                            "primary_blocker": "RUN_WALL_BUDGET",
+                            "product_classification": "BUDGET_SKIPPED",
+                            "AUTHORITATIVE_PRODUCT_DOC_FOUND": False,
+                        },
+                    }
+                )
+            break
         # Mid-run session refresh: BidNet sessions die ~30–45m into SAME-20
         if opp_i > 0 and opp_i % 4 == 0:
             try:
@@ -724,9 +783,12 @@ def run_same20_full_pipeline(
             },
         )
 
-    # Pass 2 — revisit quarantined (still in denominator)
+    # Pass 2 — revisit quarantined (still in denominator); skip if budget exhausted
     still_q: list[dict[str, Any]] = []
     for q in list(quarantined):
+        if budget_stopped or _cancel_requested() or _budget_remaining(started) < SAME20_OPP_HARD_TIMEOUT_S:
+            still_q.append(q)
+            continue
         sk = str(q.get("stable_key") or "")
         item = next((c for c in candidates if str(c.get("stable_key")) == sk), None)
         if not item:
