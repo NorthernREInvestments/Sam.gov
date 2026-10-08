@@ -193,6 +193,50 @@ def _load_buyer_intelligence_targets() -> dict[str, Any]:
         return {}
 
 
+def _load_validated_top10() -> dict[str, Any]:
+    path = _data_dir() / "m3_top10_buyer_validation_v1_targets.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _validated_target_today_cards() -> list[dict[str, Any]]:
+    doc = _load_validated_top10()
+    cards: list[dict[str, Any]] = []
+    for t in doc.get("targets") or []:
+        if not isinstance(t, dict):
+            continue
+        if t.get("DISPOSITION") not in {"ACT_NOW", "RESEARCH_NEXT", "WATCH"}:
+            continue
+        med = t.get("MEDIAN_ORDER_TOTAL")
+        cards.append(
+            {
+                "deal_id": f"val:{t.get('BUYER_ID')}:{t.get('CATEGORY')}",
+                "buyer_id": t.get("BUYER_ID"),
+                "title": f"{t.get('BUYER_NAME')} — {str(t.get('CATEGORY') or '').replace('_', ' ').title()}",
+                "buyer": t.get("BUYER_NAME"),
+                "office": t.get("OFFICE") or t.get("AGENCY"),
+                "category": t.get("CATEGORY"),
+                "historical_purchase_count": t.get("TOTAL_DISTINCT_PURCHASES"),
+                "median_complete_order": med,
+                "median_complete_order_display": f"${med:,.0f}" if isinstance(med, (int, float)) else "n/a",
+                "last_buy": t.get("LAST_PURCHASE_DATE"),
+                "vendor_concentration": t.get("VENDOR_CONCENTRATION"),
+                "cash_risk": t.get("CASH_RISK"),
+                "sourcing_fit": t.get("SOURCING_FIT"),
+                "live_overlap": t.get("LIVE_OVERLAP"),
+                "disposition": t.get("DISPOSITION"),
+                "next_action": t.get("NEXT_ACTION"),
+                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "kind": "ValidatedTargetAccount",
+            }
+        )
+    return cards[:15]
+
+
 def _buyer_intelligence_today_cards() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Map buyer-intel targets into Today cards (Small Buy Leads + Repeat Buyers)."""
     doc = _load_buyer_intelligence_targets()
@@ -260,11 +304,15 @@ def _buyer_intelligence_today_cards() -> tuple[list[dict[str, Any]], list[dict[s
 
 
 def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
-    """Buyer detail for Today drill-down."""
+    """Buyer detail for Today drill-down — prefers Top-10 validation evidence."""
     bid = str(buyer_id or "").strip()
     profiles = _load_json_safe(_data_dir() / "m3_buyer_intelligence_v1_profiles.json") or {}
     patterns = _load_json_safe(_data_dir() / "m3_buyer_intelligence_v1_patterns.json") or {}
     targets = _load_buyer_intelligence_targets()
+    validated = _load_validated_top10()
+    val_rows = [
+        t for t in (validated.get("targets") or []) if isinstance(t, dict) and str(t.get("BUYER_ID")) == bid
+    ]
     prof = next(
         (p for p in (profiles.get("profiles") or []) if isinstance(p, dict) and str(p.get("BUYER_ID")) == bid),
         None,
@@ -275,11 +323,13 @@ def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
         for t in (targets.get("TARGET_BUYERS") or [])
         if isinstance(t, dict) and str(t.get("BUYER_ID")) == bid
     ]
-    if not prof and trows:
+    if not prof and (val_rows or trows):
+        src = val_rows[0] if val_rows else trows[0]
         prof = {
             "BUYER_ID": bid,
-            "BUYER_NAME_CANONICAL": trows[0].get("BUYER_NAME_CANONICAL"),
-            "AGENCY": trows[0].get("AGENCY"),
+            "BUYER_NAME_CANONICAL": src.get("BUYER_NAME") or src.get("BUYER_NAME_CANONICAL"),
+            "AGENCY": src.get("AGENCY"),
+            "OFFICE": src.get("OFFICE"),
         }
     return {
         "kind": "BuyerProfile",
@@ -288,7 +338,30 @@ def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
         "profile": prof,
         "categories": pats,
         "targets": trows,
-        "financing_note": (trows[0].get("FINANCING_NOTE") if trows else "Supplier terms unknown — financing not yet proven."),
+        "validation": val_rows,
+        "buying_history": (val_rows[0].get("PURCHASES") if val_rows else []),
+        "historical_vendors": (val_rows[0].get("HISTORICAL_VENDORS") if val_rows else []),
+        "live_opportunities": (val_rows[0].get("LIVE_OPPORTUNITIES") if val_rows else []),
+        "purchase_card": {
+            "status": (val_rows[0].get("PCARD") if val_rows else None),
+            "evidence": (val_rows[0].get("PCARD_EVIDENCE") if val_rows else None),
+        },
+        "sourcing_fit": (val_rows[0].get("SOURCING_FIT") if val_rows else None),
+        "channel_competition": (val_rows[0].get("CHANNEL_COMPETITION") if val_rows else None),
+        "cash_flow_fit": {
+            "score": (val_rows[0].get("CASH_FLOW_FIT_SCORE") if val_rows else None),
+            "risk": (val_rows[0].get("CASH_RISK") if val_rows else None),
+            "why": (val_rows[0].get("WHY") if val_rows else None),
+            "path": (val_rows[0].get("LIKELY_FUNDING_PATH") if val_rows else None),
+        },
+        "registration": (val_rows[0].get("registration") if val_rows else None),
+        "contact_path": (val_rows[0].get("contact") if val_rows else None),
+        "next_action": (val_rows[0].get("NEXT_ACTION") if val_rows else None),
+        "disposition": (val_rows[0].get("DISPOSITION") if val_rows else None),
+        "financing_note": (
+            (val_rows[0].get("WHY") if val_rows else None)
+            or (trows[0].get("FINANCING_NOTE") if trows else "Supplier terms unknown — financing not yet proven.")
+        ),
         "generated_at": _utc(),
     }
 
@@ -768,12 +841,18 @@ def build_today() -> dict[str, Any]:
 
     # Buyer Intelligence V1 — Small Buy Leads + Repeat Buyers (no new top-nav)
     small_buy_cards, repeat_buyer_cards = _buyer_intelligence_today_cards()
+    validated_cards = _validated_target_today_cards()
 
     sections = {
         "call_today": {
             "title": "CALL TODAY",
             "empty": "No supplier calls need attention right now.",
             "items": call_today,
+        },
+        "validated_target_accounts": {
+            "title": "VALIDATED TARGET ACCOUNTS",
+            "empty": "No validated targets yet — run Top-10 Buyer Validation.",
+            "items": validated_cards,
         },
         "small_buy_leads": {
             "title": "SMALL BUY LEADS",
@@ -840,6 +919,7 @@ def build_today() -> dict[str, Any]:
 
     counts = {
         "call_today": len(call_today),
+        "validated_target_accounts": len(validated_cards),
         "small_buy_leads": len(small_buy_cards),
         "repeat_buyers": len(repeat_buyer_cards),
         "follow_up": len(follow_up),
