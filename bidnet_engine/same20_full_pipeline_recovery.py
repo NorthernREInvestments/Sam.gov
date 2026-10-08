@@ -645,8 +645,44 @@ def run_same20_full_pipeline(
 
     # Pass 1 — all not-yet-done
     pending = [c for c in candidates if str(c.get("stable_key") or "") not in done_sk]
-    for item in pending:
+    for opp_i, item in enumerate(pending):
+        # Mid-run session refresh: BidNet sessions die ~30–45m into SAME-20
+        if opp_i > 0 and opp_i % 4 == 0:
+            try:
+                refresh = client.ensure_authenticated()
+                write_status(
+                    phase="SAME20_REAUTH",
+                    completed=len(results),
+                    remaining=max(0, 20 - len(results)),
+                    run_id=run_id,
+                    iteration=iteration,
+                    reauth_ok=bool(refresh.authenticated),
+                    reauth_status=str(refresh.status),
+                    heartbeat_at=now_utc().isoformat(),
+                )
+            except Exception as exc:
+                write_status(
+                    phase="SAME20_REAUTH",
+                    completed=len(results),
+                    remaining=max(0, 20 - len(results)),
+                    run_id=run_id,
+                    iteration=iteration,
+                    reauth_ok=False,
+                    reauth_error=f"{type(exc).__name__}:{exc}"[:120],
+                    heartbeat_at=now_utc().isoformat(),
+                )
         r = _process_one(item)
+        pm = r.get("package_materialization") if isinstance(r.get("package_materialization"), dict) else {}
+        # Immediate re-auth after membership/HTML wall on a package
+        if (
+            not pm.get("VALID_LOCAL_DOCUMENT_COUNT")
+            and str(pm.get("primary_blocker") or "")
+            in {"MEMBERSHIP_WALL", "PACKAGE_INCOMPLETE", "NO_AUTHORITATIVE_PRODUCT_DOC", "DOWNLOAD_FAILED"}
+        ):
+            try:
+                client.ensure_authenticated()
+            except Exception:
+                pass
         if r.get("stalled") or r.get("exclusion") == "STALLED_OPPORTUNITY":
             quarantined.append(r)
         else:

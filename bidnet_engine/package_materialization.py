@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v7-unzip-and-auth-doc-recognition"
+PATCH = "s20-v8-disk-cache-reuse-and-midrun-reauth"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -592,6 +592,17 @@ def materialize_attachments(
     harvested_extra = 0
     page_discovered = 0
     free_chase_meta: dict[str, Any] = {}
+    discovery_meta: dict[str, Any] = {
+        "statewide": False,
+        "statewide_id": None,
+        "resolved_private": [],
+        "title_queries": [],
+        "page_docs": 0,
+        "route": None,
+        "disk_cache_hits": 0,
+        "reauth": [],
+        "patch": PATCH,
+    }
     seen_urls = {
         str(e.get("source_url") or "").split("#")[0]
         for e in index
@@ -633,6 +644,75 @@ def materialize_attachments(
         kids = harvest_attachment_urls_from_html(html_body, base_url=base_url)
         _enqueue_docs(kids, counter="harvest")
 
+    # Warm reuse: prior valid binaries for this opportunity (survives BidNet session blips)
+    disk_cache_hits = 0
+    try:
+        cache_dir = data_path("bidnet_auth", "documents", safe_sid)
+        if cache_dir.exists():
+            seen_hashes = {
+                str(e.get("CONTENT_HASH") or e.get("content_hash") or "")
+                for e in materialized
+            }
+            for p in sorted(cache_dir.iterdir()):
+                if not p.is_file() or p.stat().st_size < 32:
+                    continue
+                # Skip browser_dl staging noise unless it validates
+                v = validate_local_file(p, claimed_ext=p.suffix.lstrip("."))
+                if not v.get("DOCUMENT_CONTENT_VALID"):
+                    continue
+                h = str(v.get("content_hash") or "")
+                if h and h in seen_hashes:
+                    continue
+                if h:
+                    seen_hashes.add(h)
+                entry = {
+                    "filename": p.name,
+                    "extension": p.suffix.lstrip(".").lower(),
+                    "LOCAL_PATH": str(p),
+                    "local_path": str(p),
+                    "CONTENT_HASH": h,
+                    "BYTE_SIZE": v.get("byte_size"),
+                    "DOCUMENT_CONTENT_VALID": True,
+                    "retrieval_status": "DISK_CACHE",
+                    "SOURCE_URL": "",
+                    "high_value": bool(
+                        re.search(
+                            r"pric|bid|schedule|item|bom|equipment|material|spec",
+                            p.name,
+                            re.I,
+                        )
+                    ),
+                }
+                materialized.append(entry)
+                valid += 1
+                downloaded += 1
+                disk_cache_hits += 1
+                if valid >= limit:
+                    break
+    except Exception:
+        disk_cache_hits = 0
+    discovery_meta["disk_cache_hits"] = disk_cache_hits
+
+    html_wall_streak = 0
+
+    def _maybe_reauth(reason: str) -> None:
+        nonlocal html_wall_streak
+        if client is None or not hasattr(client, "ensure_authenticated"):
+            return
+        html_wall_streak += 1
+        if html_wall_streak < 2:
+            return
+        try:
+            auth = client.ensure_authenticated()
+            discovery_meta.setdefault("reauth", []).append(
+                {"reason": reason, "ok": bool(getattr(auth, "authenticated", False))}
+            )
+            html_wall_streak = 0
+        except Exception as exc:
+            discovery_meta.setdefault("reauth", []).append(
+                {"reason": reason, "error": f"{type(exc).__name__}"[:80]}
+            )
+
     # Prefer high-value first; allow index to grow via HTML harvest / page discovery
     i = 0
     while i < len(index) and i < max(limit, 12) + harvested_extra + page_discovered:
@@ -661,10 +741,12 @@ def materialize_attachments(
                 valid += 1
                 downloaded += 1
                 materialized.append(entry)
+                html_wall_streak = 0
             else:
                 invalid.append({**entry, "failure": v.get("reason")})
                 # HTML poison: harvest real attachment links before deleting cache
                 if looks_like_html_bytes(existing_bytes):
+                    _maybe_reauth("existing_html_wall")
                     _enqueue_harvested(existing_bytes, str(entry.get("source_url") or ""))
                 try:
                     Path(path_s).unlink(missing_ok=True)  # type: ignore[arg-type]
@@ -694,6 +776,7 @@ def materialize_attachments(
             entry["access_class"] = classify_access_blocker(entry, error=str(exc))
             entry["blocker"] = "DOWNLOAD_FAILED"
             entry["error"] = f"{type(exc).__name__}:{exc}"[:200]
+            _maybe_reauth(f"download_exc:{type(exc).__name__}")
             continue
         # Empty BidNet API responses: try plain HTTP (agency / intercept URLs)
         if not body or len(body) < 32:
@@ -733,6 +816,7 @@ def materialize_attachments(
             raw["size_bytes"] = entry["BYTE_SIZE"]
             valid += 1
             materialized.append(entry)
+            html_wall_streak = 0
         else:
             entry["DOCUMENT_CONTENT_VALID"] = False
             entry["DOCUMENT_VALIDATION_FAILURE_REASON"] = v[1]
@@ -741,6 +825,7 @@ def materialize_attachments(
             entry["SOURCE_URL"] = url
             invalid.append({**entry, "failure": v[1]})
             if body and looks_like_html_bytes(body):
+                _maybe_reauth("download_html_wall")
                 _enqueue_harvested(body, url)
             # Do not persist HTML/invalid bytes on disk
             try:
@@ -749,16 +834,10 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # If still no valid binaries, DOM-scrape BidNet private detail for real attachment hrefs
-    discovery_meta: dict[str, Any] = {
-        "statewide": False,
-        "statewide_id": None,
-        "resolved_private": [],
-        "title_queries": [],
-        "page_docs": 0,
-        "route": None,
-    }
-    if valid == 0 and client is not None and hasattr(client, "discover_attachment_links"):
+    # DOM-scrape BidNet private detail when package thin or empty
+    has_high_value = any(bool(e.get("high_value")) for e in materialized)
+    need_discovery = valid == 0 or (valid < 3 and not has_high_value)
+    if need_discovery and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
         statewide_seeds: list[str] = []
         if seed_detail.startswith("http"):
@@ -958,6 +1037,7 @@ def materialize_attachments(
                         else:
                             invalid.append({**entry, "failure": reason})
                             if body and looks_like_html_bytes(body):
+                                _maybe_reauth("discovery_html_wall")
                                 _enqueue_harvested(body, url)
             except Exception as exc:
                 discovery_meta["error"] = f"{type(exc).__name__}:{exc}"[:160]
@@ -973,7 +1053,6 @@ def materialize_attachments(
         or "subscription" in str(e.get("SOURCE_URL") or e.get("source_url") or "").lower()
         for e in invalid
     )
-    free_chase_meta: dict[str, Any] = {}
     if valid == 0 or bidnet_wall:
         try:
             from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
