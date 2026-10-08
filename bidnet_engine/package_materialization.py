@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 
 BUILD = "20261007-m3-same20-full-pipeline-recovery-v1"
-PATCH = "s20-v11-fast-expand-if-thin-discovery"
+PATCH = "s20-v12-dont-skip-discovery-on-weak-cache"
 
 
 _OPEN_BIDS_ID = re.compile(
@@ -675,9 +675,12 @@ def materialize_attachments(
                     "DOCUMENT_CONTENT_VALID": True,
                     "retrieval_status": "DISK_CACHE",
                     "SOURCE_URL": "",
+                    # Weak tokens like "item"/"material" in hashed cache names must NOT
+                    # count as schedule candidates or discovery gets skipped entirely.
                     "high_value": bool(
                         re.search(
-                            r"pric|bid|schedule|item|bom|equipment|material|spec",
+                            r"pric(?:e|ing)|bid\s*form|bid\s*schedule|line\s*item|"
+                            r"bom|\.xlsx|\.xls|\.csv|\.zip|cost\s*sheet|unit\s*price",
                             p.name,
                             re.I,
                         )
@@ -834,10 +837,33 @@ def materialize_attachments(
             except Exception:
                 pass
 
-    # DOM-scrape BidNet private detail when package thin or missing schedule-like docs.
-    # Disk-cache reuse alone often restores cover PDFs without the bid schedule.
-    has_high_value = any(bool(e.get("high_value")) for e in materialized)
-    need_discovery = valid == 0 or not has_high_value
+    # DOM-scrape BidNet when package lacks a real schedule candidate.
+    # Disk-cache cover PDFs often match weak "item/material" tokens — ignore those.
+    def _is_schedule_candidate(e: dict[str, Any]) -> bool:
+        fn = str(e.get("filename") or e.get("document_name") or "")
+        ext = str(e.get("extension") or Path(fn).suffix.lstrip(".")).lower()
+        if ext in {"xlsx", "xls", "csv"}:
+            return True
+        if e.get("high_value") and re.search(
+            r"pric(?:e|ing)|bid\s*form|bid\s*schedule|line\s*item|bom|"
+            r"cost\s*sheet|unit\s*price|\.xlsx|\.xls|\.csv|\.zip",
+            fn,
+            re.I,
+        ):
+            return True
+        return bool(
+            re.search(
+                r"pric(?:e|ing)|bid\s*form|bid\s*schedule|line\s*item|bom|"
+                r"cost\s*sheet|unit\s*price|\.xlsx|\.xls|\.csv|\.zip",
+                fn,
+                re.I,
+            )
+        )
+
+    has_schedule_candidate = any(_is_schedule_candidate(e) for e in materialized)
+    need_discovery = valid == 0 or not has_schedule_candidate
+    discovery_meta["has_schedule_candidate"] = has_schedule_candidate
+    discovery_meta["need_discovery"] = need_discovery
     if need_discovery and client is not None and hasattr(client, "discover_attachment_links"):
         detail_candidates: list[str] = []
         statewide_seeds: list[str] = []
