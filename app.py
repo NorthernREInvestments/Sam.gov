@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261007-m3-top10-buyer-validation-v1"
+APP_BUILD_VERSION = "20261009-m3-sam-api-credit-ledger-reconciliation-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -8671,6 +8671,1110 @@ def api_m3_buyer_intelligence_run():
     return run_buyer_intelligence()
 
 
+@app.post("/api/m3/buyer-trend/run")
+def api_m3_buyer_trend_run():
+    from buyer_intelligence.buyer_trend_operationalization_v1 import (
+        run_buyer_trend_operationalization_v1,
+    )
+
+    return run_buyer_trend_operationalization_v1()
+
+
+@app.post("/api/m3/micro-small-buy/run")
+def api_m3_micro_small_buy_run():
+    from buyer_intelligence.micro_small_buy_operationalization_v1 import (
+        run_micro_small_buy_operationalization_v1,
+    )
+
+    return run_micro_small_buy_operationalization_v1()
+
+
+@app.post("/api/m3/three-lane/run")
+def api_m3_three_lane_run():
+    from buyer_intelligence.three_lane_integration_v1 import run_three_lane_integration_v1
+
+    return run_three_lane_integration_v1()
+
+
+@app.post("/api/m3/category-enrichment-v2/run")
+def api_m3_category_enrichment_v2_run():
+    from buyer_intelligence.category_enrichment_buyer_match_v2 import run_v2
+
+    return run_v2()
+
+
+@app.post("/api/m3/opengov-deep-enrichment/run")
+def api_m3_opengov_deep_enrichment_run():
+    from buyer_intelligence.opengov_live_deep_enrichment_v1 import run_opengov_live_deep_enrichment_v1
+
+    return run_opengov_live_deep_enrichment_v1()
+
+
+@app.post("/api/m3/true-live-gate/run")
+def api_m3_true_live_gate_run():
+    from buyer_intelligence.true_live_accepting_bids_gate_v1 import run_true_live_gate_v1
+
+    return run_true_live_gate_v1()
+
+
+@app.get("/api/m3/true-live-gate/report")
+def api_m3_true_live_gate_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_true_live_accepting_bids_gate_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/true-live-gate/health")
+def api_m3_true_live_gate_health():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_true_live_today_v1.json")
+    if not path.exists():
+        return {"status": "NO_DATA", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "system_health": data.get("system_health")}
+
+
+@app.get("/api/m3/stage1-acceptance-cohort")
+def api_m3_stage1_acceptance_cohort():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_stage1_full_acceptance_cohort_v1.json")
+    if not path.exists():
+        return {"status": "NO_COHORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/stage1-full-acceptance/run")
+def api_m3_stage1_full_acceptance_run():
+    from buyer_intelligence.stage1_full_production_acceptance_v1 import run_stage1_full_acceptance_v1
+
+    return run_stage1_full_acceptance_v1()
+
+
+@app.get("/api/m3/stage1-full-acceptance/report")
+def api_m3_stage1_full_acceptance_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_stage1_full_production_acceptance_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/stage1-full-acceptance/table")
+def api_m3_stage1_full_acceptance_table():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_stage1_full_acceptance_table_v1.json")
+    if not path.exists():
+        return {"status": "NO_TABLE", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/stage1-full-acceptance/health")
+def api_m3_stage1_full_acceptance_health():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_stage1_acceptance_health_v1.json")
+    if not path.exists():
+        return {"status": "NO_DATA", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "stage1_acceptance": data}
+
+
+@app.post("/api/m3/package-recovery-depth/run")
+def api_m3_package_recovery_depth_run():
+    from buyer_intelligence.package_recovery_source_depth_v1 import run_package_recovery_source_depth_v1
+
+    return run_package_recovery_source_depth_v1()
+
+
+@app.get("/api/m3/package-recovery-depth/report")
+def api_m3_package_recovery_depth_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_recovery_source_depth_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/package-recovery-depth/health")
+def api_m3_package_recovery_depth_health():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_package_recovery_health_v1.json")
+    if not path.exists():
+        return {"status": "NO_DATA", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "package_recovery": data}
+
+
+@app.get("/api/m3/package-recovery-depth/cohort")
+def api_m3_package_recovery_depth_cohort():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_stage1_package_blocker_cohort_v1.json")
+    if not path.exists():
+        return {"status": "NO_COHORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/bidnet-auth-recovery/run")
+def api_m3_bidnet_auth_recovery_run():
+    from buyer_intelligence.bidnet_auth_recovery_package_closure_v1 import (
+        run_bidnet_auth_recovery_package_closure_v1,
+    )
+
+    return run_bidnet_auth_recovery_package_closure_v1()
+
+
+@app.get("/api/m3/bidnet-auth-recovery/report")
+def api_m3_bidnet_auth_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_auth_recovery_package_closure_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-auth/health")
+def api_m3_bidnet_auth_health():
+    from bidnet_auth.telemetry import auth_health_snapshot, owner_connection_status
+
+    return {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "auth_health": auth_health_snapshot(),
+        "connection": owner_connection_status(),
+    }
+
+
+@app.get("/api/m3/jobs/{job_id}")
+def api_m3_job_progress(job_id: str):
+    """System/Admin: persisted job progress — no secrets."""
+    from buyer_intelligence.bidnet_bounded_package_recovery_v1 import job_progress, owner_progress_card
+    from m3_jobs.store import JobStore
+
+    if job_id in {"active", "latest", "_active"}:
+        prog = job_progress(None)
+    else:
+        prog = job_progress(job_id)
+    return {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "progress": prog,
+        "owner_card": owner_progress_card(None if job_id in {"active", "latest", "_active"} else job_id),
+        "standard": JobStore("bidnet_package_recovery").find_active_job() is not None
+        or True,
+    }
+
+
+@app.post("/api/m3/bidnet-bounded-recovery/start")
+def api_m3_bidnet_bounded_recovery_start(body: dict | None = None):
+    """Start/resume bounded BidNet 36 recovery. Returns JOB_ID quickly."""
+    from buyer_intelligence.bidnet_bounded_package_recovery_v1 import start_or_resume_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_or_resume_job(force=bool(payload.get("force"))),
+    }
+
+
+@app.post("/api/m3/bidnet-bounded-recovery/stop")
+def api_m3_bidnet_bounded_recovery_stop(body: dict | None = None):
+    """Cancel stalled opaque/bounded jobs without deleting item checkpoints."""
+    from buyer_intelligence.bidnet_bounded_package_recovery_v1 import stop_stalled_opaque_job
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    out = stop_stalled_opaque_job()
+    job_id = payload.get("job_id")
+    if job_id:
+        try:
+            JobStore("bidnet_package_recovery").cancel_job(str(job_id), reason="OWNER_STOP")
+            out["cancelled_job_id"] = job_id
+        except KeyError:
+            out["cancelled_job_id"] = None
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, **out}
+
+
+@app.get("/api/m3/bidnet-bounded-recovery/report")
+def api_m3_bidnet_bounded_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_bounded_package_recovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-bounded-recovery/results")
+def api_m3_bidnet_bounded_recovery_results():
+    import json
+
+    from m3_data_root import data_path
+
+    for name in (
+        "m3_bidnet_authenticated_document_package_recovery_v1_results.json",
+        "m3_bidnet_bounded_package_recovery_v1_results.json",
+        "m3_bidnet_auth_recovery_package_closure_v1_results.json",
+    ):
+        path = data_path(name)
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                data["build_version"] = APP_BUILD_VERSION
+                data["results_file"] = name
+            return data
+    return {"status": "NO_RESULTS", "build_version": APP_BUILD_VERSION}
+
+
+@app.post("/api/m3/bidnet-document-recovery/start")
+def api_m3_bidnet_document_recovery_start(body: dict | None = None):
+    """Start fixed-36 document recovery as background job. Returns quickly."""
+    import json
+    import threading
+    from datetime import datetime, timezone
+
+    from m3_data_root import data_path
+
+    payload = body or {}
+    force = bool(payload.get("force", True))
+    status_path = data_path("m3_bidnet_authenticated_document_package_recovery_v1_job.json")
+
+    def _job() -> None:
+        from buyer_intelligence.bidnet_authenticated_document_package_recovery_v1 import (
+            run_with_forensic_then_36,
+        )
+
+        status_path.write_text(
+            json.dumps(
+                {
+                    "status": "RUNNING",
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                    "heartbeat_at": datetime.now(timezone.utc).isoformat(),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        try:
+            rep = run_with_forensic_then_36()
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "status": "DONE",
+                        "finished_at": datetime.now(timezone.utc).isoformat(),
+                        "FINAL_STATUS": rep.get("FINAL_STATUS"),
+                        "DOCUMENTS_DOWNLOADED": rep.get("DOCUMENTS_DOWNLOADED"),
+                        "COUNTS": rep.get("COUNTS"),
+                        "DOCUMENT_CLASSIFICATION": rep.get("DOCUMENT_CLASSIFICATION"),
+                        "DEPTH": rep.get("DEPTH"),
+                        "NEW_JOB_ID": rep.get("NEW_JOB_ID"),
+                    },
+                    indent=2,
+                    default=str,
+                ),
+                encoding="utf-8",
+            )
+        except Exception as exc:  # noqa: BLE001
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "status": "ERROR",
+                        "error": type(exc).__name__,
+                        "finished_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+    # Force-reset stale RUNNING wrapper so redeploy can recover
+    if status_path.exists():
+        try:
+            cur = json.loads(status_path.read_text(encoding="utf-8"))
+            if cur.get("status") == "RUNNING" and not force:
+                return {"status": "ALREADY_RUNNING", "job": cur, "build_version": APP_BUILD_VERSION}
+            if force and cur.get("status") == "RUNNING":
+                cur["status"] = "CANCELLED_STALE"
+                cur["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+                status_path.write_text(json.dumps(cur, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+    threading.Thread(target=_job, name="bidnet-doc-recovery", daemon=True).start()
+    return {"status": "STARTED", "build_version": APP_BUILD_VERSION, "forced": force}
+
+
+@app.get("/api/m3/bidnet-document-recovery/report")
+def api_m3_bidnet_document_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_authenticated_document_package_recovery_v1_report.json")
+    job = data_path("m3_bidnet_authenticated_document_package_recovery_v1_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.post("/api/m3/bidnet-package-location/start")
+def api_m3_bidnet_package_location_start(body: dict | None = None):
+    """Start fixed-36 BidNet official package-location resolver. Returns JOB_ID quickly."""
+    from buyer_intelligence.bidnet_package_location_resolver_v1 import start_resolver_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_resolver_job(force=bool(payload.get("force", True))),
+    }
+
+
+@app.post("/api/m3/bidnet-entitlement-economics/start")
+def api_m3_bidnet_entitlement_economics_start(body: dict | None = None):
+    """Start entitlement economics + free-route decision for fixed 36. No BidNet retry on paid 28."""
+    import json
+    import threading
+    from datetime import datetime, timezone
+
+    from m3_data_root import data_path
+
+    status_path = data_path("m3_bidnet_entitlement_economics_v1_job.json")
+    if status_path.exists():
+        try:
+            cur = json.loads(status_path.read_text(encoding="utf-8"))
+            if cur.get("status") == "RUNNING" and not (body or {}).get("force", True):
+                return {"status": "ALREADY_RUNNING", "job": cur, "build_version": APP_BUILD_VERSION}
+        except Exception:
+            pass
+
+    def _job() -> None:
+        from buyer_intelligence.bidnet_entitlement_economics_v1 import run_async_job
+
+        run_async_job()
+
+    threading.Thread(target=_job, name="bidnet-entitlement-econ", daemon=True).start()
+    return {
+        "status": "STARTED",
+        "build_version": APP_BUILD_VERSION,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/api/m3/bidnet-entitlement-economics/report")
+def api_m3_bidnet_entitlement_economics_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_entitlement_economics_v1_report.json")
+    job = data_path("m3_bidnet_entitlement_economics_v1_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.post("/api/m3/bidnet-package-location/smoke-one")
+def api_m3_bidnet_package_location_smoke_one(body: dict | None = None):
+    """System/Admin: authenticated field/private-resolve smoke for one BidNet URL. No secrets."""
+    import json as _json
+
+    from buyer_intelligence.bidnet_auth_recovery_package_closure_v1 import attempt_authentication
+    from bidnet_full_production.process import process_bidnet_opportunity
+    from m3_data_root import data_path
+
+    payload = body or {}
+    url = str(
+        payload.get("url")
+        or "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/"
+        "444182134349/abstract?purchasingGroupId=700140101&origin=1"
+    )
+    title = str(payload.get("title") or "Pumping Stations 11 and 12 Surge Valve Access Platform Project")
+    buyer = str(payload.get("buyer") or "Wisconsin")
+    oid = str(payload.get("opportunity_id") or "smoke-plr-one")
+    auth = attempt_authentication()
+    client = auth.get("client")
+    if not client:
+        return {
+            "status": "NO_CLIENT",
+            "build_version": APP_BUILD_VERSION,
+            "auth_status": auth.get("status"),
+            "authenticated": bool(auth.get("authenticated")),
+        }
+    store = {}
+    try:
+        store = (_json.loads(data_path("l23_canonical_population_store.json").read_text(encoding="utf-8")) or {}).get(
+            "opportunities"
+        ) or {}
+    except Exception:
+        store = {}
+    l23 = {
+        "title": title,
+        "buyer": buyer,
+        "authoritative_url": url,
+        "detail_url": url,
+    }
+    try:
+        out = process_bidnet_opportunity(
+            {"opportunity_id": oid, "title": title, "buyer": buyer, "authoritative_url": url},
+            l23,
+            client=client,
+            store=store,
+            skip_live_detail=False,
+        )
+    finally:
+        try:
+            client.close()
+        except Exception:
+            pass
+    parsed = out.get("parsed") or {}
+    ad = out.get("auth_detail") or {}
+    return {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "auth_status": auth.get("status"),
+        "session_reused": bool(auth.get("session_reused")),
+        "detail_status": out.get("detail_status"),
+        "package_state": out.get("package_state"),
+        "solicitation_resolved": out.get("solicitation_resolved"),
+        "doc_count": len(out.get("documents") or []),
+        "parsed": {
+            "agency": parsed.get("agency"),
+            "solicitation_number": parsed.get("solicitation_number"),
+            "agency_source_url": parsed.get("agency_source_url"),
+            "description_len": len(str(parsed.get("description") or "")),
+            "auth_wall": parsed.get("auth_wall"),
+            "locked_fields": parsed.get("locked_fields"),
+            "parse_ok": parsed.get("parse_ok"),
+            "title": parsed.get("title"),
+        },
+        "auth_detail": {
+            k: ad.get(k)
+            for k in (
+                "detail_status",
+                "detail_opened",
+                "detail_recovered",
+                "issuing_org",
+                "solicitation_number",
+                "source_url",
+                "description",
+                "documents",
+                "private_field_candidates",
+                "private_detail_for_fields",
+                "statewide_discovery_links",
+                "private_url_candidates",
+                "seed_url_statewide_or_open_bids",
+                "document_links_discovered",
+                "document_discovery_error",
+                "final_url",
+                "error",
+            )
+        },
+    }
+
+
+@app.get("/api/m3/bidnet-package-location/progress")
+def api_m3_bidnet_package_location_progress(job_id: str | None = None):
+    from buyer_intelligence.bidnet_package_location_resolver_v1 import job_progress
+
+    return {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "progress": job_progress(job_id),
+    }
+
+
+@app.get("/api/m3/bidnet-package-location/report")
+def api_m3_bidnet_package_location_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_package_location_resolver_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/bidnet-package-location/results")
+def api_m3_bidnet_package_location_results():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_package_location_resolver_v1_results.json")
+    if not path.exists():
+        return {"status": "NO_RESULTS", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/free-source-production-pool/start")
+def api_m3_free_source_production_pool_start(body: dict | None = None):
+    """Start free-source-first production pool V2. $0 paid access. BidNet paid = backlog only."""
+    from buyer_intelligence.free_source_first_production_pool_v2 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            score_only=bool(payload.get("score_only", False)),
+        ),
+    }
+
+
+@app.get("/api/m3/free-source-production-pool/progress")
+def api_m3_free_source_production_pool_progress():
+    from buyer_intelligence.free_source_first_production_pool_v2 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/free-source-production-pool/report")
+def api_m3_free_source_production_pool_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_free_source_first_production_pool_v2_report.json")
+    job = data_path("m3_free_source_first_production_pool_v2_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.get("/api/m3/free-source-production-pool/pool")
+def api_m3_free_source_production_pool_pool():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_free_source_production_pool_v2.json")
+    if not path.exists():
+        return {"status": "NO_POOL", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/free-source-production-pool/paid-backlog")
+def api_m3_free_source_production_pool_paid_backlog():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_paid_source_backlog_v1.json")
+    if not path.exists():
+        return {"status": "NO_BACKLOG", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/free-source-production-pool/source-health")
+def api_m3_free_source_production_pool_source_health():
+    from buyer_intelligence.free_source_first_production_pool_v2 import source_health_snapshot
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, **source_health_snapshot()}
+
+
+@app.post("/api/m3/free-source-pool-truth-audit/start")
+def api_m3_free_source_pool_truth_audit_start(body: dict | None = None):
+    """Audit existing free-source pool V2 — no broad discovery."""
+    from buyer_intelligence.free_source_pool_truth_audit_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(force=bool(payload.get("force", True))),
+    }
+
+
+@app.get("/api/m3/free-source-pool-truth-audit/progress")
+def api_m3_free_source_pool_truth_audit_progress():
+    from buyer_intelligence.free_source_pool_truth_audit_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/free-source-pool-truth-audit/report")
+def api_m3_free_source_pool_truth_audit_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_free_source_pool_truth_audit_v1_report.json")
+    job = data_path("m3_free_source_pool_truth_audit_v1_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.get("/api/m3/free-source-pool-truth-audit/shortlist")
+def api_m3_free_source_pool_truth_audit_shortlist():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("M3_FREE_SOURCE_VALIDATED_SHORTLIST_V1.json")
+    if not path.exists():
+        return {"status": "NO_SHORTLIST", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/sam-credit-ledger/owner")
+def api_m3_sam_credit_ledger_owner():
+    """Owner-facing SAM REAL credit dashboard — no new API calls."""
+    from discovery.sam_budgeted_client import BUILD, owner_credit_dashboard
+
+    out = owner_credit_dashboard()
+    out["build_version"] = APP_BUILD_VERSION
+    out["client_build"] = BUILD
+    return out
+
+
+@app.post("/api/m3/sam-credit-ledger/reconcile")
+def api_m3_sam_credit_ledger_reconcile(body: dict | None = None):
+    """Clamp live_calls + DB to reconstructed REAL credits. Never calls SAM API."""
+    from discovery.sam_budgeted_client import BUILD, owner_credit_dashboard, reconcile_sam_credit_ledger
+
+    payload = body or {}
+    persist = bool(payload.get("persist", True))
+    recon = reconcile_sam_credit_ledger(persist=persist)
+    owner = owner_credit_dashboard()
+    return {
+        "ok": True,
+        "build_version": APP_BUILD_VERSION,
+        "client_build": BUILD,
+        "reconcile": recon,
+        "owner": owner,
+        "GATES": owner.get("GATES"),
+        "note": "No SAM API credits consumed by this endpoint",
+    }
+
+
+@app.get("/api/m3/bidnet-auth/runtime-wiring")
+def api_m3_bidnet_auth_runtime_wiring():
+    """System/Admin: Railway BidNet env/volume/path audit — no secrets."""
+    from bidnet_auth.runtime_wiring import runtime_wiring_snapshot, seed_file_presence
+
+    snap = runtime_wiring_snapshot()
+    snap["build_version"] = APP_BUILD_VERSION
+    snap["SEED_FILES"] = seed_file_presence()
+    return snap
+
+
+@app.post("/api/m3/bidnet-auth/runtime-wiring/seed")
+def api_m3_bidnet_auth_runtime_wiring_seed(body: dict | None = None):
+    """System/Admin: seed allowlisted cohort JSON onto M3_DATA_ROOT. No secrets."""
+    from bidnet_auth.runtime_wiring import seed_allowlisted_files, seed_file_presence
+
+    payload = body or {}
+    files = payload.get("files") if isinstance(payload.get("files"), dict) else payload
+    result = seed_allowlisted_files(files if isinstance(files, dict) else {})
+    return {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "seed": result,
+        "SEED_FILES": seed_file_presence(),
+    }
+
+
+@app.post("/api/m3/bidnet-auth/runtime-wiring/run")
+def api_m3_bidnet_auth_runtime_wiring_run(body: dict | None = None):
+    """System/Admin: login-once / reuse / smoke-3 / full-36 on Railway runtime."""
+    from bidnet_auth.client import BidNetAuthenticatedClient
+    from bidnet_auth.runtime_wiring import runtime_wiring_snapshot, seed_file_presence
+    from bidnet_auth.session_store import storage_state_exists
+
+    payload = body or {}
+    action = str(payload.get("action") or "audit").strip().lower()
+    out: dict = {
+        "status": "OK",
+        "build_version": APP_BUILD_VERSION,
+        "action": action,
+        "audit": runtime_wiring_snapshot(),
+        "SEED_FILES": seed_file_presence(),
+    }
+
+    if action == "audit":
+        return out
+
+    if action == "login-once":
+        with BidNetAuthenticatedClient() as client:
+            result = client.ensure_authenticated()
+            out["LOGIN"] = {
+                "status": result.status,
+                "authenticated": bool(result.authenticated),
+                "reused_session": bool(result.reused_session),
+                "message": (result.message or "")[:200],
+                "session_persisted": storage_state_exists(),
+            }
+        return out
+
+    if action == "reuse-test":
+        with BidNetAuthenticatedClient() as client:
+            result = client.ensure_authenticated()
+            out["SESSION_REUSE"] = {
+                "SESSION_REUSED": bool(result.reused_session and result.authenticated),
+                "status": result.status,
+                "authenticated": bool(result.authenticated),
+                "message": (result.message or "")[:200],
+            }
+        return out
+
+    if action == "smoke-3":
+        from buyer_intelligence.bidnet_auth_recovery_package_closure_v1 import (
+            freeze_auth_required_36,
+            smoke_test_three,
+            attempt_authentication,
+        )
+
+        cohort = freeze_auth_required_36()
+        auth_attempt = attempt_authentication()
+        client = auth_attempt.pop("client", None)
+        try:
+            out["AUTH"] = {k: v for k, v in auth_attempt.items() if k != "client"}
+            out["SMOKE_3"] = smoke_test_three(list(cohort.get("rows") or []), client)
+        finally:
+            if client is not None:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+        return out
+
+    if action == "full-36":
+        # Synchronous path can exceed Railway edge proxy timeout (~5m). Prefer kick.
+        from buyer_intelligence.bidnet_auth_recovery_package_closure_v1 import (
+            run_bidnet_auth_recovery_package_closure_v1,
+        )
+
+        rep = run_bidnet_auth_recovery_package_closure_v1()
+        out["FULL_36"] = {
+            "FINAL_STATUS": rep.get("FINAL_STATUS"),
+            "DISPOSITION_36": rep.get("DISPOSITION_36"),
+            "COHORT_36": rep.get("COHORT_36"),
+            "FULL_100_PROGRESSION": rep.get("FULL_100_PROGRESSION"),
+            "AUTH": {
+                k: (rep.get("AUTH") or {}).get(k)
+                for k in (
+                    "authenticated",
+                    "session_reused",
+                    "external_blocker",
+                    "status",
+                )
+            },
+            "WALL": rep.get("WALL_CLOCK_SECONDS"),
+        }
+        return out
+
+    if action == "full-36-kick":
+        import json
+        import logging
+        import threading
+        from datetime import datetime, timezone
+
+        from m3_data_root import data_path
+
+        status_path = data_path("m3_bidnet_auth_recovery_package_closure_v1_job.json")
+        force = bool(payload.get("force"))
+        log = logging.getLogger("govtracker.bidnet_auth.runtime_wiring")
+
+        def _job() -> None:
+            from buyer_intelligence.bidnet_auth_recovery_package_closure_v1 import (
+                run_bidnet_auth_recovery_package_closure_v1,
+            )
+
+            started = datetime.now(timezone.utc).isoformat()
+            status_path.write_text(
+                json.dumps({"status": "RUNNING", "started_at": started, "heartbeat_at": started}, indent=2),
+                encoding="utf-8",
+            )
+            log.info("BidNet full-36 recovery job started")
+            try:
+                rep = run_bidnet_auth_recovery_package_closure_v1()
+                status_path.write_text(
+                    json.dumps(
+                        {
+                            "status": "DONE",
+                            "started_at": started,
+                            "finished_at": datetime.now(timezone.utc).isoformat(),
+                            "FINAL_STATUS": rep.get("FINAL_STATUS"),
+                            "DISPOSITION_36": rep.get("DISPOSITION_36"),
+                            "COHORT_36": rep.get("COHORT_36"),
+                            "FULL_100_PROGRESSION": rep.get("FULL_100_PROGRESSION"),
+                            "WALL": rep.get("WALL_CLOCK_SECONDS"),
+                        },
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+                log.info("BidNet full-36 recovery job done status=%s", rep.get("FINAL_STATUS"))
+            except Exception as exc:  # noqa: BLE001
+                log.exception("BidNet full-36 recovery job failed")
+                status_path.write_text(
+                    json.dumps(
+                        {
+                            "status": "ERROR",
+                            "started_at": started,
+                            "finished_at": datetime.now(timezone.utc).isoformat(),
+                            "error": type(exc).__name__,
+                        },
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+
+        if status_path.exists() and not force:
+            try:
+                cur = json.loads(status_path.read_text(encoding="utf-8"))
+                if cur.get("status") == "RUNNING":
+                    out["status"] = "ALREADY_RUNNING"
+                    out["job"] = cur
+                    return out
+            except Exception:
+                pass
+        threading.Thread(target=_job, name="bidnet-auth-recovery-36", daemon=True).start()
+        out["status"] = "STARTED"
+        out["forced"] = force
+        out["job_status_path"] = str(status_path)
+        return out
+
+    if action == "full-36-status":
+        import json
+
+        from m3_data_root import data_path
+
+        status_path = data_path("m3_bidnet_auth_recovery_package_closure_v1_job.json")
+        report_path = data_path("m3_bidnet_auth_recovery_package_closure_v1_report.json")
+        job = {}
+        if status_path.exists():
+            try:
+                job = json.loads(status_path.read_text(encoding="utf-8"))
+            except Exception:
+                job = {"status": "UNREADABLE"}
+        report_slim = None
+        if report_path.exists():
+            try:
+                rep = json.loads(report_path.read_text(encoding="utf-8"))
+                report_slim = {
+                    "FINAL_STATUS": rep.get("FINAL_STATUS"),
+                    "DISPOSITION_36": rep.get("DISPOSITION_36"),
+                    "COHORT_36": rep.get("COHORT_36"),
+                    "FULL_100_PROGRESSION": rep.get("FULL_100_PROGRESSION"),
+                    "WALL_CLOCK_SECONDS": rep.get("WALL_CLOCK_SECONDS"),
+                }
+            except Exception:
+                report_slim = {"status": "UNREADABLE"}
+        out["job"] = job
+        out["report"] = report_slim
+        return out
+
+    out["status"] = "UNKNOWN_ACTION"
+    return out
+
+
+@app.get("/api/m3/opengov-deep-enrichment/report")
+def api_m3_opengov_deep_enrichment_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_opengov_live_deep_enrichment_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/opengov-deep-enrichment/health")
+def api_m3_opengov_deep_enrichment_health():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_opengov_live_deep_enrichment_v1_today.json")
+    if not path.exists():
+        return {"status": "NO_DATA", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "system_health": data.get("system_health")}
+
+
+@app.get("/api/m3/category-enrichment-v2/report")
+def api_m3_category_enrichment_v2_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_category_enrichment_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/three-lane/report")
+def api_m3_three_lane_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_three_lane_integration_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/three-lane/opportunity/{opportunity_id}")
+def api_m3_three_lane_opportunity(opportunity_id: str):
+    from buyer_intelligence.three_lane_integration_v1 import get_three_lane_for_opportunity
+
+    detail = get_three_lane_for_opportunity(opportunity_id)
+    if not detail:
+        return {"status": "NOT_FOUND", "opportunity_id": opportunity_id, "build_version": APP_BUILD_VERSION}
+    detail = dict(detail)
+    detail["build_version"] = APP_BUILD_VERSION
+    return detail
+
+
+@app.get("/api/m3/micro-small-buy/report")
+def api_m3_micro_small_buy_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_micro_small_buy_operationalization_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/micro-small-buy/deal/{opportunity_id}")
+def api_m3_micro_small_buy_deal(opportunity_id: str):
+    from buyer_intelligence.micro_small_buy_operationalization_v1 import (
+        get_small_buy_deal_enrichment,
+    )
+
+    detail = get_small_buy_deal_enrichment(opportunity_id)
+    if not detail:
+        return {"status": "NO_MATCH", "opportunity_id": opportunity_id, "build_version": APP_BUILD_VERSION}
+    detail["build_version"] = APP_BUILD_VERSION
+    return detail
+
+
+@app.get("/api/m3/buyer-trend/report")
+def api_m3_buyer_trend_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_buyer_trend_operationalization_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/buyer-trend/buyer/{buyer_id}")
+def api_m3_buyer_trend_buyer(buyer_id: str):
+    from buyer_intelligence.buyer_trend_operationalization_v1 import get_buyer_detail
+
+    detail = get_buyer_detail(buyer_id)
+    if not detail:
+        return {"status": "NOT_FOUND", "buyer_id": buyer_id, "build_version": APP_BUILD_VERSION}
+    detail["build_version"] = APP_BUILD_VERSION
+    return detail
+
+
 @app.get("/api/m3/buyer-intelligence/report")
 def api_m3_buyer_intelligence_report():
     import json
@@ -8713,6 +9817,600 @@ def api_m3_top10_buyer_validation_report():
     from m3_data_root import data_path
 
     path = data_path("m3_top10_buyer_validation_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/gometro-order-proof/run")
+def api_m3_gometro_order_proof_run():
+    from buyer_intelligence.gometro_order_proof import run_gometro_order_proof
+
+    return run_gometro_order_proof()
+
+
+@app.get("/api/m3/gometro-order-proof/report")
+def api_m3_gometro_order_proof_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_gometro_real_order_proof_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/gometro-historical-profit/run")
+def api_m3_gometro_historical_profit_run():
+    from buyer_intelligence.gometro_historical_profit_proof import run_gometro_historical_profit_proof
+
+    return run_gometro_historical_profit_proof()
+
+
+@app.get("/api/m3/gometro-historical-profit/report")
+def api_m3_gometro_historical_profit_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_gometro_historical_profit_proof_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/multibuyer-historical-profit/run")
+def api_m3_multibuyer_historical_profit_run():
+    from buyer_intelligence.multibuyer_historical_profit_proof import run_multibuyer_historical_profit_proof
+
+    return run_multibuyer_historical_profit_proof()
+
+
+@app.get("/api/m3/multibuyer-historical-profit/report")
+def api_m3_multibuyer_historical_profit_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_multibuyer_historical_profit_proof_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/historical-profit-proof-v2/run")
+def api_m3_historical_profit_proof_v2_run():
+    from buyer_intelligence.historical_profit_proof_v2 import run_historical_profit_proof_v2
+
+    return run_historical_profit_proof_v2()
+
+
+@app.get("/api/m3/historical-profit-proof-v2/report")
+def api_m3_historical_profit_proof_v2_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_historical_profit_proof_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/profitable-pattern-discovery/run")
+def api_m3_profitable_pattern_discovery_run():
+    from buyer_intelligence.profitable_pattern_discovery import run_profitable_pattern_discovery
+
+    return run_profitable_pattern_discovery()
+
+
+@app.get("/api/m3/profitable-pattern-discovery/report")
+def api_m3_profitable_pattern_discovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_profitable_pattern_discovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/historical-award-expansion/run")
+def api_m3_historical_award_expansion_run():
+    from buyer_intelligence.historical_award_expansion import run_historical_award_expansion
+
+    return run_historical_award_expansion()
+
+
+@app.get("/api/m3/historical-award-expansion/report")
+def api_m3_historical_award_expansion_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_historical_award_expansion_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/dla-dibbs-historical-source/run")
+def api_m3_dla_dibbs_historical_source_run():
+    from buyer_intelligence.dla_dibbs_historical_source import run_dla_dibbs_historical_source
+
+    return run_dla_dibbs_historical_source()
+
+
+@app.get("/api/m3/dla-dibbs-historical-source/report")
+def api_m3_dla_dibbs_historical_source_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_dla_dibbs_historical_source_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/ui/historical-sources")
+def api_ui_historical_sources():
+    """System/Admin — Historical Sources panel (no new top-nav)."""
+    import json
+
+    from m3_data_root import data_path
+
+    ui_path = data_path("m3_dla_dibbs_historical_source_v1_ui.json")
+    inv_ui = data_path("m3_historical_source_inventory_v1_ui.json")
+    bidnet_ui = data_path("m3_bidnet_historical_awards_v1_ui.json")
+    reg_path = data_path("m3_historical_sources_registry.json")
+    sources = []
+    for path in (inv_ui, ui_path, bidnet_ui):
+        if path.exists():
+            try:
+                sources = (json.loads(path.read_text(encoding="utf-8")).get("sources") or [])
+                if sources:
+                    break
+            except Exception:
+                pass
+    if not sources and reg_path.exists():
+        try:
+            reg = json.loads(reg_path.read_text(encoding="utf-8")).get("sources") or {}
+            for key, s in reg.items():
+                if not isinstance(s, dict):
+                    continue
+                sources.append(
+                    {
+                        "name": s.get("name") or key,
+                        "STATUS": s.get("STATUS"),
+                        "Records": s.get("RECORDS"),
+                        "Last_sync": s.get("LAST_SYNC"),
+                        "NSN_pct": s.get("NSN_PCT"),
+                        "Awardee_pct": s.get("AWARDEE_PCT"),
+                        "Price_pct": s.get("PRICE_PCT") if s.get("PRICE_PCT") is not None else s.get("AWARD_TOTAL_PCT"),
+                        "Date_pct": s.get("DATE_PCT") if s.get("DATE_PCT") is not None else s.get("AWARD_DATE_PCT"),
+                        "Economics_ready_pct": s.get("ECONOMICS_READY_PCT"),
+                    }
+                )
+        except Exception:
+            pass
+    commercial = None
+    for cname in (
+        "m3_manufacturer_commercial_identity_enrichment_v1_ui.json",
+        "m3_commercial_price_acquisition_v3_ui.json",
+        "m3_identity_hardening_clean_priceable_corpus_v2_ui.json",
+        "m3_commercial_identity_recovery_priceability_v1_ui.json",
+        "m3_commercial_price_acquisition_expansion_v2_ui.json",
+        "m3_commercial_price_acquisition_recovery_v1_ui.json",
+    ):
+        cpath = data_path(cname)
+        if cpath.exists():
+            try:
+                commercial = json.loads(cpath.read_text(encoding="utf-8"))
+                break
+            except Exception:
+                commercial = None
+    if commercial is None and reg_path.exists():
+        try:
+            commercial = (json.loads(reg_path.read_text(encoding="utf-8")).get("commercial_pricing_health"))
+        except Exception:
+            commercial = None
+    return {
+        "kind": "HistoricalSources",
+        "sources": sources,
+        "commercial_pricing_health": commercial,
+        "build_version": APP_BUILD_VERSION,
+    }
+
+
+@app.post("/api/m3/commercial-price-acquisition-recovery/run")
+def api_m3_commercial_price_acquisition_recovery_run():
+    from buyer_intelligence.commercial_price_acquisition_recovery import (
+        run_commercial_price_acquisition_recovery,
+    )
+
+    return run_commercial_price_acquisition_recovery()
+
+
+@app.get("/api/m3/commercial-price-acquisition-recovery/report")
+def api_m3_commercial_price_acquisition_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_commercial_price_acquisition_recovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/commercial-price-acquisition-expansion-v2/run")
+def api_m3_commercial_price_acquisition_expansion_v2_run():
+    from buyer_intelligence.commercial_price_acquisition_expansion_v2 import (
+        run_commercial_price_acquisition_expansion_v2,
+    )
+
+    return run_commercial_price_acquisition_expansion_v2()
+
+
+@app.get("/api/m3/commercial-price-acquisition-expansion-v2/report")
+def api_m3_commercial_price_acquisition_expansion_v2_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_commercial_price_acquisition_expansion_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/commercial-price-acquisition-v3/run")
+def api_m3_commercial_price_acquisition_v3_run():
+    from buyer_intelligence.commercial_price_acquisition_v3 import (
+        run_commercial_price_acquisition_v3,
+    )
+
+    return run_commercial_price_acquisition_v3()
+
+
+@app.get("/api/m3/commercial-price-acquisition-v3/report")
+def api_m3_commercial_price_acquisition_v3_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_commercial_price_acquisition_v3_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/manufacturer-commercial-identity-enrichment-v1/run")
+def api_m3_manufacturer_commercial_identity_enrichment_v1_run():
+    from buyer_intelligence.manufacturer_commercial_identity_enrichment_v1 import (
+        run_manufacturer_commercial_identity_enrichment_v1,
+    )
+
+    return run_manufacturer_commercial_identity_enrichment_v1()
+
+
+@app.get("/api/m3/manufacturer-commercial-identity-enrichment-v1/report")
+def api_m3_manufacturer_commercial_identity_enrichment_v1_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_manufacturer_commercial_identity_enrichment_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/quote-workflow-operationalization-v1/run")
+def api_m3_quote_workflow_operationalization_v1_run():
+    from buyer_intelligence.quote_workflow_operationalization_v1 import (
+        run_quote_workflow_operationalization_v1,
+    )
+
+    return run_quote_workflow_operationalization_v1()
+
+
+@app.get("/api/m3/quote-workflow-operationalization-v1/report")
+def api_m3_quote_workflow_operationalization_v1_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_quote_workflow_operationalization_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/supplier-discovery-real-outreach-readiness-v1/run")
+def api_m3_supplier_discovery_real_outreach_readiness_v1_run():
+    from buyer_intelligence.supplier_discovery_real_outreach_readiness_v1 import (
+        run_supplier_discovery_real_outreach_readiness_v1,
+    )
+
+    return run_supplier_discovery_real_outreach_readiness_v1()
+
+
+@app.get("/api/m3/supplier-discovery-real-outreach-readiness-v1/report")
+def api_m3_supplier_discovery_real_outreach_readiness_v1_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_supplier_discovery_real_outreach_readiness_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/first-real-outreach-safety-send-v1/run")
+def api_m3_first_real_outreach_safety_send_v1_run():
+    from buyer_intelligence.first_real_outreach_safety_send_v1 import (
+        run_first_real_outreach_safety_send_v1,
+    )
+
+    return run_first_real_outreach_safety_send_v1()
+
+
+@app.get("/api/m3/first-real-outreach-safety-send-v1/report")
+def api_m3_first_real_outreach_safety_send_v1_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_first_real_outreach_safety_send_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/quote-outreach/preview/{packet_id}")
+def api_m3_quote_outreach_preview(packet_id: str):
+    """Dry-run preview — never transmits."""
+    import json
+
+    from m3_data_root import data_path
+    from buyer_intelligence.quote_outreach_send_channel_v1 import (
+        build_rfq_attachment_text,
+        preview_quote_request,
+    )
+
+    doc = json.loads(data_path("m3_quote_packets_v1.json").read_text(encoding="utf-8"))
+    packet = next((p for p in doc.get("packets") or [] if p.get("PACKET_ID") == packet_id), None)
+    if not packet:
+        raise HTTPException(status_code=404, detail="Packet not found")
+    if packet.get("REAL_OUTREACH_ELIGIBLE") != "YES":
+        return {
+            "ok": False,
+            "reason": "NOT_REAL_OUTREACH_ELIGIBLE",
+            "PRODUCT_RESALE_FIT": packet.get("PRODUCT_RESALE_FIT"),
+            "BLOCKERS": (packet.get("OUTREACH_ELIGIBILITY") or {}).get("BLOCKERS"),
+            "build_version": APP_BUILD_VERSION,
+        }
+    primary = None
+    for c in packet.get("SUPPLIER_CANDIDATES") or []:
+        if c.get("RANK") == "PRIMARY":
+            primary = c
+            break
+    if not primary:
+        raise HTTPException(status_code=400, detail="No primary supplier")
+    body = build_rfq_attachment_text(
+        packet_id=packet_id,
+        buyer=packet.get("BUYER") or "",
+        order_id=str(packet.get("ORDER_ID") or ""),
+        lines=packet.get("LINES") or [],
+    )
+    subject = f"RFQ — {packet.get('BUYER')} / {packet.get('ORDER_ID')} / {packet_id}"
+    att = [{"filename": f"RFQ_{packet_id}.txt", "content": body}]
+    preview = preview_quote_request(
+        packet_id=packet_id,
+        supplier_id=primary.get("SUPPLIER_NAME") or "",
+        recipient=primary.get("CONTACT_VALUE") if primary.get("CONTACT_METHOD") == "EMAIL" else None,
+        subject=subject,
+        body=body,
+        attachments=att,
+    )
+    preview["operator_approval_required"] = True
+    preview["confirm_buttons"] = ["SEND QUOTE REQUEST", "CANCEL"]
+    preview["CONTACT_METHOD"] = primary.get("CONTACT_METHOD")
+    preview["CONTACT_VALUE"] = primary.get("CONTACT_VALUE")
+    preview["BUYER"] = packet.get("BUYER")
+    preview["ORDER"] = packet.get("ORDER_ID")
+    preview["PRODUCT_RESALE_FIT"] = packet.get("PRODUCT_RESALE_FIT")
+    preview["build_version"] = APP_BUILD_VERSION
+    return preview
+
+
+@app.post("/api/m3/quote-outreach/send/{packet_id}")
+def api_m3_quote_outreach_send(packet_id: str, body: dict | None = None):
+    """Live or dry-run send. Requires operator_approved=true. Default dry-run never transmits."""
+    import json
+    import os
+
+    from m3_data_root import data_path
+    from buyer_intelligence.quote_outreach_send_channel_v1 import (
+        build_rfq_attachment_text,
+        send_quote_request,
+    )
+
+    body = body or {}
+    if not body.get("operator_approved"):
+        return {
+            "ok": False,
+            "result": "BLOCKED_NO_OPERATOR_APPROVAL",
+            "transmitted": False,
+            "build_version": APP_BUILD_VERSION,
+        }
+    doc = json.loads(data_path("m3_quote_packets_v1.json").read_text(encoding="utf-8"))
+    packet = next((p for p in doc.get("packets") or [] if p.get("PACKET_ID") == packet_id), None)
+    if not packet:
+        raise HTTPException(status_code=404, detail="Packet not found")
+    if packet.get("REAL_OUTREACH_ELIGIBLE") != "YES":
+        return {"ok": False, "result": "NOT_ELIGIBLE", "transmitted": False, "build_version": APP_BUILD_VERSION}
+    primary = next((c for c in (packet.get("SUPPLIER_CANDIDATES") or []) if c.get("RANK") == "PRIMARY"), None)
+    if not primary or primary.get("CONTACT_METHOD") != "EMAIL":
+        return {
+            "ok": False,
+            "result": "EMAIL_ROUTE_REQUIRED_FOR_SEND_CHANNEL",
+            "contact_method": (primary or {}).get("CONTACT_METHOD"),
+            "contact_value": (primary or {}).get("CONTACT_VALUE"),
+            "transmitted": False,
+            "build_version": APP_BUILD_VERSION,
+        }
+    rfq = build_rfq_attachment_text(
+        packet_id=packet_id,
+        buyer=packet.get("BUYER") or "",
+        order_id=str(packet.get("ORDER_ID") or ""),
+        lines=packet.get("LINES") or [],
+    )
+    subject = f"RFQ — {packet.get('BUYER')} / {packet.get('ORDER_ID')} / {packet_id}"
+    result = send_quote_request(
+        packet_id,
+        primary["SUPPLIER_NAME"],
+        primary["CONTACT_VALUE"],
+        subject,
+        rfq,
+        [{"filename": f"RFQ_{packet_id}.txt", "content": rfq}],
+        operator=body.get("operator") or "operator",
+        operator_approved=True,
+        packet_version=packet.get("BUILD"),
+    )
+    # Persist REQUEST_SENT only on real success
+    if result.get("transmitted") and result.get("packet_status") == "REQUEST_SENT":
+        packet["STATUS"] = "REQUEST_SENT"
+        packet["SENT_AT"] = result.get("sent_at")
+        packet["MESSAGE_ID"] = result.get("message_id")
+        packet["NEXT_ACTION"] = "WAITING FOR RESPONSE"
+        packet["LAST_ACTION"] = "QUOTE_REQUEST_SENT"
+        data_path("m3_quote_packets_v1.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    elif result.get("packet_status") == "SEND_FAILED":
+        packet["STATUS"] = "SEND_FAILED"
+        packet["SEND_FAILURE_REASON"] = result.get("failure_reason")
+        data_path("m3_quote_packets_v1.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    result["dry_run_env"] = os.environ.get("QUOTE_OUTREACH_DRY_RUN", "true")
+    result["build_version"] = APP_BUILD_VERSION
+    return result
+
+
+@app.post("/api/m3/commercial-identity-recovery-priceability/run")
+def api_m3_commercial_identity_recovery_priceability_run():
+    from buyer_intelligence.commercial_identity_recovery_priceability_v1 import (
+        run_commercial_identity_recovery_priceability_v1,
+    )
+
+    return run_commercial_identity_recovery_priceability_v1()
+
+
+@app.get("/api/m3/commercial-identity-recovery-priceability/report")
+def api_m3_commercial_identity_recovery_priceability_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_commercial_identity_recovery_priceability_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/identity-hardening-clean-priceable-corpus-v2/run")
+def api_m3_identity_hardening_clean_priceable_corpus_v2_run():
+    from buyer_intelligence.identity_extraction_hardening_v2 import (
+        run_identity_hardening_clean_priceable_corpus_v2,
+    )
+
+    return run_identity_hardening_clean_priceable_corpus_v2()
+
+
+@app.get("/api/m3/identity-hardening-clean-priceable-corpus-v2/report")
+def api_m3_identity_hardening_clean_priceable_corpus_v2_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_identity_hardening_clean_priceable_corpus_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/historical-source-inventory/run")
+def api_m3_historical_source_inventory_run():
+    from buyer_intelligence.historical_source_inventory import run_historical_source_inventory
+
+    return run_historical_source_inventory()
+
+
+@app.get("/api/m3/historical-source-inventory/report")
+def api_m3_historical_source_inventory_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_historical_source_inventory_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/bidnet-historical-awards/run")
+def api_m3_bidnet_historical_awards_run():
+    from buyer_intelligence.bidnet_historical_awards import run_bidnet_historical_awards
+
+    return run_bidnet_historical_awards()
+
+
+@app.get("/api/m3/bidnet-historical-awards/report")
+def api_m3_bidnet_historical_awards_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_bidnet_historical_awards_v1_report.json")
     if not path.exists():
         return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -8944,9 +10642,36 @@ def api_ui_call_save(body: UiCallSaveBody, deal_id: str = Query(...)):
 
 @app.get("/api/ui/quotes")
 def api_ui_quotes():
+    import json
+
+    from m3_data_root import data_path
     from phase_l.owner_ui_service import build_quotes
 
-    return build_quotes()
+    base = build_quotes()
+    # Prefer Safety Gate V1 UI; fall back to prior overlays
+    for ui_name in (
+        "m3_first_real_outreach_safety_send_v1_ui.json",
+        "m3_supplier_discovery_real_outreach_readiness_v1_ui.json",
+        "m3_quote_workflow_operationalization_v1_ui.json",
+    ):
+        ui_path = data_path(ui_name)
+        if not ui_path.exists():
+            continue
+        try:
+            qui = json.loads(ui_path.read_text(encoding="utf-8"))
+            base["quote_workflow_v1"] = qui
+            base["supplier_discovery_v1"] = qui if "supplier_discovery" in ui_name else base.get("supplier_discovery_v1")
+            base["quote_packets"] = qui.get("packets") or []
+            base["acquisition_mix"] = qui.get("acquisition_mix")
+            base["QUOTE_LOOP_STATUS"] = qui.get("QUOTE_LOOP_STATUS")
+            base["first_real_outreach_batch"] = qui.get("first_real_outreach_batch")
+            base["quote_requests_ready"] = qui.get("quote_requests_ready")
+            base["send_channel"] = qui.get("send_channel")
+            base["deal_page"] = qui.get("deal_page")
+            break
+        except Exception:
+            pass
+    return base
 
 
 @app.get("/api/ui/quotes/{deal_id:path}")

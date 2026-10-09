@@ -267,11 +267,14 @@ def get_usage_snapshot() -> dict[str, Any]:
 
     counts = _usage_counts()
     try:
-        from discovery.sam_budgeted_client import unified_calls_used_today
+        from discovery.sam_budgeted_client import HARD_REAL_DAILY_LIMIT, owner_credit_dashboard, unified_calls_used_today
 
-        sam_used = max(int(counts["sam_used_today"] or 0), int(unified_calls_used_today() or 0))
+        # Owner counter = reconstructed REAL credits only (never max with a stale DB 13)
+        sam_used = min(int(unified_calls_used_today() or 0), HARD_REAL_DAILY_LIMIT)
+        _owner = owner_credit_dashboard()
     except Exception:
-        sam_used = counts["sam_used_today"]
+        sam_used = min(int(counts["sam_used_today"] or 0), 10)
+        _owner = None
     sam_pdf_used = counts["sam_pdf_downloads_today"]
     screen_used = counts["screens_used_today"]
 
@@ -284,6 +287,8 @@ def get_usage_snapshot() -> dict[str, Any]:
         "sam_daily_limit": sam_limit,
         "sam_remaining": max(0, sam_limit - sam_used),
         "sam_single_pool": True,
+        "sam_real_api_calls_today": sam_used,
+        "sam_owner_credit": _owner,
         "sam_pdf_downloads_today": sam_pdf_used,
         "sam_pdf_download_limit": sam_pdf_limit,
         "sam_pdf_downloads_remaining": max(0, sam_pdf_limit - sam_pdf_used) if sam_pdf_limit else None,

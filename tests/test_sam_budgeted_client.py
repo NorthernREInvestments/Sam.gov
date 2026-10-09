@@ -175,7 +175,7 @@ def test_planner_and_execute_respect_max(isolated_ledger):
 def test_dashboard_display(isolated_ledger):
     d = dashboard()
     assert d["daily_limit"] == 10
-    assert "SAM:" in d["display"]
+    assert "SAM REAL:" in d["display"]
 
 
 def test_sam_raw_ingest_dedupe_and_federal_watch():

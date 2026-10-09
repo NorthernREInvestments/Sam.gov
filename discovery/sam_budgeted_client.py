@@ -23,10 +23,12 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
-BUILD = "20260929-m3-sam-credit-efficient-refresh-supplier-path-conversion"
+BUILD = "20261009-m3-sam-api-credit-ledger-reconciliation-v1"
 SAM_SEARCH_URL = "https://api.sam.gov/opportunities/v2/search"
 SAM_DAILY_BUDGET_EXHAUSTED = "SAM_DAILY_BUDGET_EXHAUSTED"
 SAM_RESERVE_PROTECTED = "SAM_RESERVE_PROTECTED"
+# Owner hard rule — real credit-consuming Opportunities API calls never exceed this.
+HARD_REAL_DAILY_LIMIT = 10
 
 DATA = ROOT / "data"
 ART = ROOT / "artifacts" / "sam"
@@ -48,15 +50,20 @@ def operational_timezone() -> str:
 
 
 def sam_daily_call_budget() -> int:
-    """Single source of truth for daily live SAM Opportunities API calls."""
+    """Daily live SAM Opportunities API calls — hard-capped at HARD_REAL_DAILY_LIMIT (10).
+
+    Env may request a lower number; it may never raise the real credit ceiling above 10.
+    """
+    configured = HARD_REAL_DAILY_LIMIT
     for key in ("SAM_DAILY_CALL_BUDGET", "SAM_API_CALL_LIMIT", "SAM_DAILY_API_BUDGET"):
         raw = os.getenv(key)
         if raw is not None and str(raw).strip() != "":
             try:
-                return max(0, int(str(raw).strip()))
+                configured = max(0, int(str(raw).strip()))
+                break
             except ValueError:
                 continue
-    return 10
+    return min(configured, HARD_REAL_DAILY_LIMIT)
 
 
 def reserve_calls() -> int:
@@ -183,8 +190,10 @@ def _db_sam_used_today() -> int:
 
 
 def unified_calls_used_today(ledger: dict[str, Any] | None = None) -> int:
-    """Single authority: max(file ledger, DB). Prevents two independent 10-call pools."""
-    return max(calls_used_today(ledger), _db_sam_used_today())
+    """Single authority for gate checks: reconstructed REAL credits (capped at 10)."""
+    led = ledger or load_ledger()
+    recon = reconstruct_real_api_calls_today(led)
+    return int(recon["REAL_SAM_API_CALLS_TODAY"])
 
 
 def can_afford_live_calls(credits: int = 1) -> bool:
@@ -202,15 +211,47 @@ def _consume_live_credits_locked(credits: int, *, reason: str) -> bool:
     ledger = load_ledger()
     used = unified_calls_used_today(ledger)
     limit = sam_daily_call_budget()
-    if used + credits > limit:
-        return False
-    new_used = used + credits
     day = budget_day_key()
     days = ledger.setdefault("days", {})
     day_info = days.setdefault(
         day,
-        {"live_calls": 0, "cache_hits": 0, "live_rows": 0, "unique_rows": 0, "failures": 0},
+        {
+            "live_calls": 0,
+            "cache_hits": 0,
+            "live_rows": 0,
+            "unique_rows": 0,
+            "failures": 0,
+            "blocked_over_cap": 0,
+            "internal_attempts": 0,
+            "retries": 0,
+        },
     )
+    if used + credits > limit:
+        # Block BEFORE any request — record over-cap attempt (0 real credits)
+        day_info["blocked_over_cap"] = int(day_info.get("blocked_over_cap") or 0) + 1
+        ledger.setdefault("entries", []).append(
+            {
+                "date": day,
+                "timestamp": _utc(),
+                "endpoint": "budget",
+                "query_fingerprint": None,
+                "page": 0,
+                "result_count": 0,
+                "success": False,
+                "http_status": None,
+                "cache_hit": False,
+                "credits_consumed": 0,
+                "reason": f"{SAM_DAILY_BUDGET_EXHAUSTED}:blocked_11th_or_over",
+                "params": {"requested": credits, "used": used, "limit": limit},
+                "counts_as_real_api": False,
+                "blocked_over_cap": True,
+            }
+        )
+        if len(ledger["entries"]) > 500:
+            ledger["entries"] = ledger["entries"][-500:]
+        save_ledger(ledger)
+        return False
+    new_used = used + credits
     day_info["live_calls"] = new_used
     ledger.setdefault("entries", []).append(
         {
@@ -227,6 +268,7 @@ def _consume_live_credits_locked(credits: int, *, reason: str) -> bool:
             "reason": reason,
             "params": {},
             "unified_used_after": new_used,
+            "counts_as_real_api": True,
         }
     )
     if len(ledger["entries"]) > 500:
@@ -250,10 +292,229 @@ def consume_live_credits(credits: int = 1, *, reason: str = "live") -> bool:
             return _consume_live_credits_locked(int(credits), reason=reason)
 
 
+def reconstruct_real_api_calls_today(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Rebuild REAL credit count from ledger entries — ignore inflated live_calls.
+
+    REAL credits prefer budget / counts_as_real_api entries:
+      max(sum(credits_consumed), max(unified_used_after))
+    so mid-day consumes that inherit a prior DB baseline stay correct.
+    Cache hits, blocked attempts, and audit rows do not count.
+    """
+    led = ledger or load_ledger()
+    day = budget_day_key()
+    day_info = (led.get("days") or {}).get(day) or {}
+    ents = [e for e in (led.get("entries") or []) if e.get("date") == day]
+
+    credit_sum = 0
+    max_used_after = 0
+    cache_hits = 0
+    blocked = 0
+    retries = 0
+    internal = 0
+    production_budget_events = 0
+    public_noticedesc = 0
+    agency_url = 0
+    why_inflated = []
+
+    for e in ents:
+        internal += 1
+        reason = str(e.get("reason") or "")
+        if e.get("cache_hit"):
+            cache_hits += 1
+            continue
+        if (
+            e.get("blocked_over_cap")
+            or SAM_DAILY_BUDGET_EXHAUSTED in reason
+            or "blocked" in reason.lower()
+            or SAM_RESERVE_PROTECTED in reason
+        ):
+            blocked += 1
+            continue
+        if "retry" in reason.lower():
+            retries += 1
+        if "noticedesc" in reason.lower() or "notice_desc" in reason.lower():
+            public_noticedesc += 1
+        if "agency" in reason.lower() and "url" in reason.lower():
+            agency_url += 1
+        # Only endpoint=budget rows own REAL credits (audit/search never, even if legacy
+        # credits_consumed was set). Prefer counts_as_real_api when present.
+        if str(e.get("endpoint") or "") != "budget":
+            continue
+        if e.get("counts_as_real_api") is False:
+            continue
+        cred = int(e.get("credits_consumed") or 0)
+        if cred > 0:
+            credit_sum += cred
+            production_budget_events += 1
+        after = int(e.get("unified_used_after") or 0)
+        if after > max_used_after:
+            max_used_after = after
+
+    real = max(credit_sum, max_used_after)
+    stale_live = int(day_info.get("live_calls") or 0)
+    db_used = _db_sam_used_today()
+
+    if production_budget_events == 0 and credit_sum == 0:
+        # No budget events yet — mirror counters, but never above hard limit
+        raw_mirror = max(stale_live, db_used)
+        real = min(raw_mirror, HARD_REAL_DAILY_LIMIT)
+        if db_used > HARD_REAL_DAILY_LIMIT:
+            why_inflated.append(
+                f"DB sam_used_today={db_used} > {HARD_REAL_DAILY_LIMIT} "
+                "(dual-increment: consume_live_credits absolute set + legacy "
+                "_record_entry += credits, and/or max(file,db) snapshot inflation)"
+            )
+        if stale_live > HARD_REAL_DAILY_LIMIT:
+            why_inflated.append(
+                f"day_info.live_calls={stale_live} > {HARD_REAL_DAILY_LIMIT} "
+                "(legacy _record_entry dual-increment)"
+            )
+        if raw_mirror > HARD_REAL_DAILY_LIMIT:
+            why_inflated.append(
+                f"mirrored counter {raw_mirror} clamped to REAL={real}"
+            )
+    else:
+        # Never trust inflated live_calls over budget reconstruction
+        if stale_live > real and stale_live > HARD_REAL_DAILY_LIMIT:
+            why_inflated.append(
+                f"day_info.live_calls={stale_live} > reconstructed_real={real} "
+                "(historical _record_entry dual-increment with consume_live_credits)"
+            )
+        elif stale_live > real:
+            why_inflated.append(
+                f"day_info.live_calls={stale_live} > reconstructed_real={real} "
+                "(stale field; budget entries are authoritative)"
+            )
+        if db_used > HARD_REAL_DAILY_LIMIT:
+            why_inflated.append(
+                f"DB sam_used_today={db_used} > {HARD_REAL_DAILY_LIMIT} (ignored; budget entries win)"
+            )
+
+    if stale_live > HARD_REAL_DAILY_LIMIT and not any("live_calls=" in x for x in why_inflated):
+        why_inflated.append(
+            f"live_calls={stale_live} exceeded HARD_REAL_DAILY_LIMIT={HARD_REAL_DAILY_LIMIT}"
+        )
+    if real > HARD_REAL_DAILY_LIMIT:
+        why_inflated.append(
+            f"raw reconstructed real={real} clamped to {HARD_REAL_DAILY_LIMIT}"
+        )
+
+    real_capped = min(real, HARD_REAL_DAILY_LIMIT)
+    return {
+        "date": day,
+        "REAL_SAM_API_CALLS_TODAY": real_capped,
+        "REAL_SAM_API_CALLS_RAW_SUM": real,
+        "REAL_CREDIT_SUM_FROM_ENTRIES": credit_sum,
+        "MAX_UNIFIED_USED_AFTER": max_used_after,
+        "CACHE_HITS": max(cache_hits, int(day_info.get("cache_hits") or 0)),
+        "BLOCKED_OVER_CAP_ATTEMPTS": max(blocked, int(day_info.get("blocked_over_cap") or 0)),
+        "INTERNAL_ATTEMPTS": max(internal, int(day_info.get("internal_attempts") or 0)),
+        "RETRIES": max(retries, int(day_info.get("retries") or 0)),
+        "PUBLIC_NOTICEDESC_FETCHES": public_noticedesc,
+        "AGENCY_URL_FETCHES": agency_url,
+        "PRODUCTION_BUDGET_EVENTS": production_budget_events,
+        "STALE_LIVE_CALLS_FIELD": stale_live,
+        "DB_LEDGER_USED": db_used,
+        "FILE_LEDGER_USED": calls_used_today(led),
+        "WHY_PRIOR_SHOWED_INFLATED": why_inflated,
+        "HARD_REAL_DAILY_LIMIT": HARD_REAL_DAILY_LIMIT,
+        "REMAINING_REAL_CREDITS": max(0, HARD_REAL_DAILY_LIMIT - real_capped),
+    }
+
+
+def reconcile_sam_credit_ledger(*, persist: bool = True) -> dict[str, Any]:
+    """Clamp live_calls + DB to reconstructed REAL credits (never >10). No new API calls."""
+    with _file_lock():
+        with _THREAD_LOCK:
+            led = load_ledger()
+            recon = reconstruct_real_api_calls_today(led)
+            day = recon["date"]
+            real = int(recon["REAL_SAM_API_CALLS_TODAY"])
+            days = led.setdefault("days", {})
+            day_info = days.setdefault(
+                day,
+                {
+                    "live_calls": 0,
+                    "cache_hits": 0,
+                    "live_rows": 0,
+                    "unique_rows": 0,
+                    "failures": 0,
+                    "blocked_over_cap": 0,
+                    "internal_attempts": 0,
+                    "retries": 0,
+                },
+            )
+            before = int(day_info.get("live_calls") or 0)
+            day_info["live_calls"] = real
+            day_info["cache_hits"] = int(recon["CACHE_HITS"])
+            day_info["blocked_over_cap"] = int(recon["BLOCKED_OVER_CAP_ATTEMPTS"])
+            day_info["reconciled_at"] = _utc()
+            day_info["reconcile_build"] = BUILD
+            if persist:
+                save_ledger(led)
+                try:
+                    from api_budget import set_sam_used_today
+
+                    set_sam_used_today(real)
+                except Exception:
+                    pass
+            return {
+                **recon,
+                "BEFORE_LIVE_CALLS_FIELD": before,
+                "AFTER_LIVE_CALLS_FIELD": real,
+                "PERSISTED": persist,
+                "BUILD": BUILD,
+            }
+
+
+def owner_credit_dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Owner-facing SAM counter — REAL credits only, hard ceiling 10."""
+    recon = reconstruct_real_api_calls_today(ledger)
+    used = int(recon["REAL_SAM_API_CALLS_TODAY"])
+    limit = HARD_REAL_DAILY_LIMIT
+    remaining = max(0, limit - used)
+    res = reserve_calls()
+    return {
+        "kind": "SamOwnerCreditDashboard",
+        "build": BUILD,
+        "date": recon["date"],
+        "timezone": operational_timezone(),
+        "HARD_REAL_DAILY_LIMIT": limit,
+        "REAL_SAM_API_CALLS_TODAY": used,
+        "CACHE_HITS": recon["CACHE_HITS"],
+        "PUBLIC_NOTICEDESC_FETCHES": recon["PUBLIC_NOTICEDESC_FETCHES"],
+        "AGENCY_URL_FETCHES": recon["AGENCY_URL_FETCHES"],
+        "INTERNAL_ATTEMPTS": recon["INTERNAL_ATTEMPTS"],
+        "RETRIES": recon["RETRIES"],
+        "BLOCKED_OVER_CAP_ATTEMPTS": recon["BLOCKED_OVER_CAP_ATTEMPTS"],
+        "PRODUCTION_BUDGET_EVENTS": recon["PRODUCTION_BUDGET_EVENTS"],
+        "REMAINING_REAL_CREDITS": remaining,
+        "reserve_calls": res,
+        "production_budget_remaining": max(0, remaining - res) if remaining > res else 0,
+        "display": f"SAM REAL: {used}/{limit} | {remaining} remaining (cache={recon['CACHE_HITS']})",
+        "status": SAM_DAILY_BUDGET_EXHAUSTED if remaining <= 0 else "OK",
+        "WHY_PRIOR_INFLATED": recon["WHY_PRIOR_SHOWED_INFLATED"],
+        "STALE_COUNTERS": {
+            "file_live_calls": recon["FILE_LEDGER_USED"],
+            "db_used": recon["DB_LEDGER_USED"],
+            "stale_live_calls_field": recon["STALE_LIVE_CALLS_FIELD"],
+        },
+        "GATES": {
+            "REAL_CALL_COUNTER_SEPARATE": True,
+            "CACHE_NOT_COUNTED_AS_API": True,
+            "PUBLIC_FETCHES_NOT_COUNTED_AS_API": True,
+            "11TH_CALL_IMPOSSIBLE": used < limit or remaining == 0,
+            "OWNER_COUNTER_TRUSTWORTHY": used <= limit,
+        },
+    }
+
+
 def dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
     led = ledger or load_ledger()
     day = budget_day_key()
-    used = unified_calls_used_today(led)
+    # Prefer reconstructed REAL credits for owner-facing used/remaining
+    recon = reconstruct_real_api_calls_today(led)
+    used = int(recon["REAL_SAM_API_CALLS_TODAY"])
     limit = sam_daily_call_budget()
     remaining = max(0, limit - used)
     res = reserve_calls()
@@ -263,19 +524,25 @@ def dashboard(ledger: dict[str, Any] | None = None) -> dict[str, Any]:
         "date": day,
         "timezone": operational_timezone(),
         "daily_limit": limit,
+        "HARD_REAL_DAILY_LIMIT": HARD_REAL_DAILY_LIMIT,
         "calls_used": used,
+        "REAL_SAM_API_CALLS_TODAY": used,
         "file_ledger_used": calls_used_today(led),
         "db_ledger_used": _db_sam_used_today(),
         "calls_remaining": remaining,
+        "REMAINING_REAL_CREDITS": remaining,
         "reserve_calls": res,
         "reserve_available": remaining > 0 and used < (limit - res) or (remaining > 0 and day_info.get("reserve_authorized")),
-        "production_budget": max(0, limit - res),
-        "cache_hits_today": int(day_info.get("cache_hits") or 0),
+        "production_budget": max(0, remaining - res) if remaining > res else 0,
+        "cache_hits_today": int(recon["CACHE_HITS"]),
+        "blocked_over_cap_attempts": int(recon["BLOCKED_OVER_CAP_ATTEMPTS"]),
+        "internal_attempts_today": int(recon["INTERNAL_ATTEMPTS"]),
         "live_rows_retrieved_today": int(day_info.get("live_rows") or 0),
         "unique_rows_today": int(day_info.get("unique_rows") or 0),
-        "display": f"SAM: {used}/{limit} calls used | {remaining} remaining",
+        "display": f"SAM REAL: {used}/{limit} | {remaining} remaining | cache {recon['CACHE_HITS']}",
         "status": SAM_DAILY_BUDGET_EXHAUSTED if remaining <= 0 else "OK",
         "single_pool": True,
+        "owner": owner_credit_dashboard(led),
     }
 
 
@@ -299,25 +566,39 @@ def _record_entry(
     params_public: dict[str, Any],
     count_against_budget: bool = True,
 ) -> None:
+    """Audit-trail only.
+
+    CRITICAL: never mutate day_info['live_calls'] here.
+    Real credit counter is owned exclusively by _consume_live_credits_locked.
+    Prior dual-increment (consume absolute set + _record_entry += credits) caused
+    owner counters to report >10 (e.g. 13) without 13 real API calls.
+    """
     day = budget_day_key()
     days = ledger.setdefault("days", {})
     day_info = days.setdefault(
         day,
-        {"live_calls": 0, "cache_hits": 0, "live_rows": 0, "unique_rows": 0, "failures": 0},
+        {
+            "live_calls": 0,
+            "cache_hits": 0,
+            "live_rows": 0,
+            "unique_rows": 0,
+            "failures": 0,
+            "blocked_over_cap": 0,
+            "internal_attempts": 0,
+            "retries": 0,
+        },
     )
+    day_info["internal_attempts"] = int(day_info.get("internal_attempts") or 0) + 1
     if cache_hit:
         day_info["cache_hits"] = int(day_info.get("cache_hits") or 0) + 1
-    elif count_against_budget and credits:
-        day_info["live_calls"] = int(day_info.get("live_calls") or 0) + int(credits)
-        if success:
-            day_info["live_rows"] = int(day_info.get("live_rows") or 0) + int(result_count)
-        else:
-            day_info["failures"] = int(day_info.get("failures") or 0) + 1
-    elif not cache_hit:
-        if success:
-            day_info["live_rows"] = int(day_info.get("live_rows") or 0) + int(result_count)
-        else:
-            day_info["failures"] = int(day_info.get("failures") or 0) + 1
+    elif not success:
+        day_info["failures"] = int(day_info.get("failures") or 0) + 1
+    if success and not cache_hit and result_count:
+        day_info["live_rows"] = int(day_info.get("live_rows") or 0) + int(result_count)
+    # count_against_budget retained for entry metadata only — does NOT touch live_calls
+    _ = count_against_budget
+    if "retry" in str(reason or "").lower():
+        day_info["retries"] = int(day_info.get("retries") or 0) + 1
     entry = {
         "date": day,
         "timestamp": _utc(),
@@ -328,9 +609,12 @@ def _record_entry(
         "success": success,
         "http_status": http_status,
         "cache_hit": cache_hit,
-        "credits_consumed": 0 if cache_hit or not count_against_budget else credits,
+        # Audit rows never own REAL credit — only consume_live_credits budget entries do
+        "credits_consumed": 0,
         "reason": reason,
         "params": params_public,
+        "counts_as_real_api": False,
+        "requested_credits_meta": int(credits or 0),
     }
     ledger.setdefault("entries", []).append(entry)
     # keep last 500 entries
@@ -563,21 +847,8 @@ def search_opportunities(
         limit = sam_daily_call_budget()
         remaining = limit - used
         if remaining <= 0:
-            _record_entry(
-                ledger,
-                endpoint=endpoint,
-                fingerprint=fp,
-                page=page,
-                result_count=0,
-                success=False,
-                http_status=None,
-                cache_hit=False,
-                credits=0,
-                reason=SAM_DAILY_BUDGET_EXHAUSTED,
-                params_public=public_params,
-                count_against_budget=False,
-            )
-            save_ledger(ledger)
+            # Block BEFORE request — same path as consume over-cap (records blocked_over_cap)
+            _consume_live_credits_locked(1, reason=reason + ":precheck_over_cap")
             return {
                 "opportunitiesData": [],
                 "totalRecords": 0,
