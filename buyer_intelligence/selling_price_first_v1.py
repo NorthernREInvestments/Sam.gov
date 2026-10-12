@@ -257,9 +257,12 @@ def _extract_from_blob(blob: Any, source_file: str, *, depth: int = 0) -> list[d
 
 
 def match_to_live_opportunities(records: list[dict[str, Any]], *, limit: int = 25) -> dict[str, Any]:
+    """Match historical priced products to live opps by EXACT MPN only.
+
+    Spec/token similarity is recorded as watchlist only — never used for economics.
+    """
     store = load_store(force=True)
     by_mpn: dict[str, list[str]] = {}
-    by_token: dict[str, list[str]] = {}
     for oid, e in (store.get("by_opportunity") or {}).items():
         if str(oid).startswith("__"):
             continue
@@ -274,28 +277,19 @@ def match_to_live_opportunities(records: list[dict[str, Any]], *, limit: int = 2
             mpn = str(ln.get("MPN") or "").strip().upper()
             if mpn:
                 by_mpn.setdefault(mpn, []).append(oid)
-            desc = str(ln.get("DESCRIPTION") or "").lower()
-            for tok in re.findall(r"[a-z]{4,}", desc)[:8]:
-                by_token.setdefault(tok, []).append(oid)
 
     matches = []
     for rec in records[:limit]:
         mpn = str(rec.get("mpn") or "").upper()
         oids = list(dict.fromkeys(by_mpn.get(mpn, []))) if mpn else []
-        if not oids:
-            desc = str(rec.get("description") or rec.get("product") or "").lower()
-            toks = re.findall(r"[a-z]{4,}", desc)
-            cand: Counter[str] = Counter()
-            for t in toks[:10]:
-                for oid in by_token.get(t, [])[:20]:
-                    cand[oid] += 1
-            oids = [oid for oid, c in cand.most_common(5) if c >= 2]
-            level = "SPEC_MATCH_OTHER_BUYER" if oids else "NO_LIVE_MATCH"
-        else:
-            level = "EXACT_PRODUCT_OTHER_BUYER"
+        level = "EXACT_PRODUCT_OTHER_BUYER" if oids else "NO_LIVE_MATCH"
         live = []
         for oid in oids[:5]:
             e = get_entry(oid) or {}
+            hist_buyer = str(rec.get("buyer") or "").lower()
+            live_buyer = str(e.get("BUYER") or "").lower()
+            same = bool(hist_buyer and live_buyer and (hist_buyer in live_buyer or live_buyer in hist_buyer))
+            match_basis = "EXACT_PRODUCT_SAME_BUYER" if same else "EXACT_PRODUCT_OTHER_BUYER"
             comp = classify_opportunity_completeness(oid)
             live.append(
                 {
@@ -307,7 +301,8 @@ def match_to_live_opportunities(records: list[dict[str, Any]], *, limit: int = 2
                     "full_mandatory": comp.get("full_mandatory_coverage"),
                     "mandatory_complete": comp.get("mandatory_complete"),
                     "mandatory_count": comp.get("mandatory_count"),
-                    "match_basis": level,
+                    "match_basis": match_basis,
+                    "matched_mpn": mpn,
                 }
             )
         matches.append(
@@ -315,6 +310,7 @@ def match_to_live_opportunities(records: list[dict[str, Any]], *, limit: int = 2
                 **{k: rec.get(k) for k in ("buyer", "product", "mpn", "unit_price", "quantity", "uom", "match_level", "source_file", "source_url", "low_friction", "restricted")},
                 "live_matches": live,
                 "live_match_count": len(live),
+                "live_match_level": level,
             }
         )
     out = {
@@ -354,10 +350,18 @@ def research_acquisition_for_matches(
         for live in m["live_matches"][:2]:
             oid = live["opportunity_id"]
             lines = get_lines(oid)
+            # Exact MPN only — never fall back to unrelated lines on the opportunity
             target_lines = [ln for ln in lines if mpn and str(ln.get("MPN") or "").upper() == str(mpn).upper()]
             if not target_lines:
-                # first MPN line for low-friction
-                target_lines = [ln for ln in lines if ln.get("MPN")][:1]
+                results.append(
+                    {
+                        "opportunity_id": oid,
+                        "mpn": mpn,
+                        "acquisition": None,
+                        "skip_reason": "HISTORICAL_MPN_NOT_ON_LIVE_LINES",
+                    }
+                )
+                continue
             for ln in target_lines[:2]:
                 if priced >= max_prices:
                     break

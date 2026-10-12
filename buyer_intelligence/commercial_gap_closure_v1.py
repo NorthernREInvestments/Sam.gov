@@ -342,6 +342,20 @@ def _price_evidence_compatible(
         or "/html/?q=" in url_l
     ):
         return False, "SEARCH_PAGE_NOT_PRODUCT_PAGE"
+    # Non-commerce / wrong vertical hosts
+    if any(
+        x in url_l
+        for x in (
+            "realtor.com",
+            "zillow.com",
+            "highergov.com",
+            "sam.gov",
+            "wikipedia.org",
+            "facebook.com",
+            "linkedin.com",
+        )
+    ):
+        return False, "NON_COMMERCE_OR_WRONG_VERTICAL_HOST"
     return True, None
 
 

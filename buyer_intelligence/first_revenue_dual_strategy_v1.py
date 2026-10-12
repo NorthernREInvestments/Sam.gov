@@ -61,11 +61,13 @@ def run_low_friction_cohort(*, limit: int = 25, per_item_s: float = 25) -> dict[
         if not _LOW_FRICTION.search(blob):
             continue
         lines = e.get("LINES") or []
-        if not (1 <= len(lines) <= 5):
+        if not (1 <= len(lines) <= 12):
             continue
         mpns = [ln for ln in lines if ln.get("MPN")]
         if not mpns:
             continue
+        # Prefer smaller lots for first revenue
+        size_bonus = 40 if len(lines) <= 5 else 15 if len(lines) <= 8 else 0
         cands.append(
             {
                 "opportunity_id": oid,
@@ -75,7 +77,7 @@ def run_low_friction_cohort(*, limit: int = 25, per_item_s: float = 25) -> dict[
                 "days_left": days,
                 "line_count": len(lines),
                 "exact_lines": len(mpns),
-                "score": (50 if days and days >= 5 else 20) + min(30, len(mpns) * 8),
+                "score": (50 if days and days >= 5 else 20) + size_bonus + min(30, len(mpns) * 8),
             }
         )
     cands.sort(key=lambda x: -x["score"])
