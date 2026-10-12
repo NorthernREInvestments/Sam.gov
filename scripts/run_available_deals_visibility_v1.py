@@ -11,12 +11,53 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def _apply_two_sol_patch() -> dict:
+    """Additive merge of the two baseline SAM notices if patch file is present."""
+    from m3_data_root import data_path
+    from phase_l.l23_full_population_funnel import load_store, save_store
+
+    path = Path(data_path("_og_commercial_research_pipeline_out/m3_adv_v1_two_sols_l23_patch.json"))
+    if not path.exists():
+        return {"applied": False, "reason": "no_patch"}
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    opps = blob.get("opportunities") or {}
+    if not opps:
+        return {"applied": False, "reason": "empty"}
+    store = load_store()
+    added = updated = 0
+    for oid, rec in opps.items():
+        if oid in store:
+            # Prefer richer set-aside / product class from patch
+            for k in (
+                "set_aside",
+                "typeOfSetAside",
+                "typeOfSetAsideDescription",
+                "sam_raw",
+                "product_service_classification",
+                "deadline",
+                "title",
+                "buyer",
+                "authoritative_url",
+                "solicitation_event_id",
+                "row_ref",
+            ):
+                if rec.get(k) is not None:
+                    store[oid][k] = rec.get(k)
+            updated += 1
+        else:
+            store[oid] = rec
+            added += 1
+    save_store(store)
+    return {"applied": True, "added": added, "updated": updated}
+
+
 def main() -> int:
     from buyer_intelligence.available_deals_visibility_v1 import (
         baseline_lookup_solicitations,
         run_visibility_rebuild,
     )
 
+    patch_info = _apply_two_sol_patch()
     baseline = baseline_lookup_solicitations(
         ["N00104-27-Q-BA25", "SPE4A7-27-T-0317"]
     )
@@ -24,6 +65,7 @@ def main() -> int:
     print(
         json.dumps(
             {
+                "two_sol_patch": patch_info,
                 "baseline": {
                     k: {"discovered": v.get("discovered"), "hits": v.get("hit_count")}
                     for k, v in (baseline.get("results") or {}).items()
