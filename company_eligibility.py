@@ -20,7 +20,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 _DEFAULT_HELD = "SB,SMALL_BUSINESS,TOTAL_SMALL_BUSINESS,SBA"
 
 # Set-asides that require certs the company does NOT hold (configurable).
-_DEFAULT_UNSUPPORTED = "WOSB,EDWOSB,SDVOSB,VOSB,HUBZONE,HUB Zone,8(a),8A,8a"
+_DEFAULT_UNSUPPORTED = "WOSB,EDWOSB,SDVOSB,VOSB,HUBZONE,HUB Zone,HZC,8(a),8A,8a"
 
 
 def held_certifications() -> set[str]:

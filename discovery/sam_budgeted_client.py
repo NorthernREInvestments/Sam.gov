@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from contextlib import contextmanager
@@ -780,6 +781,13 @@ def build_daily_query_plan(
     return plan
 
 
+def compact_solnum(value: str | None) -> str:
+    """SAM solnum filter matches unhyphenated forms (N0010427QBA25), not N00104-27-Q-BA25."""
+    if not value:
+        return ""
+    return re.sub(r"[^A-Za-z0-9]", "", str(value)).upper()
+
+
 def search_opportunities(
     params: dict[str, Any],
     *,
@@ -794,6 +802,16 @@ def search_opportunities(
     Returns dict with opportunitiesData, totalRecords, meta (credits, cache_hit, status).
     """
     endpoint = SAM_SEARCH_URL
+    # Normalize solnum / solicitationNumber so hyphenated owner IDs actually hit SAM
+    params = dict(params)
+    for key in ("solnum", "solicitationNumber"):
+        if params.get(key):
+            compact = compact_solnum(str(params[key]))
+            if compact:
+                params[key] = compact
+                # Prefer solnum — solicitationNumber is ignored by SAM for many keys
+                if key == "solicitationNumber" and "solnum" not in params:
+                    params["solnum"] = compact
     public_params = {k: v for k, v in params.items() if k != "api_key"}
     fp = query_fingerprint(endpoint, public_params)
     page = int(params.get("offset") or 0)

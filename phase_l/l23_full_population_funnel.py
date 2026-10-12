@@ -124,6 +124,26 @@ def _norm(s: Any) -> str:
     return re.sub(r"\s+", " ", str(s or "").strip().lower())
 
 
+def _promote_deadline_from_raw(row: dict[str, Any]) -> Any:
+    """When only deadline_raw exists (common for BidNet list harvest), normalize it.
+
+    Returns a UTC/local deadline string suitable for the canonical ``deadline`` field,
+    or None when raw is missing / Not Stated / unparseable. Never invents dates.
+    """
+    raw = row.get("deadline_raw") or row.get("closing_date_raw") or row.get("close_date_raw")
+    if raw is None or str(raw).strip() == "":
+        return None
+    try:
+        from discovery.deadline import normalize_deadline
+
+        nd = normalize_deadline(str(raw).strip())
+        if nd.get("not_stated"):
+            return None
+        return nd.get("utc_deadline") or nd.get("parsed_local")
+    except Exception:
+        return None
+
+
 def _solicitation_key(row: dict[str, Any]) -> str:
     auth = row.get("authoritative_bid_location") if isinstance(row.get("authoritative_bid_location"), dict) else {}
     return _norm(
@@ -408,11 +428,24 @@ def to_canonical_record(row: dict[str, Any], *, funnel_state: str = RAW) -> dict
         "description": (row.get("description") or "")[:2000] or None,
         "authoritative_url": authoritative_url(row),
         "submission_path": row.get("authoritative_bid_location") or row.get("submission_location"),
-        "deadline": row.get("response_deadline") or row.get("deadline") or row.get("due_date"),
+        # Prefer normalized deadline; if missing, promote list/detail deadline_raw so
+        # BidNet open-bids closings are not dropped at L23 canonicalization.
+        "deadline": (
+            row.get("response_deadline")
+            or row.get("deadline")
+            or row.get("due_date")
+            or _promote_deadline_from_raw(row)
+        ),
+        "deadline_raw": row.get("deadline_raw") or row.get("closing_date_raw") or row.get("close_date_raw"),
+        "deadline_timezone": row.get("deadline_timezone") or row.get("timezone"),
         "timezone": row.get("deadline_timezone") or row.get("timezone"),
         "freshness": classify_freshness(row),
         "source_status": classify_source_status(row),
-        "product_service_classification": None,
+        "product_service_classification": row.get("product_service_classification"),
+        "set_aside": row.get("set_aside") or row.get("typeOfSetAsideDescription") or row.get("typeOfSetAside"),
+        "typeOfSetAside": row.get("typeOfSetAside"),
+        "typeOfSetAsideDescription": row.get("typeOfSetAsideDescription"),
+        "sam_raw": row.get("sam_raw") if isinstance(row.get("sam_raw"), dict) else None,
         "access_status": row.get("our_bid_access") or row.get("competition_access_type"),
         "registration_status": "EASY" if row.get("is_easy_registration") else None,
         "current_funnel_state": funnel_state,
@@ -435,7 +468,8 @@ def to_canonical_record(row: dict[str, Any], *, funnel_state: str = RAW) -> dict
             "historical_award_unit_price": row.get("historical_award_unit_price"),
             "source_url": row.get("source_url"),
             "detail_url": row.get("detail_url"),
-            "deadline": row.get("response_deadline") or row.get("deadline"),
+            "deadline": row.get("response_deadline") or row.get("deadline") or _promote_deadline_from_raw(row),
+            "deadline_raw": row.get("deadline_raw") or row.get("closing_date_raw") or row.get("close_date_raw"),
             "description": row.get("description"),
             "solicitation_number": row.get("solicitation_number"),
             "solicitation_id": row.get("solicitation_id")
@@ -445,6 +479,9 @@ def to_canonical_record(row: dict[str, Any], *, funnel_state: str = RAW) -> dict
                 else None
             ),
             "authoritative_bid_location": row.get("authoritative_bid_location"),
+            "set_aside": row.get("set_aside"),
+            "typeOfSetAside": row.get("typeOfSetAside"),
+            "typeOfSetAsideDescription": row.get("typeOfSetAsideDescription"),
         },
         "updated_at": _utc(),
         "build": BUILD,

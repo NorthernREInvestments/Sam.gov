@@ -242,6 +242,9 @@ def sam_raw_to_row(raw: dict[str, Any]) -> dict[str, Any]:
     title = str(raw.get("title") or "")
     agency = str(raw.get("fullParentPathName") or raw.get("department") or raw.get("agency") or "")
     deadline = raw.get("responseDeadLine") or raw.get("reponseDeadLine") or raw.get("due_date")
+    set_aside_code = raw.get("typeOfSetAside") or raw.get("set_aside") or ""
+    set_aside_desc = raw.get("typeOfSetAsideDescription") or ""
+    set_aside = (str(set_aside_desc).strip() or str(set_aside_code).strip() or None)
     return {
         "title": title,
         "agency": agency,
@@ -255,11 +258,31 @@ def sam_raw_to_row(raw: dict[str, Any]) -> dict[str, Any]:
         "response_deadline": deadline,
         "posted_date": raw.get("postedDate"),
         "naics": raw.get("naicsCode") or raw.get("naics"),
+        "set_aside": set_aside,
+        "typeOfSetAside": set_aside_code or None,
+        "typeOfSetAsideDescription": set_aside_desc or None,
         "source_id": "sam_gov_api",
         "jurisdiction": "FEDERAL",
         "is_federal": True,
         "description": raw.get("description") if isinstance(raw.get("description"), str) else None,
-        "sam_raw": {k: raw.get(k) for k in ("noticeId", "type", "baseType", "typeOfSetAside", "organizationType") if raw.get(k)},
+        "sam_raw": {
+            k: raw.get(k)
+            for k in (
+                "noticeId",
+                "type",
+                "baseType",
+                "typeOfSetAside",
+                "typeOfSetAsideDescription",
+                "organizationType",
+                "classificationCode",
+                "naicsCode",
+                "postedDate",
+            )
+            if raw.get(k) not in (None, "")
+        },
+        "product_service_classification": "TANGIBLE_PRODUCT"
+        if re.search(r"\b(TOOL\s*KIT|SUPPLIES?|PARTS?|EQUIPMENT|KIT)\b", title, re.I)
+        else None,
         "_ingest_feed": "sam_budgeted_refresh",
     }
 

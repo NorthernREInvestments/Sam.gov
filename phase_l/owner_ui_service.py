@@ -1099,7 +1099,7 @@ def build_home() -> dict[str, Any]:
         "headline": "WHAT NEEDS MY ATTENTION TODAY?",
         "cards": [
             {"id": "call_today", "label": "CALL TODAY", "count": counts["call_today"], "color": "green", "href": "#/today/call_today"},
-            {"id": "available", "label": "AVAILABLE DEALS", "count": health.get("currently_available") or 0, "color": "green", "href": "#/deals?filter=available"},
+            {"id": "available", "label": "AVAILABLE DEALS", "count": health.get("currently_available") or 0, "color": "green", "href": "#/deals?filter=worth_researching"},
             {"id": "follow_up", "label": "FOLLOW UP", "count": counts["follow_up"], "color": "yellow", "href": "#/today/follow_up"},
             {"id": "quotes", "label": "QUOTES RECEIVED", "count": counts["quotes"], "color": "yellow", "href": "#/quotes"},
             {"id": "registrations", "label": "REGISTER", "count": counts["registrations"], "color": "yellow", "href": "#/registrations"},
@@ -2135,8 +2135,22 @@ def _load_commercial_proof_deals() -> dict[str, Any]:
         return {}
 
 
+def _load_visibility_deals() -> dict[str, Any]:
+    """Primary owner shortlist — open eligible products before pricing is known."""
+    path = _data_dir() / "_og_commercial_research_pipeline_out" / "m3_adv_v1_available_deals.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _load_source_product_deals() -> dict[str, Any]:
-    """Prefer automated commercial execution deals, then RSE, then recovery projections."""
+    """Prefer visibility feed, then commercial execution, then RSE / recovery projections."""
+    vis = _load_visibility_deals()
+    if vis.get("deals"):
+        return vis
     base = _data_dir() / "_og_commercial_research_pipeline_out"
     for name in (
         "m3_cex_v1_available_deals.json",
@@ -2198,10 +2212,16 @@ def list_deals(
     qn = _norm(q)
     buyer_n = _norm(buyer)
     status_n = (status or "").strip().upper()
-    filt = (filter or "available").strip().lower()
+    filt = (filter or "worth_researching").strip().lower()
+    if filt in {"available", "", "all_available"}:
+        filt = "worth_researching"
 
-    # First-revenue sprint + revenue-first + legacy CI profit-ranked projections
+    # Visibility buckets + commercial research projections
     if filt in {
+        "worth_researching",
+        "ready_to_bid",
+        "blocked_ineligible",
+        "blocked",
         "commercial_intelligence",
         "profit_ranked",
         "ci_upgrade",
@@ -2215,21 +2235,47 @@ def list_deals(
         "scale",
         "needs_pricing",
         "needs_financing",
-        "ready_to_bid",
         "supplier_quote_needed",
         "selling_price_first",
         "supplier_advantage_first",
         "low_friction",
         "all_viable",
     }:
+        vis = _load_visibility_deals()
         sp = _load_source_product_deals()
         cp = _load_commercial_proof_deals()
         fr = _load_first_revenue_deals()
         rf = _load_revenue_first_deals()
         ci = _load_ci_upgrade_deals()
-        # Prefer RSE/source-product (contribution-correct) then commercial-proof then first-revenue
-        if filt == "ci_upgrade":
+        if filt in {"worth_researching", "ready_to_bid", "blocked_ineligible", "blocked"} and vis:
+            src = vis
+            if filt in {"blocked_ineligible", "blocked"}:
+                deals = [d for d in (vis.get("blocked_deals") or []) if isinstance(d, dict)]
+            elif filt == "ready_to_bid":
+                deals = [
+                    d
+                    for d in (vis.get("deals") or [])
+                    if isinstance(d, dict) and d.get("visibility_bucket") == "READY_TO_BID"
+                ]
+            else:
+                deals = [
+                    d
+                    for d in (vis.get("deals") or [])
+                    if isinstance(d, dict)
+                    and d.get("visibility_bucket") in {None, "WORTH_RESEARCHING", "READY_TO_BID"}
+                ]
+                # Default owner queue: Worth Researching first (ready included at top if any)
+                deals = sorted(
+                    deals,
+                    key=lambda d: (
+                        0 if d.get("visibility_bucket") == "READY_TO_BID" else 1,
+                        0 if d.get("days_left") is not None and float(d.get("days_left") or -1) >= 0 else 1,
+                        -int(d.get("research_priority_score") or 0),
+                    ),
+                )
+        elif filt == "ci_upgrade":
             src = ci
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif filt in {
             "source_product",
             "revenue_strategy",
@@ -2240,35 +2286,45 @@ def list_deals(
             "scale",
             "needs_pricing",
             "needs_financing",
-            "ready_to_bid",
             "supplier_quote_needed",
             "selling_price_first",
             "supplier_advantage_first",
             "low_friction",
+            "all_viable",
         } and sp.get("deals"):
             src = sp
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif filt in {"commercial_proof", "first_revenue", "cash_flow"} and cp.get("deals"):
             src = cp
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif filt in {"first_revenue", "cash_flow"} and fr.get("deals"):
             src = fr
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif rf.get("deals") and filt not in {"ci_upgrade"}:
             src = rf
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif sp.get("deals"):
             src = sp
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif cp.get("deals"):
             src = cp
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         elif fr.get("deals"):
             src = fr
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         else:
             src = ci
-        deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
+            deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
         tag = {
+            "worth_researching": "worth_researching",
+            "ready_to_bid": "ready_to_bid",
+            "blocked_ineligible": "blocked",
+            "blocked": "blocked",
             "cash_flow": "cash_flow",
             "growth": "growth",
             "scale": "scale",
             "needs_pricing": "needs_pricing",
             "needs_financing": "needs_financing",
-            "ready_to_bid": "ready_to_bid",
             "supplier_quote_needed": "supplier_quote_needed",
             "selling_price_first": "selling_price_first",
             "supplier_advantage_first": "supplier_advantage_first",
@@ -2277,12 +2333,13 @@ def list_deals(
             "first_revenue": "first_revenue",
             "commercial_proof": "commercial_proof",
             "source_product": "source_product",
-            "revenue_strategy": "revenue_strategy",
+            "revenue_strategy": "worth_researching",
             "revenue_first": None,
             "commercial_intelligence": None,
             "profit_ranked": None,
             "ci_upgrade": None,
         }.get(filt)
+        # Bucket filters already applied for worth/ready/blocked — do not re-hide unknowns
         if tag in {"cash_flow", "growth", "scale"}:
             # Verified lanes only — provisional/conditional must not appear in profit-lane filters
             lane_name = tag.upper() if tag != "cash_flow" else "CASH_FLOW"
@@ -2295,7 +2352,7 @@ def list_deals(
                     or d.get("lane") == lane_name
                 )
             ]
-        elif tag:
+        elif tag and filt not in {"worth_researching", "ready_to_bid", "blocked_ineligible", "blocked", "revenue_strategy"}:
             deals = [d for d in deals if tag in (d.get("filter_tags") or []) or d.get("lane") == tag.upper() or (
                 tag == "cash_flow" and d.get("lane") == "CASH_FLOW"
             ) or (tag == "growth" and d.get("lane") == "GROWTH") or (tag == "scale" and d.get("lane") == "SCALE")]
@@ -2314,18 +2371,25 @@ def list_deals(
         for d in slice_:
             oid = str(d.get("opportunity_id") or "")
             rec = store.get(oid) if isinstance(store.get(oid), dict) else {}
+            bucket = str(d.get("visibility_bucket") or "")
             status_packet = {
-                "ui_status": "RESEARCH",
-                "ui_status_color": "blue",
+                "ui_status": (
+                    "BID PREP"
+                    if bucket == "READY_TO_BID"
+                    else ("BLOCKED" if bucket == "BLOCKED_INELIGIBLE" else "RESEARCH")
+                ),
+                "ui_status_color": (
+                    "green" if bucket == "READY_TO_BID" else ("red" if bucket == "BLOCKED_INELIGIBLE" else "blue")
+                ),
                 "ui_priority": "HIGH",
                 "ui_next_action": d.get("next_action") or "Research",
                 "ui_next_action_label": d.get("next_action") or "Research",
-                "ui_next_action_reason": d.get("next_action") or "Revenue-first next step",
+                "ui_next_action_reason": d.get("next_action") or "Open product opportunity — research next evidence",
             }
             card = _deal_card(
                 deal_id=f"c:{oid}",
                 buyer=d.get("buyer") or (rec.get("buyer") if rec else None),
-                solicitation=rec.get("solicitation_event_id") if rec else None,
+                solicitation=d.get("solicitation") or (rec.get("solicitation_event_id") if rec else None),
                 product=d.get("product") or (rec.get("title") if rec else None),
                 deadline=d.get("deadline") or (rec.get("deadline") if rec else None),
                 delivery=None,
@@ -2334,9 +2398,17 @@ def list_deals(
                 extras={
                     "canonical_id": oid,
                     "title": d.get("product"),
+                    "set_aside": d.get("competition_access_type") or d.get("set_aside"),
+                    "eligibility_bucket": d.get("eligibility_bucket"),
+                    "visibility_bucket": d.get("visibility_bucket"),
+                    "pricing_status": d.get("pricing_status") or "UNKNOWN",
+                    "historical_pricing_status": d.get("historical_pricing_status") or "UNKNOWN",
+                    "lines": d.get("lines") or d.get("mandatory_lines") or d.get("lines_recovered"),
+                    "missing_information": d.get("missing_information"),
+                    "authoritative_url": d.get("authoritative_url") or (rec.get("authoritative_url") if rec else None),
                     "estimated_value": d.get("estimated_contract_value"),
-                    "historical_government_price": d.get("historical_government_pricing"),
-                    "acquisition_cost": d.get("current_retail_cost"),
+                    "historical_government_price": d.get("historical_government_pricing") or d.get("historical_unit"),
+                    "acquisition_cost": d.get("current_retail_cost") or d.get("public_acquisition_cost"),
                     "potential_profit": d.get("estimated_remaining_profit"),
                     "profit_scenario": d.get("profit_scenario"),
                     "supplier_status": f"{d.get('supplier_coverage') or 0}_SUPPLIERS",
@@ -2354,11 +2426,11 @@ def list_deals(
                     "verified_remaining_contribution": d.get("verified_remaining_contribution"),
                     "conditional_remaining_contribution": d.get("conditional_remaining_contribution"),
                     "public_acquisition_cost": d.get("public_acquisition_cost") or d.get("current_retail_cost"),
-                    "primary_blocker": d.get("primary_blocker"),
+                    "primary_blocker": d.get("primary_blocker") or d.get("block_reason"),
                     "estimated_days_to_cash": d.get("estimated_days_to_cash") or d.get("time_to_cash"),
                     "payment_timing_confidence": d.get("payment_timing_confidence"),
                     "owner_cash_required": d.get("owner_cash_required"),
-                    "mandatory_lines": d.get("mandatory_lines"),
+                    "mandatory_lines": d.get("mandatory_lines") or d.get("lines"),
                     "retail_pricing_coverage": d.get("retail_pricing_coverage"),
                     "economics_status": d.get("economics_status"),
                     "research_priority_score": d.get("research_priority_score"),
@@ -2367,8 +2439,8 @@ def list_deals(
                     "before_identity_class": d.get("before_identity_class"),
                     "population": d.get("population"),
                     "ui_priority": d.get("ui_priority"),
-                    "lines_recovered": d.get("lines_recovered"),
-                    "readiness": d.get("readiness"),
+                    "lines_recovered": d.get("lines_recovered") or d.get("lines"),
+                    "readiness": d.get("readiness") or d.get("commercial_readiness"),
                     "root_cause": d.get("root_cause"),
                     "strategy_summary": src.get("strategy_summary"),
                 },
@@ -2419,7 +2491,19 @@ def list_deals(
             "build": BUILD,
             "page": page,
             "page_size": page_size,
-            "total": total,
+            "total": (
+                int((src.get("counts") or src.get("visibility_counts") or {}).get("blocked_ineligible") or total)
+                if filt in {"blocked_ineligible", "blocked"}
+                else (
+                    int((src.get("counts") or src.get("visibility_counts") or {}).get("ready_to_bid") or total)
+                    if filt == "ready_to_bid"
+                    else (
+                        int((src.get("counts") or src.get("visibility_counts") or {}).get("worth_researching") or total)
+                        if filt in {"worth_researching", "revenue_strategy", "available"}
+                        else total
+                    )
+                )
+            ),
             "has_more": start + page_size < total,
             "items": items,
             "filter": filt,
@@ -2430,26 +2514,28 @@ def list_deals(
             "supplier_outreach_queue": outreach_dash,
             "research_novelty": novelty_dash,
             "message": (
-                "Source-to-product: line recovery + readiness (quoteable ≠ RFQ-ready). "
-                "Identify → Price → Source → Finance → Bid → Fulfill → Get Paid."
-                if deals and "source_product" in str(src.get("kind") or "")
+                "Worth Researching: open eligible product opportunities. "
+                "Unknown pricing/financing/history does NOT hide a deal — it sets the next research action."
+                if filt in {"worth_researching", "revenue_strategy", "available"}
                 else (
-                    "Commercial proof: exact identity ≠ generic title. Evidence-first ranking. "
-                    "Scenarios ≠ verified profit. UNKNOWN ≠ $0."
-                    if deals and "commercial_proof" in str(src.get("kind") or "")
+                    "Ready to Bid: eligibility + mandatory lines + supplier quotes + supported contribution + financing path."
+                    if filt == "ready_to_bid"
                     else (
-                        "First-revenue view: simple product purchases ranked for near-term cash. "
-                        "PROVISIONAL_UNKNOWN ≠ $0. Scenarios ≠ verified profit."
-                        if deals and "first_revenue" in str(src.get("kind") or "")
+                        "Blocked / Ineligible: HUBZone/8(a)/SDVOSB/WOSB-only, expired, or non-product — kept for audit, not the daily queue."
+                        if filt in {"blocked_ineligible", "blocked"}
                         else (
-                            "Revenue-first ranking: sooner financeable cash over largest award. "
-                            "UNKNOWN is not zero profit. Verified contribution outranks scenarios."
-                            if deals
-                            else "Run scripts/run_source_to_product_extraction_audit_v1.py to populate deals."
+                            "Source-to-product: line recovery + readiness (quoteable ≠ RFQ-ready)."
+                            if deals and "source_product" in str(src.get("kind") or "")
+                            else (
+                                "Commercial research view. UNKNOWN is not zero profit."
+                                if deals
+                                else "Run scripts/run_available_deals_visibility_v1.py to rebuild the owner shortlist."
+                            )
                         )
                     )
                 )
             ),
+            "visibility_counts": (src.get("counts") or src.get("visibility_counts") or {}),
         }
 
     cards: list[dict[str, Any]] = []

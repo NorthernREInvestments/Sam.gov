@@ -507,7 +507,7 @@
 
   async function renderDeals(params) {
     setHint("Browse currently available opportunities. Unknown economics stay visible.");
-    const filter = params.filter || "available";
+    const filter = params.filter || "worth_researching";
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
     if (params.status) qs.set("status", params.status);
@@ -526,33 +526,24 @@
         </div>`;
       return;
     }
+    const vc = data.visibility_counts || {};
     const filters = [
-      ["revenue_strategy", "Revenue strategy (contribution-correct)"],
-      ["source_product", "Source→product (line recovery)"],
-      ["commercial_proof", "Commercial proof (evidence-first)"],
-      ["first_revenue", "Best first-revenue"],
-      ["cash_flow", "Cash Flow verified ($500–$4,999)"],
-      ["growth", "Growth verified ($5k–$14,999)"],
-      ["scale", "Scale verified ($15k+)"],
+      ["worth_researching", `Worth Researching${vc.worth_researching != null ? " ("+vc.worth_researching+")" : ""}`],
+      ["ready_to_bid", `Ready to Bid${vc.ready_to_bid != null ? " ("+vc.ready_to_bid+")" : ""}`],
+      ["blocked_ineligible", `Blocked / Ineligible${vc.blocked_ineligible != null ? " ("+vc.blocked_ineligible+")" : ""}`],
       ["needs_pricing", "Needs Pricing"],
       ["supplier_quote_needed", "Supplier Quote Needed"],
       ["needs_financing", "Needs Financing"],
-      ["ready_to_bid", "Ready to Bid"],
-      ["revenue_first", "Revenue-first (all viable)"],
-      ["commercial_intelligence", "Profit-ranked (CI)"],
-      ["available", "All available"],
-      ["product_resale", "Product resale"],
+      ["cash_flow", "Cash Flow verified ($500–$4,999)"],
+      ["growth", "Growth verified ($5k–$14,999)"],
+      ["scale", "Scale verified ($15k+)"],
       ["common_commercial", "Common commercial"],
-      ["ready_to_research", "Ready to research"],
-      ["ready_to_call", "Ready to call"],
-      ["ready_to_quote", "Ready to quote"],
-      ["registration_blocked", "Registration blocked"],
-      ["financing_blocked", "Financing blocked"],
+      ["product_resale", "Product resale (store)"],
       ["federal", "Federal"],
       ["state_local", "State/local"],
       ["all", "Include rejected"],
     ];
-    const revenueFilters = new Set(["revenue_strategy","source_product","commercial_proof","first_revenue","revenue_first","cash_flow","growth","scale","needs_pricing","needs_financing","ready_to_bid","supplier_quote_needed","commercial_intelligence","profit_ranked","ci_upgrade"]);
+    const revenueFilters = new Set(["worth_researching","ready_to_bid","blocked_ineligible","blocked","revenue_strategy","source_product","commercial_proof","first_revenue","revenue_first","cash_flow","growth","scale","needs_pricing","needs_financing","supplier_quote_needed","commercial_intelligence","profit_ranked","ci_upgrade","selling_price_first","supplier_advantage_first","low_friction","all_viable"]);
     const strat = data.strategy_summary || (data.items && data.items[0] && (data.items[0].extras || data.items[0]).strategy_summary) || {};
     const bud = data.research_budget || {};
     const openaiToday = bud.openai_spend_today_usd ?? strat.openai_spend_today ?? "—";
@@ -564,8 +555,14 @@
     const paused = bud.paid_research_paused ?? strat.paid_research_paused;
     main.innerHTML = `
       <h1>Available Deals</h1>
-      <p class="lead">${revenueFilters.has(filter)
-        ? "Identify → Research → Price → Finance → Bid → Fulfill → Get Paid. Award/acquisition cost ≠ profit. Verified lanes require remaining contribution."
+      <p class="lead">${filter === "worth_researching" || filter === "revenue_strategy"
+        ? "Daily research queue: open eligible product opportunities. Unknown price/history/financing stays visible — that is the next action, not a reason to hide the deal."
+        : filter === "ready_to_bid"
+        ? "Only deals with quotes, supported contribution, and financing path. Rare until research completes."
+        : filter === "blocked_ineligible" || filter === "blocked"
+        ? "Ineligible set-asides, expired, or non-product — kept for audit."
+        : revenueFilters.has(filter)
+        ? "Identify → Research → Price → Finance → Bid. Award/acquisition cost ≠ profit."
         : "Current opportunities that are not expired, canceled, or hard-rejected. Unknown pricing/financing still appear."}</p>
       ${revenueFilters.has(filter) ? `
       <div class="still-needed" style="margin-bottom:1rem">
@@ -599,10 +596,16 @@
         <button type="button" class="btn secondary" id="f-go">Apply</button>
       </div>
       <p class="muted">${esc(data.total)} shown · ${esc(data.canonical_count || "—")} canonical</p>
+      ${revenueFilters.has(filter) ? `<div class="meta-row" style="margin:.5rem 0;font-weight:600">
+        <span>Product</span><span>Buyer</span><span>Deadline</span><span>Set-aside</span><span>Lines</span><span>Pricing</span><span>Next Action</span>
+      </div>` : ""}
       ${(data.items || []).length ? data.items.map((d) => {
         const x = d.extras || d;
         const lane = x.lane || d.lane;
         const days = x.estimated_days_to_cash != null ? x.estimated_days_to_cash : d.estimated_days_to_cash;
+        const pricing = x.pricing_status || (x.acquisition_cost == null || x.acquisition_cost === "UNKNOWN" ? "UNKNOWN" : "KNOWN");
+        const lines = x.lines != null ? x.lines : (x.mandatory_lines != null ? x.mandatory_lines : "—");
+        const nextAct = x.next_owner_action || d.next_owner_action || d.why || "Research";
         const profitLabel = (x.lane_verification === "VERIFIED" || d.lane_verification === "VERIFIED")
           ? ("Verified contribution $" + (x.verified_remaining_contribution || x.potential_profit || d.potential_profit))
           : (x.conditional_remaining_contribution != null
@@ -612,33 +615,20 @@
             : "Contribution: UNKNOWN"));
         return dealCard({
         ...d,
-        why: x.next_owner_action || d.next_owner_action || d.why,
+        product: d.product || x.title,
+        buyer: d.buyer,
+        why: nextAct,
         plain: [
-          lane ? ("Lane: " + lane + (x.hypothetical_lane ? (" (hypo " + x.hypothetical_lane + ")") : "")) : (d.jurisdiction_bucket || d.jurisdiction || "UNKNOWN"),
+          "Set-aside: " + (x.set_aside || "—"),
+          "Lines: " + lines,
+          "Pricing: " + pricing,
+          "Next: " + nextAct,
+          lane ? ("Lane: " + lane + (x.hypothetical_lane ? (" (hypo " + x.hypothetical_lane + ")") : "")) : null,
           x.contribution_state ? ("Contribution: " + x.contribution_state) : null,
           x.primary_blocker ? ("Blocker: " + x.primary_blocker) : null,
-          x.public_acquisition_cost ? ("Acq cost: $" + x.public_acquisition_cost + " (not profit)") : null,
-          x.identity_class ? ("Identity: " + x.identity_class) : null,
-          x.recovery_status ? ("Recovery: " + String(x.recovery_status).replace(/_/g, " ")) : null,
-          x.before_identity_class && x.before_identity_class !== x.identity_class
-            ? ("Was: " + x.before_identity_class) : null,
-          x.lines_recovered != null ? ("Lines recovered: " + x.lines_recovered) : null,
-          x.readiness && x.readiness.MANDATORY_LINE_COVERAGE
-            ? ("Spec coverage: " + x.readiness.MANDATORY_LINE_COVERAGE) : null,
-          x.public_price_status && x.public_price_status !== "UNKNOWN"
-            ? ("Public price: " + x.public_price_status) : null,
-          x.root_cause ? ("Root: " + x.root_cause) : null,
-          x.population ? ("Pop: " + x.population) : null,
-          x.mandatory_lines != null ? ("Lines: " + x.mandatory_lines) : null,
-          x.retail_pricing_coverage ? ("Priced: " + x.retail_pricing_coverage) : null,
-          "Retail: " + (x.acquisition_cost == null || x.acquisition_cost === "UNKNOWN" ? "UNKNOWN" : ("$" + x.acquisition_cost)),
           profitLabel,
-          x.economics_status ? ("Econ: " + x.economics_status) : null,
-          "Days-to-cash: " + (days == null ? (x.payment_timing_confidence || "UNKNOWN") : days),
-          "Suppliers: " + (x.supplier_status || d.supplier_status || "UNKNOWN"),
           "Financing: " + (x.financing_status || d.financing_status || "UNKNOWN"),
-          x.owner_cash_required ? "Owner cash: REQUIRED/UNVERIFIED" : "Owner cash: not required (if financed)",
-          "Next: " + (x.next_owner_action || d.next_owner_action || "—"),
+          days != null ? ("Days-to-cash: " + days) : null,
         ].filter(Boolean).join(" · "),
       });
       }).join("") : emptyBox("No deals match these filters.")}
