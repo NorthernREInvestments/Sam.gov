@@ -81,6 +81,13 @@ def search_sam_dla_product_opportunities(
                 break
             if not can_spend_sam(1):
                 break
+            from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+            from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call, reserve_sam_call
+
+            try:
+                commercial_rid = reserve_sam_call(purpose=f"dla_fallback:{att.get('label')}")
+            except BudgetDenied:
+                break
             params = {
                 "api_key": api_key,
                 "postedFrom": posted_from.strftime("%m/%d/%Y"),
@@ -92,7 +99,12 @@ def search_sam_dla_product_opportunities(
             for k, v in att.items():
                 if k != "label":
                     params[k] = v
-            resp = client.get("https://api.sam.gov/opportunities/v2/search", params=params)
+            try:
+                resp = client.get("https://api.sam.gov/opportunities/v2/search", params=params)
+            except Exception:
+                commit_sam_call(commercial_rid, success=False)
+                raise
+            commit_sam_call(commercial_rid, success=True)
             calls += 1
             record_sam_usage(1)
             if resp.status_code != 200:

@@ -183,6 +183,15 @@ def fetch_naics_from_sam(
             "SAM.gov daily API budget reached — try again tomorrow or raise SAM_API_CALL_LIMIT."
         )
 
+    # Hard commercial SAM ledger (10/day) — cannot bypass via api_budget alone.
+    from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+    from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call, reserve_sam_call
+
+    try:
+        commercial_rid = reserve_sam_call(purpose=f"sam_client:naics:{naics_code}")
+    except BudgetDenied as exc:
+        raise ValueError(f"SAM commercial budget denied: {exc.reason}") from exc
+
     posted_to = today_local()
     posted_from = posted_to - timedelta(days=30)
 
@@ -196,10 +205,17 @@ def fetch_naics_from_sam(
         "active": "yes",
     }
 
-    with httpx.Client(timeout=60.0) as client:
-        resp = client.get(SAM_SEARCH_URL, params=params)
-        resp.raise_for_status()
-        batch = resp.json().get("opportunitiesData") or []
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.get(SAM_SEARCH_URL, params=params)
+            resp.raise_for_status()
+            batch = resp.json().get("opportunitiesData") or []
+    except Exception:
+        # Errors still count against SAM budget (policy: do not treat errors as free)
+        commit_sam_call(commercial_rid, success=False)
+        raise
+    else:
+        commit_sam_call(commercial_rid, success=True)
 
     record_sam_usage(1)
     mark_sam_audit_executed(gate.get("audit_id"), useful_new_evidence=bool(batch), result_status="EXECUTED")
@@ -245,6 +261,14 @@ def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
     if not can_spend_sam(1):
         raise ValueError("SAM.gov daily API budget reached.")
 
+    from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+    from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call, reserve_sam_call
+
+    try:
+        commercial_rid = reserve_sam_call(purpose="sam_client:govspend_watchlist")
+    except BudgetDenied as exc:
+        raise ValueError(f"SAM commercial budget denied: {exc.reason}") from exc
+
     posted_to = today_local()
     posted_from = posted_to - timedelta(days=45)
 
@@ -269,10 +293,16 @@ def fetch_govspend_target_from_sam(target: Any) -> list[dict[str, Any]]:
     elif getattr(target, "incumbent_name", None):
         params["title"] = str(target.incumbent_name).strip()[:100]
 
-    with httpx.Client(timeout=60.0) as client:
-        resp = client.get(SAM_SEARCH_URL, params=params)
-        resp.raise_for_status()
-        batch = resp.json().get("opportunitiesData") or []
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.get(SAM_SEARCH_URL, params=params)
+            resp.raise_for_status()
+            batch = resp.json().get("opportunitiesData") or []
+    except Exception:
+        commit_sam_call(commercial_rid, success=False)
+        raise
+    else:
+        commit_sam_call(commercial_rid, success=True)
 
     record_sam_usage(1)
     mark_sam_audit_executed(gate.get("audit_id"), useful_new_evidence=bool(batch), result_status="EXECUTED")

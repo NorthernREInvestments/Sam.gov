@@ -81,6 +81,16 @@ def _sam_api_get(
         return None
     if not can_spend_sam(1):
         return None
+    commercial_rid = None
+    try:
+        from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+        from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call, reserve_sam_call
+
+        commercial_rid = reserve_sam_call(purpose="sam_enrich:get")
+    except BudgetDenied:
+        return None
+    except Exception:
+        commercial_rid = None
     try:
         with httpx.Client(timeout=timeout) as client:
             response = client.get(url, params=params)
@@ -91,8 +101,16 @@ def _sam_api_get(
                 useful_new_evidence=True,
                 result_status="EXECUTED",
             )
+            if commercial_rid:
+                from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+                commit_sam_call(commercial_rid, success=True)
             return response
     except Exception:
+        if commercial_rid:
+            from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+            commit_sam_call(commercial_rid, success=False)
         return None
 
 

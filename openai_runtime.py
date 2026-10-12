@@ -370,32 +370,89 @@ def create_response(
     )
     if automatic:
         require_automatic_budget(stage=stage_int, estimated_cost_usd=est_cost)
-        # Optional central CostGovernor enforcement (default off to avoid suite side-effects;
-        # production enables via M3_COST_GOVERNOR_ENFORCE=1)
-        import os
 
-        if os.getenv("M3_COST_GOVERNOR_ENFORCE", "").strip().lower() in {"1", "true", "yes"}:
-            from uuid import uuid4
+    # Global hard commercial budget — applies to ALL OpenAI calls (auto + manual).
+    # Default ON outside pytest; set M3_COMMERCIAL_BUDGET_ENFORCE=0 to disable,
+    # or =1 inside pytest to force-on for budget acceptance tests.
+    commercial_rid: str | None = None
+    _in_pytest = bool(os.getenv("PYTEST_CURRENT_TEST"))
+    _cb_default = "0" if _in_pytest else "1"
+    enforce_commercial = os.getenv("M3_COMMERCIAL_BUDGET_ENFORCE", _cb_default).strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+    if enforce_commercial:
+        from decimal import Decimal
+        from uuid import uuid4
 
-            from cost_governor import get_cost_governor
+        from buyer_intelligence.commercial_budget_control_v1 import (
+            BudgetDenied,
+            commit_actual_usage,
+            estimate_openai_worst_case,
+            reserve_budget,
+        )
 
-            auth = get_cost_governor().authorize(
-                {
-                    "provider": "openai",
-                    "action_type": "AI_COMPLETION",
-                    "model": model_name,
-                    "estimated_max_cost": float(est_cost) if est_cost else 0.05,
-                    "research_stage": str(stage_int),
-                    "question": f"openai_automatic_stage_{stage_int}",
-                    "could_change_decision": True,
-                    "idempotency_key": f"openai-call-{uuid4().hex}",
-                }
-            )
-            if not auth.get("authorized"):
-                raise AIDollarBudgetExceeded(
-                    auth.get("reason") or "CostGovernor blocked paid OpenAI call",
-                    reason="cost_governor",
+        try:
+            # Conservative: prefer pricing estimate, else model worst-case floor
+            if est_cost and float(est_cost) > 0:
+                est_dec = max(Decimal(str(est_cost)), Decimal("0.0001"))
+            else:
+                est_dec = estimate_openai_worst_case(
+                    model=model_name,
+                    max_input_tokens=max(1, int(input_chars / 4)),
+                    max_output_tokens=int(max_out or 500),
                 )
+            rsv = reserve_budget(
+                provider="openai",
+                estimated_usd=est_dec,
+                model=model_name,
+                purpose=f"openai_runtime:{task}:stage_{stage_int}",
+                opportunity_id=notice_id,
+                reservation_id=f"OAI-{uuid4().hex[:16]}",
+            )
+            commercial_rid = str(rsv["reservation_id"])
+        except BudgetDenied as exc:
+            raise AIDollarBudgetExceeded(
+                f"Commercial budget denied: {exc.reason}",
+                reason=str(exc.reason),
+            ) from exc
+
+    # CostGovernor always-on for automatic calls outside pytest (fail-closed).
+    # Manual calls still covered by commercial_budget above.
+    _cg_default = "0" if _in_pytest else "1"
+    if automatic and os.getenv("M3_COST_GOVERNOR_ENFORCE", _cg_default).strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }:
+        from uuid import uuid4
+
+        from cost_governor import get_cost_governor
+
+        auth = get_cost_governor().authorize(
+            {
+                "provider": "openai",
+                "action_type": "AI_COMPLETION",
+                "model": model_name,
+                "estimated_max_cost": float(est_cost) if est_cost else 0.05,
+                "research_stage": str(stage_int),
+                "question": f"openai_automatic_stage_{stage_int}",
+                "could_change_decision": True,
+                "idempotency_key": f"openai-call-{uuid4().hex}",
+            }
+        )
+        if not auth.get("authorized"):
+            if commercial_rid:
+                from buyer_intelligence.commercial_budget_control_v1 import release_unused_reservation
+
+                release_unused_reservation(commercial_rid)
+            raise AIDollarBudgetExceeded(
+                auth.get("reason") or "CostGovernor blocked paid OpenAI call",
+                reason="cost_governor",
+            )
 
     kwargs: dict[str, Any] = {
         "model": model_name,
@@ -421,6 +478,18 @@ def create_response(
             reasoning_tokens=usage["reasoning_tokens"] or 0,
             web_search=use_search,
         )
+        if commercial_rid:
+            from decimal import Decimal
+
+            from buyer_intelligence.commercial_budget_control_v1 import commit_actual_usage
+
+            commit_actual_usage(
+                commercial_rid,
+                actual_usd=Decimal(str(cost or 0)),
+                success=True,
+                usage_tokens=usage,
+            )
+            commercial_rid = None
         text = response_output_text(response)
         _LAST_RESPONSE_META = {
             "cache_hit": False,
@@ -461,8 +530,17 @@ def create_response(
                 logger.warning("Stage %s cache persist failed for task=%s", stage_int, task)
         return text
     except (AIDollarBudgetExceeded, AIStageBudgetExceeded, AIInputTooLarge):
+        if commercial_rid:
+            from buyer_intelligence.commercial_budget_control_v1 import release_unused_reservation
+
+            release_unused_reservation(commercial_rid)
         raise
     except Exception as exc:
+        if commercial_rid:
+            # Fail closed on uncertain billing — hold reservation
+            from buyer_intelligence.commercial_budget_control_v1 import commit_actual_usage
+
+            commit_actual_usage(commercial_rid, success=False, charge_uncertain=True)
         log_ai_usage(
             task=task,
             model=model_name,

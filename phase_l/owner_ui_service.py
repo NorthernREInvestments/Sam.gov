@@ -193,6 +193,224 @@ def _load_buyer_intelligence_targets() -> dict[str, Any]:
         return {}
 
 
+def _load_buyer_trend_today() -> dict[str, Any]:
+    path = _data_dir() / "m3_buyer_trend_today_v1.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_small_buy_today() -> dict[str, Any]:
+    path = _data_dir() / "m3_small_buy_today_v1.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_three_lane_today() -> dict[str, Any]:
+    path = _data_dir() / "m3_three_lane_today_v1.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_category_enrichment_v2_today() -> dict[str, Any]:
+    path = _data_dir() / "m3_category_enrichment_v2_today.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_opengov_deep_enrichment_today() -> dict[str, Any]:
+    path = _data_dir() / "m3_opengov_live_deep_enrichment_v1_today.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _category_enrichment_v2_today_sections() -> dict[str, list[dict[str, Any]]]:
+    doc = _load_category_enrichment_v2_today()
+    out: dict[str, list[dict[str, Any]]] = {
+        "live_repeat_buy": [],
+        "category_research": [],
+    }
+
+    def _card(row: dict[str, Any], *, kind: str) -> dict[str, Any]:
+        return {
+            "kind": kind,
+            "title": str(row.get("OPPORTUNITY") or row.get("BUYER") or kind)[:120],
+            "subtitle": " · ".join(
+                str(x)
+                for x in (
+                    row.get("BUYER"),
+                    row.get("CATEGORY"),
+                    row.get("SOURCE") or row.get("WHY_CATEGORY_UNKNOWN"),
+                    row.get("NEXT_ACTION"),
+                )
+                if x
+            )[:160],
+            "meta": row,
+        }
+
+    for row in doc.get("live_repeat_buy") or []:
+        if isinstance(row, dict):
+            out["live_repeat_buy"].append(_card(row, kind="LiveRepeatBuy"))
+    for row in doc.get("category_research") or []:
+        if isinstance(row, dict):
+            out["category_research"].append(_card(row, kind="CategoryResearch"))
+    return out
+
+
+def _three_lane_today_cards() -> list[dict[str, Any]]:
+    """Integrated live deals with L1/L2/L3 badges — one row per opportunity."""
+    doc = _load_three_lane_today()
+    cards: list[dict[str, Any]] = []
+    for row in (doc.get("LIVE_DEALS_TO_ACT_ON") or [])[:15]:
+        if not isinstance(row, dict):
+            continue
+        badges = row.get("badges") or []
+        cards.append(
+            {
+                "deal_id": f"3l:{row.get('opportunity_id')}",
+                "opportunity_id": row.get("opportunity_id"),
+                "title": row.get("title") or row.get("buyer"),
+                "buyer": row.get("buyer"),
+                "product": row.get("category"),
+                "deadline": row.get("deadline"),
+                "badges": badges,
+                "lane_badges": badges,
+                "next_action": row.get("next_action"),
+                "research_boost": row.get("boost"),
+                "href": f"#/deal?id={row.get('opportunity_id')}",
+                "kind": "ThreeLaneLiveDeal",
+                "ui_next_action_label": str(row.get("next_action") or "OPEN")[:28],
+                "NO_PROFIT_CLAIMS": True,
+            }
+        )
+    return cards
+
+
+def _small_buy_today_sections() -> dict[str, list[dict[str, Any]]]:
+    """Lane-3 Today cards — historical never presented as live."""
+    doc = _load_small_buy_today()
+    out: dict[str, list[dict[str, Any]]] = {
+        "live_small_buys": [],
+        "small_buys_to_watch": [],
+        "registrations_blocking_small_buys": [],
+        "small_buy_supplier_prep": [],
+    }
+
+    def _card(row: dict[str, Any], *, kind: str) -> dict[str, Any]:
+        buyer = row.get("BUYER") or "Buyer"
+        cat = str(row.get("CATEGORY") or row.get("PRODUCT_CATEGORY") or "").replace("_", " ").title()
+        return {
+            "deal_id": f"sb:{row.get('BUYER_ID') or buyer}:{cat}:{row.get('OPPORTUNITY') or kind}",
+            "buyer_id": row.get("BUYER_ID"),
+            "title": f"{buyer} — {cat}" if cat else str(buyer),
+            "buyer": buyer,
+            "product": cat,
+            "opportunity_id": row.get("OPPORTUNITY"),
+            "deadline": row.get("DEADLINE"),
+            "next_buy_window": row.get("NEXT_BUY_WINDOW") or row.get("WINDOW"),
+            "priority": row.get("PRIORITY"),
+            "portal": row.get("PORTAL"),
+            "registration": row.get("REGISTRATION"),
+            "next_action": row.get("NEXT_ACTION"),
+            "why": row.get("WHY") or row.get("WHY_WATCH"),
+            "href": (
+                f"#/deal?id={row.get('OPPORTUNITY')}"
+                if row.get("OPPORTUNITY")
+                else f"#/buyer?id={row.get('BUYER_ID')}"
+            ),
+            "kind": kind,
+            "ui_next_action_label": str(row.get("NEXT_ACTION") or "OPEN")[:28],
+            "NO_PROFIT_CLAIMS": True,
+            "HISTORICAL_IS_NOT_LIVE": True,
+        }
+
+    for row in (doc.get("LIVE_SMALL_BUYS") or [])[:12]:
+        if isinstance(row, dict) and row.get("OPPORTUNITY"):
+            out["live_small_buys"].append(_card(row, kind="LiveSmallBuy"))
+    for row in (doc.get("SMALL_BUYS_TO_WATCH") or [])[:12]:
+        if isinstance(row, dict):
+            out["small_buys_to_watch"].append(_card(row, kind="SmallBuyWatch"))
+    for row in (doc.get("REGISTRATIONS_BLOCKING_SMALL_BUYS") or [])[:12]:
+        if isinstance(row, dict):
+            out["registrations_blocking_small_buys"].append(
+                _card(row, kind="SmallBuyRegistration")
+            )
+    for row in (doc.get("SUPPLIER_PREP") or [])[:12]:
+        if isinstance(row, dict):
+            out["small_buy_supplier_prep"].append(_card(row, kind="SmallBuySupplierPrep"))
+    return out
+
+
+def _buyer_trend_today_sections() -> dict[str, list[dict[str, Any]]]:
+    """Operationalized Lane-2 Today cards — no profit claims."""
+    doc = _load_buyer_trend_today()
+    out: dict[str, list[dict[str, Any]]] = {
+        "buyers_to_watch": [],
+        "registrations_to_complete": [],
+        "likely_repeat_purchases": [],
+        "supplier_relationships_to_prepare": [],
+    }
+
+    def _card(row: dict[str, Any], *, kind: str) -> dict[str, Any]:
+        buyer = row.get("BUYER") or "Buyer"
+        cat = str(row.get("CATEGORY") or "").replace("_", " ").title()
+        return {
+            "deal_id": f"bt:{row.get('BUYER_ID') or buyer}:{row.get('CATEGORY')}",
+            "buyer_id": row.get("BUYER_ID"),
+            "title": f"{buyer} — {cat}" if cat else str(buyer),
+            "buyer": buyer,
+            "product": cat,
+            "next_buy_window": row.get("NEXT_BUY_WINDOW"),
+            "recurrence_confidence": row.get("RECURRENCE_CONFIDENCE"),
+            "typical_order_size": row.get("TYPICAL_ORDER_SIZE"),
+            "portal": row.get("PORTAL"),
+            "registration": row.get("REGISTRATION"),
+            "target_priority": row.get("TARGET_PRIORITY") or row.get("SUPPLIER_PREP_PRIORITY"),
+            "next_action": row.get("NEXT_ACTION"),
+            "why": row.get("WHY"),
+            "order_count": row.get("ORDER_COUNT"),
+            "href": f"#/buyer?id={row.get('BUYER_ID')}",
+            "kind": kind,
+            "ui_next_action_label": str(row.get("NEXT_ACTION") or "OPEN BUYER")[:28],
+            "NO_PROFIT_CLAIMS": True,
+        }
+
+    for row in (doc.get("BUYERS_TO_WATCH") or [])[:12]:
+        if isinstance(row, dict):
+            out["buyers_to_watch"].append(_card(row, kind="BuyerToWatch"))
+    for row in (doc.get("REGISTRATIONS_TO_COMPLETE") or [])[:12]:
+        if isinstance(row, dict):
+            out["registrations_to_complete"].append(_card(row, kind="RegistrationToComplete"))
+    for row in (doc.get("LIKELY_REPEAT_PURCHASES") or [])[:12]:
+        if isinstance(row, dict):
+            out["likely_repeat_purchases"].append(_card(row, kind="LikelyRepeatPurchase"))
+    for row in (doc.get("SUPPLIER_RELATIONSHIPS_TO_PREPARE") or [])[:12]:
+        if isinstance(row, dict):
+            out["supplier_relationships_to_prepare"].append(
+                _card(row, kind="SupplierPrep")
+            )
+    return out
+
+
 def _load_validated_top10() -> dict[str, Any]:
     path = _data_dir() / "m3_top10_buyer_validation_v1_targets.json"
     if not path.exists():
@@ -201,6 +419,148 @@ def _load_validated_top10() -> dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _profit_pattern_today_cards() -> list[dict[str, Any]]:
+    doc = _load_json_safe(_data_dir() / "m3_profitable_pattern_discovery_v1_ui.json") or {}
+    cards: list[dict[str, Any]] = []
+    for m in doc.get("top_matches") or []:
+        if not isinstance(m, dict):
+            continue
+        cards.append(
+            {
+                "deal_id": f"ppm:{m.get('BUYER')}:{m.get('ORDER')}",
+                "buyer_id": m.get("BUYER"),
+                "title": f"{m.get('BUYER')} — {m.get('ORDER')}",
+                "buyer": m.get("BUYER"),
+                "product": (m.get("TITLE") or "Historical pattern match")[:80],
+                "pattern_score": m.get("PHENOTYPE_SCORE"),
+                "historical_proof_signal": m.get("HEADROOM"),
+                "order_size_signal": m.get("GOV_TOTAL"),
+                "identity_quality": m.get("COVERAGE"),
+                "channel": m.get("CHANNEL"),
+                "disposition": m.get("DISPOSITION"),
+                "why": (
+                    f"Pattern {m.get('PHENOTYPE_SCORE')} · cov {m.get('COVERAGE')}% · "
+                    f"headroom {m.get('HEADROOM')}"
+                ),
+                "plain": f"Vendor {m.get('HISTORICAL_VENDOR') or 'UNKNOWN'} · {m.get('DISPOSITION')}",
+                "href": m.get("SOURCE_URL") or f"#/buyer?id={m.get('BUYER')}",
+                "kind": "ProfitPatternMatch",
+                "ui_next_action_label": "OPEN SOURCE",
+            }
+        )
+    for m in (doc.get("live_matches") or [])[:5]:
+        if not isinstance(m, dict):
+            continue
+        cards.append(
+            {
+                "deal_id": f"ppm-live:{m.get('canonical_opportunity_id')}",
+                "buyer_id": m.get("BUYER"),
+                "title": f"{m.get('BUYER')} — LIVE",
+                "buyer": m.get("BUYER"),
+                "product": (m.get("TITLE") or "Live match")[:80],
+                "pattern_score": m.get("MATCH_SCORE"),
+                "deadline": m.get("DEADLINE"),
+                "why": f"Live pattern score {m.get('MATCH_SCORE')} · {', '.join((m.get('MATCHED_FEATURES') or [])[:3])}",
+                "plain": m.get("NEXT_ACTION"),
+                "kind": "ProfitPatternLiveMatch",
+                "ui_next_action_label": "WATCH",
+            }
+        )
+    return cards[:15]
+
+
+def _multibuyer_profit_today_cards() -> list[dict[str, Any]]:
+    doc = _load_json_safe(_data_dir() / "m3_multibuyer_historical_profit_proof_v1_ui.json") or {}
+    cards: list[dict[str, Any]] = []
+    for b in doc.get("buyers") or []:
+        if not isinstance(b, dict):
+            continue
+        if b.get("disposition") not in {"ACT_NOW", "RESEARCH_NEXT", "WATCH"}:
+            continue
+        med = b.get("median_complete_order")
+        head = b.get("visible_headroom")
+        cards.append(
+            {
+                "deal_id": f"mbpp:{b.get('buyer_id')}",
+                "buyer_id": b.get("buyer_id"),
+                "title": f"{b.get('buyer')} — {str(b.get('category') or '').replace('_', ' ').title()}",
+                "buyer": b.get("buyer"),
+                "product": str(b.get("category") or "").replace("_", " ").title() or "Repeat buyer",
+                "category": b.get("category"),
+                "orders_tested": b.get("orders_tested"),
+                "orders_positive": b.get("orders_positive"),
+                "meaningful_headroom_orders": b.get("meaningful_headroom_orders"),
+                "median_complete_order": med,
+                "visible_headroom": head,
+                "channel": b.get("channel"),
+                "live_matches": b.get("live_matches"),
+                "disposition": b.get("disposition"),
+                "repeatability": b.get("repeatability"),
+                "next_action": b.get("next_action"),
+                "why": (
+                    f"{b.get('disposition')}: {b.get('orders_positive')} positive / "
+                    f"{b.get('meaningful_headroom_orders')} meaningful · rep {b.get('repeatability')}"
+                ),
+                "plain": f"Headroom {head if head is not None else 'UNKNOWN'} · {b.get('next_action') or ''}",
+                "href": f"#/buyer?id={b.get('buyer_id')}",
+                "kind": "RepeatBuyerProfitProof",
+                "ui_next_action_label": "OPEN BUYER",
+            }
+        )
+    return cards[:12]
+
+
+def _historical_profit_signals_today_cards() -> list[dict[str, Any]]:
+    """Buyer Intelligence — HISTORICAL PROFIT SIGNALS (prefer Proof V2, else expansion)."""
+    doc = _load_json_safe(_data_dir() / "m3_historical_profit_proof_v2_ui.json") or {}
+    if not (doc.get("buyers") or []):
+        doc = _load_json_safe(_data_dir() / "m3_historical_award_expansion_v1_ui.json") or {}
+    cards: list[dict[str, Any]] = []
+    for b in doc.get("buyers") or []:
+        if not isinstance(b, dict):
+            continue
+        disp = str(b.get("disposition") or "")
+        if disp not in {"ACT_NOW", "RESEARCH_NEXT", "WATCH", "PROVEN_REPEAT", "SINGLE_HIT", "MIXED"}:
+            # Still show negative/insufficient briefly if they have tested orders
+            if not b.get("orders_tested"):
+                continue
+        src = b.get("source")
+        if isinstance(src, list):
+            src = ", ".join(str(x) for x in src[:2])
+        head = b.get("visible_headroom")
+        cards.append(
+            {
+                "deal_id": f"hps:{b.get('buyer')}",
+                "buyer_id": b.get("buyer"),
+                "title": f"{b.get('buyer')} — {str(b.get('category') or '').replace('_', ' ').title() or 'Historical'}",
+                "buyer": b.get("buyer"),
+                "source": src,
+                "category": b.get("category"),
+                "orders_tested": b.get("orders_tested"),
+                "orders_positive": b.get("positive"),
+                "meaningful_headroom_orders": b.get("meaningful"),
+                "typical_order_size": b.get("typical_order_size"),
+                "visible_headroom": head,
+                "live_overlap": b.get("live_overlap"),
+                "disposition": disp,
+                "repeatability": b.get("repeatability"),
+                "next_action": b.get("next_action"),
+                "why": (
+                    f"{disp}: +{b.get('positive')} / mh {b.get('meaningful')} · "
+                    f"tested {b.get('orders_tested')} · live {b.get('live_overlap')}"
+                ),
+                "plain": f"Headroom {head if head is not None else 'UNKNOWN'} · {b.get('next_action') or ''}",
+                "href": f"#/buyer?id={b.get('buyer')}",
+                "kind": "HistoricalProfitSignal",
+                "ui_next_action_label": "OPEN BUYER",
+            }
+        )
+    # Prefer actionable first
+    rank = {"ACT_NOW": 0, "RESEARCH_NEXT": 1, "WATCH": 2, "PROVEN_REPEAT": 0, "SINGLE_HIT": 1, "MIXED": 2}
+    cards.sort(key=lambda c: (rank.get(str(c.get("disposition") or ""), 9), -(c.get("orders_positive") or 0)))
+    return cards[:15]
 
 
 def _validated_target_today_cards() -> list[dict[str, Any]]:
@@ -230,8 +590,12 @@ def _validated_target_today_cards() -> list[dict[str, Any]]:
                 "live_overlap": t.get("LIVE_OVERLAP"),
                 "disposition": t.get("DISPOSITION"),
                 "next_action": t.get("NEXT_ACTION"),
-                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "product": str(t.get("CATEGORY") or "").replace("_", " ").title() or "Target",
+                "why": f"{t.get('DISPOSITION')}: {t.get('TOTAL_DISTINCT_PURCHASES')} purchases · med complete ${med:,.0f}" if isinstance(med, (int, float)) else str(t.get("DISPOSITION")),
+                "plain": f"Cash {t.get('CASH_RISK')} · {t.get('NEXT_ACTION') or ''}",
+                "href": f"#/buyer?id={t.get('BUYER_ID')}",
                 "kind": "ValidatedTargetAccount",
+                "ui_next_action_label": "OPEN BUYER",
             }
         )
     return cards[:15]
@@ -263,8 +627,9 @@ def _buyer_intelligence_today_cards() -> tuple[list[dict[str, Any]], list[dict[s
                 "deadline": t.get("LIVE_DEADLINE"),
                 "next_action": t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION"),
                 "target_score": t.get("TARGET_ACCOUNT_SCORE"),
-                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "href": f"#/buyer?id={t.get('BUYER_ID')}",
                 "kind": "SmallBuyLead",
+                "ui_next_action_label": "OPEN BUYER",
             }
         )
     for t in (doc.get("REPEAT_BUYERS") or doc.get("TARGET_BUYERS") or [])[:12]:
@@ -296,11 +661,128 @@ def _buyer_intelligence_today_cards() -> tuple[list[dict[str, Any]], list[dict[s
                 "live_title": t.get("LIVE_TITLE"),
                 "next_action": t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION"),
                 "why": t.get("WHY_IT_MATTERS"),
-                "href": f"#/today/buyer/{t.get('BUYER_ID')}",
+                "href": f"#/buyer?id={t.get('BUYER_ID')}",
                 "kind": "RepeatBuyer",
+                "ui_next_action_label": "OPEN BUYER",
             }
         )
     return small, repeats
+
+
+def _is_gometro_buyer_id(buyer_id: str, name: str | None = None) -> bool:
+    blob = f"{buyer_id or ''} {name or ''}".lower().replace(" ", "").replace("_", "")
+    return "gometro" in blob or "sorta" in blob or "southwestohioregional" in blob
+
+
+def _gometro_historical_profit_payload() -> dict[str, Any] | None:
+    ui = _load_json_safe(_data_dir() / "m3_gometro_historical_profit_proof_v1_ui.json")
+    if isinstance(ui, dict) and ui.get("orders"):
+        return ui
+    report = _load_json_safe(_data_dir() / "m3_gometro_historical_profit_proof_v1_report.json")
+    if not isinstance(report, dict) or not report.get("orders"):
+        return None
+    return {
+        "build": report.get("build"),
+        "STATUS": report.get("STATUS"),
+        "orders": [
+            {
+                "project": o.get("PROJECT_ID"),
+                "date": o.get("ORDER_DATE"),
+                "government_paid": o.get("GOVERNMENT_TOTAL"),
+                "historical_vendor": o.get("HISTORICAL_VENDOR"),
+                "lines": len(o.get("LINES") or []),
+                "identity_coverage_pct": o.get("IDENTITY_COVERAGE_PCT"),
+                "public_price_coverage_pct": o.get("VALUE_WEIGHTED_PUBLIC_COVERAGE_PCT"),
+                "coverage_class": o.get("PUBLIC_PRICE_COVERAGE_CLASS"),
+                "public_basket_cost": o.get("CURRENT_PUBLIC_BASKET_COST"),
+                "visible_headroom": o.get("VISIBLE_PUBLIC_HEADROOM"),
+                "visible_headroom_pct": o.get("VISIBLE_PUBLIC_HEADROOM_PCT"),
+                "channel": o.get("CHANNEL_COMPETITION"),
+                "classification": o.get("CLASSIFICATION"),
+                "disposition": o.get("DISPOSITION"),
+                "source_url": o.get("SOURCE_URL"),
+            }
+            for o in (report.get("orders") or [])
+            if isinstance(o, dict)
+        ],
+        "corpus_summary": report.get("corpus_summary") or {},
+        "updated_at": report.get("updated_at"),
+    }
+
+
+def _gometro_order_proof_payload() -> dict[str, Any] | None:
+    report = _load_json_safe(_data_dir() / "m3_gometro_real_order_proof_v1_report.json")
+    if not isinstance(report, dict) or not report.get("validated_orders"):
+        return None
+    dist = report.get("order_size_distribution") or {}
+    return {
+        "status": report.get("STATUS"),
+        "build": report.get("build"),
+        "validated_orders": [
+            {
+                "date": o.get("DATE"),
+                "project": o.get("ORDER_ID"),
+                "category": o.get("CATEGORY"),
+                "full_order_total": o.get("FULL_ORDER_TOTAL"),
+                "total_method": o.get("TOTAL_METHOD"),
+                "vendor": o.get("VENDOR"),
+                "lines": o.get("LINE_COUNT"),
+                "what_bought": o.get("WHAT_WAS_BOUGHT"),
+                "sourceability": o.get("PUBLIC_SOURCEABILITY"),
+                "source": o.get("SOURCE_SYSTEM"),
+                "source_url": o.get("SOURCE_URL"),
+                "confidence": o.get("VALIDATION_CONFIDENCE"),
+            }
+            for o in (report.get("validated_orders") or [])[:30]
+            if isinstance(o, dict)
+        ],
+        "order_size_distribution": dist,
+        "repeat_patterns": [
+            {
+                "pattern": p.get("PATTERN_NAME"),
+                "orders": p.get("VALIDATED_ORDER_COUNT"),
+                "median_order": p.get("MEDIAN_ORDER"),
+                "max_order": p.get("MAX_ORDER"),
+                "last_buy": p.get("MOST_RECENT_BUY"),
+                "cadence": p.get("CADENCE"),
+                "vendors": p.get("HISTORICAL_VENDORS"),
+                "sourceability": p.get("PUBLIC_SOURCEABILITY_RATE"),
+                "cash_risk": p.get("CASH_RISK"),
+                "channel": p.get("CHANNEL_PATTERN"),
+                "score": p.get("GO_METRO_PATTERN_SCORE"),
+                "live_match": p.get("LIVE_MATCH"),
+            }
+            for p in (report.get("repeat_patterns") or [])
+            if isinstance(p, dict)
+        ],
+        "top_targets": [
+            {
+                "pattern": t.get("PATTERN_NAME"),
+                "why": t.get("WHY_WORTH_TARGETING"),
+                "orders": t.get("VALIDATED_ORDER_COUNT"),
+                "median_order": t.get("MEDIAN_ORDER"),
+                "max_order": t.get("MAX_ORDER"),
+                "last_buy": t.get("MOST_RECENT_BUY"),
+                "cadence": t.get("CADENCE"),
+                "vendors": t.get("HISTORICAL_VENDORS"),
+                "sourceability": t.get("PUBLIC_SOURCEABILITY_RATE"),
+                "cash_risk": t.get("CASH_RISK"),
+                "channel": t.get("CHANNEL_PATTERN"),
+                "score": t.get("GO_METRO_PATTERN_SCORE"),
+                "live_match": t.get("LIVE_MATCH"),
+                "next_action": t.get("NEXT_ACTION"),
+                "next_action_plain": t.get("NEXT_ACTION_PLAIN"),
+            }
+            for t in (report.get("top_target_patterns") or [])[:10]
+            if isinstance(t, dict)
+        ],
+        "live_matches": report.get("live_matches") or [],
+        "next_actions": [
+            t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION")
+            for t in (report.get("top_target_patterns") or [])[:5]
+            if isinstance(t, dict) and (t.get("NEXT_ACTION_PLAIN") or t.get("NEXT_ACTION"))
+        ],
+    }
 
 
 def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
@@ -331,7 +813,25 @@ def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
             "AGENCY": src.get("AGENCY"),
             "OFFICE": src.get("OFFICE"),
         }
-    return {
+    buyer_name = None
+    if isinstance(prof, dict):
+        buyer_name = prof.get("BUYER_NAME_CANONICAL")
+    if not buyer_name and val_rows:
+        buyer_name = val_rows[0].get("BUYER_NAME")
+    gometro_proof = None
+    gometro_profit = None
+    if _is_gometro_buyer_id(bid, buyer_name):
+        gometro_proof = _gometro_order_proof_payload()
+        gometro_profit = _gometro_historical_profit_payload()
+    multibuyer_profit = _multibuyer_profit_for_buyer(bid, buyer_name)
+    trend_detail = None
+    try:
+        from buyer_intelligence.buyer_trend_operationalization_v1 import get_buyer_detail
+
+        trend_detail = get_buyer_detail(bid)
+    except Exception:
+        trend_detail = None
+    result = {
         "kind": "BuyerProfile",
         "build": BUILD,
         "buyer_id": bid,
@@ -362,8 +862,63 @@ def build_buyer_profile(buyer_id: str) -> dict[str, Any]:
             (val_rows[0].get("WHY") if val_rows else None)
             or (trows[0].get("FINANCING_NOTE") if trows else "Supplier terms unknown — financing not yet proven.")
         ),
+        "gometro_order_proof": gometro_proof,
+        "gometro_historical_profit": gometro_profit,
+        "multibuyer_historical_profit": multibuyer_profit,
+        "buyer_trend": trend_detail,
+        "purchase_timeline": (trend_detail or {}).get("purchase_timeline") or [],
+        "NO_PROFIT_FROM_TRENDS": True,
+        "small_buy": None,
         "generated_at": _utc(),
     }
+    try:
+        from buyer_intelligence.micro_small_buy_operationalization_v1 import (
+            get_small_buy_for_buyer,
+        )
+
+        result["small_buy"] = get_small_buy_for_buyer(bid)
+    except Exception:
+        result["small_buy"] = None
+    return result
+
+
+def _multibuyer_profit_for_buyer(buyer_id: str, buyer_name: str | None) -> dict[str, Any] | None:
+    doc = _load_json_safe(_data_dir() / "m3_multibuyer_historical_profit_proof_v1_buyers.json") or {}
+    bid = str(buyer_id or "").strip()
+    name_l = (buyer_name or "").lower()
+    for b in doc.get("buyers") or []:
+        if not isinstance(b, dict):
+            continue
+        if str(b.get("BUYER_ID")) == bid or (name_l and name_l[:12] in str(b.get("BUYER") or "").lower()):
+            return {
+                "build": doc.get("build"),
+                "buyer": b.get("BUYER"),
+                "disposition": b.get("DISPOSITION"),
+                "repeatability": b.get("REPEATABILITY"),
+                "score": b.get("BUYER_OPPORTUNITY_SCORE"),
+                "next_action": b.get("NEXT_ACTION"),
+                "orders": [
+                    {
+                        "project": o.get("PROJECT_ID"),
+                        "date": o.get("ORDER_DATE"),
+                        "government_paid": o.get("GOVERNMENT_TOTAL"),
+                        "historical_vendor": o.get("HISTORICAL_VENDOR"),
+                        "lines": o.get("LINE_COUNT"),
+                        "identity_coverage_pct": o.get("IDENTITY_COVERAGE_PCT"),
+                        "public_price_coverage_pct": o.get("VALUE_WEIGHTED_PUBLIC_COVERAGE_PCT"),
+                        "public_basket_cost": o.get("CURRENT_PUBLIC_BASKET_COST"),
+                        "visible_headroom": o.get("PUBLIC_PRICE_HEADROOM"),
+                        "visible_headroom_pct": o.get("HEADROOM_PCT"),
+                        "meaningful": o.get("MEANINGFUL_HEADROOM"),
+                        "channel": o.get("CHANNEL_COMPETITION"),
+                        "disposition": o.get("DISPOSITION"),
+                        "source_url": o.get("SOURCE_URL"),
+                    }
+                    for o in (b.get("orders") or [])
+                    if isinstance(o, dict)
+                ],
+            }
+    return None
 
 
 def _load_json_safe(path: Path) -> Any:
@@ -842,6 +1397,240 @@ def build_today() -> dict[str, Any]:
     # Buyer Intelligence V1 — Small Buy Leads + Repeat Buyers (no new top-nav)
     small_buy_cards, repeat_buyer_cards = _buyer_intelligence_today_cards()
     validated_cards = _validated_target_today_cards()
+    multibuyer_profit_cards = _multibuyer_profit_today_cards()
+    profit_pattern_cards = _profit_pattern_today_cards()
+    historical_profit_signal_cards = _historical_profit_signals_today_cards()
+    trend_sections = _buyer_trend_today_sections()
+    small_buy_sections = _small_buy_today_sections()
+    three_lane_cards = _three_lane_today_cards()
+    cat_v2_sections = _category_enrichment_v2_today_sections()
+    true_live_today = {}
+    try:
+        _tl_path = _data_dir() / "m3_true_live_today_v1.json"
+        if _tl_path.exists():
+            true_live_today = json.loads(_tl_path.read_text(encoding="utf-8"))
+    except Exception:
+        true_live_today = {}
+    stage1_today = {}
+    try:
+        _s1_path = _data_dir() / "m3_stage1_acceptance_today_v1.json"
+        if _s1_path.exists():
+            stage1_today = json.loads(_s1_path.read_text(encoding="utf-8"))
+    except Exception:
+        stage1_today = {}
+    package_recovery_today = {}
+    try:
+        _pr_path = _data_dir() / "m3_package_recovery_today_v1.json"
+        if _pr_path.exists():
+            package_recovery_today = json.loads(_pr_path.read_text(encoding="utf-8"))
+    except Exception:
+        package_recovery_today = {}
+    free_source_today = {}
+    try:
+        _fs_path = _data_dir() / "m3_free_source_first_today_v2.json"
+        if _fs_path.exists():
+            free_source_today = json.loads(_fs_path.read_text(encoding="utf-8"))
+    except Exception:
+        free_source_today = {}
+    supplier_ready_today = {}
+    try:
+        _sr_path = _data_dir() / "m3_opengov_line_spec_supplier_ready_today_v1.json"
+        if _sr_path.exists():
+            supplier_ready_today = json.loads(_sr_path.read_text(encoding="utf-8"))
+    except Exception:
+        supplier_ready_today = {}
+    product_def_today = {}
+    try:
+        _pd_path = _data_dir() / "m3_product_definition_recovery_today_v2.json"
+        if _pd_path.exists():
+            product_def_today = json.loads(_pd_path.read_text(encoding="utf-8"))
+            # Prefer V2 today queues when present
+            if product_def_today.get("QUOTE_READY_EXACT_ID") or product_def_today.get("QUOTE_READY_SPEC"):
+                supplier_ready_today = {
+                    **supplier_ready_today,
+                    "QUOTE_READY_EXACT_ID": product_def_today.get("QUOTE_READY_EXACT_ID")
+                    or supplier_ready_today.get("QUOTE_READY_EXACT_ID"),
+                    "QUOTE_READY_SPEC": product_def_today.get("QUOTE_READY_SPEC")
+                    or supplier_ready_today.get("QUOTE_READY_SPEC"),
+                    "QUOTE_READY_BRAND_EQUAL": product_def_today.get("QUOTE_READY_BRAND_EQUAL")
+                    or supplier_ready_today.get("QUOTE_READY_BRAND_EQUAL"),
+                }
+    except Exception:
+        product_def_today = {}
+    rfq_first_batch_today = {}
+    try:
+        _rfq_path = _data_dir() / "m3_rfq_first_batch_today_v1.json"
+        if _rfq_path.exists():
+            rfq_first_batch_today = json.loads(_rfq_path.read_text(encoding="utf-8"))
+            for row in rfq_first_batch_today.get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                owner_actions.append(
+                    {
+                        "kind": "rfq_ready_for_approval",
+                        "title": str(row.get("PRODUCT") or row.get("SUPPLIER") or "")[:120],
+                        "subtitle": " · ".join(
+                            str(x)
+                            for x in (
+                                "RFQS READY FOR APPROVAL",
+                                row.get("BUYER"),
+                                row.get("SUPPLIER"),
+                                row.get("QUOTE_TYPE"),
+                                row.get("DEADLINE"),
+                                row.get("OWNER_STATE"),
+                            )
+                            if x
+                        )[:180],
+                        "meta": {
+                            **row,
+                            "owner_actions": row.get("OWNER_ACTIONS")
+                            or ["APPROVE_SEND", "EDIT", "HOLD"],
+                        },
+                    }
+                )
+    except Exception:
+        rfq_first_batch_today = {}
+    try:
+        _rfq_res_path = _data_dir() / "m3_rfq_send_channel_recipient_today_v1.json"
+        if _rfq_res_path.exists():
+            _rfq_res = json.loads(_rfq_res_path.read_text(encoding="utf-8"))
+            # Prefer resolved recipient rows when present
+            if _rfq_res.get("rows"):
+                # Drop prior generic RFQ cards; show resolved ones
+                owner_actions[:] = [a for a in owner_actions if a.get("kind") != "rfq_ready_for_approval"]
+            for row in _rfq_res.get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                owner_actions.append(
+                    {
+                        "kind": "rfq_ready_for_approval",
+                        "title": str(row.get("PRODUCT") or row.get("SUPPLIER") or "")[:120],
+                        "subtitle": " · ".join(
+                            str(x)
+                            for x in (
+                                "RFQS READY FOR APPROVAL",
+                                row.get("BUYER"),
+                                row.get("SUPPLIER"),
+                                row.get("RECIPIENT"),
+                                row.get("RECIPIENT_VERIFICATION"),
+                                row.get("OWNER_STATE"),
+                            )
+                            if x
+                        )[:180],
+                        "meta": {
+                            **row,
+                            "owner_actions": row.get("OWNER_ACTIONS")
+                            or ["APPROVE_SEND", "EDIT", "HOLD"],
+                        },
+                    }
+                )
+    except Exception:
+        pass
+    try:
+        _f5_path = _data_dir() / "m3_outbound_email_first5_today_v1.json"
+        if _f5_path.exists():
+            _f5 = json.loads(_f5_path.read_text(encoding="utf-8"))
+            if _f5.get("rows"):
+                owner_actions[:] = [a for a in owner_actions if a.get("kind") != "rfq_ready_for_approval"]
+            for row in _f5.get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                owner_actions.append(
+                    {
+                        "kind": "rfq_ready_for_approval",
+                        "title": str(row.get("PRODUCT") or row.get("SUPPLIER") or "")[:120],
+                        "subtitle": " · ".join(
+                            str(x)
+                            for x in (
+                                "RFQS READY FOR APPROVAL",
+                                row.get("BUYER"),
+                                row.get("SUPPLIER"),
+                                row.get("RECIPIENT") or row.get("TO"),
+                                row.get("OWNER_STATE") or row.get("STATE"),
+                            )
+                            if x
+                        )[:180],
+                        "meta": {
+                            **row,
+                            "owner_actions": row.get("OWNER_ACTIONS")
+                            or ["APPROVE_SEND", "EDIT", "HOLD"],
+                        },
+                    }
+                )
+    except Exception:
+        pass
+
+    def _stage1_cards(key: str, kind: str) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for row in stage1_today.get(key) or []:
+            if not isinstance(row, dict):
+                continue
+            out.append(
+                {
+                    "kind": kind,
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            row.get("SOURCE"),
+                            f"{row.get('DAYS_LEFT')}d" if row.get("DAYS_LEFT") is not None else None,
+                            row.get("NEXT_ACTION"),
+                            row.get("BLOCKER"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+            )
+        return out
+
+    open_deals = []
+    for row in true_live_today.get("open_deals_to_act_on") or []:
+        if isinstance(row, dict):
+            open_deals.append(
+                {
+                    "kind": "OpenAcceptingBids",
+                    "title": str(row.get("OPPORTUNITY") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            row.get("SOURCE"),
+                            row.get("CATEGORY"),
+                            f"{row.get('DAYS')}d" if row.get("DAYS") is not None else None,
+                            row.get("NEXT_ACTION"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+            )
+    status_research = []
+    for row in true_live_today.get("status_research_needed") or []:
+        if isinstance(row, dict):
+            status_research.append(
+                {
+                    "kind": "StatusResearch",
+                    "title": str(row.get("OPPORTUNITY") or "")[:120],
+                    "subtitle": " · ".join(str(x) for x in (row.get("BUYER"), row.get("STATE"), row.get("NEXT_ACTION")) if x)[:160],
+                    "meta": row,
+                }
+            )
+    eval_watch = []
+    for row in true_live_today.get("evaluation_award_watch") or []:
+        if isinstance(row, dict):
+            eval_watch.append(
+                {
+                    "kind": "EvaluationWatch",
+                    "title": str(row.get("OPPORTUNITY") or "")[:120],
+                    "subtitle": " · ".join(str(x) for x in (row.get("BUYER"), row.get("STATE"), "WATCH_ONLY") if x)[:160],
+                    "meta": row,
+                }
+            )
+    live_repeat_v2 = cat_v2_sections["live_repeat_buy"]
+    # Prefer true-live OPEN_ACCEPTING_BIDS only
+    live_act_items = open_deals or live_repeat_v2 or three_lane_cards
 
     sections = {
         "call_today": {
@@ -849,10 +1638,333 @@ def build_today() -> dict[str, Any]:
             "empty": "No supplier calls need attention right now.",
             "items": call_today,
         },
+        "bids_to_prepare": {
+            "title": "BIDS TO PREPARE",
+            "empty": "No Stage-1 BID dispositions yet — run Stage 1 Full Acceptance.",
+            "items": _stage1_cards("bids_to_prepare", "Stage1Bid"),
+        },
+        "quotes_to_request": {
+            "title": "QUOTES TO REQUEST",
+            "empty": "No Stage-1 QUOTE dispositions yet.",
+            "items": _stage1_cards("quotes_to_request", "Stage1Quote"),
+        },
+        "stage1_research_needed": {
+            "title": "RESEARCH NEEDED",
+            "empty": "No Stage-1 RESEARCH dispositions yet.",
+            "items": _stage1_cards("research_needed", "Stage1Research"),
+        },
+        "stage1_external_blockers": {
+            "title": "EXTERNAL BLOCKERS",
+            "empty": "No Stage-1 external blockers.",
+            "items": _stage1_cards("external_blockers", "Stage1Blocker"),
+        },
+        "stage1_pass_archived": {
+            "title": "PASS / ARCHIVED",
+            "empty": "No Stage-1 PASS dispositions.",
+            "items": _stage1_cards("pass_archived", "Stage1Pass"),
+        },
+        "package_recovery_needed": {
+            "title": "PACKAGE RECOVERY NEEDED",
+            "empty": "No package-recovery queue — run Package Recovery + Source Depth.",
+            "items": [
+                {
+                    "kind": "PackageRecovery",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (row.get("BUYER"), row.get("SOURCE"), row.get("PACKAGE_STATUS"), row.get("NEXT_ACTION"))
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (package_recovery_today.get("package_recovery_needed") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "package_quotes_ready": {
+            "title": "QUOTES READY",
+            "empty": "No quote-ready rows from package recovery.",
+            "items": [
+                {
+                    "kind": "PackageQuoteReady",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(str(x) for x in (row.get("BUYER"), row.get("NEXT_ACTION")) if x)[:160],
+                    "meta": row,
+                }
+                for row in (package_recovery_today.get("quotes_ready") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "package_identity_research": {
+            "title": "IDENTITY RESEARCH",
+            "empty": "No identity-research queue from package recovery.",
+            "items": [
+                {
+                    "kind": "PackageIdentityResearch",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(str(x) for x in (row.get("BUYER"), row.get("NEXT_ACTION")) if x)[:160],
+                    "meta": row,
+                }
+                for row in (package_recovery_today.get("identity_research") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "quote_ready_exact_id": {
+            "title": "QUOTE READY — EXACT ID",
+            "empty": "No exact-ID quote-ready lines yet — run OpenGov Line/Spec Supplier-Ready V1.",
+            "items": [
+                {
+                    "kind": "QuoteReadyExactId",
+                    "title": str(row.get("TITLE") or row.get("PRODUCT") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            row.get("QUOTE_TYPE"),
+                            f"{row.get('DAYS_LEFT')}d" if row.get("DAYS_LEFT") is not None else None,
+                            row.get("NEXT_ACTION"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (supplier_ready_today.get("QUOTE_READY_EXACT_ID") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "quote_ready_spec": {
+            "title": "QUOTE READY — SPEC",
+            "empty": "No spec-defined quote-ready lines yet.",
+            "items": [
+                {
+                    "kind": "QuoteReadySpec",
+                    "title": str(row.get("TITLE") or row.get("PRODUCT") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (row.get("BUYER"), row.get("CATEGORY"), row.get("NEXT_ACTION"))
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (supplier_ready_today.get("QUOTE_READY_SPEC") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "quote_ready_brand_equal": {
+            "title": "QUOTE READY — BRAND/EQUAL",
+            "empty": "No brand-or-equal quote-ready lines yet.",
+            "items": [
+                {
+                    "kind": "QuoteReadyBrandEqual",
+                    "title": str(row.get("TITLE") or row.get("PRODUCT") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (row.get("BUYER"), row.get("QUOTE_TYPE"), row.get("NEXT_ACTION"))
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (supplier_ready_today.get("QUOTE_READY_BRAND_EQUAL") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "spec_research": {
+            "title": "SPEC RESEARCH",
+            "empty": "No spec-research queue items.",
+            "items": [
+                {
+                    "kind": "SpecResearch",
+                    "title": str(row.get("TITLE") or row.get("PRODUCT") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            ",".join(row.get("MISSING_CRITICAL_INFO") or [])[:40],
+                            row.get("NEXT_ACTION"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (supplier_ready_today.get("SPEC_RESEARCH") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "identity_research_supplier": {
+            "title": "IDENTITY RESEARCH",
+            "empty": "No identity-research queue items.",
+            "items": [
+                {
+                    "kind": "IdentityResearchSupplier",
+                    "title": str(row.get("TITLE") or row.get("PRODUCT") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (row.get("BUYER"), row.get("NEXT_ACTION"))
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (supplier_ready_today.get("IDENTITY_RESEARCH") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "free_quotes_ready": {
+            "title": "FREE QUOTES READY",
+            "empty": "No free-source quote-ready deals yet — run Free-Source Production Pool V2.",
+            "items": [
+                {
+                    "kind": "FreeQuoteReady",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            row.get("SOURCE"),
+                            f"{row.get('DAYS_LEFT')}d" if row.get("DAYS_LEFT") is not None else None,
+                            row.get("NEXT_ACTION"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (free_source_today.get("FREE_QUOTES_READY") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "free_package_ready": {
+            "title": "FREE PACKAGE READY",
+            "empty": "No free package-ready deals in the production pool yet.",
+            "items": [
+                {
+                    "kind": "FreePackageReady",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (
+                            row.get("BUYER"),
+                            row.get("SOURCE"),
+                            row.get("SOURCE_DEPTH"),
+                            row.get("NEXT_ACTION"),
+                        )
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (free_source_today.get("FREE_PACKAGE_READY") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "free_identity_research": {
+            "title": "FREE IDENTITY RESEARCH",
+            "empty": "No free-source identity-research queue yet.",
+            "items": [
+                {
+                    "kind": "FreeIdentityResearch",
+                    "title": str(row.get("TITLE") or "")[:120],
+                    "subtitle": " · ".join(
+                        str(x)
+                        for x in (row.get("BUYER"), row.get("SOURCE"), row.get("IDENTITY_STATE"), row.get("NEXT_ACTION"))
+                        if x
+                    )[:160],
+                    "meta": row,
+                }
+                for row in (free_source_today.get("FREE_IDENTITY_RESEARCH") or [])
+                if isinstance(row, dict)
+            ],
+        },
+        "paid_access_backlog": {
+            "title": "PAID ACCESS BACKLOG",
+            "empty": "No paid-access backlog rows (BidNet entitlement blockers stay here — not in main queue).",
+            "items": [
+                {
+                    "kind": "PaidAccessBacklog",
+                    "title": f"Paid backlog: {free_source_today.get('PAID_ACCESS_BACKLOG_COUNT') or 0} rows",
+                    "subtitle": "BidNet paid entitlement — no retry on normal cycles · DO_NOT_BUY_ENTITLEMENT_NOW",
+                    "meta": {"count": free_source_today.get("PAID_ACCESS_BACKLOG_COUNT") or 0},
+                }
+            ]
+            if (free_source_today.get("PAID_ACCESS_BACKLOG_COUNT") or 0) > 0
+            else [],
+        },
+        "live_deals_to_act_on": {
+            "title": "OPEN DEALS TO ACT ON",
+            "empty": "No OPEN_ACCEPTING_BIDS opportunities right now.",
+            "items": live_act_items,
+        },
+        "status_research_needed": {
+            "title": "STATUS RESEARCH NEEDED",
+            "empty": "No open opportunities with unknown deadlines.",
+            "items": status_research,
+        },
+        "evaluation_award_watch": {
+            "title": "EVALUATION / AWARD WATCH",
+            "empty": "No evaluation/award watch items.",
+            "items": eval_watch,
+        },
+        "category_research_needed": {
+            "title": "CATEGORY RESEARCH NEEDED",
+            "empty": "No category research queue — run Category Enrichment V2.",
+            "items": cat_v2_sections["category_research"],
+        },
+        "live_small_buys": {
+            "title": "LIVE SMALL BUYS",
+            "empty": "No real live small-buy matches right now.",
+            "items": small_buy_sections["live_small_buys"],
+        },
+        "small_buys_to_watch": {
+            "title": "SMALL BUYS TO WATCH",
+            "empty": "No small-buy watch targets — run Micro/Small-Buy Operationalization.",
+            "items": small_buy_sections["small_buys_to_watch"],
+        },
+        "registrations_blocking_small_buys": {
+            "title": "REGISTRATIONS BLOCKING SMALL BUYS",
+            "empty": "No registration blockers for small-buy targets.",
+            "items": small_buy_sections["registrations_blocking_small_buys"],
+        },
+        "small_buy_supplier_prep": {
+            "title": "SUPPLIER PREP",
+            "empty": "No small-buy supplier-prep actions.",
+            "items": small_buy_sections["small_buy_supplier_prep"],
+        },
+        "buyers_to_watch": {
+            "title": "BUYERS TO WATCH",
+            "empty": "No operational buyer targets yet — run Buyer Trend Operationalization.",
+            "items": trend_sections["buyers_to_watch"],
+        },
+        "registrations_to_complete": {
+            "title": "REGISTRATIONS TO COMPLETE",
+            "empty": "No registration actions from buyer trends.",
+            "items": trend_sections["registrations_to_complete"],
+        },
+        "likely_repeat_purchases": {
+            "title": "LIKELY REPEAT PURCHASES",
+            "empty": "No near-term repeat windows derived yet.",
+            "items": trend_sections["likely_repeat_purchases"],
+        },
+        "supplier_relationships_to_prepare": {
+            "title": "SUPPLIER RELATIONSHIPS TO PREPARE",
+            "empty": "No supplier-prep signals yet.",
+            "items": trend_sections["supplier_relationships_to_prepare"],
+        },
         "validated_target_accounts": {
             "title": "VALIDATED TARGET ACCOUNTS",
             "empty": "No validated targets yet — run Top-10 Buyer Validation.",
             "items": validated_cards,
+        },
+        "historical_profit_signals": {
+            "title": "HISTORICAL PROFIT PROOF V2",
+            "empty": "No historical profit proof yet — run Historical Profit Proof V2.",
+            "items": historical_profit_signal_cards,
+        },
+        "profit_pattern_matches": {
+            "title": "PROFIT PATTERN MATCHES",
+            "empty": "No profitable-pattern matches yet — run Profitable Pattern Discovery.",
+            "items": profit_pattern_cards,
+        },
+        "repeat_buyers_profit_proof": {
+            "title": "REPEAT BUYERS — PROFIT PROOF",
+            "empty": "No multi-buyer profit proof yet — run Multi-Buyer Historical Profit Proof.",
+            "items": multibuyer_profit_cards,
         },
         "small_buy_leads": {
             "title": "SMALL BUY LEADS",
@@ -919,7 +2031,22 @@ def build_today() -> dict[str, Any]:
 
     counts = {
         "call_today": len(call_today),
+        "live_deals_to_act_on": len(live_act_items),
+        "category_research_needed": len(cat_v2_sections["category_research"]),
+        "live_small_buys": len(small_buy_sections["live_small_buys"]),
+        "small_buys_to_watch": len(small_buy_sections["small_buys_to_watch"]),
+        "registrations_blocking_small_buys": len(
+            small_buy_sections["registrations_blocking_small_buys"]
+        ),
+        "small_buy_supplier_prep": len(small_buy_sections["small_buy_supplier_prep"]),
+        "buyers_to_watch": len(trend_sections["buyers_to_watch"]),
+        "registrations_to_complete": len(trend_sections["registrations_to_complete"]),
+        "likely_repeat_purchases": len(trend_sections["likely_repeat_purchases"]),
+        "supplier_relationships_to_prepare": len(trend_sections["supplier_relationships_to_prepare"]),
         "validated_target_accounts": len(validated_cards),
+        "historical_profit_signals": len(historical_profit_signal_cards),
+        "profit_pattern_matches": len(profit_pattern_cards),
+        "repeat_buyers_profit_proof": len(multibuyer_profit_cards),
         "small_buy_leads": len(small_buy_cards),
         "repeat_buyers": len(repeat_buyer_cards),
         "follow_up": len(follow_up),
@@ -932,6 +2059,15 @@ def build_today() -> dict[str, Any]:
         "awaiting_result": len(awaiting_result),
         "blocked": blocked_count,
         "watch": len(watch),
+        "quote_ready_exact_id": len(sections.get("quote_ready_exact_id", {}).get("items") or []),
+        "quote_ready_spec": len(sections.get("quote_ready_spec", {}).get("items") or []),
+        "quote_ready_brand_equal": len(sections.get("quote_ready_brand_equal", {}).get("items") or []),
+        "spec_research": len(sections.get("spec_research", {}).get("items") or []),
+        "identity_research_supplier": len(sections.get("identity_research_supplier", {}).get("items") or []),
+        "free_quotes_ready": len(sections.get("free_quotes_ready", {}).get("items") or []),
+        "free_package_ready": len(sections.get("free_package_ready", {}).get("items") or []),
+        "free_identity_research": len(sections.get("free_identity_research", {}).get("items") or []),
+        "paid_access_backlog": len(sections.get("paid_access_backlog", {}).get("items") or []),
     }
 
     return {
@@ -953,6 +2089,80 @@ def build_today() -> dict[str, Any]:
             == 0
         ),
     }
+
+
+def _load_ci_upgrade_deals() -> dict[str, Any]:
+    """Profit-first Available Deals projection from commercial intelligence upgrade."""
+    path = _data_dir() / "_og_commercial_research_pipeline_out" / "m3_ci_upgrade_v1_available_deals.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_revenue_first_deals() -> dict[str, Any]:
+    """Revenue-first deals with profit lanes + cash-flow ranking."""
+    path = _data_dir() / "_og_commercial_research_pipeline_out" / "m3_revenue_first_v1_available_deals.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_first_revenue_deals() -> dict[str, Any]:
+    """First-revenue validation sprint deals (simple product cash-flow priority)."""
+    path = _data_dir() / "_og_commercial_research_pipeline_out" / "m3_first_revenue_v1_available_deals.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_commercial_proof_deals() -> dict[str, Any]:
+    """Commercial proof repair deals — identity-strict, evidence-first ranking."""
+    path = _data_dir() / "_og_commercial_research_pipeline_out" / "m3_commercial_proof_v1_available_deals.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_source_product_deals() -> dict[str, Any]:
+    """Prefer automated commercial execution deals, then RSE, then recovery projections."""
+    base = _data_dir() / "_og_commercial_research_pipeline_out"
+    for name in (
+        "m3_cex_v1_available_deals.json",
+        "m3_rse_v1_available_deals.json",
+        "m3_source_product_v1_available_deals.json",
+        "m3_full_pl_recovery_v1_available_deals.json",
+    ):
+        path = base / name
+        if not path.exists():
+            continue
+        try:
+            blob = json.loads(path.read_text(encoding="utf-8"))
+            if blob.get("deals"):
+                return blob
+        except Exception:
+            continue
+    return {}
+
+
+def _commercial_budget_panel() -> dict[str, Any]:
+    try:
+        from buyer_intelligence.commercial_budget_control_v1 import dashboard_payload
+
+        return dashboard_payload()
+    except Exception as exc:
+        return {"error": type(exc).__name__, "paid_research_paused": True, "fail_closed": True}
 
 
 def list_deals(
@@ -989,6 +2199,249 @@ def list_deals(
     buyer_n = _norm(buyer)
     status_n = (status or "").strip().upper()
     filt = (filter or "available").strip().lower()
+
+    # First-revenue sprint + revenue-first + legacy CI profit-ranked projections
+    if filt in {
+        "commercial_intelligence",
+        "profit_ranked",
+        "ci_upgrade",
+        "revenue_first",
+        "first_revenue",
+        "commercial_proof",
+        "source_product",
+        "revenue_strategy",
+        "cash_flow",
+        "growth",
+        "scale",
+        "needs_pricing",
+        "needs_financing",
+        "ready_to_bid",
+        "supplier_quote_needed",
+        "all_viable",
+    }:
+        sp = _load_source_product_deals()
+        cp = _load_commercial_proof_deals()
+        fr = _load_first_revenue_deals()
+        rf = _load_revenue_first_deals()
+        ci = _load_ci_upgrade_deals()
+        # Prefer RSE/source-product (contribution-correct) then commercial-proof then first-revenue
+        if filt == "ci_upgrade":
+            src = ci
+        elif filt in {
+            "source_product",
+            "revenue_strategy",
+            "commercial_proof",
+            "first_revenue",
+            "cash_flow",
+            "growth",
+            "scale",
+            "needs_pricing",
+            "needs_financing",
+            "ready_to_bid",
+            "supplier_quote_needed",
+        } and sp.get("deals"):
+            src = sp
+        elif filt in {"commercial_proof", "first_revenue", "cash_flow"} and cp.get("deals"):
+            src = cp
+        elif filt in {"first_revenue", "cash_flow"} and fr.get("deals"):
+            src = fr
+        elif rf.get("deals") and filt not in {"ci_upgrade"}:
+            src = rf
+        elif sp.get("deals"):
+            src = sp
+        elif cp.get("deals"):
+            src = cp
+        elif fr.get("deals"):
+            src = fr
+        else:
+            src = ci
+        deals = [d for d in (src.get("deals") or []) if isinstance(d, dict)]
+        tag = {
+            "cash_flow": "cash_flow",
+            "growth": "growth",
+            "scale": "scale",
+            "needs_pricing": "needs_pricing",
+            "needs_financing": "needs_financing",
+            "ready_to_bid": "ready_to_bid",
+            "supplier_quote_needed": "supplier_quote_needed",
+            "all_viable": "all_viable",
+            "first_revenue": "first_revenue",
+            "commercial_proof": "commercial_proof",
+            "source_product": "source_product",
+            "revenue_strategy": "revenue_strategy",
+            "revenue_first": None,
+            "commercial_intelligence": None,
+            "profit_ranked": None,
+            "ci_upgrade": None,
+        }.get(filt)
+        if tag in {"cash_flow", "growth", "scale"}:
+            # Verified lanes only — provisional/conditional must not appear in profit-lane filters
+            lane_name = tag.upper() if tag != "cash_flow" else "CASH_FLOW"
+            deals = [
+                d
+                for d in deals
+                if d.get("lane_verification") == "VERIFIED"
+                and (
+                    tag in (d.get("filter_tags") or [])
+                    or d.get("lane") == lane_name
+                )
+            ]
+        elif tag:
+            deals = [d for d in deals if tag in (d.get("filter_tags") or []) or d.get("lane") == tag.upper() or (
+                tag == "cash_flow" and d.get("lane") == "CASH_FLOW"
+            ) or (tag == "growth" and d.get("lane") == "GROWTH") or (tag == "scale" and d.get("lane") == "SCALE")]
+        if qn:
+            deals = [
+                d
+                for d in deals
+                if qn in _norm(" ".join(str(x or "") for x in (d.get("product"), d.get("buyer"), d.get("opportunity_id"))))
+            ]
+        if buyer_n:
+            deals = [d for d in deals if buyer_n in _norm(d.get("buyer"))]
+        total = len(deals)
+        start = (page - 1) * page_size
+        slice_ = deals[start : start + page_size]
+        items = []
+        for d in slice_:
+            oid = str(d.get("opportunity_id") or "")
+            rec = store.get(oid) if isinstance(store.get(oid), dict) else {}
+            status_packet = {
+                "ui_status": "RESEARCH",
+                "ui_status_color": "blue",
+                "ui_priority": "HIGH",
+                "ui_next_action": d.get("next_action") or "Research",
+                "ui_next_action_label": d.get("next_action") or "Research",
+                "ui_next_action_reason": d.get("next_action") or "Revenue-first next step",
+            }
+            card = _deal_card(
+                deal_id=f"c:{oid}",
+                buyer=d.get("buyer") or (rec.get("buyer") if rec else None),
+                solicitation=rec.get("solicitation_event_id") if rec else None,
+                product=d.get("product") or (rec.get("title") if rec else None),
+                deadline=d.get("deadline") or (rec.get("deadline") if rec else None),
+                delivery=None,
+                estimated_value=d.get("estimated_contract_value"),
+                status_packet=status_packet,
+                extras={
+                    "canonical_id": oid,
+                    "title": d.get("product"),
+                    "estimated_value": d.get("estimated_contract_value"),
+                    "historical_government_price": d.get("historical_government_pricing"),
+                    "acquisition_cost": d.get("current_retail_cost"),
+                    "potential_profit": d.get("estimated_remaining_profit"),
+                    "profit_scenario": d.get("profit_scenario"),
+                    "supplier_status": f"{d.get('supplier_coverage') or 0}_SUPPLIERS",
+                    "financing_status": d.get("financing_status"),
+                    "evidence_confidence": d.get("evidence_confidence"),
+                    "supplier_advantage_score": d.get("supplier_advantage_score"),
+                    "next_owner_action": d.get("next_action"),
+                    "commercial_workflow": d.get("workflow"),
+                    "suppliers": d.get("suppliers"),
+                    "lane": d.get("lane"),
+                    "lane_status": d.get("lane_status"),
+                    "lane_verification": d.get("lane_verification"),
+                    "hypothetical_lane": d.get("hypothetical_lane"),
+                    "contribution_state": d.get("contribution_state"),
+                    "verified_remaining_contribution": d.get("verified_remaining_contribution"),
+                    "conditional_remaining_contribution": d.get("conditional_remaining_contribution"),
+                    "public_acquisition_cost": d.get("public_acquisition_cost") or d.get("current_retail_cost"),
+                    "primary_blocker": d.get("primary_blocker"),
+                    "estimated_days_to_cash": d.get("estimated_days_to_cash") or d.get("time_to_cash"),
+                    "payment_timing_confidence": d.get("payment_timing_confidence"),
+                    "owner_cash_required": d.get("owner_cash_required"),
+                    "mandatory_lines": d.get("mandatory_lines"),
+                    "retail_pricing_coverage": d.get("retail_pricing_coverage"),
+                    "economics_status": d.get("economics_status"),
+                    "research_priority_score": d.get("research_priority_score"),
+                    "evidence_links": d.get("evidence_links"),
+                    "identity_class": d.get("identity_class"),
+                    "before_identity_class": d.get("before_identity_class"),
+                    "population": d.get("population"),
+                    "ui_priority": d.get("ui_priority"),
+                    "lines_recovered": d.get("lines_recovered"),
+                    "readiness": d.get("readiness"),
+                    "root_cause": d.get("root_cause"),
+                    "strategy_summary": src.get("strategy_summary"),
+                },
+            )
+            items.append(card)
+        budget = _commercial_budget_panel()
+        strat = src.get("strategy_summary") or {}
+        outreach_dash: dict[str, Any] = {}
+        novelty_dash: dict[str, Any] = {}
+        try:
+            from buyer_intelligence.supplier_outreach_queue_v1 import dashboard as _outreach_dash
+
+            outreach_dash = _outreach_dash()
+        except Exception:
+            outreach_dash = {}
+        try:
+            from buyer_intelligence.research_novelty_engine_v1 import novelty_dashboard
+
+            novelty_dash = novelty_dashboard()
+        except Exception:
+            novelty_dash = {}
+        if budget and not strat.get("openai_spend_today"):
+            strat = {
+                **strat,
+                "openai_spend_today": budget.get("openai_spend_today_usd"),
+                "openai_limit_today": budget.get("openai_limit_today_usd"),
+                "openai_spend_month": budget.get("openai_spend_month_usd"),
+                "openai_limit_month": budget.get("openai_limit_month_usd"),
+                "sam_calls_today": budget.get("sam_calls_today"),
+                "sam_limit": budget.get("sam_calls_limit"),
+                "paid_research_paused": budget.get("paid_research_paused"),
+                "openai_reserved_today": budget.get("openai_reserved_today_usd"),
+                "shared_ledger": budget.get("shared_ledger"),
+                "prices_recovered": strat.get("prices_recovered"),
+                "rfqs_ready": strat.get("rfqs_ready")
+                or outreach_dash.get("count")
+                or sum(1 for d in deals if "Review prepared RFQ" in str(d.get("next_action") or "")),
+                "most_common_blocker": strat.get("most_common_blocker"),
+                "research_novelty": novelty_dash,
+                "supplier_outreach": {
+                    "count": outreach_dash.get("count"),
+                    "by_status": outreach_dash.get("by_status"),
+                    "auto_send": False,
+                },
+            }
+        return {
+            "kind": "OwnerUiDealList",
+            "build": BUILD,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "has_more": start + page_size < total,
+            "items": items,
+            "filter": filt,
+            "data_status": "OK" if deals else "EMPTY_PROJECTION",
+            "commercial_intelligence_build": src.get("build"),
+            "strategy_summary": strat,
+            "research_budget": budget,
+            "supplier_outreach_queue": outreach_dash,
+            "research_novelty": novelty_dash,
+            "message": (
+                "Source-to-product: line recovery + readiness (quoteable ≠ RFQ-ready). "
+                "Identify → Price → Source → Finance → Bid → Fulfill → Get Paid."
+                if deals and "source_product" in str(src.get("kind") or "")
+                else (
+                    "Commercial proof: exact identity ≠ generic title. Evidence-first ranking. "
+                    "Scenarios ≠ verified profit. UNKNOWN ≠ $0."
+                    if deals and "commercial_proof" in str(src.get("kind") or "")
+                    else (
+                        "First-revenue view: simple product purchases ranked for near-term cash. "
+                        "PROVISIONAL_UNKNOWN ≠ $0. Scenarios ≠ verified profit."
+                        if deals and "first_revenue" in str(src.get("kind") or "")
+                        else (
+                            "Revenue-first ranking: sooner financeable cash over largest award. "
+                            "UNKNOWN is not zero profit. Verified contribution outranks scenarios."
+                            if deals
+                            else "Run scripts/run_source_to_product_extraction_audit_v1.py to populate deals."
+                        )
+                    )
+                )
+            ),
+        }
 
     cards: list[dict[str, Any]] = []
     actionable_first = (
@@ -1271,9 +2724,102 @@ def get_deal(deal_id: str) -> dict[str, Any]:
         "line_item_economics": _line_item_economics_for_deal(cid or deal_id, rec),
         "profit_first": _profit_first_for_deal(cid or deal_id, rec),
         "package_and_product_data": _package_and_product_data_for_deal(cid, rec),
+        "small_buy_enrichment": None,
+        "three_lane_intelligence": None,
         "ui_path": "CANONICAL_OPERATOR",
         "legacy_suppressed": True,
     }
+    try:
+        from buyer_intelligence.micro_small_buy_operationalization_v1 import (
+            get_small_buy_deal_enrichment,
+        )
+
+        oid = str(cid or (entry or {}).get("opportunity_id") or "")
+        if oid:
+            payload["small_buy_enrichment"] = get_small_buy_deal_enrichment(oid)
+    except Exception:
+        payload["small_buy_enrichment"] = None
+    try:
+        from buyer_intelligence.three_lane_integration_v1 import get_three_lane_for_opportunity
+
+        oid = str(cid or (entry or {}).get("opportunity_id") or "")
+        if oid:
+            tl = get_three_lane_for_opportunity(oid)
+            if tl:
+                payload["three_lane_intelligence"] = {
+                    "LIVE_OPPORTUNITY": "YES",
+                    "REPEAT_BUYER": tl.get("BUYER_HISTORY_MATCH"),
+                    "REPEAT_CATEGORY": tl.get("CATEGORY_HISTORY_MATCH"),
+                    "HISTORICAL_BUYS": tl.get("HISTORICAL_ORDER_COUNT"),
+                    "TYPICAL_ORDER": tl.get("MEDIAN_ORDER"),
+                    "LAST_BUY": tl.get("LAST_BUY"),
+                    "RECURRENCE": {
+                        "window": tl.get("NEXT_BUY_WINDOW"),
+                        "confidence": tl.get("RECURRENCE_CONFIDENCE"),
+                    },
+                    "SMALL_BUY_PATTERN": tl.get("SMALL_BUY_HISTORY_MATCH"),
+                    "PORTAL": tl.get("PORTAL_STATE"),
+                    "REGISTRATION": tl.get("REGISTRATION"),
+                    "SUPPLIER_PREP": tl.get("SUPPLIER_PREP_MATCH"),
+                    "LANE_BADGES": [
+                        b
+                        for b, ok in (
+                            ("L1", True),
+                            ("L2", tl.get("LANE_2_MATCH") == "YES"),
+                            ("L3", tl.get("LANE_3_MATCH") == "YES"),
+                        )
+                        if ok
+                    ],
+                    "NO_PROFIT_FROM_TRENDS": True,
+                }
+    except Exception:
+        payload["three_lane_intelligence"] = None
+    try:
+        from buyer_intelligence.category_enrichment_buyer_match_v2 import get_v2_for_opportunity
+        from buyer_intelligence.opengov_live_deep_enrichment_v1 import get_deep_enrichment
+
+        oid = str(cid or (entry or {}).get("opportunity_id") or "")
+        if oid:
+            deep = get_deep_enrichment(oid)
+            v2 = get_v2_for_opportunity(oid)
+            src = deep or v2
+            if src:
+                payload["three_lane_intelligence"] = {
+                    **(payload.get("three_lane_intelligence") or {"LIVE_OPPORTUNITY": "YES"}),
+                    "CATEGORY": src.get("CATEGORY"),
+                    "CATEGORY_SOURCE": src.get("CATEGORY_SOURCE"),
+                    "CATEGORY_CONFIDENCE": src.get("CATEGORY_CONFIDENCE"),
+                    "CATEGORY_STATE": src.get("CATEGORY_STATE"),
+                    "SOURCE_DEPTH": src.get("SOURCE_DEPTH"),
+                    "DETAIL_ENRICHED": src.get("DETAIL_ENRICHED"),
+                    "LINE_ITEMS": len(src.get("LINE_ITEMS") or []) if deep else src.get("LINE_EVIDENCE_COUNT"),
+                    "DOCUMENTS": len(src.get("ATTACHMENTS") or []) if deep else None,
+                    "DEADLINE": (src.get("DEADLINE") or {}).get("VALUE") if isinstance(src.get("DEADLINE"), dict) else src.get("DEADLINE"),
+                    "CURRENT_VALUE": (src.get("CURRENT_VALUE") or {}).get("VALUE") if isinstance(src.get("CURRENT_VALUE"), dict) else None,
+                    "COMMODITY": [
+                        f"{c.get('CODE_SYSTEM')}:{c.get('CODE')}"
+                        for c in (src.get("COMMODITY_CODES") or [])[:6]
+                    ]
+                    if deep
+                    else None,
+                    "REPEAT_BUYER": "YES" if src.get("BUYER_MATCH_STATUS") == "EXACT" else "NO",
+                    "REPEAT_CATEGORY": src.get("BUYER_CATEGORY_MATCH"),
+                    "HISTORICAL_BUYS": src.get("HISTORICAL_ORDER_COUNT"),
+                    "TYPICAL_ORDER": src.get("MEDIAN_ORDER"),
+                    "LAST_BUY": src.get("LAST_BUY"),
+                    "RECURRENCE": {
+                        "window": src.get("NEXT_BUY_WINDOW"),
+                        "confidence": src.get("RECURRENCE_CONFIDENCE"),
+                    },
+                    "SMALL_BUY_PATTERN": src.get("SMALL_BUY_HISTORY_MATCH"),
+                    "PORTAL": src.get("PORTAL_WATCH") or src.get("PORTAL_SLUG"),
+                    "REGISTRATION": src.get("REGISTRATION") or "UNKNOWN",
+                    "SUPPLIER_PREP": src.get("SUPPLIER_PREP"),
+                    "MATCH_CONFIDENCE": src.get("MATCH_CONFIDENCE"),
+                    "NO_PROFIT_FROM_TRENDS": True,
+                }
+    except Exception:
+        pass
     try:
         from p0_prescale_hardening.ui_canonical import attach_canonical_deal_panel
         from p0_prescale_hardening.next_action import opportunity_owner_snapshot
@@ -2359,6 +3905,27 @@ def global_search(q: str, *, limit: int = 30) -> dict[str, Any]:
 
 
 def settings_payload() -> dict[str, Any]:
+    stage1_health: dict[str, Any] = {}
+    try:
+        _hp = _data_dir() / "m3_stage1_acceptance_health_v1.json"
+        if _hp.exists():
+            stage1_health = json.loads(_hp.read_text(encoding="utf-8"))
+    except Exception:
+        stage1_health = {}
+    package_health: dict[str, Any] = {}
+    try:
+        _ph = _data_dir() / "m3_package_recovery_health_v1.json"
+        if _ph.exists():
+            package_health = json.loads(_ph.read_text(encoding="utf-8"))
+    except Exception:
+        package_health = {}
+    bidnet_auth_health: dict[str, Any] = {}
+    try:
+        from bidnet_auth.telemetry import auth_health_snapshot
+
+        bidnet_auth_health = auth_health_snapshot()
+    except Exception:
+        bidnet_auth_health = {}
     return {
         "kind": "OwnerUiSettings",
         "build": BUILD,
@@ -2372,7 +3939,30 @@ def settings_payload() -> dict[str, Any]:
             "call_desk_artifact": "/supplier_call_desk.html",
             "quickstart": "/docs/M3_OPERATOR_QUICKSTART.md",
         },
+        "stage1_acceptance": {
+            "title": "STAGE 1 ACCEPTANCE",
+            "health": stage1_health,
+        },
+        "package_recovery": {
+            "title": "PACKAGE RECOVERY",
+            "health": package_health,
+        },
+        "bidnet_auth": {
+            "title": "BIDNET AUTH",
+            "health": bidnet_auth_health,
+            "warning": bool((bidnet_auth_health or {}).get("WARNING_STATE")),
+        },
+        "bidnet_package_recovery": _bidnet_package_recovery_card(),
     }
+
+
+def _bidnet_package_recovery_card() -> dict[str, Any]:
+    try:
+        from buyer_intelligence.bidnet_bounded_package_recovery_v1 import owner_progress_card
+
+        return owner_progress_card()
+    except Exception:
+        return {"title": "BIDNET PACKAGE RECOVERY", "status": "UNAVAILABLE"}
 
 
 def preservation_snapshot() -> dict[str, Any]:

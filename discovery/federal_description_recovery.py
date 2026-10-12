@@ -164,6 +164,24 @@ def recover_description(
         out["error"] = "authorize_live_required"
         return out
 
+    commercial_rid = None
+    is_sam_api = "api.sam.gov" in str(url).lower()
+    if is_sam_api:
+        try:
+            from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+            from buyer_intelligence.sam_commercial_gate_v1 import reserve_sam_call
+
+            commercial_rid = reserve_sam_call(
+                purpose="federal_description_recovery:noticedesc",
+                opportunity_id=str(out.get("provenance", {}).get("notice_id") or "") or None,
+            )
+        except BudgetDenied:
+            out["description_state"] = DESCRIPTION_FETCH_FAILED
+            out["error"] = "SAM_COMMERCIAL_BUDGET"
+            return out
+        except Exception:
+            commercial_rid = None
+
     try:
         import httpx
         from direct_document_retrieval import _with_api_key_if_sam_file
@@ -171,6 +189,10 @@ def recover_description(
         fetch_url = _with_api_key_if_sam_file(url)
         with httpx.Client(timeout=httpx.Timeout(timeout, connect=8.0), follow_redirects=True) as client:
             resp = client.get(fetch_url)
+        if commercial_rid:
+            from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+            commit_sam_call(commercial_rid, success=resp.status_code < 500)
         out["http_status"] = resp.status_code
         out["retrieved_at"] = _utc()
         out["content_type"] = (resp.headers.get("content-type") or "").split(";")[0].strip()
@@ -223,6 +245,13 @@ def recover_description(
         out["description_state"] = DESCRIPTION_PUBLIC_RECOVERED
         return out
     except Exception as exc:  # noqa: BLE001
+        if commercial_rid:
+            try:
+                from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+                commit_sam_call(commercial_rid, success=False)
+            except Exception:
+                pass
         out["description_state"] = DESCRIPTION_FETCH_FAILED
         out["error"] = str(exc)[:300]
         out["retrieved_at"] = _utc()

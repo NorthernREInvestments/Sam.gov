@@ -258,16 +258,18 @@
 
   async function renderToday(params) {
     setHint("Work actionable BidNet money deals and CALL TODAY items.");
-    const [data, money] = await Promise.all([
+    const [data, money, quotesUi] = await Promise.all([
       api("/api/ui/today"),
       api("/api/m3/bidnet-money/today").catch(() => ({ NEW_ACTIONABLE_DEALS_TODAY: 0, TARGET: 10 })),
+      api("/api/ui/quotes").catch(() => ({})),
     ]);
     const focus = params.section || "call_today";
-    const order = ["call_today", "follow_up", "quotes", "registrations", "owner_actions", "responses", "bid_prep", "submissions", "awaiting_result", "blocked"];
+    const order = ["call_today", "live_deals_to_act_on", "live_small_buys", "small_buys_to_watch", "registrations_blocking_small_buys", "small_buy_supplier_prep", "buyers_to_watch", "registrations_to_complete", "likely_repeat_purchases", "supplier_relationships_to_prepare", "validated_target_accounts", "historical_profit_signals", "profit_pattern_matches", "repeat_buyers_profit_proof", "small_buy_leads", "repeat_buyers", "follow_up", "quotes", "registrations", "owner_actions", "responses", "bid_prep", "submissions", "awaiting_result", "blocked"];
     const actionable = money.actionable_now || [];
     const quoteReady = money.ready_for_quote || [];
     const cq = money.channel_queues || {};
     const cs = money.channel_summary || {};
+    const qrReady = quotesUi.quote_requests_ready || (quotesUi.quote_workflow_v1 || {}).quote_requests_ready || [];
     let html = `<h1>Today's Work</h1><p class="lead">Channel-fit + MSRP screen first — then calls, quotes, registrations.</p>
       <div class="meta-row">
         <span>CALL TODAY: <strong>${esc(cs.CALL_TODAY ?? (cq.CALL_TODAY || []).length)}</strong></span>
@@ -277,6 +279,22 @@
         <span>INSUFFICIENT: <strong>${esc(cs.INSUFFICIENT_EVIDENCE ?? (cq.INSUFFICIENT_EVIDENCE || []).length)}</strong></span>
         <span>Money actionable: <strong>${esc(money.NEW_ACTIONABLE_DEALS_TODAY ?? 0)}</strong> / ${esc(money.TARGET ?? 10)}</span>
       </div>`;
+    if (qrReady.length) {
+      html += `<section class="section"><div class="section-head"><h2>QUOTE REQUESTS READY</h2><span class="muted">${qrReady.length}</span></div>`;
+      for (const q of qrReady) {
+        html += `<article class="panel" style="margin-top:.5rem">
+          <div class="deal-card-top"><h3>${esc(q.PACKET)} — ${esc(q.BUYER)}</h3>${badge("READY", "green")}</div>
+          <div class="meta-row">
+            <span>Supplier: ${esc(q.SUPPLIER)}</span>
+            <span>Lines: ${esc(q.LINES)}</span>
+            <span>Order value: ${q.KNOWN_VALUE != null ? esc(q.KNOWN_VALUE) : "UNKNOWN"}</span>
+          </div>
+          <p><strong>Next:</strong> ${esc(q.NEXT_ACTION || "REVIEW & SEND")}</p>
+          <button type="button" class="btn primary" data-go-quotes>Open Quotes</button>
+        </article>`;
+      }
+      html += `</section>`;
+    }
     const channelSections = [
       ["CALL_TODAY", "CALL TODAY"],
       ["QUOTE_IF_CAPACITY", "QUOTE IF CAPACITY"],
@@ -321,6 +339,7 @@
       </section>`;
     }
     main.innerHTML = html;
+    main.querySelectorAll("[data-go-quotes]").forEach((el) => el.addEventListener("click", () => navigate("quotes")));
     bindDealActions();
     if (focus) document.getElementById(`sec-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -335,9 +354,155 @@
           const portal = id.startsWith("reg:") ? id.slice(4) : id;
           navigate("registration", { id: portal });
         } else if (act === "quote") navigate("quote", { id });
-        else navigate("deal", { id });
+        else if (act === "buyer" || (id && (id.startsWith("val:") || id.startsWith("mbpp:") || id.startsWith("hps:")))) {
+          const bid = btn.getAttribute("data-buyer") || id.split(":").slice(1).join(":") || id;
+          navigate("buyer", { id: bid });
+        } else if (id && (id.startsWith("bi:") || id.startsWith("bi-r:"))) {
+          navigate("buyer", { id: id.split(":")[1] });
+        } else navigate("deal", { id });
       });
     });
+  }
+
+  function money(v) {
+    if (v == null || v === "UNKNOWN") return "UNKNOWN";
+    const n = Number(v);
+    if (!Number.isFinite(n)) return String(v);
+    return "$" + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  async function renderBuyer(params) {
+    setHint("Buyer detail — validated order history and target patterns.");
+    const id = params.id;
+    if (!id) {
+      main.innerHTML = `<h1>Buyer</h1>${emptyBox("Missing buyer id.")}`;
+      return;
+    }
+    const data = await api("/api/ui/today/buyer/" + encodeURIComponent(id));
+    const p = data.profile || {};
+    const name = p.BUYER_NAME_CANONICAL || (data.validation && data.validation[0] && data.validation[0].BUYER_NAME) || id;
+    const gm = data.gometro_order_proof;
+    let html = `<p><button type="button" class="btn ghost" data-back>← Back</button></p>
+      <h1>${esc(name)}</h1>
+      <p class="lead">${esc(p.AGENCY || "")}${p.OFFICE ? " · " + esc(p.OFFICE) : ""}</p>
+      <div class="meta-row">
+        <span>Disposition: <strong>${esc(data.disposition || "—")}</strong></span>
+        <span>Next: <strong>${esc(data.next_action || "—")}</strong></span>
+      </div>`;
+    const mbp = data.multibuyer_historical_profit;
+    const profit = data.gometro_historical_profit || (mbp && mbp.orders ? mbp : null);
+    if (mbp && (mbp.orders || []).length && !data.gometro_historical_profit) {
+      html += `<section class="section"><div class="section-head"><h2>HISTORICAL PROFIT PROOF</h2>
+        <span class="muted">${esc(mbp.disposition || "")} · ${esc(mbp.repeatability || "")} · score ${esc(mbp.score ?? "—")}</span></div>
+        <p class="muted">${esc(mbp.next_action || "")}</p>
+        <div style="overflow:auto"><table class="table"><thead><tr>
+          <th>Project</th><th>Government paid</th><th>Historical vendor</th><th>Lines</th>
+          <th>Identity coverage</th><th>Public-price coverage</th><th>Public basket cost</th>
+          <th>Visible headroom</th><th>Channel</th><th>Disposition</th>
+        </tr></thead><tbody>
+        ${(mbp.orders || []).map((o) => `<tr>
+          <td>${o.source_url ? `<a href="${esc(o.source_url)}" target="_blank" rel="noopener">${esc(o.project)}</a>` : esc(o.project || "UNKNOWN")}</td>
+          <td>${esc(money(o.government_paid))}</td>
+          <td>${esc(o.historical_vendor || "UNKNOWN")}</td>
+          <td>${esc(o.lines ?? "UNKNOWN")}</td>
+          <td>${esc(o.identity_coverage_pct != null ? o.identity_coverage_pct + "%" : "UNKNOWN")}</td>
+          <td>${esc(o.public_price_coverage_pct != null ? o.public_price_coverage_pct + "%" : "UNKNOWN")}</td>
+          <td>${esc(o.public_basket_cost != null ? money(o.public_basket_cost) : "INSUFFICIENT")}</td>
+          <td>${esc(o.visible_headroom != null ? money(o.visible_headroom) + (o.visible_headroom_pct != null ? " (" + o.visible_headroom_pct + "%)" : "") : "INSUFFICIENT")}</td>
+          <td>${esc(o.channel || "UNKNOWN")}</td>
+          <td>${esc(o.disposition || "UNKNOWN")}</td>
+        </tr>`).join("")}
+        </tbody></table></div></section>`;
+    }
+    if (profit && (profit.orders || []).length && data.gometro_historical_profit) {
+      html += `<section class="section"><div class="section-head"><h2>HISTORICAL ECONOMICS PROOF</h2><span class="muted">${(profit.orders || []).length} frozen $3K–$15K</span></div>
+        <div style="overflow:auto"><table class="table"><thead><tr>
+          <th>Project</th><th>Government paid</th><th>Historical vendor</th><th>Lines</th>
+          <th>Identity coverage</th><th>Public-price coverage</th><th>Public basket cost</th>
+          <th>Visible headroom</th><th>Channel</th><th>Disposition</th>
+        </tr></thead><tbody>
+        ${(profit.orders || []).map((o) => `<tr>
+          <td>${o.source_url ? `<a href="${esc(o.source_url)}" target="_blank" rel="noopener">${esc(o.project)}</a>` : esc(o.project || "UNKNOWN")}</td>
+          <td>${esc(money(o.government_paid))}</td>
+          <td>${esc(o.historical_vendor || "UNKNOWN")}</td>
+          <td>${esc(o.lines ?? "UNKNOWN")}</td>
+          <td>${esc(o.identity_coverage_pct != null ? o.identity_coverage_pct + "%" : "UNKNOWN")}</td>
+          <td>${esc(o.public_price_coverage_pct != null ? o.public_price_coverage_pct + "%" : "UNKNOWN")}</td>
+          <td>${esc(o.public_basket_cost != null ? money(o.public_basket_cost) : "INSUFFICIENT")}</td>
+          <td>${esc(o.visible_headroom != null ? money(o.visible_headroom) + (o.visible_headroom_pct != null ? " (" + o.visible_headroom_pct + "%)" : "") : "INSUFFICIENT")}</td>
+          <td>${esc(o.channel || "UNKNOWN")}</td>
+          <td>${esc(o.disposition || "UNKNOWN")}</td>
+        </tr>`).join("")}
+        </tbody></table></div>
+        <p class="muted">Headroom = covered historical value − current public basket (no uncovered-line extrapolation). Label: PUBLIC_PRICE_HEADROOM, not booked profit.</p>
+      </section>`;
+    }
+    if (gm && (gm.validated_orders || []).length) {
+      const dist = gm.order_size_distribution || {};
+      const bands = dist.BANDS || {};
+      html += `<section class="section"><div class="section-head"><h2>GO-METRO VALIDATED ORDER HISTORY</h2><span class="muted">${(gm.validated_orders || []).length}</span></div>
+        <div style="overflow:auto"><table class="table"><thead><tr>
+          <th>Date</th><th>Project</th><th>Category</th><th>Full order $</th><th>Vendor</th><th>Lines</th><th>Sourceability</th><th>Source</th>
+        </tr></thead><tbody>
+        ${(gm.validated_orders || []).map((o) => `<tr>
+          <td>${esc((o.date || "").toString().slice(0, 10) || "UNKNOWN")}</td>
+          <td>${esc(o.project || "UNKNOWN")}</td>
+          <td>${esc(o.category || "UNKNOWN")}</td>
+          <td>${esc(money(o.full_order_total))}</td>
+          <td>${esc(o.vendor || "UNKNOWN")}</td>
+          <td>${esc(o.lines ?? "UNKNOWN")}</td>
+          <td>${esc(o.sourceability || "UNKNOWN")}</td>
+          <td>${o.source_url ? `<a href="${esc(o.source_url)}" target="_blank" rel="noopener">${esc(o.source || "source")}</a>` : esc(o.source || "UNKNOWN")}</td>
+        </tr>`).join("")}
+        </tbody></table></div></section>`;
+      html += `<section class="section"><div class="section-head"><h2>ORDER SIZE DISTRIBUTION</h2></div>
+        <div class="meta-row">
+          <span>Count <strong>${esc(dist.COUNT ?? "—")}</strong></span>
+          <span>Avg <strong>${esc(money(dist.AVG))}</strong></span>
+          <span>Median <strong>${esc(money(dist.MEDIAN))}</strong></span>
+          <span>Max <strong>${esc(money(dist.MAX))}</strong></span>
+          <span>$3K–$15K <strong>${esc(dist.IN_3K_TO_15K ?? "—")}</strong></span>
+        </div>
+        <div class="meta-row">
+          ${Object.entries(bands).map(([k, v]) => `<span>${esc(k)}: <strong>${esc(v)}</strong></span>`).join("")}
+        </div></section>`;
+      html += `<section class="section"><div class="section-head"><h2>REPEAT PURCHASE PATTERNS</h2><span class="muted">${(gm.repeat_patterns || []).length}</span></div>
+        ${(gm.repeat_patterns || []).map((pat) => `<article class="deal-card">
+          <h3>${esc((pat.pattern || "").replace(/_/g, " "))}</h3>
+          <div class="meta-row">
+            <span>Orders <strong>${esc(pat.orders)}</strong></span>
+            <span>Median <strong>${esc(money(pat.median_order))}</strong></span>
+            <span>Max <strong>${esc(money(pat.max_order))}</strong></span>
+            <span>Last <strong>${esc(pat.last_buy || "UNKNOWN")}</strong></span>
+            <span>Cash <strong>${esc(pat.cash_risk || "UNKNOWN")}</strong></span>
+            <span>Score <strong>${esc(pat.score ?? "—")}</strong></span>
+          </div>
+          <p class="muted">Vendors: ${esc((pat.vendors || []).slice(0, 4).join(", ") || "UNKNOWN")} · Sourceability ${esc(pat.sourceability || "UNKNOWN")} · ${esc(pat.cadence || "")}</p>
+        </article>`).join("")}
+      </section>`;
+      html += `<section class="section"><div class="section-head"><h2>LIVE MATCHES</h2><span class="muted">${(gm.live_matches || []).length}</span></div>
+        ${(gm.live_matches || []).length
+          ? (gm.live_matches || []).map((m) => `<article class="deal-card"><h3>${esc(m.TITLE || "—")}</h3>
+              <p class="muted">Deadline ${esc(m.DEADLINE || "—")} · ${esc(m.SOURCE || "—")}</p>
+              <p>${m.PORTAL ? `<a href="${esc(m.PORTAL)}" target="_blank" rel="noopener">Open portal</a>` : ""} · ${esc(m.MATCH_REASON || "")}</p>
+            </article>`).join("")
+          : emptyBox("No live Go-Metro matches in the current corpus.")}
+      </section>`;
+      html += `<section class="section"><div class="section-head"><h2>NEXT ACTIONS</h2></div>
+        <ol>${(gm.next_actions || []).map((a) => `<li>${esc(a)}</li>`).join("") || "<li>Register in Go-Metro OpenGov and watch inventory-parts RFQs.</li>"}</ol>
+      </section>`;
+    } else if ((data.buying_history || []).length) {
+      html += `<section class="section"><div class="section-head"><h2>Buying history</h2><span class="muted">${data.buying_history.length}</span></div>
+        ${(data.buying_history || []).slice(0, 20).map((o) => `<article class="deal-card">
+          <h3>${esc(o.TITLE || o.PURCHASE_ID || "Purchase")}</h3>
+          <p class="muted">${esc((o.PURCHASE_DATE || "").toString().slice(0, 10))} · ${esc(money(o.TOTAL_AMOUNT))} · ${esc(o.VENDOR || "UNKNOWN")}</p>
+        </article>`).join("")}
+      </section>`;
+    } else {
+      html += emptyBox("No validated order ledger for this buyer yet.");
+    }
+    main.innerHTML = html;
+    main.querySelector("[data-back]")?.addEventListener("click", () => navigate("today"));
   }
 
   async function renderDeals(params) {
@@ -362,6 +527,19 @@
       return;
     }
     const filters = [
+      ["revenue_strategy", "Revenue strategy (contribution-correct)"],
+      ["source_product", "Source→product (line recovery)"],
+      ["commercial_proof", "Commercial proof (evidence-first)"],
+      ["first_revenue", "Best first-revenue"],
+      ["cash_flow", "Cash Flow verified ($500–$4,999)"],
+      ["growth", "Growth verified ($5k–$14,999)"],
+      ["scale", "Scale verified ($15k+)"],
+      ["needs_pricing", "Needs Pricing"],
+      ["supplier_quote_needed", "Supplier Quote Needed"],
+      ["needs_financing", "Needs Financing"],
+      ["ready_to_bid", "Ready to Bid"],
+      ["revenue_first", "Revenue-first (all viable)"],
+      ["commercial_intelligence", "Profit-ranked (CI)"],
       ["available", "All available"],
       ["product_resale", "Product resale"],
       ["common_commercial", "Common commercial"],
@@ -374,9 +552,36 @@
       ["state_local", "State/local"],
       ["all", "Include rejected"],
     ];
+    const revenueFilters = new Set(["revenue_strategy","source_product","commercial_proof","first_revenue","revenue_first","cash_flow","growth","scale","needs_pricing","needs_financing","ready_to_bid","supplier_quote_needed","commercial_intelligence","profit_ranked","ci_upgrade"]);
+    const strat = data.strategy_summary || (data.items && data.items[0] && (data.items[0].extras || data.items[0]).strategy_summary) || {};
+    const bud = data.research_budget || {};
+    const openaiToday = bud.openai_spend_today_usd ?? strat.openai_spend_today ?? "—";
+    const openaiLimit = bud.openai_limit_today_usd ?? strat.openai_limit_today ?? "1.00";
+    const openaiMonth = bud.openai_spend_month_usd ?? strat.openai_spend_month ?? "—";
+    const openaiMonthLimit = bud.openai_limit_month_usd ?? strat.openai_limit_month ?? "30.00";
+    const samToday = bud.sam_calls_today ?? strat.sam_calls_today ?? "—";
+    const samLimit = bud.sam_calls_limit ?? strat.sam_limit ?? 10;
+    const paused = bud.paid_research_paused ?? strat.paid_research_paused;
     main.innerHTML = `
       <h1>Available Deals</h1>
-      <p class="lead">Current opportunities that are not expired, canceled, or hard-rejected. Unknown pricing/financing still appear.</p>
+      <p class="lead">${revenueFilters.has(filter)
+        ? "Identify → Research → Price → Finance → Bid → Fulfill → Get Paid. Award/acquisition cost ≠ profit. Verified lanes require remaining contribution."
+        : "Current opportunities that are not expired, canceled, or hard-rejected. Unknown pricing/financing still appear."}</p>
+      ${revenueFilters.has(filter) ? `
+      <div class="still-needed" style="margin-bottom:1rem">
+        <strong>Automated research budget</strong>
+        <p>OpenAI today: <strong>${esc(openaiToday)}</strong> / $${esc(openaiLimit)}
+          · Month: <strong>${esc(openaiMonth)}</strong> / $${esc(openaiMonthLimit)}
+          · SAM: <strong>${esc(samToday)}</strong> / ${esc(samLimit)}
+          · Paid research: <strong>${paused ? "PAUSED" : "ACTIVE"}</strong></p>
+        <p class="muted">Mode: ${esc(strat.mode || "EVIDENCE_BUILDING_MODE")}
+          · Top blocker: ${esc(strat.most_common_blocker || "—")}
+          · RFQs ready: ${esc(strat.rfqs_ready ?? "—")}
+          · Realized profit: ${esc(strat.realized_profit ?? 0)}
+          · Cash collected: ${esc(strat.cash_collected ?? 0)}</p>
+      </div>` : ""}
+      ${data.message && revenueFilters.has(filter)
+        ? `<p class="muted">${esc(data.message)}</p>` : ""}
       ${(data.quote_outreach_reserve_count != null && data.quote_outreach_reserve_count > 0) ? `
       <p class="muted" id="quote-reserve-chip" title="Collapsed by default — only surface when strong pipeline is thin">
         Quote Outreach Reserve: <strong>${esc(data.quote_outreach_reserve_count)}</strong>
@@ -394,19 +599,49 @@
         <button type="button" class="btn secondary" id="f-go">Apply</button>
       </div>
       <p class="muted">${esc(data.total)} shown · ${esc(data.canonical_count || "—")} canonical</p>
-      ${(data.items || []).length ? data.items.map((d) => dealCard({
+      ${(data.items || []).length ? data.items.map((d) => {
+        const x = d.extras || d;
+        const lane = x.lane || d.lane;
+        const days = x.estimated_days_to_cash != null ? x.estimated_days_to_cash : d.estimated_days_to_cash;
+        const profitLabel = (x.lane_verification === "VERIFIED" || d.lane_verification === "VERIFIED")
+          ? ("Verified contribution $" + (x.verified_remaining_contribution || x.potential_profit || d.potential_profit))
+          : (x.conditional_remaining_contribution != null
+            ? ("Conditional contribution $" + x.conditional_remaining_contribution + " (not verified)")
+            : (x.profit_scenario != null && x.profit_scenario !== "UNKNOWN"
+            ? ("Scenario gross $" + x.profit_scenario + " (unverified)")
+            : "Contribution: UNKNOWN"));
+        return dealCard({
         ...d,
-        why: d.next_owner_action || d.why,
+        why: x.next_owner_action || d.next_owner_action || d.why,
         plain: [
-          d.jurisdiction_bucket || d.jurisdiction || "UNKNOWN",
-          "Class: " + (d.product_service_classification || "UNKNOWN"),
-          "Value: " + (d.estimated_value == null || d.estimated_value === "UNKNOWN" ? "UNKNOWN" : ("$" + d.estimated_value)),
-          "Profit: " + (d.potential_profit == null || d.potential_profit === "UNKNOWN" ? "UNKNOWN" : ("$" + d.potential_profit)),
-          "Supplier: " + (d.supplier_status || "UNKNOWN"),
-          "Financing: " + (d.financing_status || "UNKNOWN"),
-          d.registration_needed ? "Registration needed: YES" : "Registration needed: NO",
-        ].join(" · "),
-      })).join("") : emptyBox("No deals match these filters.")}
+          lane ? ("Lane: " + lane + (x.hypothetical_lane ? (" (hypo " + x.hypothetical_lane + ")") : "")) : (d.jurisdiction_bucket || d.jurisdiction || "UNKNOWN"),
+          x.contribution_state ? ("Contribution: " + x.contribution_state) : null,
+          x.primary_blocker ? ("Blocker: " + x.primary_blocker) : null,
+          x.public_acquisition_cost ? ("Acq cost: $" + x.public_acquisition_cost + " (not profit)") : null,
+          x.identity_class ? ("Identity: " + x.identity_class) : null,
+          x.recovery_status ? ("Recovery: " + String(x.recovery_status).replace(/_/g, " ")) : null,
+          x.before_identity_class && x.before_identity_class !== x.identity_class
+            ? ("Was: " + x.before_identity_class) : null,
+          x.lines_recovered != null ? ("Lines recovered: " + x.lines_recovered) : null,
+          x.readiness && x.readiness.MANDATORY_LINE_COVERAGE
+            ? ("Spec coverage: " + x.readiness.MANDATORY_LINE_COVERAGE) : null,
+          x.public_price_status && x.public_price_status !== "UNKNOWN"
+            ? ("Public price: " + x.public_price_status) : null,
+          x.root_cause ? ("Root: " + x.root_cause) : null,
+          x.population ? ("Pop: " + x.population) : null,
+          x.mandatory_lines != null ? ("Lines: " + x.mandatory_lines) : null,
+          x.retail_pricing_coverage ? ("Priced: " + x.retail_pricing_coverage) : null,
+          "Retail: " + (x.acquisition_cost == null || x.acquisition_cost === "UNKNOWN" ? "UNKNOWN" : ("$" + x.acquisition_cost)),
+          profitLabel,
+          x.economics_status ? ("Econ: " + x.economics_status) : null,
+          "Days-to-cash: " + (days == null ? (x.payment_timing_confidence || "UNKNOWN") : days),
+          "Suppliers: " + (x.supplier_status || d.supplier_status || "UNKNOWN"),
+          "Financing: " + (x.financing_status || d.financing_status || "UNKNOWN"),
+          x.owner_cash_required ? "Owner cash: REQUIRED/UNVERIFIED" : "Owner cash: not required (if financed)",
+          "Next: " + (x.next_owner_action || d.next_owner_action || "—"),
+        ].filter(Boolean).join(" · "),
+      });
+      }).join("") : emptyBox("No deals match these filters.")}
       <div class="pager">
         <button type="button" class="btn ghost" id="prev" ${data.page <= 1 ? "disabled" : ""}>Previous</button>
         <span class="muted">Page ${esc(data.page)} · ${esc(data.total)} total</span>
@@ -425,9 +660,13 @@
 
   async function renderDeal(params) {
     setHint("One primary action — use it.");
-    const data = await api("/api/ui/deals/" + encodeURIComponent(params.id));
+    const [data, quotesUi] = await Promise.all([
+      api("/api/ui/deals/" + encodeURIComponent(params.id)),
+      api("/api/ui/quotes").catch(() => ({})),
+    ]);
     const w = data.what || {};
     const next = data.next || {};
+    const mix = quotesUi.acquisition_mix || (quotesUi.quote_workflow_v1 || {}).acquisition_mix || null;
     const suppliers = (data.suppliers || []).map((s, i) => `
       <li><strong>${esc(s.call_priority || "")}</strong> ${esc(s.company || s.supplier_id)}
         ${s.phone ? ` · ${esc(s.phone)}` : ""}
@@ -455,6 +694,7 @@
               <span>Economics: <strong>${esc((data.canonical_funnel || {}).economics_status || "—")}</strong></span>
               <span>Quotes: <strong>${esc((data.canonical_funnel || {}).quote_packet_status || "—")}</strong></span>
             </div>
+            ${mix ? `<p class="muted" style="margin-top:.5rem">Acquisition path — Public price: <strong>${esc(mix.public_price_pct ?? "—")}%</strong> · Supplier quote: <strong>${esc(mix.supplier_quote_pct ?? "—")}%</strong> · Unknown: <strong>${esc(mix.unknown_pct ?? "—")}%</strong> · Quote status corpus: <strong>${esc(quotesUi.QUOTE_LOOP_STATUS || "—")}</strong></p>` : ""}
           </section>
           <section class="panel">
             <h2>What is this?</h2>
@@ -940,10 +1180,98 @@
   }
 
   async function renderQuotes() {
-    setHint("Review new quotes before bidding.");
+    setHint("Quote packets — dry-run default; REVIEW & SEND requires explicit approval. No invented prices.");
     const data = await api("/api/ui/quotes");
-    let html = `<h1>Quotes</h1><p class="lead">Simple quote queue.</p>
-      <p><button type="button" class="btn secondary" data-go-channel>Open Owner Channel Tests</button></p>`;
+    const qv1 = data.quote_workflow_v1 || data.supplier_discovery_v1 || null;
+    const packets = data.quote_packets || (qv1 && qv1.packets) || [];
+    const mix = data.acquisition_mix || (qv1 && qv1.acquisition_mix) || null;
+    const batch = data.first_real_outreach_batch || (qv1 && qv1.first_real_outreach_batch) || [];
+    const dealPage = data.deal_page || (qv1 && qv1.deal_page) || null;
+    const channel = (qv1 && qv1.send_channel) || data.send_channel || null;
+    let html = `<h1>Quotes</h1><p class="lead">Supplier quote packets — safety gate + controlled send.</p>
+      <p class="muted">Loop status: <strong>${esc(data.QUOTE_LOOP_STATUS || (qv1 && qv1.QUOTE_LOOP_STATUS) || "—")}</strong>
+      · DISCOVERY NEEDED · READY TO REQUEST · REVIEW REQUIRED · REQUEST SENT · SEND FAILED · RESPONSE RECEIVED</p>`;
+    if (channel) {
+      html += `<p class="muted">Send channel: <strong>${esc(channel.SEND_CHANNEL_TYPE || "UNKNOWN")}</strong>
+        · Configured: ${esc(channel.CONFIGURED)} · Production: ${esc(channel.PRODUCTION_CAPABLE)}
+        · Reply path: ${esc(channel.REPLY_PATH)} · Dry-run default: <strong>${esc(String(channel.DRY_RUN_DEFAULT))}</strong></p>`;
+    }
+    if (mix) {
+      html += `<p class="muted">Acquisition mix — Public price: <strong>${esc(mix.public_price_pct ?? "—")}%</strong>
+        · Supplier quote: <strong>${esc(mix.supplier_quote_pct ?? "—")}%</strong>
+        · Unknown / unquoted: <strong>${esc(mix.unknown_pct ?? "—")}%</strong></p>`;
+    }
+    if (dealPage) {
+      html += `<p class="muted">Acquisition path: <strong>${esc(dealPage.acquisition_path || "UNKNOWN")}</strong>
+        · Explicit send approval: <strong>${dealPage.explicit_send_approval ? "YES" : "NO"}</strong>
+        · Fake progress: <strong>${dealPage.fake_progress ? "YES" : "NO"}</strong></p>`;
+    }
+    html += `<section class="section"><div class="section-head"><h2>Quote Packets</h2></div>`;
+    if (!packets.length) {
+      html += emptyBox("No quote packets yet — run Quote Workflow / Supplier Discovery V1.");
+    } else {
+      html += `<div style="overflow:auto"><table class="simple-table" style="width:100%;font-size:.9rem">
+        <thead><tr>
+          <th>Buyer</th><th>Opportunity</th><th>Category</th><th>Lines</th>
+          <th>Primary supplier</th><th>Backup</th><th>Contact</th>
+          <th>Status</th><th>Next action</th><th>Actions</th>
+        </tr></thead><tbody>`;
+      for (const p of packets) {
+        const backups = (p.BACKUP_SUPPLIERS || []).join(", ") || "—";
+        const contact = p.CONTACT_METHOD && p.CONTACT_METHOD !== "UNKNOWN"
+          ? `${p.CONTACT_METHOD}${p.CONTACT_VALUE ? ": " + p.CONTACT_VALUE : ""}`
+          : "UNKNOWN";
+        const cv = p.CONTACT_VALUE || "";
+        const isUrl = typeof cv === "string" && /^https?:\/\//i.test(cv);
+        let acts = `<button type="button" class="btn secondary btn-sm" data-pkt="${esc(p.PACKET || "")}">VIEW PACKET</button>`;
+        if (p.PRIMARY_SUPPLIER && p.PRIMARY_SUPPLIER !== "UNKNOWN") {
+          acts += ` <button type="button" class="btn secondary btn-sm" data-sup="${esc(p.PRIMARY_SUPPLIER)}">VIEW SUPPLIER</button>`;
+        }
+        acts += ` <button type="button" class="btn secondary btn-sm" data-copy-qr="${esc(p.PACKET || "")}">COPY QUOTE REQUEST</button>`;
+        if (p.REAL_OUTREACH_ELIGIBLE === "YES") {
+          acts += ` <button type="button" class="btn primary btn-sm" data-review-send="${esc(p.PACKET || "")}">REVIEW &amp; SEND</button>`;
+        }
+        if (isUrl) {
+          acts += ` <a class="btn secondary btn-sm" href="${esc(cv)}" target="_blank" rel="noopener">OPEN QUOTE FORM</a>`;
+          acts += ` <a class="btn secondary btn-sm" href="${esc(cv)}" target="_blank" rel="noopener">OPEN CONTACT PAGE</a>`;
+        }
+        html += `<tr>
+          <td>${esc(p.BUYER || "—")}</td>
+          <td>${esc(p.ORDER || "—")}</td>
+          <td>${esc(p.CATEGORY || "—")}</td>
+          <td>${esc(p.LINES ?? "—")}</td>
+          <td>${esc(p.PRIMARY_SUPPLIER || p.SUPPLIER || "UNKNOWN")}</td>
+          <td>${esc(backups)}</td>
+          <td style="max-width:14rem;word-break:break-word">${esc(contact)}</td>
+          <td><strong>${esc(p.STATUS_DISPLAY || p.STATUS || "—")}</strong>
+            ${p.REAL_OUTREACH_ELIGIBLE === "YES" ? "<br><span class=\"muted\">ELIGIBLE</span>" : ""}
+            ${p.PRODUCT_RESALE_FIT && p.PRODUCT_RESALE_FIT !== "PASS" ? `<br><span class="muted">${esc(p.PRODUCT_RESALE_FIT)}</span>` : ""}
+          </td>
+          <td>${esc(p.NEXT_ACTION || "—")}</td>
+          <td style="white-space:nowrap">${acts}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    html += `</section>`;
+    if (batch.length) {
+      html += `<section class="section"><div class="section-head"><h2>First Real Outreach Batch</h2></div>`;
+      html += `<p class="muted">Controlled batch — readiness only; no send in this build.</p>`;
+      for (const b of batch) {
+        html += `<article class="panel" style="margin-top:.5rem">
+          <div class="deal-card-top"><h3>${esc(b.PACKET)} — ${esc(b.BUYER)}</h3>${badge("READY", "green")}</div>
+          <div class="meta-row">
+            <span>Supplier: ${esc(b.SUPPLIER)}</span>
+            <span>Lines: ${esc(b.LINES)}</span>
+            <span>Value: ${b.VALUE != null ? esc(b.VALUE) : "UNKNOWN"}</span>
+            <span>Contact: ${esc(b.CONTACT_METHOD)}</span>
+          </div>
+          <p class="muted">${esc(b.WHY_READY || "")}</p>
+        </article>`;
+      }
+      html += `</section>`;
+    }
+    html += `<p><button type="button" class="btn secondary" data-go-channel>Open Owner Channel Tests</button></p>`;
     for (const sec of data.sections || []) {
       html += `<section class="section"><div class="section-head"><h2>${esc(sec.title)}</h2></div>`;
       if (!(sec.items || []).length) html += emptyBox(sec.empty);
@@ -955,7 +1283,7 @@
               ${badge(sec.title, "yellow")}
             </div>
             <div class="meta-row">
-              ${q.unit_price != null ? `<span>Unit: ${esc(q.unit_price)}</span>` : ""}
+              ${q.unit_price != null ? `<span>Unit: ${esc(q.unit_price)}</span>` : `<span>Unit: UNKNOWN</span>`}
               ${q.recommendation ? `<span>${esc(q.recommendation)}</span>` : ""}
             </div>
             <button type="button" class="btn primary" data-act="quote" data-id="${esc(q.deal_id)}">REVIEW QUOTE</button>
@@ -965,6 +1293,59 @@
     }
     main.innerHTML = html;
     main.querySelector("[data-go-channel]")?.addEventListener("click", () => navigate("channel-tests"));
+    main.querySelectorAll("[data-pkt]").forEach((el) => {
+      el.addEventListener("click", () => setHint(`Packet ${el.getAttribute("data-pkt")} — open report for full evidence.`));
+    });
+    main.querySelectorAll("[data-sup]").forEach((el) => {
+      el.addEventListener("click", () => setHint(`Supplier ${el.getAttribute("data-sup")} — see supplier memory / packet evidence.`));
+    });
+    main.querySelectorAll("[data-copy-qr]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const id = el.getAttribute("data-copy-qr");
+        try {
+          const pkt = packets.find((x) => x.PACKET === id);
+          const text = `Quote request for ${id} → ${pkt?.PRIMARY_SUPPLIER || pkt?.SUPPLIER || "UNKNOWN"} via ${pkt?.CONTACT_METHOD || "UNKNOWN"} ${pkt?.CONTACT_VALUE || ""}`.trim();
+          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+          setHint(`Copied quote-request stub for ${id} (dry-run; no send).`);
+        } catch (_) {
+          setHint("Copy failed.");
+        }
+      });
+    });
+    main.querySelectorAll("[data-review-send]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const id = el.getAttribute("data-review-send");
+        try {
+          const prev = await api(`/api/m3/quote-outreach/preview/${encodeURIComponent(id)}`);
+          if (!prev.ok && prev.reason) {
+            setHint(`Not eligible: ${prev.reason}`);
+            return;
+          }
+          const ok = window.confirm(
+            `REVIEW & SEND — ${id}\n\n` +
+            `Supplier: ${prev.supplier_id || "—"}\n` +
+            `Recipient: ${prev.CONTACT_VALUE || prev.recipient_validation?.value || "—"}\n` +
+            `Buyer/Opp: ${prev.BUYER || "—"} / ${prev.ORDER || "—"}\n` +
+            `Subject: ${prev.subject || "—"}\n` +
+            `Dry-run: YES (default) — no message will transmit unless channel configured and dry-run disabled.\n\n` +
+            `Press OK for SEND QUOTE REQUEST (still respects dry-run), Cancel to abort.`
+          );
+          if (!ok) {
+            setHint("Send cancelled.");
+            return;
+          }
+          const sent = await api(`/api/m3/quote-outreach/send/${encodeURIComponent(id)}`, {
+            method: "POST",
+            body: JSON.stringify({ operator_approved: true, operator: "ui_operator" }),
+          });
+          if (sent.transmitted) setHint(`SENT ${id} · message ${sent.message_id || "—"}`);
+          else setHint(`${sent.result || "DRY_RUN"} — not transmitted (${id}). Status unchanged unless SEND_FAILED.`);
+          await renderQuotes();
+        } catch (err) {
+          setHint(`Preview/send failed: ${err?.message || err}`);
+        }
+      });
+    });
     bindDealActions();
   }
 
@@ -2197,6 +2578,15 @@
         <div id="free-source-roadmap" style="margin-top:.75rem">Loading roadmap…</div>
       </section>
       <section class="panel" style="margin-top:.75rem">
+        <h2>Source Health</h2>
+        <p class="muted">Free-source-first pool V2 — OpenGov / SAM / BidNet free-route / state-local. Paid BidNet stays in backlog.</p>
+        <div id="free-source-health">Loading…</div>
+        <p style="margin-top:.75rem">
+          <button type="button" class="btn secondary" id="set-run-free-pool">Run Free-Source Pool V2</button>
+          <span class="muted" style="margin-left:.5rem">$0 paid access · max 75 min</span>
+        </p>
+      </section>
+      <section class="panel" style="margin-top:.75rem">
         <h2>Connections — BidNet</h2>
         <p class="muted">Authenticated vendor session for twice-daily recovery. Password never shown.</p>
         <div id="bidnet-connection">Loading…</div>
@@ -2249,6 +2639,7 @@
         <p class="muted">Operator path is <strong>/ops</strong> only. Legacy research UIs are not part of the daily workflow.</p>
         <div id="schedule-backed-canary" class="muted" style="margin-top:.5rem">Schedule-backed canary: loading…</div>
         <div id="package-recovery-admin" class="muted" style="margin-top:.75rem">Package recovery: loading…</div>
+        <div id="historical-sources-admin" class="muted" style="margin-top:.75rem">Historical sources: loading…</div>
       </section>`;
     document.getElementById("set-train").onchange = (e) => {
       training = e.target.checked;
@@ -2331,6 +2722,87 @@
     } catch (e) {
       const el = document.getElementById("package-recovery-admin");
       if (el) el.textContent = "Package recovery: " + (e.message || "unavailable");
+    }
+    try {
+      const hs = await api("/api/ui/historical-sources");
+      const el = document.getElementById("historical-sources-admin");
+      if (el) {
+        const srcs = hs.sources || [];
+        const cph = hs.commercial_pricing_health || null;
+        let html = "";
+        if (!srcs.length) {
+          html += `<strong>HISTORICAL SOURCES</strong> · No registry yet — run DLA/DIBBS Historical Source Acquisition.`;
+        } else {
+          html += `<strong>HISTORICAL SOURCES</strong>
+            <div style="overflow:auto;margin-top:.35rem"><table class="simple-table" style="width:100%;font-size:.9rem">
+              <thead><tr><th>Source</th><th>Class</th><th>Status</th><th>Records</th><th>Complete-order %</th><th>Line-detail %</th><th>Qty %</th><th>Identity %</th><th>Econ-ready %</th><th>Last sync</th></tr></thead>
+              <tbody>${srcs.map((s) => `<tr>
+                <td>${esc(s.name || "—")}</td>
+                <td>${esc(s.CLASS || "—")}</td>
+                <td><strong>${esc(s.STATUS || "—")}</strong></td>
+                <td>${esc(s.Records ?? "—")}</td>
+                <td>${esc(s.Complete_order_pct ?? s.Price_pct ?? "—")}</td>
+                <td>${esc(s.Line_detail_pct ?? "—")}</td>
+                <td>${esc(s.Qty_pct ?? "—")}</td>
+                <td>${esc(s.Identity_pct ?? s.NSN_pct ?? "—")}</td>
+                <td>${esc(s.Economics_ready_pct ?? "—")}</td>
+                <td>${esc((s.Last_sync || "").toString().slice(0, 19) || "—")}</td>
+              </tr>`).join("")}</tbody></table></div>`;
+        }
+        if (cph) {
+          const fails = cph.failure_buckets || {};
+          const failTxt = Object.keys(fails).slice(0, 6).map((k) => `${k}:${fails[k]}`).join(" · ") || "—";
+          const cat = cph.category_coverage || {};
+          const catTxt = Object.keys(cat).map((k) => `${k}:${cat[k]}%`).join(" · ") || "—";
+          const ih = cph.identity_health || null;
+          const buyer = cph.buyer_coverage || {};
+          const buyerTxt = Object.keys(buyer).map((k) => `${k}:${buyer[k]}%`).join(" · ") || "—";
+          const sellerDist = cph.seller_distribution || {};
+          const sellerTxt = Object.keys(sellerDist).map((k) => `${k}:${sellerDist[k]}`).join(" · ") || "—";
+          html += `<div style="margin-top:.75rem"><strong>COMMERCIAL PRICING HEALTH</strong>
+            <p class="muted" style="margin:.25rem 0">Frozen identities ${esc(cph.frozen_identities ?? cph.test_identities ?? "—")} · Commercially validated ${esc(cph.commercially_validated ?? "—")} · Priced ${esc(cph.priced ?? "—")} · Coverage ${esc(cph.coverage_pct ?? "—")}% · Multi-seller ${esc(cph.multi_seller ?? "—")} · Seller concentration ${esc(cph.seller_concentration ?? "—")}${cph.concentration_flag ? ` (${esc(cph.concentration_flag)})` : ""}</p>
+            <p class="muted" style="margin:.25rem 0">Category coverage: ${esc(catTxt)}</p>
+            <p class="muted" style="margin:.25rem 0">Buyer coverage: ${esc(buyerTxt)}</p>
+            <p class="muted" style="margin:.25rem 0">Seller coverage: ${esc(sellerTxt)}</p>
+            <p class="muted" style="margin:.25rem 0">Orders ≥50 ${esc(cph.orders_50 ?? "—")} · ≥75 ${esc(cph.orders_75 ?? "—")} · ≥90 ${esc(cph.orders_90 ?? "—")} · =100 ${esc(cph.orders_100 ?? "—")} · Cache hits ${esc(cph.cache_hits ?? "—")} · Timeouts ${esc(cph.timeouts ?? "—")}</p>
+            <p class="muted" style="margin:0">Status <strong>${esc(cph.STATUS || "—")}</strong> · ${esc(cph.STRATEGIC_CONCLUSION || "")} · Failure buckets: ${esc(failTxt)}</p>`;
+          if (ih) {
+            const rules = cph.identity_display_rules || {};
+            html += `<div style="margin-top:.65rem"><strong>IDENTITY HEALTH</strong>
+              <p class="muted" style="margin:.25rem 0">Frozen/test ${esc(ih.frozen_30 ?? ih.test_set_v2 ?? "—")} · Exact commercial ${esc(ih.exact_commercial_identity ?? "—")} · Brand/model exact ${esc(ih.brand_model_exact ?? "—")} · Generic/spec ${esc(ih.generic_spec ?? "—")}</p>
+              <p class="muted" style="margin:.25rem 0">Buyer code ${esc(ih.buyer_code ?? "—")} · Brand only ${esc(ih.brand_only ?? "—")} · Quote required ${esc(ih.quote_required ?? "—")} · Unresolved ${esc(ih.unresolved ?? "—")} · Clean priceable universe ${esc(ih.clean_priceable_universe ?? "—")} · False old MPN promotions ${esc(ih.false_old_mpn_promotions ?? "—")}</p>
+              <p class="muted" style="margin:.25rem 0">Product identity: <strong>PROVEN / DERIVED / UNKNOWN</strong> · Identifier type: MPN / SKU / NSN / MODEL / BUYER CODE / SPEC · Commercial validation: VALIDATED / NOT CHECKED / NO MATCH / MULTIPLE · Priceability: EXACT PUBLIC / SPEC PUBLIC / QUOTE REQUIRED / AMBIGUOUS / UNKNOWN</p>
+              <p class="muted" style="margin:0">Buyer codes separated ${rules.buyer_code_separated ? "YES" : "—"} · Gate ${cph.priceability_gate_active ? "ON" : "—"} · Field states ${cph.proven_derived_unknown_active ? "ON" : "—"} · Do not display buyer codes as manufacturer part numbers</p>
+            </div>`;
+          }
+          if (cph.enrichment_v1 || (cph.identity_display_rules && cph.identity_display_rules.show_priceability_path)) {
+            const rules = cph.identity_display_rules || {};
+            const samples = cph.ui_samples || [];
+            html += `<div style="margin-top:.65rem"><strong>MANUFACTURER-LINKED IDENTITY / PRICEABILITY PATH</strong>
+              <p class="muted" style="margin:.25rem 0">Quote ready ${esc(cph.quote_ready ?? "—")} · Unresolved ${esc(cph.unresolved ?? "—")} · Public corpus V3 ${esc(cph.public_corpus_v3 ?? "—")} · Quote corpus ${esc(cph.quote_corpus_v1 ?? "—")} · Manufacturer proven ${esc(cph.manufacturer_proven ?? "—")}</p>
+              <p class="muted" style="margin:.25rem 0">Source part # alone insufficient ${rules.source_part_number_alone_insufficient || cph.source_part_number_alone_insufficient ? "YES" : "—"} · Manufacturer+MPN pair gate ${cph.manufacturer_mpn_pair_gate_active ? "ON" : "—"} · Historical vendor ≠ manufacturer ${cph.historical_vendor_not_manufacturer ? "YES" : "—"}</p>
+              <p class="muted" style="margin:.25rem 0">Owner actions (wired as identity states): PRICE PUBLICLY · REQUEST SUPPLIER QUOTE · IDENTITY RESEARCH NEEDED · PASS</p>`;
+            if (samples.length) {
+              html += `<div style="overflow:auto;margin-top:.35rem"><table class="simple-table" style="width:100%;font-size:.85rem">
+                <thead><tr><th>Source identifier</th><th>Manufacturer</th><th>Commercial identity</th><th>Validation</th><th>Priceability path</th></tr></thead>
+                <tbody>${samples.slice(0, 10).map((s) => `<tr>
+                  <td>${esc(s.SOURCE_IDENTIFIER || "—")}</td>
+                  <td>${esc(s.MANUFACTURER || "UNKNOWN")}${s.MANUFACTURER_STATE && s.MANUFACTURER_STATE !== "PROVEN" ? ` <span class="muted">(${esc(s.MANUFACTURER_STATE)})</span>` : ""}</td>
+                  <td>${esc(s.COMMERCIAL_IDENTITY || "—")}</td>
+                  <td>${esc(s.COMMERCIAL_VALIDATION || "—")}</td>
+                  <td><strong>${esc(s.PRICEABILITY_PATH || "—")}</strong></td>
+                </tr>`).join("")}</tbody></table></div>`;
+            }
+            html += `</div>`;
+          }
+          html += `<p class="muted" style="margin:.35rem 0 0">Evidence lanes (keep separate): Government History · Competition History · Current Commercial Price · Supplier Quote</p>
+          </div>`;
+        }
+        el.innerHTML = html;
+      }
+    } catch (e) {
+      const el = document.getElementById("historical-sources-admin");
+      if (el) el.textContent = "Historical sources: " + (e.message || "unavailable");
     }
     try {
       const dh = await api("/api/ui/discovery-health");
@@ -2439,6 +2911,49 @@
     } catch (e) {
       const el = document.getElementById("universe-funnel");
       if (el) el.textContent = e.message || "Could not load universe funnel";
+    }
+    try {
+      const fsh = await api("/api/m3/free-source-production-pool/source-health");
+      const elH = document.getElementById("free-source-health");
+      if (elH) {
+        const rows = fsh.sources || [];
+        const fr = fsh.freshness || {};
+        elH.innerHTML = `
+          <div class="meta-row">
+            <span>Status: <strong>${esc(fsh.report_status || "—")}</strong></span>
+            <span>Mode: <strong>${esc(fr.EXECUTION_MODE || "—")}</strong></span>
+            <span>Fresh fetches: <strong>${esc(fr.FRESH_SOURCE_FETCHES ?? "—")}</strong></span>
+            <span>Cache hits: <strong>${esc(fr.CACHE_HITS ?? "—")}</strong></span>
+          </div>
+          <table class="simple-table" style="width:100%;font-size:.85rem;margin-top:.5rem">
+            <thead><tr><th>Source</th><th>Fresh</th><th>True open</th><th>Pkg resolved</th><th>Usable</th><th>Quote ready</th><th>Blockers</th></tr></thead>
+            <tbody>${rows.map((r) => `<tr>
+              <td>${esc(r.SOURCE)}</td>
+              <td>${esc(r.FRESH_FETCHES ?? 0)}</td>
+              <td>${esc(r.TRUE_OPEN ?? 0)}</td>
+              <td>${esc(r.PACKAGE_RESOLVED ?? 0)}</td>
+              <td>${esc(r.USABLE ?? 0)}</td>
+              <td>${esc(r.QUOTE_READY ?? 0)}</td>
+              <td>${esc(r.ACCESS_BLOCKERS ?? 0)}</td>
+            </tr>`).join("") || "<tr><td colspan='7' class='muted'>No free-source pool report yet</td></tr>"}</tbody>
+          </table>`;
+      }
+    } catch (e) {
+      const elH = document.getElementById("free-source-health");
+      if (elH) elH.textContent = e.message || "Could not load source health";
+    }
+    const btnPool = document.getElementById("set-run-free-pool");
+    if (btnPool) {
+      btnPool.addEventListener("click", async () => {
+        try {
+          setHint("Starting free-source production pool V2…");
+          const res = await api("/api/m3/free-source-production-pool/start", { method: "POST", body: JSON.stringify({ force: true }) });
+          setHint("Free-source pool " + (res.status || "STARTED") + " — poll Source Health shortly.");
+          setTimeout(() => renderSettings(), 4000);
+        } catch (err) {
+          setHint(err.message || "Failed to start free-source pool");
+        }
+      });
     }
     try {
       const sc = await api("/api/m3/source-coverage/production");
@@ -2928,6 +3443,7 @@
     try {
       if (path === "home") await renderHome();
       else if (path === "today") await renderToday(params);
+      else if (path === "buyer") await renderBuyer(params);
       else if (path === "deals") await renderDeals(params);
       else if (path === "deal") await renderDeal(params);
       else if (path === "call" || path === "calls" && params.id) await renderCall(params);

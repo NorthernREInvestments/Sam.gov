@@ -118,10 +118,12 @@ def main() -> int:
             print(json.dumps({"fingerprint": fp, "ready_for_live": True}))
             return 0
 
-        from openai import OpenAI
+        # ALL live OpenAI must go through openai_runtime (commercial budget + CostGovernor).
+        import openai_runtime
+        from openai_runtime import create_response
 
         model = resolve_model(stage=1)
-        print("LIVE OPENAI CALL ABOUT TO RUN")
+        print("LIVE OPENAI CALL ABOUT TO RUN (via openai_runtime)")
         print(
             json.dumps(
                 {
@@ -132,30 +134,34 @@ def main() -> int:
                     "files": 0,
                     "max_output_tokens": STAGE1_MAX_OUTPUT_TOKENS,
                     "structured_output": True,
+                    "budget_gated": True,
                 },
                 indent=2,
             )
         )
 
-        client = OpenAI(api_key=key, timeout=120)
-        response = client.responses.create(
-            model=model,
+        text = create_response(
+            task="stage1_live_once",
             instructions=STAGE1_INSTRUCTIONS,
-            input=[{"role": "user", "content": content}],
+            content=content if isinstance(content, list) else [{"type": "input_text", "text": str(content)}],
             max_output_tokens=STAGE1_MAX_OUTPUT_TOKENS,
-            text={"format": stage1_response_format()},
+            model=model,
+            web_search=False,
+            notice_id=str(row.notice_id),
+            funnel_stage=1,
+            automatic=False,
+            use_cache=False,
+            text_format=stage1_response_format(),
         )
         # NO RETRIES.
-
-        usage = extract_usage_tokens(response)
-        text = getattr(response, "output_text", None) or ""
-        if not text:
-            chunks = []
-            for item in getattr(response, "output", None) or []:
-                for part in getattr(item, "content", None) or []:
-                    if getattr(part, "text", None):
-                        chunks.append(part.text)
-            text = "".join(chunks)
+        meta = getattr(openai_runtime, "_LAST_RESPONSE_META", {}) or {}
+        usage = {
+            "input_tokens": meta.get("input_tokens") or 0,
+            "cached_input_tokens": meta.get("cached_input_tokens") or 0,
+            "output_tokens": meta.get("output_tokens") or 0,
+            "reasoning_tokens": meta.get("reasoning_tokens") or 0,
+            "total_tokens": meta.get("total_tokens") or 0,
+        }
 
         try:
             raw_json = extract_json_object(text)
@@ -188,7 +194,7 @@ def main() -> int:
             result_text=store_text,
             meta={
                 "task": "screen_contract_text",
-                "model": getattr(response, "model", None) or model,
+                "model": meta.get("model") or model,
                 "notice_id": row.notice_id,
                 "schema": STAGE1_SCHEMA_VERSION,
             },
@@ -211,8 +217,8 @@ def main() -> int:
         print(
             json.dumps(
                 {
-                    "model": getattr(response, "model", None) or model,
-                    "id": getattr(response, "id", None),
+                    "model": meta.get("model") or model,
+                    "id": meta.get("request_id"),
                     "input_tokens": usage.get("input_tokens"),
                     "cached_input_tokens": usage.get("cached_input_tokens"),
                     "output_tokens": usage.get("output_tokens"),

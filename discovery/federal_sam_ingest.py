@@ -455,6 +455,15 @@ def run_federal_sam_bootstrap(
                     pagination_incomplete = True
                     stop_reason = "SAM_API_BUDGET"
                     break
+                from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+                from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call, reserve_sam_call
+
+                try:
+                    commercial_rid = reserve_sam_call(purpose="federal_sam_ingest:page")
+                except BudgetDenied:
+                    pagination_incomplete = True
+                    stop_reason = "SAM_COMMERCIAL_BUDGET"
+                    break
                 offset = page if offset_mode == "PAGE_INDEX" else page * page_limit
                 params = {
                     "api_key": api_key,
@@ -464,7 +473,12 @@ def run_federal_sam_bootstrap(
                     "offset": offset,
                     "active": "yes",
                 }
-                resp = client.get(SAM_SEARCH_URL, params=params)
+                try:
+                    resp = client.get(SAM_SEARCH_URL, params=params)
+                except Exception:
+                    commit_sam_call(commercial_rid, success=False)
+                    raise
+                commit_sam_call(commercial_rid, success=True)
                 calls += 1
                 record_sam_usage(1)
                 pages_fetched += 1

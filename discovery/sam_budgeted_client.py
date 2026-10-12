@@ -841,6 +841,8 @@ def search_opportunities(
             },
         }
 
+    commercial_rid: str | None = None
+    api_key = ""
     with _file_lock():
         ledger = load_ledger()
         used = unified_calls_used_today(ledger)
@@ -908,8 +910,34 @@ def search_opportunities(
                 },
             }
 
+        # Commercial hard ledger (10/day) — must agree before unified consume
+        commercial_rid = None
+        try:
+            from buyer_intelligence.commercial_budget_control_v1 import BudgetDenied
+            from buyer_intelligence.sam_commercial_gate_v1 import reserve_sam_call
+
+            commercial_rid = reserve_sam_call(purpose=f"sam_budgeted_client:{reason}")
+        except BudgetDenied:
+            return {
+                "opportunitiesData": [],
+                "totalRecords": 0,
+                "_meta": {
+                    "status": SAM_DAILY_BUDGET_EXHAUSTED,
+                    "credits_consumed": 0,
+                    "blocked": True,
+                    "fingerprint": fp,
+                    "reason": "COMMERCIAL_BUDGET_DENIED",
+                },
+            }
+        except Exception:
+            commercial_rid = None
+
         # Single unified consume — updates file + DB together (never a second pool)
         if not _consume_live_credits_locked(1, reason=reason + ":pending"):
+            if commercial_rid:
+                from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+                commit_sam_call(commercial_rid, count=False)
             return {
                 "opportunitiesData": [],
                 "totalRecords": 0,
@@ -972,6 +1000,10 @@ def search_opportunities(
                     }
                 )
             save_ledger(ledger)
+        if commercial_rid:
+            from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+            commit_sam_call(commercial_rid, success=False)
         return {
             "opportunitiesData": [],
             "totalRecords": 0,
@@ -1015,6 +1047,11 @@ def search_opportunities(
             # live_rows already may be 0 from pending — set properly
             ledger["days"][day]["live_rows"] = int(ledger["days"][day].get("live_rows") or 0) + len(rows)
         save_ledger(ledger)
+
+    if commercial_rid:
+        from buyer_intelligence.sam_commercial_gate_v1 import commit_sam_call
+
+        commit_sam_call(commercial_rid, success=True)
 
     return {
         **payload,
