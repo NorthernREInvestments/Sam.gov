@@ -280,10 +280,19 @@ def run_supplier_advantage_first(*, cohort: int = 25, per_item_s: float = 28) ->
                     acquisition_cost=(acquisition * Decimal(str(qty))).quantize(Decimal("0.01")),
                     freight=None,
                     financing_fees=None,
+                    allow_conditional=True,
+                    conditional_assumptions={"freight": "0", "financing_fees": "0"},
                 )
-                if econ.get("CONTRIBUTION_STATE") == "VERIFIED_CONTRIBUTION":
+                if econ.get("CONTRIBUTION_STATE") in {
+                    "VERIFIED_CONTRIBUTION",
+                    "CONDITIONAL_CONTRIBUTION",
+                    "VERIFIED_NEGATIVE_CONTRIBUTION",
+                }:
                     econ["CONTRIBUTION_STATE"] = "CONDITIONAL_CONTRIBUTION"
-                    econ["NOTE"] = "Historical gov price is benchmark; freight/financing unknown"
+                    econ["NOTE"] = (
+                        "PRELIMINARY ONLY: historical gov unit is benchmark; "
+                        "freight=0 and financing=0 assumed for screening — not bid-ready"
+                    )
                 lane = assign_lane_from_contribution(econ)
             except Exception:
                 econ = None

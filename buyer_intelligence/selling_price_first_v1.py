@@ -413,11 +413,20 @@ def research_acquisition_for_matches(
                             acquisition_cost=(acquisition * Decimal(str(qty))).quantize(Decimal("0.01")),
                             freight=None,
                             financing_fees=None,
+                            allow_conditional=True,
+                            conditional_assumptions={"freight": "0", "financing_fees": "0"},
                         )
-                        # Force CONDITIONAL because historical ≠ guaranteed award
-                        if contrib.get("CONTRIBUTION_STATE") == "VERIFIED_CONTRIBUTION":
+                        # Historical ≠ guaranteed award; freight/financing assumed $0 for screening only
+                        if contrib.get("CONTRIBUTION_STATE") in {
+                            "VERIFIED_CONTRIBUTION",
+                            "CONDITIONAL_CONTRIBUTION",
+                            "VERIFIED_NEGATIVE_CONTRIBUTION",
+                        }:
                             contrib["CONTRIBUTION_STATE"] = "CONDITIONAL_CONTRIBUTION"
-                            contrib["NOTE"] = "Historical gov unit price is benchmark only"
+                            contrib["NOTE"] = (
+                                "PRELIMINARY ONLY: historical gov unit is benchmark; "
+                                "freight=0 and financing=0 assumed for screening — not bid-ready"
+                            )
                         lane = assign_lane_from_contribution(contrib)
                     except Exception:
                         contrib = None
