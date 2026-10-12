@@ -530,6 +530,7 @@
     const filters = [
       ["worth_researching", `Worth Researching${vc.worth_researching != null ? " ("+vc.worth_researching+")" : ""}`],
       ["ready_to_bid", `Ready to Bid${vc.ready_to_bid != null ? " ("+vc.ready_to_bid+")" : ""}`],
+      ["needs_verification", `Needs Verification${vc.needs_verification != null ? " ("+vc.needs_verification+")" : ""}`],
       ["blocked_ineligible", `Blocked / Ineligible${vc.blocked_ineligible != null ? " ("+vc.blocked_ineligible+")" : ""}`],
       ["needs_pricing", "Needs Pricing"],
       ["supplier_quote_needed", "Supplier Quote Needed"],
@@ -543,7 +544,7 @@
       ["state_local", "State/local"],
       ["all", "Include rejected"],
     ];
-    const revenueFilters = new Set(["worth_researching","ready_to_bid","blocked_ineligible","blocked","revenue_strategy","source_product","commercial_proof","first_revenue","revenue_first","cash_flow","growth","scale","needs_pricing","needs_financing","supplier_quote_needed","commercial_intelligence","profit_ranked","ci_upgrade","selling_price_first","supplier_advantage_first","low_friction","all_viable"]);
+    const revenueFilters = new Set(["worth_researching","ready_to_bid","needs_verification","blocked_ineligible","blocked","revenue_strategy","source_product","commercial_proof","first_revenue","revenue_first","cash_flow","growth","scale","needs_pricing","needs_financing","supplier_quote_needed","commercial_intelligence","profit_ranked","ci_upgrade","selling_price_first","supplier_advantage_first","low_friction","all_viable"]);
     const strat = data.strategy_summary || (data.items && data.items[0] && (data.items[0].extras || data.items[0]).strategy_summary) || {};
     const bud = data.research_budget || {};
     const openaiToday = bud.openai_spend_today_usd ?? strat.openai_spend_today ?? "—";
@@ -556,11 +557,13 @@
     main.innerHTML = `
       <h1>Available Deals</h1>
       <p class="lead">${filter === "worth_researching" || filter === "revenue_strategy"
-        ? "Daily research queue: open eligible product opportunities. Unknown price/history/financing stays visible — that is the next action, not a reason to hide the deal."
+        ? "Confirmed-open product opportunities (verified future deadline). Unknown price/history/financing stays visible."
         : filter === "ready_to_bid"
         ? "Only deals with quotes, supported contribution, and financing path. Rare until research completes."
+        : filter === "needs_verification"
+        ? "Missing or conflicting closing dates — verify from the source before treating as open."
         : filter === "blocked_ineligible" || filter === "blocked"
-        ? "Ineligible set-asides, expired, or non-product — kept for audit."
+        ? "Ineligible set-asides, expired, or non-product — kept for history/audit."
         : revenueFilters.has(filter)
         ? "Identify → Research → Price → Finance → Bid. Award/acquisition cost ≠ profit."
         : "Current opportunities that are not expired, canceled, or hard-rejected. Unknown pricing/financing still appear."}</p>

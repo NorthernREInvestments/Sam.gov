@@ -45,6 +45,7 @@ BASELINE = f"{OUT}/m3_adv_v1_solicitation_baseline.json"
 READY = "READY_TO_BID"
 WORTH = "WORTH_RESEARCHING"
 BLOCKED = "BLOCKED_INELIGIBLE"
+NEEDS_VERIFICATION = "NEEDS_VERIFICATION"
 
 _SERVICE_RE = re.compile(
     r"\b(janitorial service|custodial service|grounds?\s+maintenance|lawn\s+care|"
@@ -105,10 +106,36 @@ def _days_left(deadline: Any) -> float | None:
     return (d - now_utc()).total_seconds() / 86400.0
 
 
+def _deadline_status(rec: dict[str, Any]) -> str:
+    status = str(rec.get("deadline_status") or "").upper()
+    if status in {
+        "OPEN_CONFIRMED",
+        "CLOSED_CONFIRMED",
+        "DEADLINE_UNKNOWN",
+        "DEADLINE_CONFLICT",
+        "CANCELLED",
+    }:
+        return status
+    try:
+        from buyer_intelligence.deadline_extraction_repair_v1 import classify_deadline_status
+
+        return classify_deadline_status(rec)
+    except Exception:
+        days = _days_left(rec.get("deadline"))
+        if days is None:
+            return "DEADLINE_UNKNOWN"
+        return "OPEN_CONFIRMED" if days >= 0 else "CLOSED_CONFIRMED"
+
+
 def _is_expired(rec: dict[str, Any]) -> bool:
     if str(rec.get("current_funnel_state") or "") in {"EXPIRED", "CANCELED", "CANCELLED"}:
         return True
     if str(rec.get("freshness") or "").upper() in {"EXPIRED", "CANCELED", "CANCELLED"}:
+        return True
+    if _deadline_status(rec) == "CANCELLED":
+        return True
+    # Past deadline → expired history; unknown deadline is NOT expired
+    if _deadline_status(rec) == "CLOSED_CONFIRMED":
         return True
     days = _days_left(rec.get("deadline"))
     if days is not None and days < 0:
@@ -394,6 +421,10 @@ def _next_action(bucket: str, rec: dict[str, Any], elig: dict[str, Any], commerc
         if _is_expired(rec):
             return "Expired — archive"
         return "Blocked — review reason"
+    if bucket == NEEDS_VERIFICATION:
+        if _deadline_status(rec) == "DEADLINE_CONFLICT":
+            return "Resolve deadline conflict (cancel vs date)"
+        return "Verify closing date from source documents"
     if bucket == READY:
         return "Prepare bid packet"
     if elig.get("eligible") is None:
@@ -413,6 +444,7 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
     expired = _is_expired(rec)
     commercial = _commercial_overlay(oid)
     days = _days_left(rec.get("deadline"))
+    dl_status = _deadline_status(rec)
 
     hide_reasons_avoided = []
     # Explicitly document that these do NOT block visibility
@@ -423,7 +455,7 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
 
     if expired:
         bucket = BLOCKED
-        block_reason = "EXPIRED"
+        block_reason = "EXPIRED" if dl_status != "CANCELLED" else "CANCELLED"
     elif pc == "NON_PRODUCT":
         bucket = BLOCKED
         block_reason = "NON_PRODUCT"
@@ -433,6 +465,10 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
     elif _ready_to_bid(rec, elig, commercial):
         bucket = READY
         block_reason = None
+    elif dl_status in {"DEADLINE_UNKNOWN", "DEADLINE_CONFLICT"}:
+        # Missing/conflict deadline → Needs Verification (not assumed open, not expired)
+        bucket = NEEDS_VERIFICATION
+        block_reason = dl_status
     else:
         bucket = WORTH
         block_reason = None
@@ -447,6 +483,9 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
         "buyer": rec.get("buyer"),
         "solicitation": rec.get("solicitation_event_id"),
         "deadline": rec.get("deadline"),
+        "deadline_raw": rec.get("deadline_raw"),
+        "deadline_timezone": rec.get("deadline_timezone"),
+        "deadline_status": dl_status,
         "days_left": round(days, 2) if days is not None else None,
         "set_aside": _set_aside_label(rec, elig),
         "competition_access_type": elig.get("competition_access_type"),
@@ -493,13 +532,15 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
         "filter_tags": [
             bucket.lower(),
             "worth_researching" if bucket == WORTH else bucket.lower(),
-            "available",
+            "needs_verification" if bucket == NEEDS_VERIFICATION else bucket.lower(),
+            "available" if bucket in {WORTH, READY} else bucket.lower(),
             "product_resale" if pc in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"} else "non_product",
         ]
         + (["common_commercial"] if _COMMON_RE.search(str(rec.get("title") or "")) else [])
         + (["needs_pricing"] if not (commercial.get("public_acquisition_cost") or commercial.get("acquisition_prices")) else [])
         + (["unknown_eligibility"] if elig.get("eligible") is None else [])
         + (["eligible"] if elig.get("eligible") is True else [])
+        + (["open_confirmed"] if dl_status == "OPEN_CONFIRMED" else [])
         + (["blocked"] if bucket == BLOCKED else []),
         "lane": commercial.get("lane"),
         "contribution_state": commercial.get("contribution_state") or "CONTRIBUTION_UNKNOWN",
@@ -540,16 +581,25 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
 
     worth = [r for r in rows if r["visibility_bucket"] == WORTH]
     ready = [r for r in rows if r["visibility_bucket"] == READY]
+    needs = [r for r in rows if r["visibility_bucket"] == NEEDS_VERIFICATION]
     blocked = [r for r in rows if r["visibility_bucket"] == BLOCKED]
 
-    # Primary shortlist: worth researching with open deadline preferred, then score
+    # Primary shortlist: confirmed-open first; prefer Quote runway (>=5 days) then sooner deadlines
     def sort_key(r: dict[str, Any]) -> tuple:
         days = r.get("days_left")
-        has_dl = 0 if days is not None and days >= 0 else 1
-        return (has_dl, -int(r.get("research_priority_score") or 0), str(r.get("deadline") or "9999"))
+        if days is None:
+            runway = 2
+        elif days >= 5:
+            runway = 0
+        elif days >= 0:
+            runway = 1
+        else:
+            runway = 3
+        return (runway, days if days is not None else 9999, -int(r.get("research_priority_score") or 0))
 
     worth.sort(key=sort_key)
     ready.sort(key=sort_key)
+    needs.sort(key=lambda r: (-int(r.get("research_priority_score") or 0), str(r.get("product") or "")))
 
     # Previously hidden by commercial-only UI (proxy): profit-research false OR not in commercial feed
     commercial_ids = _commercial_feed_ids()
@@ -572,22 +622,26 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
         "counts": {
             "worth_researching": len(worth),
             "ready_to_bid": len(ready),
+            "needs_verification": len(needs),
             "blocked_ineligible": len(blocked),
-            "unknown_eligibility": sum(1 for r in worth if r.get("eligible") is None),
+            "unknown_eligibility": sum(1 for r in worth + needs if r.get("eligible") is None),
             "eligible": sum(1 for r in worth if r.get("eligible") is True),
             "product_opportunities": sum(1 for r in rows if r.get("product_class") in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}),
             "open_deadline": sum(1 for r in worth if r.get("days_left") is not None and r["days_left"] >= 0),
+            "open_confirmed": sum(1 for r in rows if r.get("deadline_status") == "OPEN_CONFIRMED"),
+            "deadline_unknown": sum(1 for r in rows if r.get("deadline_status") == "DEADLINE_UNKNOWN"),
         },
-        "deals": worth + ready,  # owner default list excludes blocked unless filtered
+        "deals": worth + ready,  # default: confirmed-open worth researching
+        "needs_verification_deals": needs[:2000],
         # Prefer set-aside blockers first so HUBZone/8(a) audits are not truncated away
         "blocked_deals": sorted(
             blocked,
             key=lambda r: (
-                0 if r.get("block_reason") not in {None, "EXPIRED", "NON_PRODUCT"} else 1,
+                0 if r.get("block_reason") not in {None, "EXPIRED", "NON_PRODUCT", "CANCELLED"} else 1,
                 str(r.get("deadline") or "9999"),
             ),
         )[:1500],
-        "NOTE": "Unknown profit remains visible in WORTH_RESEARCHING. Blocked kept separate.",
+        "NOTE": "Default Worth Researching = confirmed-open product opportunities. Missing deadlines → Needs Verification.",
     }
     _save(DEALS, deals_out)
 

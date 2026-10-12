@@ -2220,6 +2220,7 @@ def list_deals(
     if filt in {
         "worth_researching",
         "ready_to_bid",
+        "needs_verification",
         "blocked_ineligible",
         "blocked",
         "commercial_intelligence",
@@ -2247,10 +2248,12 @@ def list_deals(
         fr = _load_first_revenue_deals()
         rf = _load_revenue_first_deals()
         ci = _load_ci_upgrade_deals()
-        if filt in {"worth_researching", "ready_to_bid", "blocked_ineligible", "blocked"} and vis:
+        if filt in {"worth_researching", "ready_to_bid", "needs_verification", "blocked_ineligible", "blocked"} and vis:
             src = vis
             if filt in {"blocked_ineligible", "blocked"}:
                 deals = [d for d in (vis.get("blocked_deals") or []) if isinstance(d, dict)]
+            elif filt == "needs_verification":
+                deals = [d for d in (vis.get("needs_verification_deals") or []) if isinstance(d, dict)]
             elif filt == "ready_to_bid":
                 deals = [
                     d
@@ -2258,18 +2261,20 @@ def list_deals(
                     if isinstance(d, dict) and d.get("visibility_bucket") == "READY_TO_BID"
                 ]
             else:
+                # Default: confirmed-open Worth Researching (+ any Ready to Bid)
                 deals = [
                     d
                     for d in (vis.get("deals") or [])
                     if isinstance(d, dict)
                     and d.get("visibility_bucket") in {None, "WORTH_RESEARCHING", "READY_TO_BID"}
                 ]
-                # Default owner queue: Worth Researching first (ready included at top if any)
                 deals = sorted(
                     deals,
                     key=lambda d: (
                         0 if d.get("visibility_bucket") == "READY_TO_BID" else 1,
-                        0 if d.get("days_left") is not None and float(d.get("days_left") or -1) >= 0 else 1,
+                        0 if d.get("days_left") is not None and float(d.get("days_left") or -1) >= 5 else 1,
+                        0 if d.get("days_left") is not None and float(d.get("days_left") or -1) >= 0 else 2,
+                        float(d.get("days_left") if d.get("days_left") is not None else 9999),
                         -int(d.get("research_priority_score") or 0),
                     ),
                 )
@@ -2401,6 +2406,9 @@ def list_deals(
                     "set_aside": d.get("competition_access_type") or d.get("set_aside"),
                     "eligibility_bucket": d.get("eligibility_bucket"),
                     "visibility_bucket": d.get("visibility_bucket"),
+                    "deadline_status": d.get("deadline_status"),
+                    "deadline_raw": d.get("deadline_raw"),
+                    "deadline_timezone": d.get("deadline_timezone"),
                     "pricing_status": d.get("pricing_status") or "UNKNOWN",
                     "historical_pricing_status": d.get("historical_pricing_status") or "UNKNOWN",
                     "lines": d.get("lines") or d.get("mandatory_lines") or d.get("lines_recovered"),
@@ -2495,12 +2503,16 @@ def list_deals(
                 int((src.get("counts") or src.get("visibility_counts") or {}).get("blocked_ineligible") or total)
                 if filt in {"blocked_ineligible", "blocked"}
                 else (
-                    int((src.get("counts") or src.get("visibility_counts") or {}).get("ready_to_bid") or total)
-                    if filt == "ready_to_bid"
+                    int((src.get("counts") or src.get("visibility_counts") or {}).get("needs_verification") or total)
+                    if filt == "needs_verification"
                     else (
-                        int((src.get("counts") or src.get("visibility_counts") or {}).get("worth_researching") or total)
-                        if filt in {"worth_researching", "revenue_strategy", "available"}
-                        else total
+                        int((src.get("counts") or src.get("visibility_counts") or {}).get("ready_to_bid") or total)
+                        if filt == "ready_to_bid"
+                        else (
+                            int((src.get("counts") or src.get("visibility_counts") or {}).get("worth_researching") or total)
+                            if filt in {"worth_researching", "revenue_strategy", "available"}
+                            else total
+                        )
                     )
                 )
             ),
@@ -2514,22 +2526,26 @@ def list_deals(
             "supplier_outreach_queue": outreach_dash,
             "research_novelty": novelty_dash,
             "message": (
-                "Worth Researching: open eligible product opportunities. "
+                "Worth Researching: confirmed-open eligible product opportunities. "
                 "Unknown pricing/financing/history does NOT hide a deal — it sets the next research action."
                 if filt in {"worth_researching", "revenue_strategy", "available"}
                 else (
                     "Ready to Bid: eligibility + mandatory lines + supplier quotes + supported contribution + financing path."
                     if filt == "ready_to_bid"
                     else (
-                        "Blocked / Ineligible: HUBZone/8(a)/SDVOSB/WOSB-only, expired, or non-product — kept for audit, not the daily queue."
-                        if filt in {"blocked_ineligible", "blocked"}
+                        "Needs Verification: missing or conflicting closing dates — not assumed open or expired."
+                        if filt == "needs_verification"
                         else (
-                            "Source-to-product: line recovery + readiness (quoteable ≠ RFQ-ready)."
-                            if deals and "source_product" in str(src.get("kind") or "")
+                            "Blocked / Ineligible: HUBZone/8(a)/SDVOSB/WOSB-only, expired, or non-product — kept for audit, not the daily queue."
+                            if filt in {"blocked_ineligible", "blocked"}
                             else (
-                                "Commercial research view. UNKNOWN is not zero profit."
-                                if deals
-                                else "Run scripts/run_available_deals_visibility_v1.py to rebuild the owner shortlist."
+                                "Source-to-product: line recovery + readiness (quoteable ≠ RFQ-ready)."
+                                if deals and "source_product" in str(src.get("kind") or "")
+                                else (
+                                    "Commercial research view. UNKNOWN is not zero profit."
+                                    if deals
+                                    else "Run scripts/run_available_deals_visibility_v1.py to rebuild the owner shortlist."
+                                )
                             )
                         )
                     )

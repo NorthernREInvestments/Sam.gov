@@ -125,11 +125,17 @@ def _norm(s: Any) -> str:
 
 
 def _promote_deadline_from_raw(row: dict[str, Any]) -> Any:
-    """When only deadline_raw exists (common for BidNet list harvest), normalize it.
+    """When only deadline_raw / source aliases exist, normalize into canonical deadline.
 
     Returns a UTC/local deadline string suitable for the canonical ``deadline`` field,
     or None when raw is missing / Not Stated / unparseable. Never invents dates.
     """
+    try:
+        from buyer_intelligence.deadline_extraction_repair_v1 import promote_deadline_from_record
+
+        return promote_deadline_from_record(row)
+    except Exception:
+        pass
     raw = row.get("deadline_raw") or row.get("closing_date_raw") or row.get("close_date_raw")
     if raw is None or str(raw).strip() == "":
         return None
@@ -958,6 +964,38 @@ def merge_into_store(store: dict[str, dict[str, Any]], records: list[dict[str, A
                 existing["authoritative_url"] = rec["authoritative_url"]
             if rec.get("freshness") == LIVE_FRESH:
                 existing["freshness"] = LIVE_FRESH
+            # Backfill deadline when existing is null and incoming has evidence (never null-overwrite)
+            if not existing.get("deadline"):
+                incoming_dl = rec.get("deadline") or _promote_deadline_from_raw(rec)
+                if incoming_dl:
+                    existing["deadline"] = (
+                        incoming_dl.isoformat()
+                        if hasattr(incoming_dl, "isoformat")
+                        else str(incoming_dl)
+                    )
+                    if rec.get("deadline_raw"):
+                        existing["deadline_raw"] = rec.get("deadline_raw")
+                    if rec.get("deadline_timezone"):
+                        existing["deadline_timezone"] = rec.get("deadline_timezone")
+                    rr = existing.get("row_ref") if isinstance(existing.get("row_ref"), dict) else {}
+                    rr["deadline"] = existing["deadline"]
+                    if existing.get("deadline_raw"):
+                        rr["deadline_raw"] = existing["deadline_raw"]
+                    existing["row_ref"] = rr
+            elif rec.get("deadline") and rec.get("deadline") != existing.get("deadline"):
+                # Amendment: keep later verified deadline when both parse
+                try:
+                    from dateutil import parser as dp
+
+                    old = dp.isoparse(str(existing["deadline"]))
+                    new = dp.isoparse(str(rec["deadline"]))
+                    if new > old:
+                        existing["deadline"] = rec["deadline"]
+                        if rec.get("deadline_raw"):
+                            existing["deadline_raw"] = rec["deadline_raw"]
+                        existing["deadline_amended_at"] = _utc()
+                except Exception:
+                    pass
             existing["source_provenance"] = (existing.get("source_provenance") or []) + (rec.get("source_provenance") or [])
             existing["updated_at"] = _utc()
     return added
