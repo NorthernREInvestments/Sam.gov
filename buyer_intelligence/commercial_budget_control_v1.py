@@ -224,6 +224,9 @@ def shared_ledger_safe() -> dict[str, Any]:
 
 
 def is_paid_research_paused() -> bool:
+    # Env kill-switch (Railway): keep paid research paused until smoke clears
+    if (os.getenv("M3_PAID_RESEARCH_PAUSED") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        return True
     p = _pause_path()
     if not p.exists():
         # Also honor cost_governor config
