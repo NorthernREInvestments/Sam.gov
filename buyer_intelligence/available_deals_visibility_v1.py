@@ -302,6 +302,42 @@ def classify_eligibility(rec: dict[str, Any]) -> dict[str, Any]:
 
 
 _COMMERCIAL_INDEX: dict[str, dict[str, Any]] | None = None
+_FIRST_REVENUE_PRIORITY: dict[str, float] | None = None
+
+
+def _first_revenue_priority() -> dict[str, float]:
+    """OID → priority_score from first-revenue cohort shortlist (optional)."""
+    global _FIRST_REVENUE_PRIORITY
+    if _FIRST_REVENUE_PRIORITY is not None:
+        return _FIRST_REVENUE_PRIORITY
+    out: dict[str, float] = {}
+    for name in (
+        "m3_first_revenue_top20_v1.json",
+        "m3_first_revenue_cohort_v1.json",
+    ):
+        path = Path(data_path(f"{OUT}/{name}"))
+        if not path.exists():
+            continue
+        try:
+            blob = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        rows = blob.get("rows") or blob.get("selected") or blob.get("cohort") or []
+        if isinstance(blob.get("deals"), list):
+            rows = list(rows) + list(blob.get("deals") or [])
+        for d in rows:
+            if not isinstance(d, dict):
+                continue
+            oid = str(d.get("opportunity_id") or "")
+            if not oid:
+                continue
+            try:
+                score = float(d.get("priority_score") or 100.0)
+            except Exception:
+                score = 100.0
+            out[oid] = max(out.get(oid, 0.0), score)
+    _FIRST_REVENUE_PRIORITY = out
+    return out
 
 
 def _commercial_index() -> dict[str, dict[str, Any]]:
@@ -411,6 +447,13 @@ def research_priority_score(rec: dict[str, Any], elig: dict[str, Any], commercia
         score += 12
     if funnel == "RAW":
         score += 5
+    # Boost first-revenue cohort so operators see easiest candidates first
+    try:
+        fr = _first_revenue_priority().get(str(rec.get("canonical_opportunity_id") or ""))
+        if fr is not None:
+            score += 40 + min(40, float(fr) / 10.0)
+    except Exception:
+        pass
     return score
 
 
@@ -473,7 +516,8 @@ def classify_record(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
         bucket = WORTH
         block_reason = None
 
-    score = research_priority_score(rec, elig, commercial)
+    score_rec = rec if rec.get("canonical_opportunity_id") else {**rec, "canonical_opportunity_id": oid}
+    score = research_priority_score(score_rec, elig, commercial)
     if bucket == BLOCKED:
         score = min(score, 0)
 

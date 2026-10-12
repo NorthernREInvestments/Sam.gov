@@ -924,7 +924,24 @@ def save_store(store: dict[str, dict[str, Any]]) -> None:
         "count": len(store),
         "opportunities": store,
     }
-    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    # Atomic replace — never leave a truncated store if the process is killed mid-write.
+    import os
+    import tempfile
+
+    text = json.dumps(payload, indent=2, default=str)
+    fd, tmp_name = tempfile.mkstemp(prefix="l23_store_", suffix=".json", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
     # Compact summary only — do not duplicate full population into artifacts/
     states: dict[str, int] = {}
     for r in store.values():
