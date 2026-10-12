@@ -2217,6 +2217,9 @@ def list_deals(
         "needs_financing",
         "ready_to_bid",
         "supplier_quote_needed",
+        "selling_price_first",
+        "supplier_advantage_first",
+        "low_friction",
         "all_viable",
     }:
         sp = _load_source_product_deals()
@@ -2239,6 +2242,9 @@ def list_deals(
             "needs_financing",
             "ready_to_bid",
             "supplier_quote_needed",
+            "selling_price_first",
+            "supplier_advantage_first",
+            "low_friction",
         } and sp.get("deals"):
             src = sp
         elif filt in {"commercial_proof", "first_revenue", "cash_flow"} and cp.get("deals"):
@@ -2264,6 +2270,9 @@ def list_deals(
             "needs_financing": "needs_financing",
             "ready_to_bid": "ready_to_bid",
             "supplier_quote_needed": "supplier_quote_needed",
+            "selling_price_first": "selling_price_first",
+            "supplier_advantage_first": "supplier_advantage_first",
+            "low_friction": "low_friction",
             "all_viable": "all_viable",
             "first_revenue": "first_revenue",
             "commercial_proof": "commercial_proof",

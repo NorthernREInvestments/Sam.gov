@@ -256,11 +256,15 @@ def task_check_mandatory_coverage(oid: str) -> dict[str, Any]:
 
 
 def task_research_public_price(oid: str, *, deadline_s: float = 45) -> dict[str, Any]:
-    """Deterministic/public price research — no OpenAI. Uses known catalogs + cache."""
+    """Public acquisition-price research via multi-route gap-closure engine (no OpenAI)."""
     t0 = time.time()
     lines = get_lines(oid)
-    prices = []
-    # Known exact products
+    prices: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    try:
+        from buyer_intelligence.commercial_gap_closure_v1 import research_mpn_public_price
+    except Exception:
+        research_mpn_public_price = None  # type: ignore
     for ln in lines:
         if time.time() - t0 > deadline_s:
             break
@@ -269,95 +273,61 @@ def task_research_public_price(oid: str, *, deadline_s: float = 45) -> dict[str,
             continue
         cache_key = _evidence_hash("price", mpn)
         cached = _cache_get(cache_key)
-        if cached:
-            prices.append({**cached, "from_cache": True, "line": ln.get("LINE_NUMBER")})
+        if cached and cached.get("unit_price"):
+            prices.append({**cached, "from_cache": True, "newly_acquired": False, "line": ln.get("LINE_NUMBER")})
             continue
-        hit = None
-        if mpn == "TM1616S":
-            hit = {
-                "mpn": mpn,
-                "unit_price": "47.44",
-                "uom": "CASE",
-                "pack_qty": 96,
-                "url": "https://www.hecdistribution.com/shop/housekeeping-and-janitorial-products/paper-products/bathroom-tissue/essity-tork-bath-tissue-tm1616s/",
-                "class": "EXACT_PUBLIC_ACQUISITION_PRICE",
-                "source": "HEC",
-            }
-        elif mpn in {"MK520", "MK520A"}:
-            hit = {
-                "mpn": mpn,
-                "unit_price": "34.99",
-                "uom": "CASE",
-                "pack_qty": 4000,
-                "url": "https://www.webstaurantstore.com/tork-universal-natural-kraft-multifold-paper-towel-h2-case/500MFTMK520A.html",
-                "class": "COMPLIANT_EQUIVALENT_PRICE" if mpn == "MK520" else "EXACT_PUBLIC_ACQUISITION_PRICE",
-                "source": "WebstaurantStore",
-                "note": "MK520 vs MK520A equivalence pending confirmation" if mpn == "MK520" else None,
-            }
-        elif mpn == "D420":
-            hit = {
-                "mpn": mpn,
-                "unit_price": "1592.00",
-                "uom": "EA",
-                "url": "https://www.gofoodservice.com/p/manitowoc-rfp0620a-161",
-                "class": "EXACT_PUBLIC_ACQUISITION_PRICE",
-                "source": "GoFoodservice",
-            }
-        if hit:
-            _cache_put(cache_key, hit)
-            prices.append({**hit, "from_cache": False, "line": ln.get("LINE_NUMBER"), "qty": ln.get("QTY")})
+        if research_mpn_public_price is None:
+            failures.append({"mpn": mpn, "failure_class": "ENGINE_UNAVAILABLE"})
+            continue
+        remaining = max(5.0, deadline_s - (time.time() - t0))
+        hit = research_mpn_public_price(
+            mpn=mpn,
+            manufacturer=ln.get("MANUFACTURER") or ln.get("BRAND"),
+            description=ln.get("DESCRIPTION"),
+            opportunity_id=oid,
+            qty=ln.get("QTY"),
+            uom=ln.get("UOM"),
+            deadline_s=min(40.0, remaining),
+        )
+        if hit.get("unit_price"):
+            row = {**hit, "line": ln.get("LINE_NUMBER"), "qty": ln.get("QTY")}
+            _cache_put(cache_key, {k: row[k] for k in row if k != "line"})
+            prices.append(row)
+        else:
+            failures.append(hit)
     return {
         "task": "RESEARCH_PUBLIC_ACQUISITION_PRICE",
         "status": "COMPLETED" if prices else "NO_NEW_EVIDENCE",
         "prices": prices,
+        "failures": failures,
+        "new_prices": sum(1 for p in prices if p.get("newly_acquired")),
+        "reused_prices": sum(1 for p in prices if not p.get("newly_acquired")),
         "elapsed_s": round(time.time() - t0, 3),
         "openai_usd": "0",
     }
 
 
 def task_research_historical(oid: str, *, deadline_s: float = 60) -> dict[str, Any]:
-    """Historical buyer price from cached artifacts / known tabs — SAM prefer 0."""
+    """Historical buyer unit prices from cached artifacts — SAM prefer 0."""
     t0 = time.time()
-    e = get_entry(oid) or {}
-    buyer = str(e.get("BUYER") or "")
-    # Reuse prior FPD commercial historical if Tampa
-    hist = None
-    if oid == "8e7ae0c1316f0d7f" or "Tampa" in buyer:
-        fpd = _load(f"{OUT}/m3_fpd_bidnet_v1_commercial.json") or {}
-        hist = (fpd.get("tampa") or {}).get("HISTORICAL_GOV_PRICING")
-        if hist:
-            return {
-                "task": "RESEARCH_HISTORICAL_BUYER_PRICE",
-                "status": "COMPLETED",
-                "class": hist.get("CLASS") or "SPECIFICATION_MATCHED_UNIT_PRICE",
-                "evidence": hist,
-                "note": "Same-metro different buyer — not EXACT Tampa award",
-                "sam_calls": 0,
-                "elapsed_s": round(time.time() - t0, 3),
-            }
-    if oid == "777499f8df1dcb7f" or "Dayton" in buyer:
-        fpd = _load(f"{OUT}/m3_fpd_bidnet_v1_commercial.json") or {}
-        hist = (fpd.get("dayton") or {}).get("HISTORICAL_GOV_PRICING")
-        if hist:
-            return {
-                "task": "RESEARCH_HISTORICAL_BUYER_PRICE",
-                "status": "COMPLETED",
-                "class": hist.get("CLASS") or "CATEGORY_COMPARISON_ONLY",
-                "evidence": hist,
-                "sam_calls": 0,
-                "elapsed_s": round(time.time() - t0, 3),
-            }
-    # Check budget before any SAM — prefer not to use
-    chk = check_budget(provider="sam", sam_calls=1)
-    return {
-        "task": "RESEARCH_HISTORICAL_BUYER_PRICE",
-        "status": "SELLING_PRICE_UNKNOWN",
-        "class": "SELLING_PRICE_UNKNOWN",
-        "sam_available": chk.get("allowed"),
-        "note": "No cached exact historical; SAM not consumed (prefer free/cache)",
-        "sam_calls": 0,
-        "elapsed_s": round(time.time() - t0, 3),
-    }
+    try:
+        from buyer_intelligence.commercial_gap_closure_v1 import research_historical_unit_price
+
+        hist = research_historical_unit_price(oid)
+        hist["elapsed_s"] = round(time.time() - t0, 3)
+        return hist
+    except Exception as exc:
+        chk = check_budget(provider="sam", sam_calls=1)
+        return {
+            "task": "RESEARCH_HISTORICAL_BUYER_PRICE",
+            "status": "SELLING_PRICE_UNKNOWN",
+            "class": "SELLING_PRICE_UNKNOWN",
+            "sam_available": chk.get("allowed"),
+            "error": type(exc).__name__,
+            "note": "Historical engine unavailable; SAM not consumed",
+            "sam_calls": 0,
+            "elapsed_s": round(time.time() - t0, 3),
+        }
 
 
 def task_volume_discounts(oid: str) -> dict[str, Any]:
