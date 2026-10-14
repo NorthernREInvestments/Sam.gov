@@ -200,6 +200,29 @@ def _is_real_doc(d: dict[str, Any]) -> bool:
     return False
 
 
+def _sol_from_paid_intercept(intercept_url: str) -> str | None:
+    """Extract solicitation number from BidNet subscription intercept title= param."""
+    from urllib.parse import parse_qs, unquote, urlparse
+
+    if not intercept_url:
+        return None
+    try:
+        q = parse_qs(urlparse(intercept_url).query)
+        title = unquote(str((q.get("title") or [""])[0] or "")).strip()
+    except Exception:
+        title = ""
+    if not title:
+        m = re.search(r"[?&]title=([^&]+)", intercept_url, re.I)
+        title = unquote(m.group(1)).strip() if m else ""
+    if not title:
+        return None
+    head = title.split(" - ", 1)[0].strip()
+    if re.match(r"^[A-Z0-9][A-Z0-9._/-]{4,32}$", head, re.I):
+        return head.upper()
+    m2 = re.search(r"\b([A-Z]{1,6}\d{2,}[A-Z0-9]{2,})\b", title, re.I)
+    return m2.group(1).upper() if m2 else None
+
+
 def _has_downloaded_docs(docs: list[dict[str, Any]] | None) -> bool:
     """True only when at least one real file is on disk (abstract stubs do not count)."""
     for d in docs or []:
@@ -750,7 +773,6 @@ def _recover_one_inner(
     }
     # Fast path (not full process_bidnet): must finish inside wall clock.
     # Full process hangs on multi-candidate Playwright discovery.
-    from bidnet_full_production.process import _sol_from_paid_intercept
     from bidnet_recovery.parse_abstract import parse_bidnet_abstract
     from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
     from bidnet_auth.purchasing_group_tracker import is_registered
