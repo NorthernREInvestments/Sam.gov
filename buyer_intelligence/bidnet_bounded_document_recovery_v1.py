@@ -746,13 +746,13 @@ def _recover_one_inner(
     html = ""
 
     # 0) Registered PG + statewide/open-bids: skip public URL (wrong ID namespace).
-    # Go straight to authenticated title search → private detail → Documents tab.
+    # Go straight to authenticated search → private detail → Documents tab.
+    # Try title, open-bids/statewide numeric IDs, and URL slug — not title alone.
     pg_early = extract_pg_id_from_url(url)
     url_l0 = (url or "").lower()
     if (
         pg_early
         and is_registered(str(pg_early))
-        and title
         and (
             "/statewide/" in url_l0
             or "/open-bids/" in url_l0
@@ -769,21 +769,54 @@ def _recover_one_inner(
             "purchasing_group_id": str(pg_early),
             "early_unlock": True,
         }
-        out["network_requests"] += 1
-        early = (
-            auth_client.resolve_detail_via_authenticated_search(
-                title=title,
-                source_url=url,
-                timeout_ms=_remain_ms(40_000),
+        search_queries: list[str] = []
+        if title and len(title.strip()) >= 6:
+            search_queries.append(title.strip()[:120])
+        m_ob = re.search(r"/open-bids/[^/]+/(\d{6,})", url, re.I)
+        m_sw = re.search(r"/statewide/(\d{6,})", url, re.I)
+        m_slug = re.search(r"/open-bids/([^/]+)/\d+", url, re.I)
+        if m_ob:
+            search_queries.append(m_ob.group(1))
+            search_queries.append(m_ob.group(1).lstrip("0") or m_ob.group(1))
+        if m_sw:
+            search_queries.append(m_sw.group(1))
+        if m_slug:
+            slug_title = re.sub(r"[-_]+", " ", m_slug.group(1)).strip()
+            if slug_title and slug_title.lower() not in {q.lower() for q in search_queries}:
+                search_queries.append(slug_title[:120])
+        # de-dupe preserve order
+        seen_q: set[str] = set()
+        uniq_q: list[str] = []
+        for q in search_queries:
+            k = q.lower()
+            if k in seen_q:
+                continue
+            seen_q.add(k)
+            uniq_q.append(q)
+
+        early: dict[str, Any] = {}
+        for q in uniq_q:
+            if time.monotonic() >= deadline:
+                break
+            out["network_requests"] += 1
+            early = (
+                auth_client.resolve_detail_via_authenticated_search(
+                    title=q,
+                    source_url=url,
+                    timeout_ms=_remain_ms(35_000),
+                )
+                or {}
             )
-            or {}
-        )
-        out["early_search_to_detail"] = {
-            "status": early.get("status"),
-            "detail_url": (early.get("detail_url") or "")[:160] or None,
-            "solicitation_id": early.get("solicitation_id"),
-            "access_gate": early.get("access_gate"),
-        }
+            out["early_search_to_detail"] = {
+                "status": early.get("status"),
+                "query": q[:120],
+                "detail_url": (early.get("detail_url") or "")[:160] or None,
+                "solicitation_id": early.get("solicitation_id"),
+                "access_gate": early.get("access_gate"),
+            }
+            if early.get("ok") and early.get("detail_url"):
+                break
+
         if (
             early.get("ok")
             and early.get("detail_url")
@@ -808,6 +841,10 @@ def _recover_one_inner(
                 if docs:
                     package_state = "PACKAGE_ACQUIRED_BIDNET"
                     out["access_note"] = "early_registered_pg_docs_recovered"
+                else:
+                    out["access_note"] = "early_registered_detail_no_docs"
+            else:
+                out["access_note"] = "early_registered_detail_opened"
         elif early.get("access_gate") == "ACTION_REQUIRED":
             detail_status = "DETAIL_ACCESS_GATE"
             out["access_note"] = "early_registered_still_action_required"

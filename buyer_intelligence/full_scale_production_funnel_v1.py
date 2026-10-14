@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2k"
+BUILD = "20261014-m3-full-scale-production-funnel-v2l"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -345,13 +345,24 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
         if not technical:
             preserved += 1
             continue
-        # One additional retry budget after browser-path repair for empty BidNet detail fetches
+        # Extra retry budgets after production path repairs (statewide→private unlock)
         if retries >= MAX_TECHNICAL_RETRIES:
             if (
                 blocker in {"DETAIL_FETCH_EMPTY", "ABSTRACT_FETCH_FAILED_OR_WAF"}
                 and not it.get("BROWSER_PATH_REPAIR_RETRY")
             ):
                 it["BROWSER_PATH_REPAIR_RETRY"] = True
+                it["RETRY_COUNT"] = 0
+                retries = 0
+            elif (
+                blocker == "DETAIL_FETCH_EMPTY"
+                and (
+                    it.get("purchasing_group_registration_status") == "REGISTERED"
+                    or it.get("pg_registered_awaiting_docs")
+                )
+                and not it.get("REGISTERED_UNLOCK_REPAIR_RETRY")
+            ):
+                it["REGISTERED_UNLOCK_REPAIR_RETRY"] = True
                 it["RETRY_COUNT"] = 0
                 retries = 0
             else:
@@ -1217,6 +1228,7 @@ def _slim_checkpoint(
         "is_bidnet_url": row.get("is_bidnet_url"),
         "bidnet_auth_status": row.get("bidnet_auth_status"),
         "bounded_blocker": row.get("bounded_blocker"),
+        "pg_registered_awaiting_docs": bool(row.get("pg_registered_awaiting_docs")),
         "access_note": (row.get("access_note") or "")[:120] or None,
         "early_search_status": ((row.get("early_search_to_detail") or {}).get("status")),
         "search_to_detail_status": (
@@ -2070,6 +2082,11 @@ def recent_item_samples(*, limit: int = 25) -> dict[str, Any]:
                 "line_count": it.get("line_count"),
                 "fully_specified_product_lines": it.get("fully_specified_product_lines"),
                 "complete_spec": it.get("complete_spec"),
+                "access_note": it.get("access_note"),
+                "early_search_status": it.get("early_search_status"),
+                "search_to_detail_status": it.get("search_to_detail_status"),
+                "bidnet_solicitation_id": it.get("bidnet_solicitation_id"),
+                "bounded_blocker": it.get("bounded_blocker"),
                 "CHECKPOINT_AT": it.get("CHECKPOINT_AT"),
             }
         )
