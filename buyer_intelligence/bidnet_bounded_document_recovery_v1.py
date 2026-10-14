@@ -291,18 +291,48 @@ def _cache_snapshot(l23: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_lines(title: str, parsed: dict[str, Any], docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    try:
-        from buyer_intelligence.package_recovery_source_depth_v1 import extract_lines_from_evidence
-    except Exception:
-        return []
-    desc = str(parsed.get("description") or parsed.get("overview") or "")
-    for d in docs[:6]:
+    """Prefer schedule/spreadsheet extraction from local docs; fall back to text evidence."""
+    # 1) Authoritative package schedule extraction (xls/xlsx/pdf/csv)
+    local_docs = []
+    for d in docs or []:
         if not isinstance(d, dict):
             continue
         lp = d.get("local_path") or d.get("canonical_storage_reference")
         if not lp:
             continue
         p = Path(str(lp))
+        if p.exists() and re.search(r"\.(pdf|xlsx?|xls|csv|docx?|txt)$", p.suffix, re.I):
+            local_docs.append(
+                {
+                    **d,
+                    "local_path": str(p),
+                    "document_name": d.get("document_name") or d.get("filename") or d.get("name") or p.name,
+                    "filename": d.get("filename") or d.get("document_name") or d.get("name") or p.name,
+                }
+            )
+    if local_docs:
+        try:
+            from bidnet_engine.schedule_extraction import extract_schedules_from_package
+
+            sched = extract_schedules_from_package(
+                local_docs,
+                opportunity_id=str(parsed.get("solicitation_number") or ""),
+                body_text=str(parsed.get("description") or parsed.get("overview") or title or ""),
+            )
+            rows = [r for r in (sched.get("schedule_rows") or []) if isinstance(r, dict)]
+            if rows:
+                return rows
+        except Exception:
+            pass
+
+    # 2) Text-evidence fallback (pdf/txt/csv only)
+    try:
+        from buyer_intelligence.package_recovery_source_depth_v1 import extract_lines_from_evidence
+    except Exception:
+        return []
+    desc = str(parsed.get("description") or parsed.get("overview") or "")
+    for d in local_docs[:6]:
+        p = Path(str(d.get("local_path") or ""))
         if not p.exists() or not re.search(r"\.(pdf|txt|csv)$", p.suffix, re.I):
             continue
         try:

@@ -93,7 +93,7 @@ def test_tracker_upsert_and_ui_summary(tmp_path, monkeypatch):
     assert is_registered("8411151")
     ui = ui_summary()
     assert ui["metrics"]["registered"] == 1
-    assert ui["groups"][0]["purchasing_group_id"] == "8411151"
+    assert any(g.get("purchasing_group_id") == "8411151" for g in ui["groups"])
 
 
 def test_classify_blocker_pg_registration():

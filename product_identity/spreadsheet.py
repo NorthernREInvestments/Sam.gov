@@ -8,17 +8,50 @@ from pathlib import Path
 from typing import Any
 
 _HEADER_ALIASES: dict[str, tuple[str, ...]] = {
-    "item": ("item", "item #", "item no", "item number", "item_no", "line", "line #", "line no", "line number", "clin", "lineno"),
-    "description": ("description", "desc", "item description", "product", "product description", "commodity", "material description", "title"),
+    "item": (
+        "item id",
+        "item #",
+        "item no",
+        "item number",
+        "item_no",
+        "item",
+        "line",
+        "line #",
+        "line no",
+        "line number",
+        "clin",
+        "lineno",
+    ),
+    # Prefer specific product description headers over subcategory / group labels
+    "description": (
+        "item description",
+        "product description",
+        "material description",
+        "commodity description",
+        "description",
+        "desc",
+        "product",
+        "commodity",
+        "title",
+    ),
     "manufacturer": ("manufacturer", "mfr", "mfg", "make", "brand", "vendor", "oem"),
     "model": ("model", "model #", "model no", "model number", "model_no", "model #"),
     "part_number": ("part number", "part no", "part #", "p/n", "pn", "mpn", "part_number"),
-    "catalog_number": ("catalog #", "catalog no", "catalog number", "cat #", "cat no", "cat.", "catalog"),
+    "catalog_number": (
+        "vendor catalog number",
+        "catalog #",
+        "catalog no",
+        "catalog number",
+        "cat #",
+        "cat no",
+        "cat.",
+        "catalog",
+    ),
     "sku": ("sku", "item sku", "stock #", "stock number"),
     "nsn": ("nsn", "national stock number"),
     "quantity": ("qty", "quantity", "qnty", "qty ordered", "est qty", "estimated qty"),
-    "uom": ("uom", "unit", "units", "unit of measure", "unit of issue"),
-    "unit_price": ("unit price", "unit cost", "price", "bid price", "unit $"),
+    "uom": ("unit measure", "uom", "unit of measure", "unit of issue", "units", "unit"),
+    "unit_price": ("unit cost", "unit price", "price", "bid price", "unit $"),
     "extended_price": ("extended", "extended price", "ext price", "total", "amount", "line total"),
     "pack": ("pack", "pack size", "case pack", "units/case"),
 }
@@ -31,16 +64,40 @@ def _norm_header(h: Any) -> str:
 
 
 def map_headers(headers: list[Any]) -> dict[str, int]:
-    """Map canonical field → column index."""
+    """Map canonical field → column index.
+
+    Prefers exact / longer alias matches so 'Item Description' wins over
+    'Subcategory Description' (both contain the word description).
+    """
     mapped: dict[str, int] = {}
     norms = [_norm_header(h) for h in headers]
     for field, aliases in _HEADER_ALIASES.items():
+        best_i: int | None = None
+        best_score = -1
         for i, n in enumerate(norms):
             if not n:
                 continue
-            if n in aliases or any(a == n or a in n for a in aliases):
-                mapped[field] = i
-                break
+            for a in aliases:
+                if n == a:
+                    score = 200 + len(a)
+                elif n.startswith(a + " ") or n.endswith(" " + a):
+                    score = 120 + len(a)
+                elif a in n:
+                    score = 80 + len(a) - (len(n) - len(a))
+                else:
+                    continue
+                if field == "description":
+                    if n.startswith("item ") or n == "item description":
+                        score += 40
+                    if "subcategor" in n or n.startswith("group"):
+                        score -= 50
+                if field == "item" and "subcategor" in n:
+                    score -= 40
+                if score > best_score:
+                    best_score = score
+                    best_i = i
+        if best_i is not None:
+            mapped[field] = best_i
     return mapped
 
 
@@ -100,6 +157,16 @@ def rows_from_matrix(
         model = _cell(row, mapped.get("model"))
         mfr = _cell(row, mapped.get("manufacturer"))
         qty = _cell(row, mapped.get("quantity"))
+        # Skip spreadsheet type-code rows (e.g. C11 / C40 / N11.2 under BidNet forms)
+        blob = " ".join(str(x) for x in (item, desc, qty, _cell(row, mapped.get("uom"))) if x is not None)
+        if re.fullmatch(r"[A-Z]\d{1,4}([./]\d+)?", str(desc or "").strip()) and re.fullmatch(
+            r"[A-Z]\d{1,4}", str(item or "").strip()
+        ):
+            continue
+        if re.search(r"\bN\d+\.\d+\b", str(qty or "")) and re.fullmatch(
+            r"[A-Z]\d{1,4}", str(item or "").strip() or "x"
+        ):
+            continue
         if desc is None and pn is None and cat is None and model is None:
             # Sometimes description is first free-text col
             continue

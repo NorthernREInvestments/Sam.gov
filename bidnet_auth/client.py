@@ -328,27 +328,36 @@ class BidNetAuthenticatedClient:
         found: list[dict[str, Any]] = []
         seen: set[str] = set()
         candidates: list[str] = []
+        # Prefer private abstract — /documents and ?innerTabId=docs-items cold URLs 404.
+        # Documents tab is AJAX-loaded via click on a[href*='innerTabId=docs-items'].
+        sid_m = re.search(r"/private/solicitations/(\d{6,})", detail_url or "", re.I)
+        if not sid_m:
+            sid_m = re.search(r"/private/supplier/solicitations/(\d{6,})", detail_url or "", re.I)
+        if sid_m:
+            sid = sid_m.group(1)
+            candidates.append(
+                f"https://www.bidnetdirect.com/private/solicitations/{sid}/abstract?target=view"
+            )
         try:
             from bidnet_engine.package_materialization import (
                 resolve_bidnet_private_detail_url_candidates,
             )
 
-            candidates = resolve_bidnet_private_detail_url_candidates(detail_url)
+            for u in resolve_bidnet_private_detail_url_candidates(detail_url) or []:
+                if u and u not in candidates:
+                    # Skip known-broken document path variants for private abstracts
+                    if re.search(r"/documents(?:$|\?)", u, re.I):
+                        continue
+                    if "innerTabId=docs-items" in u:
+                        continue
+                    candidates.append(u)
         except Exception:
-            candidates = []
-        # Prefer /documents when we already know the private solicitation id
-        extra: list[str] = []
-        for u in list(candidates):
-            m = re.search(r"/private/supplier/solicitations/(\d{6,})", u)
-            if m:
-                base = f"https://www.bidnetdirect.com/private/supplier/solicitations/{m.group(1)}"
-                for suf in ("documents", "view", "abstract"):
-                    cu = f"{base}/{suf}"
-                    if cu not in candidates and cu not in extra:
-                        extra.append(cu)
-        candidates = extra + candidates
+            pass
         if detail_url and detail_url not in candidates:
-            candidates.append(detail_url)
+            # Strip docs-items query — cold navigation 404s; open abstract instead
+            cleaned = re.sub(r"([?&])innerTabId=docs-items&?", r"\1", detail_url).rstrip("?&")
+            if cleaned and cleaned not in candidates:
+                candidates.append(cleaned)
 
         landed = False
         network_urls: list[str] = []
@@ -396,7 +405,8 @@ class BidNetAuthenticatedClient:
         try:
             self._page.on("response", _on_response)
             for navigate_url in candidates:
-                self.fetch_html(navigate_url, timeout_ms=timeout_ms)
+                # Must use browser navigation — Documents tab is AJAX DOM, not HTTP HTML.
+                self.fetch_html(navigate_url, timeout_ms=timeout_ms, prefer_http=False)
                 title = ""
                 final_u = ""
                 try:
@@ -406,11 +416,13 @@ class BidNetAuthenticatedClient:
                     pass
                 if "search" in title or "welcome" in title or "/search" in final_u:
                     continue
+                if "404" in title or "cannot be found" in (self._page.content() or "")[:800].lower():
+                    continue
                 landed = True
                 break
             if not landed and candidates:
                 # Last attempt — keep whatever we have for diag scrape
-                self.fetch_html(candidates[0], timeout_ms=timeout_ms)
+                self.fetch_html(candidates[0], timeout_ms=timeout_ms, prefer_http=False)
             # Persist page HTML for diagnostics
             try:
                 from m3_data_root import data_path
@@ -432,40 +444,41 @@ class BidNetAuthenticatedClient:
                 pass
             return []
 
-        # Open Documents / Attachments tab when present
-        for label in (
-            r"Documents",
-            r"Attachments",
-            r"Bid\s*Documents",
-            r"Files",
-            r"Solicitation\s*Documents",
-            r"Download\s*Documents",
-            r"Addenda?",
-        ):
-            try:
-                tab = self._page.get_by_role("tab", name=re.compile(label, re.I))
-                if tab.count() > 0:
-                    tab.first.click(timeout=3_000)
-                    self._page.wait_for_timeout(1_200)
-                    break
-            except Exception:
-                pass
-            try:
-                link = self._page.get_by_role("link", name=re.compile(label, re.I))
-                if link.count() > 0:
-                    link.first.click(timeout=3_000)
-                    self._page.wait_for_timeout(1_200)
-                    break
-            except Exception:
-                pass
-            try:
-                btn = self._page.get_by_role("button", name=re.compile(label, re.I))
-                if btn.count() > 0:
-                    btn.first.click(timeout=3_000)
-                    self._page.wait_for_timeout(1_200)
-                    break
-            except Exception:
-                pass
+        # Open Documents tab — BidNet injects rows via /abstract/docs-items AJAX.
+        # Prefer the exact docs-items tab href; role=tab does not match this UI.
+        docs_tab_opened = False
+        try:
+            tab_loc = self._page.locator("a[href*='innerTabId=docs-items']")
+            if tab_loc.count() > 0:
+                tab_loc.first.click(timeout=5_000)
+                docs_tab_opened = True
+                try:
+                    self._page.wait_for_selector(
+                        "table.solicitationDocumentsTable a[href*='attachment-download'], "
+                        "a[id^='attachmentDownloadLnk_']",
+                        timeout=min(12_000, timeout_ms),
+                    )
+                except Exception:
+                    self._page.wait_for_timeout(2_000)
+        except Exception:
+            pass
+        if not docs_tab_opened:
+            for label in (
+                r"Documents\s*\(\s*\d+\s*\)",
+                r"^Documents$",
+                r"Attachments",
+                r"Bid\s*Documents",
+                r"Solicitation\s*Documents",
+            ):
+                try:
+                    link = self._page.get_by_role("link", name=re.compile(label, re.I))
+                    if link.count() > 0:
+                        link.first.click(timeout=3_000)
+                        docs_tab_opened = True
+                        self._page.wait_for_timeout(2_000)
+                        break
+                except Exception:
+                    pass
 
         def _add(href: str, name: str, *, local_path: str | None = None) -> None:
             href = (href or "").strip()
@@ -474,6 +487,38 @@ class BidNetAuthenticatedClient:
                 if key in seen:
                     return
                 seen.add(key)
+                # Upgrade existing URL-only entry for same attachment
+                att_id = None
+                m_att = re.search(r"docs-items/(\d+)/attachment-download", href or "", re.I)
+                if m_att:
+                    att_id = m_att.group(1)
+                    seen.add(f"att:{att_id}")
+                upgraded = False
+                if att_id or href:
+                    for existing in found:
+                        same = (
+                            (att_id and existing.get("attachment_id") == att_id)
+                            or (href and existing.get("document_url") == href)
+                            or (
+                                name
+                                and existing.get("document_name") == name
+                                and not existing.get("local_path")
+                            )
+                        )
+                        if same and not existing.get("local_path"):
+                            existing.update(
+                                {
+                                    "local_path": local_path,
+                                    "retrieval_status": "BROWSER_DOWNLOAD",
+                                    "document_url": href or existing.get("document_url"),
+                                    "url": href or existing.get("url"),
+                                    "source_url": href or existing.get("source_url"),
+                                }
+                            )
+                            upgraded = True
+                            break
+                if upgraded:
+                    return
                 found.append(
                     {
                         "document_name": (name or Path(local_path).name)[:160],
@@ -482,6 +527,7 @@ class BidNetAuthenticatedClient:
                         "url": href or f"file://{local_path}",
                         "source_url": href or f"file://{local_path}",
                         "local_path": local_path,
+                        "attachment_id": att_id,
                         "retrieval_status": "BROWSER_DOWNLOAD",
                         "requires_auth": True,
                         "page_discovered": True,
@@ -500,7 +546,7 @@ class BidNetAuthenticatedClient:
                     href = urljoin(self._page.url or detail_url, href)
                 except Exception:
                     return
-            if not href.startswith("http") or href in seen:
+            if not href.startswith("http"):
                 return
             # Reject static JS/CSS/search pages (interceptor.js previously matched "intercept")
             if re.search(
@@ -510,16 +556,27 @@ class BidNetAuthenticatedClient:
                 re.I,
             ):
                 return
-            # Prefer file-like or download endpoints
+            # Prefer file-like or download endpoints (incl. BidNet docs-items paths)
             if not re.search(
-                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download/intercept|attachment|fileId|docId|getFile",
+                r"\.(pdf|docx?|xlsx?|xls|csv|zip)(?:$|\?)|download/intercept|attachment-download|"
+                r"attachment|fileId|docId|getFile|docs-items/\d+",
                 href,
                 re.I,
             ):
                 # Keep named document links even without extension
-                if not re.search(r"\.(pdf|docx?|xlsx?|csv|zip)\b", name or "", re.I):
+                if not re.search(r"\.(pdf|docx?|xlsx?|xls|csv|zip)\b", name or "", re.I):
                     if not re.search(r"addend|amend|attach|exhibit|schedule|spec|bid\s*form|pricing", name or "", re.I):
                         return
+            # Extract BidNet attachment id when present
+            att_id = None
+            m_att = re.search(r"docs-items/(\d+)/attachment-download", href, re.I)
+            if m_att:
+                att_id = m_att.group(1)
+            # Dedupe by attachment id or URL — allow local_path upgrade later
+            dedupe_key = f"att:{att_id}" if att_id else href
+            if dedupe_key in seen or href in seen:
+                return
+            seen.add(dedupe_key)
             seen.add(href)
             found.append(
                 {
@@ -528,11 +585,28 @@ class BidNetAuthenticatedClient:
                     "filename": (name or href.rsplit("/", 1)[-1] or "attachment")[:160],
                     "url": href,
                     "source_url": href,
+                    "attachment_id": att_id,
                     "retrieval_status": "URL_DISCOVERED_FROM_PAGE",
                     "requires_auth": True,
                     "page_discovered": True,
+                    "docs_tab": True,
                 }
             )
+
+        # Primary harvest: solicitationDocumentsTable attachment-download links
+        try:
+            for a in self._page.locator(
+                "table.solicitationDocumentsTable a[href*='attachment-download'], "
+                "a[id^='attachmentDownloadLnk_']"
+            ).all()[:40]:
+                try:
+                    href = a.get_attribute("href") or ""
+                    text = (a.inner_text() or "").strip()
+                    _add(href, text)
+                except Exception:
+                    continue
+        except Exception as exc:
+            log.info("discover_attachment_links docs-table scan: %s", type(exc).__name__)
 
         try:
             anchors = self._page.locator("a[href]").all()
@@ -677,7 +751,20 @@ class BidNetAuthenticatedClient:
                 except Exception:
                     pass
 
-            # 4) Document grid / table download icons
+            # 4) BidNet docs-items attachment-download rows (proven path)
+            try:
+                att_links = self._page.locator(
+                    "table.solicitationDocumentsTable a[href*='attachment-download'], "
+                    "a[id^='attachmentDownloadLnk_']"
+                )
+                for el in att_links.all()[:20]:
+                    _click_download(el, timeout_ms=30_000)
+                    if browser_dl_hits >= 12:
+                        break
+            except Exception:
+                pass
+
+            # 5) Document grid / table download icons
             if browser_dl_hits < 2:
                 try:
                     for sel in (

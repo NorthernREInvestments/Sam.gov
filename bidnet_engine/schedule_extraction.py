@@ -448,6 +448,20 @@ def extract_schedules_from_package(
                     }
                 )
 
+    # When product_identity spreadsheet extraction yields real rows, prefer those
+    # over PDF/content heuristics (often subcategory labels, not item descriptions).
+    spreadsheet_rows = [
+        r
+        for r in all_rows
+        if isinstance(r, dict)
+        and (
+            "spreadsheet" in str(r.get("_parser") or "").lower()
+            or str(r.get("_parser") or "") in {"extract_xls_table", "extract_xlsx", "extract_csv_table"}
+        )
+    ]
+    if len(spreadsheet_rows) >= 5:
+        all_rows = spreadsheet_rows
+
     # Dedup by description+qty+pn
     seen: set[str] = set()
     deduped: list[dict[str, Any]] = []
