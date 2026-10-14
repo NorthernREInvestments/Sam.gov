@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2h"
+BUILD = "20261014-m3-full-scale-production-funnel-v2i"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -693,7 +693,7 @@ def archive_prior_run(job_id: str) -> dict[str, Any]:
 
 
 def reconcile_eligible_universe() -> dict[str, Any]:
-    """Explain FCF 10,725 vs ADV ~9,859 vs live L23 counts — no silent exclusion."""
+    """Explain ADV 10,099 vs production queue 9,859 — account for every excluded ID."""
     from phase_l.l23_full_population_funnel import load_store
 
     fcf = _load(FCF_CLASS) or {}
@@ -729,16 +729,86 @@ def reconcile_eligible_universe() -> dict[str, Any]:
     )
 
     fcf_ids = {str(r.get("opportunity_id") or "") for r in fcf_live if r.get("opportunity_id")}
-    adv_ids = {
-        str(d.get("opportunity_id") or d.get("OPPORTUNITY_ID") or "")
+    adv_actionable_rows = [
+        d
         for d in adv_deals
         if (d.get("opportunity_id") or d.get("OPPORTUNITY_ID"))
         and str(d.get("visibility_bucket") or d.get("bucket") or "")
         not in {"BLOCKED_INELIGIBLE", "BLOCKED"}
+    ]
+    adv_ids = {
+        str(d.get("opportunity_id") or d.get("OPPORTUNITY_ID") or "")
+        for d in adv_actionable_rows
     }
     only_fcf = sorted(fcf_ids - adv_ids)
     only_adv = sorted(adv_ids - fcf_ids)
     overlap = len(fcf_ids & adv_ids)
+
+    # Production queue vs ADV actionable — explain the ~240 gap by exclusion reason
+    queue = _load(QUEUE_FILE) or {}
+    queue_rows = [r for r in (queue.get("rows") or []) if isinstance(r, dict)]
+    queue_ids = {
+        str(r.get("opportunity_id") or "") for r in queue_rows if r.get("opportunity_id")
+    }
+    in_adv_not_queue = sorted(adv_ids - queue_ids)
+    in_queue_not_adv = sorted(queue_ids - adv_ids)
+    exclusion_reasons: dict[str, list[str]] = {
+        "missing_opportunity_id": [],
+        "complex_non_common_title": [],
+        "non_product_class": [],
+        "closed_or_cancelled_deadline": [],
+        "days_left_negative": [],
+        "expired_funnel_class": [],
+        "queue_row_rejected_other": [],
+    }
+    for d in adv_actionable_rows:
+        oid = str(d.get("opportunity_id") or d.get("OPPORTUNITY_ID") or "").strip()
+        if not oid or oid in queue_ids:
+            continue
+        title = str(d.get("product") or d.get("title") or "")
+        pc = str(d.get("product_class") or d.get("product_service_classification") or "")
+        dl = str(d.get("deadline_status") or "")
+        fun = str(d.get("funnel_class") or d.get("visibility_bucket") or "")
+        days = d.get("days_left")
+        if not oid:
+            exclusion_reasons["missing_opportunity_id"].append(oid or "?")
+        elif _COMPLEX.search(title) and not _COMMON.search(title):
+            exclusion_reasons["complex_non_common_title"].append(oid)
+        elif pc in {"NON_PRODUCT", "PURE_SERVICE", "CONSTRUCTION"}:
+            exclusion_reasons["non_product_class"].append(oid)
+        elif dl in {"CLOSED_CONFIRMED", "CANCELLED"}:
+            exclusion_reasons["closed_or_cancelled_deadline"].append(oid)
+        elif days is not None:
+            try:
+                if float(days) < 0:
+                    exclusion_reasons["days_left_negative"].append(oid)
+                elif fun in {
+                    "EXPIRED",
+                    "EXPIRED_HISTORICAL",
+                    "CANCELLED",
+                    "BLOCKED_INELIGIBLE",
+                    "SET_ASIDE_INELIGIBLE",
+                }:
+                    exclusion_reasons["expired_funnel_class"].append(oid)
+                else:
+                    exclusion_reasons["queue_row_rejected_other"].append(oid)
+            except Exception:
+                exclusion_reasons["queue_row_rejected_other"].append(oid)
+        elif fun in {
+            "EXPIRED",
+            "EXPIRED_HISTORICAL",
+            "CANCELLED",
+            "BLOCKED_INELIGIBLE",
+            "SET_ASIDE_INELIGIBLE",
+        }:
+            exclusion_reasons["expired_funnel_class"].append(oid)
+        else:
+            # Re-run gate to catch residual rejects
+            if _queue_row_from_any(d) is None:
+                exclusion_reasons["queue_row_rejected_other"].append(oid)
+
+    reason_counts = {k: len(v) for k, v in exclusion_reasons.items()}
+    accounted = sum(reason_counts.values())
 
     report = {
         "kind": "EligibleUniverseReconciliation",
@@ -751,6 +821,14 @@ def reconcile_eligible_universe() -> dict[str, Any]:
         "adv_deals_total": len(adv_deals),
         "adv_blocked": adv_blocked,
         "adv_actionable": len(adv_ids),
+        "production_queue_total": len(queue_ids),
+        "adv_minus_queue": len(in_adv_not_queue),
+        "queue_minus_adv": len(in_queue_not_adv),
+        "exclusion_reason_counts": reason_counts,
+        "exclusion_accounted": accounted,
+        "exclusion_samples": {k: v[:10] for k, v in exclusion_reasons.items() if v},
+        "sample_adv_not_in_queue": in_adv_not_queue[:25],
+        "sample_queue_not_in_adv": in_queue_not_adv[:15],
         "l23_store_total": l23_total,
         "l23_expired_or_cancelled": l23_expired,
         "overlap_fcf_adv": overlap,
@@ -758,6 +836,7 @@ def reconcile_eligible_universe() -> dict[str, Any]:
         "only_in_adv_not_fcf": len(only_adv),
         "difference_10725_minus_9859": (len(fcf_live) or int(fcf_score.get("eligible_product_opportunities") or 0))
         - len(adv_ids),
+        "difference_10099_minus_9859": len(adv_ids) - len(queue_ids),
         "sample_only_fcf": only_fcf[:15],
         "sample_only_adv": only_adv[:15],
         "recommended_queue_source": (
@@ -766,11 +845,25 @@ def reconcile_eligible_universe() -> dict[str, Any]:
             else "available_deals"
         ),
         "NOTE": (
-            "Prefer FCF LIVE_ELIGIBLE when present — it is the audited product-eligible set. "
-            "ADV may exclude records via visibility buckets; difference must be explicit."
+            "Production queue applies product/deadline filters on ADV actionable rows "
+            "(_COMPLEX title without common product terms, NON_PRODUCT classes, expired days_left). "
+            "Queue is not silently rebuilt; exclusions are listed by ID reason."
         ),
     }
     _save(f"{OUT}/m3_fspf_v2_eligible_universe_reconciliation.json", report)
+    # Persist full exclusion ID lists separately (compact)
+    _save(
+        f"{OUT}/m3_fspf_v2_adv_not_in_queue_exclusions.json",
+        {
+            "kind": "AdvNotInQueueExclusions",
+            "build": BUILD,
+            "at": _utc(),
+            "adv_actionable": len(adv_ids),
+            "queue_total": len(queue_ids),
+            "excluded_total": len(in_adv_not_queue),
+            "by_reason": exclusion_reasons,
+        },
+    )
     return report
 
 

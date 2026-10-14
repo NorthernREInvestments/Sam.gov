@@ -531,20 +531,25 @@ def _attempt_pg_gate_unlock(
                 }
         st = str(reg.get("status") or "")
         unlocked = st == STATUS_REGISTERED or bool(reg.get("already_registered"))
-        if unlocked and hasattr(auth_client, "resolve_detail_via_authenticated_search"):
+        if unlocked:
+            # Registered membership: reopen via title search → interception → private
+            # detail → Documents tab. Never invent /private/.../{statewide_id}/.
             out["network_requests"] = int(out.get("network_requests") or 0) + 1
-            retry = (
-                auth_client.resolve_detail_via_authenticated_search(
-                    title=title,
-                    source_url=source_url,
-                    timeout_ms=remain_ms_fn(15_000),
+            retry: dict[str, Any] = {}
+            if hasattr(auth_client, "resolve_detail_via_authenticated_search"):
+                retry = (
+                    auth_client.resolve_detail_via_authenticated_search(
+                        title=title,
+                        source_url=source_url,
+                        timeout_ms=remain_ms_fn(35_000),
+                    )
+                    or {}
                 )
-                or {}
-            )
             out["search_to_detail_retry"] = {
                 "status": retry.get("status"),
                 "access_gate": retry.get("access_gate"),
                 "detail_url": (retry.get("detail_url") or "")[:160] or None,
+                "solicitation_id": retry.get("solicitation_id"),
             }
             if (
                 retry.get("ok")
@@ -555,6 +560,8 @@ def _attempt_pg_gate_unlock(
                 page_url = str(retry.get("detail_url") or page_url)
                 out["final_url"] = page_url[:220]
                 out["access_note"] = "pg_registration_unlocked_detail"
+                if retry.get("solicitation_id"):
+                    out["bidnet_solicitation_id"] = retry.get("solicitation_id")
                 if pg_id:
                     prev = int((get_group(str(pg_id)) or {}).get("solicitations_unlocked") or 0)
                     upsert_group(str(pg_id), solicitations_unlocked=prev + 1)
@@ -565,35 +572,69 @@ def _attempt_pg_gate_unlock(
                     else "DETAIL_PARTIAL"
                 )
                 docs = [d for d in (parsed.get("documents") or []) if isinstance(d, dict)]
-                # Registered groups: Documents tab may need explicit attachment scrape.
-                # Abstract HTML often lists stubs without local files — those must not
-                # suppress docs-tab discovery.
-                if (
-                    not _has_downloaded_docs(docs)
-                    and hasattr(auth_client, "discover_attachment_links")
-                    and time.monotonic() < deadline
-                ):
-                    try:
+            else:
+                out["access_note"] = "pg_registered_detail_retry_pending"
+                detail_status = detail_status or "DETAIL_ACCESS_GATE"
+
+            # Documents tab / title-based discovery (shared production path)
+            if (
+                not _has_downloaded_docs(docs)
+                and time.monotonic() < deadline
+            ):
+                try:
+                    discovered: list[dict[str, Any]] = []
+                    priv = str(out.get("final_url") or page_url or "")
+                    if (
+                        priv
+                        and "/private/solicitations/" in priv.lower()
+                        and hasattr(auth_client, "discover_attachment_links")
+                    ):
                         out["network_requests"] = int(out.get("network_requests") or 0) + 1
                         discovered = (
                             auth_client.discover_attachment_links(
-                                page_url, timeout_ms=remain_ms_fn(20_000)
+                                priv, timeout_ms=remain_ms_fn(40_000)
                             )
                             or []
                         )
-                        docs = [
-                            d
-                            for d in discovered
-                            if isinstance(d, dict) and _is_real_doc(d)
-                        ]
-                        out["document_links_discovered"] = len(discovered)
-                        if docs:
-                            out["access_note"] = "pg_registered_docs_tab_recovered"
-                    except Exception as exc:
-                        out["discover_after_pg_error"] = type(exc).__name__
-            else:
-                out["access_note"] = "pg_registered_detail_retry_pending"
-                detail_status = "DETAIL_ACCESS_GATE"
+                    if (
+                        not discovered
+                        and hasattr(auth_client, "discover_attachments_by_title")
+                        and title
+                    ):
+                        out["network_requests"] = int(out.get("network_requests") or 0) + 1
+                        discovered = (
+                            auth_client.discover_attachments_by_title(
+                                title, timeout_ms=remain_ms_fn(40_000)
+                            )
+                            or []
+                        )
+                    if (
+                        not discovered
+                        and hasattr(auth_client, "discover_attachments_from_statewide")
+                        and source_url
+                        and (
+                            "/statewide/" in source_url.lower()
+                            or "/open-bids/" in source_url.lower()
+                        )
+                    ):
+                        out["network_requests"] = int(out.get("network_requests") or 0) + 1
+                        discovered = (
+                            auth_client.discover_attachments_from_statewide(
+                                source_url,
+                                title=title,
+                                timeout_ms=remain_ms_fn(40_000),
+                            )
+                            or []
+                        )
+                    docs = [
+                        d for d in discovered if isinstance(d, dict) and _is_real_doc(d)
+                    ]
+                    out["document_links_discovered"] = len(discovered)
+                    if docs:
+                        out["access_note"] = "pg_registered_docs_tab_recovered"
+                        detail_status = "DETAIL_OK"
+                except Exception as exc:
+                    out["discover_after_pg_error"] = type(exc).__name__
         elif st == STATUS_PAID_REQUIRED:
             out["access_note"] = "pg_registration_paid_required"
         elif st in {STATUS_OWNER_APPROVAL_REQUIRED, STATUS_PREPARED}:
@@ -935,11 +976,11 @@ def _recover_one_inner(
             package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
             detail_status = detail_status or "DETAIL_ACCESS_GATE"
 
-    # 2) Bounded path: attachment scrape for real detail URLs (incl. known private /solicitations/{id}).
-    # Never let abstract HTML stubs suppress Documents-tab discovery.
+    # 2) Bounded path: attachment scrape for REAL private detail URLs only.
+    # Statewide / open-bids IDs are a different namespace — never invent
+    # /private/solicitations/{statewide_id}/ (root cause of DETAIL_FETCH_EMPTY).
     if (
         not _has_downloaded_docs(docs)
-        and hasattr(auth_client, "discover_attachment_links")
         and time.monotonic() < deadline
         and detail_status not in {"SUPPLIER_REGISTRATION_REDIRECT"}
     ):
@@ -947,23 +988,70 @@ def _recover_one_inner(
             from bidnet_engine.package_materialization import is_bidnet_solicitation_detail_url
 
             fu = str(out.get("final_url") or url or "")
-            # Prefer private solicitation abstract when statewide/public URL failed to yield docs
-            m_priv = (
-                re.search(r"/private/solicitations/(\d{6,})", fu, re.I)
-                or re.search(r"/private/solicitations/(\d{6,})", url, re.I)
-                or re.search(r"/statewide/(\d{6,})", url, re.I)
-                or re.search(r"/statewide/(\d{6,})", fu, re.I)
-            )
             candidates: list[str] = []
-            if m_priv:
-                sid = m_priv.group(1)
-                candidates.append(
-                    f"https://www.bidnetdirect.com/private/solicitations/{sid}/abstract?target=view"
-                )
+            # Only accept private solicitation IDs already present on final/url
+            for raw in (fu, url, str(out.get("discover_url") or "")):
+                m_priv = re.search(r"/private/solicitations/(\d{6,})", raw, re.I)
+                if m_priv:
+                    cand = (
+                        f"https://www.bidnetdirect.com/private/solicitations/"
+                        f"{m_priv.group(1)}/abstract?target=view"
+                    )
+                    if cand not in candidates:
+                        candidates.append(cand)
             if url and url not in candidates and "/private/solicitations/" in url.lower():
                 candidates.append(url)
-            if fu and fu not in candidates and "search" not in fu.lower():
+            if (
+                fu
+                and fu not in candidates
+                and "search" not in fu.lower()
+                and "/private/solicitations/" in fu.lower()
+            ):
                 candidates.append(fu)
+
+            # Statewide/open-bids: resolve private detail via title search first
+            needs_resolve = (
+                not candidates
+                or "/statewide/" in url.lower()
+                or "/open-bids/" in url.lower()
+                or "/public/supplier/" in url.lower()
+            )
+            if (
+                needs_resolve
+                and title
+                and hasattr(auth_client, "resolve_detail_via_authenticated_search")
+                and time.monotonic() < deadline
+            ):
+                out["network_requests"] += 1
+                resolved = (
+                    auth_client.resolve_detail_via_authenticated_search(
+                        title=title,
+                        source_url=url,
+                        timeout_ms=_remain_ms(35_000),
+                    )
+                    or {}
+                )
+                out["search_to_detail_docs"] = {
+                    "status": resolved.get("status"),
+                    "detail_url": (resolved.get("detail_url") or "")[:160] or None,
+                    "solicitation_id": resolved.get("solicitation_id"),
+                    "access_gate": resolved.get("access_gate"),
+                }
+                if (
+                    resolved.get("ok")
+                    and resolved.get("detail_url")
+                    and resolved.get("access_gate") != "ACTION_REQUIRED"
+                ):
+                    priv = str(resolved["detail_url"])
+                    if priv not in candidates:
+                        candidates.insert(0, priv)
+                    out["final_url"] = priv[:220]
+                    if resolved.get("solicitation_id"):
+                        out["bidnet_solicitation_id"] = resolved.get("solicitation_id")
+                    if resolved.get("html"):
+                        html = resolved["html"]
+                        parsed = parse_bidnet_abstract(html, detail_url=priv) or parsed
+
             for cand in candidates:
                 if not (
                     is_bidnet_solicitation_detail_url(cand)
@@ -971,6 +1059,8 @@ def _recover_one_inner(
                 ):
                     continue
                 if time.monotonic() >= deadline:
+                    break
+                if not hasattr(auth_client, "discover_attachment_links"):
                     break
                 out["network_requests"] += 1
                 discovered = (
@@ -987,6 +1077,41 @@ def _recover_one_inner(
                     out["final_url"] = cand[:220]
                     detail_status = "DETAIL_OK"
                     break
+
+            # Last resort: title / statewide helpers (still shared production client)
+            if not _has_downloaded_docs(docs) and time.monotonic() < deadline:
+                discovered = []
+                if hasattr(auth_client, "discover_attachments_by_title") and title:
+                    out["network_requests"] += 1
+                    discovered = (
+                        auth_client.discover_attachments_by_title(
+                            title, timeout_ms=_remain_ms(40_000)
+                        )
+                        or []
+                    )
+                if (
+                    not discovered
+                    and hasattr(auth_client, "discover_attachments_from_statewide")
+                    and (
+                        "/statewide/" in url.lower()
+                        or "/open-bids/" in url.lower()
+                    )
+                ):
+                    out["network_requests"] += 1
+                    discovered = (
+                        auth_client.discover_attachments_from_statewide(
+                            url, title=title, timeout_ms=_remain_ms(40_000)
+                        )
+                        or []
+                    )
+                docs = [d for d in discovered if isinstance(d, dict) and _is_real_doc(d)]
+                out["document_links_discovered"] = max(
+                    int(out.get("document_links_discovered") or 0), len(discovered)
+                )
+                if docs:
+                    package_state = "PACKAGE_ACQUIRED_BIDNET"
+                    detail_status = "DETAIL_OK"
+                    out["access_note"] = "title_or_statewide_docs_recovered"
         except Exception as exc:
             out["discover_error"] = type(exc).__name__
 

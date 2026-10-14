@@ -276,47 +276,74 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         return {"ok": False, "error": "FORM_URL_MISSING"}
     page = client._page
     # domcontentloaded only — networkidle hangs on BidNet analytics beacons
-    page.goto(form_url, wait_until="domcontentloaded", timeout=max(30_000, int(timeout_ms)))
+    try:
+        page.goto(form_url, wait_until="domcontentloaded", timeout=max(30_000, int(timeout_ms)))
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": type(exc).__name__,
+            "form_url": form_url[:220],
+            "message": str(exc)[:160],
+        }
     try:
         page.wait_for_load_state("load", timeout=8_000)
     except Exception:
         pass
-    page.wait_for_timeout(800)
+    try:
+        page.wait_for_timeout(800)
+    except Exception:
+        pass
     final = str(page.url or "")
+    # Login / challenge redirects are not form pages
+    if re.search(r"/login|/challenge|captcha", final, re.I):
+        return {
+            "ok": False,
+            "error": "FORM_NAV_REDIRECT",
+            "final_url": final[:220],
+            "form_url": form_url[:220],
+        }
     body = ""
     try:
         body = re.sub(r"\s+", " ", page.locator("body").inner_text() or "")[:4000]
     except Exception:
         pass
-    fields = page.evaluate(
-        """() => {
-          const out = [];
-          for (const n of Array.from(document.querySelectorAll('input, select, textarea'))) {
-            const type = (n.getAttribute('type') || n.tagName).toLowerCase();
-            if (type === 'hidden') continue;
-            let label = '';
-            if (n.id) {
-              const lab = document.querySelector('label[for=\"'+n.id+'\"]');
-              if (lab) label = (lab.innerText||'').trim();
-            }
-            const nearby = n.closest('.mets-field, .form-group, tr, .field');
-            if (!label && nearby) {
-              const lf = nearby.querySelector('.mets-field-label, label, th, .label');
-              if (lf) label = (lf.innerText||'').trim().slice(0,160);
-            }
-            out.push({
-              name: n.getAttribute('name') || '',
-              id: n.id || '',
-              type,
-              label: label.slice(0,160),
-              required: !!n.required || /\\*/.test(label),
-              has_value: !!(n.value && String(n.value).trim()),
-              checked: !!n.checked,
-            });
-          }
-          return out;
-        }"""
-    )
+    try:
+        fields = page.evaluate(
+            """() => {
+              const out = [];
+              for (const n of Array.from(document.querySelectorAll('input, select, textarea'))) {
+                const type = (n.getAttribute('type') || n.tagName).toLowerCase();
+                if (type === 'hidden') continue;
+                let label = '';
+                if (n.id) {
+                  const lab = document.querySelector('label[for=\"'+n.id+'\"]');
+                  if (lab) label = (lab.innerText||'').trim();
+                }
+                const nearby = n.closest('.mets-field, .form-group, tr, .field');
+                if (!label && nearby) {
+                  const lf = nearby.querySelector('.mets-field-label, label, th, .label');
+                  if (lf) label = (lf.innerText||'').trim().slice(0,160);
+                }
+                out.push({
+                  name: n.getAttribute('name') || '',
+                  id: n.id || '',
+                  type,
+                  label: label.slice(0,160),
+                  required: !!n.required || /\\*/.test(label),
+                  has_value: !!(n.value && String(n.value).trim()),
+                  checked: !!n.checked,
+                });
+              }
+              return out;
+            }"""
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": f"FIELD_SCAN:{type(exc).__name__}",
+            "final_url": final[:220],
+            "body_excerpt": body[:500],
+        }
     fee = bool(re.search(r"\$\d|payment|credit card|purchase|subscription fee", body, re.I))
     attestation = bool(
         re.search(r"I (certify|attest|declare|agree)|under penalty|legally binding", body, re.I)
@@ -325,6 +352,22 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         re.search(r"Member Since.{0,40}\bCOMPLETED\b", body, re.I)
         or re.search(r"Member Since.{0,40}\bCOMPLETE\b", body, re.I)
     ) and not re.search(r"Member Since.{0,40}\bINCOMPLETE\b", body, re.I)
+    # Capture visible validation / Failed Check text for operators
+    validation_errors = []
+    for m in re.finditer(
+        r"(Failed Check[^.]{0,120}|This field is required[^.]{0,80}|Please (?:enter|select|complete)[^.]{0,100})",
+        body,
+        re.I,
+    ):
+        validation_errors.append(m.group(0).strip()[:160])
+    missing_required = [
+        {"name": f.get("name"), "label": f.get("label")}
+        for f in (fields or [])
+        if isinstance(f, dict)
+        and f.get("required")
+        and not f.get("has_value")
+        and str(f.get("type") or "") not in {"checkbox", "radio", "submit", "button"}
+    ]
     return {
         "ok": True,
         "final_url": final[:220],
@@ -336,6 +379,8 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         "member_status_incomplete": bool(re.search(r"\bINCOMPLETE\b", body, re.I))
         and not member_completed,
         "member_status_completed": member_completed,
+        "validation_errors": validation_errors[:8],
+        "missing_required_fields": missing_required[:12],
     }
 
 
@@ -1165,12 +1210,39 @@ def run_purchasing_group_registration(
         redirected_ok = (not still_on_edit) and (not failed_check) and (
             "group-form" in url or "solicitations" in url or "search" in url
         )
+        # Re-inspect after Save — submitted ≠ registered
+        post = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
+        if post.get("ok") and post.get("member_status_completed"):
+            member_complete = True
+            after = str(post.get("body_excerpt") or after)
+            url = str(post.get("final_url") or url)
+        validation_errors = list(post.get("validation_errors") or [])
+        missing_required = list(post.get("missing_required_fields") or [])
         if failed_check or (still_on_edit and re.search(r"\bINCOMPLETE\b", after)):
             status = STATUS_INCOMPLETE
-        elif member_complete or redirected_ok:
+        elif member_complete or (redirected_ok and not post.get("member_status_incomplete")):
             status = STATUS_REGISTERED
         else:
             status = STATUS_INCOMPLETE
+        owner_reason = None
+        if status == STATUS_INCOMPLETE:
+            parts = []
+            if failed_check:
+                parts.append("Failed Check after Save")
+            if validation_errors:
+                parts.append("; ".join(validation_errors[:3]))
+            if missing_required:
+                parts.append(
+                    "missing: "
+                    + ", ".join(
+                        str(m.get("label") or m.get("name") or "?")[:40]
+                        for m in missing_required[:5]
+                    )
+                )
+            if post.get("attestation_mentioned"):
+                parts.append("attestation language present — owner approval required")
+                status = STATUS_OWNER_APPROVAL_REQUIRED
+            owner_reason = "; ".join(parts) if parts else "Member status still INCOMPLETE after Save"
         upsert_group(
             pg_id,
             name=name or (EMPIRE_STATE_NAME if empire else None),
@@ -1182,20 +1254,27 @@ def run_purchasing_group_registration(
             relevant=True,
             fill_errors=None,
             portal_account="bidnet",
+            owner_blocker_reason=owner_reason,
+            missing_fields=missing_required or None,
+            validation_errors=validation_errors or None,
         )
         release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=status)
-        _bind_portal_membership(
-            pg_id,
-            status=status,
-            name=name or (EMPIRE_STATE_NAME if empire else None),
-            opportunity_id=opportunity_id,
-        )
+        if status == STATUS_REGISTERED:
+            _bind_portal_membership(
+                pg_id,
+                status=status,
+                name=name or (EMPIRE_STATE_NAME if empire else None),
+                opportunity_id=opportunity_id,
+            )
         return {
             "ok": status == STATUS_REGISTERED,
             "status": status,
             "submitted": True,
             "confirmation_excerpt": after[:400],
             "confirmation_url": url[:220],
+            "validation_errors": validation_errors,
+            "missing_required_fields": missing_required,
+            "owner_blocker_reason": owner_reason,
             "purchasing_group_id": pg_id,
             "portal_account": "bidnet",
         }

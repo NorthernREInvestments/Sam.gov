@@ -234,6 +234,36 @@ def process_group_registration_slice(
             }
             processed.append(row)
             _complete_pending(pg_id, row)
+            if active_job_id:
+                try:
+                    from buyer_intelligence import full_scale_production_funnel_v1 as fspf
+
+                    released_total += int(
+                        (fspf.release_pg_blocked_for_registered_groups(active_job_id) or {}).get(
+                            "released"
+                        )
+                        or 0
+                    )
+                except Exception:
+                    pass
+            continue
+
+        tracked = get_group(pg_id) or {}
+        tracked_st = str(tracked.get("status") or "")
+        if tracked_st in {
+            "OWNER_APPROVAL_REQUIRED",
+            "PAID_REQUIRED",
+            "PREPARED",
+        }:
+            row = {
+                "purchasing_group_id": pg_id,
+                "status": tracked_st,
+                "skipped": True,
+                "reason": "owner_or_paid_gate",
+                "owner_blocker_reason": tracked.get("owner_blocker_reason"),
+            }
+            processed.append(row)
+            _fail_pending(pg_id, row, terminal=True)
             continue
 
         item["attempts"] = int(item.get("attempts") or 0) + 1
@@ -325,9 +355,19 @@ def process_group_registration_slice(
                         save_queue(q)
                     except Exception as exc:
                         row["release_error"] = type(exc).__name__
-            elif st in {"OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED", "PREPARED"}:
+            elif st in {"OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED", "PREPARED", "INCOMPLETE"}:
+                # INCOMPLETE after submit needs owner/field review — do not hot-loop
                 _fail_pending(pg_id, row, terminal=True)
-            elif int(item["attempts"]) >= 3:
+            elif int(item["attempts"]) >= 5 and str(row.get("error") or "") in {
+                "TimeoutError",
+                "FORM_NAV_REDIRECT",
+                "FORM_URL_MISSING",
+            }:
+                _fail_pending(pg_id, {**row, "error": row.get("error") or "max_attempts"}, terminal=True)
+            elif int(item["attempts"]) >= 3 and str(row.get("error") or "") not in {
+                "TimeoutError",
+                "FORM_NAV_REDIRECT",
+            }:
                 _fail_pending(pg_id, {**row, "error": "max_attempts"}, terminal=True)
             else:
                 _bump_pending(pg_id, item)
@@ -339,7 +379,9 @@ def process_group_registration_slice(
                 "attempts": item["attempts"],
             }
             processed.append(row)
-            if int(item["attempts"]) >= 3:
+            # Transient Playwright timeouts: keep pending longer; don't burn AUTH
+            max_attempts = 5 if type(exc).__name__ == "TimeoutError" else 3
+            if int(item["attempts"]) >= max_attempts:
                 _fail_pending(pg_id, row, terminal=True)
             else:
                 _bump_pending(pg_id, item)
