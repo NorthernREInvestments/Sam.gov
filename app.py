@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261013-m3-full-scale-production-funnel-v1c"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1d"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1762,7 +1762,7 @@ def api_m3_bidnet_auth_status():
 
 @app.post("/api/m3/full-scale-production-funnel/start")
 def api_m3_full_scale_production_funnel_start(body: dict | None = None):
-    """Start full LIVE_ELIGIBLE queue processing (background, checkpointed slices)."""
+    """Start/resume full LIVE_ELIGIBLE queue processing (background, checkpointed slices)."""
     from buyer_intelligence.full_scale_production_funnel_v1 import start_job
 
     payload = body or {}
@@ -1771,6 +1771,8 @@ def api_m3_full_scale_production_funnel_start(body: dict | None = None):
         **start_job(
             force=bool(payload.get("force", False)),
             rebuild_queue=bool(payload.get("rebuild_queue", False)),
+            retry_technical_failures=bool(payload.get("retry_technical_failures", False)),
+            job_id=str(payload["job_id"]) if payload.get("job_id") else None,
         ),
     }
 
@@ -1806,10 +1808,31 @@ def api_m3_full_scale_production_funnel_report():
 
 
 @app.post("/api/m3/full-scale-production-funnel/stop")
-def api_m3_full_scale_production_funnel_stop():
+def api_m3_full_scale_production_funnel_stop(body: dict | None = None):
     from buyer_intelligence.full_scale_production_funnel_v1 import request_stop
 
-    return {"build_version": APP_BUILD_VERSION, **request_stop()}
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **request_stop(force_release_stale=bool(payload.get("force_release_stale", True))),
+    }
+
+
+@app.post("/api/m3/full-scale-production-funnel/requeue-retryable")
+def api_m3_full_scale_production_funnel_requeue_retryable(body: dict | None = None):
+    """Mark systemic technical failures PENDING_RETRY on the existing job (no queue wipe)."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import requeue_retryable_failures
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = str(payload.get("job_id") or "").strip()
+    if not jid:
+        store = JobStore("full_scale_production_funnel_v1")
+        active = store.find_active_job(stale_seconds=3600)
+        jid = str((active or {}).get("JOB_ID") or "")
+    if not jid:
+        return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
+    return {"ok": True, "build_version": APP_BUILD_VERSION, **requeue_retryable_failures(jid)}
 
 
 @app.get("/api/m3/bidnet-auth/purchasing-groups")

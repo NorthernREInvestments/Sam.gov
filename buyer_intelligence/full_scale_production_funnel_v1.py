@@ -31,8 +31,29 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261013-m3-full-scale-production-funnel-v1c"
+BUILD = "20261014-m3-full-scale-production-funnel-v1d"
 FAMILY = "full_scale_production_funnel_v1"
+MAX_TECHNICAL_RETRIES = 2
+# Preserve — do not auto-retry
+_PRESERVE_RESULTS = {
+    "SUCCESS",
+    "EXPIRED_EXIT",
+    "INELIGIBLE_EXIT",
+    "OWNER_ACTION_REQUIRED",
+    "SKIPPED_ALREADY_COMPLETE",
+}
+# Systemic technical failures eligible for bounded retry after repair
+_RETRYABLE_BLOCKERS = {
+    "ABSTRACT_FETCH_FAILED_OR_WAF",
+    "ABSTRACT_PARSE_UNAVAILABLE",
+    "DETAIL_FETCH_EMPTY",
+    "WAF_OR_CHALLENGE_PAGE",
+    "MISSING_AUTHORITATIVE_URL",
+    "PER_OPPORTUNITY_TIMEOUT_45S",
+    "PER_OPPORTUNITY_TIMEOUT",
+    "FETCH_FAILED",
+    "INCOMPLETE_LINE_ITEMS",
+}
 OUT = "_og_commercial_research_pipeline_out"
 
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
@@ -85,6 +106,26 @@ _TERMINAL = {
     "BUDGET_HOLD",
     "OWNER_ACTION_REQUIRED",
 }
+
+
+def _item_should_skip(prev: dict[str, Any] | None) -> bool:
+    """Skip durable successes; allow PENDING_RETRY / under-budget technical retries."""
+    if not prev:
+        return False
+    result = str(prev.get("RESULT") or "")
+    if result == "PENDING_RETRY":
+        return int(prev.get("RETRY_COUNT") or 0) >= MAX_TECHNICAL_RETRIES
+    if result in _PRESERVE_RESULTS:
+        return True
+    if (
+        result == "PARTIAL"
+        and int(prev.get("fully_specified_product_lines") or 0) > 0
+        and int(prev.get("documents_downloaded") or 0) > 0
+    ):
+        return True
+    if prev.get("RETRYABLE") and int(prev.get("RETRY_COUNT") or 0) < MAX_TECHNICAL_RETRIES:
+        return False
+    return result in _TERMINAL
 
 
 def _utc() -> str:
@@ -142,11 +183,118 @@ def job_progress() -> dict[str, Any]:
     return payload
 
 
-def request_stop() -> dict[str, Any]:
-    global _stop_requested
+def request_stop(*, force_release_stale: bool = True) -> dict[str, Any]:
+    """Request graceful stop; release stale exclusive lease so resume can acquire."""
+    global _stop_requested, _worker
     _stop_requested = True
     _save(STOP_FILE, {"stop": True, "requested_at": _utc()})
-    return {"status": "STOP_REQUESTED", "build": BUILD, "progress": job_progress()}
+    store = JobStore(FAMILY)
+    active = store.find_active_job(stale_seconds=STALE_LEASE_S)
+    released = None
+    if active and force_release_stale:
+        jid = str(active["JOB_ID"])
+        st = str(active.get("STATUS") or "")
+        if st in {"RUNNING", "STALE_RELEASED", "INTERRUPTED"}:
+            try:
+                released = store.force_reset_running_lock(jid)
+                _worker = False
+                _progress(
+                    status="STOPPED",
+                    phase="FORCE_RELEASED_STALE",
+                    job_id=jid,
+                    lease_released=True,
+                )
+            except Exception as exc:
+                released = {"error": type(exc).__name__}
+    return {
+        "status": "STOP_REQUESTED",
+        "build": BUILD,
+        "lease_release": released,
+        "progress": job_progress(),
+    }
+
+
+def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
+    """Mark systemic technical failures PENDING_RETRY without wiping successes.
+
+    Preserves SUCCESS / good PARTIAL / expired / owner-action checkpoints.
+    Bounded by MAX_TECHNICAL_RETRIES per opportunity.
+    """
+    store = JobStore(FAMILY)
+    job = store.load_job(job_id)
+    if not job:
+        raise KeyError(job_id)
+    items = store.list_items(job_id)
+    marked = 0
+    preserved = 0
+    exhausted = 0
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        oid = str(it.get("OPPORTUNITY_ID") or "")
+        result = str(it.get("RESULT") or "")
+        blocker = str(it.get("terminal_blocker") or "")
+        retries = int(it.get("RETRY_COUNT") or 0)
+        fully = int(it.get("fully_specified_product_lines") or 0)
+        docs = int(it.get("documents_downloaded") or 0)
+
+        if result in _PRESERVE_RESULTS:
+            preserved += 1
+            continue
+        if result == "PARTIAL" and fully > 0 and docs > 0:
+            preserved += 1
+            continue
+        if result == "PENDING_RETRY" and retries >= MAX_TECHNICAL_RETRIES:
+            exhausted += 1
+            continue
+
+        technical = (
+            result in {"TIMEOUT", "FETCH_FAILED", "NO_PACKAGE", "PARSE_FAILED", "AUTH_FAILED", "PARTIAL"}
+            or blocker in _RETRYABLE_BLOCKERS
+            or blocker.startswith("ABSTRACT_")
+            or blocker.startswith("DETAIL_")
+            or blocker.startswith("WAF_")
+            or blocker.startswith("MISSING_")
+            or blocker.startswith("PER_OPPORTUNITY_TIMEOUT")
+            or blocker.startswith("PROCESS_EXCEPTION")
+        )
+        if not technical:
+            preserved += 1
+            continue
+        if retries >= MAX_TECHNICAL_RETRIES:
+            exhausted += 1
+            continue
+
+        it["PREVIOUS_RESULT"] = result
+        it["PREVIOUS_BLOCKER"] = blocker
+        it["RETRYABLE"] = True
+        it["RESULT"] = "PENDING_RETRY"
+        it["RETRY_QUEUED_AT"] = _utc()
+        it["NOTE"] = "Requeued after production funnel repair — prior checkpoint preserved in PREVIOUS_*"
+        store.write_item_checkpoint(job_id, it)
+        marked += 1
+
+    # Resume from earliest pending index
+    job = store.load_job(job_id) or job
+    job["RESUME_CURSOR"] = 0
+    job["STATUS"] = "INTERRUPTED"
+    job["META"] = {
+        **(job.get("META") or {}),
+        "retryable_requeued": marked,
+        "retryable_preserved": preserved,
+        "retryable_exhausted": exhausted,
+        "repair_build": BUILD,
+    }
+    store.save_job(job)
+    store.recompute_counts(job_id)
+    return {
+        "job_id": job_id,
+        "marked_pending_retry": marked,
+        "preserved": preserved,
+        "retry_budget_exhausted": exhausted,
+        "max_technical_retries": MAX_TECHNICAL_RETRIES,
+        "build": BUILD,
+    }
 
 
 def _stop_flag() -> bool:
@@ -429,7 +577,15 @@ def _map_result(row: dict[str, Any]) -> str:
     return "NO_PACKAGE"
 
 
-def _slim_checkpoint(row: dict[str, Any], *, result: str, index: int) -> dict[str, Any]:
+def _slim_checkpoint(
+    row: dict[str, Any],
+    *,
+    result: str,
+    index: int,
+    prior: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from buyer_intelligence.commercial_funnel_execution_v1 import _line_desc, _line_qty
+
     rfq = row.get("rfq") if isinstance(row.get("rfq"), dict) else {}
     econ = row.get("economics") if isinstance(row.get("economics"), dict) else {}
     docs = row.get("recovered_documents") or []
@@ -438,14 +594,16 @@ def _slim_checkpoint(row: dict[str, Any], *, result: str, index: int) -> dict[st
     for li in lines:
         if not isinstance(li, dict):
             continue
-        if li.get("source") == "title_fallback":
+        if li.get("source") == "title_fallback" or li.get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK":
             continue
-        qty = li.get("quantity")
-        if isinstance(li.get("QTY"), dict):
-            qty = qty or (li.get("QTY") or {}).get("VALUE")
-        desc = li.get("description") or li.get("DESCRIPTION")
+        qty = _line_qty(li)
+        desc = _line_desc(li)
         if qty not in (None, "") and desc:
             fully_specified += 1
+    retry_count = int((prior or {}).get("RETRY_COUNT") or 0)
+    if (prior or {}).get("RESULT") == "PENDING_RETRY" or (prior or {}).get("RETRYABLE"):
+        retry_count += 1
+    blocker = row.get("terminal_blocker") or row.get("package_blocker")
     return {
         "OPPORTUNITY_ID": row.get("opportunity_id"),
         "RESULT": result,
@@ -454,11 +612,30 @@ def _slim_checkpoint(row: dict[str, Any], *, result: str, index: int) -> dict[st
         "buyer": row.get("buyer"),
         "deadline": row.get("deadline"),
         "package_status": row.get("package_status"),
-        "terminal_blocker": row.get("terminal_blocker") or row.get("package_blocker"),
+        "terminal_blocker": blocker,
+        "RETRYABLE": bool(
+            result not in _PRESERVE_RESULTS
+            and (
+                str(blocker or "") in _RETRYABLE_BLOCKERS
+                or str(blocker or "").startswith("ABSTRACT_")
+                or str(blocker or "").startswith("DETAIL_")
+                or str(blocker or "").startswith("WAF_")
+                or str(blocker or "").startswith("MISSING_")
+                or result in {"TIMEOUT", "FETCH_FAILED", "NO_PACKAGE", "PARSE_FAILED"}
+            )
+        ),
+        "RETRY_COUNT": retry_count,
+        "PREVIOUS_RESULT": (prior or {}).get("PREVIOUS_RESULT") or (prior or {}).get("RESULT"),
+        "PREVIOUS_BLOCKER": (prior or {}).get("PREVIOUS_BLOCKER")
+        or (prior or {}).get("terminal_blocker"),
         "document_count": int(row.get("document_count") or len(docs) or 0),
         "documents_downloaded": int(
             row.get("documents_downloaded")
-            or sum(1 for d in docs if isinstance(d, dict) and (d.get("local_path_set") or d.get("retrieval_status")))
+            or sum(
+                1
+                for d in docs
+                if isinstance(d, dict) and (d.get("local_path_set") or d.get("local_path"))
+            )
         ),
         "line_count": int(row.get("line_count") or len(lines) or 0),
         "fully_specified_product_lines": fully_specified,
@@ -476,6 +653,8 @@ def _slim_checkpoint(row: dict[str, Any], *, result: str, index: int) -> dict[st
         "bid_ready": False,
         "elapsed_s": row.get("elapsed_s"),
         "fetch_via": row.get("fetch_via"),
+        "is_bidnet_url": row.get("is_bidnet_url"),
+        "authoritative_url": (row.get("authoritative_url") or "")[:240] or None,
         "CHECKPOINT_AT": _utc(),
     }
 
@@ -656,13 +835,13 @@ def process_slice(
     rows = queue.get("rows") or []
     cursor = int(job.get("RESUME_CURSOR") or 0)
 
-    # Skip already-checkpointed
+    # Skip durable successes; include PENDING_RETRY / under-budget technical retries
     pending: list[tuple[int, dict[str, Any]]] = []
     for i in range(cursor, len(rows)):
         item = rows[i]
         oid = str(item.get("opportunity_id") or "")
         prev = store.load_item(job_id, oid)
-        if prev and prev.get("RESULT") in _TERMINAL:
+        if _item_should_skip(prev):
             continue
         pending.append((i, item))
         if len(pending) >= slice_size:
@@ -771,7 +950,8 @@ def process_slice(
                 log.exception("FSPF process_one failed oid=%s", oid)
 
             result = _map_result(row)
-            slim = _slim_checkpoint(row, result=result, index=idx)
+            prior_cp = store.load_item(job_id, oid)
+            slim = _slim_checkpoint(row, result=result, index=idx, prior=prior_cp)
             store.write_item_checkpoint(job_id, slim)
             _append_rfq(row)
             processed += 1
@@ -892,11 +1072,20 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
     return report
 
 
-def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, Any]:
+def start_job(
+    *,
+    force: bool = False,
+    rebuild_queue: bool = False,
+    retry_technical_failures: bool = False,
+    job_id: str | None = None,
+) -> dict[str, Any]:
     """Start (or resume) the full-scale funnel as a background daemon thread.
 
     Returns immediately — queue build + processing run in the worker thread so
     the HTTP start endpoint never blocks on the 10k+ eligible population.
+
+    Prefer resume of the existing job. Never rebuild the queue unless explicitly
+    requested. retry_technical_failures requeues systemic failures as PENDING_RETRY.
     """
     global _worker, _stop_requested
 
@@ -920,27 +1109,54 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
         active = store.find_active_job(stale_seconds=STALE_LEASE_S)
         existing_queue = None if rebuild_queue else _load(QUEUE_FILE)
         prior_total = int((existing_queue or {}).get("eligible_total") or 0)
+        retry_report = None
 
-        if active and active.get("STATUS") in {"RUNNING", "CREATED", "INTERRUPTED", "STALE_RELEASED"}:
-            job_id = str(active["JOB_ID"])
-            job = store.load_job(job_id) or active
+        # Prefer explicit job_id → active → create
+        if job_id and store.load_job(job_id):
+            chosen_id = job_id
+            job = store.load_job(job_id) or {}
+        elif active and active.get("STATUS") in {
+            "RUNNING",
+            "CREATED",
+            "INTERRUPTED",
+            "STALE_RELEASED",
+            "STOPPED",
+            "CANCELLED",
+            "BLOCKED",
+            "ERROR",
+        }:
+            # Resume original production job even after stop/error — do not create a parallel worker job
+            chosen_id = str(active["JOB_ID"])
+            job = store.load_job(chosen_id) or active
         else:
-            # Placeholder job — TOTAL refreshed after queue build in worker
-            job = store.create_job(
-                total=prior_total or 0,
-                opportunity_ids=[],
-                meta={
-                    "build": BUILD,
-                    "slice_size": SLICE_SIZE,
-                    "AUTO_SEND": False,
-                    "queue_pending": True,
-                },
-            )
-            job_id = str(job["JOB_ID"])
+            # Scan newest for the original family job before creating
+            chosen_id = None
+            for p in sorted(store.root.glob("*/job.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:10]:
+                cand = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+                if isinstance(cand, dict) and cand.get("FAMILY") == FAMILY:
+                    chosen_id = str(cand["JOB_ID"])
+                    job = cand
+                    break
+            if not chosen_id:
+                job = store.create_job(
+                    total=prior_total or 0,
+                    opportunity_ids=[],
+                    meta={
+                        "build": BUILD,
+                        "slice_size": SLICE_SIZE,
+                        "AUTO_SEND": False,
+                        "queue_pending": True,
+                    },
+                )
+                chosen_id = str(job["JOB_ID"])
+
+        job_id = chosen_id
+        if retry_technical_failures:
+            retry_report = requeue_retryable_failures(job_id)
 
         worker_id = f"fspf-{uuid.uuid4().hex[:10]}"
         try:
-            store.acquire_lease(job_id, worker_id, stale_seconds=STALE_LEASE_S, force=force)
+            store.acquire_lease(job_id, worker_id, stale_seconds=STALE_LEASE_S, force=True if force or retry_technical_failures else force)
         except JobLeaseError as exc:
             return {
                 "status": "LEASE_HELD",
@@ -958,6 +1174,8 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
             worker_id=worker_id,
             eligible_total=prior_total or None,
             FINAL_STATUS=None,
+            error=None,
+            retry_report=retry_report,
         )
 
         def _run() -> None:
@@ -969,6 +1187,7 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
                     job_id=job_id,
                     worker_id=worker_id,
                 )
+                # Default: reuse existing queue. Never rebuild during emergency resume.
                 queue = build_eligible_queue(
                     force_rebuild=rebuild_queue,
                     job_id=job_id,
@@ -1028,6 +1247,8 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
             "eligible_total_pending": prior_total == 0,
             "slice_size": SLICE_SIZE,
             "AUTO_SEND": False,
+            "retry_technical_failures": bool(retry_technical_failures),
+            "retry_report": retry_report,
             "progress": job_progress(),
         }
 

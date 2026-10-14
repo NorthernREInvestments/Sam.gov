@@ -397,6 +397,29 @@ def _open_bidnet_auth_client() -> tuple[dict[str, Any], Any | None]:
         return status, None
 
 
+def _line_qty(li: dict[str, Any]) -> Any:
+    if not isinstance(li, dict):
+        return None
+    qty = li.get("quantity")
+    if qty not in (None, ""):
+        return qty
+    q = li.get("QTY")
+    if isinstance(q, dict):
+        return q.get("VALUE")
+    return q
+
+
+def _line_desc(li: dict[str, Any]) -> str:
+    if not isinstance(li, dict):
+        return ""
+    d = li.get("description")
+    if d in (None, "") and li.get("DESCRIPTION") not in (None, ""):
+        d = li.get("DESCRIPTION")
+    if isinstance(d, dict):
+        d = d.get("VALUE") or d.get("text") or d.get("raw") or ""
+    return str(d or "").strip()
+
+
 def process_one(
     item: dict[str, Any],
     *,
@@ -408,18 +431,34 @@ def process_one(
 ) -> dict[str, Any]:
     t0 = time.time()
     oid = item["opportunity_id"]
-    url = item.get("authoritative_url") or ""
-    title = str(item.get("title") or "")
+    l23_rec = dict(l23_rec or {})
+    url = str(item.get("authoritative_url") or l23_rec.get("authoritative_url") or "").strip()
+    if not url.startswith("http"):
+        # Resolve from common L23 / row_ref fields before declaring fetch failure
+        for key in ("source_url", "url", "detail_url", "portal_url"):
+            cand = str(l23_rec.get(key) or "").strip()
+            if cand.startswith("http"):
+                url = cand
+                break
+        if not url.startswith("http"):
+            rr = l23_rec.get("row_ref") if isinstance(l23_rec.get("row_ref"), dict) else {}
+            for key in ("authoritative_url", "url", "href", "detail_url"):
+                cand = str(rr.get(key) or "").strip()
+                if cand.startswith("http"):
+                    url = cand
+                    break
+    title = str(item.get("title") or l23_rec.get("title") or "")
     auth_status = auth_status or {}
     out: dict[str, Any] = {
         "opportunity_id": oid,
         "title": title,
-        "buyer": item.get("buyer"),
-        "deadline": item.get("deadline"),
+        "buyer": item.get("buyer") or l23_rec.get("buyer"),
+        "deadline": item.get("deadline") or l23_rec.get("deadline"),
         "authoritative_url": url,
         "AUTO_SEND": AUTO_SEND,
         "started_at": _utc(),
         "bidnet_auth_status": auth_status.get("status"),
+        "url_resolved_from_l23": bool(url) and url != str(item.get("authoritative_url") or "").strip(),
     }
     # Evidence join first
     ev = lookup_evidence_for_opportunity(oid, title=title, index=evidence_index)
@@ -442,7 +481,14 @@ def process_one(
     lines: list[dict[str, Any]] = []
     free_chase: dict[str, Any] | None = None
     recovered_docs: list[dict[str, Any]] = []
-    if auth_client is not None and getattr(auth_client, "is_authenticated", False) and url.startswith("http"):
+    is_bidnet_url = "bidnet" in url.lower()
+    out["is_bidnet_url"] = is_bidnet_url
+    if (
+        auth_client is not None
+        and getattr(auth_client, "is_authenticated", False)
+        and url.startswith("http")
+        and is_bidnet_url
+    ):
         try:
             # Permanent production path: hard 45s wall clock; no unbounded Playwright
             from buyer_intelligence.bidnet_bounded_document_recovery_v1 import (
@@ -474,12 +520,22 @@ def process_one(
             out["paid_entitlement_requirement"] = bounded.get("paid_entitlement_requirement")
             out["solicitation_from_intercept"] = bounded.get("solicitation_from_intercept")
             out["official_hit"] = bounded.get("official_hit")
+            if bounded.get("purchasing_group_gate") or bounded.get("purchasing_group_registration"):
+                out["purchasing_group_gate"] = bounded.get("purchasing_group_gate")
+                out["purchasing_group_registration"] = bounded.get("purchasing_group_registration")
+                if str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
+                    out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
             recovered_docs = [
                 {
-                    "document_name": d.get("name"),
-                    "document_url": d.get("url"),
+                    "document_name": d.get("name") or d.get("document_name") or d.get("filename"),
+                    "document_url": d.get("url") or d.get("document_url"),
                     "retrieval_status": d.get("retrieval_status"),
-                    "local_path": "set" if d.get("local_path_set") else None,
+                    "local_path": d.get("local_path") or d.get("canonical_storage_reference"),
+                    "local_path_set": bool(
+                        d.get("local_path_set")
+                        or d.get("local_path")
+                        or d.get("canonical_storage_reference")
+                    ),
                     "source": d.get("source"),
                 }
                 for d in (bounded.get("documents") or [])
@@ -487,7 +543,7 @@ def process_one(
             ]
             out["document_count"] = len(recovered_docs)
             out["documents_downloaded"] = sum(
-                1 for d in recovered_docs if d.get("local_path") or d.get("retrieval_status")
+                1 for d in recovered_docs if d.get("local_path_set") or d.get("local_path")
             )
             status = 200
             final = url
@@ -553,13 +609,15 @@ def process_one(
         for d in recovered_docs[:20]
         if isinstance(d, dict)
     ]
+    # Abstract parse is a fallback only when bounded recovery produced no lines.
+    # Never overwrite a successful docs/lines recovery with ABSTRACT_FETCH_FAILED_OR_WAF.
     if (not lines) and html and len(html) > 2000 and "gokuProps" not in html:
         parsed = parse_bidnet_abstract(html, detail_url=final)
         out["abstract_parse_ok"] = bool(parsed.get("parse_ok"))
         out["abstract_solicitation_number"] = parsed.get("solicitation_number")
         out["abstract_deadline_raw"] = parsed.get("deadline_raw") or parsed.get("close_date_raw")
         out["locked_fields"] = parsed.get("locked_fields") or []
-        out["document_count"] = len(parsed.get("documents") or [])
+        out["document_count"] = max(int(out.get("document_count") or 0), len(parsed.get("documents") or []))
         lines = _extract_lines_from_parse(parsed, title)
         # Closing confirmation (already have deadline — provenance only)
         ex = extract_bidnet_closing_from_html(html, detail_url=final, retrieved_at=_utc())
@@ -584,11 +642,30 @@ def process_one(
                 )
             else:
                 # Authenticated session still sees locked fields → entitlement / purchasing-group
-                out["package_blocker"] = "SOURCE_REQUIRES_PAID_ENTITLEMENT_OR_LOGIN"
-    else:
-        out["package_blocker"] = "ABSTRACT_FETCH_FAILED_OR_WAF"
-        if status in (401, 403):
-            out["package_blocker"] = "SOURCE_REQUIRES_PAID_ENTITLEMENT"
+                pg = out.get("purchasing_group_gate") or out.get("bounded_blocker") or ""
+                if "PURCHASING_GROUP" in str(pg).upper() or "purchasing" in str(
+                    (out.get("blocker_evidence") or {})
+                ).lower():
+                    out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+                else:
+                    out["package_blocker"] = "SOURCE_REQUIRES_PAID_ENTITLEMENT_OR_LOGIN"
+    elif not lines and not recovered_docs:
+        # Precise empty-result classification — not every miss is a WAF
+        if not url or not url.startswith("http"):
+            out["package_blocker"] = out.get("package_blocker") or "MISSING_AUTHORITATIVE_URL"
+        elif status in (401, 403):
+            out["package_blocker"] = out.get("package_blocker") or "SOURCE_REQUIRES_PAID_ENTITLEMENT"
+        elif "gokuProps" in (html or "") or (html and len(html) <= 2000):
+            out["package_blocker"] = out.get("package_blocker") or "WAF_OR_CHALLENGE_PAGE"
+        elif fetch_via in {"none", "process_bidnet_opportunity_failed"} and not html:
+            if auth_status.get("external_blocker"):
+                out["package_blocker"] = out.get("package_blocker") or str(auth_status["external_blocker"])
+            else:
+                out["package_blocker"] = out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
+        elif not html:
+            out["package_blocker"] = out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
+        else:
+            out["package_blocker"] = out.get("package_blocker") or "ABSTRACT_PARSE_UNAVAILABLE"
 
     # Free public package chase (existing BidNet→buyer-portal path; no membership bypass)
     try:
@@ -624,16 +701,23 @@ def process_one(
     out["line_count"] = len(lines)
     out["complete_spec"] = bool(
         lines
-        and not (len(lines) == 1 and lines[0].get("source") == "title_fallback")
-        and any(li.get("quantity") for li in lines)
+        and not (
+            len(lines) == 1
+            and (
+                lines[0].get("source") == "title_fallback"
+                or lines[0].get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK"
+            )
+        )
+        and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
+        and any(_line_desc(li) for li in lines if isinstance(li, dict))
     )
-    if lines and lines[0].get("quantity"):
-        out["primary_quantity"] = lines[0].get("quantity")
+    if lines and _line_qty(lines[0]) not in (None, ""):
+        out["primary_quantity"] = _line_qty(lines[0])
 
     # Re-match historical by primary line description if still missing
     if out.get("historical_unit_price") in (None, "") and lines:
         ev2 = lookup_evidence_for_opportunity(
-            oid, title=str(lines[0].get("description") or title), index=evidence_index
+            oid, title=_line_desc(lines[0]) or title, index=evidence_index
         )
         if ev2.get("historical_unit"):
             out["historical_unit_price"] = ev2.get("historical_unit")
@@ -641,7 +725,7 @@ def process_one(
 
     # Distributor candidates (deterministic heuristics — not quotes)
     distributors = []
-    blob = (title + " " + " ".join(str(li.get("description") or "") for li in lines)).lower()
+    blob = (title + " " + " ".join(_line_desc(li) for li in lines if isinstance(li, dict))).lower()
     if re.search(r"\b(tool|drill|saw|wrench|fastener|screw)\b", blob):
         distributors += [
             {"name": "Grainger", "type": "distributor", "basis": "category_heuristic"},
@@ -673,15 +757,18 @@ def process_one(
     out["distributors"] = uniq
     out["supplier_status"] = "SUPPLIER_IDENTIFIED" if uniq else "SOURCE_UNAVAILABLE"
 
-            # RFQ prep — never send; incomplete specs are NOT ready-to-send
+    # RFQ prep — never send; incomplete specs are NOT ready-to-send
     spec_complete = bool(
         lines
-        and not (len(lines) == 1 and (lines[0].get("source") == "title_fallback" or lines[0].get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK"))
-        and any(
-            (li.get("quantity") if not isinstance(li.get("QTY"), dict) else (li.get("QTY") or {}).get("VALUE"))
-            for li in lines
-            if isinstance(li, dict)
+        and not (
+            len(lines) == 1
+            and (
+                lines[0].get("source") == "title_fallback"
+                or lines[0].get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK"
+            )
         )
+        and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
+        and any(_line_desc(li) for li in lines if isinstance(li, dict))
     )
     rfq = {
         "opportunity_id": oid,

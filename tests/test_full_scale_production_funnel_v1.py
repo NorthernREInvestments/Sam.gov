@@ -43,6 +43,22 @@ def test_priority_prefers_near_deadline_common_products():
     assert _priority_score(near) > _priority_score(far)
 
 
+def test_item_should_skip_preserves_success_allows_pending_retry():
+    from buyer_intelligence.full_scale_production_funnel_v1 import _item_should_skip
+
+    assert _item_should_skip({"RESULT": "SUCCESS"}) is True
+    assert _item_should_skip({"RESULT": "PENDING_RETRY", "RETRY_COUNT": 0}) is False
+    assert _item_should_skip({"RESULT": "PENDING_RETRY", "RETRY_COUNT": 99}) is True
+    assert _item_should_skip(
+        {
+            "RESULT": "NO_PACKAGE",
+            "RETRYABLE": True,
+            "RETRY_COUNT": 0,
+            "terminal_blocker": "ABSTRACT_FETCH_FAILED_OR_WAF",
+        }
+    ) is False
+
+
 def test_map_result_success_and_timeout():
     assert (
         _map_result(

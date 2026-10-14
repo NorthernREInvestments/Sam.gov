@@ -773,12 +773,16 @@ def _recover_one_inner(
         {
             "name": d.get("document_name") or d.get("filename") or d.get("name"),
             "url": str(d.get("document_url") or d.get("url") or "")[:200] or None,
+            # Preserve real path for schedule extraction / CFE — boolean alone is insufficient
+            "local_path": d.get("local_path") or d.get("canonical_storage_reference"),
+            "canonical_storage_reference": d.get("canonical_storage_reference") or d.get("local_path"),
             "local_path_set": bool(d.get("local_path") or d.get("canonical_storage_reference")),
             "retrieval_status": d.get("retrieval_status"),
             "source": d.get("source") or d.get("free_chase_via"),
         }
         for d in docs[:20]
     ]
+    # Extract from path-bearing docs (original list), not the slim summary alone
     lines = _extract_lines(title, parsed, docs)
     out["line_items"] = lines
     out["line_count"] = len(lines)

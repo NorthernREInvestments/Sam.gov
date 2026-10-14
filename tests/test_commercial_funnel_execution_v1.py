@@ -11,6 +11,83 @@ def test_auto_send_hard_false():
     assert AUTO_SEND is False
 
 
+def test_abstract_else_does_not_overwrite_bounded_lines(monkeypatch):
+    """Regression: successful bounded recovery must not become ABSTRACT_FETCH_FAILED_OR_WAF."""
+    import buyer_intelligence.commercial_funnel_execution_v1 as m
+    import httpx
+
+    class FakeAuth:
+        is_authenticated = True
+
+        def close(self):
+            return None
+
+        def fetch_html(self, *a, **k):
+            return ""
+
+    def fake_bounded(item, *, auth_client=None, l23=None, timeout_s=45.0):
+        return {
+            "primary_blocker": "COMPLETE_PACKAGE_RECOVERED",
+            "timed_out": False,
+            "documents": [
+                {
+                    "name": "schedule.xlsx",
+                    "url": "https://example/doc",
+                    "local_path": "/tmp/schedule.xlsx",
+                    "local_path_set": True,
+                    "retrieval_status": "DOWNLOADED",
+                }
+            ],
+            "line_items": [
+                {"description": "Copy Paper 20# letter", "quantity": "40", "uom": "CS"},
+                {"description": "Copy Paper legal", "quantity": "10", "uom": "CS"},
+            ],
+        }
+
+    monkeypatch.setattr(
+        "buyer_intelligence.bidnet_bounded_document_recovery_v1.recover_one_bounded",
+        fake_bounded,
+    )
+    monkeypatch.setattr(m, "chase_free_package", lambda *a, **k: {"status": "SKIP", "documents": []}, raising=False)
+    try:
+        monkeypatch.setattr(
+            "bidnet_recovery.free_package_chase.chase_free_package",
+            lambda *a, **k: {"status": "SKIP", "documents": []},
+        )
+    except Exception:
+        pass
+
+    client = httpx.Client()
+    try:
+        row = m.process_one(
+            {
+                "opportunity_id": "OID-CP",
+                "title": "Copy Paper",
+                "authoritative_url": "https://www.bidnetdirect.com/private/supplier/solicitations/9797265001/abstract",
+            },
+            client=client,
+            evidence_index={"by_opportunity": {}, "by_title": {}},
+            auth_status={"authenticated": True, "status": "SESSION_REUSED"},
+            auth_client=FakeAuth(),
+        )
+    finally:
+        client.close()
+
+    assert row.get("package_blocker") != "ABSTRACT_FETCH_FAILED_OR_WAF"
+    assert row.get("complete_spec") is True
+    assert row.get("line_count") == 2
+    assert row.get("terminal_blocker") != "ABSTRACT_FETCH_FAILED_OR_WAF"
+
+
+def test_line_qty_desc_helpers():
+    from buyer_intelligence.commercial_funnel_execution_v1 import _line_desc, _line_qty
+
+    assert _line_qty({"quantity": "5"}) == "5"
+    assert _line_qty({"QTY": {"VALUE": "12"}}) == "12"
+    assert _line_desc({"DESCRIPTION": {"VALUE": "Toner"}}) == "Toner"
+    assert _line_desc({"description": "Paper"}) == "Paper"
+
+
 def test_assess_economics_no_fabricated_finance():
     row = {
         "historical_unit_price": "10.00",
