@@ -916,28 +916,54 @@ def _recover_one_inner(
             package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
             detail_status = detail_status or "DETAIL_ACCESS_GATE"
 
-    # 2) Bounded path: one attachment scrape only when a real detail URL was opened
+    # 2) Bounded path: attachment scrape for real detail URLs (incl. known private /solicitations/{id})
     if (
         docs == []
-        and out.get("final_url")
-        and detail_status not in {"SEARCH_PAGE_NOT_DETAIL", "SUPPLIER_REGISTRATION_REDIRECT"}
-        and "search" not in str(out.get("final_url") or "").lower()
         and hasattr(auth_client, "discover_attachment_links")
         and time.monotonic() < deadline
+        and detail_status not in {"SUPPLIER_REGISTRATION_REDIRECT"}
     ):
         try:
             from bidnet_engine.package_materialization import is_bidnet_solicitation_detail_url
 
-            fu = str(out.get("final_url") or "")
-            if is_bidnet_solicitation_detail_url(fu) or re.search(r"/private/solicitations/\d+", fu):
+            fu = str(out.get("final_url") or url or "")
+            # Prefer private solicitation abstract when statewide/public URL failed to yield docs
+            m_priv = re.search(r"/private/solicitations/(\d{6,})", fu, re.I) or re.search(
+                r"/statewide/(\d{6,})", url, re.I
+            )
+            candidates = []
+            if fu and "search" not in fu.lower():
+                candidates.append(fu)
+            if m_priv:
+                sid = m_priv.group(1)
+                candidates.append(
+                    f"https://www.bidnetdirect.com/private/solicitations/{sid}/abstract?target=view"
+                )
+            if url and url not in candidates and "/private/solicitations/" in url.lower():
+                candidates.append(url)
+            for cand in candidates:
+                if not (
+                    is_bidnet_solicitation_detail_url(cand)
+                    or re.search(r"/private/solicitations/\d+", cand)
+                ):
+                    continue
+                if time.monotonic() >= deadline:
+                    break
                 out["network_requests"] += 1
                 discovered = (
-                    auth_client.discover_attachment_links(fu, timeout_ms=_remain_ms(12_000)) or []
+                    auth_client.discover_attachment_links(
+                        cand, timeout_ms=_remain_ms(20_000)
+                    )
+                    or []
                 )
                 docs = [d for d in discovered if isinstance(d, dict) and _is_real_doc(d)]
                 out["document_links_discovered"] = len(discovered)
+                out["discover_url"] = cand[:220]
                 if docs:
                     package_state = "PACKAGE_ACQUIRED_BIDNET"
+                    out["final_url"] = cand[:220]
+                    detail_status = "DETAIL_OK"
+                    break
         except Exception as exc:
             out["discover_error"] = type(exc).__name__
 
