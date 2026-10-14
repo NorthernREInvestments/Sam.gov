@@ -200,6 +200,23 @@ def _is_real_doc(d: dict[str, Any]) -> bool:
     return False
 
 
+def _has_downloaded_docs(docs: list[dict[str, Any]] | None) -> bool:
+    """True only when at least one real file is on disk (abstract stubs do not count)."""
+    for d in docs or []:
+        if not isinstance(d, dict) or not _is_real_doc(d):
+            continue
+        lp = d.get("local_path") or d.get("canonical_storage_reference")
+        if not lp:
+            continue
+        try:
+            p = Path(str(lp))
+            if p.exists() and p.stat().st_size >= 512:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def _doc_has_qty_signal(d: dict[str, Any]) -> bool:
     """Weak signal used only after real docs exist; full line extract is separate."""
     return bool(d.get("local_path") or d.get("canonical_storage_reference"))
@@ -548,9 +565,11 @@ def _attempt_pg_gate_unlock(
                     else "DETAIL_PARTIAL"
                 )
                 docs = [d for d in (parsed.get("documents") or []) if isinstance(d, dict)]
-                # Registered groups: Documents tab may need explicit attachment scrape
+                # Registered groups: Documents tab may need explicit attachment scrape.
+                # Abstract HTML often lists stubs without local files — those must not
+                # suppress docs-tab discovery.
                 if (
-                    not docs
+                    not _has_downloaded_docs(docs)
                     and hasattr(auth_client, "discover_attachment_links")
                     and time.monotonic() < deadline
                 ):
@@ -847,7 +866,7 @@ def _recover_one_inner(
     # 1b) Production fix: URL/HTML PG gates must invoke registration even when
     # search-to-detail did not return ACTION_REQUIRED (statewide public links).
     if (
-        docs == []
+        not _has_downloaded_docs(docs)
         and not out.get("purchasing_group_registration")
         and time.monotonic() < deadline
         and (
@@ -916,9 +935,10 @@ def _recover_one_inner(
             package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
             detail_status = detail_status or "DETAIL_ACCESS_GATE"
 
-    # 2) Bounded path: attachment scrape for real detail URLs (incl. known private /solicitations/{id})
+    # 2) Bounded path: attachment scrape for real detail URLs (incl. known private /solicitations/{id}).
+    # Never let abstract HTML stubs suppress Documents-tab discovery.
     if (
-        docs == []
+        not _has_downloaded_docs(docs)
         and hasattr(auth_client, "discover_attachment_links")
         and time.monotonic() < deadline
         and detail_status not in {"SUPPLIER_REGISTRATION_REDIRECT"}
@@ -928,12 +948,13 @@ def _recover_one_inner(
 
             fu = str(out.get("final_url") or url or "")
             # Prefer private solicitation abstract when statewide/public URL failed to yield docs
-            m_priv = re.search(r"/private/solicitations/(\d{6,})", fu, re.I) or re.search(
-                r"/statewide/(\d{6,})", url, re.I
+            m_priv = (
+                re.search(r"/private/solicitations/(\d{6,})", fu, re.I)
+                or re.search(r"/private/solicitations/(\d{6,})", url, re.I)
+                or re.search(r"/statewide/(\d{6,})", url, re.I)
+                or re.search(r"/statewide/(\d{6,})", fu, re.I)
             )
-            candidates = []
-            if fu and "search" not in fu.lower():
-                candidates.append(fu)
+            candidates: list[str] = []
             if m_priv:
                 sid = m_priv.group(1)
                 candidates.append(
@@ -941,6 +962,8 @@ def _recover_one_inner(
                 )
             if url and url not in candidates and "/private/solicitations/" in url.lower():
                 candidates.append(url)
+            if fu and fu not in candidates and "search" not in fu.lower():
+                candidates.append(fu)
             for cand in candidates:
                 if not (
                     is_bidnet_solicitation_detail_url(cand)
@@ -952,14 +975,14 @@ def _recover_one_inner(
                 out["network_requests"] += 1
                 discovered = (
                     auth_client.discover_attachment_links(
-                        cand, timeout_ms=_remain_ms(20_000)
+                        cand, timeout_ms=_remain_ms(45_000)
                     )
                     or []
                 )
                 docs = [d for d in discovered if isinstance(d, dict) and _is_real_doc(d)]
                 out["document_links_discovered"] = len(discovered)
                 out["discover_url"] = cand[:220]
-                if docs:
+                if _has_downloaded_docs(docs) or docs:
                     package_state = "PACKAGE_ACQUIRED_BIDNET"
                     out["final_url"] = cand[:220]
                     detail_status = "DETAIL_OK"
@@ -984,8 +1007,9 @@ def _recover_one_inner(
         out["entitlement_stop"] = True
     # 3) One free/official portal chase when BidNet docs missing — never retry BidNet paywall
     remain_for_chase = deadline - time.monotonic()
-    need_free = (entitlement_hit or not docs) and remain_for_chase >= 12.0
-    if (entitlement_hit or not docs) and remain_for_chase < 12.0:
+    missing_downloads = not _has_downloaded_docs(docs)
+    need_free = (entitlement_hit or missing_downloads) and remain_for_chase >= 12.0
+    if (entitlement_hit or missing_downloads) and remain_for_chase < 12.0:
         out["free_chase_skipped"] = "insufficient_budget_remaining"
         free_chase = {"status": "PACKAGE_RECOVERY_RETRYABLE"}
         out["free_chase_status"] = "PACKAGE_RECOVERY_RETRYABLE"
