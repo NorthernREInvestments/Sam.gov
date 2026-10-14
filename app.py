@@ -1892,7 +1892,21 @@ def api_m3_bidnet_purchasing_groups_mark_registered(body: dict | None = None):
             or 0
         )
         or None,
+        portal_account="bidnet",
     )
+    try:
+        from m3_portal_access_map import PORTAL_BIDNET, bind_membership, seed_bidnet_defaults
+
+        seed_bidnet_defaults()
+        bind_membership(
+            PORTAL_BIDNET,
+            pg_id,
+            kind="purchasing_group",
+            status=STATUS_REGISTERED,
+            name=payload.get("name"),
+        )
+    except Exception:
+        pass
     return {"ok": True, "group": get_group(pg_id), "ui": ui_summary()}
 
 
