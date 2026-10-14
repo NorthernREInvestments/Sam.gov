@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2d"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2e"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1870,6 +1870,14 @@ def api_m3_full_scale_production_funnel_requeue_retryable(body: dict | None = No
     if not jid:
         return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
     return {"ok": True, "build_version": APP_BUILD_VERSION, **requeue_retryable_failures(jid)}
+
+
+@app.get("/api/m3/bidnet-auth/purchasing-group-queue")
+def api_m3_bidnet_purchasing_group_queue():
+    """Group-level registration queue (pending/completed/failed) for operators."""
+    from bidnet_auth.purchasing_group_queue import ui_summary
+
+    return {"build_version": APP_BUILD_VERSION, **ui_summary()}
 
 
 @app.get("/api/m3/bidnet-auth/purchasing-groups")

@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2d"
+BUILD = "20261014-m3-full-scale-production-funnel-v2e"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1349,15 +1349,15 @@ def process_slice(
     )
 
     evidence_index = build_commercial_evidence_index()
-    # One shared BidNet client for PG registration + opportunity recovery.
-    # Opening two Playwright sessions per slice caused auth drop → httpx fallback.
+    # One BidNet client per slice phase. PG registration can TimeoutError and
+    # leave Playwright unusable — always re-open a fresh client for opportunities.
     auth_status, auth_client = _open_bidnet_auth_client()
     pg_slice_report = None
     try:
         from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
         if auth_client is not None and getattr(auth_client, "is_authenticated", False):
-            pg_slice_report = process_group_registration_slice(auth_client, max_groups=2)
+            pg_slice_report = process_group_registration_slice(auth_client, max_groups=3)
             _progress(
                 status="RUNNING",
                 phase="PG_GROUP_REGISTRATION_SLICE",
@@ -1368,6 +1368,13 @@ def process_slice(
             )
     except Exception as exc:
         pg_slice_report = {"error": type(exc).__name__}
+    finally:
+        if auth_client is not None:
+            try:
+                auth_client.close()
+            except Exception:
+                pass
+            auth_client = None
 
     l23 = load_store()
     http = _cookies_client()
@@ -1375,6 +1382,7 @@ def process_slice(
     last_oid = None
     zero_doc_streak = 0
     try:
+        auth_status, auth_client = _open_bidnet_auth_client()
         if not auth_status.get("authenticated"):
             _progress(
                 status="BLOCKED",
@@ -1393,6 +1401,7 @@ def process_slice(
                 "blocked": True,
                 "reason": "BIDNET_AUTH_REQUIRED",
                 "auth_status": auth_status,
+                "pg_group_slice": pg_slice_report,
             }
         for idx, item in pending:
             if _stop_flag():
@@ -1539,6 +1548,30 @@ def process_slice(
                         last_fetch_via=fetch_via,
                     )
                     break
+
+        # End-of-slice PG pass so groups enqueued during this slice are not deferred
+        # until the next worker cycle.
+        try:
+            from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+
+            if auth_client is not None and getattr(auth_client, "is_authenticated", False):
+                pg_end = process_group_registration_slice(auth_client, max_groups=3)
+                pg_slice_report = {
+                    "start_of_slice": pg_slice_report,
+                    "end_of_slice": pg_end,
+                }
+                _progress(
+                    status="RUNNING",
+                    phase="PG_GROUP_REGISTRATION_SLICE_END",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    pg_group_slice=pg_slice_report,
+                )
+        except Exception as exc:
+            pg_slice_report = {
+                "start_of_slice": pg_slice_report,
+                "end_of_slice_error": type(exc).__name__,
+            }
     finally:
         try:
             http.close()
