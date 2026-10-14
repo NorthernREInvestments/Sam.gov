@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v1e"
+BUILD = "20261014-m3-full-scale-production-funnel-v1f"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -261,9 +261,18 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
         if not technical:
             preserved += 1
             continue
+        # One additional retry budget after browser-path repair for empty BidNet detail fetches
         if retries >= MAX_TECHNICAL_RETRIES:
-            exhausted += 1
-            continue
+            if (
+                blocker in {"DETAIL_FETCH_EMPTY", "ABSTRACT_FETCH_FAILED_OR_WAF"}
+                and not it.get("BROWSER_PATH_REPAIR_RETRY")
+            ):
+                it["BROWSER_PATH_REPAIR_RETRY"] = True
+                it["RETRY_COUNT"] = 0
+                retries = 0
+            else:
+                exhausted += 1
+                continue
 
         it["PREVIOUS_RESULT"] = result
         it["PREVIOUS_BLOCKER"] = blocker

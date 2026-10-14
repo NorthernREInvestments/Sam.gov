@@ -450,11 +450,29 @@ def _recover_one_inner(
     package_state = "PACKAGE_RETRYABLE"
     fetch_error = None
 
-    # 1) One authenticated HTML fetch of the authoritative URL
+    # 1) Authenticated detail fetch — browser path required for public/statewide +
+    # purchasing-group URLs (prefer_http=True was causing DETAIL_FETCH_EMPTY at scale;
+    # Copy Paper / docs-tab recovery proved prefer_http=False + browser navigation).
     if url and time.monotonic() < deadline:
         out["network_requests"] += 1
         try:
-            html = auth_client.fetch_html(url, timeout_ms=_remain_ms(12_000), prefer_http=True) or ""
+            url_l = url.lower()
+            needs_browser = bool(
+                "purchasinggroupid=" in url_l
+                or "/public/supplier/" in url_l
+                or "/statewide/" in url_l
+                or "/open-bids/" in url_l
+                or "bidnetdirect.com" in url_l
+            )
+            html = (
+                auth_client.fetch_html(
+                    url,
+                    timeout_ms=_remain_ms(18_000 if needs_browser else 12_000),
+                    prefer_http=not needs_browser,
+                )
+                or ""
+            )
+            out["fetch_prefer_http"] = not needs_browser
             page_url = str(getattr(getattr(auth_client, "_page", None), "url", None) or url)
             out["final_url"] = page_url[:220]
             page_l = page_url.lower()

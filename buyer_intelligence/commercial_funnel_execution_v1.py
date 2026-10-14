@@ -651,8 +651,16 @@ def process_one(
                     out["package_blocker"] = "SOURCE_REQUIRES_PAID_ENTITLEMENT_OR_LOGIN"
     elif not lines and not recovered_docs:
         # Precise empty-result classification — not every miss is a WAF
+        pg_hint = "purchasinggroupid=" in url.lower()
         if not url or not url.startswith("http"):
             out["package_blocker"] = out.get("package_blocker") or "MISSING_AUTHORITATIVE_URL"
+        elif pg_hint and (
+            out.get("purchasing_group_gate")
+            or out.get("bounded_blocker")
+            or fetch_via == "bounded_document_recovery_45s"
+        ):
+            # Public statewide URLs with purchasingGroupId are PG gates, not WAF
+            out["package_blocker"] = out.get("package_blocker") or "PURCHASING_GROUP_REGISTRATION_REQUIRED"
         elif status in (401, 403):
             out["package_blocker"] = out.get("package_blocker") or "SOURCE_REQUIRES_PAID_ENTITLEMENT"
         elif "gokuProps" in (html or "") or (html and len(html) <= 2000):
@@ -663,7 +671,9 @@ def process_one(
             else:
                 out["package_blocker"] = out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
         elif not html:
-            out["package_blocker"] = out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
+            out["package_blocker"] = out.get("package_blocker") or (
+                "PURCHASING_GROUP_REGISTRATION_REQUIRED" if pg_hint else "DETAIL_FETCH_EMPTY"
+            )
         else:
             out["package_blocker"] = out.get("package_blocker") or "ABSTRACT_PARSE_UNAVAILABLE"
 
