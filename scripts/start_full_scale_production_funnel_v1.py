@@ -92,11 +92,21 @@ def main() -> int:
                 sc, cookie = _req(cookie, "GET", "/api/m3/full-scale-production-funnel/scorecard", timeout=60)
                 hb = str(health.get("build_version") or "")
                 sb = str(sc.get("build") or sc.get("build_version") or "")
-                ready = hint in hb or hint in sb or "full-scale-production-funnel" in sb
+                # Require the requested build hint in health (exact deploy marker)
+                ready = bool(hint) and hint in hb
                 if ready and (sc.get("metrics") is not None or sc.get("build")):
                     print(json.dumps({"deploy_ready": True, "health_build": hb, "scorecard_build": sb}))
                     break
-                print(json.dumps({"wait_deploy": True, "health_build": hb, "scorecard_build": sb or None}))
+                print(
+                    json.dumps(
+                        {
+                            "wait_deploy": True,
+                            "want": hint,
+                            "health_build": hb,
+                            "scorecard_build": sb or None,
+                        }
+                    )
+                )
             except urllib.error.HTTPError as exc:
                 if exc.code not in {404, 502, 503, 504}:
                     raise
