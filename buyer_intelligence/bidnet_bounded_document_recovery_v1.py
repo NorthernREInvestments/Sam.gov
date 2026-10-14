@@ -836,14 +836,20 @@ def _recover_one_inner(
                 attempts.append({"query": q[:80], "status": "DEADLINE"})
                 break
             out["network_requests"] += 1
-            early = (
-                auth_client.resolve_detail_via_authenticated_search(
-                    title=q,
-                    source_url=url,
-                    timeout_ms=_remain_ms(35_000),
+            try:
+                early = (
+                    auth_client.resolve_detail_via_authenticated_search(
+                        title=q,
+                        source_url=url,
+                        timeout_ms=_remain_ms(35_000),
+                    )
+                    or {}
                 )
-                or {}
-            )
+            except Exception as exc:
+                early = {
+                    "ok": False,
+                    "status": f"SEARCH_EXCEPTION:{type(exc).__name__}",
+                }
             attempts.append(
                 {
                     "query": q[:80],
@@ -1510,11 +1516,9 @@ def recover_one_bounded(
         timed_out = {"flag": False}
 
         def _watchdog() -> None:
+            # Soft flag only — NEVER close a shared slice auth_client here.
+            # Closing killed Playwright mid-slice and stripped unlock diagnostics.
             timed_out["flag"] = True
-            try:
-                auth_client.close()
-            except Exception:
-                pass
 
         timer = threading.Timer(timeout_s, _watchdog)
         timer.daemon = True
@@ -1533,12 +1537,22 @@ def recover_one_bounded(
                 return _timeout_row(item, timeout_s, t0, basis="inline_watchdog")
             return {
                 "opportunity_id": item.get("opportunity_id"),
+                "title": item.get("title"),
+                "authoritative_url": item.get("authoritative_url"),
                 "primary_blocker": DOCS_INACCESSIBLE,
+                "access_note": f"recover_exception:{type(exc).__name__}",
+                "early_search_to_detail": {
+                    "status": "RECOVER_EXCEPTION",
+                    "error": type(exc).__name__,
+                    "message": str(exc)[:160],
+                },
                 "blocker_evidence": {
                     "error": type(exc).__name__,
                     "message": str(exc)[:160],
                     "classification_basis": "exception",
                 },
+                "documents": [],
+                "line_items": [],
                 "complete_spec": False,
                 "timed_out": False,
                 "elapsed_s": round(time.time() - t0, 2),

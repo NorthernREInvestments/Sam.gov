@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2o"
+BUILD = "20261014-m3-full-scale-production-funnel-v2p"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1614,7 +1614,7 @@ def process_slice(
 
             t0 = time.time()
             try:
-                # Recreate auth client if prior timeout closed it
+                # Recreate auth client if prior timeout/exception closed it
                 if auth_client is None or not getattr(auth_client, "is_authenticated", False):
                     if auth_client is not None:
                         try:
@@ -1631,6 +1631,23 @@ def process_slice(
                     l23_rec=l23.get(oid) or {},
                     auth_client=auth_client,
                 )
+                # Shared client may be poisoned by Playwright target-closed errors
+                note = str(row.get("access_note") or "")
+                early_st = str(
+                    ((row.get("early_search_to_detail") or {}).get("status") or "")
+                )
+                if (
+                    "recover_exception" in note
+                    or early_st.startswith("SEARCH_EXCEPTION")
+                    or early_st == "RECOVER_EXCEPTION"
+                    or "TargetClosed" in note
+                    or "TargetClosed" in early_st
+                ):
+                    try:
+                        auth_client.close()
+                    except Exception:
+                        pass
+                    auth_client = None
                 # Soft wall: if process_one exceeded budget, mark timeout
                 if time.time() - t0 > ITEM_TIMEOUT_S and not row.get("complete_spec"):
                     row["bounded_timed_out"] = True
