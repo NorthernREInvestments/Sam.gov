@@ -1778,6 +1778,40 @@ def api_m3_bidnet_purchasing_groups_audit():
     return {"ok": True, "audit": audit, "ui": ui_summary()}
 
 
+@app.post("/api/m3/bidnet-auth/purchasing-groups/mark-registered")
+def api_m3_bidnet_purchasing_groups_mark_registered(body: dict | None = None):
+    """Persist REGISTERED after live BidNet COMPLETED verification (no browser)."""
+    payload = body or {}
+    pg_id = str(payload.get("purchasing_group_id") or "").strip()
+    if not pg_id:
+        return {"ok": False, "error": "purchasing_group_id_required"}
+    from application_clock import now_utc
+    from bidnet_auth.purchasing_group_tracker import (
+        STATUS_REGISTERED,
+        get_group,
+        upsert_group,
+        ui_summary,
+    )
+
+    upsert_group(
+        pg_id,
+        name=payload.get("name"),
+        status=STATUS_REGISTERED,
+        registration_completed_at=now_utc().isoformat(),
+        relevant=True,
+        confirmation_excerpt=str(payload.get("confirmation_excerpt") or "owner_verified_completed")[
+            :400
+        ],
+        solicitations_unlocked=int(
+            (get_group(pg_id) or {}).get("solicitations_unlocked")
+            or payload.get("solicitations_unlocked")
+            or 0
+        )
+        or None,
+    )
+    return {"ok": True, "group": get_group(pg_id), "ui": ui_summary()}
+
+
 @app.post("/api/m3/bidnet-auth/purchasing-groups/approve-submit")
 def api_m3_bidnet_purchasing_groups_approve_submit(body: dict | None = None):
     """Record owner authorization to submit a prepared free PG registration.
