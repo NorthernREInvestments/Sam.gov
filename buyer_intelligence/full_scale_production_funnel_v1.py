@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2j"
+BUILD = "20261014-m3-full-scale-production-funnel-v2k"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1217,6 +1217,15 @@ def _slim_checkpoint(
         "is_bidnet_url": row.get("is_bidnet_url"),
         "bidnet_auth_status": row.get("bidnet_auth_status"),
         "bounded_blocker": row.get("bounded_blocker"),
+        "access_note": (row.get("access_note") or "")[:120] or None,
+        "early_search_status": ((row.get("early_search_to_detail") or {}).get("status")),
+        "search_to_detail_status": (
+            ((row.get("search_to_detail_retry") or {}).get("status"))
+            or ((row.get("search_to_detail_docs") or {}).get("status"))
+            or ((row.get("search_to_detail") or {}).get("status"))
+        ),
+        "bidnet_solicitation_id": row.get("bidnet_solicitation_id")
+        or ((row.get("early_search_to_detail") or {}).get("solicitation_id")),
         "process_bidnet_error": (row.get("process_bidnet_error") or "")[:160] or None,
         "package_blocker": (row.get("package_blocker") or "")[:160] or None,
         "authoritative_url": (row.get("authoritative_url") or "")[:240] or None,

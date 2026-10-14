@@ -728,6 +728,8 @@ def _recover_one_inner(
     # Full process hangs on multi-candidate Playwright discovery.
     from bidnet_full_production.process import _sol_from_paid_intercept
     from bidnet_recovery.parse_abstract import parse_bidnet_abstract
+    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+    from bidnet_auth.purchasing_group_tracker import is_registered
 
     deadline = time.monotonic() + max(5.0, float(timeout_s) - 3.0)
 
@@ -743,10 +745,79 @@ def _recover_one_inner(
     fetch_error = None
     html = ""
 
+    # 0) Registered PG + statewide/open-bids: skip public URL (wrong ID namespace).
+    # Go straight to authenticated title search → private detail → Documents tab.
+    pg_early = extract_pg_id_from_url(url)
+    url_l0 = (url or "").lower()
+    if (
+        pg_early
+        and is_registered(str(pg_early))
+        and title
+        and (
+            "/statewide/" in url_l0
+            or "/open-bids/" in url_l0
+            or "/public/supplier/" in url_l0
+            or "purchasinggroupid=" in url_l0
+        )
+        and hasattr(auth_client, "resolve_detail_via_authenticated_search")
+        and time.monotonic() < deadline
+    ):
+        out["purchasing_group_id"] = str(pg_early)
+        out["purchasing_group_registration"] = {
+            "status": "REGISTERED",
+            "already_registered": True,
+            "purchasing_group_id": str(pg_early),
+            "early_unlock": True,
+        }
+        out["network_requests"] += 1
+        early = (
+            auth_client.resolve_detail_via_authenticated_search(
+                title=title,
+                source_url=url,
+                timeout_ms=_remain_ms(40_000),
+            )
+            or {}
+        )
+        out["early_search_to_detail"] = {
+            "status": early.get("status"),
+            "detail_url": (early.get("detail_url") or "")[:160] or None,
+            "solicitation_id": early.get("solicitation_id"),
+            "access_gate": early.get("access_gate"),
+        }
+        if (
+            early.get("ok")
+            and early.get("detail_url")
+            and early.get("access_gate") != "ACTION_REQUIRED"
+        ):
+            url = str(early["detail_url"])
+            out["final_url"] = url[:220]
+            out["bidnet_solicitation_id"] = early.get("solicitation_id")
+            html = early.get("html") or ""
+            detail_status = "DETAIL_OK"
+            if html:
+                parsed = parse_bidnet_abstract(html, detail_url=url) or {}
+            if hasattr(auth_client, "discover_attachment_links") and time.monotonic() < deadline:
+                out["network_requests"] += 1
+                discovered = (
+                    auth_client.discover_attachment_links(url, timeout_ms=_remain_ms(45_000))
+                    or []
+                )
+                docs = [d for d in discovered if isinstance(d, dict) and _is_real_doc(d)]
+                out["document_links_discovered"] = len(discovered)
+                out["discover_url"] = url[:220]
+                if docs:
+                    package_state = "PACKAGE_ACQUIRED_BIDNET"
+                    out["access_note"] = "early_registered_pg_docs_recovered"
+        elif early.get("access_gate") == "ACTION_REQUIRED":
+            detail_status = "DETAIL_ACCESS_GATE"
+            out["access_note"] = "early_registered_still_action_required"
+        else:
+            out["access_note"] = f"early_registered_resolve_{early.get('status') or 'failed'}"
+
     # 1) Authenticated detail fetch — browser path required for public/statewide +
     # purchasing-group URLs (prefer_http=True was causing DETAIL_FETCH_EMPTY at scale;
     # Copy Paper / docs-tab recovery proved prefer_http=False + browser navigation).
-    if url and time.monotonic() < deadline:
+    if url and not _has_downloaded_docs(docs) and time.monotonic() < deadline:
         out["network_requests"] += 1
         try:
             url_l = url.lower()
