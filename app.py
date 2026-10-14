@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261009-m3-sam-api-credit-ledger-reconciliation-v1"
+APP_BUILD_VERSION = "20261011-m3-high-throughput-max-evidence-engine-v2-accuracy-eq4"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1758,6 +1758,64 @@ def api_m3_bidnet_auth_status():
     from bidnet_auth import owner_connection_status
 
     return owner_connection_status()
+
+
+@app.get("/api/m3/bidnet-auth/purchasing-groups")
+def api_m3_bidnet_purchasing_groups():
+    """Purchasing-group access tracker for operator UI. No secrets."""
+    from bidnet_auth.purchasing_group_tracker import ui_summary
+
+    return ui_summary()
+
+
+@app.post("/api/m3/bidnet-auth/purchasing-groups/audit")
+def api_m3_bidnet_purchasing_groups_audit():
+    """Refresh relevance counts from live BidNet opportunity URLs (no browser)."""
+    from bidnet_auth.purchasing_group_registration import audit_purchasing_groups_from_store
+    from bidnet_auth.purchasing_group_tracker import ui_summary
+
+    audit = audit_purchasing_groups_from_store()
+    return {"ok": True, "audit": audit, "ui": ui_summary()}
+
+
+@app.post("/api/m3/bidnet-auth/purchasing-groups/approve-submit")
+def api_m3_bidnet_purchasing_groups_approve_submit(body: dict | None = None):
+    """Record owner authorization to submit a prepared free PG registration.
+
+    Does not run Playwright here — sets tracker flag + optional env-style marker
+    for the next recovery/proof job. Never stores EIN in the response.
+    """
+    payload = body or {}
+    pg_id = str(payload.get("purchasing_group_id") or "").strip()
+    if not pg_id:
+        return {"ok": False, "error": "purchasing_group_id_required"}
+    approve = bool(payload.get("owner_approved_submit"))
+    from bidnet_auth.purchasing_group_tracker import (
+        STATUS_OWNER_APPROVAL_REQUIRED,
+        STATUS_PREPARED,
+        get_group,
+        upsert_group,
+        ui_summary,
+    )
+
+    g = get_group(pg_id)
+    if not g:
+        return {"ok": False, "error": "unknown_group"}
+    if g.get("status") == "PAID_REQUIRED":
+        return {"ok": False, "error": "paid_registration_cannot_auto_approve"}
+    if approve:
+        from application_clock import now_utc
+
+        upsert_group(
+            pg_id,
+            owner_approved_submit=True,
+            owner_approved_at=now_utc().isoformat(),
+            status=STATUS_PREPARED
+            if g.get("status") == STATUS_OWNER_APPROVAL_REQUIRED
+            else g.get("status"),
+            owner_blocker_reason="Owner approved submit — re-run registration/recovery job",
+        )
+    return {"ok": True, "group": get_group(pg_id), "ui": ui_summary()}
 
 
 @app.post("/api/m3/bidnet-auth/test-connection")
@@ -8765,6 +8823,550 @@ def api_m3_stage1_full_acceptance_run():
     return run_stage1_full_acceptance_v1()
 
 
+@app.post("/api/m3/full-production-acceptance-v2/start")
+def api_m3_full_production_acceptance_v2_start(body: dict | None = None):
+    """Fresh ≤200 E2E production acceptance — no supplier email send."""
+    from buyer_intelligence.full_production_acceptance_v2 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            allow_live=bool(payload.get("allow_live", True)),
+            score_only=bool(payload.get("score_only", False)),
+            cohort_target=int(payload.get("cohort_target") or 200),
+        ),
+    }
+
+
+@app.post("/api/m3/production-data-hygiene-cleanroom/start")
+def api_m3_production_data_hygiene_cleanroom_start(body: dict | None = None):
+    """Zero-history cleanroom acceptance + datastore hygiene."""
+    from buyer_intelligence.production_data_hygiene_cleanroom_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            cohort_target=int(payload.get("cohort_target") or 200),
+        ),
+    }
+
+
+@app.post("/api/m3/zero-history-exhaustive-live-production/start")
+def api_m3_zero_history_exhaustive_live_production_start(body: dict | None = None):
+    """Hard-reset + exhaustive live discovery + full funnel (hours OK)."""
+    from buyer_intelligence.zero_history_exhaustive_live_production_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            skip_reset=bool(payload.get("skip_reset", False)),
+            skip_discovery=bool(payload.get("skip_discovery", False)),
+            reuse_run_id=payload.get("reuse_run_id"),
+        ),
+    }
+
+
+@app.post("/api/m3/fresh-true-open-detail-package-enrichment-repair/start")
+def api_m3_fresh_true_open_enrichment_repair_start(body: dict | None = None):
+    """Enrich current-run true-open rows with source detail/packages; retest funnel."""
+    from buyer_intelligence.fresh_true_open_detail_package_enrichment_repair_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(force=bool(payload.get("force", True))),
+    }
+
+
+@app.get("/api/m3/fresh-true-open-detail-package-enrichment-repair/progress")
+def api_m3_fresh_true_open_enrichment_repair_progress():
+    from buyer_intelligence.fresh_true_open_detail_package_enrichment_repair_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/fresh-true-open-detail-package-enrichment-repair/report")
+def api_m3_fresh_true_open_enrichment_repair_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_fresh_true_open_detail_package_enrichment_repair_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/fresh-true-open-detail-package-enrichment-repair/checkpoint-50")
+def api_m3_fresh_true_open_enrichment_repair_cp50():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_fresh_true_open_enrichment_checkpoint_50_v1.json")
+    if not path.exists():
+        return {"status": "NO_CHECKPOINT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/fresh-true-open-detail-package-enrichment-repair/checkpoint-250")
+def api_m3_fresh_true_open_enrichment_repair_cp250():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_fresh_true_open_enrichment_checkpoint_250_v1.json")
+    if not path.exists():
+        return {"status": "NO_CHECKPOINT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/real-line-attrition-rfq-yield-recovery/start")
+def api_m3_real_line_attrition_rfq_yield_recovery_start(body: dict | None = None):
+    from buyer_intelligence.real_line_attrition_rfq_yield_recovery_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/real-line-attrition-rfq-yield-recovery/progress")
+def api_m3_real_line_attrition_rfq_yield_recovery_progress():
+    from buyer_intelligence.real_line_attrition_rfq_yield_recovery_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/real-line-attrition-rfq-yield-recovery/report")
+def api_m3_real_line_attrition_rfq_yield_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_real_line_attrition_rfq_yield_recovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/full-supplier-discovery-contact-rfq-production/start")
+def api_m3_full_supplier_discovery_contact_rfq_production_start(body: dict | None = None):
+    from buyer_intelligence.full_supplier_discovery_contact_rfq_production_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/full-supplier-discovery-contact-rfq-production/progress")
+def api_m3_full_supplier_discovery_contact_rfq_production_progress():
+    from buyer_intelligence.full_supplier_discovery_contact_rfq_production_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/full-supplier-discovery-contact-rfq-production/report")
+def api_m3_full_supplier_discovery_contact_rfq_production_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_supplier_discovery_contact_rfq_production_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-supplier-discovery-contact-rfq-production/queue")
+def api_m3_full_supplier_discovery_contact_rfq_production_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_supplier_owner_action_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/supplier-fit-evidence-contact-recovery/start")
+def api_m3_supplier_fit_evidence_contact_recovery_start(body: dict | None = None):
+    from buyer_intelligence.supplier_fit_evidence_contact_recovery_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/supplier-fit-evidence-contact-recovery/progress")
+def api_m3_supplier_fit_evidence_contact_recovery_progress():
+    from buyer_intelligence.supplier_fit_evidence_contact_recovery_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/supplier-fit-evidence-contact-recovery/report")
+def api_m3_supplier_fit_evidence_contact_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_supplier_fit_evidence_contact_recovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/supplier-fit-evidence-contact-recovery/queue")
+def api_m3_supplier_fit_evidence_contact_recovery_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_supplier_fit_evidence_owner_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/multi-supplier-basket-line-matching/start")
+def api_m3_multi_supplier_basket_line_matching_start(body: dict | None = None):
+    from buyer_intelligence.multi_supplier_basket_line_matching_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/multi-supplier-basket-line-matching/progress")
+def api_m3_multi_supplier_basket_line_matching_progress():
+    from buyer_intelligence.multi_supplier_basket_line_matching_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/multi-supplier-basket-line-matching/report")
+def api_m3_multi_supplier_basket_line_matching_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_multi_supplier_basket_line_matching_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/multi-supplier-basket-line-matching/queue")
+def api_m3_multi_supplier_basket_line_matching_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_multi_supplier_owner_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/award-structure-deep-supplier-recovery/start")
+def api_m3_award_structure_deep_supplier_recovery_start(body: dict | None = None):
+    from buyer_intelligence.award_structure_deep_supplier_recovery_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/award-structure-deep-supplier-recovery/progress")
+def api_m3_award_structure_deep_supplier_recovery_progress():
+    from buyer_intelligence.award_structure_deep_supplier_recovery_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/award-structure-deep-supplier-recovery/report")
+def api_m3_award_structure_deep_supplier_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_award_structure_deep_supplier_recovery_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/award-structure-deep-supplier-recovery/queue")
+def api_m3_award_structure_deep_supplier_recovery_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_award_structure_deep_supplier_owner_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/maximum-evidence-extraction-full-funnel/start")
+def api_m3_maximum_evidence_extraction_full_funnel_start(body: dict | None = None):
+    from buyer_intelligence.maximum_evidence_extraction_full_funnel_v1 import start_job
+
+    payload = body or {}
+    return {"build_version": APP_BUILD_VERSION, **start_job(force=bool(payload.get("force", True)))}
+
+
+@app.get("/api/m3/maximum-evidence-extraction-full-funnel/progress")
+def api_m3_maximum_evidence_extraction_full_funnel_progress():
+    from buyer_intelligence.maximum_evidence_extraction_full_funnel_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/maximum-evidence-extraction-full-funnel/report")
+def api_m3_maximum_evidence_extraction_full_funnel_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_maximum_evidence_full_funnel_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/maximum-evidence-extraction-full-funnel/queue")
+def api_m3_maximum_evidence_extraction_full_funnel_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_maximum_evidence_owner_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/maximum-evidence-extraction-full-funnel/stop")
+def api_m3_maximum_evidence_extraction_full_funnel_stop():
+    from buyer_intelligence.maximum_evidence_extraction_full_funnel_v1 import request_stop
+
+    return {"build_version": APP_BUILD_VERSION, **request_stop()}
+
+
+@app.post("/api/m3/high-throughput-max-evidence-engine/start")
+def api_m3_high_throughput_max_evidence_engine_start(body: dict | None = None):
+    from buyer_intelligence.high_throughput_max_evidence_engine_v2 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", False)),
+            validate_first=bool(payload.get("validate_first", True)),
+        ),
+    }
+
+
+@app.get("/api/m3/high-throughput-max-evidence-engine/progress")
+def api_m3_high_throughput_max_evidence_engine_progress():
+    from buyer_intelligence.high_throughput_max_evidence_engine_v2 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/high-throughput-max-evidence-engine/report")
+def api_m3_high_throughput_max_evidence_engine_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_ht_max_evidence_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/high-throughput-max-evidence-engine/stop")
+def api_m3_high_throughput_max_evidence_engine_stop():
+    from buyer_intelligence.high_throughput_max_evidence_engine_v2 import request_stop
+
+    return {"build_version": APP_BUILD_VERSION, **request_stop()}
+
+
+@app.get("/api/m3/high-throughput-max-evidence-engine/queue")
+def api_m3_high_throughput_max_evidence_engine_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_ht_max_evidence_v2_owner_queue.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.get("/api/m3/zero-history-exhaustive-live-production/progress")
+def api_m3_zero_history_exhaustive_live_production_progress():
+    from buyer_intelligence.zero_history_exhaustive_live_production_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/zero-history-exhaustive-live-production/report")
+def api_m3_zero_history_exhaustive_live_production_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_zero_history_exhaustive_live_production_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/zero-history-exhaustive-live-production/actionable")
+def api_m3_zero_history_exhaustive_live_production_actionable():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_zero_history_exhaustive_actionable_v1.json")
+    if not path.exists():
+        return {"status": "NO_ACTIONABLE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.get("/api/m3/production-data-hygiene-cleanroom/progress")
+def api_m3_production_data_hygiene_cleanroom_progress():
+    from buyer_intelligence.production_data_hygiene_cleanroom_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/production-data-hygiene-cleanroom/report")
+def api_m3_production_data_hygiene_cleanroom_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_production_data_hygiene_cleanroom_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/production-data-hygiene-cleanroom/inventory")
+def api_m3_production_data_hygiene_cleanroom_inventory():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_production_data_hygiene_cleanroom_v1_inventory.json")
+    if not path.exists():
+        return {"status": "NO_INVENTORY", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-production-acceptance-v2/progress")
+def api_m3_full_production_acceptance_v2_progress():
+    from buyer_intelligence.full_production_acceptance_v2 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/full-production-acceptance-v2/report")
+def api_m3_full_production_acceptance_v2_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_production_acceptance_v2_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-production-acceptance-v2/cohort")
+def api_m3_full_production_acceptance_v2_cohort():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_production_acceptance_v2_cohort.json")
+    if not path.exists():
+        return {"status": "NO_COHORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-production-acceptance-v2/actionable")
+def api_m3_full_production_acceptance_v2_actionable():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_full_production_acceptance_v2_actionable.json")
+    if not path.exists():
+        return {"status": "NO_ACTIONABLE", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
 @app.get("/api/m3/stage1-full-acceptance/report")
 def api_m3_stage1_full_acceptance_report():
     import json
@@ -9397,6 +9999,346 @@ def api_m3_free_source_pool_truth_audit_shortlist():
     path = data_path("M3_FREE_SOURCE_VALIDATED_SHORTLIST_V1.json")
     if not path.exists():
         return {"status": "NO_SHORTLIST", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/product-definition-recovery/start")
+def api_m3_product_definition_recovery_start(body: dict | None = None):
+    """Recover product definition on top 100 non-quote-ready lines — no broad discovery."""
+    from buyer_intelligence.product_definition_recovery_quote_ready_v2 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            allow_live=bool(payload.get("allow_live", True)),
+        ),
+    }
+
+
+@app.get("/api/m3/product-definition-recovery/progress")
+def api_m3_product_definition_recovery_progress():
+    from buyer_intelligence.product_definition_recovery_quote_ready_v2 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/product-definition-recovery/report")
+def api_m3_product_definition_recovery_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_product_definition_recovery_v2_report.json")
+    job = data_path("m3_product_definition_recovery_v2_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.get("/api/m3/product-definition-recovery/rfq")
+def api_m3_product_definition_recovery_rfq():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_ready_to_request_supplier_quotes_v2.json")
+    if not path.exists():
+        return {"status": "NO_RFQ", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/product-definition-recovery/failures")
+def api_m3_product_definition_recovery_failures():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_product_definition_failure_queue_v2.json")
+    if not path.exists():
+        return {"status": "NO_FAILURES", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/rfq-pre-send-first-batch/start")
+def api_m3_rfq_pre_send_first_batch_start(body: dict | None = None):
+    """Validate RFQ-ready queue and prepare first owner-approval outreach batch."""
+    from buyer_intelligence.rfq_pre_send_validation_first_batch_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(force=bool(payload.get("force", True))),
+    }
+
+
+@app.get("/api/m3/rfq-pre-send-first-batch/progress")
+def api_m3_rfq_pre_send_first_batch_progress():
+    from buyer_intelligence.rfq_pre_send_validation_first_batch_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/rfq-pre-send-first-batch/report")
+def api_m3_rfq_pre_send_first_batch_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_rfq_pre_send_first_batch_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/rfq-pre-send-first-batch/batch")
+def api_m3_rfq_pre_send_first_batch_batch():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_rfq_first_batch_v1.json")
+    if not path.exists():
+        return {"status": "NO_BATCH", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/rfq-pre-send-first-batch/owner-action")
+def api_m3_rfq_pre_send_first_batch_owner_action(body: dict | None = None):
+    """Owner APPROVE_SEND / EDIT / HOLD / REMOVE — never auto-sends."""
+    from buyer_intelligence.rfq_pre_send_validation_first_batch_v1 import owner_action
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **owner_action(
+            str(payload.get("packet_id") or ""),
+            str(payload.get("action") or ""),
+            recipient=payload.get("recipient"),
+            dry_run=bool(payload.get("dry_run", True)),
+        ),
+    }
+
+
+@app.post("/api/m3/rfq-send-channel-recipient/start")
+def api_m3_rfq_send_channel_recipient_start(body: dict | None = None):
+    """Resolve verified recipients + audit send channel for first-batch RFQs."""
+    from buyer_intelligence.rfq_send_channel_recipient_resolution_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            self_test_live=bool(payload.get("self_test_live", False)),
+        ),
+    }
+
+
+@app.get("/api/m3/rfq-send-channel-recipient/progress")
+def api_m3_rfq_send_channel_recipient_progress():
+    from buyer_intelligence.rfq_send_channel_recipient_resolution_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/rfq-send-channel-recipient/report")
+def api_m3_rfq_send_channel_recipient_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_rfq_send_channel_recipient_resolution_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/rfq-send-channel-recipient/resolved")
+def api_m3_rfq_send_channel_recipient_resolved():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_rfq_first_batch_resolved_v1.json")
+    if not path.exists():
+        return {"status": "NO_RESOLVED", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/outbound-email-self-test-first5/start")
+def api_m3_outbound_email_self_test_first5_start(body: dict | None = None):
+    """Audit email config, owner self-test only, mark first 5 RFQs ready."""
+    from buyer_intelligence.outbound_email_self_test_first5_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            self_test_live=bool(payload.get("self_test_live", True)),
+        ),
+    }
+
+
+@app.get("/api/m3/outbound-email-self-test-first5/progress")
+def api_m3_outbound_email_self_test_first5_progress():
+    from buyer_intelligence.outbound_email_self_test_first5_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/outbound-email-self-test-first5/report")
+def api_m3_outbound_email_self_test_first5_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_outbound_email_self_test_first5_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/outbound-email-self-test-first5/health")
+def api_m3_outbound_email_self_test_first5_health():
+    import json
+
+    from buyer_intelligence.outbound_email_self_test_first5_v1 import audit_email_env
+    from buyer_intelligence.quote_outreach_send_channel_v1 import outbound_email_health
+    from m3_data_root import data_path
+
+    last = None
+    p = data_path("m3_outbound_email_self_test_v1.json")
+    if p.exists():
+        last = json.loads(p.read_text(encoding="utf-8"))
+    health = outbound_email_health(last_self_test=last)
+    health["ENV_PRESENCE"] = audit_email_env()
+    health["build_version"] = APP_BUILD_VERSION
+    health["do_not_send_automatically"] = True
+    return health
+
+
+@app.get("/api/m3/outbound-email-self-test-first5/ready")
+def api_m3_outbound_email_self_test_first5_ready():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_first5_rfq_ready_for_owner_v1.json")
+    if not path.exists():
+        return {"status": "NO_READY", "build_version": APP_BUILD_VERSION, "do_not_send_automatically": True}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["do_not_send_automatically"] = True
+    return data
+
+
+@app.post("/api/m3/opengov-line-spec-supplier-ready/start")
+def api_m3_opengov_line_spec_supplier_ready_start(body: dict | None = None):
+    """Start OpenGov line/spec → supplier-ready quote packet job (60m wall)."""
+    from buyer_intelligence.opengov_line_spec_supplier_ready_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", True)),
+            allow_live=bool(payload.get("allow_live", True)),
+        ),
+    }
+
+
+@app.get("/api/m3/opengov-line-spec-supplier-ready/progress")
+def api_m3_opengov_line_spec_supplier_ready_progress():
+    from buyer_intelligence.opengov_line_spec_supplier_ready_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/opengov-line-spec-supplier-ready/report")
+def api_m3_opengov_line_spec_supplier_ready_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_opengov_line_spec_supplier_ready_v1_report.json")
+    job = data_path("m3_opengov_line_spec_supplier_ready_v1_job.json")
+    out: dict = {"build_version": APP_BUILD_VERSION}
+    if job.exists():
+        out["job"] = json.loads(job.read_text(encoding="utf-8"))
+    if not path.exists():
+        out["status"] = "NO_REPORT"
+        return out
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    data["job"] = out.get("job")
+    return data
+
+
+@app.get("/api/m3/opengov-line-spec-supplier-ready/queue")
+def api_m3_opengov_line_spec_supplier_ready_queue():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_supplier_quote_ready_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_QUEUE", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/opengov-line-spec-supplier-ready/research")
+def api_m3_opengov_line_spec_supplier_ready_research():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_spec_identity_research_queue_v1.json")
+    if not path.exists():
+        return {"status": "NO_RESEARCH", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/opengov-line-spec-supplier-ready/cohort")
+def api_m3_opengov_line_spec_supplier_ready_cohort():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_supplier_ready_identity_cohort_v1.json")
+    if not path.exists():
+        return {"status": "NO_COHORT", "build_version": APP_BUILD_VERSION}
     data = json.loads(path.read_text(encoding="utf-8"))
     data["build_version"] = APP_BUILD_VERSION
     return data

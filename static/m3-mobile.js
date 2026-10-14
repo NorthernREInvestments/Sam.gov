@@ -1257,6 +1257,66 @@
       } catch (_) {
         /* non-fatal */
       }
+      let pgHtml = "<p class='muted'>No purchasing-group tracker yet.</p>";
+      try {
+        const pg = await fetchJson("/api/m3/bidnet-auth/purchasing-groups");
+        const m = pg.metrics || {};
+        const pending = pg.pending_owner_actions || [];
+        const groups = (pg.groups || []).slice(0, 12);
+        const rows = groups
+          .map((g) => {
+            const next =
+              g.status === "OWNER_APPROVAL_REQUIRED"
+                ? g.owner_blocker_reason || "Owner action needed"
+                : g.status === "PAID_REQUIRED"
+                  ? "Payment / subscription — do not auto-pay"
+                  : g.status === "PREPARED"
+                    ? "Prepared — approve submit or set auto-submit"
+                    : g.status === "REGISTERED"
+                      ? "Registered"
+                      : g.status || "—";
+            return `<tr>
+              <td>${esc(g.name || g.purchasing_group_id || "—")}</td>
+              <td>${esc(g.status || "—")}</td>
+              <td>${esc(g.live_eligible_opportunity_count ?? "—")}</td>
+              <td>${esc(g.solicitations_unlocked ?? 0)}</td>
+              <td>${esc(next)}</td>
+            </tr>`;
+          })
+          .join("");
+        const pendingList = pending.length
+          ? `<ul class="m3-bom">${pending
+              .map(
+                (a) =>
+                  `<li><strong>${esc(a.name || a.purchasing_group_id)}</strong> — ${esc(a.reason || "action required")}
+                  <button type="button" class="btn m3-pg-approve" data-pg="${esc(a.purchasing_group_id)}">Approve submit</button></li>`
+              )
+              .join("")}</ul>`
+          : "<p class='muted'>No pending owner actions.</p>";
+        pgHtml = `
+          <div class="meta-row">
+            <span>Relevant: <strong>${esc(m.relevant ?? 0)}</strong></span>
+            <span>Registered: <strong>${esc(m.registered ?? 0)}</strong></span>
+            <span>Incomplete: <strong>${esc(m.incomplete ?? 0)}</strong></span>
+            <span>Owner approval: <strong>${esc(m.owner_approval_required ?? 0)}</strong></span>
+            <span>Paid required: <strong>${esc(m.paid_required ?? 0)}</strong></span>
+            <span>Errors: <strong>${esc(m.failures ?? 0)}</strong></span>
+          </div>
+          <div class="meta-row">
+            <span>Potentially unlocked: <strong>${esc(m.opportunities_potentially_unlocked ?? 0)}</strong></span>
+            <span>Actually unlocked: <strong>${esc(m.solicitations_unlocked ?? 0)}</strong></span>
+          </div>
+          <p class="muted">${esc(pg.operator_note || "")}</p>
+          <button type="button" class="btn" id="m3-pg-audit-btn">Refresh opportunity counts</button>
+          <p class="muted" id="m3-pg-msg"></p>
+          <h4>Pending owner actions</h4>
+          ${pendingList}
+          <table class="m3-table"><thead><tr>
+            <th>Group</th><th>Status</th><th>Live opps</th><th>Unlocked</th><th>Next action</th>
+          </tr></thead><tbody>${rows || "<tr><td colspan='5'>No groups tracked yet.</td></tr>"}</tbody></table>`;
+      } catch (_) {
+        pgHtml = "<p class='muted'>Unable to load purchasing-group access.</p>";
+      }
       body.innerHTML = `
         <article class="m3-info-card">
           <h3>Procurement profile</h3>
@@ -1264,6 +1324,10 @@
           <p class="muted">Isolated from legacy acquisition: ${p.isolated_from_legacy_acquisition ? "yes" : "no"}</p>
           <p class="muted">NAICS as primary discovery filter: ${disc.naics_is_primary_filter ? "yes" : "no"}</p>
           <p class="muted">Isolation check: ${iso.ok ? "PASS" : "FAIL"}</p>
+        </article>
+        <article class="m3-info-card">
+          <h3>Purchasing Group Access</h3>
+          ${pgHtml}
         </article>
         <article class="m3-info-card">
           <h3>Portal credentials</h3>
@@ -1313,6 +1377,35 @@
           }
         });
       }
+      const auditBtn = document.getElementById("m3-pg-audit-btn");
+      if (auditBtn) {
+        auditBtn.addEventListener("click", async () => {
+          const msg = document.getElementById("m3-pg-msg");
+          try {
+            await postJson("/api/m3/bidnet-auth/purchasing-groups/audit", {});
+            if (msg) msg.textContent = "Opportunity counts refreshed.";
+            await loadM3Settings(true);
+          } catch (_) {
+            if (msg) msg.textContent = "Audit failed.";
+          }
+        });
+      }
+      body.querySelectorAll(".m3-pg-approve").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const pg = btn.getAttribute("data-pg");
+          const msg = document.getElementById("m3-pg-msg");
+          try {
+            await postJson("/api/m3/bidnet-auth/purchasing-groups/approve-submit", {
+              purchasing_group_id: pg,
+              owner_approved_submit: true,
+            });
+            if (msg) msg.textContent = "Submit approved — next recovery job may Save the form.";
+            await loadM3Settings(true);
+          } catch (_) {
+            if (msg) msg.textContent = "Unable to record approval.";
+          }
+        });
+      });
     } catch (e) {
       const body = document.getElementById("m3-settings-body");
       if (body) body.innerHTML = `<p class="m3-empty">${esc(e.message || "Unable to load M3 profile")}</p>`;

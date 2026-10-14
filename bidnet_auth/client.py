@@ -112,11 +112,15 @@ class BidNetAuthenticatedClient:
             self.last_result = result
             record_auth_event(DISABLED, failure_reason="disabled")
             return result
-        if not cfg.credentials_present:
+
+        # Internal repair: allow SESSION REUSE without credentials.
+        # Credentials are required only for fresh login / refresh.
+        has_session = load_storage_state() is not None
+        if not cfg.credentials_present and not has_session:
             result = AuthResult(
                 status=AUTH_FAILED,
                 authenticated=False,
-                message="BIDNET_USERNAME/BIDNET_PASSWORD not configured",
+                message="EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED: BIDNET_USERNAME/BIDNET_PASSWORD not configured and no stored session",
             )
             self.last_result = result
             record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
@@ -135,8 +139,8 @@ class BidNetAuthenticatedClient:
             log.warning("BidNet browser unavailable: %s", type(exc).__name__)
             return result
 
-        # 1) Try existing session
-        if load_storage_state() is not None:
+        # 1) Try existing session (works even when credentials absent)
+        if has_session:
             probe = self._probe_authenticated()
             if probe.get("challenge"):
                 result = AuthResult(
@@ -161,16 +165,39 @@ class BidNetAuthenticatedClient:
                 return result
             log.info("BidNet stored session expired — automatic login required")
             record_auth_event(EXPIRED, failure_reason="session_expired")
+            if not cfg.credentials_present:
+                result = AuthResult(
+                    status=EXPIRED,
+                    authenticated=False,
+                    message="EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED: stored session expired and no credentials for refresh",
+                )
+                self.last_result = result
+                record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
+                return result
 
-        # 2) Automatic login
+        # 2) Automatic login (requires credentials)
+        if not cfg.credentials_present:
+            result = AuthResult(
+                status=AUTH_FAILED,
+                authenticated=False,
+                message="EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED: BIDNET_USERNAME/BIDNET_PASSWORD not configured",
+            )
+            self.last_result = result
+            record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
+            return result
         login = self._perform_login()
         self.last_result = login
         return login
 
-    def fetch_html(self, url: str, *, timeout_ms: int = 90_000, prefer_http: bool = True) -> str:
-        """Fetch HTML. Prefer authenticated HTTP request; fall back to page navigation."""
+    def fetch_html(self, url: str, *, timeout_ms: int = 20_000, prefer_http: bool = True) -> str:
+        """Fetch HTML. Prefer authenticated HTTP request; fall back to page navigation.
+
+        Defaults are capped so a 45s per-opportunity budget remains feasible.
+        Never waits on networkidle longer than 3s.
+        """
         if not self.is_authenticated:
             raise RuntimeError("BidNet client is not authenticated")
+        timeout_ms = max(1_000, min(int(timeout_ms), 45_000))
         if prefer_http and self._context is not None:
             try:
                 resp = self._context.request.get(url, timeout=timeout_ms)
@@ -193,6 +220,10 @@ class BidNetAuthenticatedClient:
                         )
                     ):
                         return html
+                    # Any substantial HTML response is good enough — do not fall through
+                    # to Playwright navigation (was the main unbounded hang source).
+                    if html and len(html) >= 800:
+                        return html
             except RuntimeError:
                 raise
             except Exception as exc:
@@ -201,20 +232,17 @@ class BidNetAuthenticatedClient:
         assert self._page is not None
         self._page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         try:
-            self._page.wait_for_load_state("networkidle", timeout=12_000)
+            self._page.wait_for_load_state("networkidle", timeout=3_000)
         except Exception:
             pass
-        # Wait for abstract / solicitation content markers (member view)
+        # One short content-marker wait only (was up to 5 × 5s)
         for sel in (
             ".mets-field-body",
-            "h1",
             "#ai-public-overview-content",
-            "text=Issuing Organization",
-            "text=Closing Date",
             "text=Solicitation Number",
         ):
             try:
-                self._page.wait_for_selector(sel, timeout=5_000)
+                self._page.wait_for_selector(sel, timeout=2_000)
                 break
             except Exception:
                 continue
@@ -224,7 +252,7 @@ class BidNetAuthenticatedClient:
             raise RuntimeError(f"AUTH_CHALLENGE:{challenge}")
         return html
 
-    def download_bytes(self, url: str, *, timeout_ms: int = 90_000) -> bytes | None:
+    def download_bytes(self, url: str, *, timeout_ms: int = 25_000) -> bytes | None:
         if not self.is_authenticated or self._context is None:
             return None
 
@@ -267,8 +295,8 @@ class BidNetAuthenticatedClient:
         # 2) Browser download: many BidNet attachment URLs only emit bytes via navigation
         if self._page is not None:
             try:
-                with self._page.expect_download(timeout=min(timeout_ms, 90_000)) as dl_info:
-                    self._page.goto(url, wait_until="commit", timeout=timeout_ms)
+                with self._page.expect_download(timeout=min(timeout_ms, 25_000)) as dl_info:
+                    self._page.goto(url, wait_until="commit", timeout=min(timeout_ms, 25_000))
                 download = dl_info.value
                 path = download.path()
                 if path:
@@ -291,7 +319,7 @@ class BidNetAuthenticatedClient:
 
         return api_html
 
-    def discover_attachment_links(self, detail_url: str, *, timeout_ms: int = 75_000) -> list[dict[str, Any]]:
+    def discover_attachment_links(self, detail_url: str, *, timeout_ms: int = 20_000) -> list[dict[str, Any]]:
         """DOM-scrape BidNet detail/documents UI for real attachment hrefs (not viewer HTML)."""
         if not self.is_authenticated or self._page is None or not detail_url:
             return []
@@ -332,15 +360,27 @@ class BidNetAuthenticatedClient:
                 if response.status != 200:
                     return
                 low = u.lower()
+                # Reject static assets / JS interceptors masquerading as "intercept"
                 if any(
                     x in low
                     for x in (
-                        "download",
+                        "/jawr/",
+                        "interceptor.js",
+                        ".js?",
+                        ".css",
+                        "/solicitations/search",
+                        "subscription-management",
+                    )
+                ):
+                    return
+                if any(
+                    x in low
+                    for x in (
+                        "download/intercept",
                         "getfile",
                         "attachment",
-                        "document",
                         "fileid",
-                        "intercept",
+                        "docid",
                         ".pdf",
                         ".xlsx",
                         ".xls",
@@ -462,9 +502,17 @@ class BidNetAuthenticatedClient:
                     return
             if not href.startswith("http") or href in seen:
                 return
+            # Reject static JS/CSS/search pages (interceptor.js previously matched "intercept")
+            if re.search(
+                r"\.(js|css|map|png|jpe?g|gif|svg|woff2?)(?:$|\?)|/jawr/|interceptor\.js|"
+                r"/solicitations/search|subscription-management",
+                href,
+                re.I,
+            ):
+                return
             # Prefer file-like or download endpoints
             if not re.search(
-                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download|attachment|document|fileId|docId|getFile|solicitation|intercept",
+                r"\.(pdf|docx?|xlsx?|csv|zip)(?:$|\?)|download/intercept|attachment|fileId|docId|getFile",
                 href,
                 re.I,
             ):
@@ -672,11 +720,147 @@ class BidNetAuthenticatedClient:
         )
         return found[:40]
 
+    def resolve_detail_via_authenticated_search(
+        self,
+        *,
+        title: str,
+        source_url: str | None = None,
+        search_html: str | None = None,
+        timeout_ms: int = 20_000,
+    ) -> dict[str, Any]:
+        """Navigate BidNet private search → interception gateway → solicitation detail.
+
+        Root-cause repair: authenticated GETs of statewide/open-bids sources land on
+        `/private/supplier/solicitations/search`. Result rows use
+        `/private/supplier/interception/open-solicitation/{id}?target=view`
+        (class solicitationsTitleLink), not direct /private/supplier/solicitations/{id}/view.
+        """
+        from urllib.parse import quote
+
+        from bidnet_engine.package_materialization import (
+            extract_search_result_interception_links,
+            is_bidnet_search_page_url,
+            is_bidnet_solicitation_detail_url,
+        )
+
+        if not self.is_authenticated or self._page is None:
+            return {"ok": False, "status": "NOT_AUTHENTICATED"}
+
+        q = re.sub(r"\s+", " ", (title or "").strip())[:120]
+        timeout_ms = max(1_000, min(int(timeout_ms), 45_000))
+        html = search_html or ""
+
+        # If caller already has search HTML, parse it first (no extra navigation)
+        candidates = extract_search_result_interception_links(html, title_hint=q) if html else []
+
+        if not candidates and q:
+            search_urls = [
+                f"https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init&keywords={quote(q)}",
+                f"https://www.bidnetdirect.com/private/supplier/solicitations/search?keywords={quote(q)}",
+            ]
+            for su in search_urls:
+                try:
+                    html = self.fetch_html(su, timeout_ms=timeout_ms, prefer_http=False) or ""
+                    # Prefer page content after JS (title links)
+                    try:
+                        html = self._page.content() or html
+                    except Exception:
+                        pass
+                    candidates = extract_search_result_interception_links(html, title_hint=q)
+                    if candidates:
+                        break
+                    # Keyword box + Search button (textarea#solicitationSingleBoxSearch)
+                    try:
+                        box = self._page.locator("#solicitationSingleBoxSearch")
+                        if box.count():
+                            box.first.fill(q, timeout=3_000)
+                            btn = self._page.locator("#topSearchButton")
+                            if btn.count():
+                                btn.first.click(timeout=3_000)
+                            else:
+                                box.first.press("Enter")
+                            self._page.wait_for_timeout(1_500)
+                            html = self._page.content() or html
+                            candidates = extract_search_result_interception_links(html, title_hint=q)
+                            if candidates:
+                                break
+                    except Exception:
+                        pass
+                except Exception as exc:
+                    log.debug("search navigate failed: %s", type(exc).__name__)
+                    continue
+
+        if not candidates:
+            return {
+                "ok": False,
+                "status": "NO_INTERCEPTION_RESULT",
+                "source_url": (source_url or "")[:160] or None,
+                "query": q or None,
+            }
+
+        # Prefer open-solicitation over view-notice
+        ordered = sorted(
+            candidates,
+            key=lambda r: (0 if r.get("kind") == "open_solicitation" else 1),
+        )
+        last_err = None
+        for cand in ordered[:4]:
+            href = str(cand.get("href") or "")
+            if not href:
+                continue
+            try:
+                self._page.goto(href, wait_until="domcontentloaded", timeout=timeout_ms)
+                try:
+                    self._page.wait_for_load_state("networkidle", timeout=3_000)
+                except Exception:
+                    pass
+                try:
+                    self._page.wait_for_timeout(600)
+                except Exception:
+                    pass
+                final = str(self._page.url or "")
+                detail_html = self._page.content() or ""
+                if is_bidnet_search_page_url(final):
+                    last_err = "STILL_SEARCH"
+                    continue
+                if not (
+                    is_bidnet_solicitation_detail_url(final)
+                    or re.search(r"/private/solicitations/\d+", final, re.I)
+                    or "action is required before access" in detail_html.lower()
+                    or re.search(r"<h1[^>]*>[^<]{5,}", detail_html, re.I)
+                ):
+                    last_err = "NOT_DETAIL"
+                    continue
+                return {
+                    "ok": True,
+                    "status": "DETAIL_OPENED",
+                    "via": "interception_open_solicitation",
+                    "interception_href": href[:220],
+                    "detail_url": final[:220],
+                    "solicitation_id": cand.get("solicitation_id"),
+                    "result_title": (cand.get("title") or "")[:160] or None,
+                    "html": detail_html,
+                    "access_gate": (
+                        "ACTION_REQUIRED"
+                        if "action is required before access" in detail_html.lower()
+                        else None
+                    ),
+                }
+            except Exception as exc:
+                last_err = type(exc).__name__
+                continue
+        return {
+            "ok": False,
+            "status": last_err or "INTERCEPTION_NAV_FAILED",
+            "query": q or None,
+            "candidates": len(ordered),
+        }
+
     def discover_attachments_by_title(
         self,
         title: str,
         *,
-        timeout_ms: int = 75_000,
+        timeout_ms: int = 20_000,
     ) -> list[dict[str, Any]]:
         """When detail URL variants 404/Welcome, search private BidNet by title/id then scrape docs."""
         if not self.is_authenticated or self._page is None:
@@ -686,118 +870,27 @@ class BidNetAuthenticatedClient:
         if len(q) < 6 and not re.fullmatch(r"\d{6,}", q):
             return []
         q = re.sub(r"\s+", " ", q)[:120]
-        from urllib.parse import quote, urljoin
 
-        search_urls = [
-            f"https://www.bidnetdirect.com/private/supplier/solicitations/search?keywords={quote(q)}",
-            f"https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init&keywords={quote(q)}",
-            "https://www.bidnetdirect.com/private/supplier/solicitations/search?target=init",
-            "https://www.bidnetdirect.com/private/supplier/solicitations/open-bids",
-        ]
         try:
-            for su in search_urls:
-                try:
-                    html, payloads = self.navigate_and_collect_json(su, timeout_ms=timeout_ms)
-                except Exception:
-                    try:
-                        html = self.fetch_html(su, timeout_ms=timeout_ms)
-                        payloads = []
-                    except Exception:
-                        continue
-                # Resolve solicitation ids from captured JSON first
-                for payload in payloads or []:
-                    try:
-                        blob = str(payload) if not isinstance(payload, str) else payload
-                        ids = re.findall(
-                            r"[\"'](?:solicitationId|id)[\"']\s*:\s*[\"']?(\d{6,})",
-                            blob,
-                            re.I,
-                        )
-                        for sid in ids[:5]:
-                            priv = f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view"
-                            docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
-                            if docs:
-                                return docs
-                    except Exception:
-                        continue
-                # Fill search box when URL keywords alone didn't land results
-                filled = False
-                for sel in (
-                    "input[type='search']",
-                    "input[name*='search' i]",
-                    "input[name*='keyword' i]",
-                    "input[id*='search' i]",
-                    "input[id*='keyword' i]",
-                    "input[placeholder*='Search' i]",
-                    "input[placeholder*='Keyword' i]",
-                    "textarea[name*='search' i]",
-                ):
-                    try:
-                        loc = self._page.locator(sel)
-                        if loc.count() == 0:
-                            continue
-                        box = loc.first
-                        box.fill(q, timeout=3_000)
-                        box.press("Enter")
-                        self._page.wait_for_timeout(2_000)
-                        filled = True
-                        break
-                    except Exception:
-                        continue
-                if not filled and "keywords=" not in su:
-                    continue
-                # Prefer private solicitation links; fall back to open-bids
-                try:
-                    links = self._page.locator(
-                        "a[href*='/private/supplier/solicitations/'], "
-                        "a[href*='/solicitations/open-bids/'], "
-                        "a[href*='/solicitations/']"
-                    ).all()
-                    tokens = [t for t in re.split(r"\W+", q.lower()) if len(t) >= 4][:8]
-                    numeric = bool(re.fullmatch(r"\d{6,}", q))
-                    ranked: list[tuple[int, str]] = []
-                    for a in links[:40]:
-                        try:
-                            href = a.get_attribute("href") or ""
-                            text = (a.inner_text() or "").strip()
-                            if not href or "/search" in href.lower():
-                                continue
-                            hay = (text + " " + href).lower()
-                            if numeric:
-                                score = 10 if q in hay else 0
-                            else:
-                                score = sum(1 for t in tokens if t in hay)
-                                if tokens and score < max(1, min(2, len(tokens) // 3)):
-                                    continue
-                            if "/private/supplier/solicitations/" in href:
-                                score += 5
-                            if score <= 0:
-                                continue
-                            ranked.append((score, urljoin(self._page.url or su, href)))
-                        except Exception:
-                            continue
-                    ranked.sort(key=lambda x: -x[0])
-                    for _score, abs_u in ranked[:6]:
-                        docs = self.discover_attachment_links(abs_u, timeout_ms=timeout_ms)
+            resolved = self.resolve_detail_via_authenticated_search(
+                title=q, timeout_ms=timeout_ms
+            )
+            if resolved.get("ok") and resolved.get("detail_url"):
+                detail = str(resolved["detail_url"])
+                docs = self.discover_attachment_links(detail, timeout_ms=timeout_ms) or []
+                if docs:
+                    return docs
+                # Also try private supplier documents path from solicitation id
+                sid = resolved.get("solicitation_id")
+                if sid:
+                    for cand in (
+                        f"https://www.bidnetdirect.com/private/solicitations/{sid}/documents",
+                        f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/documents",
+                        f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid}/view",
+                    ):
+                        docs = self.discover_attachment_links(cand, timeout_ms=timeout_ms) or []
                         if docs:
                             return docs
-                except Exception:
-                    continue
-                # Last resort: scrape current HTML for private ids
-                try:
-                    from bidnet_engine.package_materialization import (
-                        extract_private_solicitation_refs_from_html,
-                    )
-
-                    refs = extract_private_solicitation_refs_from_html(
-                        html or (self._page.content() or ""), base_url=self._page.url or su
-                    )
-                    for priv in refs[:4]:
-                        docs = self.discover_attachment_links(priv, timeout_ms=timeout_ms)
-                        if docs:
-                            return docs
-                except Exception:
-                    pass
         except Exception as exc:
             log.info("discover_attachments_by_title failed: %s", type(exc).__name__)
         return []
@@ -808,7 +901,7 @@ class BidNetAuthenticatedClient:
         *,
         title: str | None = None,
         statewide_id: str | None = None,
-        timeout_ms: int = 75_000,
+        timeout_ms: int = 20_000,
     ) -> list[dict[str, Any]]:
         """Resolve statewide abstract → private solicitation → attachment hrefs.
 
@@ -924,7 +1017,7 @@ class BidNetAuthenticatedClient:
             return best[:40]
         return merged[:40]
 
-    def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 90_000) -> tuple[str, list[Any]]:
+    def navigate_and_collect_json(self, url: str, *, timeout_ms: int = 25_000) -> tuple[str, list[Any]]:
         """Navigate URL and capture JSON XHR/fetch payloads for structured harvest."""
         if not self.is_authenticated:
             raise RuntimeError("BidNet client is not authenticated")
@@ -981,14 +1074,20 @@ class BidNetAuthenticatedClient:
             kwargs["storage_state"] = state
         self._context = self._browser.new_context(**kwargs)
         self._page = self._context.new_page()
+        # Hard caps — individual calls may still pass lower timeouts
+        try:
+            self._page.set_default_timeout(15_000)
+            self._page.set_default_navigation_timeout(20_000)
+        except Exception:
+            pass
 
     def _probe_authenticated(self) -> dict[str, Any]:
         assert self._page is not None
         url = self.config.verify_url
         try:
-            self._page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+            self._page.goto(url, wait_until="domcontentloaded", timeout=20_000)
             try:
-                self._page.wait_for_load_state("networkidle", timeout=12_000)
+                self._page.wait_for_load_state("networkidle", timeout=3_000)
             except Exception:
                 pass
         except Exception as exc:
@@ -1040,9 +1139,9 @@ class BidNetAuthenticatedClient:
         cfg = self.config
         record_auth_event(LOGIN_REQUIRED, login_attempt=True)
         try:
-            self._page.goto(cfg.login_url, wait_until="domcontentloaded", timeout=60_000)
+            self._page.goto(cfg.login_url, wait_until="domcontentloaded", timeout=25_000)
             try:
-                self._page.wait_for_load_state("networkidle", timeout=15_000)
+                self._page.wait_for_load_state("networkidle", timeout=3_000)
             except Exception:
                 pass
         except Exception as exc:
@@ -1091,11 +1190,16 @@ class BidNetAuthenticatedClient:
                 record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
                 return result
             try:
-                self._page.wait_for_load_state("domcontentloaded", timeout=45_000)
+                self._page.wait_for_load_state("domcontentloaded", timeout=25_000)
             except Exception:
                 pass
             try:
-                self._page.wait_for_load_state("networkidle", timeout=20_000)
+                self._page.wait_for_load_state("networkidle", timeout=8_000)
+            except Exception:
+                pass
+            # Login redirects can still be in-flight after networkidle
+            try:
+                self._page.wait_for_timeout(800)
             except Exception:
                 pass
         except Exception as exc:
@@ -1108,8 +1212,30 @@ class BidNetAuthenticatedClient:
             record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
             return result
 
-        html = self._page.content()
-        current = self._page.url or ""
+        html = ""
+        current = ""
+        for _ in range(4):
+            try:
+                current = self._page.url or ""
+                html = self._page.content()
+                break
+            except Exception:
+                try:
+                    self._page.wait_for_load_state("domcontentloaded", timeout=5_000)
+                except Exception:
+                    pass
+                try:
+                    self._page.wait_for_timeout(500)
+                except Exception:
+                    pass
+        if not html:
+            result = AuthResult(
+                status=AUTH_FAILED,
+                authenticated=False,
+                message="login_content_unavailable_after_submit",
+            )
+            record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
+            return result
         challenge = self._detect_challenge(html, current)
         if challenge:
             result = AuthResult(

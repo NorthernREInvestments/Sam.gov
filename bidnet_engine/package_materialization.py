@@ -59,9 +59,45 @@ def is_bidnet_download_endpoint(url: str) -> bool:
     )
 
 
+def is_bidnet_search_page_url(url: str) -> bool:
+    """True for authenticated solicitation *search* listing pages (not a detail).
+
+    Verified: authenticated GETs of statewide/open-bids sources often land on
+    `/private/supplier/solicitations/search` — that must never count as detail.
+    """
+    u = (url or "").lower()
+    if "bidnet" not in u:
+        return False
+    if "/solicitations/search" not in u:
+        return False
+    # Bare search (with or without query) — not a numeric solicitation detail
+    if re.search(r"/solicitations/\d{6,}", u):
+        return False
+    return True
+
+
+def is_bidnet_solicitation_detail_url(url: str) -> bool:
+    """True for a solicitation-specific detail/abstract URL (not search)."""
+    u = (url or "").lower()
+    if "bidnet" not in u or is_bidnet_search_page_url(u):
+        return False
+    if is_bidnet_download_endpoint(u):
+        return False
+    return bool(
+        re.search(r"/private/solicitations/\d{6,}(?:/abstract|/view|/documents)?", u)
+        or re.search(r"/private/supplier/solicitations/\d{6,}(?:/abstract|/view|/documents)?", u)
+        or re.search(r"/private/supplier/interception/open-solicitation/\d+", u)
+        or re.search(r"/open-bids/[^/?#]+/\d{6,}", u)
+        or re.search(r"/statewide/\d{6,}/abstract", u)
+    )
+
+
 def is_bidnet_detail_page_url(url: str) -> bool:
     u = (url or "").lower()
     if "bidnetdirect.com" not in u and "bidnet.com" not in u:
+        return False
+    # Search listings are never solicitation detail
+    if is_bidnet_search_page_url(u):
         return False
     # Intercept / getFile endpoints are downloadable binaries — never treat as detail HTML
     if is_bidnet_download_endpoint(u):
@@ -71,9 +107,96 @@ def is_bidnet_detail_page_url(url: str) -> bool:
     return bool(
         "/open-bids/" in u
         or "/private/supplier/solicitations/" in u
+        or "/private/solicitations/" in u
         or "/statewide/" in u
+        or "/interception/open-solicitation/" in u
         or re.search(r"/solicitations/\d{6,}", u)
     )
+
+
+_INTERCEPTION_HREF = re.compile(
+    r'href=["\'](?P<href>/private/supplier/interception/'
+    r'(?:open-solicitation/\d+[^"\']*|view-notice/\d+[^"\']*))["\']',
+    re.I,
+)
+_TITLE_LINK_BLOCK = re.compile(
+    r'<a[^>]+href=["\'](?P<href>/private/supplier/interception/[^"\']+)["\'][^>]*'
+    r'class=["\'][^"\']*solicitationsTitleLink[^"\']*["\'][^>]*>'
+    r'(?P<body>.*?)</a>',
+    re.I | re.S,
+)
+
+
+def extract_search_result_interception_links(
+    html: str | bytes,
+    *,
+    title_hint: str | None = None,
+    base_url: str = "https://www.bidnetdirect.com",
+) -> list[dict[str, Any]]:
+    """Parse authenticated search HTML for real detail navigation hrefs.
+
+    BidNet private search results use interception gateways, not direct
+    `/private/supplier/solicitations/{id}/view` anchors:
+      - /private/supplier/interception/open-solicitation/{id}?target=view
+      - /private/supplier/interception/view-notice/{id}
+    """
+    from urllib.parse import urljoin
+
+    if isinstance(html, bytes):
+        text = html.decode("utf-8", errors="ignore")
+    else:
+        text = html or ""
+    if not text:
+        return []
+
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _push(href: str, title: str, *, via: str) -> None:
+        abs_u = urljoin(base_url, href.split("#")[0])
+        if abs_u in seen:
+            return
+        seen.add(abs_u)
+        sid_m = re.search(r"/(?:open-solicitation|view-notice)/(\d+)", abs_u, re.I)
+        kind = "open_solicitation" if "open-solicitation" in abs_u.lower() else "view_notice"
+        found.append(
+            {
+                "href": abs_u,
+                "title": title,
+                "solicitation_id": sid_m.group(1) if sid_m else None,
+                "kind": kind,
+                "via": via,
+            }
+        )
+
+    for m in _TITLE_LINK_BLOCK.finditer(text):
+        body = re.sub(r"<[^>]+>", " ", m.group("body") or "")
+        body = re.sub(r"\s+", " ", body).replace("&amp;", "&").strip()
+        _push(m.group("href"), body, via="solicitationsTitleLink")
+
+    for m in _INTERCEPTION_HREF.finditer(text):
+        _push(m.group("href"), "", via="interception_href")
+
+    if title_hint:
+        tokens = [t for t in re.split(r"\W+", title_hint.lower()) if len(t) >= 4][:8]
+
+        def _score(row: dict[str, Any]) -> int:
+            hay = f"{row.get('title') or ''} {row.get('href') or ''}".lower()
+            score = sum(1 for t in tokens if t in hay)
+            if row.get("kind") == "open_solicitation":
+                score += 3
+            return score
+
+        found.sort(key=_score, reverse=True)
+        # Drop zero-score noise when a title hint was provided and we have matches
+        scored = [( _score(r), r) for r in found]
+        if any(s > 0 for s, _ in scored):
+            found = [r for s, r in scored if s > 0 or r.get("kind") == "open_solicitation"]
+    else:
+        # Prefer open-solicitation over view-notice when unordered
+        found.sort(key=lambda r: 0 if r.get("kind") == "open_solicitation" else 1)
+
+    return found[:20]
 
 
 def resolve_bidnet_private_detail_url(url: str) -> str | None:
@@ -87,20 +210,28 @@ def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
 
     Statewide abstract IDs live in a different namespace than private solicitation
     IDs — never synthesize /private/.../{statewide_id}/view from them.
+
+    Open-bids path IDs (e.g. /open-bids/.../0000435482) are ALSO a different
+    namespace — synthesizing /private/.../435482/view yields Error 404. Only
+    emit candidates when the URL is already a private solicitation URL, or when
+    a real private id is extracted from authenticated HTML elsewhere.
     """
     if not url or not url.startswith("http") or "bidnet" not in url.lower():
         return []
     # Statewide IDs ≠ private solicitation IDs
     if is_statewide_bidnet_url(url):
         return []
+    # Open-bids listing IDs ≠ private solicitation IDs (confirmed 404)
+    if "/open-bids/" in url.lower():
+        return []
     sid: str | None = None
-    m = _PRIVATE_VIEW.search(url) or _OPEN_BIDS_ID.search(url)
+    m = _PRIVATE_VIEW.search(url)
     if m:
         sid = m.group("id")
     else:
         # Avoid bare statewide-style long IDs already handled above
-        m2 = re.search(r"/solicitations/(?!statewide/)(\d{6,})(?:/abstract|/view)?(?:\?|$)", url)
-        if m2:
+        m2 = re.search(r"/solicitations/(?!statewide/)(\d{6,})(?:/abstract|/view|/documents)?(?:\?|$)", url)
+        if m2 and "/open-bids/" not in url.lower():
             sid = m2.group(1)
     if not sid:
         return []
@@ -110,7 +241,7 @@ def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
         ids.append(stripped)
     out: list[str] = []
     for i in ids:
-        for suffix in ("view", "abstract", "documents"):
+        for suffix in ("documents", "view", "abstract"):
             u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{i}/{suffix}"
             if u not in out:
                 out.append(u)
@@ -119,6 +250,8 @@ def resolve_bidnet_private_detail_url_candidates(url: str) -> list[str]:
 
 def extract_private_solicitation_refs_from_html(html: str | bytes, *, base_url: str = "") -> list[str]:
     """Pull real private/open-bids solicitation URLs out of authenticated HTML/JSON text."""
+    from urllib.parse import urljoin
+
     if isinstance(html, bytes):
         text = html.decode("utf-8", errors="ignore")
     else:
@@ -127,8 +260,18 @@ def extract_private_solicitation_refs_from_html(html: str | bytes, *, base_url: 
         return []
     found: list[str] = []
     seen: set[str] = set()
+
+    # Prefer interception gateway links from authenticated search results
+    for row in extract_search_result_interception_links(text, base_url=base_url or "https://www.bidnetdirect.com"):
+        u = str(row.get("href") or "")
+        if u and u not in seen:
+            seen.add(u)
+            found.append(u)
+
     patterns = [
+        r"https?://[^\"'\s]*bidnetdirect\.com/private/solicitations/\d{6,}(?:/(?:view|abstract|documents))?",
         r"https?://[^\"'\s]*bidnetdirect\.com/private/supplier/solicitations/\d{6,}(?:/(?:view|abstract|documents))?",
+        r"/private/solicitations/(\d{6,})(?:/(?:view|abstract|documents))?",
         r"/private/supplier/solicitations/(\d{6,})(?:/(?:view|abstract|documents))?",
         r"/[a-z\-]+/solicitations/open-bids/[^\"'\s]+/(\d{6,})",
         r"[\"']solicitationId[\"']\s*:\s*[\"']?(\d{6,})",
@@ -138,15 +281,15 @@ def extract_private_solicitation_refs_from_html(html: str | bytes, *, base_url: 
         for m in re.finditer(pat, text, re.I):
             g = m.group(0)
             if g.startswith("http"):
-                u = g.split("?")[0].rstrip("\"'")
+                u = g.split("#")[0].rstrip("\"'")
             elif g.startswith("/"):
                 sid_m = re.search(r"(\d{6,})", g)
                 if not sid_m:
                     continue
                 if "/open-bids/" in g:
-                    from urllib.parse import urljoin
-
                     u = urljoin(base_url or "https://www.bidnetdirect.com/", g.split("?")[0])
+                elif "/private/solicitations/" in g and "/supplier/" not in g:
+                    u = f"https://www.bidnetdirect.com/private/solicitations/{sid_m.group(1)}/abstract?target=view"
                 else:
                     u = f"https://www.bidnetdirect.com/private/supplier/solicitations/{sid_m.group(1)}/view"
             else:
