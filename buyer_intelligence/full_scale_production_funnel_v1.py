@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2u"
+BUILD = "20261014-m3-full-scale-production-funnel-v2v"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1701,16 +1701,21 @@ def process_slice(
     # end-of-slice so document recovery is not starved.
     auth_status, auth_client = _open_bidnet_auth_client()
     pg_slice_report = None
+    pg_ran_start = False
     defer_pg = bool(registered_pending)
     try:
         from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
+        # At most one group at start — never monopolize the opportunity lane.
         if (
             not defer_pg
             and auth_client is not None
             and getattr(auth_client, "is_authenticated", False)
         ):
-            pg_slice_report = process_group_registration_slice(auth_client, max_groups=2)
+            pg_slice_report = process_group_registration_slice(
+                auth_client, max_groups=1, job_id=job_id
+            )
+            pg_ran_start = True
             _progress(
                 status="RUNNING",
                 phase="PG_GROUP_REGISTRATION_SLICE",
@@ -1989,25 +1994,49 @@ def process_slice(
         except Exception as exc:
             price_pass = {"error": type(exc).__name__}
 
-        # End-of-slice PG pass so groups enqueued during this slice are not deferred
-        # until the next worker cycle.
+        # End-of-slice PG: only when start was deferred (registered unlock priority).
+        # Dedicated short-lived client so a poisoned opportunity browser is not reused.
         try:
             from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
-            if auth_client is not None and getattr(auth_client, "is_authenticated", False):
-                pg_end = process_group_registration_slice(auth_client, max_groups=2)
+            if not pg_ran_start and _is_active_lease_worker(job_id, worker_id):
+                pg_auth_status, pg_client = _open_bidnet_auth_client()
+                try:
+                    if pg_client is not None and getattr(pg_client, "is_authenticated", False):
+                        pg_end = process_group_registration_slice(
+                            pg_client, max_groups=1, job_id=job_id
+                        )
+                        pg_slice_report = {
+                            "start_of_slice": pg_slice_report,
+                            "end_of_slice": pg_end,
+                            "price_pass": price_pass,
+                            "bidnet_auth_status": pg_auth_status.get("status"),
+                        }
+                        _progress(
+                            status="RUNNING",
+                            phase="PG_GROUP_REGISTRATION_SLICE_END",
+                            job_id=job_id,
+                            worker_id=worker_id,
+                            pg_group_slice=pg_slice_report,
+                        )
+                    else:
+                        pg_slice_report = {
+                            "start_of_slice": pg_slice_report,
+                            "end_of_slice": {"skipped": True, "reason": "pg_auth_unavailable"},
+                            "price_pass": price_pass,
+                        }
+                finally:
+                    if pg_client is not None:
+                        try:
+                            pg_client.close()
+                        except Exception:
+                            pass
+            else:
                 pg_slice_report = {
                     "start_of_slice": pg_slice_report,
-                    "end_of_slice": pg_end,
+                    "end_of_slice": {"skipped": True, "reason": "start_already_ran_or_superseded"},
                     "price_pass": price_pass,
                 }
-                _progress(
-                    status="RUNNING",
-                    phase="PG_GROUP_REGISTRATION_SLICE_END",
-                    job_id=job_id,
-                    worker_id=worker_id,
-                    pg_group_slice=pg_slice_report,
-                )
         except Exception as exc:
             pg_slice_report = {
                 "start_of_slice": pg_slice_report,

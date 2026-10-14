@@ -19,13 +19,14 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261014-m3-bidnet-pg-group-queue-v1b"
+BUILD = "20261014-m3-bidnet-pg-group-queue-v1c"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
 # Dedicated budget for one group registration (not the opportunity 45s budget)
-GROUP_REGISTRATION_TIMEOUT_S = float(os.environ.get("M3_PG_GROUP_TIMEOUT_S") or "120")
-MAX_GROUPS_PER_SLICE = int(os.environ.get("M3_PG_GROUPS_PER_SLICE") or "2")
+GROUP_REGISTRATION_TIMEOUT_S = float(os.environ.get("M3_PG_GROUP_TIMEOUT_S") or "90")
+MAX_GROUPS_PER_SLICE = int(os.environ.get("M3_PG_GROUPS_PER_SLICE") or "1")
+GATE_FETCH_TIMEOUT_MS = int(os.environ.get("M3_PG_GATE_FETCH_MS") or "20000")
 
 
 def _utc() -> str:
@@ -281,12 +282,29 @@ def rebuild_pending_from_job(job_id: str) -> dict[str, Any]:
     }
 
 
+def _pending_priority(row: dict[str, Any]) -> tuple:
+    """Higher blocked-opportunity count first; fewer attempts next."""
+    oids = len(row.get("opportunity_ids") or [])
+    try:
+        from bidnet_auth.purchasing_group_tracker import get_group
+
+        tracked = get_group(str(row.get("purchasing_group_id") or "")) or {}
+        oids = max(oids, len(tracked.get("blocked_opportunity_ids") or []))
+        oids = max(oids, int(tracked.get("live_eligible_opportunity_count") or 0))
+    except Exception:
+        pass
+    return (-oids, int(row.get("attempts") or 0))
+
+
 def process_group_registration_slice(
     auth_client: Any,
     *,
     max_groups: int | None = None,
+    job_id: str | None = None,
 ) -> dict[str, Any]:
     """Process up to N pending groups with dedicated timeouts. Releases blocked opps."""
+    import time as _time
+
     from bidnet_auth.purchasing_group_registration import (
         extract_solicitation_id_from_url,
         resolve_access_gate_registration,
@@ -300,26 +318,25 @@ def process_group_registration_slice(
     limit = max(1, int(max_groups if max_groups is not None else MAX_GROUPS_PER_SLICE))
     processed: list[dict[str, Any]] = []
     released_total = 0
-    active_job_id: str | None = None
-    try:
-        from m3_jobs.store import JobStore
+    active_job_id: str | None = str(job_id or "").strip() or None
+    if not active_job_id:
+        try:
+            from m3_jobs.store import JobStore
 
-        active = JobStore("full_scale_production_funnel_v1").find_active_job(stale_seconds=3600)
-        if active and active.get("JOB_ID"):
-            active_job_id = str(active["JOB_ID"])
-    except Exception:
-        active_job_id = None
+            active = JobStore("full_scale_production_funnel_v1").find_active_job(stale_seconds=3600)
+            if active and active.get("JOB_ID"):
+                active_job_id = str(active["JOB_ID"])
+        except Exception:
+            active_job_id = None
 
     with _lock:
         state = load_queue()
         # Prefer groups that unlock the most blocked opportunities first.
         state["pending"] = sorted(
             list(state.get("pending") or []),
-            key=lambda r: (
-                -len(r.get("opportunity_ids") or []),
-                int(r.get("attempts") or 0),
-            ),
+            key=_pending_priority,
         )
+        save_queue(state)
         # Soft revive: Timeout/ERROR often used stale form URLs; INCOMPLETE may
         # succeed after certification-radio mapping improvements (never paid).
         failed = list(state.get("failed") or [])
@@ -407,6 +424,7 @@ def process_group_registration_slice(
             continue
 
         item["attempts"] = int(item.get("attempts") or 0) + 1
+        group_t0 = _time.time()
         try:
             form_url = _resolve_form_url(pg_id, item.get("form_url"))
             if form_url and form_url != item.get("form_url"):
@@ -415,6 +433,7 @@ def process_group_registration_slice(
             source_url = str(item.get("source_url") or "").strip()
             # Prefer live gate resolution from the solicitation URL. Stored form URLs
             # go stale (session-bound accessedElementId) and hang Playwright.
+            # HTTP-first keeps the shared client healthier for opportunity work.
             if source_url:
                 html = ""
                 page_url = source_url
@@ -422,7 +441,9 @@ def process_group_registration_slice(
                     if hasattr(auth_client, "fetch_html"):
                         html = (
                             auth_client.fetch_html(
-                                source_url, timeout_ms=45_000, prefer_http=False
+                                source_url,
+                                timeout_ms=GATE_FETCH_TIMEOUT_MS,
+                                prefer_http=True,
                             )
                             or ""
                         )
@@ -432,6 +453,8 @@ def process_group_registration_slice(
                         )
                 except Exception as fetch_exc:
                     item["last_error"] = f"fetch:{type(fetch_exc).__name__}"
+                if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S:
+                    raise TimeoutError("GROUP_REGISTRATION_TIMEOUT_S")
                 reg = resolve_access_gate_registration(
                     auth_client,
                     html=html,
@@ -441,6 +464,8 @@ def process_group_registration_slice(
                     opportunity_id=(item.get("opportunity_ids") or [None])[0],
                 )
             elif form_url:
+                if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S:
+                    raise TimeoutError("GROUP_REGISTRATION_TIMEOUT_S")
                 reg = run_purchasing_group_registration(
                     auth_client,
                     purchasing_group_id=pg_id,
@@ -456,6 +481,16 @@ def process_group_registration_slice(
                     "ok": False,
                     "reason": "missing_form_and_source_url",
                     "purchasing_group_id": pg_id,
+                }
+            if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S and str(
+                reg.get("status") or ""
+            ) not in {STATUS_REGISTERED, "OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED"}:
+                reg = {
+                    **(reg if isinstance(reg, dict) else {}),
+                    "status": "ERROR",
+                    "ok": False,
+                    "error": "TimeoutError",
+                    "reason": "GROUP_REGISTRATION_TIMEOUT_S",
                 }
             # Persist freshly discovered form URL for the next attempt
             fresh_form = (reg.get("gate") or {}).get("complete_form_url") or reg.get(
@@ -474,6 +509,7 @@ def process_group_registration_slice(
                 "error": reg.get("error") or reg.get("reason"),
                 "form_url_used": (form_url or item.get("form_url") or "")[:160] or None,
                 "source_url": (source_url or "")[:160] or None,
+                "elapsed_s": round(_time.time() - group_t0, 2),
             }
             processed.append(row)
             st = str(reg.get("status") or "")
@@ -495,18 +531,26 @@ def process_group_registration_slice(
                         save_queue(q)
                     except Exception as exc:
                         row["release_error"] = type(exc).__name__
-            elif st in {"OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED", "PREPARED", "INCOMPLETE"}:
-                # INCOMPLETE after submit needs owner/field review — do not hot-loop
+            elif st in {"OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED", "PREPARED"}:
                 _fail_pending(pg_id, row, terminal=True)
+            elif st == "INCOMPLETE":
+                # Keep pending with backoff — Save≠COMPLETED; radio/field fixes may land.
+                item["last_error"] = "INCOMPLETE_AFTER_SAVE"
+                if int(item["attempts"]) >= 3:
+                    _fail_pending(pg_id, row, terminal=True)
+                else:
+                    _bump_pending(pg_id, item)
             elif int(item["attempts"]) >= 5 and str(row.get("error") or "") in {
                 "TimeoutError",
                 "FORM_NAV_REDIRECT",
                 "FORM_URL_MISSING",
+                "GROUP_REGISTRATION_TIMEOUT_S",
             }:
                 _fail_pending(pg_id, {**row, "error": row.get("error") or "max_attempts"}, terminal=True)
             elif int(item["attempts"]) >= 3 and str(row.get("error") or "") not in {
                 "TimeoutError",
                 "FORM_NAV_REDIRECT",
+                "GROUP_REGISTRATION_TIMEOUT_S",
             }:
                 _fail_pending(pg_id, {**row, "error": "max_attempts"}, terminal=True)
             else:
@@ -517,6 +561,7 @@ def process_group_registration_slice(
                 "status": "ERROR",
                 "error": type(exc).__name__,
                 "attempts": item["attempts"],
+                "elapsed_s": round(_time.time() - group_t0, 2),
             }
             processed.append(row)
             # Transient Playwright timeouts: keep pending longer; don't burn AUTH

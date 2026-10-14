@@ -23,6 +23,7 @@ from bidnet_auth.purchasing_group_tracker import (
     STATUS_PAID_REQUIRED,
     STATUS_PREPARED,
     STATUS_REGISTERED,
+    STATUS_REGISTERING,
     get_group,
     is_registered,
     load_tracker,
@@ -1330,11 +1331,13 @@ def resolve_access_gate_registration(
         purchasing_group_id=str(pg_id), solicitation_id=sol_id
     )
     gate["complete_form_url"] = form_url
+    # Do not mark INCOMPLETE before the form runs — that falsely terminalizes
+    # groups that have not yet been attempted this cycle.
     upsert_group(
         str(pg_id),
         name=gate.get("name"),
         registration_required=True,
-        status=STATUS_INCOMPLETE,
+        status=STATUS_REGISTERING,
         fee_required=bool(gate.get("fee_mentioned")),
         last_gate_message=gate.get("message"),
         complete_form_url_path=re.sub(r"https?://[^/]+", "", form_url or "")[:200],
