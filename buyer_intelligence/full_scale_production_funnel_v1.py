@@ -777,7 +777,11 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
 
 
 def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, Any]:
-    """Start (or resume) the full-scale funnel as a background daemon thread."""
+    """Start (or resume) the full-scale funnel as a background daemon thread.
+
+    Returns immediately — queue build + processing run in the worker thread so
+    the HTTP start endpoint never blocks on the 10k+ eligible population.
+    """
     global _worker, _stop_requested
 
     with _thread_lock:
@@ -798,27 +802,22 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
 
         store = JobStore(FAMILY)
         active = store.find_active_job(stale_seconds=STALE_LEASE_S)
-        queue = build_eligible_queue(force_rebuild=rebuild_queue)
-        oids = [str(r["opportunity_id"]) for r in (queue.get("rows") or [])]
+        existing_queue = None if rebuild_queue else _load(QUEUE_FILE)
+        prior_total = int((existing_queue or {}).get("eligible_total") or 0)
 
         if active and active.get("STATUS") in {"RUNNING", "CREATED", "INTERRUPTED", "STALE_RELEASED"}:
             job_id = str(active["JOB_ID"])
-            # Preserve checkpoints; optionally refresh TOTAL if queue grew
             job = store.load_job(job_id) or active
-            if int(job.get("TOTAL") or 0) != len(oids) and rebuild_queue:
-                job["TOTAL"] = len(oids)
-                job["OPPORTUNITY_IDS"] = oids
-                store.save_job(job)
         else:
+            # Placeholder job — TOTAL refreshed after queue build in worker
             job = store.create_job(
-                total=len(oids),
-                opportunity_ids=oids,
+                total=prior_total or 0,
+                opportunity_ids=[],
                 meta={
                     "build": BUILD,
                     "slice_size": SLICE_SIZE,
                     "AUTO_SEND": False,
-                    "queue_source": queue.get("source"),
-                    "eligible_total": queue.get("eligible_total"),
+                    "queue_pending": True,
                 },
             )
             job_id = str(job["JOB_ID"])
@@ -841,13 +840,46 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
             phase="QUEUED",
             job_id=job_id,
             worker_id=worker_id,
-            eligible_total=len(oids),
+            eligible_total=prior_total or None,
             FINAL_STATUS=None,
         )
 
         def _run() -> None:
             global _worker
             try:
+                _progress(
+                    status="RUNNING",
+                    phase="BUILD_QUEUE",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                )
+                queue = build_eligible_queue(force_rebuild=rebuild_queue)
+                oids = [str(r["opportunity_id"]) for r in (queue.get("rows") or [])]
+                job_now = store.load_job(job_id) or {}
+                job_now["TOTAL"] = len(oids)
+                # Persist oid list separately when huge — keep job.json lean
+                if len(oids) <= 500:
+                    job_now["OPPORTUNITY_IDS"] = oids
+                else:
+                    job_now["OPPORTUNITY_IDS"] = oids[:20]
+                    job_now["OPPORTUNITY_IDS_NOTE"] = "truncated; full list in QUEUE_FILE"
+                job_now["META"] = {
+                    **(job_now.get("META") or {}),
+                    "build": BUILD,
+                    "slice_size": SLICE_SIZE,
+                    "AUTO_SEND": False,
+                    "queue_source": queue.get("source"),
+                    "eligible_total": queue.get("eligible_total"),
+                    "queue_pending": False,
+                }
+                store.save_job(job_now)
+                _progress(
+                    status="RUNNING",
+                    phase="QUEUE_READY",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    eligible_total=len(oids),
+                )
                 run_continuous(job_id=job_id, worker_id=worker_id, slice_size=SLICE_SIZE)
             except Exception as exc:
                 log.exception("full-scale production funnel failed")
@@ -872,7 +904,8 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
             "build": BUILD,
             "job_id": job_id,
             "worker_id": worker_id,
-            "eligible_total": len(oids),
+            "eligible_total": prior_total or None,
+            "eligible_total_pending": prior_total == 0,
             "slice_size": SLICE_SIZE,
             "AUTO_SEND": False,
             "progress": job_progress(),

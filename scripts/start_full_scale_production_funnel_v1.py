@@ -43,11 +43,18 @@ def _req(cookie: str, method: str, path: str, body: dict | None = None, timeout:
     if cookie:
         headers["Cookie"] = cookie
     r = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(r, timeout=timeout) as resp:
-        raw = resp.read().decode()
-        sc = resp.headers.get("Set-Cookie") or ""
-        cookie_out = sc.split(";", 1)[0] if sc else cookie
-        return (json.loads(raw) if raw else {}), cookie_out
+    try:
+        with urllib.request.urlopen(r, timeout=timeout) as resp:
+            raw = resp.read().decode()
+            sc = resp.headers.get("Set-Cookie") or ""
+            cookie_out = sc.split(";", 1)[0] if sc else cookie
+            return (json.loads(raw) if raw else {}), cookie_out
+    except urllib.error.HTTPError as exc:
+        # Treat deploy/restart gateways as retryable by callers
+        if exc.code in {404, 502, 503, 504}:
+            raise
+        raw = exc.read().decode(errors="replace") if exc.fp else ""
+        raise RuntimeError(f"HTTP {exc.code}: {raw[:300]}") from exc
 
 
 def main() -> int:
@@ -66,8 +73,9 @@ def main() -> int:
 
     cookie = ""
     # Wait briefly for deploy containing our endpoints (bounded)
-    deadline = time.time() + 600
+    deadline = time.time() + 900
     health = {}
+    hint = str(args.wait_deploy_hint or "full-scale-production-funnel")
     while time.time() < deadline:
         try:
             health, _ = _req("", "GET", "/api/m3/health", timeout=30)
@@ -82,12 +90,17 @@ def main() -> int:
             # Probe scorecard endpoint (404 until deploy)
             try:
                 sc, cookie = _req(cookie, "GET", "/api/m3/full-scale-production-funnel/scorecard", timeout=60)
-                if sc.get("build") or sc.get("build_version") or sc.get("metrics") is not None:
+                hb = str(health.get("build_version") or "")
+                sb = str(sc.get("build") or sc.get("build_version") or "")
+                ready = hint in hb or hint in sb or "full-scale-production-funnel" in sb
+                if ready and (sc.get("metrics") is not None or sc.get("build")):
+                    print(json.dumps({"deploy_ready": True, "health_build": hb, "scorecard_build": sb}))
                     break
+                print(json.dumps({"wait_deploy": True, "health_build": hb, "scorecard_build": sb or None}))
             except urllib.error.HTTPError as exc:
-                if exc.code != 404:
+                if exc.code not in {404, 502, 503, 504}:
                     raise
-                print(json.dumps({"wait_deploy": True, "health_build": health.get("build_version")}))
+                print(json.dumps({"wait_deploy": True, "http": exc.code, "health_build": health.get("build_version")}))
         except Exception as exc:
             print(json.dumps({"wait": str(exc)[:160]}))
         time.sleep(12)
@@ -95,13 +108,23 @@ def main() -> int:
         print(json.dumps({"ok": False, "error": "deploy_timeout", "health": health}))
         return 1
 
-    start, cookie = _req(
-        cookie,
-        "POST",
-        "/api/m3/full-scale-production-funnel/start",
-        {"force": bool(args.force), "rebuild_queue": bool(args.rebuild_queue)},
-        timeout=120,
-    )
+    start = None
+    for attempt in range(8):
+        try:
+            start, cookie = _req(
+                cookie,
+                "POST",
+                "/api/m3/full-scale-production-funnel/start",
+                {"force": bool(args.force), "rebuild_queue": bool(args.rebuild_queue)},
+                timeout=60,
+            )
+            break
+        except Exception as exc:
+            print(json.dumps({"start_retry": attempt + 1, "error": str(exc)[:160]}))
+            time.sleep(10)
+    if not start:
+        print(json.dumps({"ok": False, "error": "start_failed"}))
+        return 1
     print(
         json.dumps(
             {
