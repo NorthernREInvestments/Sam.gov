@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2e"
+BUILD = "20261014-m3-full-scale-production-funnel-v2f"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry

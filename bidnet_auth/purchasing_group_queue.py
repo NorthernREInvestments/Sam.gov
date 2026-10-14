@@ -77,6 +77,27 @@ def save_queue(state: dict[str, Any]) -> Path:
     return path
 
 
+def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
+    """Prefer explicit form URL; else tracker gate path from prior interceptions."""
+    cand = str(form_url or "").strip()
+    if not cand:
+        try:
+            from bidnet_auth.purchasing_group_tracker import get_group
+
+            tracked = get_group(str(pg_id)) or {}
+            cand = str(
+                tracked.get("complete_form_url")
+                or tracked.get("complete_form_url_path")
+                or tracked.get("form_url")
+                or ""
+            ).strip()
+        except Exception:
+            cand = ""
+    if cand.startswith("/"):
+        cand = "https://www.bidnetdirect.com" + cand
+    return cand or None
+
+
 def enqueue_group_registration(
     purchasing_group_id: str,
     *,
@@ -95,6 +116,7 @@ def enqueue_group_registration(
         note_blocked_opportunity(pg_id, opportunity_id)
     if is_registered(pg_id):
         return {"ok": True, "status": "ALREADY_REGISTERED", "purchasing_group_id": pg_id}
+    form_url = _resolve_form_url(pg_id, form_url)
 
     with _lock:
         state = load_queue()
@@ -102,9 +124,15 @@ def enqueue_group_registration(
         for item in pending:
             if str(item.get("purchasing_group_id")) == pg_id:
                 oids = list(item.get("opportunity_ids") or [])
+                changed = False
                 if opportunity_id and opportunity_id not in oids:
                     oids.append(opportunity_id)
                     item["opportunity_ids"] = oids[-500:]
+                    changed = True
+                if form_url and not item.get("form_url"):
+                    item["form_url"] = form_url
+                    changed = True
+                if changed:
                     item["updated_at"] = _utc()
                     state["pending"] = pending
                     save_queue(state)
@@ -179,20 +207,26 @@ def process_group_registration_slice(
 
         item["attempts"] = int(item.get("attempts") or 0) + 1
         try:
-            form_url = item.get("form_url")
+            form_url = _resolve_form_url(pg_id, item.get("form_url"))
+            if form_url and form_url != item.get("form_url"):
+                item["form_url"] = form_url
+                _bump_pending(pg_id, item)
             html = ""
-            page_url = str(item.get("source_url") or form_url or "")
-            if form_url or page_url:
+            page_url = str(form_url or item.get("source_url") or "")
+            if form_url:
                 reg = run_purchasing_group_registration(
                     auth_client,
                     purchasing_group_id=pg_id,
                     form_url=form_url,
                     name=item.get("name"),
-                    solicitation_id=extract_solicitation_id_from_url(page_url),
+                    solicitation_id=extract_solicitation_id_from_url(
+                        str(item.get("source_url") or page_url)
+                    ),
                     allow_submit=True,
                     opportunity_id=(item.get("opportunity_ids") or [None])[0],
                 )
-            else:
+            elif page_url:
+                # Navigate source first so gate HTML yields complete_form_url
                 reg = resolve_access_gate_registration(
                     auth_client,
                     html=html,
@@ -200,6 +234,13 @@ def process_group_registration_slice(
                     allow_submit=True,
                     source_url=page_url,
                 )
+            else:
+                reg = {
+                    "status": "ERROR",
+                    "ok": False,
+                    "reason": "missing_form_and_source_url",
+                    "purchasing_group_id": pg_id,
+                }
             row = {
                 "purchasing_group_id": pg_id,
                 "status": reg.get("status"),
