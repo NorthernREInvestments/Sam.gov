@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2s"
+BUILD = "20261014-m3-full-scale-production-funnel-v2t"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -400,6 +400,21 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
         "pg_release": pg_release,
         "build": BUILD,
     }
+
+
+def _is_active_lease_worker(job_id: str, worker_id: str) -> bool:
+    """True only while this worker still holds the exclusive job lease.
+
+    Prevents zombie threads (from force-restart) from continuing after a newer
+    worker acquires the lease — clearing _stop_requested must not revive them.
+    """
+    try:
+        job = JobStore(FAMILY).load_job(job_id) or {}
+    except Exception:
+        return False
+    if str(job.get("WORKER_ID") or "") != str(worker_id or ""):
+        return False
+    return str(job.get("STATUS") or "") in {"RUNNING", "CREATED"}
 
 
 def _stop_flag() -> bool:
@@ -1641,7 +1656,7 @@ def process_slice(
                 "pg_group_slice": pg_slice_report,
             }
         for idx, item in pending:
-            if _stop_flag():
+            if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
                 break
             oid = str(item["opportunity_id"])
             last_oid = oid
@@ -1917,12 +1932,31 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
     store = JobStore(FAMILY)
     slices = 0
     while True:
+        if not _is_active_lease_worker(job_id, worker_id):
+            _progress(
+                status="STOPPED",
+                phase="LEASE_SUPERSEDED",
+                job_id=job_id,
+                worker_id=worker_id,
+                note="exiting_zombie_worker",
+            )
+            break
         if _stop_flag():
-            store.release_lease(job_id, worker_id, final_status="CANCELLED")
-            _progress(status="CANCELLED", phase="STOPPED", job_id=job_id)
+            # Only the lease holder may release / cancel the job.
+            if _is_active_lease_worker(job_id, worker_id):
+                store.release_lease(job_id, worker_id, final_status="CANCELLED")
+                _progress(status="CANCELLED", phase="STOPPED", job_id=job_id)
             break
         out = process_slice(job_id=job_id, worker_id=worker_id, slice_size=slice_size)
         slices += 1
+        if not _is_active_lease_worker(job_id, worker_id):
+            _progress(
+                status="STOPPED",
+                phase="LEASE_SUPERSEDED",
+                job_id=job_id,
+                worker_id=worker_id,
+            )
+            break
         store.heartbeat(job_id, worker_id=worker_id)
         if out.get("queue_exhausted"):
             store.release_lease(job_id, worker_id, final_status="DONE")
@@ -2005,7 +2039,14 @@ def start_job(
                 except Exception:
                     stale = True
             if not force and not stale and not new_run:
-                return {"status": "ALREADY_RUNNING", "build": BUILD, "progress": cur}
+                return {
+                    "ok": True,
+                    "status": "ALREADY_RUNNING",
+                    "build": BUILD,
+                    "progress": cur,
+                    "job_id": cur.get("job_id"),
+                    "worker_id": cur.get("worker_id"),
+                }
 
         store = JobStore(FAMILY)
         archive_report = None
@@ -2089,6 +2130,7 @@ def start_job(
             store.acquire_lease(job_id, worker_id, stale_seconds=STALE_LEASE_S, force=True if force or retry_technical_failures else force)
         except JobLeaseError as exc:
             return {
+                "ok": False,
                 "status": "LEASE_HELD",
                 "error": str(exc),
                 "build": BUILD,
@@ -2167,8 +2209,9 @@ def start_job(
                 _worker = False
 
         _worker = True
-        threading.Thread(target=_run, name=FAMILY, daemon=True).start()
+        threading.Thread(target=_run, name=f"{FAMILY}-{worker_id}", daemon=True).start()
         return {
+            "ok": True,
             "status": "STARTED",
             "build": BUILD,
             "job_id": job_id,
