@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1d"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1e"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1789,6 +1789,15 @@ def api_m3_full_scale_production_funnel_scorecard():
     from buyer_intelligence.full_scale_production_funnel_v1 import get_scorecard
 
     data = get_scorecard()
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-scale-production-funnel/recent-items")
+def api_m3_full_scale_production_funnel_recent_items(limit: int = 25):
+    from buyer_intelligence.full_scale_production_funnel_v1 import recent_item_samples
+
+    data = recent_item_samples(limit=limit)
     data["build_version"] = APP_BUILD_VERSION
     return data
 

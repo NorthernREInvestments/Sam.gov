@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v1d"
+BUILD = "20261014-m3-full-scale-production-funnel-v1e"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -964,6 +964,12 @@ def process_slice(
                 "bidnet_auth_status": auth_status.get("status"),
             }
             store.save_job(job)
+            # Refresh scorecard every 5 items so operators see repaired blocker taxonomy live
+            if processed % 5 == 0:
+                try:
+                    _aggregate_scorecard(job, store.list_items(job_id), queue)
+                except Exception:
+                    pass
 
             if SOURCE_COOLDOWN_S > 0:
                 time.sleep(SOURCE_COOLDOWN_S)
@@ -1251,6 +1257,39 @@ def start_job(
             "retry_report": retry_report,
             "progress": job_progress(),
         }
+
+
+def recent_item_samples(*, limit: int = 25) -> dict[str, Any]:
+    """Return recent checkpoints for diagnosis — no secrets."""
+    store = JobStore(FAMILY)
+    active = store.find_active_job(stale_seconds=3600)
+    if not active:
+        return {"status": "NO_JOB", "build": BUILD, "items": []}
+    jid = str(active["JOB_ID"])
+    items = store.list_items(jid)
+    # Prefer most recently checkpointed
+    items.sort(key=lambda x: str(x.get("CHECKPOINT_AT") or ""), reverse=True)
+    slim = []
+    for it in items[: max(1, min(limit, 50))]:
+        slim.append(
+            {
+                "opportunity_id": it.get("OPPORTUNITY_ID"),
+                "RESULT": it.get("RESULT"),
+                "terminal_blocker": it.get("terminal_blocker"),
+                "PREVIOUS_BLOCKER": it.get("PREVIOUS_BLOCKER"),
+                "RETRY_COUNT": it.get("RETRY_COUNT"),
+                "fetch_via": it.get("fetch_via"),
+                "is_bidnet_url": it.get("is_bidnet_url"),
+                "authoritative_url": it.get("authoritative_url"),
+                "document_count": it.get("document_count"),
+                "documents_downloaded": it.get("documents_downloaded"),
+                "line_count": it.get("line_count"),
+                "fully_specified_product_lines": it.get("fully_specified_product_lines"),
+                "complete_spec": it.get("complete_spec"),
+                "CHECKPOINT_AT": it.get("CHECKPOINT_AT"),
+            }
+        )
+    return {"status": "OK", "build": BUILD, "job_id": jid, "count": len(slim), "items": slim}
 
 
 def get_scorecard() -> dict[str, Any]:
