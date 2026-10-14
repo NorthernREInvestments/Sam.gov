@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v1h"
+BUILD = "20261014-m3-full-scale-production-funnel-v1i"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -639,6 +639,15 @@ def build_eligible_queue(
     return man
 
 
+def _pg_id_from_url(url: Any) -> str | None:
+    try:
+        from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+
+        return extract_pg_id_from_url(str(url or ""))
+    except Exception:
+        return None
+
+
 def _map_result(row: dict[str, Any]) -> str:
     blocker = str(row.get("terminal_blocker") or row.get("package_blocker") or "")
     if row.get("timed_out") or row.get("bounded_timed_out") or "TIMEOUT" in blocker:
@@ -759,10 +768,13 @@ def _slim_checkpoint(
         "authoritative_url": (row.get("authoritative_url") or "")[:240] or None,
         "purchasing_group_id": row.get("purchasing_group_id")
         or (row.get("purchasing_group_gate") or {}).get("purchasing_group_id")
-        or (row.get("purchasing_group_registration") or {}).get("purchasing_group_id"),
+        or (row.get("purchasing_group_registration") or {}).get("purchasing_group_id")
+        or _pg_id_from_url(row.get("authoritative_url")),
         "purchasing_group_registration_status": (
             (row.get("purchasing_group_registration") or {}).get("status")
         ),
+        "portal_account": row.get("portal_account")
+        or (row.get("purchasing_group_registration") or {}).get("portal_account"),
         "CHECKPOINT_AT": _utc(),
     }
 
@@ -1389,6 +1401,12 @@ def recent_item_samples(*, limit: int = 25) -> dict[str, Any]:
                 "fetch_via": it.get("fetch_via"),
                 "is_bidnet_url": it.get("is_bidnet_url"),
                 "authoritative_url": it.get("authoritative_url"),
+                "purchasing_group_id": it.get("purchasing_group_id")
+                or _pg_id_from_url(it.get("authoritative_url")),
+                "purchasing_group_registration_status": it.get(
+                    "purchasing_group_registration_status"
+                ),
+                "portal_account": it.get("portal_account"),
                 "document_count": it.get("document_count"),
                 "documents_downloaded": it.get("documents_downloaded"),
                 "line_count": it.get("line_count"),

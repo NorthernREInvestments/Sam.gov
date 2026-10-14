@@ -37,6 +37,30 @@ log = logging.getLogger("govtracker.bidnet_pg_registration")
 BUILD = "20261014-m3-bidnet-pg-registration-v2"
 DEFAULT_SUPPLIER_ORG_ID = "9785456456"
 
+
+def _bind_portal_membership(
+    pg_id: str,
+    *,
+    status: str,
+    name: str | None = None,
+    opportunity_id: str | None = None,
+) -> None:
+    """Persist portal/account/PG mapping (no secrets). Reuses BidNet account."""
+    try:
+        from m3_portal_access_map import PORTAL_BIDNET, bind_membership, seed_bidnet_defaults
+
+        seed_bidnet_defaults()
+        bind_membership(
+            PORTAL_BIDNET,
+            str(pg_id),
+            kind="purchasing_group",
+            status=status,
+            name=name,
+            opportunity_id=opportunity_id,
+        )
+    except Exception:
+        log.debug("portal access map bind failed", exc_info=True)
+
 EMPIRE_STATE_PG_ID = "8411151"
 EMPIRE_STATE_NAME = "Empire State Purchasing Group"
 
@@ -885,6 +909,9 @@ def run_purchasing_group_registration(
     if opportunity_id:
         note_blocked_opportunity(pg_id, opportunity_id)
     if is_registered(pg_id):
+        _bind_portal_membership(
+            pg_id, status=STATUS_REGISTERED, name=name, opportunity_id=opportunity_id
+        )
         return {
             "ok": True,
             "status": STATUS_REGISTERED,
@@ -892,17 +919,40 @@ def run_purchasing_group_registration(
             "already_registered": True,
             "reason": "already_registered",
             "purchasing_group_id": pg_id,
+            "portal_account": "bidnet",
         }
+
+    # Cross-check portal access map (survives tracker edge cases)
+    try:
+        from m3_portal_access_map import PORTAL_BIDNET, is_membership_registered
+
+        if is_membership_registered(PORTAL_BIDNET, pg_id):
+            upsert_group(pg_id, name=name, status=STATUS_REGISTERED, relevant=True)
+            return {
+                "ok": True,
+                "status": STATUS_REGISTERED,
+                "skipped": True,
+                "already_registered": True,
+                "reason": "portal_access_map_registered",
+                "purchasing_group_id": pg_id,
+                "portal_account": "bidnet",
+            }
+    except Exception:
+        pass
 
     lock = try_begin_registration(pg_id, worker_token=f"reg-{pg_id}")
     if not lock.get("acquired"):
         if lock.get("already_registered"):
+            _bind_portal_membership(
+                pg_id, status=STATUS_REGISTERED, name=name, opportunity_id=opportunity_id
+            )
             return {
                 "ok": True,
                 "status": STATUS_REGISTERED,
                 "skipped": True,
                 "already_registered": True,
                 "purchasing_group_id": pg_id,
+                "portal_account": "bidnet",
             }
         return {
             "ok": False,
@@ -911,6 +961,7 @@ def run_purchasing_group_registration(
             "reason": lock.get("reason"),
             "owner_blocker_reason": lock.get("owner_blocker_reason"),
             "purchasing_group_id": pg_id,
+            "portal_account": "bidnet",
         }
 
     answers = load_verified_company_answers()
@@ -955,9 +1006,16 @@ def run_purchasing_group_registration(
                 relevant=True,
                 confirmation_excerpt=(inspected.get("body_excerpt") or "")[:400],
                 form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+                portal_account="bidnet",
             )
             release_registration_lock(
                 pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_REGISTERED
+            )
+            _bind_portal_membership(
+                pg_id,
+                status=STATUS_REGISTERED,
+                name=name or (EMPIRE_STATE_NAME if empire else None),
+                opportunity_id=opportunity_id,
             )
             return {
                 "ok": True,
@@ -966,6 +1024,7 @@ def run_purchasing_group_registration(
                 "already_registered": True,
                 "reason": "bidnet_form_already_completed",
                 "purchasing_group_id": pg_id,
+                "portal_account": "bidnet",
             }
 
         if inspected.get("fee_mentioned"):
@@ -1121,8 +1180,15 @@ def run_purchasing_group_registration(
             confirmation_url=url[:220],
             relevant=True,
             fill_errors=None,
+            portal_account="bidnet",
         )
         release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=status)
+        _bind_portal_membership(
+            pg_id,
+            status=status,
+            name=name or (EMPIRE_STATE_NAME if empire else None),
+            opportunity_id=opportunity_id,
+        )
         return {
             "ok": status == STATUS_REGISTERED,
             "status": status,
@@ -1130,6 +1196,7 @@ def run_purchasing_group_registration(
             "confirmation_excerpt": after[:400],
             "confirmation_url": url[:220],
             "purchasing_group_id": pg_id,
+            "portal_account": "bidnet",
         }
     except Exception as exc:
         upsert_group(pg_id, name=name, status=STATUS_ERROR, last_error=type(exc).__name__, relevant=True)

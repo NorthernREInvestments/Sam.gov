@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1h"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1i"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -3815,6 +3815,22 @@ def api_m3_credentials_upsert(body: dict):
 
     portal = body.get("portal") or body.get("source_id")
     return upsert_credential(str(portal or ""), body)
+
+
+@app.get("/api/m3/portal-access-map")
+def api_m3_portal_access_map():
+    """Portal/account/membership map — no secrets."""
+    from m3_portal_access_map import ui_summary
+
+    return ui_summary()
+
+
+@app.get("/api/m3/session-persistence/verify")
+def api_m3_session_persistence_verify(live: bool = False):
+    """Verify durable sessions + encrypted credentials survive volume/restart."""
+    from m3_session_persistence import verify_session_restore
+
+    return verify_session_restore(attempt_live_reuse=bool(live))
 
 
 @app.get("/api/m3/pipeline/status")
