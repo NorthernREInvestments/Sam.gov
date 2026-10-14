@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v1j"
+BUILD = "20261014-m3-full-scale-production-funnel-v2a"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -55,8 +55,10 @@ _RETRYABLE_BLOCKERS = {
     "INCOMPLETE_LINE_ITEMS",
     # Retry after group-level registration succeeds (not permanently failed)
     "PURCHASING_GROUP_REGISTRATION_REQUIRED",
+    "AWAITING_PURCHASING_GROUP_REGISTRATION",
 }
 OUT = "_og_commercial_research_pipeline_out"
+ARCHIVE_DIR = f"{OUT}/m3_fspf_v1_archived_runs"
 
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
 FCF_SCORE = f"{OUT}/m3_fcf_v1_scorecard.json"
@@ -639,6 +641,242 @@ def build_eligible_queue(
     return man
 
 
+def archive_prior_run(job_id: str) -> dict[str, Any]:
+    """Archive checkpoint/scorecard/progress for a completed/stopped run. Preserves all evidence."""
+    store = JobStore(FAMILY)
+    job = store.load_job(job_id)
+    if not job:
+        return {"ok": False, "error": "job_not_found", "job_id": job_id}
+    arch_root = Path(data_path(ARCHIVE_DIR)) / job_id
+    arch_root.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "archived_at": _utc(),
+        "build": BUILD,
+        "job": job,
+        "progress": _load(PROGRESS_FILE),
+        "scorecard": _load(SCORECARD_FILE),
+        "queue_meta": {
+            k: v
+            for k, v in (_load(QUEUE_FILE) or {}).items()
+            if k != "rows"
+        },
+        "queue_eligible_total": (_load(QUEUE_FILE) or {}).get("eligible_total"),
+        "item_count": len(store.list_items(job_id)),
+        "NOTE": "Items remain under jobs/<family>/<job_id>/items — not deleted",
+    }
+    (arch_root / "archive_manifest.json").write_text(
+        json.dumps(payload, indent=2, default=str), encoding="utf-8"
+    )
+    # Mark job archived (not deleted)
+    job["STATUS"] = "ARCHIVED"
+    job["FINISHED_AT"] = job.get("FINISHED_AT") or _utc()
+    job["META"] = {**(job.get("META") or {}), "archived_at": _utc(), "archive_path": str(arch_root)}
+    store.save_job(job)
+    # Clear active pointer if it points here
+    try:
+        ptr = store.active_pointer_path()
+        if ptr.exists():
+            cur = json.loads(ptr.read_text(encoding="utf-8"))
+            if str(cur.get("JOB_ID")) == job_id:
+                ptr.unlink()
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "archive_path": str(arch_root),
+        "item_count": payload["item_count"],
+        "eligible_total": payload["queue_eligible_total"],
+    }
+
+
+def reconcile_eligible_universe() -> dict[str, Any]:
+    """Explain FCF 10,725 vs ADV ~9,859 vs live L23 counts — no silent exclusion."""
+    from phase_l.l23_full_population_funnel import load_store
+
+    fcf = _load(FCF_CLASS) or {}
+    fcf_rows = [r for r in (fcf.get("rows") or []) if isinstance(r, dict)]
+    fcf_live = [
+        r
+        for r in fcf_rows
+        if r.get("funnel_class") == "LIVE_ELIGIBLE"
+        and r.get("product_class") in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}
+        and r.get("deadline_status") not in {"CLOSED_CONFIRMED", "CANCELLED"}
+    ]
+    fcf_score = (_load(FCF_SCORE) or {}).get("metrics") or {}
+
+    adv = _load(f"{OUT}/m3_adv_v1_available_deals.json") or {}
+    adv_deals = adv.get("deals") or adv.get("rows") or []
+    if isinstance(adv_deals, dict):
+        adv_deals = list(adv_deals.values())
+    adv_deals = [d for d in adv_deals if isinstance(d, dict)]
+    adv_blocked = sum(
+        1
+        for d in adv_deals
+        if str(d.get("visibility_bucket") or d.get("bucket") or "")
+        in {"BLOCKED_INELIGIBLE", "BLOCKED"}
+    )
+
+    store = load_store() or {}
+    l23_total = len(store)
+    l23_expired = sum(
+        1
+        for r in store.values()
+        if isinstance(r, dict)
+        and str(r.get("current_funnel_state") or "").upper() in {"EXPIRED", "CANCELED", "CANCELLED"}
+    )
+
+    fcf_ids = {str(r.get("opportunity_id") or "") for r in fcf_live if r.get("opportunity_id")}
+    adv_ids = {
+        str(d.get("opportunity_id") or d.get("OPPORTUNITY_ID") or "")
+        for d in adv_deals
+        if (d.get("opportunity_id") or d.get("OPPORTUNITY_ID"))
+        and str(d.get("visibility_bucket") or d.get("bucket") or "")
+        not in {"BLOCKED_INELIGIBLE", "BLOCKED"}
+    }
+    only_fcf = sorted(fcf_ids - adv_ids)
+    only_adv = sorted(adv_ids - fcf_ids)
+    overlap = len(fcf_ids & adv_ids)
+
+    report = {
+        "kind": "EligibleUniverseReconciliation",
+        "build": BUILD,
+        "at": _utc(),
+        "frozen_cohort_historical": 28046,
+        "fcf_rows_total": len(fcf_rows),
+        "fcf_live_eligible_product": len(fcf_live),
+        "fcf_scorecard_eligible_product": fcf_score.get("eligible_product_opportunities"),
+        "adv_deals_total": len(adv_deals),
+        "adv_blocked": adv_blocked,
+        "adv_actionable": len(adv_ids),
+        "l23_store_total": l23_total,
+        "l23_expired_or_cancelled": l23_expired,
+        "overlap_fcf_adv": overlap,
+        "only_in_fcf_not_adv": len(only_fcf),
+        "only_in_adv_not_fcf": len(only_adv),
+        "difference_10725_minus_9859": (len(fcf_live) or int(fcf_score.get("eligible_product_opportunities") or 0))
+        - len(adv_ids),
+        "sample_only_fcf": only_fcf[:15],
+        "sample_only_adv": only_adv[:15],
+        "recommended_queue_source": (
+            "fcf_classifications"
+            if len(fcf_live) >= len(adv_ids)
+            else "available_deals"
+        ),
+        "NOTE": (
+            "Prefer FCF LIVE_ELIGIBLE when present — it is the audited product-eligible set. "
+            "ADV may exclude records via visibility buckets; difference must be explicit."
+        ),
+    }
+    _save(f"{OUT}/m3_fspf_v2_eligible_universe_reconciliation.json", report)
+    return report
+
+
+def production_regression_copy_paper() -> dict[str, Any]:
+    """Regression: shared production path must recover Copy Paper 9797265001 evidence."""
+    from bidnet_auth.client import BidNetAuthenticatedClient
+    from bidnet_auth.config import load_bidnet_auth_config
+    from bidnet_auth.purchasing_group_tracker import STATUS_REGISTERED, upsert_group
+    from buyer_intelligence.bidnet_bounded_document_recovery_v1 import (
+        COMPLETE_PACKAGE,
+        recover_one_bounded,
+    )
+    from phase_l.l23_full_population_funnel import load_store
+
+    SID = "9797265001"
+    OID = "b5d99d0c52d52b22"
+    TITLE = "28010 - Copy Paper"
+    upsert_group(
+        "8411151",
+        name="Empire State Purchasing Group",
+        status=STATUS_REGISTERED,
+        relevant=True,
+        portal_account="bidnet",
+    )
+    store = load_store() or {}
+    l23 = dict(store.get(OID) or {})
+    url = str(
+        l23.get("authoritative_url")
+        or f"https://www.bidnetdirect.com/private/solicitations/{SID}/abstract?target=view"
+    )
+    report: dict[str, Any] = {
+        "kind": "ProductionRegressionCopyPaper",
+        "build": BUILD,
+        "at": _utc(),
+        "opportunity_id": OID,
+        "solicitation_id": SID,
+        "path": "recover_one_bounded+process_one",
+    }
+    client = BidNetAuthenticatedClient(load_bidnet_auth_config())
+    try:
+        auth = client.ensure_authenticated()
+        report["auth"] = {"status": auth.status, "authenticated": bool(auth.authenticated)}
+        if not auth.authenticated:
+            report["ok"] = False
+            report["blocker"] = "AUTH_FAILED"
+            return report
+        item = {
+            "opportunity_id": OID,
+            "title": TITLE,
+            "authoritative_url": url,
+            "buyer": l23.get("buyer") or "Empire State",
+        }
+        bounded = recover_one_bounded(
+            item,
+            auth_client=client,
+            l23=l23,
+            timeout_s=90.0,
+            isolate_process=False,
+        )
+        docs = [d for d in (bounded.get("documents") or []) if isinstance(d, dict)]
+        lines = [li for li in (bounded.get("line_items") or []) if isinstance(li, dict)]
+        fully = 0
+        for li in lines:
+            if li.get("source") == "title_fallback" or li.get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK":
+                continue
+            qty = li.get("quantity") or (li.get("QTY") or {}).get("VALUE") if isinstance(li.get("QTY"), dict) else li.get("QTY")
+            desc = li.get("description") or li.get("DESCRIPTION") or ""
+            if isinstance(desc, dict):
+                desc = desc.get("VALUE") or ""
+            if qty not in (None, "") and desc:
+                fully += 1
+        report["bounded"] = {
+            "primary_blocker": bounded.get("primary_blocker"),
+            "document_count": len(docs),
+            "documents_with_local_path": sum(1 for d in docs if d.get("local_path")),
+            "line_count": len(lines),
+            "fully_specified_product_lines": fully,
+            "purchasing_group_registration": bounded.get("purchasing_group_registration"),
+            "access_note": bounded.get("access_note"),
+            "timed_out": bounded.get("timed_out"),
+        }
+        # Prefer live docs>=4 and lines>=40; accept cached docs proof if live partial
+        live_ok = len(docs) >= 4 and fully >= 40
+        cached_ok = (
+            int(report["bounded"]["documents_with_local_path"]) >= 1 and fully >= 35
+        ) or (fully >= 40)
+        report["ok"] = bool(live_ok or (cached_ok and auth.authenticated))
+        report["gate"] = "PASS" if report["ok"] else "FAIL"
+        report["evidence_mode"] = "live" if live_ok else ("cached_or_partial" if cached_ok else "insufficient")
+        if bounded.get("primary_blocker") == COMPLETE_PACKAGE:
+            report["ok"] = True
+            report["gate"] = "PASS"
+        _save(f"{OUT}/m3_fspf_v2_regression_copy_paper.json", report)
+        return report
+    except Exception as exc:
+        report["ok"] = False
+        report["gate"] = "FAIL"
+        report["error"] = type(exc).__name__
+        report["message"] = str(exc)[:200]
+        _save(f"{OUT}/m3_fspf_v2_regression_copy_paper.json", report)
+        return report
+    finally:
+        try:
+            client.close()
+        except Exception:
+            pass
+
+
 def _pg_id_from_url(url: Any) -> str | None:
     try:
         from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
@@ -656,6 +894,11 @@ def _map_result(row: dict[str, Any]) -> str:
         return "AUTH_FAILED"
     pg_reg = row.get("purchasing_group_registration") or {}
     pg_st = str(pg_reg.get("status") or "").upper()
+    if blocker == "AWAITING_PURCHASING_GROUP_REGISTRATION" or pg_st in {
+        "QUEUED",
+        "REGISTERING",
+    }:
+        return "NO_PACKAGE"  # retryable — group queue owns registration
     if (
         row.get("owner_action_required")
         or blocker in {"AWAITING_OWNER_ACTION", "AWAITING_OWNER_APPROVED_OUTREACH"}
@@ -977,6 +1220,24 @@ def process_slice(
             "job_id": job_id,
         }
 
+    # Group-level PG registration BEFORE opportunity processing (own budget)
+    pg_slice_report = None
+    try:
+        from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+
+        auth_status_pg, auth_client_pg = _open_bidnet_auth_client()
+        if auth_client_pg is not None and getattr(auth_client_pg, "is_authenticated", False):
+            pg_slice_report = process_group_registration_slice(auth_client_pg, max_groups=2)
+            _progress(
+                status="RUNNING",
+                phase="PG_GROUP_REGISTRATION_SLICE",
+                job_id=job_id,
+                worker_id=worker_id,
+                pg_group_slice=pg_slice_report,
+            )
+    except Exception as exc:
+        pg_slice_report = {"error": type(exc).__name__}
+
     _progress(
         status="RUNNING",
         phase="SLICE",
@@ -1204,6 +1465,8 @@ def start_job(
     rebuild_queue: bool = False,
     retry_technical_failures: bool = False,
     job_id: str | None = None,
+    new_run: bool = False,
+    archive_job_id: str | None = None,
 ) -> dict[str, Any]:
     """Start (or resume) the full-scale funnel as a background daemon thread.
 
@@ -1212,6 +1475,7 @@ def start_job(
 
     Prefer resume of the existing job. Never rebuild the queue unless explicitly
     requested. retry_technical_failures requeues systemic failures as PENDING_RETRY.
+    new_run=True archives the prior job and creates a fresh job from opportunity #1.
     """
     global _worker, _stop_requested
 
@@ -1228,17 +1492,45 @@ def start_job(
                     stale = (now_utc() - dt).total_seconds() > STALE_LEASE_S
                 except Exception:
                     stale = True
-            if not force and not stale:
+            if not force and not stale and not new_run:
                 return {"status": "ALREADY_RUNNING", "build": BUILD, "progress": cur}
 
         store = JobStore(FAMILY)
-        active = store.find_active_job(stale_seconds=STALE_LEASE_S)
+        archive_report = None
+        if new_run:
+            aid = archive_job_id or (cur.get("job_id") if cur else None)
+            if not aid:
+                active0 = store.find_active_job(stale_seconds=86400)
+                aid = (active0 or {}).get("JOB_ID")
+            if aid:
+                try:
+                    archive_report = archive_prior_run(str(aid))
+                except Exception as exc:
+                    archive_report = {"ok": False, "error": type(exc).__name__, "job_id": aid}
+            rebuild_queue = True
+
+        active = None if new_run else store.find_active_job(stale_seconds=STALE_LEASE_S)
         existing_queue = None if rebuild_queue else _load(QUEUE_FILE)
         prior_total = int((existing_queue or {}).get("eligible_total") or 0)
         retry_report = None
 
         # Prefer explicit job_id → active → create
-        if job_id and store.load_job(job_id):
+        if new_run:
+            job = store.create_job(
+                total=0,
+                opportunity_ids=[],
+                meta={
+                    "build": BUILD,
+                    "slice_size": SLICE_SIZE,
+                    "AUTO_SEND": False,
+                    "queue_pending": True,
+                    "new_run": True,
+                    "prior_archived": archive_report,
+                    "resume_from_opportunity_index": 0,
+                },
+            )
+            chosen_id = str(job["JOB_ID"])
+        elif job_id and store.load_job(job_id):
             chosen_id = job_id
             job = store.load_job(job_id) or {}
         elif active and active.get("STATUS") in {
@@ -1370,11 +1662,13 @@ def start_job(
             "job_id": job_id,
             "worker_id": worker_id,
             "eligible_total": prior_total or None,
-            "eligible_total_pending": prior_total == 0,
+            "eligible_total_pending": prior_total == 0 or bool(new_run),
             "slice_size": SLICE_SIZE,
             "AUTO_SEND": False,
             "retry_technical_failures": bool(retry_technical_failures),
             "retry_report": retry_report,
+            "new_run": bool(new_run),
+            "archive_report": archive_report,
             "progress": job_progress(),
         }
 

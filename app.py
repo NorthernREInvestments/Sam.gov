@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v1j"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2a"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1773,8 +1773,36 @@ def api_m3_full_scale_production_funnel_start(body: dict | None = None):
             rebuild_queue=bool(payload.get("rebuild_queue", False)),
             retry_technical_failures=bool(payload.get("retry_technical_failures", False)),
             job_id=str(payload["job_id"]) if payload.get("job_id") else None,
+            new_run=bool(payload.get("new_run", False)),
+            archive_job_id=str(payload["archive_job_id"]) if payload.get("archive_job_id") else None,
         ),
     }
+
+
+@app.post("/api/m3/full-scale-production-funnel/archive")
+def api_m3_full_scale_production_funnel_archive(body: dict | None = None):
+    from buyer_intelligence.full_scale_production_funnel_v1 import archive_prior_run
+
+    payload = body or {}
+    jid = str(payload.get("job_id") or "").strip()
+    if not jid:
+        return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
+    return {"build_version": APP_BUILD_VERSION, **archive_prior_run(jid)}
+
+
+@app.get("/api/m3/full-scale-production-funnel/reconcile-universe")
+def api_m3_full_scale_production_funnel_reconcile():
+    from buyer_intelligence.full_scale_production_funnel_v1 import reconcile_eligible_universe
+
+    return {"build_version": APP_BUILD_VERSION, **reconcile_eligible_universe()}
+
+
+@app.post("/api/m3/full-scale-production-funnel/regression-copy-paper")
+def api_m3_full_scale_production_funnel_regression_copy_paper():
+    """Production-path regression for BidNet Copy Paper 9797265001."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import production_regression_copy_paper
+
+    return {"build_version": APP_BUILD_VERSION, **production_regression_copy_paper()}
 
 
 @app.get("/api/m3/full-scale-production-funnel/progress")

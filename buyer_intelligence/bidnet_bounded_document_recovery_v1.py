@@ -397,6 +397,7 @@ def _attempt_pg_gate_unlock(
         or extract_pg_id_from_url(page_url)
         or extract_pg_id_from_url(source_url)
     )
+    already_registered = False
     if pg_id:
         note_blocked_opportunity(str(pg_id), opportunity_id)
         out["purchasing_group_gate"] = {
@@ -408,8 +409,9 @@ def _attempt_pg_gate_unlock(
             "gate_kind": "PURCHASING_GROUP_FROM_URL",
             "fee_mentioned": False,
         }
-        # Already registered at group level — skip form, retry detail
+        # Already registered at group level — skip form, retry detail only
         if is_registered(str(pg_id)):
+            already_registered = True
             out["purchasing_group_registration"] = {
                 "status": STATUS_REGISTERED,
                 "already_registered": True,
@@ -421,17 +423,34 @@ def _attempt_pg_gate_unlock(
             if tracked.get("status") in {
                 STATUS_PAID_REQUIRED,
                 STATUS_OWNER_APPROVAL_REQUIRED,
+                "REGISTERING",
+                "ERROR",
             }:
+                # Do not burn opportunity budget re-attempting group registration.
+                # Group-level worker owns registration; opportunity waits & retries.
+                try:
+                    from bidnet_auth.purchasing_group_queue import enqueue_group_registration
+
+                    enqueue_group_registration(
+                        str(pg_id),
+                        name=(gate or {}).get("name"),
+                        opportunity_id=opportunity_id,
+                        source_url=source_url,
+                        form_url=(gate or {}).get("complete_form_url"),
+                    )
+                except Exception:
+                    pass
                 out["purchasing_group_registration"] = {
-                    "status": tracked.get("status"),
+                    "status": tracked.get("status") or "QUEUED",
                     "skipped": True,
-                    "reason": "group_already_pending_owner",
+                    "reason": "deferred_to_group_level_queue",
                     "purchasing_group_id": pg_id,
                     "owner_blocker_reason": tracked.get("owner_blocker_reason"),
                 }
+                out["package_blocker_hint"] = "AWAITING_PURCHASING_GROUP_REGISTRATION"
                 return html, page_url, detail_status, docs, parsed
 
-    if time.monotonic() >= deadline:
+    if time.monotonic() >= deadline and not already_registered:
         out["purchasing_group_registration"] = {
             "status": "DEADLINE_EXCEEDED",
             "purchasing_group_id": pg_id,
@@ -439,29 +458,60 @@ def _attempt_pg_gate_unlock(
         return html, page_url, detail_status, docs, parsed
 
     try:
-        reg = resolve_access_gate_registration(
-            auth_client,
-            html=html,
-            page_url=page_url,
-            allow_submit=True,
-            opportunity_id=opportunity_id,
-            source_url=source_url,
-        )
-        out["purchasing_group_registration"] = {
-            "status": reg.get("status"),
-            "submitted": reg.get("submitted"),
-            "skipped": reg.get("skipped"),
-            "already_registered": reg.get("already_registered"),
-            "owner_next_steps": reg.get("owner_next_steps"),
-            "purchasing_group_id": reg.get("purchasing_group_id") or pg_id,
-            "reason": reg.get("reason"),
-        }
-        if not out.get("purchasing_group_gate") and reg.get("gate"):
-            g = reg["gate"]
-            out["purchasing_group_gate"] = {
-                k: g.get(k)
-                for k in ("name", "purchasing_group_id", "gate_kind", "fee_mentioned")
+        if already_registered:
+            reg = {
+                "status": STATUS_REGISTERED,
+                "already_registered": True,
+                "skipped": True,
+                "purchasing_group_id": pg_id,
             }
+        elif pg_id:
+            # Opportunity path: enqueue group work; do NOT run long form fill here.
+            try:
+                from bidnet_auth.purchasing_group_queue import enqueue_group_registration
+
+                enqueue_group_registration(
+                    str(pg_id),
+                    name=(gate or {}).get("name"),
+                    opportunity_id=opportunity_id,
+                    source_url=source_url,
+                    form_url=(gate or {}).get("complete_form_url"),
+                )
+            except Exception as exc:
+                out["pg_enqueue_error"] = type(exc).__name__
+            out["purchasing_group_registration"] = {
+                "status": "QUEUED",
+                "skipped": True,
+                "reason": "deferred_to_group_level_queue",
+                "purchasing_group_id": pg_id,
+            }
+            out["package_blocker_hint"] = "AWAITING_PURCHASING_GROUP_REGISTRATION"
+            out["access_note"] = "pg_registration_deferred_group_queue"
+            return html, page_url, detail_status, docs, parsed
+        else:
+            reg = resolve_access_gate_registration(
+                auth_client,
+                html=html,
+                page_url=page_url,
+                allow_submit=True,
+                opportunity_id=opportunity_id,
+                source_url=source_url,
+            )
+            out["purchasing_group_registration"] = {
+                "status": reg.get("status"),
+                "submitted": reg.get("submitted"),
+                "skipped": reg.get("skipped"),
+                "already_registered": reg.get("already_registered"),
+                "owner_next_steps": reg.get("owner_next_steps"),
+                "purchasing_group_id": reg.get("purchasing_group_id") or pg_id,
+                "reason": reg.get("reason"),
+            }
+            if not out.get("purchasing_group_gate") and reg.get("gate"):
+                g = reg["gate"]
+                out["purchasing_group_gate"] = {
+                    k: g.get(k)
+                    for k in ("name", "purchasing_group_id", "gate_kind", "fee_mentioned")
+                }
         st = str(reg.get("status") or "")
         unlocked = st == STATUS_REGISTERED or bool(reg.get("already_registered"))
         if unlocked and hasattr(auth_client, "resolve_detail_via_authenticated_search"):
@@ -498,6 +548,30 @@ def _attempt_pg_gate_unlock(
                     else "DETAIL_PARTIAL"
                 )
                 docs = [d for d in (parsed.get("documents") or []) if isinstance(d, dict)]
+                # Registered groups: Documents tab may need explicit attachment scrape
+                if (
+                    not docs
+                    and hasattr(auth_client, "discover_attachment_links")
+                    and time.monotonic() < deadline
+                ):
+                    try:
+                        out["network_requests"] = int(out.get("network_requests") or 0) + 1
+                        discovered = (
+                            auth_client.discover_attachment_links(
+                                page_url, timeout_ms=remain_ms_fn(20_000)
+                            )
+                            or []
+                        )
+                        docs = [
+                            d
+                            for d in discovered
+                            if isinstance(d, dict) and _is_real_doc(d)
+                        ]
+                        out["document_links_discovered"] = len(discovered)
+                        if docs:
+                            out["access_note"] = "pg_registered_docs_tab_recovered"
+                    except Exception as exc:
+                        out["discover_after_pg_error"] = type(exc).__name__
             else:
                 out["access_note"] = "pg_registered_detail_retry_pending"
                 detail_status = "DETAIL_ACCESS_GATE"

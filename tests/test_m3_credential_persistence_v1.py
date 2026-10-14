@@ -63,27 +63,24 @@ def test_upsert_blocks_overwrite_without_owner(tmp_path, monkeypatch):
 
 def test_portal_access_map_membership(tmp_path, monkeypatch):
     monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
-    from m3_portal_access_map import (
-        PORTAL_BIDNET,
-        bind_membership,
-        is_membership_registered,
-        seed_bidnet_defaults,
-        ui_summary,
-    )
+    import importlib
 
-    seed_bidnet_defaults(username_hint="abc***")
-    bind_membership(
-        PORTAL_BIDNET,
+    import m3_portal_access_map as pam
+
+    importlib.reload(pam)
+    pam.seed_bidnet_defaults(username_hint="abc***")
+    pam.bind_membership(
+        pam.PORTAL_BIDNET,
         "8411151",
         status="REGISTERED",
         name="Empire State Purchasing Group",
     )
-    assert is_membership_registered(PORTAL_BIDNET, "8411151")
-    ui = ui_summary()
+    assert pam.is_membership_registered(pam.PORTAL_BIDNET, "8411151")
+    ui = pam.ui_summary()
     assert any(p["portal"] == "bidnet" for p in ui["portals"])
     # No secrets in map file
-    raw = (tmp_path / "m3_auth" / "portal_access_map_v1.json").read_text(encoding="utf-8")
-    assert "password" not in raw.lower() or "password_set" in raw  # map shouldn't have password keys
+    raw = pam.map_path().read_text(encoding="utf-8")
+    assert "password" not in raw.lower()
     assert "enc:v1:" not in raw
 
 

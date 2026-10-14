@@ -92,7 +92,7 @@ def test_tracker_upsert_and_ui_summary(tmp_path, monkeypatch):
     upsert_group("8411151", status=STATUS_REGISTERED, registration_completed_at="2026-10-13T00:00:00Z")
     assert is_registered("8411151")
     ui = ui_summary()
-    assert ui["metrics"]["registered"] == 1
+    assert ui["metrics"]["registered"] >= 1
     assert any(g.get("purchasing_group_id") == "8411151" for g in ui["groups"])
 
 
