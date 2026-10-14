@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2i"
+BUILD = "20261014-m3-full-scale-production-funnel-v2j"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1385,6 +1385,24 @@ def _append_rfq(row: dict[str, Any]) -> None:
     _save(RFQ_QUEUE_FILE, blob)
 
 
+def _contiguous_resume_cursor(
+    store: Any,
+    job_id: str,
+    rows: list[dict[str, Any]],
+    *,
+    from_index: int,
+) -> int:
+    """Advance cursor through indices that are now skippable; stop at first pending."""
+    c = max(0, int(from_index))
+    while c < len(rows):
+        oid = str((rows[c] or {}).get("opportunity_id") or "")
+        prev = store.load_item(job_id, oid) if oid else None
+        if not _item_should_skip(prev):
+            break
+        c += 1
+    return c
+
+
 def process_slice(
     *,
     job_id: str,
@@ -1409,17 +1427,40 @@ def process_slice(
     rows = queue.get("rows") or []
     cursor = int(job.get("RESUME_CURSOR") or 0)
 
+    # Prefer opportunities whose purchasing group is already REGISTERED so
+    # document unlock / line extraction runs before more group-form attempts.
+    # Cursor still advances contiguously (never skips unprocessed indices).
+    slice_start_cursor = cursor
+    registered_pgs: set[str] = set()
+    try:
+        from bidnet_auth.purchasing_group_tracker import list_registered_group_ids
+
+        registered_pgs = set(list_registered_group_ids() or [])
+    except Exception:
+        registered_pgs = set()
+
     # Skip durable successes; include PENDING_RETRY / under-budget technical retries
     pending: list[tuple[int, dict[str, Any]]] = []
-    for i in range(cursor, len(rows)):
+    registered_pending: list[tuple[int, dict[str, Any]]] = []
+    scan_limit = min(len(rows), cursor + max(slice_size * 40, 800))
+    for i in range(cursor, scan_limit):
         item = rows[i]
         oid = str(item.get("opportunity_id") or "")
         prev = store.load_item(job_id, oid)
         if _item_should_skip(prev):
             continue
-        pending.append((i, item))
-        if len(pending) >= slice_size:
+        pg = _pg_id_from_url(item.get("authoritative_url"))
+        if pg and pg in registered_pgs:
+            registered_pending.append((i, item))
+        else:
+            pending.append((i, item))
+        if len(registered_pending) >= slice_size:
             break
+        if len(registered_pending) + len(pending) >= slice_size * 3 and registered_pending:
+            break
+    # Registered first for this slice; process in index order within each tier
+    pending = (registered_pending[:slice_size] + pending)[:slice_size]
+    pending.sort(key=lambda t: t[0])
 
     if not pending:
         job["RESUME_CURSOR"] = len(rows)
@@ -1444,13 +1485,20 @@ def process_slice(
     evidence_index = build_commercial_evidence_index()
     # One BidNet client per slice phase. PG registration can TimeoutError and
     # leave Playwright unusable — always re-open a fresh client for opportunities.
+    # When registered-group unlock work is available, defer PG form attempts to
+    # end-of-slice so document recovery is not starved.
     auth_status, auth_client = _open_bidnet_auth_client()
     pg_slice_report = None
+    defer_pg = bool(registered_pending)
     try:
         from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
-        if auth_client is not None and getattr(auth_client, "is_authenticated", False):
-            pg_slice_report = process_group_registration_slice(auth_client, max_groups=3)
+        if (
+            not defer_pg
+            and auth_client is not None
+            and getattr(auth_client, "is_authenticated", False)
+        ):
+            pg_slice_report = process_group_registration_slice(auth_client, max_groups=2)
             _progress(
                 status="RUNNING",
                 phase="PG_GROUP_REGISTRATION_SLICE",
@@ -1459,6 +1507,8 @@ def process_slice(
                 pg_group_slice=pg_slice_report,
                 bidnet_auth_status=auth_status.get("status"),
             )
+        elif defer_pg:
+            pg_slice_report = {"deferred": True, "reason": "registered_group_unlock_priority"}
     except Exception as exc:
         pg_slice_report = {"error": type(exc).__name__}
     finally:
@@ -1532,7 +1582,9 @@ def process_slice(
                     store.write_item_checkpoint(job_id, slim)
                     processed += 1
                     job = store.recompute_counts(job_id)
-                    job["RESUME_CURSOR"] = idx + 1
+                    job["RESUME_CURSOR"] = _contiguous_resume_cursor(
+                        store, job_id, rows, from_index=slice_start_cursor
+                    )
                     store.save_job(job)
                     continue
             except Exception:
@@ -1596,7 +1648,9 @@ def process_slice(
             elif docs_dl > 0:
                 zero_doc_streak = 0
             job = store.recompute_counts(job_id)
-            job["RESUME_CURSOR"] = idx + 1
+            job["RESUME_CURSOR"] = _contiguous_resume_cursor(
+                store, job_id, rows, from_index=slice_start_cursor
+            )
             job["META"] = {
                 **(job.get("META") or {}),
                 "last_blocker": slim.get("terminal_blocker"),

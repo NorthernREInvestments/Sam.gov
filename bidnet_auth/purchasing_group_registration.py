@@ -277,7 +277,12 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
     page = client._page
     # domcontentloaded only — networkidle hangs on BidNet analytics beacons
     try:
-        page.goto(form_url, wait_until="domcontentloaded", timeout=max(30_000, int(timeout_ms)))
+        # commit is more reliable than domcontentloaded on BidNet form pages
+        page.goto(form_url, wait_until="commit", timeout=max(45_000, int(timeout_ms)))
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=15_000)
+        except Exception:
+            pass
     except Exception as exc:
         return {
             "ok": False,
