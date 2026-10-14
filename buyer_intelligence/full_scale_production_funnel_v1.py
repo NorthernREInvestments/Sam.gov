@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2c"
+BUILD = "20261014-m3-full-scale-production-funnel-v2d"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -53,6 +53,8 @@ _RETRYABLE_BLOCKERS = {
     "PER_OPPORTUNITY_TIMEOUT",
     "FETCH_FAILED",
     "INCOMPLETE_LINE_ITEMS",
+    "BIDNET_AUTH_REQUIRED",
+    "DOCUMENTS_INACCESSIBLE",
     # Retry after group-level registration succeeds (not permanently failed)
     "PURCHASING_GROUP_REGISTRATION_REQUIRED",
     "AWAITING_PURCHASING_GROUP_REGISTRATION",
@@ -978,11 +980,24 @@ def _pg_id_from_url(url: Any) -> str | None:
         return None
 
 
+def _real_line_count(row: dict[str, Any]) -> int:
+    """Count product lines that are not title-fallback placeholders."""
+    lines = row.get("line_items") or []
+    n = 0
+    for li in lines:
+        if not isinstance(li, dict):
+            continue
+        if li.get("source") == "title_fallback" or li.get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK":
+            continue
+        n += 1
+    return n
+
+
 def _map_result(row: dict[str, Any]) -> str:
     blocker = str(row.get("terminal_blocker") or row.get("package_blocker") or "")
     if row.get("timed_out") or row.get("bounded_timed_out") or "TIMEOUT" in blocker:
         return "TIMEOUT"
-    if "CREDENTIAL" in blocker or "AUTH" in blocker:
+    if "CREDENTIAL" in blocker or "AUTH" in blocker or blocker == "BIDNET_AUTH_REQUIRED":
         return "AUTH_FAILED"
     pg_reg = row.get("purchasing_group_registration") or {}
     pg_st = str(pg_reg.get("status") or "").upper()
@@ -1010,16 +1025,23 @@ def _map_result(row: dict[str, Any]) -> str:
         }:
             return "OWNER_ACTION_REQUIRED"
         return "NO_PACKAGE" if not row.get("complete_spec") else "PARTIAL"
-    if row.get("complete_spec") and (row.get("document_count") or 0) > 0:
+    docs_dl = int(row.get("documents_downloaded") or 0)
+    real_lines = _real_line_count(row)
+    if row.get("complete_spec") and docs_dl > 0 and real_lines > 0:
         return "SUCCESS"
-    if row.get("complete_spec") or (row.get("line_count") or 0) > 0:
+    # Never treat title-fallback-only rows as PARTIAL progress
+    if row.get("complete_spec") or (docs_dl > 0 and real_lines > 0):
         return "PARTIAL"
-    if row.get("package_status") in {"DOCUMENTS_RECOVERED", "FREE_PACKAGE_FOUND", "AUTHENTICATED_PACKAGE_DOCS"}:
+    if row.get("package_status") in {"DOCUMENTS_RECOVERED", "FREE_PACKAGE_FOUND", "AUTHENTICATED_PACKAGE_DOCS"} and (
+        docs_dl > 0 or real_lines > 0
+    ):
         return "PARTIAL"
     if "EXPIRED" in blocker or row.get("deadline_status") == "CLOSED_CONFIRMED":
         return "EXPIRED_EXIT"
     if row.get("fetch_error") or row.get("process_bidnet_error"):
         return "FETCH_FAILED"
+    if blocker == "INCOMPLETE_LINE_ITEMS" and docs_dl == 0 and real_lines == 0:
+        return "NO_PACKAGE"
     return "NO_PACKAGE"
 
 
@@ -1100,6 +1122,10 @@ def _slim_checkpoint(
         "elapsed_s": row.get("elapsed_s"),
         "fetch_via": row.get("fetch_via"),
         "is_bidnet_url": row.get("is_bidnet_url"),
+        "bidnet_auth_status": row.get("bidnet_auth_status"),
+        "bounded_blocker": row.get("bounded_blocker"),
+        "process_bidnet_error": (row.get("process_bidnet_error") or "")[:160] or None,
+        "package_blocker": (row.get("package_blocker") or "")[:160] or None,
         "authoritative_url": (row.get("authoritative_url") or "")[:240] or None,
         "purchasing_group_id": row.get("purchasing_group_id")
         or (row.get("purchasing_group_gate") or {}).get("purchasing_group_id")
@@ -1312,24 +1338,6 @@ def process_slice(
             "job_id": job_id,
         }
 
-    # Group-level PG registration BEFORE opportunity processing (own budget)
-    pg_slice_report = None
-    try:
-        from bidnet_auth.purchasing_group_queue import process_group_registration_slice
-
-        auth_status_pg, auth_client_pg = _open_bidnet_auth_client()
-        if auth_client_pg is not None and getattr(auth_client_pg, "is_authenticated", False):
-            pg_slice_report = process_group_registration_slice(auth_client_pg, max_groups=2)
-            _progress(
-                status="RUNNING",
-                phase="PG_GROUP_REGISTRATION_SLICE",
-                job_id=job_id,
-                worker_id=worker_id,
-                pg_group_slice=pg_slice_report,
-            )
-    except Exception as exc:
-        pg_slice_report = {"error": type(exc).__name__}
-
     _progress(
         status="RUNNING",
         phase="SLICE",
@@ -1341,12 +1349,51 @@ def process_slice(
     )
 
     evidence_index = build_commercial_evidence_index()
+    # One shared BidNet client for PG registration + opportunity recovery.
+    # Opening two Playwright sessions per slice caused auth drop → httpx fallback.
     auth_status, auth_client = _open_bidnet_auth_client()
+    pg_slice_report = None
+    try:
+        from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+
+        if auth_client is not None and getattr(auth_client, "is_authenticated", False):
+            pg_slice_report = process_group_registration_slice(auth_client, max_groups=2)
+            _progress(
+                status="RUNNING",
+                phase="PG_GROUP_REGISTRATION_SLICE",
+                job_id=job_id,
+                worker_id=worker_id,
+                pg_group_slice=pg_slice_report,
+                bidnet_auth_status=auth_status.get("status"),
+            )
+    except Exception as exc:
+        pg_slice_report = {"error": type(exc).__name__}
+
     l23 = load_store()
     http = _cookies_client()
     processed = 0
     last_oid = None
+    zero_doc_streak = 0
     try:
+        if not auth_status.get("authenticated"):
+            _progress(
+                status="BLOCKED",
+                phase="AUTH_BLOCKER",
+                last_blocker=auth_status.get("external_blocker") or auth_status.get("status"),
+                job_id=job_id,
+                worker_id=worker_id,
+                bidnet_auth_status=auth_status.get("status"),
+                auth_message=(auth_status.get("message") or "")[:200],
+            )
+            return {
+                "slice_complete": False,
+                "processed_this_slice": 0,
+                "queue_exhausted": False,
+                "job_id": job_id,
+                "blocked": True,
+                "reason": "BIDNET_AUTH_REQUIRED",
+                "auth_status": auth_status,
+            }
         for idx, item in pending:
             if _stop_flag():
                 break
@@ -1428,6 +1475,24 @@ def process_slice(
             store.write_item_checkpoint(job_id, slim)
             _append_rfq(row)
             processed += 1
+            docs_dl = int(slim.get("documents_downloaded") or 0)
+            fetch_via = str(slim.get("fetch_via") or "")
+            pg_waiting = str(slim.get("purchasing_group_registration_status") or "").upper() in {
+                "QUEUED",
+                "REGISTERING",
+                "PREPARED",
+            }
+            unhealthy_fetch = fetch_via in {
+                "httpx_public_or_cookie",
+                "httpx_fallback_after_auth_error",
+                "bidnet_auth_required",
+                "bidnet_auth_fetch_failed",
+                "none",
+            } or result == "AUTH_FAILED"
+            if docs_dl == 0 and unhealthy_fetch and not pg_waiting:
+                zero_doc_streak += 1
+            elif docs_dl > 0:
+                zero_doc_streak = 0
             job = store.recompute_counts(job_id)
             job["RESUME_CURSOR"] = idx + 1
             job["META"] = {
@@ -1435,6 +1500,9 @@ def process_slice(
                 "last_blocker": slim.get("terminal_blocker"),
                 "last_result": result,
                 "bidnet_auth_status": auth_status.get("status"),
+                "zero_doc_streak": zero_doc_streak,
+                "last_fetch_via": fetch_via,
+                "pg_group_slice": pg_slice_report,
             }
             store.save_job(job)
             # Refresh scorecard every 5 items so operators see repaired blocker taxonomy live
@@ -1456,6 +1524,21 @@ def process_slice(
                     job_id=job_id,
                 )
                 break
+            # Circuit breaker: systemic zero-doc lane (no misleading PARTIAL flood)
+            if zero_doc_streak >= 8 and processed >= 8:
+                sc = _aggregate_scorecard(job, store.list_items(job_id), queue)
+                metrics = (sc or {}).get("metrics") or {}
+                if int(metrics.get("documents_retrieved") or 0) == 0:
+                    _progress(
+                        status="BLOCKED",
+                        phase="CIRCUIT_BREAKER_ZERO_DOCS",
+                        last_blocker="ZERO_DOCS_STREAK",
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        zero_doc_streak=zero_doc_streak,
+                        last_fetch_via=fetch_via,
+                    )
+                    break
     finally:
         try:
             http.close()

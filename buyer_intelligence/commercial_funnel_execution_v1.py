@@ -643,11 +643,24 @@ def process_one(
 
     if fetch_via in {"none", "process_bidnet_opportunity_failed"}:
         try:
-            if url.startswith("http") and auth_client is not None and getattr(auth_client, "is_authenticated", False):
+            if (
+                url.startswith("http")
+                and auth_client is not None
+                and getattr(auth_client, "is_authenticated", False)
+            ):
                 html = auth_client.fetch_html(url, timeout_ms=45_000) or ""
                 status = 200 if html else 0
                 final = url
                 fetch_via = "BidNetAuthenticatedClient.fetch_html"
+            elif is_bidnet_url:
+                # Never treat unauthenticated public httpx as BidNet package recovery.
+                out["package_blocker"] = str(
+                    auth_status.get("external_blocker")
+                    or auth_status.get("status")
+                    or "BIDNET_AUTH_REQUIRED"
+                )
+                out["terminal_blocker"] = out["package_blocker"]
+                fetch_via = "bidnet_auth_required"
             elif url.startswith("http"):
                 r = client.get(url)
                 status = int(r.status_code)
@@ -657,7 +670,10 @@ def process_one(
         except Exception as exc:
             out["fetch_error"] = f"{type(exc).__name__}:{exc}"[:200]
             status = 0
-            if not html and url.startswith("http"):
+            if is_bidnet_url:
+                out["package_blocker"] = out.get("package_blocker") or "BIDNET_AUTH_REQUIRED"
+                fetch_via = fetch_via or "bidnet_auth_fetch_failed"
+            elif not html and url.startswith("http"):
                 try:
                     r = client.get(url)
                     status = int(r.status_code)
