@@ -499,7 +499,15 @@ def process_one(
 
             # Purchasing-group registration is a group-level browser workflow; allow
             # enough wall clock for inspect→fill→save→detail retry (Empire State proof).
-            pg_budget = 90.0 if "purchasinggroupid=" in url.lower() else 45.0
+            # CRITICAL: reuse the live authenticated client (isolate_process=False).
+            # Child-process isolation was spawning a fresh browser and never invoking
+            # registration on the production session — Railway tracker stayed empty.
+            from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+
+            pg_id_from_url = extract_pg_id_from_url(url)
+            if pg_id_from_url:
+                out["purchasing_group_id"] = pg_id_from_url
+            pg_budget = 90.0 if pg_id_from_url or "purchasinggroupid=" in url.lower() else 45.0
             bounded = recover_one_bounded(
                 {
                     "opportunity_id": oid,
@@ -511,8 +519,9 @@ def process_one(
                 auth_client=auth_client,
                 l23=dict(l23_rec or {}),
                 timeout_s=pg_budget,
+                isolate_process=False,
             )
-            fetch_via = "bounded_document_recovery_45s"
+            fetch_via = "bounded_document_recovery_inline"
             out["bounded_blocker"] = bounded.get("primary_blocker")
             out["bounded_timed_out"] = bool(bounded.get("timed_out"))
             out["blocker_evidence"] = bounded.get("blocker_evidence")
@@ -523,6 +532,60 @@ def process_one(
             out["paid_entitlement_requirement"] = bounded.get("paid_entitlement_requirement")
             out["solicitation_from_intercept"] = bounded.get("solicitation_from_intercept")
             out["official_hit"] = bounded.get("official_hit")
+            # If bounded path still skipped registration on a PG URL, invoke it here
+            # on the live authenticated session (group-level, idempotent).
+            if (
+                pg_id_from_url
+                and not bounded.get("purchasing_group_registration")
+                and not (bounded.get("documents") or [])
+                and getattr(auth_client, "is_authenticated", False)
+            ):
+                try:
+                    from bidnet_auth.purchasing_group_registration import (
+                        resolve_access_gate_registration,
+                    )
+                    from bidnet_auth.purchasing_group_tracker import is_registered
+
+                    if is_registered(str(pg_id_from_url)):
+                        bounded["purchasing_group_registration"] = {
+                            "status": "REGISTERED",
+                            "already_registered": True,
+                            "purchasing_group_id": pg_id_from_url,
+                        }
+                    else:
+                        page = getattr(auth_client, "_page", None)
+                        html_now = ""
+                        page_url_now = url
+                        if page is not None:
+                            try:
+                                html_now = page.content() or ""
+                                page_url_now = str(page.url or url)
+                            except Exception:
+                                pass
+                        reg = resolve_access_gate_registration(
+                            auth_client,
+                            html=html_now,
+                            page_url=page_url_now,
+                            allow_submit=True,
+                            opportunity_id=oid,
+                            source_url=url,
+                        )
+                        bounded["purchasing_group_registration"] = {
+                            "status": reg.get("status"),
+                            "submitted": reg.get("submitted"),
+                            "skipped": reg.get("skipped"),
+                            "already_registered": reg.get("already_registered"),
+                            "purchasing_group_id": reg.get("purchasing_group_id") or pg_id_from_url,
+                            "reason": reg.get("reason"),
+                        }
+                        if reg.get("gate"):
+                            bounded["purchasing_group_gate"] = {
+                                k: reg["gate"].get(k)
+                                for k in ("name", "purchasing_group_id", "gate_kind", "fee_mentioned")
+                            }
+                        out["pg_registration_via"] = "cfe_live_session_fallback"
+                except Exception as exc:
+                    out["purchasing_group_registration_error"] = type(exc).__name__
             if bounded.get("purchasing_group_gate") or bounded.get("purchasing_group_registration"):
                 out["purchasing_group_gate"] = bounded.get("purchasing_group_gate")
                 out["purchasing_group_registration"] = bounded.get("purchasing_group_registration")
@@ -531,14 +594,22 @@ def process_one(
                 out["purchasing_group_id"] = (
                     pg_reg.get("purchasing_group_id")
                     or (bounded.get("purchasing_group_gate") or {}).get("purchasing_group_id")
+                    or pg_id_from_url
                 )
                 if pg_st in {"OWNER_APPROVAL_REQUIRED", "PREPARED"}:
                     out["package_blocker"] = "AWAITING_OWNER_ACTION"
                     out["owner_action_required"] = True
                 elif pg_st == "PAID_REQUIRED":
                     out["package_blocker"] = "PAID_ENTITLEMENT:PURCHASING_GROUP_FEE"
+                elif pg_st == "REGISTERED" or pg_reg.get("already_registered"):
+                    # Registered but docs not yet recovered this pass — retryable unlock
+                    out["package_blocker"] = out.get("package_blocker") or "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+                    out["pg_registered_awaiting_docs"] = True
                 elif str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
                     out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+            elif pg_id_from_url and str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
+                out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+                out["purchasing_group_id"] = pg_id_from_url
             recovered_docs = [
                 {
                     "document_name": d.get("name") or d.get("document_name") or d.get("filename"),
@@ -671,10 +742,18 @@ def process_one(
         elif pg_hint and (
             out.get("purchasing_group_gate")
             or out.get("bounded_blocker")
-            or fetch_via == "bounded_document_recovery_45s"
+            or fetch_via
+            in {"bounded_document_recovery_45s", "bounded_document_recovery_inline"}
         ):
             # Public statewide URLs with purchasingGroupId are PG gates, not WAF
             out["package_blocker"] = out.get("package_blocker") or "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+            if not out.get("purchasing_group_id"):
+                try:
+                    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+
+                    out["purchasing_group_id"] = extract_pg_id_from_url(url)
+                except Exception:
+                    pass
         elif status in (401, 403):
             out["package_blocker"] = out.get("package_blocker") or "SOURCE_REQUIRES_PAID_ENTITLEMENT"
         elif "gokuProps" in (html or "") or (html and len(html) <= 2000):
