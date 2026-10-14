@@ -292,6 +292,10 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 30_000) 
     attestation = bool(
         re.search(r"I (certify|attest|declare|agree)|under penalty|legally binding", body, re.I)
     )
+    member_completed = bool(
+        re.search(r"Member Since.{0,40}\bCOMPLETED\b", body, re.I)
+        or re.search(r"Member Since.{0,40}\bCOMPLETE\b", body, re.I)
+    ) and not re.search(r"Member Since.{0,40}\bINCOMPLETE\b", body, re.I)
     return {
         "ok": True,
         "final_url": final[:220],
@@ -300,7 +304,9 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 30_000) 
         "fee_mentioned": fee,
         "attestation_mentioned": attestation,
         "has_save": "save" in body.lower(),
-        "member_status_incomplete": bool(re.search(r"\bincomplete\b", body, re.I)),
+        "member_status_incomplete": bool(re.search(r"\bINCOMPLETE\b", body, re.I))
+        and not member_completed,
+        "member_status_completed": member_completed,
     }
 
 
@@ -481,6 +487,27 @@ def run_empire_state_registration(
             last_error=inspected.get("error"),
         )
         return {"ok": False, **inspected, "plan": plan}
+
+    # BidNet already shows COMPLETED — persist and never re-submit
+    if inspected.get("member_status_completed"):
+        upsert_group(
+            EMPIRE_STATE_PG_ID,
+            name=EMPIRE_STATE_NAME,
+            status=STATUS_REGISTERED,
+            registration_completed_at=_utc(),
+            registration_required=True,
+            fee_required=False,
+            relevant=True,
+            confirmation_excerpt=(inspected.get("body_excerpt") or "")[:400],
+            form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+        )
+        return {
+            "ok": True,
+            "status": STATUS_REGISTERED,
+            "skipped": True,
+            "reason": "bidnet_form_already_completed",
+            "purchasing_group_id": EMPIRE_STATE_PG_ID,
+        }
 
     if inspected.get("fee_mentioned"):
         upsert_group(
