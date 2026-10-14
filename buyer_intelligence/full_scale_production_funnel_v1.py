@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261013-m3-full-scale-production-funnel-v1"
+BUILD = "20261013-m3-full-scale-production-funnel-v1c"
 FAMILY = "full_scale_production_funnel_v1"
 OUT = "_og_commercial_research_pipeline_out"
 
@@ -181,11 +181,86 @@ def _priority_score(row: dict[str, Any]) -> float:
     return score
 
 
-def build_eligible_queue(*, force_rebuild: bool = False) -> dict[str, Any]:
-    """Build prioritized full LIVE_ELIGIBLE product queue from FCF classifications.
+def _save_queue_compact(man: dict[str, Any]) -> Path:
+    """Compact JSON (no indent) — 10k-row queues must stay writable under memory pressure."""
+    path = Path(data_path(QUEUE_FILE))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(man, separators=(",", ":"), default=str), encoding="utf-8")
+    os.replace(tmp, path)
+    return path
 
-    No artificial total cap. If classifications are missing, rebuild a live-eligible
-    product queue from L23 via FCF classify_record (same taxonomy).
+
+def _queue_row_from_any(r: dict[str, Any], *, oid: str | None = None) -> dict[str, Any] | None:
+    oid = str(oid or r.get("opportunity_id") or r.get("canonical_opportunity_id") or "").strip()
+    if not oid:
+        return None
+    title = str(r.get("product") or r.get("title") or "")
+    if _COMPLEX.search(title) and not _COMMON.search(title):
+        return None
+    pc = str(r.get("product_class") or r.get("product_service_classification") or "")
+    if pc in {"NON_PRODUCT", "PURE_SERVICE", "CONSTRUCTION"}:
+        return None
+    if not pc:
+        pc = "UNKNOWN_PRODUCTNESS"
+    elif "PRODUCT" in pc.upper() or pc in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS", "TANGIBLE_PRODUCT"}:
+        if pc == "TANGIBLE_PRODUCT":
+            pc = "PRODUCT"
+        elif pc == "MIXED_PRODUCT_SERVICE":
+            pc = "MIXED"
+    else:
+        pc = "UNKNOWN_PRODUCTNESS"
+    dl_status = str(r.get("deadline_status") or "")
+    if dl_status in {"CLOSED_CONFIRMED", "CANCELLED"}:
+        return None
+    # days_left if present
+    days = r.get("days_left")
+    if days is None and r.get("deadline"):
+        try:
+            from dateutil import parser as dp
+
+            d = dp.isoparse(str(r.get("deadline")))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=timezone.utc)
+            days = (now_utc() - d).total_seconds() / -86400.0
+        except Exception:
+            days = None
+    if days is not None:
+        try:
+            if float(days) < 0:
+                return None
+        except Exception:
+            pass
+    fun = str(r.get("funnel_class") or r.get("visibility_bucket") or "LIVE_ELIGIBLE")
+    if fun in {"EXPIRED", "EXPIRED_HISTORICAL", "CANCELLED", "BLOCKED_INELIGIBLE", "SET_ASIDE_INELIGIBLE"}:
+        return None
+    row = {
+        "opportunity_id": oid,
+        "title": title[:240],
+        "buyer": r.get("buyer") or r.get("agency") or r.get("organization"),
+        "deadline": r.get("deadline"),
+        "days_left": days,
+        "authoritative_url": r.get("authoritative_url") or r.get("url") or r.get("source_url"),
+        "product_class": pc if pc in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"} else "UNKNOWN_PRODUCTNESS",
+        "funnel_class": "LIVE_ELIGIBLE",
+        "deadline_status": dl_status or ("OPEN_CONFIRMED" if days is not None else "DEADLINE_UNKNOWN"),
+        "common_product": bool(r.get("common_product") or _COMMON.search(title)),
+        "selection_score": 0.0,
+    }
+    row["selection_score"] = _priority_score(row)
+    return row
+
+
+def build_eligible_queue(
+    *,
+    force_rebuild: bool = False,
+    job_id: str | None = None,
+    worker_id: str | None = None,
+) -> dict[str, Any]:
+    """Build prioritized full LIVE_ELIGIBLE product queue.
+
+    Prefer FCF classifications, then Available Deals artifacts, then a fast L23
+    heuristic pass (same gates, no per-row heavy classify). No artificial total cap.
     """
     existing = None if force_rebuild else _load(QUEUE_FILE)
     if (
@@ -196,69 +271,109 @@ def build_eligible_queue(*, force_rebuild: bool = False) -> dict[str, Any]:
     ):
         return existing
 
-    cls = _load(FCF_CLASS) or {}
-    rows_in = cls.get("rows") or []
-    source = "fcf_classifications"
-
-    if not rows_in:
-        # Rebuild from L23 using FCF classifier (no permanent raw warehouse expansion)
-        from buyer_intelligence.full_cohort_funnel_run_v1 import (
-            LIVE_ELIGIBLE,
-            classify_record,
-            map_terminal_class,
+    def _hb(examined: int, found: int, phase: str) -> None:
+        _progress(
+            status="RUNNING",
+            phase=phase,
+            job_id=job_id,
+            worker_id=worker_id,
+            queue_examined=examined,
+            queue_found=found,
         )
+        if job_id and worker_id:
+            try:
+                JobStore(FAMILY).heartbeat(job_id, worker_id=worker_id)
+            except Exception:
+                pass
+
+    rows_in: list[dict[str, Any]] = []
+    source = "none"
+
+    # 1) FCF classifications (full audit evidence)
+    cls = _load(FCF_CLASS) or {}
+    if isinstance(cls.get("rows"), list) and cls["rows"]:
+        rows_in = [r for r in cls["rows"] if isinstance(r, dict)]
+        source = "fcf_classifications"
+        _hb(len(rows_in), 0, "QUEUE_FROM_FCF")
+
+    # 2) Available Deals visibility artifact
+    if not rows_in:
+        for rel in (
+            f"{OUT}/m3_adv_v1_available_deals.json",
+            f"{OUT}/m3_available_deals_visibility_v1.json",
+            f"{OUT}/m3_fcf_v1_top20_actionable.json",
+        ):
+            blob = _load(rel) or {}
+            deals = blob.get("deals") or blob.get("rows") or blob.get("opportunities") or []
+            if isinstance(deals, dict):
+                deals = list(deals.values())
+            if isinstance(deals, list) and deals:
+                rows_in = [d for d in deals if isinstance(d, dict)]
+                source = f"available_deals:{rel}"
+                _hb(len(rows_in), 0, "QUEUE_FROM_ADV")
+                break
+
+    # 3) Fast L23 heuristic (full population — no pilot cap)
+    if not rows_in:
         from phase_l.l23_full_population_funnel import load_store
 
+        _hb(0, 0, "QUEUE_LOAD_L23")
         store = load_store()
         rebuilt: list[dict[str, Any]] = []
-        for oid, rec in (store or {}).items():
+        for i, (oid, rec) in enumerate((store or {}).items()):
             if not isinstance(rec, dict):
                 continue
-            classified = classify_record(str(oid), rec)
-            fclass = map_terminal_class(classified, None)
-            if fclass != LIVE_ELIGIBLE:
+            # Lightweight open/product gate — expensive research happens later per item
+            if str(rec.get("current_funnel_state") or "").upper() in {
+                "EXPIRED",
+                "CANCELED",
+                "CANCELLED",
+            }:
                 continue
-            if classified.get("product_class") not in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}:
+            title = str(rec.get("title") or "")
+            if _COMPLEX.search(title) and not _COMMON.search(title):
                 continue
-            classified["funnel_class"] = fclass
-            classified["opportunity_id"] = str(oid)
-            rebuilt.append(classified)
+            row = _queue_row_from_any(
+                {
+                    **rec,
+                    "product": title,
+                    "product_class": rec.get("product_service_classification") or "UNKNOWN_PRODUCTNESS",
+                    "funnel_class": "LIVE_ELIGIBLE",
+                },
+                oid=str(oid),
+            )
+            if row:
+                rebuilt.append(row)
+            if (i + 1) % 500 == 0:
+                _hb(i + 1, len(rebuilt), "QUEUE_FROM_L23")
         rows_in = rebuilt
-        source = "l23_classify_fallback"
-        log.warning("FCF classifications missing — built eligible queue from L23 (%s)", len(rows_in))
+        source = "l23_fast_heuristic"
+        log.warning("FCF/ADV missing — built eligible queue from L23 fast path (%s)", len(rows_in))
+        _hb(len(store or {}), len(rows_in), "QUEUE_L23_DONE")
 
     selected: list[dict[str, Any]] = []
-    for r in rows_in:
+    for i, r in enumerate(rows_in):
         if not isinstance(r, dict):
             continue
-        if r.get("funnel_class") != "LIVE_ELIGIBLE":
-            continue
-        if r.get("product_class") not in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}:
-            continue
-        # Soft-skip already-confirmed closed when classification is stale
-        if r.get("deadline_status") in {"CLOSED_CONFIRMED", "CANCELLED"}:
-            continue
-        title = str(r.get("product") or r.get("title") or "")
-        if _COMPLEX.search(title) and not _COMMON.search(title):
-            continue
-        oid = str(r.get("opportunity_id") or "").strip()
-        if not oid:
-            continue
-        selected.append(
-            {
-                "opportunity_id": oid,
-                "title": title[:240],
-                "buyer": r.get("buyer"),
-                "deadline": r.get("deadline"),
-                "days_left": r.get("days_left"),
-                "authoritative_url": r.get("authoritative_url"),
-                "product_class": r.get("product_class"),
-                "funnel_class": r.get("funnel_class"),
-                "deadline_status": r.get("deadline_status"),
-                "common_product": bool(r.get("common_product") or _COMMON.search(title)),
-                "selection_score": _priority_score(r),
-            }
-        )
+        # FCF rows already classified
+        if source == "fcf_classifications":
+            if r.get("funnel_class") != "LIVE_ELIGIBLE":
+                continue
+            if r.get("product_class") not in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}:
+                continue
+            if r.get("deadline_status") in {"CLOSED_CONFIRMED", "CANCELLED"}:
+                continue
+            row = _queue_row_from_any(r)
+        else:
+            # ADV may use visibility buckets
+            bucket = str(r.get("visibility_bucket") or r.get("bucket") or "")
+            if bucket in {"BLOCKED_INELIGIBLE", "BLOCKED"}:
+                continue
+            row = _queue_row_from_any(r)
+        if row:
+            selected.append(row)
+        if (i + 1) % 1000 == 0:
+            _hb(i + 1, len(selected), "QUEUE_FILTER")
 
     selected.sort(
         key=lambda x: (
@@ -281,7 +396,8 @@ def build_eligible_queue(*, force_rebuild: bool = False) -> dict[str, Any]:
         "NOTE": "Full eligible queue — no pilot cap. Slices are internal only.",
         "rows": selected,
     }
-    _save(QUEUE_FILE, man)
+    _save_queue_compact(man)
+    _hb(len(selected), len(selected), "QUEUE_SAVED")
     return man
 
 
@@ -853,7 +969,11 @@ def start_job(*, force: bool = False, rebuild_queue: bool = False) -> dict[str, 
                     job_id=job_id,
                     worker_id=worker_id,
                 )
-                queue = build_eligible_queue(force_rebuild=rebuild_queue)
+                queue = build_eligible_queue(
+                    force_rebuild=rebuild_queue,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                )
                 oids = [str(r["opportunity_id"]) for r in (queue.get("rows") or [])]
                 job_now = store.load_job(job_id) or {}
                 job_now["TOTAL"] = len(oids)

@@ -21,7 +21,7 @@ def test_slice_is_internal_not_pilot_cap():
     assert SLICE_SIZE >= 10
     assert SLICE_SIZE <= 100
     assert "full_scale" in FAMILY
-    assert "20261013" in BUILD
+    assert "full-scale-production-funnel" in BUILD
 
 
 def test_priority_prefers_near_deadline_common_products():
