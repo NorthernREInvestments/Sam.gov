@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M3 Full-Scale Production Funnel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --ink: #e8eef4;
+      --muted: #8b9aab;
+      --accent: #3d9a6a;
+      --warn: #c4a035;
+      --bad: #c45c5c;
+      --line: #2a3542;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1c2a22 0%, transparent 55%),
+                  linear-gradient(160deg, #0f1419, #121a22 40%, #0d1218);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+    .pill {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 4px;
+    }
+    .pill.ok { border-color: var(--accent); color: #8fd4ad; }
+    .pill.run { border-color: var(--warn); color: #e6d08a; }
+    .pill.bad { border-color: var(--bad); color: #e8a0a0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 0.85rem 0.9rem;
+      border-radius: 6px;
+    }
+    .metric .n {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 1.35rem;
+      font-weight: 500;
+    }
+    .metric .l { color: var(--muted); font-size: 0.75rem; margin-top: 0.2rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      font-family: inherit;
+      background: var(--accent);
+      color: #06140c;
+      border: 0;
+      padding: 0.5rem 0.9rem;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .err { color: #e8a0a0; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>M3 Full-Scale Production Funnel</h1>
+  <p class="sub">Live eligible queue → documents → product lines → distributors → RFQ prep (AUTO_SEND=false). Counts from persisted results only.</p>
+
+  <div class="row">
+    <span id="status-pill" class="pill">…</span>
+    <span id="job-pill" class="pill">job —</span>
+    <span id="hb-pill" class="pill">heartbeat —</span>
+    <button type="button" id="btn-refresh">Refresh</button>
+    <button type="button" class="ghost" id="btn-start">Start / Resume</button>
+  </div>
+  <p id="err" class="err" hidden></p>
+
+  <div class="grid" id="metrics"></div>
+
+  <div class="panel">
+    <h2 style="font-size:1rem;margin:0 0 0.75rem">Top blockers</h2>
+    <table>
+      <thead><tr><th>Reason</th><th>Count</th></tr></thead>
+      <tbody id="blockers"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2 style="font-size:1rem;margin:0 0 0.5rem">Continuity</h2>
+    <pre id="continuity" style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;white-space:pre-wrap;color:var(--muted)"></pre>
+  </div>
+
+  <script>
+    const LABELS = [
+      ["live_eligible_product_opportunities", "Live eligible"],
+      ["opportunities_processed", "Processed"],
+      ["complete_solicitation_packages", "Packages"],
+      ["documents_retrieved", "Documents"],
+      ["fully_specified_product_lines", "Product lines"],
+      ["complete_bidding_lots", "Bidding lots"],
+      ["matched_distributors", "Distributors"],
+      ["verified_public_acquisition_prices", "Public prices"],
+      ["verified_historical_government_prices", "Gov prices"],
+      ["complete_rfqs_awaiting_approval", "RFQs awaiting"],
+      ["real_supplier_quotes_received", "Quotes received"],
+      ["documented_positive_margins", "Positive margins"],
+      ["financing_ready_opportunities", "Financing-ready"],
+      ["fully_verified_bid_ready_opportunities", "Bid-ready"],
+    ];
+
+    async function api(path, opts) {
+      const r = await fetch(path, { credentials: "same-origin", ...opts });
+      if (r.status === 401) { location.href = "/login.html"; throw new Error("login"); }
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    function render(sc) {
+      const m = sc.metrics || {};
+      const prog = sc.progress || {};
+      const st = String(prog.status || sc.status || "IDLE");
+      const pill = document.getElementById("status-pill");
+      pill.textContent = st;
+      pill.className = "pill " + (st === "RUNNING" ? "run" : st === "DONE" ? "ok" : st.includes("ERROR") || st === "BLOCKED" ? "bad" : "");
+      document.getElementById("job-pill").textContent = "job " + (sc.job_id || prog.job_id || "—");
+      document.getElementById("hb-pill").textContent = "hb " + (sc.heartbeat_at || prog.heartbeat_at || "—");
+      document.getElementById("metrics").innerHTML = LABELS.map(([k, l]) =>
+        `<div class="metric"><div class="n">${m[k] ?? 0}</div><div class="l">${l}</div></div>`
+      ).join("");
+      const blockers = sc.blockers_top || [];
+      document.getElementById("blockers").innerHTML = blockers.length
+        ? blockers.map(b => `<tr><td>${b.reason || ""}</td><td>${b.count || 0}</td></tr>`).join("")
+        : `<tr><td colspan="2">No blockers yet</td></tr>`;
+      document.getElementById("continuity").textContent = JSON.stringify({
+        continuation: sc.continuation,
+        api_budget: sc.api_budget,
+        current: prog.current_opportunity_id || sc.current_opportunity_id,
+        worker: sc.worker_id || prog.worker_id,
+        AUTO_SEND: false,
+      }, null, 2);
+    }
+
+    async function refresh() {
+      try {
+        document.getElementById("err").hidden = true;
+        const sc = await api("/api/m3/full-scale-production-funnel/scorecard");
+        render(sc);
+      } catch (e) {
+        if (String(e.message) !== "login") {
+          document.getElementById("err").hidden = false;
+          document.getElementById("err").textContent = String(e.message || e).slice(0, 240);
+        }
+      }
+    }
+
+    document.getElementById("btn-refresh").onclick = refresh;
+    document.getElementById("btn-start").onclick = async () => {
+      try {
+        await api("/api/m3/full-scale-production-funnel/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force: false }),
+        });
+        await refresh();
+      } catch (e) {
+        document.getElementById("err").hidden = false;
+        document.getElementById("err").textContent = String(e.message || e).slice(0, 240);
+      }
+    };
+    refresh();
+    setInterval(refresh, 15000);
+  </script>
+</body>
+</html>

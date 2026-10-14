@@ -341,11 +341,29 @@ def _first_revenue_priority() -> dict[str, float]:
 
 
 def _commercial_index() -> dict[str, dict[str, Any]]:
-    """Load commercial overlays once (rebuild was O(n×files×deals) without this)."""
+    """Load commercial overlays once (rebuild was O(n×files×deals) without this).
+
+    Prefer unified commercial_evidence_index_v1 (reconnects SPF/profit-first/HT/cex)
+    so historical and public prices are not silently dropped.
+    """
     global _COMMERCIAL_INDEX
     if _COMMERCIAL_INDEX is not None:
         return _COMMERCIAL_INDEX
     idx: dict[str, dict[str, Any]] = {}
+    # Unified index first
+    try:
+        from buyer_intelligence.commercial_evidence_index_v1 import INDEX_OUT, build_commercial_evidence_index
+
+        path = Path(data_path(INDEX_OUT))
+        if not path.exists():
+            build_commercial_evidence_index()
+        blob = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        for oid, d in (blob.get("by_opportunity") or {}).items():
+            if isinstance(d, dict) and oid:
+                idx[str(oid)] = d
+    except Exception:
+        pass
+    # Legacy deal files fill gaps
     for name in (
         "m3_cex_v1_available_deals.json",
         "m3_rse_v1_available_deals.json",
@@ -362,15 +380,41 @@ def _commercial_index() -> dict[str, dict[str, Any]]:
             continue
         for d in blob.get("deals") or []:
             oid = str(d.get("opportunity_id") or "")
-            if oid and oid not in idx:
+            if not oid:
+                continue
+            if oid not in idx:
                 idx[oid] = d
+            else:
+                # merge non-empty fields
+                bag = idx[oid]
+                for k, v in d.items():
+                    if v not in (None, "", [], {}) and bag.get(k) in (None, "", [], {}):
+                        bag[k] = v
     _COMMERCIAL_INDEX = idx
     return idx
 
 
 def _commercial_overlay(oid: str) -> dict[str, Any]:
     """Pull any existing commercial research without requiring it for visibility."""
-    return _commercial_index().get(str(oid), {})
+    bag = dict(_commercial_index().get(str(oid), {}) or {})
+    # Product-stem historical fill from unified index when OID bag lacks prices
+    if bag.get("historical_unit") in (None, "", [], {}) and bag.get("historical_government_price") in (
+        None,
+        "",
+        [],
+        {},
+    ):
+        try:
+            from buyer_intelligence.commercial_evidence_index_v1 import lookup_evidence_for_opportunity
+
+            title = str(bag.get("product") or bag.get("profit_first_title") or "")
+            filled = lookup_evidence_for_opportunity(str(oid), title=title or None)
+            for k in ("historical_unit", "historical_government_price", "public_acquisition_cost", "historical_match"):
+                if filled.get(k) not in (None, "", [], {}) and bag.get(k) in (None, "", [], {}):
+                    bag[k] = filled.get(k)
+        except Exception:
+            pass
+    return bag
 
 
 def _ready_to_bid(rec: dict[str, Any], elig: dict[str, Any], commercial: dict[str, Any]) -> bool:

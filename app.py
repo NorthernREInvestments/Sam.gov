@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261011-m3-high-throughput-max-evidence-engine-v2-accuracy-eq4"
+APP_BUILD_VERSION = "20261013-m3-full-scale-production-funnel-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1758,6 +1758,58 @@ def api_m3_bidnet_auth_status():
     from bidnet_auth import owner_connection_status
 
     return owner_connection_status()
+
+
+@app.post("/api/m3/full-scale-production-funnel/start")
+def api_m3_full_scale_production_funnel_start(body: dict | None = None):
+    """Start full LIVE_ELIGIBLE queue processing (background, checkpointed slices)."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import start_job
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **start_job(
+            force=bool(payload.get("force", False)),
+            rebuild_queue=bool(payload.get("rebuild_queue", False)),
+        ),
+    }
+
+
+@app.get("/api/m3/full-scale-production-funnel/progress")
+def api_m3_full_scale_production_funnel_progress():
+    from buyer_intelligence.full_scale_production_funnel_v1 import job_progress
+
+    return {"status": "OK", "build_version": APP_BUILD_VERSION, "progress": job_progress()}
+
+
+@app.get("/api/m3/full-scale-production-funnel/scorecard")
+def api_m3_full_scale_production_funnel_scorecard():
+    from buyer_intelligence.full_scale_production_funnel_v1 import get_scorecard
+
+    data = get_scorecard()
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/full-scale-production-funnel/report")
+def api_m3_full_scale_production_funnel_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("_og_commercial_research_pipeline_out/m3_fspf_v1_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/full-scale-production-funnel/stop")
+def api_m3_full_scale_production_funnel_stop():
+    from buyer_intelligence.full_scale_production_funnel_v1 import request_stop
+
+    return {"build_version": APP_BUILD_VERSION, **request_stop()}
 
 
 @app.get("/api/m3/bidnet-auth/purchasing-groups")
