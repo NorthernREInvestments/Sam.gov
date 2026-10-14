@@ -661,6 +661,12 @@ def _recover_one_inner(
     oid = item["opportunity_id"]
     title = str(item.get("title") or "")
     url = str(item.get("authoritative_url") or "")
+    # Production queue often has empty title — derive from open-bids slug so
+    # authenticated search can resolve the private solicitation namespace.
+    if len(title.strip()) < 6 and url:
+        m_slug = re.search(r"/open-bids/([^/]+)/\d+", url, re.I)
+        if m_slug:
+            title = re.sub(r"[-_]+", " ", m_slug.group(1)).strip()
     cache = _cache_snapshot(l23)
     out: dict[str, Any] = {
         "opportunity_id": oid,
@@ -750,15 +756,22 @@ def _recover_one_inner(
     # Try title, open-bids/statewide numeric IDs, and URL slug — not title alone.
     pg_early = extract_pg_id_from_url(url)
     url_l0 = (url or "").lower()
+    pg_url_shape = bool(
+        "/statewide/" in url_l0
+        or "/open-bids/" in url_l0
+        or "/public/supplier/" in url_l0
+        or "purchasinggroupid=" in url_l0
+    )
+    if pg_early and pg_url_shape and not is_registered(str(pg_early)):
+        out["access_note"] = "pg_not_registered_skip_early_unlock"
+        out["early_search_to_detail"] = {
+            "status": "SKIPPED_NOT_REGISTERED",
+            "purchasing_group_id": str(pg_early),
+        }
     if (
         pg_early
         and is_registered(str(pg_early))
-        and (
-            "/statewide/" in url_l0
-            or "/open-bids/" in url_l0
-            or "/public/supplier/" in url_l0
-            or "purchasinggroupid=" in url_l0
-        )
+        and pg_url_shape
         and hasattr(auth_client, "resolve_detail_via_authenticated_search")
         and time.monotonic() < deadline
     ):

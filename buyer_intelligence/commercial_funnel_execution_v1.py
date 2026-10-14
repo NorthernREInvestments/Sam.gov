@@ -447,7 +447,14 @@ def process_one(
                 if cand.startswith("http"):
                     url = cand
                     break
-    title = str(item.get("title") or l23_rec.get("title") or "")
+    title = str(item.get("title") or l23_rec.get("title") or l23_rec.get("product") or "")
+    # Queue rows often omit title — derive from open-bids slug for search unlock.
+    if len(title.strip()) < 6 and url:
+        import re as _re
+
+        m_slug = _re.search(r"/open-bids/([^/]+)/\d+", url, _re.I)
+        if m_slug:
+            title = _re.sub(r"[-_]+", " ", m_slug.group(1)).strip()
     auth_status = auth_status or {}
     out: dict[str, Any] = {
         "opportunity_id": oid,
@@ -483,6 +490,25 @@ def process_one(
     recovered_docs: list[dict[str, Any]] = []
     is_bidnet_url = "bidnet" in url.lower()
     out["is_bidnet_url"] = is_bidnet_url
+    # Re-auth once if session was invalidated (e.g. concurrent login probe).
+    if (
+        auth_client is not None
+        and is_bidnet_url
+        and url.startswith("http")
+        and not getattr(auth_client, "is_authenticated", False)
+        and hasattr(auth_client, "ensure_authenticated")
+    ):
+        try:
+            refreshed = auth_client.ensure_authenticated()
+            out["bidnet_auth_status"] = getattr(refreshed, "status", None) or out.get(
+                "bidnet_auth_status"
+            )
+            out["auth_refreshed"] = bool(getattr(refreshed, "authenticated", False))
+            if isinstance(auth_status, dict):
+                auth_status["status"] = out["bidnet_auth_status"]
+                auth_status["authenticated"] = bool(getattr(refreshed, "authenticated", False))
+        except Exception as exc:
+            out["auth_refresh_error"] = type(exc).__name__
     if (
         auth_client is not None
         and getattr(auth_client, "is_authenticated", False)
