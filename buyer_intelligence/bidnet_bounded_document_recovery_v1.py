@@ -679,49 +679,50 @@ def _recover_one_inner(
         "network_requests": 0,
     }
 
-    # Cache short-circuit: real docs already present
+    # Cache short-circuit ONLY when on-disk docs yield complete qty lines.
+    # Incomplete/metadata-only L23 docs previously returned DOCUMENTS_INACCESSIBLE
+    # here and skipped registered-PG search→detail unlock entirely.
     cached_docs = [
         d
         for d in (l23.get("documents") or l23.get("attachments_metadata") or [])
         if isinstance(d, dict) and _is_real_doc(d)
     ]
-    if cached_docs and is_valid_package_evidence(cached_docs).get("valid"):
+    cached_with_paths = [
+        d
+        for d in cached_docs
+        if d.get("local_path") or d.get("canonical_storage_reference")
+    ]
+    if cached_with_paths and is_valid_package_evidence(cached_with_paths).get("valid"):
         parsed = {}
-        lines = _extract_lines(title, parsed, cached_docs)
-        out["documents"] = cached_docs
-        out["line_items"] = lines
-        out["cache"]["used_cache_only"] = True
-        out["package_state"] = "PACKAGE_ACQUIRED_CACHED"
-        blocker, evidence = classify_document_blocker(
-            auth_ok=True,
-            auth_status="SESSION_REUSED",
-            paid_requirement=None,
-            paid_intercept=None,
-            package_state="PACKAGE_ACQUIRED_CACHED",
-            detail_status="CACHE",
-            docs=cached_docs,
-            free_chase_status=None,
-            fetch_error=None,
-            timed_out=False,
-        )
-        # If lines incomplete, still report docs recovered
+        lines = _extract_lines(title, parsed, cached_with_paths)
         qty_ok = any(
             (isinstance(li.get("QTY"), dict) and li["QTY"].get("VALUE") not in (None, ""))
             or li.get("quantity") not in (None, "")
             for li in lines
             if isinstance(li, dict)
         )
-        if qty_ok and lines and not (
-            len(lines) == 1 and lines[0].get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK"
-        ):
-            blocker = COMPLETE_PACKAGE
-        else:
-            blocker = DOCS_INACCESSIBLE if cached_docs else CACHE_ONLY_INCOMPLETE
-        out["primary_blocker"] = blocker
-        out["blocker_evidence"] = evidence
-        out["complete_spec"] = blocker == COMPLETE_PACKAGE
-        out["finished_at"] = _utc()
-        return out
+        title_only = bool(
+            lines
+            and len(lines) == 1
+            and lines[0].get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK"
+        )
+        if qty_ok and lines and not title_only:
+            out["documents"] = cached_with_paths
+            out["line_items"] = lines
+            out["cache"]["used_cache_only"] = True
+            out["package_state"] = "PACKAGE_ACQUIRED_CACHED"
+            out["primary_blocker"] = COMPLETE_PACKAGE
+            out["blocker_evidence"] = {
+                "classification_basis": "cache_complete_qty_lines",
+                "cached_docs": len(cached_with_paths),
+            }
+            out["complete_spec"] = True
+            out["access_note"] = "cache_complete_package"
+            out["finished_at"] = _utc()
+            return out
+        out["cache"]["incomplete_cache_bypass"] = True
+        out["cache"]["cached_docs_seen"] = len(cached_docs)
+        out["cache"]["cached_with_paths"] = len(cached_with_paths)
 
     meta = {
         "opportunity_id": oid,

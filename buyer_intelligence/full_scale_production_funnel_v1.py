@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2n"
+BUILD = "20261014-m3-full-scale-production-funnel-v2o"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1679,9 +1679,9 @@ def process_slice(
                     or bool(slim.get("pg_registered_awaiting_docs"))
                 )
             )
-            if reg_empty:
+            if reg_empty and slim.get("early_search_status"):
                 registered_empty_streak += 1
-            else:
+            elif not reg_empty:
                 registered_empty_streak = 0
             job = store.recompute_counts(job_id)
             job["RESUME_CURSOR"] = _contiguous_resume_cursor(
@@ -1731,7 +1731,7 @@ def process_slice(
                         last_fetch_via=fetch_via,
                     )
                     break
-            if registered_empty_streak >= 6:
+            if registered_empty_streak >= 10:
                 _progress(
                     status="BLOCKED",
                     phase="CIRCUIT_BREAKER_REGISTERED_UNLOCK",
