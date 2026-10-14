@@ -301,6 +301,9 @@ def process_group_registration_slice(
                 "already_registered": reg.get("already_registered"),
                 "ok": reg.get("ok"),
                 "attempts": item["attempts"],
+                "error": reg.get("error") or reg.get("reason"),
+                "form_url_used": (form_url or item.get("form_url") or "")[:160] or None,
+                "source_url": (source_url or "")[:160] or None,
             }
             processed.append(row)
             st = str(reg.get("status") or "")

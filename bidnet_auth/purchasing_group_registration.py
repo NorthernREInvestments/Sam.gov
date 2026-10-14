@@ -268,19 +268,20 @@ def audit_purchasing_groups_from_store(*, limit: int = 500) -> dict[str, Any]:
     }
 
 
-def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 30_000) -> dict[str, Any]:
+def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) -> dict[str, Any]:
     """Open group-form/edit and list fields. Does not submit."""
     if not getattr(client, "is_authenticated", False) or getattr(client, "_page", None) is None:
         return {"ok": False, "error": "NOT_AUTHENTICATED"}
     if not form_url:
         return {"ok": False, "error": "FORM_URL_MISSING"}
     page = client._page
-    page.goto(form_url, wait_until="domcontentloaded", timeout=timeout_ms)
+    # domcontentloaded only — networkidle hangs on BidNet analytics beacons
+    page.goto(form_url, wait_until="domcontentloaded", timeout=max(30_000, int(timeout_ms)))
     try:
-        page.wait_for_load_state("networkidle", timeout=5_000)
+        page.wait_for_load_state("load", timeout=8_000)
     except Exception:
         pass
-    page.wait_for_timeout(1_200)
+    page.wait_for_timeout(800)
     final = str(page.url or "")
     body = ""
     try:
