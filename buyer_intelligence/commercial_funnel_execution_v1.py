@@ -497,6 +497,9 @@ def process_one(
                 recover_one_bounded,
             )
 
+            # Purchasing-group registration is a group-level browser workflow; allow
+            # enough wall clock for inspect→fill→save→detail retry (Empire State proof).
+            pg_budget = 90.0 if "purchasinggroupid=" in url.lower() else 45.0
             bounded = recover_one_bounded(
                 {
                     "opportunity_id": oid,
@@ -507,7 +510,7 @@ def process_one(
                 },
                 auth_client=auth_client,
                 l23=dict(l23_rec or {}),
-                timeout_s=45.0,
+                timeout_s=pg_budget,
             )
             fetch_via = "bounded_document_recovery_45s"
             out["bounded_blocker"] = bounded.get("primary_blocker")
@@ -523,7 +526,18 @@ def process_one(
             if bounded.get("purchasing_group_gate") or bounded.get("purchasing_group_registration"):
                 out["purchasing_group_gate"] = bounded.get("purchasing_group_gate")
                 out["purchasing_group_registration"] = bounded.get("purchasing_group_registration")
-                if str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
+                pg_reg = bounded.get("purchasing_group_registration") or {}
+                pg_st = str(pg_reg.get("status") or "").upper()
+                out["purchasing_group_id"] = (
+                    pg_reg.get("purchasing_group_id")
+                    or (bounded.get("purchasing_group_gate") or {}).get("purchasing_group_id")
+                )
+                if pg_st in {"OWNER_APPROVAL_REQUIRED", "PREPARED"}:
+                    out["package_blocker"] = "AWAITING_OWNER_ACTION"
+                    out["owner_action_required"] = True
+                elif pg_st == "PAID_REQUIRED":
+                    out["package_blocker"] = "PAID_ENTITLEMENT:PURCHASING_GROUP_FEE"
+                elif str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
                     out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
             recovered_docs = [
                 {

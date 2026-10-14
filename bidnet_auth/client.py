@@ -929,7 +929,13 @@ class BidNetAuthenticatedClient:
                     "html": detail_html,
                     "access_gate": (
                         "ACTION_REQUIRED"
-                        if "action is required before access" in detail_html.lower()
+                        if (
+                            "action is required before access" in detail_html.lower()
+                            or "incomplete purchasing group form" in detail_html.lower()
+                            or "registration form for this purchasing group is incomplete"
+                            in detail_html.lower()
+                            or "interceptorProceedBtn" in detail_html
+                        )
                         else None
                     ),
                 }

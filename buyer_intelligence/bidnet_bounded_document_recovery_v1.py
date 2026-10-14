@@ -22,7 +22,7 @@ from m3_data_root import data_path
 
 log = __import__("logging").getLogger("govtracker.bidnet_bounded_document_recovery_v1")
 
-BUILD = "20261013-m3-bidnet-bounded-document-recovery-v1"
+BUILD = "20261014-m3-bidnet-bounded-document-recovery-v2"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_bdd_v1_report.json"
 RESULTS = f"{OUT}/m3_bdd_v1_results.json"
@@ -355,6 +355,164 @@ def _extract_lines(title: str, parsed: dict[str, Any], docs: list[dict[str, Any]
         return []
 
 
+def _attempt_pg_gate_unlock(
+    auth_client: Any,
+    *,
+    html: str,
+    page_url: str,
+    source_url: str,
+    title: str,
+    opportunity_id: str,
+    deadline: float,
+    remain_ms_fn: Any,
+    out: dict[str, Any],
+) -> tuple[str, str, str, list[dict[str, Any]], dict[str, Any]]:
+    """Invoke existing PG registration automation, then retry detail when registered.
+
+    Returns (html, page_url, detail_status, docs, parsed).
+    """
+    from bidnet_auth.purchasing_group_registration import (
+        extract_pg_gate_from_html,
+        extract_pg_id_from_url,
+        resolve_access_gate_registration,
+    )
+    from bidnet_auth.purchasing_group_tracker import (
+        STATUS_OWNER_APPROVAL_REQUIRED,
+        STATUS_PAID_REQUIRED,
+        STATUS_PREPARED,
+        STATUS_REGISTERED,
+        get_group,
+        is_registered,
+        note_blocked_opportunity,
+        upsert_group,
+    )
+    from bidnet_recovery.parse_abstract import parse_bidnet_abstract
+
+    docs: list[dict[str, Any]] = []
+    parsed: dict[str, Any] = {}
+    detail_status = "DETAIL_ACCESS_GATE"
+    gate = extract_pg_gate_from_html(html, page_url=page_url)
+    pg_id = (
+        (gate or {}).get("purchasing_group_id")
+        or extract_pg_id_from_url(page_url)
+        or extract_pg_id_from_url(source_url)
+    )
+    if pg_id:
+        note_blocked_opportunity(str(pg_id), opportunity_id)
+        out["purchasing_group_gate"] = {
+            k: (gate or {}).get(k)
+            for k in ("name", "purchasing_group_id", "gate_kind", "fee_mentioned")
+        } if gate else {
+            "name": None,
+            "purchasing_group_id": pg_id,
+            "gate_kind": "PURCHASING_GROUP_FROM_URL",
+            "fee_mentioned": False,
+        }
+        # Already registered at group level — skip form, retry detail
+        if is_registered(str(pg_id)):
+            out["purchasing_group_registration"] = {
+                "status": STATUS_REGISTERED,
+                "already_registered": True,
+                "skipped": True,
+                "purchasing_group_id": pg_id,
+            }
+        else:
+            tracked = get_group(str(pg_id)) or {}
+            if tracked.get("status") in {
+                STATUS_PAID_REQUIRED,
+                STATUS_OWNER_APPROVAL_REQUIRED,
+            }:
+                out["purchasing_group_registration"] = {
+                    "status": tracked.get("status"),
+                    "skipped": True,
+                    "reason": "group_already_pending_owner",
+                    "purchasing_group_id": pg_id,
+                    "owner_blocker_reason": tracked.get("owner_blocker_reason"),
+                }
+                return html, page_url, detail_status, docs, parsed
+
+    if time.monotonic() >= deadline:
+        out["purchasing_group_registration"] = {
+            "status": "DEADLINE_EXCEEDED",
+            "purchasing_group_id": pg_id,
+        }
+        return html, page_url, detail_status, docs, parsed
+
+    try:
+        reg = resolve_access_gate_registration(
+            auth_client,
+            html=html,
+            page_url=page_url,
+            allow_submit=True,
+            opportunity_id=opportunity_id,
+            source_url=source_url,
+        )
+        out["purchasing_group_registration"] = {
+            "status": reg.get("status"),
+            "submitted": reg.get("submitted"),
+            "skipped": reg.get("skipped"),
+            "already_registered": reg.get("already_registered"),
+            "owner_next_steps": reg.get("owner_next_steps"),
+            "purchasing_group_id": reg.get("purchasing_group_id") or pg_id,
+            "reason": reg.get("reason"),
+        }
+        if not out.get("purchasing_group_gate") and reg.get("gate"):
+            g = reg["gate"]
+            out["purchasing_group_gate"] = {
+                k: g.get(k)
+                for k in ("name", "purchasing_group_id", "gate_kind", "fee_mentioned")
+            }
+        st = str(reg.get("status") or "")
+        unlocked = st == STATUS_REGISTERED or bool(reg.get("already_registered"))
+        if unlocked and hasattr(auth_client, "resolve_detail_via_authenticated_search"):
+            out["network_requests"] = int(out.get("network_requests") or 0) + 1
+            retry = (
+                auth_client.resolve_detail_via_authenticated_search(
+                    title=title,
+                    source_url=source_url,
+                    timeout_ms=remain_ms_fn(15_000),
+                )
+                or {}
+            )
+            out["search_to_detail_retry"] = {
+                "status": retry.get("status"),
+                "access_gate": retry.get("access_gate"),
+                "detail_url": (retry.get("detail_url") or "")[:160] or None,
+            }
+            if (
+                retry.get("ok")
+                and retry.get("html")
+                and retry.get("access_gate") != "ACTION_REQUIRED"
+            ):
+                html = retry["html"]
+                page_url = str(retry.get("detail_url") or page_url)
+                out["final_url"] = page_url[:220]
+                out["access_note"] = "pg_registration_unlocked_detail"
+                if pg_id:
+                    prev = int((get_group(str(pg_id)) or {}).get("solicitations_unlocked") or 0)
+                    upsert_group(str(pg_id), solicitations_unlocked=prev + 1)
+                parsed = parse_bidnet_abstract(html, detail_url=page_url) or {}
+                detail_status = (
+                    "DETAIL_OK"
+                    if parsed.get("parse_ok") or parsed.get("title")
+                    else "DETAIL_PARTIAL"
+                )
+                docs = [d for d in (parsed.get("documents") or []) if isinstance(d, dict)]
+            else:
+                out["access_note"] = "pg_registered_detail_retry_pending"
+                detail_status = "DETAIL_ACCESS_GATE"
+        elif st == STATUS_PAID_REQUIRED:
+            out["access_note"] = "pg_registration_paid_required"
+        elif st in {STATUS_OWNER_APPROVAL_REQUIRED, STATUS_PREPARED}:
+            out["access_note"] = f"pg_registration_{st.lower()}"
+        else:
+            out["access_note"] = f"pg_registration_{st.lower() or 'incomplete'}"
+    except Exception as exc:
+        out["purchasing_group_registration_error"] = type(exc).__name__
+        out["access_note"] = "pg_registration_exception"
+    return html, page_url, detail_status, docs, parsed
+
+
 def _recover_one_inner(
     item: dict[str, Any],
     *,
@@ -449,6 +607,7 @@ def _recover_one_inner(
     detail_status = "FAST_PATH"
     package_state = "PACKAGE_RETRYABLE"
     fetch_error = None
+    html = ""
 
     # 1) Authenticated detail fetch — browser path required for public/statewide +
     # purchasing-group URLs (prefer_http=True was causing DETAIL_FETCH_EMPTY at scale;
@@ -546,142 +705,43 @@ def _recover_one_inner(
                                     package_state = "PACKAGE_LOCKED_MEMBERSHIP"
                                     out["access_note"] = "interception_action_required_before_access"
                                     # Access recovery: purchasing-group registration → retry detail
-                                    if time.monotonic() < deadline:
-                                        try:
-                                            from bidnet_auth.purchasing_group_registration import (
-                                                extract_pg_gate_from_html,
-                                                resolve_access_gate_registration,
-                                            )
-                                            from bidnet_auth.purchasing_group_tracker import (
-                                                STATUS_OWNER_APPROVAL_REQUIRED,
-                                                STATUS_PAID_REQUIRED,
-                                                STATUS_PREPARED,
-                                                STATUS_REGISTERED,
-                                                get_group,
-                                                upsert_group,
-                                            )
-
-                                            gate = extract_pg_gate_from_html(
-                                                html, page_url=page_url
-                                            )
-                                            out["purchasing_group_gate"] = {
-                                                k: gate.get(k)
-                                                for k in (
-                                                    "name",
-                                                    "purchasing_group_id",
-                                                    "gate_kind",
-                                                    "fee_mentioned",
-                                                )
-                                            } if gate else None
-                                            reg = resolve_access_gate_registration(
-                                                auth_client,
-                                                html=html,
-                                                page_url=page_url,
-                                                allow_submit=True,
-                                            )
-                                            out["purchasing_group_registration"] = {
-                                                "status": reg.get("status"),
-                                                "submitted": reg.get("submitted"),
-                                                "skipped": reg.get("skipped"),
-                                                "already_registered": reg.get("already_registered"),
-                                                "owner_next_steps": reg.get("owner_next_steps"),
-                                                "purchasing_group_id": reg.get("purchasing_group_id")
-                                                or (gate or {}).get("purchasing_group_id"),
-                                            }
-                                            st = str(reg.get("status") or "")
-                                            if st == STATUS_REGISTERED or reg.get(
-                                                "already_registered"
-                                            ):
-                                                out["network_requests"] += 1
-                                                retry = (
-                                                    auth_client.resolve_detail_via_authenticated_search(
-                                                        title=title,
-                                                        source_url=url,
-                                                        timeout_ms=_remain_ms(15_000),
-                                                    )
-                                                    or {}
-                                                )
-                                                out["search_to_detail_retry"] = {
-                                                    "status": retry.get("status"),
-                                                    "access_gate": retry.get("access_gate"),
-                                                    "detail_url": (retry.get("detail_url") or "")[
-                                                        :160
-                                                    ]
-                                                    or None,
-                                                }
-                                                if (
-                                                    retry.get("ok")
-                                                    and retry.get("html")
-                                                    and retry.get("access_gate")
-                                                    != "ACTION_REQUIRED"
-                                                ):
-                                                    html = retry["html"]
-                                                    page_url = str(
-                                                        retry.get("detail_url") or page_url
-                                                    )
-                                                    out["final_url"] = page_url[:220]
-                                                    out["access_note"] = (
-                                                        "pg_registration_unlocked_detail"
-                                                    )
-                                                    pg_id = (
-                                                        reg.get("purchasing_group_id")
-                                                        or (gate or {}).get(
-                                                            "purchasing_group_id"
-                                                        )
-                                                    )
-                                                    if pg_id:
-                                                        prev = int(
-                                                            (get_group(str(pg_id)) or {}).get(
-                                                                "solicitations_unlocked"
-                                                            )
-                                                            or 0
-                                                        )
-                                                        upsert_group(
-                                                            str(pg_id),
-                                                            solicitations_unlocked=prev + 1,
-                                                        )
-                                                    parsed = (
-                                                        parse_bidnet_abstract(
-                                                            html, detail_url=page_url
-                                                        )
-                                                        or {}
-                                                    )
-                                                    detail_status = (
-                                                        "DETAIL_OK"
-                                                        if parsed.get("parse_ok")
-                                                        or parsed.get("title")
-                                                        else "DETAIL_PARTIAL"
-                                                    )
-                                                    docs = [
-                                                        d
-                                                        for d in (parsed.get("documents") or [])
-                                                        if isinstance(d, dict)
-                                                    ]
-                                                    if docs:
-                                                        package_state = "PACKAGE_ACQUIRED_BIDNET"
-                                                    else:
-                                                        package_state = "PACKAGE_RETRYABLE"
-                                                else:
-                                                    package_state = (
-                                                        "PACKAGE_PG_REGISTRATION_INCOMPLETE"
-                                                    )
-                                            elif st == STATUS_PAID_REQUIRED:
-                                                package_state = "PACKAGE_REGISTRATION_REQUIRED"
-                                                out["access_note"] = "pg_registration_paid_required"
-                                            elif st in {
-                                                STATUS_OWNER_APPROVAL_REQUIRED,
-                                                STATUS_PREPARED,
-                                            }:
-                                                package_state = (
-                                                    "PACKAGE_PG_REGISTRATION_OWNER_REQUIRED"
-                                                    if st == STATUS_OWNER_APPROVAL_REQUIRED
-                                                    else "PACKAGE_PG_REGISTRATION_PREPARED"
-                                                )
-                                                out["access_note"] = f"pg_registration_{st.lower()}"
-                                        except Exception as exc:
-                                            out["purchasing_group_registration_error"] = type(
-                                                exc
-                                            ).__name__
+                                    html, page_url, detail_status, docs, parsed = (
+                                        _attempt_pg_gate_unlock(
+                                            auth_client,
+                                            html=html,
+                                            page_url=page_url,
+                                            source_url=url,
+                                            title=title,
+                                            opportunity_id=oid,
+                                            deadline=deadline,
+                                            remain_ms_fn=_remain_ms,
+                                            out=out,
+                                        )
+                                    )
+                                    st = str(
+                                        (out.get("purchasing_group_registration") or {}).get(
+                                            "status"
+                                        )
+                                        or ""
+                                    )
+                                    if docs:
+                                        package_state = "PACKAGE_ACQUIRED_BIDNET"
+                                    elif st == "PAID_REQUIRED":
+                                        package_state = "PACKAGE_REGISTRATION_REQUIRED"
+                                    elif st == "OWNER_APPROVAL_REQUIRED":
+                                        package_state = "PACKAGE_PG_REGISTRATION_OWNER_REQUIRED"
+                                    elif st == "PREPARED":
+                                        package_state = "PACKAGE_PG_REGISTRATION_PREPARED"
+                                    elif st == "REGISTERED" or (
+                                        out.get("purchasing_group_registration") or {}
+                                    ).get("already_registered"):
+                                        package_state = (
+                                            "PACKAGE_RETRYABLE"
+                                            if detail_status.startswith("DETAIL")
+                                            else "PACKAGE_PG_REGISTRATION_INCOMPLETE"
+                                        )
+                                    else:
+                                        package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
                                 else:
                                     parsed = parse_bidnet_abstract(html, detail_url=page_url) or {}
                                     # Private abstract may only expose H1 title
@@ -709,6 +769,78 @@ def _recover_one_inner(
             fetch_error = f"{type(exc).__name__}:{exc}"[:160]
             detail_status = "DETAIL_FAILED_RETRYABLE"
             out["fetch_error"] = fetch_error
+
+    # 1b) Production fix: URL/HTML PG gates must invoke registration even when
+    # search-to-detail did not return ACTION_REQUIRED (statewide public links).
+    if (
+        docs == []
+        and not out.get("purchasing_group_registration")
+        and time.monotonic() < deadline
+        and (
+            "purchasinggroupid=" in url.lower()
+            or detail_status == "DETAIL_ACCESS_GATE"
+            or "incomplete purchasing group" in (html or "").lower()
+            or "action is required before access" in (html or "").lower()
+            or "interceptorProceedBtn" in (html or "")
+        )
+    ):
+        # Prefer navigating to private detail first so the gate HTML / proceed URL exists
+        page_url = str(out.get("final_url") or url)
+        if (
+            hasattr(auth_client, "resolve_detail_via_authenticated_search")
+            and detail_status
+            in {"SEARCH_PAGE_NOT_DETAIL", "FAST_PATH", "DETAIL_PARTIAL", "DETAIL_OK", "DETAIL_FAILED_RETRYABLE"}
+            and "action is required" not in (html or "").lower()
+            and "incomplete purchasing group" not in (html or "").lower()
+        ):
+            try:
+                out["network_requests"] += 1
+                resolved = (
+                    auth_client.resolve_detail_via_authenticated_search(
+                        title=title,
+                        source_url=url,
+                        search_html=html or None,
+                        timeout_ms=_remain_ms(18_000),
+                    )
+                    or {}
+                )
+                out["search_to_detail_pg"] = {
+                    "status": resolved.get("status"),
+                    "access_gate": resolved.get("access_gate"),
+                    "detail_url": (resolved.get("detail_url") or "")[:160] or None,
+                }
+                if resolved.get("html"):
+                    html = resolved["html"]
+                    page_url = str(resolved.get("detail_url") or page_url)
+                    out["final_url"] = page_url[:220]
+            except Exception as exc:
+                out["search_to_detail_pg_error"] = type(exc).__name__
+
+        html, page_url, detail_status, docs, parsed_pg = _attempt_pg_gate_unlock(
+            auth_client,
+            html=html or "",
+            page_url=page_url,
+            source_url=url,
+            title=title,
+            opportunity_id=oid,
+            deadline=deadline,
+            remain_ms_fn=_remain_ms,
+            out=out,
+        )
+        if parsed_pg:
+            parsed = parsed_pg
+        st = str((out.get("purchasing_group_registration") or {}).get("status") or "")
+        if docs:
+            package_state = "PACKAGE_ACQUIRED_BIDNET"
+        elif st == "PAID_REQUIRED":
+            package_state = "PACKAGE_REGISTRATION_REQUIRED"
+        elif st == "OWNER_APPROVAL_REQUIRED":
+            package_state = "PACKAGE_PG_REGISTRATION_OWNER_REQUIRED"
+        elif st == "PREPARED":
+            package_state = "PACKAGE_PG_REGISTRATION_PREPARED"
+        elif st or out.get("purchasing_group_gate"):
+            package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
+            detail_status = detail_status or "DETAIL_ACCESS_GATE"
 
     # 2) Bounded path: one attachment scrape only when a real detail URL was opened
     if (

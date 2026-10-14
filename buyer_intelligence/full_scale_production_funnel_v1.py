@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v1f"
+BUILD = "20261014-m3-full-scale-production-funnel-v1g"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -53,6 +53,8 @@ _RETRYABLE_BLOCKERS = {
     "PER_OPPORTUNITY_TIMEOUT",
     "FETCH_FAILED",
     "INCOMPLETE_LINE_ITEMS",
+    # Retry after group-level registration succeeds (not permanently failed)
+    "PURCHASING_GROUP_REGISTRATION_REQUIRED",
 }
 OUT = "_og_commercial_research_pipeline_out"
 
@@ -66,7 +68,8 @@ STOP_FILE = f"{OUT}/m3_fspf_v1_stop.json"
 REPORT_FILE = f"{OUT}/m3_fspf_v1_report.json"
 
 SLICE_SIZE = int(os.environ.get("M3_FSPF_SLICE_SIZE") or "25")
-ITEM_TIMEOUT_S = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "50")
+# 100s covers PG registration (inspect/fill/save) + detail retry inside CFE
+ITEM_TIMEOUT_S = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
 STALE_LEASE_S = float(
     os.environ.get("M3_FSPF_STALE_LEASE_S")
     or LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS")
@@ -214,6 +217,77 @@ def request_stop(*, force_release_stale: bool = True) -> dict[str, Any]:
     }
 
 
+def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
+    """Requeue opportunities blocked on purchasing groups that are now REGISTERED."""
+    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+    from bidnet_auth.purchasing_group_tracker import is_registered, load_tracker
+
+    store = JobStore(FAMILY)
+    job = store.load_job(job_id)
+    if not job:
+        raise KeyError(job_id)
+    tracker = load_tracker()
+    registered = {
+        str(pg)
+        for pg, g in (tracker.get("groups") or {}).items()
+        if isinstance(g, dict) and g.get("status") == "REGISTERED"
+    }
+    marked = 0
+    examined = 0
+    for it in store.list_items(job_id):
+        if not isinstance(it, dict):
+            continue
+        examined += 1
+        blocker = str(it.get("terminal_blocker") or "")
+        result = str(it.get("RESULT") or "")
+        if result in _PRESERVE_RESULTS and result != "OWNER_ACTION_REQUIRED":
+            continue
+        pg = str(it.get("purchasing_group_id") or "") or extract_pg_id_from_url(
+            str(it.get("authoritative_url") or "")
+        )
+        if not pg:
+            continue
+        if pg not in registered and not is_registered(pg):
+            continue
+        if blocker not in {
+            "PURCHASING_GROUP_REGISTRATION_REQUIRED",
+            "AWAITING_OWNER_ACTION",
+        } and result not in {"NO_PACKAGE", "OWNER_ACTION_REQUIRED", "PENDING_RETRY"}:
+            if "PURCHASING" not in blocker.upper():
+                continue
+        it["PREVIOUS_RESULT"] = result
+        it["PREVIOUS_BLOCKER"] = blocker
+        it["RETRYABLE"] = True
+        it["RESULT"] = "PENDING_RETRY"
+        it["RETRY_QUEUED_AT"] = _utc()
+        it["NOTE"] = f"Released after purchasing group {pg} REGISTERED"
+        it["purchasing_group_id"] = pg
+        # Reset retry budget once for post-registration unlock
+        if not it.get("PG_UNLOCK_RETRY"):
+            it["PG_UNLOCK_RETRY"] = True
+            it["RETRY_COUNT"] = 0
+        store.write_item_checkpoint(job_id, it)
+        marked += 1
+    if marked:
+        job = store.load_job(job_id) or job
+        job["RESUME_CURSOR"] = 0
+        job["STATUS"] = "INTERRUPTED"
+        job["META"] = {
+            **(job.get("META") or {}),
+            "pg_unlock_released": marked,
+            "repair_build": BUILD,
+        }
+        store.save_job(job)
+        store.recompute_counts(job_id)
+    return {
+        "job_id": job_id,
+        "registered_groups": sorted(registered),
+        "examined": examined,
+        "released": marked,
+        "build": BUILD,
+    }
+
+
 def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
     """Mark systemic technical failures PENDING_RETRY without wiping successes.
 
@@ -224,6 +298,12 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
     job = store.load_job(job_id)
     if not job:
         raise KeyError(job_id)
+    # First: unlock any opportunities whose purchasing group is now registered
+    pg_release = {}
+    try:
+        pg_release = release_pg_blocked_for_registered_groups(job_id)
+    except Exception as exc:
+        pg_release = {"error": type(exc).__name__}
     items = store.list_items(job_id)
     marked = 0
     preserved = 0
@@ -302,6 +382,7 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
         "preserved": preserved,
         "retry_budget_exhausted": exhausted,
         "max_technical_retries": MAX_TECHNICAL_RETRIES,
+        "pg_release": pg_release,
         "build": BUILD,
     }
 
@@ -564,13 +645,25 @@ def _map_result(row: dict[str, Any]) -> str:
         return "TIMEOUT"
     if "CREDENTIAL" in blocker or "AUTH" in blocker:
         return "AUTH_FAILED"
+    pg_reg = row.get("purchasing_group_registration") or {}
+    pg_st = str(pg_reg.get("status") or "").upper()
+    if (
+        row.get("owner_action_required")
+        or blocker in {"AWAITING_OWNER_ACTION", "AWAITING_OWNER_APPROVED_OUTREACH"}
+        or pg_st in {"OWNER_APPROVAL_REQUIRED", "PREPARED"}
+    ):
+        return "OWNER_ACTION_REQUIRED"
     if blocker in {
         "SOURCE_REQUIRES_PAID_ENTITLEMENT",
         "SOURCE_REQUIRES_PAID_ENTITLEMENT_OR_LOGIN",
         "PURCHASING_GROUP_REGISTRATION_REQUIRED",
         "AWAITING_OWNER_APPROVED_OUTREACH",
+        "AWAITING_OWNER_ACTION",
     } or blocker.startswith("PAID_ENTITLEMENT"):
-        if "OWNER" in blocker or blocker == "AWAITING_OWNER_APPROVED_OUTREACH":
+        if "OWNER" in blocker or blocker in {
+            "AWAITING_OWNER_APPROVED_OUTREACH",
+            "AWAITING_OWNER_ACTION",
+        }:
             return "OWNER_ACTION_REQUIRED"
         return "NO_PACKAGE" if not row.get("complete_spec") else "PARTIAL"
     if row.get("complete_spec") and (row.get("document_count") or 0) > 0:
@@ -664,6 +757,12 @@ def _slim_checkpoint(
         "fetch_via": row.get("fetch_via"),
         "is_bidnet_url": row.get("is_bidnet_url"),
         "authoritative_url": (row.get("authoritative_url") or "")[:240] or None,
+        "purchasing_group_id": row.get("purchasing_group_id")
+        or (row.get("purchasing_group_gate") or {}).get("purchasing_group_id")
+        or (row.get("purchasing_group_registration") or {}).get("purchasing_group_id"),
+        "purchasing_group_registration_status": (
+            (row.get("purchasing_group_registration") or {}).get("status")
+        ),
         "CHECKPOINT_AT": _utc(),
     }
 

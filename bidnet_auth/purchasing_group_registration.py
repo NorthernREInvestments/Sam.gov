@@ -26,12 +26,16 @@ from bidnet_auth.purchasing_group_tracker import (
     get_group,
     is_registered,
     load_tracker,
+    note_blocked_opportunity,
+    release_registration_lock,
+    try_begin_registration,
     upsert_group,
 )
 
 log = logging.getLogger("govtracker.bidnet_pg_registration")
 
-BUILD = "20261013-m3-bidnet-pg-registration-v1"
+BUILD = "20261014-m3-bidnet-pg-registration-v2"
+DEFAULT_SUPPLIER_ORG_ID = "9785456456"
 
 EMPIRE_STATE_PG_ID = "8411151"
 EMPIRE_STATE_NAME = "Empire State Purchasing Group"
@@ -418,8 +422,32 @@ def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -
                             eid,
                         )
                     )
-                if not ok:
-                    # Fallback: nth radio by name (YES=0, NO=1 for Empire State pairs)
+                if not ok and name:
+                    # Generic: pick radio by name — prefer id/value containing YES/NO
+                    ok = bool(
+                        page.evaluate(
+                            """({name, val}) => {
+                              const nodes = Array.from(document.querySelectorAll(
+                                'input[type=radio][name=\"'+name+'\"]'
+                              ));
+                              if (!nodes.length) return false;
+                              const want = String(val||'NO').toUpperCase();
+                              let el = nodes.find(n => {
+                                const id = (n.id||'') + ' ' + (n.value||'');
+                                return id.toUpperCase().includes('.'+want) ||
+                                       id.toUpperCase().endsWith(want) ||
+                                       String(n.value||'').toUpperCase() === want;
+                              });
+                              if (!el) el = want === 'YES' ? nodes[0] : nodes[nodes.length-1];
+                              el.click();
+                              el.checked = true;
+                              el.dispatchEvent(new Event('change', {bubbles: true}));
+                              return !!el.checked;
+                            }""",
+                            {"name": name, "val": val},
+                        )
+                    )
+                if not ok and name:
                     page.locator(f"input[type='radio'][name=\"{name}\"]").nth(
                         0 if val == "YES" else 1
                     ).check(force=True, timeout=3_000)
@@ -433,8 +461,25 @@ def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -
                 applied.append({"name": name, "ok": False, "error": "EIN_MISSING"})
                 continue
             try:
-                page.locator("#federalTaxPayerId").first.fill(ein, timeout=3_000)
-                applied.append({"name": name, "ok": True, "value": "REDACTED"})
+                filled = False
+                for sel in ("#federalTaxPayerId", f"[name=\"{name}\"]", "input[name*='federalTax']"):
+                    try:
+                        loc = page.locator(sel).first
+                        if loc.count() == 0:
+                            continue
+                        loc.fill(ein, timeout=3_000)
+                        filled = True
+                        break
+                    except Exception:
+                        continue
+                applied.append(
+                    {
+                        "name": name,
+                        "ok": filled,
+                        "value": "REDACTED" if filled else None,
+                        "error": None if filled else "EIN_FIELD_NOT_FOUND",
+                    }
+                )
             except Exception as exc:
                 applied.append({"name": name, "ok": False, "error": type(exc).__name__})
     return {"applied": applied}
@@ -674,6 +719,429 @@ def run_empire_state_registration(
         return {"ok": False, "status": STATUS_ERROR, "error": type(exc).__name__}
 
 
+def build_group_form_url(
+    *,
+    purchasing_group_id: str,
+    solicitation_id: str | None = None,
+    supplier_org_id: str | None = None,
+) -> str | None:
+    """Construct BidNet group-form/edit URL from known org + PG + solicitation ids."""
+    pg = str(purchasing_group_id or "").strip()
+    if not pg:
+        return None
+    org = str(supplier_org_id or DEFAULT_SUPPLIER_ORG_ID).strip() or DEFAULT_SUPPLIER_ORG_ID
+    base = (
+        f"https://www.bidnetdirect.com/private/supplier/{org}/purchasing-groups/"
+        f"{pg}/group-form/edit"
+    )
+    sol = str(solicitation_id or "").strip()
+    if sol and re.fullmatch(r"\d{6,}", sol):
+        return f"{base}?accessedElementId={sol}&originalAction=SOLICITATION_OPEN"
+    return base
+
+
+def extract_solicitation_id_from_url(url: str) -> str | None:
+    u = url or ""
+    for pat in (
+        r"/statewide/(\d{6,})",
+        r"/solicitations/(?:public/)?(?:statewide/)?(\d{6,})",
+        r"/private/solicitations/(\d{6,})",
+        r"accessedElementId=(\d{6,})",
+        r"/open-bids/(\d{6,})",
+    ):
+        m = re.search(pat, u, re.I)
+        if m:
+            return m.group(1)
+    return None
+
+
+def prepare_generic_pg_answers(
+    fields: list[dict[str, Any]],
+    answers: dict[str, Any] | None = None,
+    *,
+    purchasing_group_id: str,
+    name: str | None = None,
+) -> dict[str, Any]:
+    """Build fill plan for arbitrary BidNet PG forms from verified company data only."""
+    ans = answers or load_verified_company_answers()
+    plan: dict[str, Any] = {
+        "purchasing_group_id": purchasing_group_id,
+        "name": name,
+        "fills": [],
+        "skip_fields": [],
+        "missing_fields": [],
+        "owner_required": False,
+        "owner_reasons": [],
+        "can_submit": False,
+    }
+    for f in fields or []:
+        if not isinstance(f, dict):
+            continue
+        fname = str(f.get("name") or "")
+        label = str(f.get("label") or "")
+        ftype = str(f.get("type") or "").lower()
+        blob = f"{fname} {label}".lower()
+        if f.get("has_value") or f.get("checked"):
+            plan["skip_fields"].append({"name": fname, "reason": "already_populated"})
+            continue
+        # Certification radios — answer NO unless verified held
+        if ftype == "radio" and re.search(r"certifiedmbe|mbe|wbe|mwbe", blob):
+            if "other" in blob or "dbe" in blob:
+                plan["fills"].append(
+                    {
+                        "name": fname,
+                        "strategy": "radio",
+                        "value": ans["other_mbe_dbe"],
+                        "reason": "verified_held_dbe" if ans["dbe_verified_held"] else "not_verified_held_answer_NO",
+                    }
+                )
+            else:
+                plan["fills"].append(
+                    {
+                        "name": fname,
+                        "strategy": "radio",
+                        "value": ans["certified_mbe"],
+                        "reason": "verified_held_mbe" if ans["mbe_verified_held"] else "not_verified_held_answer_NO",
+                    }
+                )
+            continue
+        if ftype == "radio" and re.search(r"\bdbe\b|disadvantaged", blob):
+            plan["fills"].append(
+                {
+                    "name": fname,
+                    "strategy": "radio",
+                    "value": ans["other_mbe_dbe"],
+                    "reason": "verified_held_dbe" if ans["dbe_verified_held"] else "not_verified_held_answer_NO",
+                }
+            )
+            continue
+        # EIN / taxpayer id
+        if re.search(r"federaltax|taxpayer|employer.?number|\bein\b|tax.?id", blob):
+            if ans["ein_present"]:
+                plan["fills"].append(
+                    {
+                        "name": fname,
+                        "strategy": "text",
+                        "value_from": "ein_secure_env",
+                        "reason": "verified_ein_present",
+                    }
+                )
+            else:
+                plan["missing_fields"].append(
+                    {
+                        "name": fname,
+                        "label": label[:160],
+                        "reason": "EIN_NOT_IN_SECURE_CONFIG",
+                    }
+                )
+                plan["owner_required"] = True
+                plan["owner_reasons"].append("Missing verified Federal EIN in secure configuration")
+            continue
+        # Required unknown fields → owner
+        if f.get("required") and ftype not in {"submit", "button", "checkbox"}:
+            # Skip duplicate radios already handled by name grouping
+            if ftype == "radio":
+                continue
+            plan["missing_fields"].append(
+                {
+                    "name": fname,
+                    "label": label[:160],
+                    "reason": "unmapped_required_field",
+                }
+            )
+            plan["owner_required"] = True
+            if "unmapped required fields" not in plan["owner_reasons"]:
+                plan["owner_reasons"].append("unmapped required fields")
+    plan["can_submit"] = not plan["owner_required"] and not plan["missing_fields"]
+    plan["company_answers_meta"] = {
+        "ein_present": ans["ein_present"],
+        "certified_mbe": ans["certified_mbe"],
+        "other_mbe_dbe": ans["other_mbe_dbe"],
+        "legal_name_known": bool(ans.get("legal_name")),
+        "held_certifications": ans.get("held_certifications") or [],
+    }
+    return plan
+
+
+def run_purchasing_group_registration(
+    client: Any,
+    *,
+    purchasing_group_id: str,
+    form_url: str | None = None,
+    name: str | None = None,
+    solicitation_id: str | None = None,
+    allow_submit: bool = True,
+    owner_approved_submit: bool = False,
+    opportunity_id: str | None = None,
+) -> dict[str, Any]:
+    """Group-level registration: lock → inspect → fill verified fields → save when eligible.
+
+    Reuses the Empire State workflow for all purchasing groups. Never invents data.
+    Never pays. Pauses for owner on missing EIN, attestations, or unmapped required fields.
+    """
+    pg_id = str(purchasing_group_id or "").strip()
+    if not pg_id:
+        return {"ok": False, "status": STATUS_ERROR, "error": "missing_purchasing_group_id"}
+    if opportunity_id:
+        note_blocked_opportunity(pg_id, opportunity_id)
+    if is_registered(pg_id):
+        return {
+            "ok": True,
+            "status": STATUS_REGISTERED,
+            "skipped": True,
+            "already_registered": True,
+            "reason": "already_registered",
+            "purchasing_group_id": pg_id,
+        }
+
+    lock = try_begin_registration(pg_id, worker_token=f"reg-{pg_id}")
+    if not lock.get("acquired"):
+        if lock.get("already_registered"):
+            return {
+                "ok": True,
+                "status": STATUS_REGISTERED,
+                "skipped": True,
+                "already_registered": True,
+                "purchasing_group_id": pg_id,
+            }
+        return {
+            "ok": False,
+            "status": lock.get("status") or STATUS_INCOMPLETE,
+            "skipped": True,
+            "reason": lock.get("reason"),
+            "owner_blocker_reason": lock.get("owner_blocker_reason"),
+            "purchasing_group_id": pg_id,
+        }
+
+    answers = load_verified_company_answers()
+    # Empire-specific field plan when applicable; otherwise built after inspect
+    empire = pg_id == EMPIRE_STATE_PG_ID or (name or "").lower().startswith("empire state")
+    plan = prepare_empire_state_answers(answers) if empire else None
+
+    if not form_url:
+        form_url = build_group_form_url(
+            purchasing_group_id=pg_id, solicitation_id=solicitation_id
+        )
+    if not form_url:
+        release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_ERROR)
+        return {
+            "ok": False,
+            "status": STATUS_ERROR,
+            "error": "FORM_URL_MISSING",
+            "purchasing_group_id": pg_id,
+        }
+
+    try:
+        inspected = inspect_group_form(client, form_url=form_url)
+        if not inspected.get("ok"):
+            upsert_group(
+                pg_id,
+                name=name,
+                status=STATUS_ERROR,
+                last_error=inspected.get("error"),
+                relevant=True,
+            )
+            release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_ERROR)
+            return {"ok": False, **inspected, "purchasing_group_id": pg_id}
+
+        if inspected.get("member_status_completed"):
+            upsert_group(
+                pg_id,
+                name=name or (EMPIRE_STATE_NAME if empire else None),
+                status=STATUS_REGISTERED,
+                registration_completed_at=_utc(),
+                registration_required=True,
+                fee_required=False,
+                relevant=True,
+                confirmation_excerpt=(inspected.get("body_excerpt") or "")[:400],
+                form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+            )
+            release_registration_lock(
+                pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_REGISTERED
+            )
+            return {
+                "ok": True,
+                "status": STATUS_REGISTERED,
+                "skipped": True,
+                "already_registered": True,
+                "reason": "bidnet_form_already_completed",
+                "purchasing_group_id": pg_id,
+            }
+
+        if inspected.get("fee_mentioned"):
+            upsert_group(
+                pg_id,
+                name=name,
+                status=STATUS_PAID_REQUIRED,
+                owner_blocker_reason="Fee mentioned on purchasing-group form — owner authorization required",
+                form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+                relevant=True,
+            )
+            release_registration_lock(
+                pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_PAID_REQUIRED
+            )
+            return {
+                "ok": False,
+                "status": STATUS_PAID_REQUIRED,
+                "blocker": "PAID_ACTION_REQUIRES_OWNER",
+                "purchasing_group_id": pg_id,
+            }
+
+        if not plan:
+            plan = prepare_generic_pg_answers(
+                inspected.get("fields") or [],
+                answers,
+                purchasing_group_id=pg_id,
+                name=name,
+            )
+
+        fill_result = apply_fills(client, plan, answers=answers)
+
+        if plan.get("owner_required") or not plan.get("can_submit"):
+            upsert_group(
+                pg_id,
+                name=name,
+                status=STATUS_OWNER_APPROVAL_REQUIRED,
+                registration_required=True,
+                fee_required=False,
+                owner_blocker_reason="; ".join(plan.get("owner_reasons") or []) or "missing_fields",
+                missing_fields=plan.get("missing_fields"),
+                prepared_fills=[
+                    {k: v for k, v in f.items() if k != "value"} for f in plan.get("fills") or []
+                ],
+                form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+                last_inspection_at=_utc(),
+                relevant=True,
+            )
+            release_registration_lock(
+                pg_id,
+                worker_token=f"reg-{pg_id}",
+                final_status=STATUS_OWNER_APPROVAL_REQUIRED,
+            )
+            return {
+                "ok": True,
+                "status": STATUS_OWNER_APPROVAL_REQUIRED,
+                "submitted": False,
+                "populated": fill_result,
+                "plan": {k: v for k, v in plan.items() if k != "company_answers_meta"}
+                | {"company_answers_meta": plan.get("company_answers_meta")},
+                "owner_next_steps": [
+                    "Provide Federal EIN via COMPANY_EIN in Railway secure env if missing",
+                    "Review unmapped required fields in purchasing-group UI",
+                    "Approve submit only for free administrative forms",
+                ],
+                "purchasing_group_id": pg_id,
+            }
+
+        import os
+
+        auto = (os.environ.get("M3_BIDNET_PG_AUTO_SUBMIT") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        tracked = get_group(pg_id) or {}
+        owner_approved_submit = bool(owner_approved_submit or tracked.get("owner_approved_submit"))
+        attestation = bool(inspected.get("attestation_mentioned"))
+        free_admin_ok = bool(
+            plan.get("can_submit") and not attestation and not inspected.get("fee_mentioned")
+        )
+        authorized = bool(allow_submit and (owner_approved_submit or auto or free_admin_ok))
+        if not authorized:
+            st = STATUS_PREPARED if not attestation else STATUS_OWNER_APPROVAL_REQUIRED
+            upsert_group(
+                pg_id,
+                name=name,
+                status=st,
+                registration_required=True,
+                prepared_at=_utc(),
+                form_url_path=re.sub(r"https?://[^/]+", "", form_url)[:200],
+                relevant=True,
+                owner_blocker_reason=(
+                    "Prepared — set M3_BIDNET_PG_AUTO_SUBMIT=1 or owner_approved_submit to Save"
+                    if not attestation
+                    else "Attestation language present — owner approval required before Save"
+                ),
+            )
+            release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=st)
+            return {
+                "ok": True,
+                "status": st,
+                "submitted": False,
+                "populated": fill_result,
+                "attestation_mentioned": attestation,
+                "purchasing_group_id": pg_id,
+            }
+
+        bad = [a for a in (fill_result.get("applied") or []) if not a.get("ok")]
+        if bad:
+            upsert_group(
+                pg_id,
+                name=name,
+                status=STATUS_ERROR,
+                last_error="FILL_FAILED",
+                fill_errors=bad,
+                relevant=True,
+            )
+            release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_ERROR)
+            return {
+                "ok": False,
+                "status": STATUS_ERROR,
+                "submitted": False,
+                "error": "FILL_FAILED",
+                "populated": fill_result,
+                "purchasing_group_id": pg_id,
+            }
+
+        client._page.locator("#saveButton").click(timeout=5_000)
+        client._page.wait_for_timeout(2_500)
+        url = str(client._page.url or "")
+        after = re.sub(r"\s+", " ", client._page.locator("body").inner_text() or "")[:2000]
+        failed_check = bool(re.search(r"Failed Check", after, re.I))
+        still_on_edit = "group-form/edit" in url
+        member_complete = bool(
+            re.search(r"Member Since.{0,40}\bCOMPLETE\b", after, re.I)
+        ) and not re.search(r"Member Since.{0,40}\bINCOMPLETE\b", after, re.I)
+        redirected_ok = (not still_on_edit) and (not failed_check) and (
+            "group-form" in url or "solicitations" in url or "search" in url
+        )
+        if failed_check or (still_on_edit and re.search(r"\bINCOMPLETE\b", after)):
+            status = STATUS_INCOMPLETE
+        elif member_complete or redirected_ok:
+            status = STATUS_REGISTERED
+        else:
+            status = STATUS_INCOMPLETE
+        upsert_group(
+            pg_id,
+            name=name or (EMPIRE_STATE_NAME if empire else None),
+            status=status,
+            registration_completed_at=_utc() if status == STATUS_REGISTERED else None,
+            last_submit_at=_utc(),
+            confirmation_excerpt=after[:400],
+            confirmation_url=url[:220],
+            relevant=True,
+            fill_errors=None,
+        )
+        release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=status)
+        return {
+            "ok": status == STATUS_REGISTERED,
+            "status": status,
+            "submitted": True,
+            "confirmation_excerpt": after[:400],
+            "confirmation_url": url[:220],
+            "purchasing_group_id": pg_id,
+        }
+    except Exception as exc:
+        upsert_group(pg_id, name=name, status=STATUS_ERROR, last_error=type(exc).__name__, relevant=True)
+        release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=STATUS_ERROR)
+        return {
+            "ok": False,
+            "status": STATUS_ERROR,
+            "error": type(exc).__name__,
+            "purchasing_group_id": pg_id,
+        }
+
+
 def resolve_access_gate_registration(
     client: Any,
     *,
@@ -681,57 +1149,82 @@ def resolve_access_gate_registration(
     page_url: str,
     allow_submit: bool = True,
     owner_approved_submit: bool = False,
+    opportunity_id: str | None = None,
+    source_url: str | None = None,
 ) -> dict[str, Any]:
     """Called when detail access gate detected — prepare/execute PG registration if allowed."""
-    gate = extract_pg_gate_from_html(html, page_url=page_url)
-    if not gate:
+    gate = extract_pg_gate_from_html(html, page_url=page_url) or {}
+    pg_id = (
+        gate.get("purchasing_group_id")
+        or extract_pg_id_from_url(page_url)
+        or extract_pg_id_from_url(source_url or "")
+    )
+    if not gate and not pg_id:
         return {"ok": False, "status": "NO_PG_GATE"}
-    pg_id = gate.get("purchasing_group_id") or EMPIRE_STATE_PG_ID
+    if not gate:
+        gate = {
+            "detected": True,
+            "name": None,
+            "purchasing_group_id": pg_id,
+            "complete_form_url": None,
+            "fee_mentioned": False,
+            "gate_kind": "PURCHASING_GROUP_REGISTRATION_INCOMPLETE",
+            "message": "purchasingGroupId present on solicitation URL",
+        }
+    pg_id = gate.get("purchasing_group_id") or pg_id
+    sol_id = extract_solicitation_id_from_url(page_url) or extract_solicitation_id_from_url(
+        source_url or ""
+    )
+    form_url = gate.get("complete_form_url") or build_group_form_url(
+        purchasing_group_id=str(pg_id), solicitation_id=sol_id
+    )
+    gate["complete_form_url"] = form_url
     upsert_group(
-        pg_id,
+        str(pg_id),
         name=gate.get("name"),
         registration_required=True,
         status=STATUS_INCOMPLETE,
         fee_required=bool(gate.get("fee_mentioned")),
         last_gate_message=gate.get("message"),
-        complete_form_url_path=re.sub(r"https?://[^/]+", "", gate.get("complete_form_url") or "")[:200],
+        complete_form_url_path=re.sub(r"https?://[^/]+", "", form_url or "")[:200],
         relevant=True,
     )
+    if opportunity_id:
+        note_blocked_opportunity(str(pg_id), opportunity_id)
     if gate.get("fee_mentioned"):
-        upsert_group(pg_id, status=STATUS_PAID_REQUIRED, owner_blocker_reason="Fee on gate/form")
-        return {"ok": False, "status": STATUS_PAID_REQUIRED, "gate": gate}
-    if is_registered(pg_id):
-        return {"ok": True, "status": STATUS_REGISTERED, "gate": gate, "already_registered": True}
-
-    if pg_id == EMPIRE_STATE_PG_ID or (gate.get("name") or "").lower().startswith("empire state"):
-        return run_empire_state_registration(
-            client,
-            form_url=gate.get("complete_form_url"),
-            allow_submit=allow_submit,
-            owner_approved_submit=owner_approved_submit,
-        )
-
-    # Generic groups: inspect only until mapped
-    if gate.get("complete_form_url"):
-        inspected = inspect_group_form(client, form_url=gate["complete_form_url"])
-        upsert_group(
-            pg_id,
-            name=gate.get("name"),
-            status=STATUS_OWNER_APPROVAL_REQUIRED,
-            owner_blocker_reason="Generic PG form not yet mapped for auto-fill — owner review required",
-            missing_fields=inspected.get("fields") or [],
-            form_field_count=len(inspected.get("fields") or []),
-        )
+        upsert_group(str(pg_id), status=STATUS_PAID_REQUIRED, owner_blocker_reason="Fee on gate/form")
+        return {"ok": False, "status": STATUS_PAID_REQUIRED, "gate": gate, "purchasing_group_id": pg_id}
+    if is_registered(str(pg_id)):
         return {
             "ok": True,
-            "status": STATUS_OWNER_APPROVAL_REQUIRED,
+            "status": STATUS_REGISTERED,
             "gate": gate,
-            "inspected": {
-                "ok": inspected.get("ok"),
-                "fee_mentioned": inspected.get("fee_mentioned"),
-                "attestation_mentioned": inspected.get("attestation_mentioned"),
-                "member_status_incomplete": inspected.get("member_status_incomplete"),
-            },
-            "field_count": len(inspected.get("fields") or []),
+            "already_registered": True,
+            "purchasing_group_id": pg_id,
         }
-    return {"ok": False, "status": STATUS_ERROR, "gate": gate}
+
+    # Empire State keeps its dedicated entry for backward-compatible proofs; same engine underneath.
+    if str(pg_id) == EMPIRE_STATE_PG_ID or (gate.get("name") or "").lower().startswith("empire state"):
+        out = run_empire_state_registration(
+            client,
+            form_url=form_url,
+            allow_submit=allow_submit,
+            owner_approved_submit=owner_approved_submit,
+            solicitation_id=sol_id or "9797265001",
+        )
+        out["gate"] = gate
+        out["purchasing_group_id"] = out.get("purchasing_group_id") or pg_id
+        return out
+
+    out = run_purchasing_group_registration(
+        client,
+        purchasing_group_id=str(pg_id),
+        form_url=form_url,
+        name=gate.get("name"),
+        solicitation_id=sol_id,
+        allow_submit=allow_submit,
+        owner_approved_submit=owner_approved_submit,
+        opportunity_id=opportunity_id,
+    )
+    out["gate"] = gate
+    return out

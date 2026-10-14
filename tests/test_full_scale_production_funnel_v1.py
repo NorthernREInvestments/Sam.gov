@@ -88,6 +88,16 @@ def test_map_result_success_and_timeout():
         )
         == "OWNER_ACTION_REQUIRED"
     )
+    assert (
+        _map_result(
+            {
+                "package_blocker": "AWAITING_OWNER_ACTION",
+                "purchasing_group_registration": {"status": "OWNER_APPROVAL_REQUIRED"},
+                "complete_spec": False,
+            }
+        )
+        == "OWNER_ACTION_REQUIRED"
+    )
 
 
 def test_slim_checkpoint_counts_fully_specified_lines():

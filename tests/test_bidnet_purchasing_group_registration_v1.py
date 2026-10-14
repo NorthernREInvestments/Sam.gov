@@ -133,3 +133,117 @@ def test_is_registered_skips_duplicate():
         out = mod.run_empire_state_registration(_C())
     assert out["skipped"] is True
     assert out["status"] == "REGISTERED"
+
+
+def test_prepare_generic_pg_answers_maps_ein_and_mbe():
+    from bidnet_auth.purchasing_group_registration import prepare_generic_pg_answers
+
+    fields = [
+        {"name": "fields[certifiedMBE]", "label": "Certified MBE?", "type": "radio", "required": True},
+        {"name": "fields[federalTaxPayerId]", "label": "Taxpayer ID", "type": "text", "required": True},
+        {"name": "fields[mystery]", "label": "Mystery required", "type": "text", "required": True},
+    ]
+    plan = prepare_generic_pg_answers(
+        fields,
+        {
+            "legal_name": "Test Co",
+            "ein_present": True,
+            "ein_value": "12-3456789",
+            "certified_mbe": "NO",
+            "other_mbe_dbe": "NO",
+            "held_certifications": [],
+            "mbe_verified_held": False,
+            "dbe_verified_held": False,
+        },
+        purchasing_group_id="88022651",
+        name="Test Group",
+    )
+    assert any(f["name"] == "fields[certifiedMBE]" and f["value"] == "NO" for f in plan["fills"])
+    assert any(f.get("value_from") == "ein_secure_env" for f in plan["fills"])
+    assert plan["owner_required"] is True  # unmapped mystery field
+    assert plan["can_submit"] is False
+
+
+def test_prepare_generic_ready_when_only_known_fields():
+    from bidnet_auth.purchasing_group_registration import prepare_generic_pg_answers
+
+    fields = [
+        {"name": "fields[certifiedMBE]", "label": "MBE", "type": "radio"},
+        {"name": "fields[federalTaxPayerId]", "label": "EIN", "type": "text", "required": True},
+    ]
+    plan = prepare_generic_pg_answers(
+        fields,
+        {
+            "legal_name": "Test Co",
+            "ein_present": True,
+            "ein_value": "12-3456789",
+            "certified_mbe": "NO",
+            "other_mbe_dbe": "NO",
+            "held_certifications": [],
+            "mbe_verified_held": False,
+            "dbe_verified_held": False,
+        },
+        purchasing_group_id="88022651",
+    )
+    assert plan["owner_required"] is False
+    assert plan["can_submit"] is True
+
+
+def test_resolve_access_gate_invokes_generic_registration(tmp_path, monkeypatch):
+    """Non-Empire PG gates must call run_purchasing_group_registration, not inspect-only."""
+    monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
+    import bidnet_auth.purchasing_group_registration as mod
+
+    html = (FIXTURES / "private_abstract_pg_gate_empire_state_v1.html").read_text(encoding="utf-8")
+    # Rewrite gate to a non-Empire group id
+    html = html.replace("8411151", "88022651").replace("Empire State", "Other State")
+
+    called = {}
+
+    def _fake_run(client, **kwargs):
+        called.update(kwargs)
+        return {
+            "ok": True,
+            "status": "REGISTERED",
+            "submitted": True,
+            "purchasing_group_id": kwargs["purchasing_group_id"],
+        }
+
+    monkeypatch.setattr(mod, "run_purchasing_group_registration", _fake_run)
+    out = mod.resolve_access_gate_registration(
+        object(),
+        html=html,
+        page_url="https://www.bidnetdirect.com/x?purchasingGroupId=88022651",
+        allow_submit=True,
+        opportunity_id="opp-1",
+    )
+    assert called.get("purchasing_group_id") == "88022651"
+    assert out["status"] == "REGISTERED"
+
+
+def test_group_registration_lock_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
+    from bidnet_auth.purchasing_group_tracker import (
+        STATUS_REGISTERED,
+        release_registration_lock,
+        try_begin_registration,
+        upsert_group,
+    )
+
+    a = try_begin_registration("700142501", worker_token="w1")
+    assert a["acquired"] is True
+    b = try_begin_registration("700142501", worker_token="w2")
+    assert b["acquired"] is False
+    assert b["reason"] == "lock_held"
+    release_registration_lock("700142501", worker_token="w1", final_status=STATUS_REGISTERED)
+    upsert_group("700142501", status=STATUS_REGISTERED)
+    c = try_begin_registration("700142501", worker_token="w3")
+    assert c["already_registered"] is True
+
+
+def test_build_group_form_url_from_ids():
+    from bidnet_auth.purchasing_group_registration import build_group_form_url
+
+    u = build_group_form_url(purchasing_group_id="88022651", solicitation_id="2665898057")
+    assert "/purchasing-groups/88022651/group-form/edit" in u
+    assert "accessedElementId=2665898057" in u
