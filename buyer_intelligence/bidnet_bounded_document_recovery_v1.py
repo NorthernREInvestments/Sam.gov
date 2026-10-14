@@ -655,8 +655,25 @@ def _recover_one_inner(
     timeout_s: float = ITEM_TIMEOUT_S,
 ) -> dict[str, Any]:
     """Single opportunity recovery body (runs under hard timeout)."""
-    from bidnet_recovery.free_package_chase import chase_free_package
-    from package_recovery_sam_budget.quality import is_valid_package_evidence
+    try:
+        from bidnet_recovery.free_package_chase import chase_free_package
+        from package_recovery_sam_budget.quality import is_valid_package_evidence
+    except ImportError as exc:
+        return {
+            "opportunity_id": item.get("opportunity_id"),
+            "title": item.get("title"),
+            "authoritative_url": item.get("authoritative_url"),
+            "primary_blocker": DOCS_INACCESSIBLE,
+            "access_note": f"recover_import_error:{exc}"[:160],
+            "early_search_to_detail": {
+                "status": "IMPORT_ERROR",
+                "message": str(exc)[:200],
+            },
+            "documents": [],
+            "line_items": [],
+            "complete_spec": False,
+            "timed_out": False,
+        }
 
     oid = item["opportunity_id"]
     title = str(item.get("title") or "")
@@ -1540,11 +1557,11 @@ def recover_one_bounded(
                 "title": item.get("title"),
                 "authoritative_url": item.get("authoritative_url"),
                 "primary_blocker": DOCS_INACCESSIBLE,
-                "access_note": f"recover_exception:{type(exc).__name__}",
+                "access_note": f"recover_exception:{type(exc).__name__}:{exc}"[:160],
                 "early_search_to_detail": {
                     "status": "RECOVER_EXCEPTION",
                     "error": type(exc).__name__,
-                    "message": str(exc)[:160],
+                    "message": str(exc)[:200],
                 },
                 "blocker_evidence": {
                     "error": type(exc).__name__,
