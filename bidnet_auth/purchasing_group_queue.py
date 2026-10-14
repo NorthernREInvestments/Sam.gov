@@ -188,6 +188,37 @@ def process_group_registration_slice(
 
     with _lock:
         state = load_queue()
+        # One-time soft revive: TimeoutError failures often used stale form URLs.
+        failed = list(state.get("failed") or [])
+        revived = []
+        keep_failed = []
+        for row in failed:
+            err = str(row.get("error") or row.get("last_error") or "")
+            if "Timeout" in err or str(row.get("status") or "") == "ERROR":
+                revived.append(
+                    {
+                        "purchasing_group_id": row.get("purchasing_group_id"),
+                        "name": row.get("name"),
+                        "form_url": row.get("form_url"),
+                        "source_url": row.get("source_url"),
+                        "opportunity_ids": list(row.get("opportunity_ids") or []),
+                        "enqueued_at": row.get("enqueued_at") or _utc(),
+                        "updated_at": _utc(),
+                        "attempts": min(int(row.get("attempts") or 0), 1),
+                        "revived_from_failed": True,
+                    }
+                )
+            else:
+                keep_failed.append(row)
+        if revived:
+            pending_now = list(state.get("pending") or [])
+            seen = {str(p.get("purchasing_group_id")) for p in pending_now}
+            for r in revived:
+                if str(r.get("purchasing_group_id")) not in seen:
+                    pending_now.append(r)
+            state["pending"] = pending_now
+            state["failed"] = keep_failed[-200:]
+            save_queue(state)
         pending = list(state.get("pending") or [])
 
     for item in pending[:limit]:
@@ -211,28 +242,43 @@ def process_group_registration_slice(
             if form_url and form_url != item.get("form_url"):
                 item["form_url"] = form_url
                 _bump_pending(pg_id, item)
-            html = ""
-            page_url = str(form_url or item.get("source_url") or "")
-            if form_url:
-                reg = run_purchasing_group_registration(
-                    auth_client,
-                    purchasing_group_id=pg_id,
-                    form_url=form_url,
-                    name=item.get("name"),
-                    solicitation_id=extract_solicitation_id_from_url(
-                        str(item.get("source_url") or page_url)
-                    ),
-                    allow_submit=True,
-                    opportunity_id=(item.get("opportunity_ids") or [None])[0],
-                )
-            elif page_url:
-                # Navigate source first so gate HTML yields complete_form_url
+            source_url = str(item.get("source_url") or "").strip()
+            # Prefer live gate resolution from the solicitation URL. Stored form URLs
+            # go stale (session-bound accessedElementId) and hang Playwright.
+            if source_url:
+                html = ""
+                page_url = source_url
+                try:
+                    if hasattr(auth_client, "fetch_html"):
+                        html = (
+                            auth_client.fetch_html(
+                                source_url, timeout_ms=45_000, prefer_http=False
+                            )
+                            or ""
+                        )
+                        page_url = str(
+                            getattr(getattr(auth_client, "_page", None), "url", None)
+                            or source_url
+                        )
+                except Exception as fetch_exc:
+                    item["last_error"] = f"fetch:{type(fetch_exc).__name__}"
                 reg = resolve_access_gate_registration(
                     auth_client,
                     html=html,
                     page_url=page_url,
                     allow_submit=True,
-                    source_url=page_url,
+                    source_url=source_url,
+                    opportunity_id=(item.get("opportunity_ids") or [None])[0],
+                )
+            elif form_url:
+                reg = run_purchasing_group_registration(
+                    auth_client,
+                    purchasing_group_id=pg_id,
+                    form_url=form_url,
+                    name=item.get("name"),
+                    solicitation_id=extract_solicitation_id_from_url(form_url),
+                    allow_submit=True,
+                    opportunity_id=(item.get("opportunity_ids") or [None])[0],
                 )
             else:
                 reg = {
@@ -241,6 +287,13 @@ def process_group_registration_slice(
                     "reason": "missing_form_and_source_url",
                     "purchasing_group_id": pg_id,
                 }
+            # Persist freshly discovered form URL for the next attempt
+            fresh_form = (reg.get("gate") or {}).get("complete_form_url") or reg.get(
+                "complete_form_url"
+            )
+            if fresh_form:
+                item["form_url"] = fresh_form
+                _bump_pending(pg_id, item)
             row = {
                 "purchasing_group_id": pg_id,
                 "status": reg.get("status"),
