@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261014-m3-bidnet-pg-group-queue-v1"
+BUILD = "20261014-m3-bidnet-pg-group-queue-v1b"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -110,10 +110,18 @@ def enqueue_group_registration(
     pg_id = str(purchasing_group_id or "").strip()
     if not pg_id:
         return {"ok": False, "error": "missing_pg_id"}
-    from bidnet_auth.purchasing_group_tracker import is_registered, note_blocked_opportunity
+    from bidnet_auth.purchasing_group_tracker import (
+        is_registered,
+        note_blocked_opportunity,
+        upsert_group,
+    )
 
     if opportunity_id:
         note_blocked_opportunity(pg_id, opportunity_id)
+    try:
+        upsert_group(pg_id, name=name, relevant=True, source_url=source_url)
+    except Exception:
+        pass
     if is_registered(pg_id):
         return {"ok": True, "status": "ALREADY_REGISTERED", "purchasing_group_id": pg_id}
     form_url = _resolve_form_url(pg_id, form_url)
@@ -131,6 +139,12 @@ def enqueue_group_registration(
                     changed = True
                 if form_url and not item.get("form_url"):
                     item["form_url"] = form_url
+                    changed = True
+                if name and not item.get("name"):
+                    item["name"] = name
+                    changed = True
+                if source_url and not item.get("source_url"):
+                    item["source_url"] = source_url
                     changed = True
                 if changed:
                     item["updated_at"] = _utc()
@@ -155,6 +169,116 @@ def enqueue_group_registration(
         state["metrics"] = metrics
         save_queue(state)
         return {"ok": True, "status": "ENQUEUED", "purchasing_group_id": pg_id}
+
+
+def rebuild_pending_from_job(job_id: str) -> dict[str, Any]:
+    """Rebuild group registration queue from FSPF checkpoints awaiting PG access.
+
+    Idempotent. Prioritizes groups with the most blocked live opportunities.
+    Does not wipe completed memberships or invent registrations.
+    """
+    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+    from bidnet_auth.purchasing_group_tracker import is_registered
+    from m3_jobs.store import JobStore
+
+    store = JobStore("full_scale_production_funnel_v1")
+    job = store.load_job(job_id)
+    if not job:
+        return {"ok": False, "error": "job_not_found", "job_id": job_id}
+
+    enqueued = 0
+    already = 0
+    registered_skip = 0
+    examined = 0
+    by_pg: dict[str, dict[str, Any]] = {}
+    for it in store.list_items(job_id):
+        if not isinstance(it, dict):
+            continue
+        examined += 1
+        blocker = str(it.get("terminal_blocker") or it.get("PREVIOUS_BLOCKER") or "")
+        result = str(it.get("RESULT") or "")
+        if result in {"SUCCESS", "EXPIRED_EXIT", "CANCELLED"}:
+            continue
+        if (
+            "PURCHASING" not in blocker.upper()
+            and "AWAITING_PURCHASING" not in blocker.upper()
+            and result not in {"NO_PACKAGE", "PENDING_RETRY", "OWNER_ACTION_REQUIRED"}
+        ):
+            # Still accept NO_PACKAGE rows that carry a purchasing_group_id
+            if not it.get("purchasing_group_id"):
+                continue
+        pg = str(it.get("purchasing_group_id") or "").strip() or extract_pg_id_from_url(
+            str(it.get("authoritative_url") or "")
+        )
+        if not pg:
+            continue
+        if is_registered(pg):
+            registered_skip += 1
+            continue
+        row = by_pg.setdefault(
+            pg,
+            {
+                "purchasing_group_id": pg,
+                "opportunity_ids": [],
+                "source_url": None,
+                "name": None,
+            },
+        )
+        oid = str(it.get("OPPORTUNITY_ID") or it.get("opportunity_id") or "")
+        if oid and oid not in row["opportunity_ids"]:
+            row["opportunity_ids"].append(oid)
+        url = str(it.get("authoritative_url") or "")
+        if url and not row["source_url"]:
+            row["source_url"] = url
+
+    for pg, meta in sorted(
+        by_pg.items(), key=lambda kv: -len(kv[1].get("opportunity_ids") or [])
+    ):
+        oids = list(meta.get("opportunity_ids") or [])
+        # Attach all known oids via repeated enqueue (idempotent)
+        first = True
+        for oid in oids[:200]:
+            res = enqueue_group_registration(
+                pg,
+                opportunity_id=oid,
+                source_url=meta.get("source_url") if first else None,
+                name=meta.get("name"),
+            )
+            first = False
+            st = str(res.get("status") or "")
+            if st == "ENQUEUED":
+                enqueued += 1
+            elif st == "ALREADY_QUEUED":
+                already += 1
+            elif st == "ALREADY_REGISTERED":
+                registered_skip += 1
+
+    q = load_queue()
+    pending = sorted(
+        list(q.get("pending") or []),
+        key=lambda r: -len(r.get("opportunity_ids") or []),
+    )
+    q["pending"] = pending
+    save_queue(q)
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "examined": examined,
+        "groups_seen": len(by_pg),
+        "enqueued_new": enqueued,
+        "already_queued": already,
+        "registered_skip": registered_skip,
+        "pending_remaining": len(pending),
+        "top_pending": [
+            {
+                "purchasing_group_id": r.get("purchasing_group_id"),
+                "opportunity_count": len(r.get("opportunity_ids") or []),
+                "attempts": r.get("attempts"),
+            }
+            for r in pending[:12]
+        ],
+        "build": BUILD,
+    }
 
 
 def process_group_registration_slice(
@@ -188,24 +312,40 @@ def process_group_registration_slice(
 
     with _lock:
         state = load_queue()
-        # One-time soft revive: TimeoutError failures often used stale form URLs.
+        # Prefer groups that unlock the most blocked opportunities first.
+        state["pending"] = sorted(
+            list(state.get("pending") or []),
+            key=lambda r: (
+                -len(r.get("opportunity_ids") or []),
+                int(r.get("attempts") or 0),
+            ),
+        )
+        # Soft revive: Timeout/ERROR often used stale form URLs; INCOMPLETE may
+        # succeed after certification-radio mapping improvements (never paid).
         failed = list(state.get("failed") or [])
         revived = []
         keep_failed = []
         for row in failed:
             err = str(row.get("error") or row.get("last_error") or "")
-            if "Timeout" in err or str(row.get("status") or "") == "ERROR":
+            st = str(row.get("status") or "")
+            revive = (
+                "Timeout" in err
+                or st == "ERROR"
+                or (st == "INCOMPLETE" and int(row.get("attempts") or 0) < 4)
+            )
+            if revive:
                 revived.append(
                     {
                         "purchasing_group_id": row.get("purchasing_group_id"),
                         "name": row.get("name"),
-                        "form_url": row.get("form_url"),
+                        "form_url": None if st == "INCOMPLETE" else row.get("form_url"),
                         "source_url": row.get("source_url"),
                         "opportunity_ids": list(row.get("opportunity_ids") or []),
                         "enqueued_at": row.get("enqueued_at") or _utc(),
                         "updated_at": _utc(),
                         "attempts": min(int(row.get("attempts") or 0), 1),
                         "revived_from_failed": True,
+                        "revived_status": st or None,
                     }
                 )
             else:

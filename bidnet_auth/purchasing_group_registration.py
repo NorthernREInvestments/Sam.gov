@@ -859,34 +859,29 @@ def prepare_generic_pg_answers(
         if f.get("has_value") or f.get("checked"):
             plan["skip_fields"].append({"name": fname, "reason": "already_populated"})
             continue
-        # Certification radios — answer NO unless verified held
-        if ftype == "radio" and re.search(r"certifiedmbe|mbe|wbe|mwbe", blob):
-            if "other" in blob or "dbe" in blob:
-                plan["fills"].append(
-                    {
-                        "name": fname,
-                        "strategy": "radio",
-                        "value": ans["other_mbe_dbe"],
-                        "reason": "verified_held_dbe" if ans["dbe_verified_held"] else "not_verified_held_answer_NO",
-                    }
-                )
-            else:
-                plan["fills"].append(
-                    {
-                        "name": fname,
-                        "strategy": "radio",
-                        "value": ans["certified_mbe"],
-                        "reason": "verified_held_mbe" if ans["mbe_verified_held"] else "not_verified_held_answer_NO",
-                    }
-                )
-            continue
-        if ftype == "radio" and re.search(r"\bdbe\b|disadvantaged", blob):
+        # Certification radios — answer NO unless verified held.
+        # Covers Empire, Texas SCTRCA/HUB, Oklahoma minority, generic M/W/DBE.
+        cert_radio = bool(
+            re.search(
+                r"certifiedmbe|m/?w/?dbe|mw/?dbe|\bmbe\b|\bwbe\b|\bmwbe\b|"
+                r"\bdbe\b|disadvantaged|\bhub\b|sctrca|minority|certif",
+                blob,
+            )
+        )
+        if ftype == "radio" and cert_radio:
+            use_other = bool(
+                re.search(r"other|dbe|disadvantaged|hub|sctrca|minority", blob)
+            )
             plan["fills"].append(
                 {
                     "name": fname,
                     "strategy": "radio",
-                    "value": ans["other_mbe_dbe"],
-                    "reason": "verified_held_dbe" if ans["dbe_verified_held"] else "not_verified_held_answer_NO",
+                    "value": ans["other_mbe_dbe"] if use_other else ans["certified_mbe"],
+                    "reason": (
+                        "verified_held_cert"
+                        if (ans["dbe_verified_held"] if use_other else ans["mbe_verified_held"])
+                        else "not_verified_held_answer_NO"
+                    ),
                 }
             )
             continue
@@ -912,10 +907,14 @@ def prepare_generic_pg_answers(
                 plan["owner_required"] = True
                 plan["owner_reasons"].append("Missing verified Federal EIN in secure configuration")
             continue
-        # Required unknown fields → owner
+        # Required unknown fields → owner (including unmapped required radios —
+        # never silent-skip; Save without them leaves membership INCOMPLETE).
         if f.get("required") and ftype not in {"submit", "button", "checkbox"}:
-            # Skip duplicate radios already handled by name grouping
-            if ftype == "radio":
+            # Conditional "other certification names" only when YES was chosen
+            if re.search(r"othermbenames|other.?certif", blob) and ans.get("other_mbe_dbe") != "YES":
+                plan["skip_fields"].append(
+                    {"name": fname, "reason": "conditional_not_applicable_answered_NO"}
+                )
                 continue
             plan["missing_fields"].append(
                 {

@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2r"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2s"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1878,6 +1878,39 @@ def api_m3_bidnet_purchasing_group_queue():
     from bidnet_auth.purchasing_group_queue import ui_summary
 
     return {"build_version": APP_BUILD_VERSION, **ui_summary()}
+
+
+@app.post("/api/m3/bidnet-auth/purchasing-group-queue/rebuild")
+def api_m3_bidnet_purchasing_group_queue_rebuild(body: dict | None = None):
+    """Rebuild pending PG registration queue from FSPF checkpoints awaiting access.
+
+    Idempotent. Does not invent registrations or wipe completed memberships.
+    """
+    payload = body or {}
+    job_id = str(payload.get("job_id") or "").strip()
+    if not job_id:
+        try:
+            from m3_jobs.store import JobStore
+
+            active = JobStore("full_scale_production_funnel_v1").find_active_job(stale_seconds=7200)
+            if active and active.get("JOB_ID"):
+                job_id = str(active["JOB_ID"])
+        except Exception:
+            job_id = ""
+    if not job_id:
+        return {
+            "ok": False,
+            "error": "job_id_required",
+            "build_version": APP_BUILD_VERSION,
+        }
+    from bidnet_auth.purchasing_group_queue import rebuild_pending_from_job, ui_summary
+
+    result = rebuild_pending_from_job(job_id)
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **result,
+        "ui": ui_summary(),
+    }
 
 
 @app.get("/api/m3/bidnet-auth/purchasing-groups")

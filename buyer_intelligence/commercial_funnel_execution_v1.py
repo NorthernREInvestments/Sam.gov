@@ -35,7 +35,7 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = __import__("logging").getLogger("govtracker.commercial_funnel_execution_v1")
 
-BUILD = "20261013-m3-commercial-funnel-execution-v1"
+BUILD = "20261014-m3-commercial-funnel-execution-v1b"
 OUT = "_og_commercial_research_pipeline_out"
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
 MANIFEST = f"{OUT}/m3_cfe_v1_50_manifest.json"
@@ -269,12 +269,98 @@ def _dec(v: Any) -> Decimal | None:
         return None
 
 
+def detect_awardable_scope(
+    *,
+    title: str = "",
+    lines: list[dict[str, Any]] | None = None,
+    html_or_notes: str = "",
+    package_status: str = "",
+) -> dict[str, Any]:
+    """Infer award unit: individual line, lot, or all-or-none contract.
+
+    Conservative: without explicit language, multi-line packages are treated as
+    complete-package candidates (not automatic line-level resale profit).
+    """
+    blob = " ".join(
+        [
+            str(title or ""),
+            str(html_or_notes or ""),
+            " ".join(_line_desc(li) for li in (lines or [])[:30] if isinstance(li, dict)),
+        ]
+    ).lower()
+    n_lines = sum(
+        1
+        for li in (lines or [])
+        if isinstance(li, dict)
+        and li.get("source") != "title_fallback"
+        and li.get("LINE_SOURCE_TYPE") != "TITLE_FALLBACK"
+    )
+    individual = bool(
+        re.search(
+            r"\b(line[- ]item award|award(ed)? by line|multiple awards? (will be|may be)|"
+            r"partial awards?|award(s)? (may|will) be made on (a )?line)\b",
+            blob,
+        )
+    )
+    lot = bool(
+        re.search(
+            r"\b(award(ed)? by lot|lot[- ]level|bid by lot|separate lots?|"
+            r"award(s)? (may|will) be made (by|on) lot)\b",
+            blob,
+        )
+    )
+    all_or_none = bool(
+        re.search(
+            r"\b(all[- ]or[- ]none|complete bid required|must bid all|"
+            r"single award|one award|entire contract|aggregate award)\b",
+            blob,
+        )
+    )
+    if individual and not all_or_none:
+        unit = "INDIVIDUAL_LINE"
+        complete = n_lines >= 1
+    elif lot and not all_or_none:
+        unit = "LOT"
+        complete = n_lines >= 1
+    elif all_or_none or n_lines >= 20:
+        unit = "COMPLETE_PACKAGE"
+        complete = n_lines >= 1 and bool(package_status)
+    elif n_lines > 1:
+        unit = "COMPLETE_PACKAGE_ASSUMED"
+        complete = n_lines >= 1
+    elif n_lines == 1:
+        unit = "INDIVIDUAL_LINE"
+        complete = True
+    else:
+        unit = "UNKNOWN"
+        complete = False
+    return {
+        "award_unit": unit,
+        "complete_awardable_lot": bool(complete and unit in {"INDIVIDUAL_LINE", "LOT"}),
+        "complete_awardable_package": bool(
+            complete and unit in {"COMPLETE_PACKAGE", "COMPLETE_PACKAGE_ASSUMED"}
+        ),
+        "line_count_considered": n_lines,
+        "signals": {
+            "individual_line": individual,
+            "lot": lot,
+            "all_or_none": all_or_none,
+        },
+        "note": (
+            "Multi-line solicitations without explicit split-award language are treated "
+            "as complete-package economics — line margins are not assumed realizable."
+        ),
+    }
+
+
 def assess_economics(row: dict[str, Any]) -> dict[str, Any]:
     """Honest economics — no assumed discounts or financing approval."""
     hist = _dec(row.get("historical_unit_price"))
     pub = _dec(row.get("public_unit_price"))
     qty = _dec(row.get("primary_quantity")) or Decimal("1")
     quote = _dec(row.get("actual_quote_unit_price"))
+    scope = row.get("awardable_scope") if isinstance(row.get("awardable_scope"), dict) else {}
+    award_unit = str(scope.get("award_unit") or "UNKNOWN")
 
     acq = quote or pub
     gov = hist
@@ -288,6 +374,16 @@ def assess_economics(row: dict[str, Any]) -> dict[str, Any]:
         "acquisition_unit": str(acq) if acq is not None else None,
         "government_unit": str(gov) if gov is not None else None,
         "quantity_used": str(qty),
+        "award_unit": award_unit,
+        "economics_basis": (
+            "AWARDABLE_LINE"
+            if award_unit == "INDIVIDUAL_LINE"
+            else (
+                "AWARDABLE_LOT"
+                if award_unit == "LOT"
+                else ("COMPLETE_PACKAGE" if "PACKAGE" in award_unit else "UNSPECIFIED")
+            )
+        ),
         "estimated_gross_spread": None,
         "estimated_total_profit": None,
         "econ_state": "MARGIN_UNVERIFIED",
@@ -295,11 +391,19 @@ def assess_economics(row: dict[str, Any]) -> dict[str, Any]:
         "financing_status": "UNKNOWN",
         "finance_note": "$0 owner cash / no PG / no assumed terms — needs documented supplier or PO funding",
     }
+    # For complete-package awards, unit-line spread is only a preliminary indicator.
+    preliminary_only = award_unit in {"COMPLETE_PACKAGE", "COMPLETE_PACKAGE_ASSUMED", "UNKNOWN"}
     if acq is not None and gov is not None and gov > acq:
         spread = (gov - acq) * qty
         out["estimated_gross_spread"] = str(spread)
         out["estimated_total_profit"] = str(spread)  # freight/finance unknown
-        if quote is not None:
+        if preliminary_only and award_unit != "INDIVIDUAL_LINE":
+            out["econ_state"] = "PRELIMINARY_MARGIN_PACKAGE_SCOPE"
+            out["finance_note"] = (
+                out["finance_note"]
+                + "; spread uses sample line — full package acquisition not yet verified"
+            )
+        elif quote is not None:
             out["econ_state"] = "PROFITABLE_BUT_FINANCING_UNVERIFIED"
         else:
             out["econ_state"] = "PROFITABLE_BUT_QUOTE_MISSING"
@@ -307,7 +411,11 @@ def assess_economics(row: dict[str, Any]) -> dict[str, Any]:
         out["econ_state"] = "NEGATIVE_OR_INSUFFICIENT_MARGIN"
         out["estimated_gross_spread"] = str((gov - acq) * qty)
     elif quote is None and (pub is not None or hist is not None):
-        out["econ_state"] = "PROFITABLE_BUT_QUOTE_MISSING" if (pub and hist and hist > pub) else "MARGIN_UNVERIFIED"
+        out["econ_state"] = (
+            "PROFITABLE_BUT_QUOTE_MISSING"
+            if (pub and hist and hist > pub and not preliminary_only)
+            else "MARGIN_UNVERIFIED"
+        )
     return out
 
 
@@ -418,6 +526,187 @@ def _line_desc(li: dict[str, Any]) -> str:
     if isinstance(d, dict):
         d = d.get("VALUE") or d.get("text") or d.get("raw") or ""
     return str(d or "").strip()
+
+
+def _line_mpn(li: dict[str, Any]) -> str:
+    if not isinstance(li, dict):
+        return ""
+    for key in ("MPN", "mpn", "part_number", "PART_NUMBER", "catalog_number", "CATALOG_NUMBER", "model", "MODEL"):
+        v = li.get(key)
+        if isinstance(v, dict):
+            v = v.get("VALUE") or v.get("text") or ""
+        s = str(v or "").strip()
+        if len(s) >= 3:
+            return s
+    return ""
+
+
+def _line_mfr(li: dict[str, Any]) -> str:
+    if not isinstance(li, dict):
+        return ""
+    for key in ("MANUFACTURER", "manufacturer", "BRAND", "brand", "MFR", "mfr"):
+        v = li.get(key)
+        if isinstance(v, dict):
+            v = v.get("VALUE") or v.get("text") or ""
+        s = str(v or "").strip()
+        if s:
+            return s
+    return ""
+
+
+def _research_public_prices_for_lines(
+    *,
+    opportunity_id: str,
+    lines: list[dict[str, Any]],
+    budget_s: float = 40.0,
+    max_lines: int = 3,
+) -> dict[str, Any]:
+    """Bounded public acquisition-price research for extracted product lines.
+
+    Uses existing commercial_gap_closure / public_price_search. Never invents prices.
+    """
+    t0 = time.time()
+    researched: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    distributors: list[dict[str, Any]] = []
+    try:
+        from buyer_intelligence.commercial_gap_closure_v1 import research_mpn_public_price
+        from public_price_search.models import PUBLIC_PRICE_FOUND, PUBLIC_PRICE_PARTIAL
+        from public_price_search.resolver import resolve_public_price
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": type(exc).__name__,
+            "prices": [],
+            "failures": [{"failure_class": "IMPORT_ERROR", "detail": str(exc)[:120]}],
+            "distributors": [],
+            "verified_public_unit_price": None,
+        }
+
+    # Prefer MPN lines, then long descriptions
+    ranked = sorted(
+        [li for li in lines if isinstance(li, dict)],
+        key=lambda li: (
+            0 if _line_mpn(li) else 1,
+            0 if len(_line_desc(li)) >= 24 else 1,
+            -len(_line_desc(li)),
+        ),
+    )
+    for li in ranked[: max(1, int(max_lines))]:
+        if time.time() - t0 >= budget_s:
+            failures.append({"failure_class": "BUDGET_EXCEEDED"})
+            break
+        mpn = _line_mpn(li)
+        desc = _line_desc(li)
+        mfr = _line_mfr(li)
+        qty = _line_qty(li)
+        remain = max(5.0, budget_s - (time.time() - t0))
+        hit: dict[str, Any] | None = None
+        if mpn:
+            try:
+                pr = research_mpn_public_price(
+                    mpn=mpn,
+                    manufacturer=mfr or None,
+                    description=desc or None,
+                    opportunity_id=opportunity_id,
+                    qty=qty,
+                    deadline_s=min(35.0, remain),
+                )
+                if pr.get("unit_price"):
+                    hit = {
+                        "mpn": mpn,
+                        "description": desc[:160] or None,
+                        "manufacturer": mfr or None,
+                        "unit_price": pr.get("unit_price"),
+                        "uom": pr.get("uom"),
+                        "pack_qty": pr.get("pack_qty"),
+                        "url": pr.get("url"),
+                        "supplier": pr.get("supplier"),
+                        "class": pr.get("class"),
+                        "route": pr.get("route"),
+                        "newly_acquired": pr.get("newly_acquired"),
+                        "qty": qty,
+                    }
+                else:
+                    failures.append(
+                        {
+                            "mpn": mpn,
+                            "status": pr.get("status"),
+                            "failure_class": pr.get("failure_class"),
+                        }
+                    )
+            except Exception as exc:
+                failures.append({"mpn": mpn, "failure_class": type(exc).__name__})
+        elif len(desc) >= 24:
+            try:
+                identity = {
+                    "part_number": None,
+                    "manufacturer": mfr or None,
+                    "raw_description": desc[:200],
+                    "model": None,
+                }
+                with httpx.Client(timeout=12.0, follow_redirects=True) as client:
+                    result = resolve_public_price(
+                        identity,
+                        opportunity_id=opportunity_id,
+                        client=client,
+                        max_queries=2,
+                        max_pages=3,
+                        use_budget=True,
+                    )
+                status = result.get("status")
+                ev = result.get("evidence") or {}
+                if status in {PUBLIC_PRICE_FOUND, PUBLIC_PRICE_PARTIAL} and ev.get("unit_price"):
+                    hit = {
+                        "mpn": None,
+                        "description": desc[:160],
+                        "manufacturer": mfr or None,
+                        "unit_price": str(ev.get("unit_price")),
+                        "uom": ev.get("uom"),
+                        "pack_qty": ev.get("pack_qty"),
+                        "url": ev.get("url") or ev.get("source_url"),
+                        "supplier": ev.get("seller") or ev.get("seller_class"),
+                        "class": "DESCRIPTION_PUBLIC_PRICE",
+                        "route": "resolve_public_price_description",
+                        "newly_acquired": True,
+                        "qty": qty,
+                    }
+                else:
+                    failures.append(
+                        {
+                            "description": desc[:80],
+                            "status": status,
+                            "failure_class": "NO_PUBLIC_PRICE",
+                        }
+                    )
+            except Exception as exc:
+                failures.append({"description": desc[:80], "failure_class": type(exc).__name__})
+        else:
+            failures.append({"failure_class": "PRODUCT_IDENTITY_INSUFFICIENT"})
+
+        if hit:
+            researched.append(hit)
+            if hit.get("supplier"):
+                distributors.append(
+                    {
+                        "name": str(hit["supplier"])[:120],
+                        "type": "distributor",
+                        "basis": "verified_public_price",
+                        "url": (hit.get("url") or "")[:220] or None,
+                        "unit_price": hit.get("unit_price"),
+                    }
+                )
+
+    verified = researched[0]["unit_price"] if researched else None
+    return {
+        "ok": bool(researched),
+        "prices": researched,
+        "failures": failures[:12],
+        "distributors": distributors,
+        "verified_public_unit_price": verified,
+        "elapsed_s": round(time.time() - t0, 2),
+        "price_evidence_count": len(researched),
+    }
 
 
 def process_one(
@@ -891,11 +1180,30 @@ def process_one(
         if d["name"] not in seen:
             seen.add(d["name"])
             uniq.append(d)
-    out["distributors"] = uniq
-    out["supplier_status"] = "SUPPLIER_IDENTIFIED" if uniq else "SOURCE_UNAVAILABLE"
 
-    # RFQ prep — never send; incomplete specs are NOT ready-to-send
-    spec_complete = bool(
+    # Awardable scope before commercial research (affects economics basis)
+    awardable = detect_awardable_scope(
+        title=title,
+        lines=lines,
+        html_or_notes=str(out.get("access_note") or "")
+        + " "
+        + str((out.get("blocker_evidence") or "")),
+        package_status=package_status,
+    )
+    out["awardable_scope"] = awardable
+    out["award_unit"] = awardable.get("award_unit")
+    out["complete_awardable_lot"] = bool(awardable.get("complete_awardable_lot"))
+    out["complete_awardable_package"] = bool(awardable.get("complete_awardable_package"))
+
+    # Live public acquisition-price research when specs exist and cache is empty.
+    # Bounded; never invents prices. Feeds distributors + RFQ + economics.
+    price_research: dict[str, Any] = {
+        "ok": False,
+        "prices": [],
+        "failures": [],
+        "skipped": True,
+    }
+    spec_for_research = bool(
         lines
         and not (
             len(lines) == 1
@@ -907,6 +1215,62 @@ def process_one(
         and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
         and any(_line_desc(li) for li in lines if isinstance(li, dict))
     )
+    if spec_for_research and out.get("public_unit_price") in (None, ""):
+        remain = max(8.0, 55.0 - (time.time() - t0))
+        price_research = _research_public_prices_for_lines(
+            opportunity_id=oid,
+            lines=lines,
+            budget_s=min(40.0, remain),
+            max_lines=3,
+        )
+        if price_research.get("verified_public_unit_price") not in (None, ""):
+            out["public_unit_price"] = price_research["verified_public_unit_price"]
+            out["public_price_evidence"] = (price_research.get("prices") or [])[:5]
+            out["public_price_route"] = "live_research_mpn_or_description"
+        elif price_research.get("failures"):
+            out["public_price_failures"] = (price_research.get("failures") or [])[:8]
+        for d in price_research.get("distributors") or []:
+            if isinstance(d, dict) and d.get("name") and d["name"] not in seen:
+                seen.add(d["name"])
+                uniq.append(d)
+    out["price_research"] = {
+        "ok": bool(price_research.get("ok")),
+        "price_evidence_count": int(price_research.get("price_evidence_count") or 0),
+        "elapsed_s": price_research.get("elapsed_s"),
+        "failure_classes": list(
+            {
+                str(f.get("failure_class") or f.get("status") or "UNKNOWN")
+                for f in (price_research.get("failures") or [])
+                if isinstance(f, dict)
+            }
+        )[:8],
+    }
+
+    out["distributors"] = uniq
+    out["supplier_status"] = "SUPPLIER_IDENTIFIED" if uniq else "SOURCE_UNAVAILABLE"
+
+    # RFQ prep — never send; incomplete specs are NOT ready-to-send
+    spec_complete = spec_for_research
+    delivery_loc = (
+        str(item.get("delivery_location") or l23_rec.get("delivery_location") or "").strip()
+        or None
+    )
+    rfq_lines = []
+    for li in lines[:80]:
+        if not isinstance(li, dict):
+            continue
+        if li.get("source") == "title_fallback" or li.get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK":
+            continue
+        rfq_lines.append(
+            {
+                "description": _line_desc(li)[:240],
+                "quantity": _line_qty(li),
+                "uom": li.get("uom") or li.get("UOM") or li.get("unit"),
+                "mpn": _line_mpn(li) or None,
+                "manufacturer": _line_mfr(li) or None,
+                "packaging": li.get("packaging") or li.get("pack_size") or li.get("case_pack"),
+            }
+        )
     rfq = {
         "opportunity_id": oid,
         "AUTO_SEND": False,
@@ -916,18 +1280,32 @@ def process_one(
             else "BLOCKED_INCOMPLETE_SPECIFICATIONS"
         ),
         "solicitation_url": url,
-        "buyer": item.get("buyer"),
-        "deadline": item.get("deadline"),
-        "line_items": lines,
+        "buyer": item.get("buyer") or l23_rec.get("buyer"),
+        "deadline": item.get("deadline") or l23_rec.get("deadline"),
+        "award_unit": awardable.get("award_unit"),
+        "delivery_location": delivery_loc,
+        "delivery_timing": item.get("delivery_timing") or l23_rec.get("delivery_timing"),
+        "line_items": rfq_lines or lines,
         "suggested_recipients": [d["name"] for d in uniq] if spec_complete else [],
+        "requested_from_supplier": [
+            "unit_price",
+            "freight",
+            "stock_or_lead_time",
+            "payment_or_deposit_terms",
+            "packaging_confirmation",
+        ],
         "message_outline": (
-            f"RFQ for {title[:120]}. Please quote each line with unit price, MOQ, lead time, "
-            f"freight to buyer location, and payment terms. Do not submit until owner approves send."
+            f"RFQ for {title[:120]} (solicitation {oid}). Award unit: "
+            f"{awardable.get('award_unit')}. Please quote exact products with unit price, "
+            f"case/pack basis, MOQ, lead time/stock, freight to "
+            f"{delivery_loc or 'buyer delivery location'}, and payment/deposit terms. "
+            f"Do not submit until owner approves send (AUTO_SEND=false)."
             if spec_complete
             else "Do not send — product lines/quantities not recovered from solicitation documents."
         ),
         "ready_to_send": False,
         "spec_complete": spec_complete,
+        "public_price_evidence_count": int(price_research.get("price_evidence_count") or 0),
     }
     out["rfq"] = rfq
     out["actual_quote_unit_price"] = None  # none received

@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2r"
+BUILD = "20261014-m3-full-scale-production-funnel-v2s"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1218,6 +1218,15 @@ def _slim_checkpoint(
         "supplier_status": row.get("supplier_status"),
         "public_unit_price": row.get("public_unit_price"),
         "historical_unit_price": row.get("historical_unit_price"),
+        "public_price_evidence_count": int(
+            (row.get("price_research") or {}).get("price_evidence_count")
+            or len(row.get("public_price_evidence") or [])
+            or 0
+        ),
+        "award_unit": row.get("award_unit")
+        or (row.get("awardable_scope") or {}).get("award_unit"),
+        "complete_awardable_lot": bool(row.get("complete_awardable_lot")),
+        "complete_awardable_package": bool(row.get("complete_awardable_package")),
         "rfq_status": rfq.get("status"),
         "rfq_ready_to_send": False,
         "econ_state": row.get("econ_state") or econ.get("econ_state"),
@@ -1265,6 +1274,9 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
     hist_prices = 0
     rfqs = 0
     positive_margins = 0
+    awardable_lots = 0
+    awardable_packages = 0
+    awaiting_pg = 0
     for it in items:
         if not isinstance(it, dict):
             continue
@@ -1280,18 +1292,55 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
         lines += int(it.get("line_count") or 0)
         fully += int(it.get("fully_specified_product_lines") or 0)
         distributors += len(it.get("distributors") or [])
-        if it.get("public_unit_price") not in (None, ""):
+        if it.get("public_unit_price") not in (None, "") or int(
+            it.get("public_price_evidence_count") or 0
+        ) > 0:
             public_prices += 1
         if it.get("historical_unit_price") not in (None, ""):
             hist_prices += 1
         if it.get("rfq_status") == "AWAITING_OWNER_APPROVED_OUTREACH":
             rfqs += 1
+        if it.get("complete_awardable_lot"):
+            awardable_lots += 1
+        if it.get("complete_awardable_package"):
+            awardable_packages += 1
+        if str(it.get("terminal_blocker") or "") in {
+            "AWAITING_PURCHASING_GROUP_REGISTRATION",
+            "PURCHASING_GROUP_REGISTRATION_REQUIRED",
+        }:
+            awaiting_pg += 1
         if it.get("econ_state") in {
             "PROFITABLE_BUT_QUOTE_MISSING",
             "PROFITABLE_BUT_FINANCING_UNVERIFIED",
             "VERIFIED_PROFITABLE_AND_FINANCEABLE",
+            "PRELIMINARY_MARGIN_PACKAGE_SCOPE",
         }:
             positive_margins += 1
+
+    pg_registered = 0
+    pg_pending_queue = 0
+    pg_unlocked = 0
+    try:
+        from bidnet_auth.purchasing_group_tracker import ui_summary as pg_ui
+
+        pgui = pg_ui() or {}
+        groups = list(pgui.get("groups") or [])
+        pg_registered = sum(
+            1 for g in groups if str((g or {}).get("status") or "").upper() == "REGISTERED"
+        )
+        metrics_pg = pgui.get("metrics") if isinstance(pgui.get("metrics"), dict) else {}
+        if not pg_registered and metrics_pg.get("registered"):
+            pg_registered = int(metrics_pg.get("registered") or 0)
+    except Exception:
+        pass
+    try:
+        from bidnet_auth.purchasing_group_queue import load_queue as load_pg_queue
+
+        pq = load_pg_queue() or {}
+        pg_pending_queue = len(pq.get("pending") or [])
+        pg_unlocked = int((pq.get("metrics") or {}).get("opportunities_released") or 0)
+    except Exception:
+        pass
 
     completed = int(job.get("COMPLETED") or 0)
     total = int(job.get("TOTAL") or queue.get("eligible_total") or 0)
@@ -1309,10 +1358,16 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
         "metrics": {
             "live_eligible_product_opportunities": total,
             "opportunities_processed": completed,
+            "purchasing_groups_registered": pg_registered,
+            "purchasing_groups_pending_registration": pg_pending_queue,
+            "opportunities_unlocked_via_pg": pg_unlocked,
+            "opportunities_awaiting_pg": awaiting_pg,
             "complete_solicitation_packages": packages,
             "documents_retrieved": docs,
             "fully_specified_product_lines": fully,
             "complete_bidding_lots": sum(1 for it in items if it.get("complete_spec")),
+            "complete_awardable_lots": awardable_lots,
+            "complete_awardable_packages": awardable_packages,
             "matched_distributors": distributors,
             "verified_public_acquisition_prices": public_prices,
             "verified_historical_government_prices": hist_prices,
@@ -1447,6 +1502,23 @@ def process_slice(
     queue = _load(QUEUE_FILE) or build_eligible_queue()
     rows = queue.get("rows") or []
     cursor = int(job.get("RESUME_CURSOR") or 0)
+
+    # Rebuild PG registration queue from checkpoints awaiting group access so
+    # blocked solicitations are not stranded while the in-memory queue is empty.
+    pg_rebuild: dict[str, Any] | None = None
+    try:
+        from bidnet_auth.purchasing_group_queue import rebuild_pending_from_job
+
+        pg_rebuild = rebuild_pending_from_job(job_id)
+        _progress(
+            status="RUNNING",
+            phase="PG_QUEUE_REBUILD",
+            job_id=job_id,
+            worker_id=worker_id,
+            pg_rebuild=pg_rebuild,
+        )
+    except Exception as exc:
+        pg_rebuild = {"ok": False, "error": type(exc).__name__}
 
     # Prefer opportunities whose purchasing group is already REGISTERED so
     # document unlock / line extraction runs before more group-form attempts.
@@ -1748,17 +1820,38 @@ def process_slice(
                         last_fetch_via=fetch_via,
                     )
                     break
+            # Soft circuit: hard-block registered-unlock only when the job has
+            # produced no packages yet. Once docs/lines exist, reset the streak
+            # and continue so PG registration + other lanes keep moving.
             if registered_empty_streak >= 10:
+                try:
+                    sc_soft = _aggregate_scorecard(job, store.list_items(job_id), queue)
+                    pkgs = int(
+                        (sc_soft.get("metrics") or {}).get("complete_solicitation_packages") or 0
+                    )
+                    docs_tot = int((sc_soft.get("metrics") or {}).get("documents_retrieved") or 0)
+                except Exception:
+                    pkgs, docs_tot = 0, 0
+                if pkgs == 0 and docs_tot == 0:
+                    _progress(
+                        status="BLOCKED",
+                        phase="CIRCUIT_BREAKER_REGISTERED_UNLOCK",
+                        last_blocker="REGISTERED_DETAIL_FETCH_EMPTY_STREAK",
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        registered_empty_streak=registered_empty_streak,
+                        last_fetch_via=fetch_via,
+                    )
+                    break
                 _progress(
-                    status="BLOCKED",
-                    phase="CIRCUIT_BREAKER_REGISTERED_UNLOCK",
-                    last_blocker="REGISTERED_DETAIL_FETCH_EMPTY_STREAK",
+                    status="RUNNING",
+                    phase="REGISTERED_UNLOCK_SOFT_PAUSE",
                     job_id=job_id,
                     worker_id=worker_id,
                     registered_empty_streak=registered_empty_streak,
-                    last_fetch_via=fetch_via,
+                    note="packages_exist_continuing_slice",
                 )
-                break
+                registered_empty_streak = 0
 
         # End-of-slice PG pass so groups enqueued during this slice are not deferred
         # until the next worker cycle.
