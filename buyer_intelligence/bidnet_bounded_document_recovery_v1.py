@@ -769,21 +769,33 @@ def _recover_one_inner(
             "purchasing_group_id": str(pg_early),
             "early_unlock": True,
         }
+        # Prefer human title/slug first. Open-bids/statewide path IDs are a
+        # different namespace than private solicitation IDs — try them last.
         search_queries: list[str] = []
-        if title and len(title.strip()) >= 6:
-            search_queries.append(title.strip()[:120])
-        m_ob = re.search(r"/open-bids/[^/]+/(\d{6,})", url, re.I)
-        m_sw = re.search(r"/statewide/(\d{6,})", url, re.I)
         m_slug = re.search(r"/open-bids/([^/]+)/\d+", url, re.I)
-        if m_ob:
-            search_queries.append(m_ob.group(1))
-            search_queries.append(m_ob.group(1).lstrip("0") or m_ob.group(1))
-        if m_sw:
-            search_queries.append(m_sw.group(1))
+        slug_title = ""
         if m_slug:
             slug_title = re.sub(r"[-_]+", " ", m_slug.group(1)).strip()
-            if slug_title and slug_title.lower() not in {q.lower() for q in search_queries}:
-                search_queries.append(slug_title[:120])
+        if title and len(title.strip()) >= 6:
+            search_queries.append(title.strip()[:120])
+        if slug_title and slug_title.lower() not in {q.lower() for q in search_queries}:
+            search_queries.append(slug_title[:120])
+        # Significant slug tokens (BUILDING MATERIALS) help when full slug is noisy
+        if slug_title:
+            toks = [t for t in re.split(r"\s+", slug_title) if len(t) >= 5]
+            if len(toks) >= 2:
+                compact = " ".join(toks[:6])[:120]
+                if compact.lower() not in {q.lower() for q in search_queries}:
+                    search_queries.append(compact)
+        m_ob = re.search(r"/open-bids/[^/]+/(\d{6,})", url, re.I)
+        m_sw = re.search(r"/statewide/(\d{6,})", url, re.I)
+        if m_ob:
+            search_queries.append(m_ob.group(1))
+            stripped = m_ob.group(1).lstrip("0") or m_ob.group(1)
+            if stripped != m_ob.group(1):
+                search_queries.append(stripped)
+        if m_sw:
+            search_queries.append(m_sw.group(1))
         # de-dupe preserve order
         seen_q: set[str] = set()
         uniq_q: list[str] = []
@@ -795,8 +807,19 @@ def _recover_one_inner(
             uniq_q.append(q)
 
         early: dict[str, Any] = {}
+        attempts: list[dict[str, Any]] = []
+        if not uniq_q:
+            out["early_search_to_detail"] = {
+                "status": "NO_SEARCH_QUERIES",
+                "query": None,
+                "detail_url": None,
+                "solicitation_id": None,
+                "access_gate": None,
+            }
+            out["access_note"] = "early_registered_no_search_queries"
         for q in uniq_q:
             if time.monotonic() >= deadline:
+                attempts.append({"query": q[:80], "status": "DEADLINE"})
                 break
             out["network_requests"] += 1
             early = (
@@ -807,12 +830,22 @@ def _recover_one_inner(
                 )
                 or {}
             )
+            attempts.append(
+                {
+                    "query": q[:80],
+                    "status": early.get("status"),
+                    "ok": bool(early.get("ok")),
+                    "solicitation_id": early.get("solicitation_id"),
+                    "access_gate": early.get("access_gate"),
+                }
+            )
             out["early_search_to_detail"] = {
                 "status": early.get("status"),
                 "query": q[:120],
                 "detail_url": (early.get("detail_url") or "")[:160] or None,
                 "solicitation_id": early.get("solicitation_id"),
                 "access_gate": early.get("access_gate"),
+                "attempts": attempts[:6],
             }
             if early.get("ok") and early.get("detail_url"):
                 break
@@ -848,7 +881,7 @@ def _recover_one_inner(
         elif early.get("access_gate") == "ACTION_REQUIRED":
             detail_status = "DETAIL_ACCESS_GATE"
             out["access_note"] = "early_registered_still_action_required"
-        else:
+        elif uniq_q:
             out["access_note"] = f"early_registered_resolve_{early.get('status') or 'failed'}"
 
     # 1) Authenticated detail fetch — browser path required for public/statewide +

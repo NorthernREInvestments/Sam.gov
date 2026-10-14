@@ -64,6 +64,17 @@ def test_solicitations_title_link_mapping_prefers_open_solicitation():
     assert open_rows[0]["solicitation_id"] == "9755638705"
 
 
+def test_numeric_hint_scores_solicitation_id_match():
+    """Open-bids path IDs rarely appear in titles — match solicitation_id/href digits."""
+    html = _search_html()
+    rows = extract_search_result_interception_links(html, title_hint="9755638705")
+    assert rows
+    assert rows[0]["solicitation_id"] == "9755638705"
+    rows2 = extract_search_result_interception_links(html, title_hint="00009755638705")
+    assert rows2
+    assert rows2[0]["solicitation_id"] == "9755638705"
+
+
 def test_search_redirect_must_not_count_as_detail_url():
     assert not is_bidnet_solicitation_detail_url(
         "https://www.bidnetdirect.com/private/supplier/solicitations/search"

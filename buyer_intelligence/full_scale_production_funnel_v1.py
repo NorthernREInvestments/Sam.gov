@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2l"
+BUILD = "20261014-m3-full-scale-production-funnel-v2m"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1545,6 +1545,7 @@ def process_slice(
     processed = 0
     last_oid = None
     zero_doc_streak = 0
+    registered_empty_streak = 0
     try:
         auth_status, auth_client = _open_bidnet_auth_client()
         if not auth_status.get("authenticated"):
@@ -1668,6 +1669,20 @@ def process_slice(
                 zero_doc_streak += 1
             elif docs_dl > 0:
                 zero_doc_streak = 0
+            # Pause registered-group unlock lane when DETAIL_FETCH_EMPTY repeats
+            # (avoids thousands of identical failures while search path is broken).
+            reg_empty = (
+                docs_dl == 0
+                and str(slim.get("terminal_blocker") or "") == "DETAIL_FETCH_EMPTY"
+                and (
+                    str(slim.get("purchasing_group_registration_status") or "") == "REGISTERED"
+                    or bool(slim.get("pg_registered_awaiting_docs"))
+                )
+            )
+            if reg_empty:
+                registered_empty_streak += 1
+            else:
+                registered_empty_streak = 0
             job = store.recompute_counts(job_id)
             job["RESUME_CURSOR"] = _contiguous_resume_cursor(
                 store, job_id, rows, from_index=slice_start_cursor
@@ -1716,6 +1731,17 @@ def process_slice(
                         last_fetch_via=fetch_via,
                     )
                     break
+            if registered_empty_streak >= 6:
+                _progress(
+                    status="BLOCKED",
+                    phase="CIRCUIT_BREAKER_REGISTERED_UNLOCK",
+                    last_blocker="REGISTERED_DETAIL_FETCH_EMPTY_STREAK",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    registered_empty_streak=registered_empty_streak,
+                    last_fetch_via=fetch_via,
+                )
+                break
 
         # End-of-slice PG pass so groups enqueued during this slice are not deferred
         # until the next worker cycle.

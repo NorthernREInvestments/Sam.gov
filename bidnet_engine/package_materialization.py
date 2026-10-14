@@ -178,11 +178,23 @@ def extract_search_result_interception_links(
         _push(m.group("href"), "", via="interception_href")
 
     if title_hint:
-        tokens = [t for t in re.split(r"\W+", title_hint.lower()) if len(t) >= 4][:8]
+        hint_raw = str(title_hint or "").strip()
+        hint_digits = re.sub(r"\D+", "", hint_raw)
+        tokens = [t for t in re.split(r"\W+", hint_raw.lower()) if len(t) >= 4][:8]
+        # Pure/mostly-numeric queries (open-bids path ids, private sol ids): match
+        # solicitation_id / href digits — titles rarely contain those numbers.
+        if hint_digits and len(hint_digits) >= 6:
+            tokens = list(dict.fromkeys(tokens + [hint_digits, hint_digits.lstrip("0") or hint_digits]))
 
         def _score(row: dict[str, Any]) -> int:
-            hay = f"{row.get('title') or ''} {row.get('href') or ''}".lower()
-            score = sum(1 for t in tokens if t in hay)
+            hay = f"{row.get('title') or ''} {row.get('href') or ''} {row.get('solicitation_id') or ''}".lower()
+            score = sum(1 for t in tokens if t and t in hay)
+            sid = str(row.get("solicitation_id") or "")
+            if hint_digits and sid:
+                if sid == hint_digits or sid == hint_digits.lstrip("0") or hint_digits.lstrip("0") == sid.lstrip("0"):
+                    score += 10
+                elif hint_digits in sid or sid in hint_digits:
+                    score += 6
             if row.get("kind") == "open_solicitation":
                 score += 3
             return score
