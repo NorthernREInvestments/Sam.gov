@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2t"
+BUILD = "20261014-m3-full-scale-production-funnel-v2u"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # Preserve — do not auto-retry
@@ -1440,6 +1440,110 @@ def _budget_snapshot() -> dict[str, Any]:
     return out
 
 
+def _research_prices_from_rfq_queue(
+    *,
+    job_id: str,
+    max_items: int = 3,
+    budget_s: float = 55.0,
+) -> dict[str, Any]:
+    """Bounded public-price research for RFQs that already have complete specs.
+
+    Closes the gap where packages/lines were recovered before live pricing was
+    wired into process_one. Never invents prices; updates slim checkpoints.
+    """
+    from buyer_intelligence.commercial_funnel_execution_v1 import (
+        _research_public_prices_for_lines,
+    )
+
+    t0 = time.time()
+    blob = _load(RFQ_QUEUE_FILE) or {}
+    items = list(blob.get("items") or blob.get("rows") or [])
+    store = JobStore(FAMILY)
+    researched = 0
+    priced = 0
+    examples: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    for entry in items:
+        if researched >= max_items or time.time() - t0 >= budget_s:
+            break
+        if not isinstance(entry, dict):
+            continue
+        rfq = entry.get("rfq") if isinstance(entry.get("rfq"), dict) else entry
+        if rfq.get("status") != "AWAITING_OWNER_APPROVED_OUTREACH":
+            continue
+        if rfq.get("public_unit_price") not in (None, "") or entry.get(
+            "public_unit_price"
+        ) not in (None, ""):
+            continue
+        oid = str(entry.get("opportunity_id") or rfq.get("opportunity_id") or "")
+        lines = list(rfq.get("line_items") or entry.get("line_items") or [])
+        if not oid or not lines:
+            continue
+        remain = max(8.0, budget_s - (time.time() - t0))
+        researched += 1
+        pr = _research_public_prices_for_lines(
+            opportunity_id=oid,
+            lines=lines,
+            budget_s=min(35.0, remain),
+            max_lines=2,
+        )
+        if pr.get("verified_public_unit_price") not in (None, ""):
+            priced += 1
+            rfq["public_unit_price"] = pr["verified_public_unit_price"]
+            rfq["public_price_evidence"] = (pr.get("prices") or [])[:3]
+            entry["public_unit_price"] = pr["verified_public_unit_price"]
+            if isinstance(entry.get("rfq"), dict):
+                entry["rfq"] = rfq
+            hit = (pr.get("prices") or [{}])[0]
+            examples.append(
+                {
+                    "opportunity_id": oid,
+                    "unit_price": pr.get("verified_public_unit_price"),
+                    "supplier": hit.get("supplier"),
+                    "url": hit.get("url"),
+                    "mpn": hit.get("mpn"),
+                    "description": (hit.get("description") or "")[:120] or None,
+                }
+            )
+            prior = store.load_item(job_id, oid) or {"OPPORTUNITY_ID": oid}
+            prior["public_unit_price"] = pr["verified_public_unit_price"]
+            prior["public_price_evidence_count"] = int(pr.get("price_evidence_count") or 0)
+            if hit.get("supplier"):
+                dists = list(prior.get("distributors") or [])
+                if hit["supplier"] not in dists:
+                    dists = [hit["supplier"]] + dists
+                prior["distributors"] = dists[:8]
+            prior["CHECKPOINT_AT"] = _utc()
+            store.write_item_checkpoint(job_id, prior)
+        else:
+            failures.append(
+                {
+                    "opportunity_id": oid,
+                    "failure_classes": list(
+                        {
+                            str(f.get("failure_class") or f.get("status") or "UNKNOWN")
+                            for f in (pr.get("failures") or [])
+                            if isinstance(f, dict)
+                        }
+                    )[:6],
+                }
+            )
+    if researched:
+        if "items" in blob or blob.get("items") is not None:
+            blob["items"] = items
+        else:
+            blob["rows"] = items
+        blob["updated_at"] = _utc()
+        _save(RFQ_QUEUE_FILE, blob)
+    return {
+        "researched": researched,
+        "priced": priced,
+        "examples": examples,
+        "failures": failures[:8],
+        "elapsed_s": round(time.time() - t0, 2),
+    }
+
+
 def _append_rfq(row: dict[str, Any]) -> None:
     rfq = row.get("rfq")
     if not isinstance(rfq, dict):
@@ -1868,16 +1972,34 @@ def process_slice(
                 )
                 registered_empty_streak = 0
 
+        # Commercial research for already-complete RFQs (lines recovered earlier).
+        price_pass: dict[str, Any] | None = None
+        try:
+            if _is_active_lease_worker(job_id, worker_id):
+                price_pass = _research_prices_from_rfq_queue(
+                    job_id=job_id, max_items=3, budget_s=55.0
+                )
+                _progress(
+                    status="RUNNING",
+                    phase="COMMERCIAL_PRICE_PASS",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    price_pass=price_pass,
+                )
+        except Exception as exc:
+            price_pass = {"error": type(exc).__name__}
+
         # End-of-slice PG pass so groups enqueued during this slice are not deferred
         # until the next worker cycle.
         try:
             from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
             if auth_client is not None and getattr(auth_client, "is_authenticated", False):
-                pg_end = process_group_registration_slice(auth_client, max_groups=3)
+                pg_end = process_group_registration_slice(auth_client, max_groups=2)
                 pg_slice_report = {
                     "start_of_slice": pg_slice_report,
                     "end_of_slice": pg_end,
+                    "price_pass": price_pass,
                 }
                 _progress(
                     status="RUNNING",
@@ -1890,6 +2012,7 @@ def process_slice(
             pg_slice_report = {
                 "start_of_slice": pg_slice_report,
                 "end_of_slice_error": type(exc).__name__,
+                "price_pass": price_pass,
             }
     finally:
         try:
