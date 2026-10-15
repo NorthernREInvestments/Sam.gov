@@ -26,7 +26,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.fspf_supervisor_v1")
 
-BUILD = "20261015-m3-fspf-supervisor-v1b"
+BUILD = "20261015-m3-fspf-supervisor-v1c"
 FAMILY = "full_scale_production_funnel_v1"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_fspf_supervisor_status_v1.json"
 
@@ -272,12 +272,14 @@ def _supervisor_loop(*, supervisor_id: str) -> None:
                 > int(job.get("COMPLETED") or prog.get("completed") or 0)
             ):
                 idle_s = now - last_marker_at
-                # Post-start grace: queue load / slice setup can take >120s on 30k.
+                # Post-start grace only while heartbeat is actually fresh.
+                # A dead heartbeat must not hide inside grace for 180s.
                 if (
                     status == "RUNNING"
                     and worker_started is not None
                     and worker_started < POST_START_GRACE_S
-                    and (hb_age is None or hb_age < POST_START_GRACE_S)
+                    and hb_age is not None
+                    and hb_age <= 45.0
                 ):
                     _save_status(
                         running=True,

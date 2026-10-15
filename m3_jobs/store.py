@@ -403,13 +403,15 @@ class JobStore:
         self,
         *,
         stale_seconds: float = 120.0,
-        mutate_stale: bool = True,
+        mutate_stale: bool = False,
     ) -> dict[str, Any] | None:
         """Return the active family job.
 
-        When ``mutate_stale`` is False, a heartbeat older than ``stale_seconds``
-        is reported as STALE_RELEASED in the returned dict without writing disk
-        (supervisors must not side-effect-kill a live worker).
+        Default is read-only: a heartbeat older than ``stale_seconds`` is reported
+        as STALE_RELEASED in the returned dict WITHOUT writing disk. Polling
+        progress/scorecard must never side-effect-kill a live worker.
+
+        Pass ``mutate_stale=True`` only from explicit reclaim paths (stop/force).
         """
         ptr = _read_json(self.active_pointer_path())
         if not ptr or not ptr.get("JOB_ID"):

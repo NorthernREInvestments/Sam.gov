@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e23"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e24"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -86,8 +86,8 @@ STALE_LEASE_S = float(
     os.environ.get("M3_FSPF_STALE_LEASE_S")
     or max(
         float(LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS") or 120),
-        float(ITEM_TIMEOUT_S) + 40.0,
-        150.0,
+        float(ITEM_TIMEOUT_S) + 120.0,
+        300.0,
     )
 )
 # Independent heartbeat while a per-opportunity future is in flight.
@@ -345,7 +345,8 @@ def _progress(**kwargs: Any) -> dict[str, Any]:
 def job_progress() -> dict[str, Any]:
     prog = _load(PROGRESS_FILE) or {"status": "IDLE", "build": BUILD}
     store = JobStore(FAMILY)
-    active = store.find_active_job(stale_seconds=STALE_LEASE_S)
+    # Read-only — progress polling must never mutate RUNNING → STALE_RELEASED.
+    active = store.find_active_job(stale_seconds=STALE_LEASE_S, mutate_stale=False)
     payload: dict[str, Any] = {
         **prog,
         "build": BUILD,
@@ -3185,7 +3186,27 @@ def process_slice(
             "lease_superseded": True,
         }
 
-    # Heartbeat before heavy I/O so supervisor post-start grace sees a live pulse.
+    # Slice-wide heartbeat pulse — covers queue load / PG rebuild / heal paths
+    # that previously ran >2 minutes with zero heartbeats and got STALE-killed.
+    slice_hb_stop = threading.Event()
+    slice_hb_thread = threading.Thread(
+        target=_heartbeat_pulse,
+        kwargs={
+            "job_id": job_id,
+            "worker_id": worker_id,
+            "lease_generation": lease_generation,
+            "current_index": job.get("CURRENT_INDEX"),
+            "current_opportunity_id": job.get("CURRENT_OPPORTUNITY_ID"),
+            "stop_event": slice_hb_stop,
+        },
+        name=f"fspf-slice-hb-{worker_id[-6:]}",
+        daemon=True,
+    )
+    slice_hb_thread.start()
+
+    def _stop_slice_hb() -> None:
+        slice_hb_stop.set()
+
     try:
         store.heartbeat(
             job_id,
@@ -3202,6 +3223,7 @@ def process_slice(
             lease_generation=lease_generation,
         )
     except JobLeaseError:
+        _stop_slice_hb()
         return {
             "slice_complete": False,
             "processed_this_slice": 0,
@@ -3219,6 +3241,7 @@ def process_slice(
             lease_generation=lease_generation,
         )
     except JobLeaseError:
+        _stop_slice_hb()
         return {
             "slice_complete": False,
             "processed_this_slice": 0,
@@ -3226,7 +3249,9 @@ def process_slice(
             "job_id": job_id,
             "lease_superseded": True,
         }
-    job, pass_mode, first_pass, cursor = _heal_false_first_pass_exhaustion(store, job, rows)
+    job, pass_mode, first_pass, cursor = _heal_false_first_pass_exhaustion(
+        store, job, rows
+    )
     meta = dict(job.get("META") or {})
     # One-shot: if this job is a ground-zero new_run, drop deferred items that
     # belong to an archived prior job (prevents second-pass pollution).
@@ -3410,6 +3435,7 @@ def process_slice(
             meta["pass_mode"] = "FIRST_PASS"
             job["META"] = meta
             store.save_job(job)
+            _stop_slice_hb()
             return {
                 "slice_complete": True,
                 "processed_this_slice": 0,
@@ -3422,6 +3448,7 @@ def process_slice(
         meta["pass_mode"] = pass_mode
         job["META"] = meta
         store.save_job(job)
+        _stop_slice_hb()
         return {
             "slice_complete": True,
             "processed_this_slice": 0,
@@ -3758,6 +3785,7 @@ def process_slice(
                     browser_items_deferred=deferred_n,
                     unlock_micro_recovery=unlock_recovery_report,
                 )
+                _stop_slice_hb()
                 return {
                     "slice_complete": True,
                     "processed_this_slice": processed,
@@ -3800,6 +3828,7 @@ def process_slice(
                     unlock_micro_recovery=unlock_recovery_report,
                     note="browser_auth_failed_items_deferred_first_pass_continues",
                 )
+                _stop_slice_hb()
                 return {
                     "slice_complete": True,
                     "processed_this_slice": processed,
@@ -4179,6 +4208,7 @@ def process_slice(
         unlock_micro_recovery=unlock_recovery_report,
         price_pass=price_pass,
     )
+    _stop_slice_hb()
     return {
         "slice_complete": True,
         "processed_this_slice": processed,
