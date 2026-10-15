@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261015-m3-bidnet-pg-group-queue-v1d"
+BUILD = "20261015-m3-bidnet-pg-group-queue-v1e"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -310,17 +310,29 @@ def rebuild_pending_from_job(job_id: str) -> dict[str, Any]:
 
 
 def _pending_priority(row: dict[str, Any]) -> tuple:
-    """Higher blocked-opportunity count first; fewer attempts next."""
+    """Higher unlock impact first; prefer groups that already reached a form."""
     oids = len(row.get("opportunity_ids") or [])
+    tracked_st = ""
+    last_err = str(row.get("last_error") or "")
     try:
         from bidnet_auth.purchasing_group_tracker import get_group
 
         tracked = get_group(str(row.get("purchasing_group_id") or "")) or {}
         oids = max(oids, len(tracked.get("blocked_opportunity_ids") or []))
         oids = max(oids, int(tracked.get("live_eligible_opportunity_count") or 0))
+        tracked_st = str(tracked.get("status") or "")
+        last_err = last_err or str(tracked.get("last_error") or tracked.get("owner_blocker_reason") or "")
     except Exception:
         pass
-    return (-oids, int(row.get("attempts") or 0))
+    # Prefer INCOMPLETE / Failed Check (form reachable) over pure nav TimeoutError.
+    stage_rank = 0
+    if tracked_st == "INCOMPLETE" or "Failed Check" in last_err:
+        stage_rank = -2
+    elif tracked_st in {"PREPARED", "REGISTERING"}:
+        stage_rank = -1
+    elif "Timeout" in last_err and int(row.get("attempts") or 0) >= 2:
+        stage_rank = 3  # demote repeated nav failures
+    return (stage_rank, -oids, int(row.get("attempts") or 0))
 
 
 def process_group_registration_slice(
@@ -594,10 +606,16 @@ def process_group_registration_slice(
                 "ok": reg.get("ok"),
                 "attempts": item["attempts"],
                 "error": reg.get("error") or reg.get("reason"),
+                "error_message": str(reg.get("message") or "")[:160] or None,
                 "form_url_used": (form_url or item.get("form_url") or "")[:160] or None,
                 "source_url": (source_url or "")[:160] or None,
                 "elapsed_s": round(_time.time() - group_t0, 2),
+                "validation_errors": (reg.get("validation_errors") or [])[:4] or None,
+                "access_verify": reg.get("access_verify"),
             }
+            if reg.get("error") or reg.get("message"):
+                item["last_error"] = str(reg.get("error") or reg.get("message") or "")[:120]
+                _bump_pending(pg_id, item)
             processed.append(row)
             st = str(reg.get("status") or "")
             if st == STATUS_REGISTERED or reg.get("already_registered"):
