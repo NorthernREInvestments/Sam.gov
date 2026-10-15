@@ -35,7 +35,7 @@ from bidnet_auth.purchasing_group_tracker import (
 
 log = logging.getLogger("govtracker.bidnet_pg_registration")
 
-BUILD = "20261015-m3-bidnet-pg-registration-v2c"
+BUILD = "20261015-m3-bidnet-pg-registration-v2d"
 DEFAULT_SUPPLIER_ORG_ID = "9785456456"
 
 # Conditional text fields that only apply when a related YES cert radio is chosen.
@@ -938,11 +938,14 @@ def prepare_generic_pg_answers(
             plan["skip_fields"].append({"name": fname, "reason": "already_populated"})
             continue
         # Certification radios — answer NO unless verified held.
-        # Covers Empire, Texas SCTRCA/HUB, Oklahoma minority, generic M/W/DBE.
+        # Covers Empire, Texas SCTRCA/HUB/SBE Dallas, Oklahoma minority,
+        # Florida MDBE, generic M/W/DBE / "any other certification".
         cert_radio = bool(
             re.search(
-                r"certifiedmbe|m/?w/?dbe|mw/?dbe|\bmbe\b|\bwbe\b|\bmwbe\b|"
-                r"\bdbe\b|disadvantaged|\bhub\b|sctrca|minority|certif",
+                r"certifiedmbe|m/?w/?dbe|mw/?dbe|\bmbe\b|\bwbe\b|\bmwbe\b|\bmdbe\b|"
+                r"\bdbe\b|disadvantaged|\bhub\b|sctrca|minority|\bsbe\b|"
+                r"small\s*business\s*enterprise|any\s*other\s*(m/?dbe\s*)?certif|"
+                r"other\s*certifications?|certif",
                 blob,
             )
         )
