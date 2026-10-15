@@ -35,7 +35,7 @@ from bidnet_auth.purchasing_group_tracker import (
 
 log = logging.getLogger("govtracker.bidnet_pg_registration")
 
-BUILD = "20261015-m3-bidnet-pg-registration-v2b"
+BUILD = "20261015-m3-bidnet-pg-registration-v2c"
 DEFAULT_SUPPLIER_ORG_ID = "9785456456"
 
 # Conditional text fields that only apply when a related YES cert radio is chosen.
@@ -517,7 +517,8 @@ def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -
                         )
                     )
                 if not ok and name:
-                    # Generic: pick radio by name — prefer id/value containing YES/NO
+                    # Generic: pick radio by name — prefer id/value containing YES/NO.
+                    # Also click associated label (BidNet often styles labels as the control).
                     ok = bool(
                         page.evaluate(
                             """({name, val}) => {
@@ -529,13 +530,28 @@ def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -
                               let el = nodes.find(n => {
                                 const id = (n.id||'') + ' ' + (n.value||'');
                                 return id.toUpperCase().includes('.'+want) ||
+                                       id.toUpperCase().endsWith('_'+want) ||
                                        id.toUpperCase().endsWith(want) ||
                                        String(n.value||'').toUpperCase() === want;
                               });
-                              if (!el) el = want === 'YES' ? nodes[0] : nodes[nodes.length-1];
-                              el.click();
+                              if (!el) {
+                                // Prefer explicit NO/false/0 when answering NO
+                                if (want === 'NO') {
+                                  el = nodes.find(n => /no|false|0/i.test((n.id||'')+(n.value||'')))
+                                    || nodes[nodes.length-1];
+                                } else {
+                                  el = nodes.find(n => /yes|true|1/i.test((n.id||'')+(n.value||'')))
+                                    || nodes[0];
+                                }
+                              }
+                              const lab = el.id
+                                ? document.querySelector('label[for=\"'+el.id+'\"]')
+                                : null;
+                              if (lab) lab.click();
+                              else el.click();
                               el.checked = true;
                               el.dispatchEvent(new Event('change', {bubbles: true}));
+                              el.dispatchEvent(new Event('click', {bubbles: true}));
                               return !!el.checked;
                             }""",
                             {"name": name, "val": val},
@@ -546,6 +562,17 @@ def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -
                         0 if val == "YES" else 1
                     ).check(force=True, timeout=3_000)
                     ok = True
+                # Verify a radio in the group is actually checked
+                if ok and name:
+                    checked = bool(
+                        page.evaluate(
+                            """(name) => Array.from(document.querySelectorAll(
+                              'input[type=radio][name=\"'+name+'\"]'
+                            )).some(n => n.checked)""",
+                            name,
+                        )
+                    )
+                    ok = checked
                 applied.append({"name": name, "value": val, "ok": ok, "element_id": eid})
             except Exception as exc:
                 applied.append({"name": name, "value": val, "ok": False, "error": type(exc).__name__})
@@ -1318,6 +1345,15 @@ def run_purchasing_group_registration(
         url = str(client._page.url or "")
         after = re.sub(r"\s+", " ", client._page.locator("body").inner_text() or "")[:2000]
         failed_check = bool(re.search(r"Failed Check", after, re.I))
+        # Capture Failed Check details BEFORE any re-navigation clears them.
+        inline_validation = []
+        for m in re.finditer(
+            r"(Failed Check[^.]{0,160}|This field is required[^.]{0,100}|"
+            r"Please (?:enter|select|complete|answer)[^.]{0,120})",
+            after,
+            re.I,
+        ):
+            inline_validation.append(m.group(0).strip()[:160])
         # One bounded retry: Failed Check after Save usually means a required
         # radio did not stick — re-apply fills and Save again once.
         if failed_check and plan.get("fills"):
@@ -1328,6 +1364,12 @@ def run_purchasing_group_registration(
                 url = str(client._page.url or "")
                 after = re.sub(r"\s+", " ", client._page.locator("body").inner_text() or "")[:2000]
                 failed_check = bool(re.search(r"Failed Check", after, re.I))
+                for m in re.finditer(
+                    r"(Failed Check[^.]{0,160}|This field is required[^.]{0,100})",
+                    after,
+                    re.I,
+                ):
+                    inline_validation.append(m.group(0).strip()[:160])
             except Exception:
                 pass
         still_on_edit = "group-form/edit" in url
@@ -1343,7 +1385,9 @@ def run_purchasing_group_registration(
             member_complete = True
             after = str(post.get("body_excerpt") or after)
             url = str(post.get("final_url") or url)
-        validation_errors = list(post.get("validation_errors") or [])
+        validation_errors = list(dict.fromkeys(inline_validation + list(post.get("validation_errors") or [])))[
+            :8
+        ]
         missing_required = list(post.get("missing_required_fields") or [])
         if failed_check or (still_on_edit and re.search(r"\bINCOMPLETE\b", after)):
             status = STATUS_INCOMPLETE
