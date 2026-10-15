@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e1"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e2"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2390,6 +2390,13 @@ def process_slice(
                 current_index=idx,
                 current_opportunity_id=oid,
             )
+            if browser_slot_held:
+                try:
+                    from bidnet_auth.browser_mutex_v1 import refresh_bidnet_browser_lease
+
+                    refresh_bidnet_browser_lease(holder=f"fspf-{worker_id}", ttl_s=150.0)
+                except Exception:
+                    pass
             _progress(
                 status="RUNNING",
                 phase="ONE_PASS_FUNNEL",

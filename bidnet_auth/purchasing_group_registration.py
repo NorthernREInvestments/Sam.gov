@@ -290,9 +290,16 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
     # domcontentloaded only — networkidle hangs on BidNet analytics beacons
     try:
         # commit is more reliable than domcontentloaded on BidNet form pages
-        page.goto(form_url, wait_until="commit", timeout=max(45_000, int(timeout_ms)))
+        nav_timeout = max(45_000, int(timeout_ms))
+        # Override client default (often 15s) so form navigation gets a real budget.
         try:
-            page.wait_for_load_state("domcontentloaded", timeout=15_000)
+            page.set_default_timeout(nav_timeout)
+            page.set_default_navigation_timeout(nav_timeout)
+        except Exception:
+            pass
+        page.goto(form_url, wait_until="commit", timeout=nav_timeout)
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=20_000)
         except Exception:
             pass
     except Exception as exc:
