@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e13"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e14"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2833,7 +2833,9 @@ def process_slice(
             row = {
                 "opportunity_id": oid,
                 "terminal_blocker": blocker,
-                "funnel_outcome": "DEFERRED_EXTERNAL",
+                # Must be EXTERNAL_DEPENDENCY so _map_result → DEFERRED_EXTERNAL
+                # and first-pass skip logic advances the cursor.
+                "funnel_outcome": "EXTERNAL_DEPENDENCY",
                 "stage_reached": "ACCESS_DOCS",
                 "defer": True,
                 "software_defect_key": reason,
