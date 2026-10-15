@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e19"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e20"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1825,11 +1825,14 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
     """Append incorrectly excluded / unresolved L23 IDs to the live queue.
 
     Does not reset RESUME_CURSOR or start a competing worker.
+    Large appends run asynchronously — poll GET .../append-missing-from-l23.
     """
     from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
     from buyer_intelligence.l23_universe_reconciliation_v1 import (
         append_missing_to_production_queue,
+        append_status,
         reconciliation_status,
+        start_append_missing_async,
     )
     from m3_jobs.store import JobStore
 
@@ -1850,6 +1853,15 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
             "build_version": APP_BUILD_VERSION,
             **st,
         }
+    async_mode = payload.get("async", True)
+    if async_mode and not payload.get("sync"):
+        return {
+            "build_version": APP_BUILD_VERSION,
+            **start_append_missing_async(
+                job_id=(str(jid) if jid else None),
+                dry_run=bool(payload.get("dry_run", False)),
+            ),
+        }
     return {
         "build_version": APP_BUILD_VERSION,
         **append_missing_to_production_queue(
@@ -1863,6 +1875,13 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
             force_reconcile=bool(payload.get("force_reconcile", False)),
         ),
     }
+
+
+@app.get("/api/m3/full-scale-production-funnel/append-missing-from-l23")
+def api_m3_full_scale_production_funnel_append_missing_status():
+    from buyer_intelligence.l23_universe_reconciliation_v1 import append_status
+
+    return {"build_version": APP_BUILD_VERSION, **append_status()}
 
 
 @app.post("/api/m3/full-scale-production-funnel/regression-copy-paper")

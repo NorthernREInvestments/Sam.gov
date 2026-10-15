@@ -34,7 +34,7 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = logging.getLogger("govtracker.l23_universe_reconciliation_v1")
 
-BUILD = "20261015-m3-l23-universe-reconciliation-v1c"
+BUILD = "20261015-m3-l23-universe-reconciliation-v1d"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_l23_universe_reconciliation_v1.json"
 PROGRESS = f"{OUT}/m3_l23_universe_reconciliation_progress_v1.json"
@@ -43,6 +43,9 @@ EXCLUSION_IDS = f"{OUT}/m3_l23_universe_exclusion_ids_v1.json"
 FROZEN_MANIFEST_CANDIDATES = (
     f"{OUT}/m3_fcf_v1_run_manifest.json",
     f"{OUT}/m3_wddr_v1_frozen_manifest.json",
+    f"{OUT}/m3_wddr_v1_manifest.json",
+    "m3_wddr_v1_frozen_manifest.json",
+    "m3_fcf_v1_run_manifest.json",
 )
 QUEUE_FILE = f"{OUT}/m3_fspf_v1_eligible_queue.json"
 ADV_DEALS = f"{OUT}/m3_adv_v1_available_deals.json"
@@ -420,6 +423,60 @@ def start_reconcile_l23_universe_async() -> dict[str, Any]:
         return {"ok": True, "started": True, "status": "STARTED", "build": BUILD}
 
 
+_append_thread: threading.Thread | None = None
+APPEND_PROGRESS = f"{OUT}/m3_l23_universe_append_progress_v1.json"
+
+
+def start_append_missing_async(
+    *,
+    job_id: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Background append of reconciled candidates (large payloads exceed HTTP timeouts)."""
+    global _append_thread
+    with _recon_lock:
+        if _append_thread is not None and _append_thread.is_alive():
+            return {
+                "ok": True,
+                "started": False,
+                "status": "ALREADY_RUNNING",
+                "progress": _load(APPEND_PROGRESS),
+            }
+
+        def _run() -> None:
+            try:
+                _save(
+                    APPEND_PROGRESS,
+                    {"status": "RUNNING", "at": _utc(), "job_id": job_id, "dry_run": dry_run},
+                )
+                man = append_missing_to_production_queue(
+                    job_id=job_id, dry_run=dry_run, force_reconcile=False
+                )
+                _save(
+                    APPEND_PROGRESS,
+                    {"status": "COMPLETE", "at": _utc(), "result": man},
+                )
+            except Exception as exc:
+                _save(
+                    APPEND_PROGRESS,
+                    {
+                        "status": "FAILED",
+                        "at": _utc(),
+                        "error": f"{type(exc).__name__}:{exc}"[:240],
+                    },
+                )
+
+        _append_thread = threading.Thread(
+            target=_run, name="l23-universe-append", daemon=True
+        )
+        _append_thread.start()
+        return {"ok": True, "started": True, "status": "STARTED", "build": BUILD}
+
+
+def append_status() -> dict[str, Any]:
+    return {"build": BUILD, "progress": _load(APPEND_PROGRESS) or {}}
+
+
 def append_missing_to_production_queue(
     *,
     job_id: str | None = None,
@@ -471,9 +528,11 @@ def append_missing_to_production_queue(
         except Exception as exc:
             job_meta = {"job_load_error": type(exc).__name__}
 
-    # Skip IDs that already have a preserved terminal checkpoint on this job
+    # Skip IDs that already have a preserved terminal checkpoint on this job.
+    # Bounded: only probe when candidate set is small; large appends rely on
+    # queue de-dupe (existing IDs) which already covers active first-pass work.
     skip_completed: set[str] = set()
-    if job_id:
+    if job_id and len(candidates) <= 500:
         try:
             jstore = JobStore("full_scale_production_funnel_v1")
             preserve = {
@@ -496,6 +555,10 @@ def append_missing_to_production_queue(
     skipped_completed = 0
     skipped_no_row = 0
     admission_reasons: Counter[str] = Counter()
+    # Prefer category labels from the reconciliation artifact (no re-classify).
+    by_cat_ids = excl.get("by_category") or {}
+    unresolved_set = set(by_cat_ids.get(CAT_UNRESOLVED) or [])
+    eligible_missing_set = set(by_cat_ids.get(CAT_ELIGIBLE_MISSING) or [])
 
     for oid in candidates:
         if oid in existing:
@@ -508,50 +571,42 @@ def append_missing_to_production_queue(
         if not isinstance(rec, dict):
             skipped_no_row += 1
             continue
-        try:
-            cl = classify_record(oid, rec)
-        except Exception:
-            skipped_no_row += 1
-            continue
-        cat, reason = _category_for_classified(cl, in_queue=False)
-        if cat not in {CAT_ELIGIBLE_MISSING, CAT_UNRESOLVED}:
-            skipped_no_row += 1
-            continue
-        row = _queue_row_from_any(
-            {
-                **rec,
-                **cl,
-                "product": cl.get("product") or rec.get("title"),
-                "product_class": cl.get("product_class") or "UNKNOWN_PRODUCTNESS",
-                "funnel_class": "LIVE_ELIGIBLE",
-                "visibility_bucket": cl.get("visibility_bucket"),
-                "deadline_status": cl.get("deadline_status"),
-                "days_left": cl.get("days_left"),
-                "authoritative_url": cl.get("authoritative_url") or rec.get("authoritative_url"),
-            },
-            oid=oid,
-        )
-        if not row:
-            # Force-admit unresolved (missing deadline) — do not silently drop
-            row = {
-                "opportunity_id": oid,
-                "title": str(cl.get("product") or rec.get("title") or "")[:240],
-                "buyer": rec.get("buyer"),
-                "deadline": rec.get("deadline") or cl.get("deadline"),
-                "days_left": cl.get("days_left"),
-                "authoritative_url": cl.get("authoritative_url") or rec.get("authoritative_url"),
-                "product_class": cl.get("product_class") or "UNKNOWN_PRODUCTNESS",
-                "funnel_class": "LIVE_ELIGIBLE",
-                "deadline_status": cl.get("deadline_status") or "DEADLINE_UNKNOWN",
-                "common_product": bool(cl.get("common_product")),
-                "complex_title_needs_qualify": False,
-                "selection_score": float(cl.get("research_priority_score") or 0),
-                "admission_reason": f"force_unresolved:{reason}",
-                "l23_universe_append": True,
-            }
+        if oid in eligible_missing_set:
+            cat, reason = CAT_ELIGIBLE_MISSING, "from_reconciliation"
+        elif oid in unresolved_set:
+            cat, reason = CAT_UNRESOLVED, "from_reconciliation"
         else:
-            row["admission_reason"] = f"{cat}:{reason}"
-            row["l23_universe_append"] = True
+            cat, reason = CAT_UNRESOLVED, "append_candidate"
+        title = str(rec.get("title") or "")[:240]
+        pc = str(rec.get("product_service_classification") or "UNKNOWN_PRODUCTNESS")
+        if pc == "TANGIBLE_PRODUCT":
+            pc = "PRODUCT"
+        elif pc == "MIXED_PRODUCT_SERVICE":
+            pc = "MIXED"
+        elif pc not in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}:
+            pc = "UNKNOWN_PRODUCTNESS"
+        row = {
+            "opportunity_id": oid,
+            "title": title,
+            "buyer": rec.get("buyer") or rec.get("agency") or rec.get("organization"),
+            "deadline": rec.get("deadline"),
+            "days_left": rec.get("days_left"),
+            "authoritative_url": rec.get("authoritative_url") or rec.get("url") or rec.get("source_url"),
+            "product_class": pc,
+            "funnel_class": "LIVE_ELIGIBLE",
+            "deadline_status": str(rec.get("deadline_status") or "DEADLINE_UNKNOWN"),
+            "common_product": False,
+            "complex_title_needs_qualify": False,
+            "selection_score": 0.0,
+            "admission_reason": f"{cat}:{reason}",
+            "l23_universe_append": True,
+        }
+        # Soft gate via existing helper when possible (never drop unresolved)
+        gated = _queue_row_from_any({**rec, **row}, oid=oid)
+        if gated:
+            gated["admission_reason"] = row["admission_reason"]
+            gated["l23_universe_append"] = True
+            row = gated
         admission_reasons[str(row.get("admission_reason"))] += 1
         appended.append(row)
 
