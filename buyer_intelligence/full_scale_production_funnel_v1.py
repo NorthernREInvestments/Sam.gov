@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e7"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e8"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -735,6 +735,140 @@ def reconcile_released_pg_unlocks(
     except Exception:
         pass
     return report
+
+
+def _recover_one_unlocked_opportunity(
+    *,
+    job_id: str,
+    worker_id: str,
+    rows: list[dict[str, Any]],
+    store: Any,
+    http: Any,
+    evidence_index: Any,
+    l23: dict[str, Any],
+) -> dict[str, Any]:
+    """Process one PG-unlock recovery_eligible item when the browser is free.
+
+    Does not advance RESUME_CURSOR or steal unattempted first-pass slots.
+    """
+    from bidnet_auth.browser_mutex_v1 import bidnet_browser_slot
+    from buyer_intelligence.commercial_funnel_execution_v1 import _open_bidnet_auth_client
+    from buyer_intelligence.opportunity_funnel_orchestrator_v1 import run_one_opportunity
+
+    dq = _load_deferred_queue()
+    candidates = [
+        d
+        for d in (dq.get("items") or [])
+        if isinstance(d, dict) and d.get("recovery_eligible") and d.get("opportunity_id")
+    ]
+    if not candidates:
+        return {"processed": 0, "reason": "no_recovery_eligible"}
+
+    picked = None
+    for d in candidates:
+        oid = str(d.get("opportunity_id"))
+        prev = store.load_item(job_id, oid)
+        if prev and str(prev.get("RESULT") or "") in _PRESERVE_RESULTS | {
+            "SUCCESS",
+            "PARTIAL",
+            "SKIPPED_ALREADY_COMPLETE",
+        }:
+            continue
+        picked = d
+        break
+    if not picked:
+        return {"processed": 0, "reason": "no_eligible_candidate"}
+
+    oid = str(picked.get("opportunity_id"))
+    idx = int(picked.get("queue_index") or -1)
+    item = rows[idx] if 0 <= idx < len(rows) else {"opportunity_id": oid}
+    if str(item.get("opportunity_id") or "") != oid:
+        item = {"opportunity_id": oid}
+        for j, r in enumerate(rows):
+            if str(r.get("opportunity_id")) == oid:
+                item = r
+                idx = j
+                break
+
+    auth_client = None
+    row: dict[str, Any] = {}
+    with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=5.0, ttl_s=150.0) as got:
+        if not got:
+            return {"processed": 0, "reason": "browser_slot_busy", "opportunity_id": oid}
+        try:
+            auth_status, auth_client = _open_bidnet_auth_client()
+            if not auth_status.get("authenticated") or auth_client is None:
+                return {
+                    "processed": 0,
+                    "reason": "auth_unavailable",
+                    "opportunity_id": oid,
+                    "auth_status": auth_status.get("status"),
+                }
+            row = run_one_opportunity(
+                item,
+                client=http,
+                evidence_index=evidence_index,
+                auth_status=auth_status,
+                l23_rec=(l23 or {}).get(oid) or {},
+                auth_client=auth_client,
+            )
+        except Exception as exc:
+            row = {
+                "opportunity_id": oid,
+                "terminal_blocker": type(exc).__name__,
+                "funnel_outcome": "SOFTWARE_ERROR",
+                "stage_reached": picked.get("stage_reached") or "ACCESS_DOCS",
+                "defer": True,
+                "software_defect_key": type(exc).__name__,
+            }
+        finally:
+            if auth_client is not None:
+                try:
+                    auth_client.close()
+                except Exception:
+                    pass
+
+    result = _map_result(row)
+    prior_cp = store.load_item(job_id, oid)
+    slim = _slim_checkpoint(row, result=result, index=max(0, idx), prior=prior_cp)
+    slim["PG_UNLOCK_RECOVERY_AT"] = _utc()
+    slim["recovery_pass"] = "MICRO_DURING_FIRST_PASS"
+    store.write_item_checkpoint(job_id, slim)
+    _append_rfq(row)
+
+    # Remove from deferred on durable success; otherwise keep for full deferred pass
+    if result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
+        dq2 = _load_deferred_queue()
+        dq2["items"] = [
+            x for x in (dq2.get("items") or []) if str(x.get("opportunity_id")) != oid
+        ]
+        dq2["count"] = len(dq2["items"])
+        dq2["pg_unlock_eligible_count"] = sum(
+            1 for x in dq2["items"] if isinstance(x, dict) and x.get("recovery_eligible")
+        )
+        _save(DEFERRED_QUEUE_FILE, dq2)
+    elif row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+        _defer_opportunity(
+            opportunity_id=oid,
+            stage=row.get("stage_reached"),
+            outcome=str(row.get("funnel_outcome") or result),
+            defect_key=row.get("software_defect_key"),
+            shared_access_key=row.get("shared_access_key") or picked.get("shared_access_key"),
+            blocker=row.get("terminal_blocker"),
+            index=idx,
+        )
+
+    return {
+        "processed": 1,
+        "opportunity_id": oid,
+        "purchasing_group_id": picked.get("pg_unlocked") or slim.get("purchasing_group_id"),
+        "result": result,
+        "stage_reached": slim.get("stage_reached"),
+        "documents_downloaded": slim.get("documents_downloaded"),
+        "fully_specified_product_lines": slim.get("fully_specified_product_lines"),
+        "terminal_blocker": slim.get("terminal_blocker"),
+        "funnel_outcome": slim.get("funnel_outcome"),
+    }
 
 
 def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
@@ -2902,6 +3036,7 @@ def process_slice(
             int(timing_accum.get("fast_path_count") or 0) > 0
             and int(timing_accum.get("browser_path_count") or 0) == 0
         )
+        unlock_recovery_report: dict[str, Any] | None = None
         try:
             if _is_active_lease_worker(job_id, worker_id) and not slice_all_fast:
                 price_pass = _research_prices_from_rfq_queue(
@@ -2916,6 +3051,32 @@ def process_slice(
                 )
             elif slice_all_fast:
                 price_pass = {"skipped": True, "reason": "slice_all_shared_access_fast_path"}
+                # Browser free: advance ONE unlock-eligible recovery without touching
+                # unattempted first-pass positions (cursor unchanged).
+                if first_pass and _is_active_lease_worker(job_id, worker_id):
+                    unlock_recovery_report = _recover_one_unlocked_opportunity(
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        rows=rows,
+                        store=store,
+                        http=http,
+                        evidence_index=evidence_index,
+                        l23=l23,
+                    )
+                    if unlock_recovery_report.get("processed"):
+                        _progress(
+                            status="RUNNING",
+                            phase="PG_UNLOCK_MICRO_RECOVERY",
+                            job_id=job_id,
+                            worker_id=worker_id,
+                            unlock_recovery=unlock_recovery_report,
+                        )
+                        try:
+                            price_pass = _research_prices_from_rfq_queue(
+                                job_id=job_id, max_items=2, budget_s=40.0
+                            )
+                        except Exception as exc:
+                            price_pass = {"error": type(exc).__name__, "after": "unlock_micro"}
         except Exception as exc:
             price_pass = {"error": type(exc).__name__}
 
@@ -2930,6 +3091,7 @@ def process_slice(
                 "slice_all_fast": slice_all_fast,
                 "access_manager": manager_status(),
                 "price_pass": price_pass,
+                "unlock_micro_recovery": unlock_recovery_report,
             }
             _progress(
                 status="RUNNING",
@@ -2943,6 +3105,7 @@ def process_slice(
                 "delegated_to": "purchasing_group_access_manager_v1",
                 "access_manager_error": type(exc).__name__,
                 "price_pass": price_pass,
+                "unlock_micro_recovery": unlock_recovery_report,
             }
     finally:
         try:
