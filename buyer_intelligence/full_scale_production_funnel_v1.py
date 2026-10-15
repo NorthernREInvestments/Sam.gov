@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e8"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e9"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -792,7 +792,7 @@ def _recover_one_unlocked_opportunity(
 
     auth_client = None
     row: dict[str, Any] = {}
-    with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=5.0, ttl_s=150.0) as got:
+    with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=45.0, ttl_s=180.0) as got:
         if not got:
             return {"processed": 0, "reason": "browser_slot_busy", "opportunity_id": oid}
         try:
@@ -858,7 +858,7 @@ def _recover_one_unlocked_opportunity(
             index=idx,
         )
 
-    return {
+    out = {
         "processed": 1,
         "opportunity_id": oid,
         "purchasing_group_id": picked.get("pg_unlocked") or slim.get("purchasing_group_id"),
@@ -868,7 +868,20 @@ def _recover_one_unlocked_opportunity(
         "fully_specified_product_lines": slim.get("fully_specified_product_lines"),
         "terminal_blocker": slim.get("terminal_blocker"),
         "funnel_outcome": slim.get("funnel_outcome"),
+        "at": _utc(),
     }
+    try:
+        job = store.load_job(job_id) or {}
+        meta = dict(job.get("META") or {})
+        hist = list(meta.get("unlock_micro_recovery_history") or [])
+        hist.append(out)
+        meta["unlock_micro_recovery_history"] = hist[-20:]
+        meta["last_unlock_micro_recovery"] = out
+        job["META"] = meta
+        store.save_job(job)
+    except Exception:
+        pass
+    return out
 
 
 def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
