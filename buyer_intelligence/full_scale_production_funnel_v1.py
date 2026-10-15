@@ -31,9 +31,11 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v2v"
+BUILD = "20261014-m3-full-scale-production-funnel-v3a"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
+# First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
+FIRST_PASS_NO_INLINE_RETRY = True
 # Preserve — do not auto-retry
 _PRESERVE_RESULTS = {
     "SUCCESS",
@@ -65,11 +67,13 @@ ARCHIVE_DIR = f"{OUT}/m3_fspf_v1_archived_runs"
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
 FCF_SCORE = f"{OUT}/m3_fcf_v1_scorecard.json"
 QUEUE_FILE = f"{OUT}/m3_fspf_v1_eligible_queue.json"
+DEFERRED_QUEUE_FILE = f"{OUT}/m3_fspf_v1_deferred_queue.json"
 PROGRESS_FILE = f"{OUT}/m3_fspf_v1_progress.json"
 SCORECARD_FILE = f"{OUT}/m3_fspf_v1_scorecard.json"
 RFQ_QUEUE_FILE = f"{OUT}/m3_fspf_v1_rfq_queue.json"
 STOP_FILE = f"{OUT}/m3_fspf_v1_stop.json"
 REPORT_FILE = f"{OUT}/m3_fspf_v1_report.json"
+CIRCUIT_FILE = f"{OUT}/m3_fspf_v1_component_circuits.json"
 
 SLICE_SIZE = int(os.environ.get("M3_FSPF_SLICE_SIZE") or "25")
 # 100s covers PG registration (inspect/fill/save) + detail retry inside CFE
@@ -115,12 +119,35 @@ _TERMINAL = {
 }
 
 
-def _item_should_skip(prev: dict[str, Any] | None) -> bool:
-    """Skip durable successes; allow PENDING_RETRY / under-budget technical retries."""
+def _item_should_skip(prev: dict[str, Any] | None, *, first_pass: bool = True) -> bool:
+    """Skip durable outcomes. First-pass never inline-retries software errors."""
     if not prev:
         return False
     result = str(prev.get("RESULT") or "")
-    if result == "PENDING_RETRY":
+    # Already attempted in first pass → skip until deferred recovery
+    if first_pass and FIRST_PASS_NO_INLINE_RETRY:
+        if result in _PRESERVE_RESULTS:
+            return True
+        if result in {
+            "DEFERRED_ERROR",
+            "DEFERRED_EXTERNAL",
+            "TIMEOUT",
+            "NO_PACKAGE",
+            "FETCH_FAILED",
+            "PARSE_FAILED",
+            "AUTH_FAILED",
+            "PARTIAL",
+            "SUCCESS",
+            "OWNER_ACTION_REQUIRED",
+            "EXPIRED_EXIT",
+            "INELIGIBLE_EXIT",
+            "PENDING_RETRY",  # treat as already-attempted; deferred owns retries
+        }:
+            return True
+        if result in _TERMINAL:
+            return True
+        return False
+    if result == "PENDING_RETRY" or result == "DEFERRED_ERROR":
         return int(prev.get("RETRY_COUNT") or 0) >= MAX_TECHNICAL_RETRIES
     if result in _PRESERVE_RESULTS:
         return True
@@ -133,6 +160,78 @@ def _item_should_skip(prev: dict[str, Any] | None) -> bool:
     if prev.get("RETRYABLE") and int(prev.get("RETRY_COUNT") or 0) < MAX_TECHNICAL_RETRIES:
         return False
     return result in _TERMINAL
+
+
+def _load_deferred_queue() -> dict[str, Any]:
+    return _load(DEFERRED_QUEUE_FILE) or {
+        "kind": "FullScaleDeferredQueue",
+        "build": BUILD,
+        "items": [],
+        "by_defect": {},
+        "updated_at": _utc(),
+    }
+
+
+def _defer_opportunity(
+    *,
+    opportunity_id: str,
+    stage: str | None,
+    outcome: str,
+    defect_key: str | None,
+    shared_access_key: str | None,
+    blocker: str | None,
+    index: int | None,
+) -> None:
+    """Append to back-of-line deferred queue (idempotent per oid)."""
+    q = _load_deferred_queue()
+    items = [x for x in (q.get("items") or []) if str(x.get("opportunity_id")) != opportunity_id]
+    items.append(
+        {
+            "opportunity_id": opportunity_id,
+            "stage_reached": stage,
+            "funnel_outcome": outcome,
+            "software_defect_key": defect_key,
+            "shared_access_key": shared_access_key,
+            "terminal_blocker": (blocker or "")[:160] or None,
+            "queue_index": index,
+            "deferred_at": _utc(),
+        }
+    )
+    q["items"] = items[-20000:]
+    by_def = dict(q.get("by_defect") or {})
+    if defect_key:
+        by_def[defect_key] = int(by_def.get(defect_key) or 0) + 1
+    q["by_defect"] = by_def
+    q["updated_at"] = _utc()
+    q["build"] = BUILD
+    q["count"] = len(q["items"])
+    _save(DEFERRED_QUEUE_FILE, q)
+
+
+def _component_circuit_tripped(defect_key: str | None) -> bool:
+    if not defect_key:
+        return False
+    circ = _load(CIRCUIT_FILE) or {"defects": {}}
+    row = (circ.get("defects") or {}).get(defect_key) or {}
+    return bool(row.get("open")) and int(row.get("count") or 0) >= 8
+
+
+def _note_component_defect(defect_key: str | None) -> dict[str, Any]:
+    if not defect_key:
+        return {}
+    circ = _load(CIRCUIT_FILE) or {"kind": "FSPFComponentCircuits", "defects": {}}
+    defects = dict(circ.get("defects") or {})
+    row = dict(defects.get(defect_key) or {"count": 0, "open": False})
+    row["count"] = int(row.get("count") or 0) + 1
+    row["last_at"] = _utc()
+    if row["count"] >= 8:
+        row["open"] = True
+        row["note"] = "component_circuit_open_pause_same_defect"
+    defects[defect_key] = row
+    circ["defects"] = defects
+    circ["updated_at"] = _utc()
+    _save(CIRCUIT_FILE, circ)
+    return row
 
 
 def _utc() -> str:
@@ -1113,6 +1212,16 @@ def _real_line_count(row: dict[str, Any]) -> int:
 
 
 def _map_result(row: dict[str, Any]) -> str:
+    # One-pass funnel outcomes take precedence
+    fout = str(row.get("funnel_outcome") or "")
+    if fout == "SOFTWARE_ERROR" and row.get("defer"):
+        return "DEFERRED_ERROR"
+    if fout == "EXTERNAL_DEPENDENCY" and row.get("defer"):
+        return "DEFERRED_EXTERNAL"
+    if fout == "BUSINESS_REJECT":
+        return "INELIGIBLE_EXIT"
+    if fout == "EXPIRED":
+        return "EXPIRED_EXIT"
     blocker = str(row.get("terminal_blocker") or row.get("package_blocker") or "")
     if row.get("timed_out") or row.get("bounded_timed_out") or "TIMEOUT" in blocker:
         return "TIMEOUT"
@@ -1274,6 +1383,12 @@ def _slim_checkpoint(
         ),
         "portal_account": row.get("portal_account")
         or (row.get("purchasing_group_registration") or {}).get("portal_account"),
+        "funnel_outcome": row.get("funnel_outcome"),
+        "stage_reached": row.get("stage_reached"),
+        "one_pass": bool(row.get("one_pass")),
+        "software_defect_key": row.get("software_defect_key"),
+        "shared_access_key": row.get("shared_access_key"),
+        "defer": bool(row.get("defer")),
         "CHECKPOINT_AT": _utc(),
     }
 
@@ -1377,6 +1492,16 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
             "purchasing_groups_pending_registration": pg_pending_queue,
             "opportunities_unlocked_via_pg": pg_unlocked,
             "opportunities_awaiting_pg": awaiting_pg,
+            "pass_mode": (job.get("META") or {}).get("pass_mode") or "FIRST_PASS",
+            "one_pass_orchestrator": True,
+            "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
+            "deferred_errors": sum(
+                1 for it in items if str(it.get("RESULT") or "") == "DEFERRED_ERROR"
+            ),
+            "deferred_external": sum(
+                1 for it in items if str(it.get("RESULT") or "") == "DEFERRED_EXTERNAL"
+            ),
+            "opportunities_with_stage": sum(1 for it in items if it.get("stage_reached")),
             "complete_solicitation_packages": packages,
             "documents_retrieved": docs,
             "fully_specified_product_lines": fully,
@@ -1604,13 +1729,13 @@ def process_slice(
     worker_id: str,
     slice_size: int = SLICE_SIZE,
 ) -> dict[str, Any]:
-    """Process the next slice of incomplete opportunities; checkpoint each item."""
+    """Process the next slice via one-pass orchestrator (first-pass, then deferred)."""
     from buyer_intelligence.commercial_evidence_index_v1 import build_commercial_evidence_index
     from buyer_intelligence.commercial_funnel_execution_v1 import (
         _cookies_client,
         _open_bidnet_auth_client,
-        process_one,
     )
+    from buyer_intelligence.opportunity_funnel_orchestrator_v1 import run_one_opportunity
     from phase_l.l23_full_population_funnel import load_store
 
     store = JobStore(FAMILY)
@@ -1621,6 +1746,9 @@ def process_slice(
     queue = _load(QUEUE_FILE) or build_eligible_queue()
     rows = queue.get("rows") or []
     cursor = int(job.get("RESUME_CURSOR") or 0)
+    meta = dict(job.get("META") or {})
+    pass_mode = str(meta.get("pass_mode") or "FIRST_PASS")
+    first_pass = pass_mode != "DEFERRED_RECOVERY"
 
     # Rebuild PG registration queue from checkpoints awaiting group access so
     # blocked solicitations are not stranded while the in-memory queue is empty.
@@ -1635,13 +1763,13 @@ def process_slice(
             job_id=job_id,
             worker_id=worker_id,
             pg_rebuild=pg_rebuild,
+            pass_mode=pass_mode,
         )
     except Exception as exc:
         pg_rebuild = {"ok": False, "error": type(exc).__name__}
 
     # Prefer opportunities whose purchasing group is already REGISTERED so
     # document unlock / line extraction runs before more group-form attempts.
-    # Cursor still advances contiguously (never skips unprocessed indices).
     slice_start_cursor = cursor
     registered_pgs: set[str] = set()
     try:
@@ -1651,37 +1779,77 @@ def process_slice(
     except Exception:
         registered_pgs = set()
 
-    # Skip durable successes; include PENDING_RETRY / under-budget technical retries
     pending: list[tuple[int, dict[str, Any]]] = []
     registered_pending: list[tuple[int, dict[str, Any]]] = []
-    scan_limit = min(len(rows), cursor + max(slice_size * 40, 800))
-    for i in range(cursor, scan_limit):
-        item = rows[i]
-        oid = str(item.get("opportunity_id") or "")
-        prev = store.load_item(job_id, oid)
-        if _item_should_skip(prev):
-            continue
-        pg = _pg_id_from_url(item.get("authoritative_url"))
-        if pg and pg in registered_pgs:
-            registered_pending.append((i, item))
-        else:
-            pending.append((i, item))
-        if len(registered_pending) >= slice_size:
-            break
-        if len(registered_pending) + len(pending) >= slice_size * 3 and registered_pending:
-            break
-    # Registered first for this slice; process in index order within each tier
-    pending = (registered_pending[:slice_size] + pending)[:slice_size]
-    pending.sort(key=lambda t: t[0])
+
+    if first_pass:
+        scan_limit = min(len(rows), cursor + max(slice_size * 40, 800))
+        for i in range(cursor, scan_limit):
+            item = rows[i]
+            oid = str(item.get("opportunity_id") or "")
+            prev = store.load_item(job_id, oid)
+            if _item_should_skip(prev, first_pass=True):
+                continue
+            pg = _pg_id_from_url(item.get("authoritative_url"))
+            if pg and pg in registered_pgs:
+                registered_pending.append((i, item))
+            else:
+                pending.append((i, item))
+            if len(registered_pending) >= slice_size:
+                break
+            if len(registered_pending) + len(pending) >= slice_size * 3 and registered_pending:
+                break
+        pending = (registered_pending[:slice_size] + pending)[:slice_size]
+        pending.sort(key=lambda t: t[0])
+        if not pending:
+            # First-pass exhausted → switch to deferred recovery (second pass)
+            meta["pass_mode"] = "DEFERRED_RECOVERY"
+            meta["first_pass_exhausted_at"] = _utc()
+            job["META"] = meta
+            job["RESUME_CURSOR"] = len(rows)
+            store.save_job(job)
+            first_pass = False
+            pass_mode = "DEFERRED_RECOVERY"
+
+    if not first_pass:
+        # Second pass: resume deferred errors at exact stage (oldest first)
+        dq = _load_deferred_queue()
+        deferred_items = list(dq.get("items") or [])
+        pending = []
+        for d in deferred_items[: slice_size * 3]:
+            oid = str(d.get("opportunity_id") or "")
+            if not oid:
+                continue
+            prev = store.load_item(job_id, oid)
+            if prev and str(prev.get("RESULT") or "") in _PRESERVE_RESULTS:
+                continue
+            if _component_circuit_tripped(d.get("software_defect_key")):
+                continue
+            idx = int(d.get("queue_index") or 0)
+            item = rows[idx] if 0 <= idx < len(rows) else {"opportunity_id": oid}
+            if str(item.get("opportunity_id") or "") != oid:
+                item = {"opportunity_id": oid, **{k: item.get(k) for k in ()}}
+                # find by oid in queue
+                for j, r in enumerate(rows):
+                    if str(r.get("opportunity_id")) == oid:
+                        item = r
+                        idx = j
+                        break
+            pending.append((idx, item))
+            if len(pending) >= slice_size:
+                break
 
     if not pending:
         job["RESUME_CURSOR"] = len(rows)
+        meta["pass_mode"] = pass_mode
+        job["META"] = meta
         store.save_job(job)
         return {
             "slice_complete": True,
             "processed_this_slice": 0,
             "queue_exhausted": True,
             "job_id": job_id,
+            "pass_mode": pass_mode,
         }
 
     _progress(
@@ -1692,6 +1860,9 @@ def process_slice(
         slice_pending=len(pending),
         resume_cursor=cursor,
         eligible_total=len(rows),
+        pass_mode=pass_mode,
+        one_pass_orchestrator=True,
+        deferred_queue_size=len((_load_deferred_queue().get("items") or [])),
     )
 
     evidence_index = build_commercial_evidence_index()
@@ -1777,36 +1948,15 @@ def process_slice(
             )
             _progress(
                 status="RUNNING",
-                phase="PROCESS_ONE",
+                phase="ONE_PASS_FUNNEL",
                 job_id=job_id,
                 worker_id=worker_id,
                 current_index=idx,
                 current_opportunity_id=oid,
                 completed=job.get("COMPLETED"),
                 eligible_total=len(rows),
+                pass_mode=pass_mode,
             )
-
-            # Early exit for expired / cancelled before expensive recovery
-            try:
-                days = item.get("days_left")
-                if days is not None and float(days) < 0:
-                    slim = {
-                        "OPPORTUNITY_ID": oid,
-                        "RESULT": "EXPIRED_EXIT",
-                        "INDEX": idx,
-                        "terminal_blocker": "DEADLINE_PASSED_REVALIDATION",
-                        "CHECKPOINT_AT": _utc(),
-                    }
-                    store.write_item_checkpoint(job_id, slim)
-                    processed += 1
-                    job = store.recompute_counts(job_id)
-                    job["RESUME_CURSOR"] = _contiguous_resume_cursor(
-                        store, job_id, rows, from_index=slice_start_cursor
-                    )
-                    store.save_job(job)
-                    continue
-            except Exception:
-                pass
 
             t0 = time.time()
             try:
@@ -1819,7 +1969,8 @@ def process_slice(
                             pass
                     auth_status, auth_client = _open_bidnet_auth_client()
 
-                row = process_one(
+                # ONE continuous journey: qualify → docs → extract → source → price → econ
+                row = run_one_opportunity(
                     item,
                     client=http,
                     evidence_index=evidence_index,
@@ -1844,10 +1995,12 @@ def process_slice(
                     except Exception:
                         pass
                     auth_client = None
-                # Soft wall: if process_one exceeded budget, mark timeout
                 if time.time() - t0 > ITEM_TIMEOUT_S and not row.get("complete_spec"):
                     row["bounded_timed_out"] = True
                     row["terminal_blocker"] = row.get("terminal_blocker") or "PER_OPPORTUNITY_TIMEOUT"
+                    row["funnel_outcome"] = row.get("funnel_outcome") or "SOFTWARE_ERROR"
+                    row["defer"] = True
+                    row["software_defect_key"] = row.get("software_defect_key") or "TIMEOUT"
             except Exception as exc:
                 row = {
                     "opportunity_id": oid,
@@ -1855,14 +2008,43 @@ def process_slice(
                     "terminal_blocker": f"PROCESS_EXCEPTION:{type(exc).__name__}",
                     "process_error": str(exc)[:200],
                     "elapsed_s": round(time.time() - t0, 2),
+                    "funnel_outcome": "SOFTWARE_ERROR",
+                    "stage_reached": "ACCESS_DOCS",
+                    "defer": True,
+                    "software_defect_key": type(exc).__name__,
+                    "one_pass": True,
                 }
-                log.exception("FSPF process_one failed oid=%s", oid)
+                log.exception("FSPF one-pass funnel failed oid=%s", oid)
 
             result = _map_result(row)
             prior_cp = store.load_item(job_id, oid)
             slim = _slim_checkpoint(row, result=result, index=idx, prior=prior_cp)
             store.write_item_checkpoint(job_id, slim)
             _append_rfq(row)
+            # Back-of-line: software errors / external deps during first pass
+            if row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+                _defer_opportunity(
+                    opportunity_id=oid,
+                    stage=row.get("stage_reached"),
+                    outcome=str(row.get("funnel_outcome") or result),
+                    defect_key=row.get("software_defect_key"),
+                    shared_access_key=row.get("shared_access_key"),
+                    blocker=row.get("terminal_blocker"),
+                    index=idx,
+                )
+                if row.get("software_defect_key"):
+                    _note_component_defect(str(row.get("software_defect_key")))
+            elif not first_pass and result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
+                # Resolved on deferred recovery — drop from deferred queue
+                dq = _load_deferred_queue()
+                dq["items"] = [
+                    x
+                    for x in (dq.get("items") or [])
+                    if str(x.get("opportunity_id")) != oid
+                ]
+                dq["count"] = len(dq["items"])
+                dq["updated_at"] = _utc()
+                _save(DEFERRED_QUEUE_FILE, dq)
             processed += 1
             docs_dl = int(slim.get("documents_downloaded") or 0)
             fetch_via = str(slim.get("fetch_via") or "")
@@ -1908,6 +2090,11 @@ def process_slice(
                 "zero_doc_streak": zero_doc_streak,
                 "last_fetch_via": fetch_via,
                 "pg_group_slice": pg_slice_report,
+                "pass_mode": pass_mode,
+                "one_pass_orchestrator": True,
+                "stage_reached": slim.get("stage_reached"),
+                "funnel_outcome": slim.get("funnel_outcome"),
+                "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
             }
             store.save_job(job)
             # Refresh scorecard every 5 items so operators see repaired blocker taxonomy live

@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v2v"
+APP_BUILD_VERSION = "20261014-m3-full-scale-production-funnel-v3a"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1819,6 +1819,24 @@ def api_m3_full_scale_production_funnel_scorecard():
     data = get_scorecard()
     data["build_version"] = APP_BUILD_VERSION
     return data
+
+
+@app.get("/api/m3/full-scale-production-funnel/deferred-queue")
+def api_m3_full_scale_production_funnel_deferred_queue():
+    """Back-of-line deferred opportunities (software errors / external deps)."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        DEFERRED_QUEUE_FILE,
+        _load,
+    )
+
+    q = _load(DEFERRED_QUEUE_FILE) or {"items": [], "count": 0}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "count": int(q.get("count") or len(q.get("items") or [])),
+        "by_defect": q.get("by_defect") or {},
+        "items": (q.get("items") or [])[:50],
+        "updated_at": q.get("updated_at"),
+    }
 
 
 @app.get("/api/m3/full-scale-production-funnel/recent-items")

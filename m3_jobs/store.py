@@ -160,6 +160,11 @@ class JobStore:
             "FETCH_FAILED",
             "PARSE_FAILED",
             "SKIPPED_ALREADY_COMPLETE",
+            "EXPIRED_EXIT",
+            "INELIGIBLE_EXIT",
+            "OWNER_ACTION_REQUIRED",
+            "DEFERRED_ERROR",
+            "DEFERRED_EXTERNAL",
         }
         completed = [i for i in items if i.get("RESULT") in terminal]
         job["COMPLETED"] = len(completed)
@@ -172,6 +177,11 @@ class JobStore:
             "FETCH_FAILED",
             "PARSE_FAILED",
             "SKIPPED_ALREADY_COMPLETE",
+            "EXPIRED_EXIT",
+            "INELIGIBLE_EXIT",
+            "OWNER_ACTION_REQUIRED",
+            "DEFERRED_ERROR",
+            "DEFERRED_EXTERNAL",
         ):
             job[key] = sum(1 for i in completed if i.get("RESULT") == key)
         job["FAILED"] = (
@@ -179,6 +189,7 @@ class JobStore:
             + int(job.get("NO_PACKAGE") or 0)
             + int(job.get("FETCH_FAILED") or 0)
             + int(job.get("PARSE_FAILED") or 0)
+            + int(job.get("DEFERRED_ERROR") or 0)
         )
         return self.save_job(job)
 
