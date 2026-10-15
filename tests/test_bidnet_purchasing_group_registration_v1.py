@@ -65,6 +65,9 @@ def test_prepare_empire_state_ready_when_ein_present():
 
 def test_tracker_upsert_and_ui_summary(tmp_path, monkeypatch):
     monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
+    from m3_data_root import set_data_root
+
+    set_data_root(tmp_path)
     from bidnet_auth.purchasing_group_tracker import (
         STATUS_OWNER_APPROVAL_REQUIRED,
         STATUS_REGISTERED,

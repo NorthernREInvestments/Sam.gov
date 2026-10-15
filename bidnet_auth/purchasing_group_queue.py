@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261014-m3-bidnet-pg-group-queue-v1c"
+BUILD = "20261015-m3-bidnet-pg-group-queue-v1d"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -27,6 +27,12 @@ _lock = threading.RLock()
 GROUP_REGISTRATION_TIMEOUT_S = float(os.environ.get("M3_PG_GROUP_TIMEOUT_S") or "90")
 MAX_GROUPS_PER_SLICE = int(os.environ.get("M3_PG_GROUPS_PER_SLICE") or "1")
 GATE_FETCH_TIMEOUT_MS = int(os.environ.get("M3_PG_GATE_FETCH_MS") or "20000")
+
+
+def _form_url_without_stale_id(url: str | None) -> str | None:
+    from bidnet_auth.purchasing_group_registration import strip_stale_accessed_element
+
+    return strip_stale_accessed_element(url)
 
 
 def _utc() -> str:
@@ -79,7 +85,7 @@ def save_queue(state: dict[str, Any]) -> Path:
 
 
 def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
-    """Prefer explicit form URL; else tracker gate path from prior interceptions."""
+    """Prefer explicit form URL; else tracker path; else clean constructed URL."""
     cand = str(form_url or "").strip()
     if not cand:
         try:
@@ -89,6 +95,7 @@ def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
             cand = str(
                 tracked.get("complete_form_url")
                 or tracked.get("complete_form_url_path")
+                or tracked.get("form_url_path")
                 or tracked.get("form_url")
                 or ""
             ).strip()
@@ -96,6 +103,15 @@ def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
             cand = ""
     if cand.startswith("/"):
         cand = "https://www.bidnetdirect.com" + cand
+    if cand and "accessedElementId=" in cand:
+        cand = _form_url_without_stale_id(cand) or cand
+    if not cand and pg_id:
+        try:
+            from bidnet_auth.purchasing_group_registration import build_group_form_url
+
+            cand = build_group_form_url(purchasing_group_id=str(pg_id), solicitation_id=None) or ""
+        except Exception:
+            cand = ""
     return cand or None
 
 
@@ -106,8 +122,12 @@ def enqueue_group_registration(
     opportunity_id: str | None = None,
     source_url: str | None = None,
     form_url: str | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
-    """Idempotent enqueue. Never duplicates a pending group."""
+    """Idempotent enqueue. Never duplicates a pending group.
+
+    force=True re-queues from failed after an auto-cleared owner blocker.
+    """
     pg_id = str(purchasing_group_id or "").strip()
     if not pg_id:
         return {"ok": False, "error": "missing_pg_id"}
@@ -129,6 +149,13 @@ def enqueue_group_registration(
 
     with _lock:
         state = load_queue()
+        if force:
+            # Pull out of failed so a fresh attempt can run.
+            state["failed"] = [
+                f
+                for f in (state.get("failed") or [])
+                if str(f.get("purchasing_group_id")) != pg_id
+            ]
         pending = list(state.get("pending") or [])
         for item in pending:
             if str(item.get("purchasing_group_id")) == pg_id:
@@ -329,6 +356,17 @@ def process_group_registration_slice(
         except Exception:
             active_job_id = None
 
+    # Clear false owner blockers (conditional otherMBENames) before selecting work.
+    owner_clear: dict[str, Any] = {}
+    try:
+        from bidnet_auth.purchasing_group_tracker import clear_auto_fixable_owner_blockers
+
+        owner_clear = clear_auto_fixable_owner_blockers()
+        for pg_id in owner_clear.get("cleared") or []:
+            enqueue_group_registration(str(pg_id), force=True)
+    except Exception as exc:
+        owner_clear = {"error": type(exc).__name__}
+
     with _lock:
         state = load_queue()
         # Prefer groups that unlock the most blocked opportunities first.
@@ -339,23 +377,38 @@ def process_group_registration_slice(
         save_queue(state)
         # Soft revive: Timeout/ERROR often used stale form URLs; INCOMPLETE may
         # succeed after certification-radio mapping improvements (never paid).
+        # Auto-fixable OWNER_APPROVAL (conditional other-cert only) also revive.
+        from bidnet_auth.purchasing_group_registration import missing_fields_are_auto_fixable
+        from bidnet_auth.purchasing_group_tracker import get_group
+
         failed = list(state.get("failed") or [])
         revived = []
         keep_failed = []
         for row in failed:
             err = str(row.get("error") or row.get("last_error") or "")
             st = str(row.get("status") or "")
+            tracked = get_group(str(row.get("purchasing_group_id") or "")) or {}
+            auto_owner = st == "OWNER_APPROVAL_REQUIRED" and (
+                missing_fields_are_auto_fixable(tracked.get("missing_fields"))
+                or missing_fields_are_auto_fixable(row.get("missing_fields"))
+                or str(tracked.get("status") or "") == "INCOMPLETE"
+            )
             revive = (
                 "Timeout" in err
                 or st == "ERROR"
+                or auto_owner
                 or (st == "INCOMPLETE" and int(row.get("attempts") or 0) < 4)
             )
             if revive:
+                prior_form = row.get("form_url")
+                # Drop stale accessedElementId on revive after Timeout/ERROR
+                if "Timeout" in err or st == "ERROR":
+                    prior_form = _form_url_without_stale_id(prior_form)
                 revived.append(
                     {
                         "purchasing_group_id": row.get("purchasing_group_id"),
                         "name": row.get("name"),
-                        "form_url": None if st == "INCOMPLETE" else row.get("form_url"),
+                        "form_url": None if st == "INCOMPLETE" else prior_form,
                         "source_url": row.get("source_url"),
                         "opportunity_ids": list(row.get("opportunity_ids") or []),
                         "enqueued_at": row.get("enqueued_at") or _utc(),
@@ -412,29 +465,60 @@ def process_group_registration_slice(
             "PAID_REQUIRED",
             "PREPARED",
         }:
-            row = {
-                "purchasing_group_id": pg_id,
-                "status": tracked_st,
-                "skipped": True,
-                "reason": "owner_or_paid_gate",
-                "owner_blocker_reason": tracked.get("owner_blocker_reason"),
-            }
-            processed.append(row)
-            _fail_pending(pg_id, row, terminal=True)
-            continue
+            from bidnet_auth.purchasing_group_registration import missing_fields_are_auto_fixable
+
+            if tracked_st == "OWNER_APPROVAL_REQUIRED" and missing_fields_are_auto_fixable(
+                tracked.get("missing_fields")
+            ):
+                # Reclassified — do not terminal-fail; fall through to registration.
+                tracked_st = "INCOMPLETE"
+            else:
+                row = {
+                    "purchasing_group_id": pg_id,
+                    "status": tracked_st,
+                    "skipped": True,
+                    "reason": "owner_or_paid_gate",
+                    "owner_blocker_reason": tracked.get("owner_blocker_reason"),
+                    "missing_fields": (tracked.get("missing_fields") or [])[:6],
+                }
+                processed.append(row)
+                _fail_pending(pg_id, row, terminal=True)
+                continue
 
         item["attempts"] = int(item.get("attempts") or 0) + 1
         group_t0 = _time.time()
         try:
             form_url = _resolve_form_url(pg_id, item.get("form_url"))
+            # Prefer clean form URL (no accessedElementId) after prior Timeout.
+            if int(item.get("attempts") or 0) >= 2 or "Timeout" in str(
+                item.get("last_error") or ""
+            ):
+                form_url = _form_url_without_stale_id(form_url) or form_url
+                if not form_url:
+                    from bidnet_auth.purchasing_group_registration import build_group_form_url
+
+                    form_url = build_group_form_url(
+                        purchasing_group_id=pg_id, solicitation_id=None
+                    )
             if form_url and form_url != item.get("form_url"):
                 item["form_url"] = form_url
                 _bump_pending(pg_id, item)
             source_url = str(item.get("source_url") or "").strip()
-            # Prefer live gate resolution from the solicitation URL. Stored form URLs
-            # go stale (session-bound accessedElementId) and hang Playwright.
-            # HTTP-first keeps the shared client healthier for opportunity work.
-            if source_url:
+            # Prefer direct form URL for the known PG id — never guess group IDs
+            # from unrelated statewide URLs. Gate-resolve only when form_url missing.
+            if form_url:
+                if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S:
+                    raise TimeoutError("GROUP_REGISTRATION_TIMEOUT_S")
+                reg = run_purchasing_group_registration(
+                    auth_client,
+                    purchasing_group_id=pg_id,
+                    form_url=form_url,
+                    name=item.get("name"),
+                    solicitation_id=None,
+                    allow_submit=True,
+                    opportunity_id=(item.get("opportunity_ids") or [None])[0],
+                )
+            elif source_url:
                 html = ""
                 page_url = source_url
                 try:
@@ -463,25 +547,28 @@ def process_group_registration_slice(
                     source_url=source_url,
                     opportunity_id=(item.get("opportunity_ids") or [None])[0],
                 )
-            elif form_url:
-                if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S:
-                    raise TimeoutError("GROUP_REGISTRATION_TIMEOUT_S")
-                reg = run_purchasing_group_registration(
-                    auth_client,
-                    purchasing_group_id=pg_id,
-                    form_url=form_url,
-                    name=item.get("name"),
-                    solicitation_id=extract_solicitation_id_from_url(form_url),
-                    allow_submit=True,
-                    opportunity_id=(item.get("opportunity_ids") or [None])[0],
-                )
             else:
-                reg = {
-                    "status": "ERROR",
-                    "ok": False,
-                    "reason": "missing_form_and_source_url",
-                    "purchasing_group_id": pg_id,
-                }
+                # Last resort: construct clean form URL from verified PG id.
+                from bidnet_auth.purchasing_group_registration import build_group_form_url
+
+                built = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=None)
+                if built:
+                    reg = run_purchasing_group_registration(
+                        auth_client,
+                        purchasing_group_id=pg_id,
+                        form_url=built,
+                        name=item.get("name"),
+                        solicitation_id=None,
+                        allow_submit=True,
+                        opportunity_id=(item.get("opportunity_ids") or [None])[0],
+                    )
+                else:
+                    reg = {
+                        "status": "ERROR",
+                        "ok": False,
+                        "reason": "missing_form_and_source_url",
+                        "purchasing_group_id": pg_id,
+                    }
             if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S and str(
                 reg.get("status") or ""
             ) not in {STATUS_REGISTERED, "OWNER_APPROVAL_REQUIRED", "PAID_REQUIRED"}:
@@ -579,6 +666,7 @@ def process_group_registration_slice(
         "opportunities_released": released_total,
         "metrics": q.get("metrics"),
         "group_timeout_s": GROUP_REGISTRATION_TIMEOUT_S,
+        "owner_auto_cleared": owner_clear,
     }
 
 

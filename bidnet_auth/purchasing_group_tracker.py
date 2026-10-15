@@ -16,7 +16,7 @@ from typing import Any
 from application_clock import now_utc
 from m3_data_root import data_path
 
-BUILD = "20261013-m3-bidnet-pg-registration-v1"
+BUILD = "20261015-m3-bidnet-pg-tracker-v1b"
 TRACKER_REL = "bidnet_auth/purchasing_group_access_tracker_v1.json"
 
 STATUS_UNKNOWN = "UNKNOWN"
@@ -268,6 +268,55 @@ def note_blocked_opportunity(pg_id: str, opportunity_id: str) -> None:
                 int(g.get("live_eligible_opportunity_count") or 0), len(blocked)
             ),
         )
+
+
+def clear_auto_fixable_owner_blockers() -> dict[str, Any]:
+    """Reset OWNER_APPROVAL rows whose only 'missing' fields are conditional other-cert names.
+
+    Those are safe to re-attempt after answering certification radios NO. Genuine
+    uploads (W-9) and legal attestations stay owner-gated.
+    """
+    from bidnet_auth.purchasing_group_registration import missing_fields_are_auto_fixable
+
+    cleared: list[str] = []
+    kept: list[dict[str, Any]] = []
+    with _lock:
+        tracker = load_tracker()
+        groups = dict(tracker.get("groups") or {})
+        for pg_id, g in groups.items():
+            if not isinstance(g, dict):
+                continue
+            if g.get("status") != STATUS_OWNER_APPROVAL_REQUIRED:
+                continue
+            missing = list(g.get("missing_fields") or [])
+            reason = str(g.get("owner_blocker_reason") or "")
+            auto = missing_fields_are_auto_fixable(missing)
+            # Also clear when reason is solely the legacy "unmapped required fields"
+            # and missing list is empty/auto-fixable (stale false positive).
+            if not auto and reason.strip().lower() == "unmapped required fields" and not missing:
+                auto = True
+            if not auto:
+                kept.append(
+                    {
+                        "purchasing_group_id": pg_id,
+                        "owner_blocker_reason": reason[:160],
+                        "missing_fields": missing[:6],
+                    }
+                )
+                continue
+            g = dict(g)
+            g["status"] = STATUS_INCOMPLETE
+            g["owner_blocker_reason"] = None
+            g["missing_fields"] = None
+            g["auto_cleared_owner_blocker"] = True
+            g["auto_cleared_at"] = _utc()
+            g["updated_at"] = _utc()
+            groups[str(pg_id)] = g
+            cleared.append(str(pg_id))
+        tracker["groups"] = groups
+        if cleared:
+            save_tracker(tracker)
+    return {"cleared": cleared, "kept_owner_required": kept, "build": BUILD}
 
 
 def list_registered_group_ids() -> list[str]:

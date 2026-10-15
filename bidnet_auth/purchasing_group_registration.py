@@ -35,8 +35,19 @@ from bidnet_auth.purchasing_group_tracker import (
 
 log = logging.getLogger("govtracker.bidnet_pg_registration")
 
-BUILD = "20261014-m3-bidnet-pg-registration-v2"
+BUILD = "20261015-m3-bidnet-pg-registration-v2b"
 DEFAULT_SUPPLIER_ORG_ID = "9785456456"
+
+# Conditional text fields that only apply when a related YES cert radio is chosen.
+_CONDITIONAL_OTHER_CERT_RE = re.compile(
+    r"othermbenames|other.?mbe.?names|other.?certif(?:ication)?\s*names?",
+    re.I,
+)
+# Document uploads that genuinely need owner action (never auto-fabricate).
+_OWNER_UPLOAD_RE = re.compile(
+    r"\bw-?9\b|upload|files\[\]|attachment|certificate\s*of\s*insurance|\bcoi\b",
+    re.I,
+)
 
 
 def _bind_portal_membership(
@@ -816,6 +827,38 @@ def build_group_form_url(
     return base
 
 
+def strip_stale_accessed_element(url: str | None) -> str | None:
+    """Drop session-bound accessedElementId so form navigation can succeed."""
+    u = str(url or "").strip()
+    if not u or "accessedElementId=" not in u:
+        return u or None
+    # Keep path only — query params are solicitation-session scoped and go stale.
+    return u.split("?", 1)[0]
+
+
+def is_conditional_other_cert_field(name: str = "", label: str = "") -> bool:
+    return bool(_CONDITIONAL_OTHER_CERT_RE.search(f"{name} {label}"))
+
+
+def is_owner_upload_field(name: str = "", label: str = "") -> bool:
+    return bool(_OWNER_UPLOAD_RE.search(f"{name} {label}"))
+
+
+def missing_fields_are_auto_fixable(missing_fields: list[Any] | None) -> bool:
+    """True when every 'missing' field is a conditional other-cert name (answer NO)."""
+    rows = [m for m in (missing_fields or []) if isinstance(m, dict)]
+    if not rows:
+        return False
+    for m in rows:
+        name = str(m.get("name") or "")
+        label = str(m.get("label") or "")
+        if is_owner_upload_field(name, label):
+            return False
+        if not is_conditional_other_cert_field(name, label):
+            return False
+    return True
+
+
 def extract_solicitation_id_from_url(url: str) -> str | None:
     u = url or ""
     for pat in (
@@ -908,14 +951,57 @@ def prepare_generic_pg_answers(
                 plan["owner_required"] = True
                 plan["owner_reasons"].append("Missing verified Federal EIN in secure configuration")
             continue
-        # Required unknown fields → owner (including unmapped required radios —
-        # never silent-skip; Save without them leaves membership INCOMPLETE).
-        if f.get("required") and ftype not in {"submit", "button", "checkbox"}:
+        # Required YES/NO administrative radios that are not certification claims —
+        # answer NO when the label is a membership/participation question we can
+        # safely decline without inventing facts (never legal attestations).
+        if ftype == "radio" and f.get("required") and not cert_radio:
+            if re.search(
+                r"attest|certify that|under penalty|legally binding|i agree|terms of",
+                blob,
+            ):
+                plan["missing_fields"].append(
+                    {
+                        "name": fname,
+                        "label": label[:160],
+                        "reason": "legal_attestation_requires_owner",
+                    }
+                )
+                plan["owner_required"] = True
+                if "legal attestation requires owner approval" not in plan["owner_reasons"]:
+                    plan["owner_reasons"].append("legal attestation requires owner approval")
+                continue
+            # Unknown non-attestation required radio → still owner (do not guess YES)
+            plan["missing_fields"].append(
+                {
+                    "name": fname,
+                    "label": label[:160],
+                    "reason": "unmapped_required_radio",
+                }
+            )
+            plan["owner_required"] = True
+            if "unmapped required fields" not in plan["owner_reasons"]:
+                plan["owner_reasons"].append("unmapped required fields")
+            continue
+        # Required unknown fields → owner (including uploads).
+        # Never silent-skip; Save without them leaves membership INCOMPLETE.
+        if f.get("required") and ftype not in {"submit", "button", "checkbox", "radio"}:
             # Conditional "other certification names" only when YES was chosen
-            if re.search(r"othermbenames|other.?certif", blob) and ans.get("other_mbe_dbe") != "YES":
+            if is_conditional_other_cert_field(fname, label) and ans.get("other_mbe_dbe") != "YES":
                 plan["skip_fields"].append(
                     {"name": fname, "reason": "conditional_not_applicable_answered_NO"}
                 )
+                continue
+            if is_owner_upload_field(fname, label):
+                plan["missing_fields"].append(
+                    {
+                        "name": fname,
+                        "label": label[:160],
+                        "reason": "document_upload_requires_owner",
+                    }
+                )
+                plan["owner_required"] = True
+                if "document upload requires owner" not in plan["owner_reasons"]:
+                    plan["owner_reasons"].append("document upload requires owner")
                 continue
             plan["missing_fields"].append(
                 {
@@ -1034,7 +1120,24 @@ def run_purchasing_group_registration(
         }
 
     try:
-        inspected = inspect_group_form(client, form_url=form_url)
+        inspected = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
+        # Stale accessedElementId routinely hangs Playwright — retry clean form URL once.
+        if (
+            not inspected.get("ok")
+            and str(inspected.get("error") or "") in {"TimeoutError", "Error"}
+            and "accessedElementId=" in str(form_url or "")
+        ):
+            clean = strip_stale_accessed_element(form_url) or build_group_form_url(
+                purchasing_group_id=pg_id, solicitation_id=None
+            )
+            if clean and clean != form_url:
+                log.info(
+                    "pg_form_nav_retry_clean_url pg=%s prior_err=%s",
+                    pg_id,
+                    inspected.get("error"),
+                )
+                form_url = clean
+                inspected = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
         if not inspected.get("ok"):
             upsert_group(
                 pg_id,
@@ -1264,12 +1367,18 @@ def run_purchasing_group_registration(
             validation_errors=validation_errors or None,
         )
         release_registration_lock(pg_id, worker_token=f"reg-{pg_id}", final_status=status)
+        access_verify = None
         if status == STATUS_REGISTERED:
             _bind_portal_membership(
                 pg_id,
                 status=status,
                 name=name or (EMPIRE_STATE_NAME if empire else None),
                 opportunity_id=opportunity_id,
+            )
+            access_verify = verify_registered_group_access(
+                client,
+                purchasing_group_id=pg_id,
+                solicitation_id=solicitation_id,
             )
         return {
             "ok": status == STATUS_REGISTERED,
@@ -1282,6 +1391,7 @@ def run_purchasing_group_registration(
             "owner_blocker_reason": owner_reason,
             "purchasing_group_id": pg_id,
             "portal_account": "bidnet",
+            "access_verify": access_verify,
         }
     except Exception as exc:
         upsert_group(pg_id, name=name, status=STATUS_ERROR, last_error=type(exc).__name__, relevant=True)
@@ -1292,6 +1402,83 @@ def run_purchasing_group_registration(
             "error": type(exc).__name__,
             "purchasing_group_id": pg_id,
         }
+
+
+def verify_registered_group_access(
+    client: Any,
+    *,
+    purchasing_group_id: str,
+    solicitation_id: str | None = None,
+    source_url: str | None = None,
+) -> dict[str, Any]:
+    """Confirm BidNet membership COMPLETED and a real solicitation is reachable.
+
+    Does not download full packages — only verifies gate clearance + document cues.
+    """
+    pg_id = str(purchasing_group_id or "").strip()
+    out: dict[str, Any] = {
+        "purchasing_group_id": pg_id,
+        "membership_confirmed": False,
+        "solicitation_reachable": False,
+        "documents_visible": False,
+        "pg_gate_cleared": False,
+    }
+    if not pg_id or not getattr(client, "is_authenticated", False):
+        out["error"] = "NOT_AUTHENTICATED"
+        return out
+    form_url = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=None)
+    try:
+        insp = inspect_group_form(client, form_url=form_url or "", timeout_ms=35_000)
+        out["membership_confirmed"] = bool(insp.get("member_status_completed"))
+        out["form_status"] = (
+            "COMPLETED"
+            if insp.get("member_status_completed")
+            else ("INCOMPLETE" if insp.get("member_status_incomplete") else insp.get("error"))
+        )
+    except Exception as exc:
+        out["form_error"] = type(exc).__name__
+    sol = str(solicitation_id or "").strip() or extract_solicitation_id_from_url(source_url or "")
+    target = str(source_url or "").strip()
+    if not target and sol:
+        target = f"https://www.bidnetdirect.com/private/solicitations/{sol}"
+    if not target:
+        return out
+    try:
+        html = ""
+        if hasattr(client, "fetch_html"):
+            html = client.fetch_html(target, timeout_ms=20_000, prefer_http=True) or ""
+        else:
+            client._page.goto(target, wait_until="commit", timeout=25_000)
+            html = client._page.content() or ""
+        page_url = str(getattr(getattr(client, "_page", None), "url", None) or target)
+        gate = extract_pg_gate_from_html(html, page_url=page_url)
+        out["solicitation_reachable"] = bool(html) and len(html) > 400
+        out["pg_gate_cleared"] = not bool(gate and gate.get("purchasing_group_id") == pg_id)
+        out["documents_visible"] = bool(
+            re.search(r"document|attachment|download|addenda|solicitation file", html, re.I)
+        )
+        out["sample_url"] = target[:220]
+        if out["membership_confirmed"] and out["pg_gate_cleared"]:
+            try:
+                from buyer_intelligence.shared_access_registry_v1 import learn_access
+
+                learn_access(
+                    opportunity_id=None,
+                    url=target,
+                    purchasing_group_id=pg_id,
+                    blocker=None,
+                )
+            except Exception:
+                pass
+            upsert_group(
+                pg_id,
+                access_verified_at=_utc(),
+                access_verify=out,
+                solicitations_unlocked=True,
+            )
+    except Exception as exc:
+        out["solicitation_error"] = type(exc).__name__
+    return out
 
 
 def resolve_access_gate_registration(

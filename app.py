@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4d"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1896,6 +1896,21 @@ def api_m3_bidnet_purchasing_group_queue():
     from bidnet_auth.purchasing_group_queue import ui_summary
 
     return {"build_version": APP_BUILD_VERSION, **ui_summary()}
+
+
+@app.get("/api/m3/bidnet-auth/purchasing-group-access-manager")
+def api_m3_bidnet_purchasing_group_access_manager():
+    """Independent PG registration lane status (separate from opportunity workers)."""
+    from bidnet_auth.purchasing_group_access_manager_v1 import (
+        manager_status,
+        rank_groups_by_unlock_impact,
+    )
+
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "manager": manager_status(),
+        "ranked_by_unlock_impact": rank_groups_by_unlock_impact(15),
+    }
 
 
 @app.post("/api/m3/bidnet-auth/purchasing-group-queue/rebuild")

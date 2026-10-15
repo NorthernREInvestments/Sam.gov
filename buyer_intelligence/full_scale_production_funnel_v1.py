@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4d"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -296,6 +296,13 @@ def request_stop(*, force_release_stale: bool = True) -> dict[str, Any]:
     global _stop_requested, _worker
     _stop_requested = True
     _save(STOP_FILE, {"stop": True, "requested_at": _utc()})
+    pg_mgr_stop = None
+    try:
+        from bidnet_auth.purchasing_group_access_manager_v1 import request_stop as pg_mgr_request_stop
+
+        pg_mgr_stop = pg_mgr_request_stop()
+    except Exception as exc:
+        pg_mgr_stop = {"error": type(exc).__name__}
     store = JobStore(FAMILY)
     active = store.find_active_job(stale_seconds=STALE_LEASE_S)
     released = None
@@ -317,13 +324,19 @@ def request_stop(*, force_release_stale: bool = True) -> dict[str, Any]:
     return {
         "status": "STOP_REQUESTED",
         "build": BUILD,
+        "pg_access_manager_stop": pg_mgr_stop,
         "lease_release": released,
         "progress": job_progress(),
     }
 
 
 def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
-    """Requeue opportunities blocked on purchasing groups that are now REGISTERED."""
+    """Mark deferred/blocked opportunities eligible for recovery after PG REGISTERED.
+
+    Does NOT reset RESUME_CURSOR — first-pass continues uninterrupted. Matching
+    deferred-queue items become recovery-eligible and are resumed after first-pass
+    (or when the deferred lane runs). Exact stage checkpoints are preserved.
+    """
     from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
     from bidnet_auth.purchasing_group_tracker import is_registered, load_tracker
 
@@ -339,27 +352,40 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
     }
     marked = 0
     examined = 0
+    deferred_marked = 0
     for it in store.list_items(job_id):
         if not isinstance(it, dict):
             continue
         examined += 1
-        blocker = str(it.get("terminal_blocker") or "")
+        blocker = str(it.get("terminal_blocker") or it.get("TERMINAL_BLOCKER") or "")
         result = str(it.get("RESULT") or "")
+        sak = str(it.get("shared_access_key") or "")
         if result in _PRESERVE_RESULTS and result != "OWNER_ACTION_REQUIRED":
             continue
         pg = str(it.get("purchasing_group_id") or "") or extract_pg_id_from_url(
             str(it.get("authoritative_url") or "")
         )
+        if not pg and sak.startswith("pg:"):
+            pg = sak.split(":", 1)[1].strip()
         if not pg:
             continue
         if pg not in registered and not is_registered(pg):
             continue
-        if blocker not in {
+        blocker_ok = blocker in {
             "PURCHASING_GROUP_REGISTRATION_REQUIRED",
+            "AWAITING_PURCHASING_GROUP_REGISTRATION",
             "AWAITING_OWNER_ACTION",
-        } and result not in {"NO_PACKAGE", "OWNER_ACTION_REQUIRED", "PENDING_RETRY"}:
-            if "PURCHASING" not in blocker.upper():
-                continue
+        } or "PURCHASING" in blocker.upper()
+        result_ok = result in {
+            "NO_PACKAGE",
+            "OWNER_ACTION_REQUIRED",
+            "PENDING_RETRY",
+            "DEFERRED_EXTERNAL",
+            "DEFERRED_ERROR",
+            "TIMEOUT",
+        }
+        if not blocker_ok and not result_ok:
+            continue
         it["PREVIOUS_RESULT"] = result
         it["PREVIOUS_BLOCKER"] = blocker
         it["RETRYABLE"] = True
@@ -367,21 +393,59 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
         it["RETRY_QUEUED_AT"] = _utc()
         it["NOTE"] = f"Released after purchasing group {pg} REGISTERED"
         it["purchasing_group_id"] = pg
+        it["PG_UNLOCK_ELIGIBLE"] = True
+        it["recovery_eligible"] = True
+        # Preserve interrupted stage for deferred resume — do not wipe checkpoints
         # Reset retry budget once for post-registration unlock
         if not it.get("PG_UNLOCK_RETRY"):
             it["PG_UNLOCK_RETRY"] = True
             it["RETRY_COUNT"] = 0
         store.write_item_checkpoint(job_id, it)
         marked += 1
-    if marked:
+
+    # Flag matching deferred-queue rows for post-first-pass recovery
+    try:
+        dq = _load_deferred_queue()
+        items = list(dq.get("items") or [])
+        changed = False
+        for d in items:
+            if not isinstance(d, dict):
+                continue
+            sak = str(d.get("shared_access_key") or "")
+            blocker = str(d.get("terminal_blocker") or "")
+            pg = ""
+            if sak.startswith("pg:"):
+                pg = sak.split(":", 1)[1].strip()
+            if not pg and "PURCHASING" in blocker.upper():
+                pg = extract_pg_id_from_url(str(d.get("authoritative_url") or "")) or ""
+            if not pg or (pg not in registered and not is_registered(pg)):
+                continue
+            if d.get("recovery_eligible") and d.get("pg_unlocked"):
+                continue
+            d["recovery_eligible"] = True
+            d["pg_unlocked"] = pg
+            d["unlocked_at"] = _utc()
+            deferred_marked += 1
+            changed = True
+        if changed:
+            dq["items"] = items
+            dq["updated_at"] = _utc()
+            dq["pg_unlock_eligible_count"] = sum(
+                1 for x in items if isinstance(x, dict) and x.get("recovery_eligible")
+            )
+            _save(DEFERRED_QUEUE_FILE, dq)
+    except Exception:
+        pass
+
+    if marked or deferred_marked:
         job = store.load_job(job_id) or job
-        job["RESUME_CURSOR"] = 0
-        job["STATUS"] = "INTERRUPTED"
-        job["META"] = {
-            **(job.get("META") or {}),
-            "pg_unlock_released": marked,
-            "repair_build": BUILD,
-        }
+        # Do NOT reset RESUME_CURSOR — that would interrupt unfinished first-pass work.
+        meta = dict(job.get("META") or {})
+        meta["pg_unlock_released"] = int(meta.get("pg_unlock_released") or 0) + marked
+        meta["pg_unlock_deferred_marked"] = int(meta.get("pg_unlock_deferred_marked") or 0) + deferred_marked
+        meta["pg_unlock_at"] = _utc()
+        meta["repair_build"] = BUILD
+        job["META"] = meta
         store.save_job(job)
         store.recompute_counts(job_id)
     return {
@@ -389,6 +453,7 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
         "registered_groups": sorted(registered),
         "examined": examined,
         "released": marked,
+        "deferred_marked": deferred_marked,
         "build": BUILD,
     }
 
@@ -1475,6 +1540,13 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
         pg_unlocked = int((pq.get("metrics") or {}).get("opportunities_released") or 0)
     except Exception:
         pass
+    pg_access_mgr: dict[str, Any] = {}
+    try:
+        from bidnet_auth.purchasing_group_access_manager_v1 import manager_status
+
+        pg_access_mgr = manager_status() or {}
+    except Exception:
+        pg_access_mgr = {}
 
     completed = int(job.get("COMPLETED") or 0)
     total = int(job.get("TOTAL") or queue.get("eligible_total") or 0)
@@ -1496,6 +1568,11 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
             "purchasing_groups_pending_registration": pg_pending_queue,
             "opportunities_unlocked_via_pg": pg_unlocked,
             "opportunities_awaiting_pg": awaiting_pg,
+            "pg_access_manager_running": bool(pg_access_mgr.get("running")),
+            "pg_access_manager_groups_completed": int(
+                pg_access_mgr.get("groups_completed") or 0
+            ),
+            "pg_access_manager_heartbeat_at": pg_access_mgr.get("heartbeat_at"),
             "pass_mode": (job.get("META") or {}).get("pass_mode") or "FIRST_PASS",
             "one_pass_orchestrator": True,
             "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
@@ -2225,46 +2302,29 @@ def process_slice(
         # Final accurate counts after batched fast-path writes
         job = store.recompute_counts(job_id)
 
-    # One BidNet client per slice phase. PG registration can TimeoutError and
-    # leave Playwright unusable — always re-open a fresh client for opportunities.
+    # PG registration runs on the independent access manager (separate browser).
+    # Opportunity workers only open BidNet when browser_pending work exists.
     auth_status: dict[str, Any] = {}
     auth_client = None
-    pg_slice_report = None
+    pg_slice_report: dict[str, Any] | None = {
+        "delegated_to": "purchasing_group_access_manager_v1",
+        "inline_skipped": True,
+    }
     pg_ran_start = False
-    defer_pg = bool(registered_pending)
-    if browser_pending or not fast_pending:
-        auth_status, auth_client = _open_bidnet_auth_client()
-        try:
-            from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+    try:
+        from bidnet_auth.purchasing_group_access_manager_v1 import (
+            ensure_access_manager_running,
+            manager_status,
+        )
 
-            if (
-                not defer_pg
-                and auth_client is not None
-                and getattr(auth_client, "is_authenticated", False)
-            ):
-                pg_slice_report = process_group_registration_slice(
-                    auth_client, max_groups=1, job_id=job_id
-                )
-                pg_ran_start = True
-                _progress(
-                    status="RUNNING",
-                    phase="PG_GROUP_REGISTRATION_SLICE",
-                    job_id=job_id,
-                    worker_id=worker_id,
-                    pg_group_slice=pg_slice_report,
-                    bidnet_auth_status=auth_status.get("status"),
-                )
-            elif defer_pg:
-                pg_slice_report = {"deferred": True, "reason": "registered_group_unlock_priority"}
-        except Exception as exc:
-            pg_slice_report = {"error": type(exc).__name__}
-        finally:
-            if auth_client is not None:
-                try:
-                    auth_client.close()
-                except Exception:
-                    pass
-                auth_client = None
+        ensure_access_manager_running(job_id=job_id)
+        pg_slice_report = {
+            **pg_slice_report,
+            "access_manager": manager_status(),
+            "registered_unlock_priority": bool(registered_pending),
+        }
+    except Exception as exc:
+        pg_slice_report = {**(pg_slice_report or {}), "access_manager_error": type(exc).__name__}
 
     try:
         if browser_pending:
@@ -2517,64 +2577,29 @@ def process_slice(
         except Exception as exc:
             price_pass = {"error": type(exc).__name__}
 
-        # End-of-slice PG: only when start was deferred (registered unlock priority).
-        # Dedicated short-lived client so a poisoned opportunity browser is not reused.
+        # End-of-slice: PG work stays on the independent access manager.
+        # Attach manager heartbeat so progress/scorecard show registration throughput.
         try:
-            from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+            from bidnet_auth.purchasing_group_access_manager_v1 import manager_status
 
-            if (
-                not pg_ran_start
-                and not slice_all_fast
-                and _is_active_lease_worker(job_id, worker_id)
-            ):
-                pg_auth_status, pg_client = _open_bidnet_auth_client()
-                try:
-                    if pg_client is not None and getattr(pg_client, "is_authenticated", False):
-                        pg_end = process_group_registration_slice(
-                            pg_client, max_groups=1, job_id=job_id
-                        )
-                        pg_slice_report = {
-                            "start_of_slice": pg_slice_report,
-                            "end_of_slice": pg_end,
-                            "price_pass": price_pass,
-                            "bidnet_auth_status": pg_auth_status.get("status"),
-                        }
-                        _progress(
-                            status="RUNNING",
-                            phase="PG_GROUP_REGISTRATION_SLICE_END",
-                            job_id=job_id,
-                            worker_id=worker_id,
-                            pg_group_slice=pg_slice_report,
-                        )
-                    else:
-                        pg_slice_report = {
-                            "start_of_slice": pg_slice_report,
-                            "end_of_slice": {"skipped": True, "reason": "pg_auth_unavailable"},
-                            "price_pass": price_pass,
-                        }
-                finally:
-                    if pg_client is not None:
-                        try:
-                            pg_client.close()
-                        except Exception:
-                            pass
-            else:
-                pg_slice_report = {
-                    "start_of_slice": pg_slice_report,
-                    "end_of_slice": {
-                        "skipped": True,
-                        "reason": (
-                            "slice_all_shared_access_fast_path"
-                            if slice_all_fast
-                            else "start_already_ran_or_superseded"
-                        ),
-                    },
-                    "price_pass": price_pass,
-                }
+            pg_slice_report = {
+                "delegated_to": "purchasing_group_access_manager_v1",
+                "inline_skipped": True,
+                "slice_all_fast": slice_all_fast,
+                "access_manager": manager_status(),
+                "price_pass": price_pass,
+            }
+            _progress(
+                status="RUNNING",
+                phase="PG_ACCESS_MANAGER_HEARTBEAT",
+                job_id=job_id,
+                worker_id=worker_id,
+                pg_group_slice=pg_slice_report,
+            )
         except Exception as exc:
             pg_slice_report = {
-                "start_of_slice": pg_slice_report,
-                "end_of_slice_error": type(exc).__name__,
+                "delegated_to": "purchasing_group_access_manager_v1",
+                "access_manager_error": type(exc).__name__,
                 "price_pass": price_pass,
             }
     finally:
@@ -2616,6 +2641,13 @@ def process_slice(
 def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE) -> dict[str, Any]:
     """Run slice after slice until queue exhausted, stop, or hard blocker."""
     store = JobStore(FAMILY)
+    # Independent PG access lane — separate browser, never blocks opportunity workers.
+    try:
+        from bidnet_auth.purchasing_group_access_manager_v1 import ensure_access_manager_running
+
+        ensure_access_manager_running(job_id=job_id)
+    except Exception as exc:
+        log.warning("pg access manager start failed: %s", type(exc).__name__)
     slices = 0
     while True:
         if not _is_active_lease_worker(job_id, worker_id):
