@@ -1620,9 +1620,27 @@ def recover_one_bounded(
                 item, auth_client=auth_client, l23=l23, timeout_s=timeout_s
             )
             row["elapsed_s"] = round(time.time() - t0, 2)
-            row["timed_out"] = bool(timed_out["flag"])
-            if timed_out["flag"]:
+            soft_exceeded = bool(timed_out["flag"])
+            docs_ok = bool(row.get("documents"))
+            lines_ok = bool(row.get("line_items"))
+            package_ok = bool(row.get("complete_spec")) or str(
+                row.get("primary_blocker") or ""
+            ) == COMPLETE_PACKAGE
+            # Soft watchdog after a durable package must NOT rewrite success as
+            # PER_OPPORTUNITY_TIMEOUT — that poisoned CFE classification and burned
+            # commercial stages even though docs+lines were already recovered.
+            if soft_exceeded and docs_ok and (package_ok or lines_ok):
+                row["timed_out"] = False
+                row["docs_budget_exceeded"] = True
+                row["docs_budget_exceeded_after_success"] = True
+                row["soft_watchdog_fired"] = True
+                if package_ok:
+                    row["primary_blocker"] = COMPLETE_PACKAGE
+            elif soft_exceeded:
+                row["timed_out"] = True
                 row["primary_blocker"] = PER_OPP_TIMEOUT
+            else:
+                row["timed_out"] = False
             return row
         except Exception as exc:
             if timed_out["flag"]:

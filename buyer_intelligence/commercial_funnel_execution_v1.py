@@ -35,7 +35,7 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = __import__("logging").getLogger("govtracker.commercial_funnel_execution_v1")
 
-BUILD = "20261015-m3-commercial-funnel-execution-v1c"
+BUILD = "20261015-m3-commercial-funnel-execution-v1d"
 OUT = "_og_commercial_research_pipeline_out"
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
 MANIFEST = f"{OUT}/m3_cfe_v1_50_manifest.json"
@@ -709,6 +709,53 @@ def _research_public_prices_for_lines(
     }
 
 
+def _prior_commercial_resume(item: dict[str, Any]) -> dict[str, Any]:
+    """Durable extract evidence from a prior checkpoint — skip re-auth/docs when valid."""
+    prior = item.get("_prior_checkpoint") if isinstance(item.get("_prior_checkpoint"), dict) else {}
+    lines = item.get("line_items") or prior.get("line_items") or []
+    docs = item.get("recovered_documents") or prior.get("recovered_documents") or []
+    if not isinstance(lines, list):
+        lines = []
+    if not isinstance(docs, list):
+        docs = []
+    complete = bool(item.get("complete_spec") or prior.get("complete_spec"))
+    docs_n = int(
+        item.get("documents_downloaded")
+        or prior.get("documents_downloaded")
+        or sum(
+            1
+            for d in docs
+            if isinstance(d, dict) and (d.get("local_path_set") or d.get("local_path"))
+        )
+        or 0
+    )
+    next_stage = str(
+        item.get("next_stage") or prior.get("next_stage") or item.get("stage_reached") or ""
+    ).upper()
+    resume_commercial = bool(
+        item.get("commercial_resume")
+        or prior.get("commercial_resume")
+        or next_stage in {"SOURCE", "PRICE", "ECONOMICS", "FINANCE", "BID_PREP"}
+    )
+    usable = bool(
+        resume_commercial
+        and complete
+        and docs_n > 0
+        and lines
+        and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
+        and any(_line_desc(li) for li in lines if isinstance(li, dict))
+    )
+    return {
+        "usable": usable,
+        "lines": list(lines) if usable else [],
+        "docs": list(docs) if usable else [],
+        "docs_n": docs_n if usable else 0,
+        "complete": complete if usable else False,
+        "next_stage": next_stage or None,
+        "prior": prior,
+    }
+
+
 def process_one(
     item: dict[str, Any],
     *,
@@ -721,6 +768,8 @@ def process_one(
     t0 = time.time()
     oid = item["opportunity_id"]
     l23_rec = dict(l23_rec or {})
+    stage_timings: dict[str, float] = {}
+    stage_status: dict[str, str] = {}
     url = str(item.get("authoritative_url") or l23_rec.get("authoritative_url") or "").strip()
     if not url.startswith("http"):
         # Resolve from common L23 / row_ref fields before declaring fetch failure
@@ -790,9 +839,27 @@ def process_one(
     recovered_docs: list[dict[str, Any]] = []
     is_bidnet_url = "bidnet" in url.lower()
     out["is_bidnet_url"] = is_bidnet_url
+    resume = _prior_commercial_resume(item)
+    skip_docs_recovery = bool(resume.get("usable"))
+    if skip_docs_recovery:
+        t_docs = time.time()
+        lines = list(resume.get("lines") or [])
+        recovered_docs = list(resume.get("docs") or [])
+        package_status = "DOCUMENTS_RECOVERED"
+        fetch_via = "prior_checkpoint_commercial_resume"
+        out["documents_downloaded"] = int(resume.get("docs_n") or 0)
+        out["document_count"] = int(resume.get("docs_n") or len(recovered_docs) or 0)
+        out["commercial_resume_from_checkpoint"] = True
+        out["skipped_docs_recovery"] = True
+        stage_status["ACCESS_DOCS"] = "COMPLETED_PRIOR"
+        stage_status["EXTRACT"] = "COMPLETED_PRIOR"
+        stage_timings["docs_resume_s"] = round(time.time() - t_docs, 4)
+        out["last_completed_stage"] = "EXTRACT"
+        out["next_stage"] = resume.get("next_stage") or "PRICE"
     # Re-auth once if session was invalidated (e.g. concurrent login probe).
     if (
-        auth_client is not None
+        not skip_docs_recovery
+        and auth_client is not None
         and is_bidnet_url
         and url.startswith("http")
         and not getattr(auth_client, "is_authenticated", False)
@@ -810,7 +877,8 @@ def process_one(
         except Exception as exc:
             out["auth_refresh_error"] = type(exc).__name__
     if (
-        auth_client is not None
+        not skip_docs_recovery
+        and auth_client is not None
         and getattr(auth_client, "is_authenticated", False)
         and url.startswith("http")
         and is_bidnet_url
@@ -829,6 +897,7 @@ def process_one(
             from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
             from bidnet_auth.purchasing_group_tracker import is_registered
 
+            t_docs = time.time()
             pg_id_from_url = extract_pg_id_from_url(url)
             if pg_id_from_url:
                 out["purchasing_group_id"] = pg_id_from_url
@@ -838,6 +907,7 @@ def process_one(
             price_reserve = float(os.environ.get("M3_FSPF_PRICE_RESERVE_S") or "35")
             docs_cap = 90.0 if pg_registered else 50.0
             item_budget = max(25.0, min(docs_cap, wall - price_reserve))
+            stage_status["ACCESS_DOCS"] = "STARTED"
             bounded = recover_one_bounded(
                 {
                     "opportunity_id": oid,
@@ -964,21 +1034,47 @@ def process_one(
                 out["package_blocker"] = (
                     f"PAID_ENTITLEMENT:{bounded.get('paid_entitlement_requirement') or 'verified'}"
                 )
-            if bounded.get("timed_out"):
+            stage_timings["docs_recovery_s"] = round(time.time() - t_docs, 3)
+            # Soft budget exceed after durable docs+lines is NOT a terminal timeout.
+            if bounded.get("docs_budget_exceeded_after_success") or (
+                bounded.get("docs_budget_exceeded") and recovered_docs and lines
+            ):
+                out["docs_budget_exceeded"] = True
+                out["bounded_timed_out"] = False
+                stage_status["ACCESS_DOCS"] = "COMPLETED"
+                stage_status["EXTRACT"] = "COMPLETED" if lines else "PARTIAL"
+                out["last_completed_stage"] = "EXTRACT" if lines else "ACCESS_DOCS"
+            elif bounded.get("timed_out") and recovered_docs and lines:
+                # Defensive: success evidence beats timeout label from older recoverers.
+                out["docs_budget_exceeded"] = True
+                out["bounded_timed_out"] = False
+                out.pop("package_blocker", None)
+                if out.get("bounded_blocker") in {
+                    "PER_OPPORTUNITY_TIMEOUT",
+                    "PER_OPPORTUNITY_TIMEOUT_45S",
+                }:
+                    out["bounded_blocker"] = COMPLETE_PACKAGE
+                stage_status["ACCESS_DOCS"] = "COMPLETED"
+                stage_status["EXTRACT"] = "COMPLETED"
+                out["last_completed_stage"] = "EXTRACT"
+            elif bounded.get("timed_out"):
                 out["package_blocker"] = out.get("package_blocker") or "PER_OPPORTUNITY_TIMEOUT"
                 out["bounded_timed_out"] = True
-                # Client may have been closed by timeout — caller recreates on next item
-                try:
-                    if not getattr(auth_client, "is_authenticated", False):
-                        pass
-                except Exception:
-                    pass
+                stage_status["ACCESS_DOCS"] = "TIMED_OUT"
+            elif recovered_docs:
+                stage_status["ACCESS_DOCS"] = "COMPLETED"
+                stage_status["EXTRACT"] = "COMPLETED" if lines else "PARTIAL"
+                out["last_completed_stage"] = "EXTRACT" if lines else "ACCESS_DOCS"
         except Exception as exc:
             out["process_bidnet_error"] = f"{type(exc).__name__}:{exc}"[:200]
             fetch_via = "process_bidnet_opportunity_failed"
+            stage_status["ACCESS_DOCS"] = "FAILED"
 
     # After a hard docs timeout with no lines, do not burn the price reserve on chase.
-    skip_fallback_chase = bool(out.get("bounded_timed_out")) and not lines
+    # Also skip chase when durable docs+lines already exist (resume or successful extract).
+    skip_fallback_chase = (bool(out.get("bounded_timed_out")) and not lines) or bool(
+        recovered_docs and lines
+    ) or skip_docs_recovery
 
     if (not skip_fallback_chase) and fetch_via in {"none", "process_bidnet_opportunity_failed"}:
         try:
@@ -1112,9 +1208,14 @@ def process_one(
             out["package_blocker"] = out.get("package_blocker") or "ABSTRACT_PARSE_UNAVAILABLE"
 
     # Free public package chase (existing BidNet→buyer-portal path; no membership bypass)
-    # Skip after docs timeout so pricing budget is not consumed by chase.
+    # Skip after docs timeout OR when durable docs+lines already exist so pricing
+    # budget is not consumed by chase.
     if skip_fallback_chase:
-        out["free_chase_status"] = "SKIPPED_AFTER_DOCS_TIMEOUT"
+        out["free_chase_status"] = (
+            "SKIPPED_HAVE_DOCS_AND_LINES"
+            if (recovered_docs and lines) or skip_docs_recovery
+            else "SKIPPED_AFTER_DOCS_TIMEOUT"
+        )
     else:
         try:
             from bidnet_recovery.free_package_chase import chase_free_package
@@ -1220,12 +1321,20 @@ def process_one(
 
     # Live public acquisition-price research when specs exist and cache is empty.
     # Bounded; never invents prices. Feeds distributors + RFQ + economics.
+    # Stage-aware: if remaining wall is below a meaningful pricing floor, persist
+    # extract and defer commercial resume instead of starting a doomed search.
     price_research: dict[str, Any] = {
         "ok": False,
         "prices": [],
         "failures": [],
         "skipped": True,
     }
+    commercial_budget_deferred = False
+    source_outcome = "NOT_ATTEMPTED"
+    min_price_budget = float(os.environ.get("M3_FSPF_MIN_PRICE_BUDGET_S") or "18")
+    wall = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
+    remain_before_commercial = wall - (time.time() - t0)
+    stage_timings["remain_before_commercial_s"] = round(remain_before_commercial, 3)
     spec_for_research = bool(
         lines
         and not (
@@ -1241,28 +1350,85 @@ def process_one(
     if spec_for_research and (
         out.get("public_unit_price") in (None, "") or not out.get("public_price_verified")
     ):
-        wall = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
-        remain = max(20.0, wall - (time.time() - t0))
-        price_research = _research_public_prices_for_lines(
-            opportunity_id=oid,
-            lines=lines,
-            budget_s=min(45.0, remain),
-            max_lines=int(os.environ.get("M3_FSPF_PRICE_MAX_LINES") or "8"),
-        )
-        if price_research.get("verified_public_unit_price") not in (None, ""):
-            out["public_unit_price"] = price_research["verified_public_unit_price"]
-            out["public_price_evidence"] = (price_research.get("prices") or [])[:5]
-            out["public_price_route"] = "live_research_mpn_or_description"
-        elif price_research.get("failures"):
-            out["public_price_failures"] = (price_research.get("failures") or [])[:8]
-        for d in price_research.get("distributors") or []:
-            if isinstance(d, dict) and d.get("name") and d["name"] not in seen:
-                seen.add(d["name"])
-                uniq.append(d)
+        if remain_before_commercial < min_price_budget:
+            commercial_budget_deferred = True
+            source_outcome = "SKIPPED_INSUFFICIENT_BUDGET"
+            stage_status["SOURCE"] = "DEFERRED_INSUFFICIENT_BUDGET"
+            stage_status["PRICE"] = "DEFERRED_INSUFFICIENT_BUDGET"
+            out["commercial_budget_deferred"] = True
+            out["last_completed_stage"] = out.get("last_completed_stage") or "EXTRACT"
+            out["next_stage"] = "PRICE"
+            price_research = {
+                "ok": False,
+                "prices": [],
+                "failures": [{"failure_class": "INSUFFICIENT_REMAINING_BUDGET"}],
+                "skipped": True,
+                "deferred": True,
+                "remain_s": round(remain_before_commercial, 3),
+                "min_budget_s": min_price_budget,
+                "elapsed_s": 0.0,
+                "price_evidence_count": 0,
+            }
+        else:
+            t_price = time.time()
+            stage_status["SOURCE"] = "STARTED"
+            stage_status["PRICE"] = "STARTED"
+            remain = max(min_price_budget, remain_before_commercial)
+            price_research = _research_public_prices_for_lines(
+                opportunity_id=oid,
+                lines=lines,
+                budget_s=min(45.0, remain),
+                max_lines=int(os.environ.get("M3_FSPF_PRICE_MAX_LINES") or "8"),
+            )
+            stage_timings["price_research_s"] = round(time.time() - t_price, 3)
+            stage_timings["supplier_research_s"] = stage_timings["price_research_s"]
+            if price_research.get("verified_public_unit_price") not in (None, ""):
+                out["public_unit_price"] = price_research["verified_public_unit_price"]
+                out["public_price_evidence"] = (price_research.get("prices") or [])[:5]
+                out["public_price_route"] = "live_research_mpn_or_description"
+                stage_status["PRICE"] = "COMPLETED"
+                source_outcome = "SUPPLIER_AND_PRICE_FOUND"
+            elif price_research.get("failures"):
+                out["public_price_failures"] = (price_research.get("failures") or [])[:8]
+                fail_classes = {
+                    str(f.get("failure_class") or f.get("status") or "")
+                    for f in (price_research.get("failures") or [])
+                    if isinstance(f, dict)
+                }
+                if fail_classes & {
+                    "IMPORT_ERROR",
+                    "BUDGET_EXCEEDED",
+                    "TimeoutException",
+                    "ReadTimeout",
+                    "ConnectTimeout",
+                }:
+                    source_outcome = (
+                        "RESEARCH_INTERRUPTED"
+                        if "BUDGET_EXCEEDED" in fail_classes
+                        else "PROVIDER_ERROR"
+                    )
+                    stage_status["PRICE"] = (
+                        "TIMED_OUT" if "BUDGET_EXCEEDED" in fail_classes else "PROVIDER_ERROR"
+                    )
+                else:
+                    source_outcome = "NO_COMPLIANT_PUBLIC_PRICE"
+                    stage_status["PRICE"] = "COMPLETED_NO_PRICE"
+            else:
+                source_outcome = "NO_COMPLIANT_PUBLIC_PRICE"
+                stage_status["PRICE"] = "COMPLETED_NO_PRICE"
+            for d in price_research.get("distributors") or []:
+                if isinstance(d, dict) and d.get("name") and d["name"] not in seen:
+                    seen.add(d["name"])
+                    uniq.append(d)
+    elif out.get("public_unit_price") not in (None, "") and out.get("public_price_verified"):
+        source_outcome = "CACHED_VERIFIED_PRICE"
+        stage_status["PRICE"] = "COMPLETED_PRIOR"
     out["price_research"] = {
         "ok": bool(price_research.get("ok")),
         "price_evidence_count": int(price_research.get("price_evidence_count") or 0),
         "elapsed_s": price_research.get("elapsed_s"),
+        "skipped": bool(price_research.get("skipped")),
+        "deferred": bool(price_research.get("deferred")),
         "failure_classes": list(
             {
                 str(f.get("failure_class") or f.get("status") or "UNKNOWN")
@@ -1273,7 +1439,28 @@ def process_one(
     }
 
     out["distributors"] = uniq
-    out["supplier_status"] = "SUPPLIER_IDENTIFIED" if uniq else "SOURCE_UNAVAILABLE"
+    # Distinguish completed empty search vs provider failure vs interrupted research.
+    if uniq:
+        out["supplier_status"] = "SUPPLIER_IDENTIFIED"
+        if source_outcome == "NOT_ATTEMPTED":
+            source_outcome = "HEURISTIC_CANDIDATES_ONLY"
+        stage_status["SOURCE"] = stage_status.get("SOURCE") or "COMPLETED"
+    elif source_outcome == "PROVIDER_ERROR":
+        out["supplier_status"] = "SOURCE_PROVIDER_ERROR"
+        stage_status["SOURCE"] = "PROVIDER_ERROR"
+    elif source_outcome in {"RESEARCH_INTERRUPTED", "SKIPPED_INSUFFICIENT_BUDGET"}:
+        out["supplier_status"] = "SOURCE_INCOMPLETE"
+        stage_status["SOURCE"] = source_outcome
+    elif source_outcome in {"NO_COMPLIANT_PUBLIC_PRICE", "HEURISTIC_CANDIDATES_ONLY"}:
+        out["supplier_status"] = "SOURCE_UNAVAILABLE"
+        stage_status["SOURCE"] = "COMPLETED_NO_SUPPLIER"
+        source_outcome = "NO_COMPLIANT_SUPPLIER_FOUND"
+    elif commercial_budget_deferred:
+        out["supplier_status"] = "SOURCE_INCOMPLETE"
+    else:
+        out["supplier_status"] = "SOURCE_UNAVAILABLE"
+        source_outcome = source_outcome if source_outcome != "NOT_ATTEMPTED" else "NO_CANDIDATES"
+    out["source_outcome"] = source_outcome
 
     # RFQ prep — never send; incomplete specs are NOT ready-to-send
     spec_complete = spec_for_research
@@ -1341,12 +1528,28 @@ def process_one(
     econ = assess_economics(out)
     out["economics"] = econ
     out["econ_state"] = econ["econ_state"]
+    # MARGIN_UNVERIFIED without acquisition evidence is provisional — not a completed assessment.
+    out["economics_complete"] = bool(
+        econ.get("acquisition_unit") not in (None, "")
+        and econ.get("econ_state") not in {None, "", "MARGIN_UNVERIFIED"}
+    )
+    if not out["economics_complete"]:
+        stage_status["ECONOMICS"] = "PROVISIONAL_INCOMPLETE"
+    else:
+        stage_status["ECONOMICS"] = "COMPLETED"
     out["financeable"] = False
     out["financing_status"] = "UNKNOWN"
     out["bid_ready"] = False
 
     # Next action — prefer actionable owner steps over generic lock labels
-    if out.get("package_status") == "FREE_PACKAGE_FOUND" and not out.get("complete_spec"):
+    if commercial_budget_deferred and out.get("complete_spec"):
+        out["next_action"] = (
+            "Resume commercial research (SOURCE/PRICE) using persisted product specifications"
+        )
+        out["terminal_blocker"] = "COMMERCIAL_STAGE_BUDGET_DEFERRED"
+        out["next_stage"] = "PRICE"
+        out["last_completed_stage"] = out.get("last_completed_stage") or "EXTRACT"
+    elif out.get("package_status") == "FREE_PACKAGE_FOUND" and not out.get("complete_spec"):
         out["next_action"] = "Extract line quantities from recovered free package documents"
         out["terminal_blocker"] = "INCOMPLETE_LINE_ITEMS"
     elif out.get("package_blocker") == "LOCAL_ENV_WITHOUT_PRODUCTION_CREDENTIALS":
@@ -1367,9 +1570,23 @@ def process_one(
     elif not out.get("complete_spec"):
         out["next_action"] = "Recover full solicitation package / line quantities from buyer portal"
         out["terminal_blocker"] = "INCOMPLETE_LINE_ITEMS"
+    elif source_outcome == "PROVIDER_ERROR":
+        out["next_action"] = "Retry supplier/price research after provider error"
+        out["terminal_blocker"] = "SOURCE_PROVIDER_ERROR"
+        out["next_stage"] = "SOURCE"
+    elif source_outcome == "RESEARCH_INTERRUPTED":
+        out["next_action"] = "Resume interrupted supplier/price research"
+        out["terminal_blocker"] = "SOURCE_RESEARCH_INTERRUPTED"
+        out["next_stage"] = "PRICE"
     elif out.get("historical_unit_price") in (None, "") and out.get("public_unit_price") in (None, ""):
         out["next_action"] = "Obtain public distributor price or owner-approved RFQ send"
-        out["terminal_blocker"] = "MISSING_ACQUISITION_AND_GOV_PRICE"
+        # Completed empty search vs missing evidence overall
+        if source_outcome == "NO_COMPLIANT_SUPPLIER_FOUND":
+            out["terminal_blocker"] = "PRICE_UNAVAILABLE_AFTER_SEARCH"
+        else:
+            out["terminal_blocker"] = "MISSING_ACQUISITION_AND_GOV_PRICE"
+        out["next_stage"] = "PRICE"
+        out["last_completed_stage"] = out.get("last_completed_stage") or "EXTRACT"
     elif out["quote_status"] == "AWAITING_OWNER_APPROVED_OUTREACH":
         out["next_action"] = "Owner approve RFQ send to suggested distributors (AUTO_SEND=false)"
         out["terminal_blocker"] = "AWAITING_OWNER_APPROVED_OUTREACH"
@@ -1377,6 +1594,8 @@ def process_one(
         out["next_action"] = "Continue financing assessment after quote"
         out["terminal_blocker"] = "FINANCING_UNVERIFIED"
 
+    out["stage_timings"] = stage_timings
+    out["stage_status"] = stage_status
     out["elapsed_s"] = round(time.time() - t0, 2)
     out["finished_at"] = _utc()
     return out

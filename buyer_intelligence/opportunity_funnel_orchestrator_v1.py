@@ -18,7 +18,7 @@ from typing import Any
 
 from application_clock import now_utc
 
-BUILD = "20261015-m3-opportunity-funnel-orchestrator-v1b"
+BUILD = "20261015-m3-opportunity-funnel-orchestrator-v1c"
 
 STAGE_QUALIFY = "QUALIFY"
 STAGE_ACCESS_DOCS = "ACCESS_DOCS"
@@ -56,6 +56,10 @@ _EXTERNAL_BLOCKERS = {
     "FINANCING_UNVERIFIED",
     "LOCAL_ENV_WITHOUT_PRODUCTION_CREDENTIALS",
     "EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED",
+    "COMMERCIAL_STAGE_BUDGET_DEFERRED",
+    "SOURCE_PROVIDER_ERROR",
+    "SOURCE_RESEARCH_INTERRUPTED",
+    "PRICE_UNAVAILABLE_AFTER_SEARCH",
 }
 _BUSINESS_BLOCKERS = {
     "DEADLINE_PASSED_REVALIDATION",
@@ -148,6 +152,81 @@ def fast_qualify(item: dict[str, Any], *, l23_rec: dict[str, Any] | None = None)
     }
 
 
+def _stage_from_evidence(row: dict[str, Any]) -> str:
+    """Furthest stage supported by durable evidence (not merely attempted)."""
+    docs = int(row.get("documents_downloaded") or 0)
+    lines = int(row.get("line_count") or 0)
+    complete = bool(row.get("complete_spec"))
+    priced = row.get("public_unit_price") not in (None, "")
+    hist = row.get("historical_unit_price") not in (None, "")
+    rfq_ok = str((row.get("rfq") or {}).get("status") or "") == "AWAITING_OWNER_APPROVED_OUTREACH"
+    econ = str(row.get("econ_state") or "")
+    stage = STAGE_ACCESS_DOCS
+    if docs > 0:
+        stage = STAGE_EXTRACT
+    if complete and lines > 0:
+        stage = STAGE_SOURCE
+    if priced or hist:
+        stage = STAGE_PRICE
+    if econ and econ not in {"MARGIN_UNVERIFIED", None, ""} and bool(
+        row.get("economics_complete")
+    ):
+        stage = STAGE_ECONOMICS
+    if rfq_ok:
+        stage = STAGE_BID_PREP
+    if row.get("financeable"):
+        stage = STAGE_FINANCE
+    return stage
+
+
+def _last_completed_and_next(row: dict[str, Any], stage_reached: str) -> tuple[str, str]:
+    """Derive last verified completed stage and next stage needing work."""
+    explicit_last = str(row.get("last_completed_stage") or "").strip()
+    explicit_next = str(row.get("next_stage") or "").strip()
+    if explicit_last and explicit_next:
+        return explicit_last, explicit_next
+    order = [
+        STAGE_ACCESS_DOCS,
+        STAGE_EXTRACT,
+        STAGE_SOURCE,
+        STAGE_PRICE,
+        STAGE_ECONOMICS,
+        STAGE_FINANCE,
+        STAGE_BID_PREP,
+    ]
+    docs = int(row.get("documents_downloaded") or 0)
+    complete = bool(row.get("complete_spec"))
+    priced = row.get("public_unit_price") not in (None, "")
+    if complete and docs > 0:
+        last = STAGE_EXTRACT
+        if row.get("supplier_status") in {
+            "SUPPLIER_IDENTIFIED",
+            "SOURCE_UNAVAILABLE",
+            "SOURCE_PROVIDER_ERROR",
+        } and row.get("source_outcome") not in {
+            None,
+            "",
+            "RESEARCH_INTERRUPTED",
+            "SKIPPED_INSUFFICIENT_BUDGET",
+        }:
+            last = STAGE_SOURCE
+        if priced:
+            last = STAGE_PRICE
+        next_stage = STAGE_PRICE if last == STAGE_EXTRACT else (
+            STAGE_PRICE if last == STAGE_SOURCE and not priced else STAGE_ECONOMICS
+        )
+        if last == STAGE_PRICE:
+            next_stage = STAGE_ECONOMICS
+        return last, explicit_next or next_stage
+    if docs > 0:
+        return STAGE_ACCESS_DOCS, STAGE_EXTRACT
+    if stage_reached in order:
+        idx = order.index(stage_reached)
+        last = order[max(0, idx - 1)] if idx > 0 else STAGE_QUALIFY
+        return last, stage_reached
+    return STAGE_QUALIFY, STAGE_ACCESS_DOCS
+
+
 def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
     """Map CFE process_one result onto funnel outcome + furthest stage."""
     blocker = str(row.get("terminal_blocker") or row.get("package_blocker") or "")
@@ -156,21 +235,54 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
     lines = int(row.get("line_count") or 0)
     complete = bool(row.get("complete_spec"))
     priced = row.get("public_unit_price") not in (None, "")
-    hist = row.get("historical_unit_price") not in (None, "")
-    rfq_ok = str((row.get("rfq") or {}).get("status") or "") == "AWAITING_OWNER_APPROVED_OUTREACH"
-    econ = str(row.get("econ_state") or "")
 
     if err or blocker.startswith("PROCESS_EXCEPTION"):
         return {
             "outcome": OUTCOME_SOFTWARE_ERROR,
             "stage_reached": STAGE_ACCESS_DOCS,
+            "last_completed_stage": STAGE_QUALIFY,
+            "next_stage": STAGE_ACCESS_DOCS,
             "defer": True,
             "software_defect_key": (err.split(":")[0] if err else blocker)[:80],
         }
+
+    # Extract survived: timeout / commercial budget must not collapse to EXTRACT-only
+    # SOFTWARE_ERROR when docs+lines are durable. Resume at commercial stage.
+    extract_survived = docs > 0 and complete and lines > 0
+    commercial_budget = blocker in {
+        "COMMERCIAL_STAGE_BUDGET_DEFERRED",
+        "SOURCE_RESEARCH_INTERRUPTED",
+    } or bool(row.get("commercial_budget_deferred"))
+    timeout_like = (
+        "TIMEOUT" in blocker
+        or bool(row.get("bounded_timed_out"))
+        or bool(row.get("commercial_timed_out"))
+    )
+    if extract_survived and (timeout_like or commercial_budget):
+        stage = _stage_from_evidence(row)
+        if stage == STAGE_EXTRACT:
+            stage = STAGE_SOURCE
+        last, nxt = _last_completed_and_next(row, stage)
+        if not priced:
+            nxt = STAGE_PRICE if last in {STAGE_EXTRACT, STAGE_SOURCE} else nxt
+        return {
+            "outcome": OUTCOME_EXTERNAL_DEPENDENCY,
+            "stage_reached": stage if stage != STAGE_EXTRACT else STAGE_SOURCE,
+            "last_completed_stage": last,
+            "next_stage": nxt,
+            "defer": True,
+            "software_defect_key": None,
+            "commercial_resume": True,
+        }
+
     if "TIMEOUT" in blocker or row.get("bounded_timed_out"):
+        stage = STAGE_ACCESS_DOCS if docs == 0 else STAGE_EXTRACT
+        last, nxt = _last_completed_and_next(row, stage)
         return {
             "outcome": OUTCOME_SOFTWARE_ERROR,
-            "stage_reached": STAGE_ACCESS_DOCS if docs == 0 else STAGE_EXTRACT,
+            "stage_reached": stage,
+            "last_completed_stage": last,
+            "next_stage": nxt,
             "defer": True,
             "software_defect_key": "TIMEOUT",
         }
@@ -178,6 +290,8 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
         return {
             "outcome": OUTCOME_SOFTWARE_ERROR,
             "stage_reached": STAGE_ACCESS_DOCS,
+            "last_completed_stage": STAGE_QUALIFY,
+            "next_stage": STAGE_ACCESS_DOCS,
             "defer": True,
             "software_defect_key": blocker[:80] or "SOFTWARE_BLOCKER",
         }
@@ -185,6 +299,8 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
         return {
             "outcome": OUTCOME_EXPIRED if "EXPIRED" in blocker or "DEADLINE" in blocker else OUTCOME_BUSINESS_REJECT,
             "stage_reached": STAGE_QUALIFY,
+            "last_completed_stage": STAGE_QUALIFY,
+            "next_stage": STAGE_QUALIFY,
             "defer": False,
             "software_defect_key": None,
         }
@@ -192,15 +308,20 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
         stage = STAGE_ACCESS_DOCS
         if "OWNER" in blocker or "RFQ" in blocker or "OUTREACH" in blocker:
             stage = STAGE_BID_PREP if complete else STAGE_SOURCE
-        elif "ACQUISITION" in blocker or "PRICE" in blocker:
-            stage = STAGE_PRICE
+        elif "ACQUISITION" in blocker or "PRICE" in blocker or "BUDGET_DEFERRED" in blocker:
+            stage = STAGE_PRICE if complete else STAGE_SOURCE
+        elif "SOURCE_" in blocker:
+            stage = STAGE_SOURCE
         elif "FINANC" in blocker:
             stage = STAGE_FINANCE
         elif "PURCHASING" in blocker:
             stage = STAGE_ACCESS_DOCS
+        last, nxt = _last_completed_and_next(row, stage)
         return {
             "outcome": OUTCOME_EXTERNAL_DEPENDENCY,
             "stage_reached": stage,
+            "last_completed_stage": last,
+            "next_stage": nxt,
             "defer": True,
             "software_defect_key": None,
             "shared_access_key": (
@@ -208,27 +329,33 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
                 if "PURCHASING" in blocker
                 else (f"paid:{blocker}" if blocker.startswith("PAID_") else None)
             ),
+            "commercial_resume": bool(complete and docs > 0),
         }
 
-    # Progressive stage from evidence
-    stage = STAGE_ACCESS_DOCS
-    if docs > 0:
-        stage = STAGE_EXTRACT
-    if complete and lines > 0:
-        stage = STAGE_SOURCE
-    if priced or hist:
-        stage = STAGE_PRICE
-    if econ and econ not in {"MARGIN_UNVERIFIED", None, ""}:
-        stage = STAGE_ECONOMICS
-    if rfq_ok:
-        stage = STAGE_BID_PREP
-    if row.get("financeable"):
-        stage = STAGE_FINANCE
+    stage = _stage_from_evidence(row)
+    last, nxt = _last_completed_and_next(row, stage)
 
     if complete and docs > 0 and lines > 0:
+        # Missing acquisition price is not COMPLETE — remain deferred for commercial resume
+        if not priced and blocker in {
+            "MISSING_ACQUISITION_AND_GOV_PRICE",
+            "PRICE_UNAVAILABLE_AFTER_SEARCH",
+            "",
+        }:
+            return {
+                "outcome": OUTCOME_EXTERNAL_DEPENDENCY if blocker else OUTCOME_COMPLETE,
+                "stage_reached": stage,
+                "last_completed_stage": last,
+                "next_stage": STAGE_PRICE if not priced else nxt,
+                "defer": bool(blocker) or not priced,
+                "software_defect_key": None,
+                "commercial_resume": not priced,
+            }
         return {
             "outcome": OUTCOME_COMPLETE,
             "stage_reached": stage,
+            "last_completed_stage": last,
+            "next_stage": nxt,
             "defer": False,
             "software_defect_key": None,
         }
@@ -236,6 +363,8 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
         return {
             "outcome": OUTCOME_EXTERNAL_DEPENDENCY if blocker else OUTCOME_COMPLETE,
             "stage_reached": stage,
+            "last_completed_stage": last,
+            "next_stage": nxt,
             "defer": bool(blocker),
             "software_defect_key": None,
         }
@@ -243,12 +372,16 @@ def classify_process_one_outcome(row: dict[str, Any]) -> dict[str, Any]:
         return {
             "outcome": OUTCOME_EXTERNAL_DEPENDENCY,
             "stage_reached": STAGE_ACCESS_DOCS,
+            "last_completed_stage": STAGE_QUALIFY,
+            "next_stage": STAGE_ACCESS_DOCS,
             "defer": True,
             "software_defect_key": None,
         }
     return {
         "outcome": OUTCOME_SOFTWARE_ERROR,
         "stage_reached": STAGE_ACCESS_DOCS,
+        "last_completed_stage": STAGE_QUALIFY,
+        "next_stage": STAGE_ACCESS_DOCS,
         "defer": True,
         "software_defect_key": "EMPTY_RESULT",
     }
@@ -407,10 +540,19 @@ def run_one_opportunity(
             stages_run.append(STAGE_PRICE)
     row["funnel_outcome"] = classification["outcome"]
     row["stage_reached"] = classification["stage_reached"]
+    row["last_completed_stage"] = classification.get("last_completed_stage") or row.get(
+        "last_completed_stage"
+    )
+    row["next_stage"] = classification.get("next_stage") or row.get("next_stage")
     row["stages_run"] = stages_run
     row["defer"] = bool(classification.get("defer"))
     row["software_defect_key"] = classification.get("software_defect_key")
-    row["shared_access_key"] = classification.get("shared_access_key")
+    row["shared_access_key"] = classification.get("shared_access_key") or row.get(
+        "shared_access_key"
+    )
+    row["commercial_resume"] = bool(
+        classification.get("commercial_resume") or row.get("commercial_resume")
+    )
     row["one_pass"] = True
     row["orchestrator_build"] = BUILD
     row["elapsed_s"] = round(time.time() - t0, 3)

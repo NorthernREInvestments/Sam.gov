@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e16"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e17"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -186,6 +186,9 @@ def _defer_opportunity(
     index: int | None,
     recovery_eligible: bool | None = None,
     pg_unlocked: str | None = None,
+    next_stage: str | None = None,
+    last_completed_stage: str | None = None,
+    commercial_resume: bool | None = None,
 ) -> None:
     """Append to back-of-line deferred queue (idempotent per oid).
 
@@ -219,6 +222,15 @@ def _defer_opportunity(
         "terminal_blocker": (blocker or "")[:160] or None,
         "queue_index": index if index is not None else (prior or {}).get("queue_index"),
         "deferred_at": _utc(),
+        "next_stage": next_stage or (prior or {}).get("next_stage"),
+        "last_completed_stage": last_completed_stage
+        or (prior or {}).get("last_completed_stage"),
+        "commercial_resume": bool(
+            commercial_resume
+            if commercial_resume is not None
+            else (prior or {}).get("commercial_resume")
+        )
+        or False,
     }
     if elig:
         entry["recovery_eligible"] = True
@@ -815,6 +827,14 @@ def _recover_one_unlocked_opportunity(
     if not candidates:
         return {"processed": 0, "reason": "no_recovery_eligible"}
 
+    # Prefer commercial-resume (extract already done) over fresh access retries.
+    def _cand_rank(d: dict[str, Any]) -> tuple[int, int]:
+        nxt = str(d.get("next_stage") or "").upper()
+        commercial = 0 if d.get("commercial_resume") or nxt in {"SOURCE", "PRICE"} else 1
+        return (commercial, 0)
+
+    candidates = sorted(candidates, key=_cand_rank)
+
     picked = None
     for d in candidates:
         oid = str(d.get("opportunity_id"))
@@ -868,6 +888,44 @@ def _recover_one_unlocked_opportunity(
     )
     item["recovery_eligible"] = True
     item["PG_UNLOCK_ELIGIBLE"] = True
+    item["_prior_checkpoint"] = prior_cp
+    item["commercial_resume"] = bool(
+        picked.get("commercial_resume") or prior_cp.get("commercial_resume")
+    )
+    item["next_stage"] = (
+        picked.get("next_stage")
+        or prior_cp.get("next_stage")
+        or item.get("stage_reached")
+    )
+    item["last_completed_stage"] = picked.get("last_completed_stage") or prior_cp.get(
+        "last_completed_stage"
+    )
+    if prior_cp.get("line_items"):
+        item["line_items"] = prior_cp.get("line_items")
+    if prior_cp.get("recovered_documents"):
+        item["recovered_documents"] = prior_cp.get("recovered_documents")
+    if prior_cp.get("complete_spec"):
+        item["complete_spec"] = True
+    if prior_cp.get("documents_downloaded"):
+        item["documents_downloaded"] = prior_cp.get("documents_downloaded")
+    # Hydrate product lines from RFQ queue when older checkpoints omitted them.
+    if not item.get("line_items"):
+        try:
+            rfq_blob = _load(RFQ_QUEUE_FILE) or {}
+            for entry in rfq_blob.get("items") or rfq_blob.get("rows") or []:
+                if not isinstance(entry, dict):
+                    continue
+                if str(entry.get("opportunity_id") or "") != oid:
+                    continue
+                rfq = entry.get("rfq") if isinstance(entry.get("rfq"), dict) else entry
+                lines = list(rfq.get("line_items") or entry.get("line_items") or [])
+                if lines:
+                    item["line_items"] = lines
+                    item["complete_spec"] = True
+                    item.setdefault("documents_downloaded", max(1, int(prior_cp.get("documents_downloaded") or 0)))
+                    break
+        except Exception:
+            pass
 
     # Keep exclusive job lease alive across browser wait + funnel (can exceed 2m).
     try:
@@ -891,6 +949,79 @@ def _recover_one_unlocked_opportunity(
 
     auth_client = None
     row: dict[str, Any] = {}
+    # Commercial resume with durable extract: skip Playwright re-open when possible.
+    commercial_only = bool(
+        item.get("commercial_resume")
+        and item.get("complete_spec")
+        and item.get("line_items")
+        and int(item.get("documents_downloaded") or 0) > 0
+        and str(item.get("next_stage") or "").upper()
+        in {"SOURCE", "PRICE", "ECONOMICS", "FINANCE", "BID_PREP"}
+    )
+    if commercial_only:
+        try:
+            auth_status = {"authenticated": False, "status": "SKIPPED_COMMERCIAL_RESUME"}
+            row = run_one_opportunity(
+                item,
+                client=http,
+                evidence_index=evidence_index,
+                auth_status=auth_status,
+                l23_rec=(l23 or {}).get(oid) or {},
+                auth_client=None,
+            )
+            result = _map_result(row)
+            slim = _slim_checkpoint(row, result=result, index=max(0, idx), prior=prior_cp)
+            slim["PG_UNLOCK_RECOVERY_AT"] = _utc()
+            slim["recovery_pass"] = "MICRO_COMMERCIAL_RESUME"
+            slim["PG_UNLOCK_ELIGIBLE"] = True
+            slim["purchasing_group_id"] = (
+                slim.get("purchasing_group_id") or pg_unlocked or row.get("purchasing_group_id")
+            )
+            store.write_item_checkpoint(job_id, slim)
+            _append_rfq(row)
+            if result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
+                dq2 = _load_deferred_queue()
+                dq2["items"] = [
+                    x for x in (dq2.get("items") or []) if str(x.get("opportunity_id")) != oid
+                ]
+                dq2["count"] = len(dq2["items"])
+                dq2["pg_unlock_eligible_count"] = sum(
+                    1 for x in dq2["items"] if isinstance(x, dict) and x.get("recovery_eligible")
+                )
+                _save(DEFERRED_QUEUE_FILE, dq2)
+            elif row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+                _defer_opportunity(
+                    opportunity_id=oid,
+                    stage=row.get("stage_reached") or "SOURCE",
+                    outcome=str(row.get("funnel_outcome") or result),
+                    defect_key=row.get("software_defect_key"),
+                    shared_access_key=row.get("shared_access_key")
+                    or picked.get("shared_access_key"),
+                    blocker=row.get("terminal_blocker"),
+                    index=idx,
+                    recovery_eligible=True,
+                    pg_unlocked=pg_unlocked,
+                    next_stage=row.get("next_stage"),
+                    last_completed_stage=row.get("last_completed_stage"),
+                    commercial_resume=bool(row.get("commercial_resume")),
+                )
+            return {
+                "processed": 1,
+                "opportunity_id": oid,
+                "purchasing_group_id": pg_unlocked or slim.get("purchasing_group_id"),
+                "result": result,
+                "stage_reached": slim.get("stage_reached"),
+                "next_stage": slim.get("next_stage"),
+                "commercial_resume": True,
+                "skipped_browser": True,
+                "documents_downloaded": slim.get("documents_downloaded"),
+                "fully_specified_product_lines": slim.get("fully_specified_product_lines"),
+                "public_unit_price": slim.get("public_unit_price"),
+            }
+        except Exception as exc:
+            # Fall through to browser path if commercial-only resume fails hard.
+            row = {"opportunity_id": oid, "terminal_blocker": type(exc).__name__}
+
     with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=20.0, ttl_s=240.0) as got:
         if not got:
             return {"processed": 0, "reason": "browser_slot_busy", "opportunity_id": oid}
@@ -992,8 +1123,11 @@ def _recover_one_unlocked_opportunity(
             shared_access_key=row.get("shared_access_key") or picked.get("shared_access_key"),
             blocker=row.get("terminal_blocker"),
             index=idx,
-            recovery_eligible=still_unlock,
+            recovery_eligible=still_unlock or bool(row.get("commercial_resume")),
             pg_unlocked=pg_unlocked if still_unlock else None,
+            next_stage=row.get("next_stage"),
+            last_completed_stage=row.get("last_completed_stage"),
+            commercial_resume=bool(row.get("commercial_resume")),
         )
 
     out = {
@@ -1106,6 +1240,24 @@ def validate_unlock_recovery_path(
     )
     item["stage_reached"] = picked.get("stage_reached") or prior_cp.get("stage_reached") or "ACCESS_DOCS"
     item["recovery_eligible"] = True
+    item["_prior_checkpoint"] = prior_cp
+    item["commercial_resume"] = bool(
+        picked.get("commercial_resume") or prior_cp.get("commercial_resume")
+    )
+    item["next_stage"] = (
+        picked.get("next_stage") or prior_cp.get("next_stage") or item.get("stage_reached")
+    )
+    item["last_completed_stage"] = picked.get("last_completed_stage") or prior_cp.get(
+        "last_completed_stage"
+    )
+    if prior_cp.get("line_items"):
+        item["line_items"] = prior_cp.get("line_items")
+    if prior_cp.get("recovered_documents"):
+        item["recovered_documents"] = prior_cp.get("recovered_documents")
+    if prior_cp.get("complete_spec"):
+        item["complete_spec"] = True
+    if prior_cp.get("documents_downloaded"):
+        item["documents_downloaded"] = prior_cp.get("documents_downloaded")
 
     # Confirm registered access without inventing membership.
     pg_registered = False
@@ -1237,10 +1389,13 @@ def validate_unlock_recovery_path(
             shared_access_key=row.get("shared_access_key") or item.get("shared_access_key"),
             blocker=row.get("terminal_blocker"),
             index=idx,
-            recovery_eligible=still_unlock,
+            recovery_eligible=still_unlock or bool(row.get("commercial_resume")),
             pg_unlocked=pg_unlocked if still_unlock else None,
+            next_stage=row.get("next_stage"),
+            last_completed_stage=row.get("last_completed_stage"),
+            commercial_resume=bool(row.get("commercial_resume")),
         )
-        still_in_recovery = still_unlock
+        still_in_recovery = still_unlock or bool(row.get("commercial_resume"))
 
     cursor_after = int((store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0)
     recon = reconcile_released_pg_unlocks(job_id, repair=False)
@@ -2297,6 +2452,25 @@ def _slim_checkpoint(
         or (row.get("purchasing_group_registration") or {}).get("portal_account"),
         "funnel_outcome": row.get("funnel_outcome"),
         "stage_reached": row.get("stage_reached"),
+        "last_completed_stage": row.get("last_completed_stage")
+        or (prior or {}).get("last_completed_stage"),
+        "next_stage": row.get("next_stage") or (prior or {}).get("next_stage"),
+        "commercial_resume": bool(
+            row.get("commercial_resume") or (prior or {}).get("commercial_resume")
+        ),
+        "source_outcome": row.get("source_outcome"),
+        "economics_complete": bool(row.get("economics_complete")),
+        "stage_timings": row.get("stage_timings")
+        if isinstance(row.get("stage_timings"), dict)
+        else None,
+        "stage_status": row.get("stage_status")
+        if isinstance(row.get("stage_status"), dict)
+        else None,
+        # Persist product evidence so commercial resume skips BidNet re-download.
+        "line_items": (lines[:40] if lines else (prior or {}).get("line_items") or [])[:40],
+        "recovered_documents": (
+            docs[:20] if docs else (prior or {}).get("recovered_documents") or []
+        )[:20],
         "one_pass": bool(row.get("one_pass")),
         "software_defect_key": row.get("software_defect_key"),
         "shared_access_key": row.get("shared_access_key"),
@@ -2902,10 +3076,22 @@ def process_slice(
         unlock_first = [
             d for d in raw_deferred if isinstance(d, dict) and d.get("recovery_eligible")
         ]
-        rest = [
-            d for d in raw_deferred if not (isinstance(d, dict) and d.get("recovery_eligible"))
+        commercial_first = [
+            d
+            for d in raw_deferred
+            if isinstance(d, dict)
+            and d.get("commercial_resume")
+            and not d.get("recovery_eligible")
         ]
-        deferred_items = unlock_first + rest
+        rest = [
+            d
+            for d in raw_deferred
+            if not (
+                isinstance(d, dict)
+                and (d.get("recovery_eligible") or d.get("commercial_resume"))
+            )
+        ]
+        deferred_items = unlock_first + commercial_first + rest
         pending = []
         for d in deferred_items[: slice_size * 3]:
             oid = str(d.get("opportunity_id") or "")
@@ -2933,6 +3119,27 @@ def process_slice(
                         item = r
                         idx = j
                         break
+            item = dict(item)
+            item["_prior_checkpoint"] = prev or {}
+            item["commercial_resume"] = bool(
+                d.get("commercial_resume") or (prev or {}).get("commercial_resume")
+            )
+            item["next_stage"] = (
+                d.get("next_stage")
+                or (prev or {}).get("next_stage")
+                or d.get("stage_reached")
+            )
+            item["last_completed_stage"] = d.get("last_completed_stage") or (
+                prev or {}
+            ).get("last_completed_stage")
+            if (prev or {}).get("line_items"):
+                item["line_items"] = prev.get("line_items")
+            if (prev or {}).get("recovered_documents"):
+                item["recovered_documents"] = prev.get("recovered_documents")
+            if (prev or {}).get("complete_spec"):
+                item["complete_spec"] = True
+            if (prev or {}).get("documents_downloaded"):
+                item["documents_downloaded"] = prev.get("documents_downloaded")
             pending.append((idx, item))
             if len(pending) >= slice_size:
                 break
@@ -3059,6 +3266,9 @@ def process_slice(
                 shared_access_key=row.get("shared_access_key"),
                 blocker=row.get("terminal_blocker"),
                 index=idx,
+                next_stage=row.get("next_stage"),
+                last_completed_stage=row.get("last_completed_stage"),
+                commercial_resume=bool(row.get("commercial_resume")),
             )
             if row.get("software_defect_key"):
                 _note_component_defect(str(row.get("software_defect_key")))
