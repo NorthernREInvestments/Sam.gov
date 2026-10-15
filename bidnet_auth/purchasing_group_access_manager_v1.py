@@ -20,7 +20,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_access_manager")
 
-BUILD = "20261015-m3-bidnet-pg-access-manager-v1"
+BUILD = "20261015-m3-bidnet-pg-access-manager-v1b"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_pg_access_manager_status_v1.json"
 
 # Idle pause between registration attempts (keeps opportunity lane uncontested)
@@ -160,8 +160,23 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
             except Exception:
                 pass
 
-            # Open / refresh dedicated auth client (never share with opportunity lane)
-            if auth_client is None or not getattr(auth_client, "is_authenticated", False):
+            # Serialize Playwright against the opportunity lane (same session store).
+            from bidnet_auth.browser_mutex_v1 import bidnet_browser_slot
+
+            slice_report: dict[str, Any] | None = None
+            with bidnet_browser_slot(holder=worker_id, timeout_s=8.0) as got_browser:
+                if not got_browser:
+                    _save_status(
+                        {
+                            "phase": "WAIT_BROWSER_SLOT",
+                            "heartbeat_at": _utc(),
+                            "note": "opportunity_lane_holds_playwright",
+                        }
+                    )
+                    _stop.wait(IDLE_SLEEP_S)
+                    continue
+
+                # Dedicated auth client for this registration tick only
                 if auth_client is not None:
                     try:
                         auth_client.close()
@@ -184,27 +199,26 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
                             "auth_fail_streak": consecutive_auth_fail,
                         }
                     )
-                    # Back off; opportunity lane owns primary auth recovery
                     _stop.wait(min(60.0, IDLE_SLEEP_S * (1 + consecutive_auth_fail)))
                     continue
                 consecutive_auth_fail = 0
 
-            slice_report: dict[str, Any] | None = None
-            try:
-                slice_report = process_group_registration_slice(
-                    auth_client,
-                    max_groups=SLICE_MAX_GROUPS,
-                    job_id=active_job,
-                )
-            except Exception as exc:
-                log.exception("pg access manager slice failed")
-                slice_report = {"error": type(exc).__name__, "message": str(exc)[:160]}
-                # Poisoned browser — drop and reopen next tick
                 try:
-                    auth_client.close()
-                except Exception:
-                    pass
-                auth_client = None
+                    slice_report = process_group_registration_slice(
+                        auth_client,
+                        max_groups=SLICE_MAX_GROUPS,
+                        job_id=active_job,
+                    )
+                except Exception as exc:
+                    log.exception("pg access manager slice failed")
+                    slice_report = {"error": type(exc).__name__, "message": str(exc)[:160]}
+                finally:
+                    if auth_client is not None:
+                        try:
+                            auth_client.close()
+                        except Exception:
+                            pass
+                        auth_client = None
 
             processed = list((slice_report or {}).get("processed") or [])
             completed_n = sum(
@@ -235,17 +249,8 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
                 }
             )
 
-            # Close browser between ticks when nothing pending — free memory
             pending_left = int((slice_report or {}).get("pending_remaining") or 0)
-            if pending_left <= 0 and auth_client is not None:
-                try:
-                    auth_client.close()
-                except Exception:
-                    pass
-                auth_client = None
-                _stop.wait(max(IDLE_SLEEP_S, 20.0))
-            else:
-                _stop.wait(IDLE_SLEEP_S)
+            _stop.wait(max(IDLE_SLEEP_S, 20.0) if pending_left <= 0 else IDLE_SLEEP_S)
     finally:
         if auth_client is not None:
             try:

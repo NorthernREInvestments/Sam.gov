@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e1"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2326,8 +2326,36 @@ def process_slice(
     except Exception as exc:
         pg_slice_report = {**(pg_slice_report or {}), "access_manager_error": type(exc).__name__}
 
+    browser_slot_held = False
     try:
         if browser_pending:
+            from bidnet_auth.browser_mutex_v1 import (
+                release_bidnet_browser,
+                try_acquire_bidnet_browser,
+            )
+
+            # Opportunity lane owns Playwright while browser work runs; PG manager waits.
+            browser_slot_held = try_acquire_bidnet_browser(
+                holder=f"fspf-{worker_id}", timeout_s=90.0
+            )
+            if not browser_slot_held:
+                _progress(
+                    status="RUNNING",
+                    phase="WAIT_PG_BROWSER_SLOT",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    note="pg_access_manager_holds_playwright_deferring_browser_slice",
+                )
+                # Do not block the whole slice forever — return and retry next tick
+                return {
+                    "slice_complete": True,
+                    "processed_this_slice": processed,
+                    "queue_exhausted": False,
+                    "job_id": job_id,
+                    "browser_slot_deferred": True,
+                    "pg_group_slice": pg_slice_report,
+                    "timing_accum": timing_accum,
+                }
             auth_status, auth_client = _open_bidnet_auth_client()
             if not auth_status.get("authenticated"):
                 _progress(
@@ -2610,6 +2638,13 @@ def process_slice(
         if auth_client is not None:
             try:
                 auth_client.close()
+            except Exception:
+                pass
+        if browser_slot_held:
+            try:
+                from bidnet_auth.browser_mutex_v1 import release_bidnet_browser
+
+                release_bidnet_browser(holder=f"fspf-{worker_id}")
             except Exception:
                 pass
 

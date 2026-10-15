@@ -1311,6 +1311,18 @@ def run_purchasing_group_registration(
         url = str(client._page.url or "")
         after = re.sub(r"\s+", " ", client._page.locator("body").inner_text() or "")[:2000]
         failed_check = bool(re.search(r"Failed Check", after, re.I))
+        # One bounded retry: Failed Check after Save usually means a required
+        # radio did not stick — re-apply fills and Save again once.
+        if failed_check and plan.get("fills"):
+            try:
+                fill_result = apply_fills(client, plan, answers=answers)
+                client._page.locator("#saveButton").click(timeout=5_000)
+                client._page.wait_for_timeout(2_500)
+                url = str(client._page.url or "")
+                after = re.sub(r"\s+", " ", client._page.locator("body").inner_text() or "")[:2000]
+                failed_check = bool(re.search(r"Failed Check", after, re.I))
+            except Exception:
+                pass
         still_on_edit = "group-form/edit" in url
         member_complete = bool(
             re.search(r"Member Since.{0,40}\bCOMPLETE\b", after, re.I)
