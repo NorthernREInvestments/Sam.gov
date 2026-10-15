@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e17"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e18"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1795,6 +1795,45 @@ def api_m3_full_scale_production_funnel_reconcile():
     from buyer_intelligence.full_scale_production_funnel_v1 import reconcile_eligible_universe
 
     return {"build_version": APP_BUILD_VERSION, **reconcile_eligible_universe()}
+
+
+@app.get("/api/m3/full-scale-production-funnel/reconcile-l23-universe")
+def api_m3_full_scale_production_funnel_reconcile_l23():
+    """Full L23 (all physical records) ↔ production queue reconciliation."""
+    from buyer_intelligence.l23_universe_reconciliation_v1 import reconcile_l23_universe
+
+    return {"build_version": APP_BUILD_VERSION, **reconcile_l23_universe()}
+
+
+@app.post("/api/m3/full-scale-production-funnel/append-missing-from-l23")
+def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | None = None):
+    """Append incorrectly excluded / unresolved L23 IDs to the live queue.
+
+    Does not reset RESUME_CURSOR or start a competing worker.
+    """
+    from buyer_intelligence.l23_universe_reconciliation_v1 import (
+        append_missing_to_production_queue,
+    )
+    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = payload.get("job_id")
+    if not jid:
+        active = JobStore(FAMILY).find_active_job(stale_seconds=86400) or {}
+        jid = active.get("JOB_ID")
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **append_missing_to_production_queue(
+            job_id=(str(jid) if jid else None),
+            dry_run=bool(payload.get("dry_run", False)),
+            max_append=(
+                int(payload["max_append"])
+                if payload.get("max_append") not in (None, "")
+                else None
+            ),
+        ),
+    }
 
 
 @app.post("/api/m3/full-scale-production-funnel/regression-copy-paper")

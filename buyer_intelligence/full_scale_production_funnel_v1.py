@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e17"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e18"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -1733,6 +1733,9 @@ def build_eligible_queue(
         _hb(len(rows_in), 0, "QUEUE_FROM_FCF")
 
     # 2) Available Deals visibility artifact
+    # Prefer full funnel admission (worth + ready + needs_verification). Older ADV
+    # artifacts stored needs separately / truncated — merge them so missing deadlines
+    # are not silently excluded from the production queue.
     if not rows_in:
         for rel in (
             f"{OUT}/m3_adv_v1_available_deals.json",
@@ -1743,8 +1746,22 @@ def build_eligible_queue(
             deals = blob.get("deals") or blob.get("rows") or blob.get("opportunities") or []
             if isinstance(deals, dict):
                 deals = list(deals.values())
-            if isinstance(deals, list) and deals:
-                rows_in = [d for d in deals if isinstance(d, dict)]
+            needs = blob.get("needs_verification_deals") or []
+            if isinstance(needs, dict):
+                needs = list(needs.values())
+            merged: list[dict[str, Any]] = []
+            seen_oids: set[str] = set()
+            for d in list(deals or []) + list(needs or []):
+                if not isinstance(d, dict):
+                    continue
+                oid = str(d.get("opportunity_id") or d.get("OPPORTUNITY_ID") or "").strip()
+                if oid and oid in seen_oids:
+                    continue
+                if oid:
+                    seen_oids.add(oid)
+                merged.append(d)
+            if merged:
+                rows_in = merged
                 source = f"available_deals:{rel}"
                 _hb(len(rows_in), 0, "QUEUE_FROM_ADV")
                 break

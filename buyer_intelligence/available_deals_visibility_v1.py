@@ -35,7 +35,7 @@ from phase_l.access_gate import (
 
 log = logging.getLogger("govtracker.available_deals_visibility_v1")
 
-BUILD = "20261012-m3-available-deals-visibility-v1"
+BUILD = "20261015-m3-available-deals-visibility-v1b"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_adv_v1_report.json"
 DEALS = f"{OUT}/m3_adv_v1_available_deals.json"
@@ -702,6 +702,10 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
         if r["opportunity_id"] not in commercial_ids and "MISSING_FINANCING_STILL_VISIBLE" in (r.get("hide_reasons_avoided") or [])
     )
 
+    # Production funnel admission must include unresolved deadlines (NEEDS_VERIFICATION).
+    # Missing/ambiguous deadlines are NOT silent exclusions — they require qualification.
+    # UI default filter remains worth_researching; funnel_admission_deals is the full set.
+    funnel_admission = worth + ready + needs
     deals_out = {
         "kind": "adv_available_deals",
         "build": BUILD,
@@ -712,6 +716,7 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
             "ready_to_bid": len(ready),
             "needs_verification": len(needs),
             "blocked_ineligible": len(blocked),
+            "funnel_admission": len(funnel_admission),
             "unknown_eligibility": sum(1 for r in worth + needs if r.get("eligible") is None),
             "eligible": sum(1 for r in worth if r.get("eligible") is True),
             "product_opportunities": sum(1 for r in rows if r.get("product_class") in {"PRODUCT", "MIXED", "UNKNOWN_PRODUCTNESS"}),
@@ -719,8 +724,11 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
             "open_confirmed": sum(1 for r in rows if r.get("deadline_status") == "OPEN_CONFIRMED"),
             "deadline_unknown": sum(1 for r in rows if r.get("deadline_status") == "DEADLINE_UNKNOWN"),
         },
-        "deals": worth + ready,  # default: confirmed-open worth researching
-        "needs_verification_deals": needs[:2000],
+        # Full admission set for production queue (worth + ready + needs verification).
+        "deals": funnel_admission,
+        "worth_researching_deals": worth,
+        "ready_to_bid_deals": ready,
+        "needs_verification_deals": needs,
         # Prefer set-aside blockers first so HUBZone/8(a) audits are not truncated away
         "blocked_deals": sorted(
             blocked,
@@ -729,7 +737,12 @@ def run_visibility_rebuild(*, prefer_open_deadline: bool = True) -> dict[str, An
                 str(r.get("deadline") or "9999"),
             ),
         )[:1500],
-        "NOTE": "Default Worth Researching = confirmed-open product opportunities. Missing deadlines → Needs Verification.",
+        "blocked_total": len(blocked),
+        "NOTE": (
+            "deals = WORTH_RESEARCHING + READY_TO_BID + NEEDS_VERIFICATION for funnel admission. "
+            "Missing deadlines are admitted for qualification, not silently excluded. "
+            "UI default_filter remains worth_researching."
+        ),
     }
     _save(DEALS, deals_out)
 
