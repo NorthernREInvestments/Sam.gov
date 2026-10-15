@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e12"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e13"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -3192,6 +3192,40 @@ def process_slice(
                 "price_pass": price_pass,
                 "unlock_micro_recovery": unlock_recovery_report,
             }
+
+        # Release Playwright before unlock micro-recovery so recovery can acquire the slot.
+        if browser_slot_held:
+            try:
+                from bidnet_auth.browser_mutex_v1 import release_bidnet_browser
+
+                release_bidnet_browser(holder=f"fspf-{worker_id}")
+            except Exception:
+                pass
+            browser_slot_held = False
+        if auth_client is not None:
+            try:
+                auth_client.close()
+            except Exception:
+                pass
+            auth_client = None
+
+        # Recover ONE unlocked opportunity while http client is still open.
+        if first_pass and not (unlock_recovery_report or {}).get("processed"):
+            _progress(
+                status="RUNNING",
+                phase="PG_UNLOCK_MICRO_RECOVERY_START",
+                job_id=job_id,
+                worker_id=worker_id,
+                note="post_slice_browser_released",
+            )
+            unlock_recovery_report = _try_unlock_micro_recovery("post_slice_browser_released")
+            if (unlock_recovery_report or {}).get("processed"):
+                try:
+                    price_pass = _research_prices_from_rfq_queue(
+                        job_id=job_id, max_items=2, budget_s=40.0
+                    )
+                except Exception as exc:
+                    price_pass = {"error": type(exc).__name__, "after": "unlock_micro"}
     finally:
         try:
             http.close()
@@ -3210,18 +3244,6 @@ def process_slice(
             except Exception:
                 pass
             browser_slot_held = False
-
-    # After Playwright is released: recover ONE unlocked opportunity (docs→lines→prices).
-    # Runs for every first-pass slice so browser-path work does not starve unlock recovery.
-    if first_pass and not (unlock_recovery_report or {}).get("processed"):
-        unlock_recovery_report = _try_unlock_micro_recovery("post_slice_browser_released")
-        if (unlock_recovery_report or {}).get("processed"):
-            try:
-                price_pass = _research_prices_from_rfq_queue(
-                    job_id=job_id, max_items=2, budget_s=40.0
-                )
-            except Exception as exc:
-                price_pass = {"error": type(exc).__name__, "after": "unlock_micro"}
 
     job = store.recompute_counts(job_id)
     items = store.list_items(job_id)
