@@ -18,7 +18,7 @@ from typing import Any
 
 from application_clock import now_utc
 
-BUILD = "20261015-m3-opportunity-funnel-orchestrator-v1a"
+BUILD = "20261015-m3-opportunity-funnel-orchestrator-v1b"
 
 STAGE_QUALIFY = "QUALIFY"
 STAGE_ACCESS_DOCS = "ACCESS_DOCS"
@@ -274,7 +274,9 @@ def run_one_opportunity(
     oid = str(item.get("opportunity_id") or "")
     stages_run: list[str] = []
 
+    timings: dict[str, float] = {}
     q = fast_qualify(item, l23_rec=l23_rec)
+    timings["qualify_s"] = float(q.get("elapsed_s") or 0)
     stages_run.append(STAGE_QUALIFY)
     if not q.get("ok"):
         return {
@@ -290,9 +292,50 @@ def run_one_opportunity(
             "elapsed_s": round(time.time() - t0, 3),
             "finished_at": _utc(),
             "one_pass": True,
+            "timings": timings,
+        }
+
+    # Shared-access fast path — no Playwright when barrier already scoped.
+    t_access = time.time()
+    try:
+        from buyer_intelligence.shared_access_registry_v1 import resolve_fast_access
+
+        access = resolve_fast_access(item, l23_rec=l23_rec)
+    except Exception as exc:
+        access = {"decision": "UNKNOWN", "defer": False, "error": type(exc).__name__}
+    timings["access_lookup_s"] = round(time.time() - t_access, 4)
+    if access.get("defer") and access.get("access_fast_path"):
+        stages_run.append(STAGE_ACCESS_DOCS)
+        return {
+            "opportunity_id": oid,
+            "build": BUILD,
+            "AUTO_SEND": False,
+            "title": item.get("title") or (l23_rec or {}).get("title"),
+            "authoritative_url": item.get("authoritative_url"),
+            "buyer": item.get("buyer") or (l23_rec or {}).get("buyer"),
+            "funnel_outcome": access.get("funnel_outcome") or OUTCOME_EXTERNAL_DEPENDENCY,
+            "stage_reached": STAGE_ACCESS_DOCS,
+            "stages_run": stages_run,
+            "defer": True,
+            "terminal_blocker": access.get("terminal_blocker"),
+            "package_blocker": access.get("package_blocker") or access.get("terminal_blocker"),
+            "shared_access_key": access.get("shared_access_key"),
+            "purchasing_group_id": access.get("purchasing_group_id"),
+            "purchasing_group_registration_status": access.get(
+                "purchasing_group_registration_status"
+            ),
+            "access_fast_path": True,
+            "access_decision": access.get("decision"),
+            "access_basis": access.get("access_basis"),
+            "fetch_via": access.get("fetch_via") or "shared_access_registry_fast_path",
+            "elapsed_s": round(time.time() - t0, 3),
+            "finished_at": _utc(),
+            "one_pass": True,
+            "timings": timings,
         }
 
     try:
+        t_proc = time.time()
         row = process_one(
             item,
             client=client,
@@ -301,6 +344,7 @@ def run_one_opportunity(
             l23_rec=l23_rec or {},
             auth_client=auth_client,
         )
+        timings["process_one_s"] = round(time.time() - t_proc, 3)
     except Exception as exc:
         return {
             "opportunity_id": oid,
@@ -316,7 +360,29 @@ def run_one_opportunity(
             "elapsed_s": round(time.time() - t0, 3),
             "finished_at": _utc(),
             "one_pass": True,
+            "timings": timings,
         }
+
+    # Learn verified access scope for subsequent opportunities
+    try:
+        from buyer_intelligence.shared_access_registry_v1 import learn_access
+
+        learn_access(
+            opportunity_id=oid,
+            url=row.get("authoritative_url") or item.get("authoritative_url"),
+            buyer=row.get("buyer") or item.get("buyer"),
+            purchasing_group_id=row.get("purchasing_group_id"),
+            paid_entitlement=(
+                str(row.get("terminal_blocker") or row.get("package_blocker") or "")
+                if str(row.get("terminal_blocker") or row.get("package_blocker") or "").startswith(
+                    "PAID_ENTITLEMENT"
+                )
+                else row.get("paid_entitlement_requirement")
+            ),
+            blocker=str(row.get("terminal_blocker") or row.get("package_blocker") or "") or None,
+        )
+    except Exception:
+        pass
 
     classification = classify_process_one_outcome(row)
     # Honest stage telemetry: only stages up to the furthest reached, not a fiction list
@@ -349,4 +415,6 @@ def run_one_opportunity(
     row["orchestrator_build"] = BUILD
     row["elapsed_s"] = round(time.time() - t0, 3)
     row["finished_at"] = _utc()
+    row["timings"] = {**(row.get("timings") or {}), **timings}
+    row["access_decision"] = access.get("decision")
     return row

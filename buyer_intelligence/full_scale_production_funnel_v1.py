@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4b"
+BUILD = "20261015-m3-full-scale-production-funnel-v4c"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -78,6 +78,8 @@ CIRCUIT_FILE = f"{OUT}/m3_fspf_v1_component_circuits.json"
 SLICE_SIZE = int(os.environ.get("M3_FSPF_SLICE_SIZE") or "25")
 # 100s covers PG registration (inspect/fill/save) + detail retry inside CFE
 ITEM_TIMEOUT_S = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
+# Concurrent full (browser) opportunity funnels — keep low; fast-path is sequential/cheap
+BROWSER_CONCURRENCY = max(1, min(4, int(os.environ.get("M3_FSPF_BROWSER_CONCURRENCY") or "2")))
 STALE_LEASE_S = float(
     os.environ.get("M3_FSPF_STALE_LEASE_S")
     or LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS")
@@ -2029,76 +2031,256 @@ def process_slice(
     )
 
     evidence_index = build_commercial_evidence_index()
-    # One BidNet client per slice phase. PG registration can TimeoutError and
-    # leave Playwright unusable — always re-open a fresh client for opportunities.
-    # When registered-group unlock work is available, defer PG form attempts to
-    # end-of-slice so document recovery is not starved.
-    auth_status, auth_client = _open_bidnet_auth_client()
-    pg_slice_report = None
-    pg_ran_start = False
-    defer_pg = bool(registered_pending)
-    try:
-        from bidnet_auth.purchasing_group_queue import process_group_registration_slice
-
-        # At most one group at start — never monopolize the opportunity lane.
-        if (
-            not defer_pg
-            and auth_client is not None
-            and getattr(auth_client, "is_authenticated", False)
-        ):
-            pg_slice_report = process_group_registration_slice(
-                auth_client, max_groups=1, job_id=job_id
-            )
-            pg_ran_start = True
-            _progress(
-                status="RUNNING",
-                phase="PG_GROUP_REGISTRATION_SLICE",
-                job_id=job_id,
-                worker_id=worker_id,
-                pg_group_slice=pg_slice_report,
-                bidnet_auth_status=auth_status.get("status"),
-            )
-        elif defer_pg:
-            pg_slice_report = {"deferred": True, "reason": "registered_group_unlock_priority"}
-    except Exception as exc:
-        pg_slice_report = {"error": type(exc).__name__}
-    finally:
-        if auth_client is not None:
-            try:
-                auth_client.close()
-            except Exception:
-                pass
-            auth_client = None
-
     l23 = load_store()
     http = _cookies_client()
+
+    # Hydrate shared-access registry from existing checkpoints (no network).
+    try:
+        from buyer_intelligence.shared_access_registry_v1 import (
+            hydrate_from_job_items,
+            resolve_fast_access,
+        )
+
+        hydrate_report = hydrate_from_job_items(store.list_items(job_id))
+    except Exception as exc:
+        hydrate_report = {"error": type(exc).__name__}
+        resolve_fast_access = None  # type: ignore
+
+    # Partition: known access barriers defer without opening Playwright.
+    fast_pending: list[tuple[int, dict[str, Any], dict[str, Any]]] = []
+    browser_pending: list[tuple[int, dict[str, Any]]] = []
+    for idx, item in pending:
+        oid0 = str(item.get("opportunity_id") or "")
+        try:
+            from buyer_intelligence.opportunity_funnel_orchestrator_v1 import fast_qualify
+
+            q0 = fast_qualify(item, l23_rec=l23.get(oid0) or {})
+        except Exception:
+            q0 = {"ok": True}
+        if not q0.get("ok"):
+            browser_pending.append((idx, item))  # still record via orchestrator path
+            continue
+        access0 = {"decision": "UNKNOWN", "defer": False}
+        if resolve_fast_access is not None:
+            try:
+                access0 = resolve_fast_access(item, l23_rec=l23.get(oid0) or {})
+            except Exception as exc:
+                access0 = {"decision": "UNKNOWN", "defer": False, "error": type(exc).__name__}
+        if access0.get("defer") and access0.get("access_fast_path"):
+            fast_pending.append((idx, item, access0))
+        else:
+            browser_pending.append((idx, item))
+
+    _progress(
+        status="RUNNING",
+        phase="SHARED_ACCESS_FAST_PATH",
+        job_id=job_id,
+        worker_id=worker_id,
+        fast_path_count=len(fast_pending),
+        browser_path_count=len(browser_pending),
+        hydrate_report=hydrate_report,
+        pass_mode=pass_mode,
+    )
+
     processed = 0
     last_oid = None
     zero_doc_streak = 0
     registered_empty_streak = 0
-    try:
-        auth_status, auth_client = _open_bidnet_auth_client()
-        if not auth_status.get("authenticated"):
-            _progress(
-                status="BLOCKED",
-                phase="AUTH_BLOCKER",
-                last_blocker=auth_status.get("external_blocker") or auth_status.get("status"),
-                job_id=job_id,
-                worker_id=worker_id,
-                bidnet_auth_status=auth_status.get("status"),
-                auth_message=(auth_status.get("message") or "")[:200],
+    timing_accum = {
+        "fast_path_count": 0,
+        "fast_path_total_s": 0.0,
+        "browser_path_count": 0,
+        "browser_path_total_s": 0.0,
+    }
+
+    def _commit_row(idx: int, item: dict[str, Any], row: dict[str, Any]) -> str:
+        nonlocal processed, last_oid, zero_doc_streak, registered_empty_streak, job
+        oid_local = str(item["opportunity_id"])
+        last_oid = oid_local
+        result = _map_result(row)
+        prior_cp = store.load_item(job_id, oid_local)
+        slim = _slim_checkpoint(row, result=result, index=idx, prior=prior_cp)
+        store.write_item_checkpoint(job_id, slim)
+        _append_rfq(row)
+        if row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+            _defer_opportunity(
+                opportunity_id=oid_local,
+                stage=row.get("stage_reached"),
+                outcome=str(row.get("funnel_outcome") or result),
+                defect_key=row.get("software_defect_key"),
+                shared_access_key=row.get("shared_access_key"),
+                blocker=row.get("terminal_blocker"),
+                index=idx,
             )
-            return {
-                "slice_complete": False,
-                "processed_this_slice": 0,
-                "queue_exhausted": False,
-                "job_id": job_id,
-                "blocked": True,
-                "reason": "BIDNET_AUTH_REQUIRED",
-                "auth_status": auth_status,
-                "pg_group_slice": pg_slice_report,
-            }
-        for idx, item in pending:
+            if row.get("software_defect_key"):
+                _note_component_defect(str(row.get("software_defect_key")))
+        processed += 1
+        docs_dl = int(slim.get("documents_downloaded") or 0)
+        fetch_via = str(slim.get("fetch_via") or "")
+        pg_waiting = str(slim.get("purchasing_group_registration_status") or "").upper() in {
+            "QUEUED",
+            "REGISTERING",
+            "PREPARED",
+        }
+        unhealthy_fetch = fetch_via in {
+            "httpx_public_or_cookie",
+            "httpx_fallback_after_auth_error",
+            "bidnet_auth_required",
+            "bidnet_auth_fetch_failed",
+            "none",
+        } or result == "AUTH_FAILED"
+        if docs_dl == 0 and unhealthy_fetch and not pg_waiting:
+            zero_doc_streak += 1
+        elif docs_dl > 0:
+            zero_doc_streak = 0
+        reg_empty = (
+            docs_dl == 0
+            and str(slim.get("terminal_blocker") or "") == "DETAIL_FETCH_EMPTY"
+            and (
+                str(slim.get("purchasing_group_registration_status") or "") == "REGISTERED"
+                or bool(slim.get("pg_registered_awaiting_docs"))
+            )
+        )
+        if reg_empty and slim.get("early_search_status"):
+            registered_empty_streak += 1
+        elif not reg_empty:
+            registered_empty_streak = 0
+        job = store.recompute_counts(job_id)
+        job["RESUME_CURSOR"] = _contiguous_resume_cursor(
+            store, job_id, rows, from_index=slice_start_cursor
+        )
+        job["META"] = {
+            **(job.get("META") or {}),
+            "last_blocker": slim.get("terminal_blocker"),
+            "last_result": result,
+            "pass_mode": pass_mode,
+            "one_pass_orchestrator": True,
+            "stage_reached": slim.get("stage_reached"),
+            "funnel_outcome": slim.get("funnel_outcome"),
+            "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
+            "timing_accum": timing_accum,
+            "access_fast_path": bool(slim.get("access_fast_path") or row.get("access_fast_path")),
+        }
+        store.save_job(job)
+        store.heartbeat(
+            job_id,
+            worker_id=worker_id,
+            current_index=idx,
+            current_opportunity_id=oid_local,
+        )
+        return result
+
+    # --- Fast path: no browser ---
+    for idx, item, access in fast_pending:
+        if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
+            break
+        t0 = time.time()
+        oid = str(item["opportunity_id"])
+        row = {
+            "opportunity_id": oid,
+            "title": item.get("title"),
+            "buyer": item.get("buyer"),
+            "authoritative_url": item.get("authoritative_url"),
+            "terminal_blocker": access.get("terminal_blocker"),
+            "package_blocker": access.get("package_blocker") or access.get("terminal_blocker"),
+            "funnel_outcome": access.get("funnel_outcome") or "EXTERNAL_DEPENDENCY",
+            "stage_reached": "ACCESS_DOCS",
+            "defer": True,
+            "shared_access_key": access.get("shared_access_key"),
+            "purchasing_group_id": access.get("purchasing_group_id"),
+            "purchasing_group_registration_status": access.get(
+                "purchasing_group_registration_status"
+            ),
+            "access_fast_path": True,
+            "access_decision": access.get("decision"),
+            "access_basis": access.get("access_basis"),
+            "fetch_via": "shared_access_registry_fast_path",
+            "one_pass": True,
+            "elapsed_s": 0.0,
+        }
+        row["elapsed_s"] = round(time.time() - t0, 4)
+        timing_accum["fast_path_count"] += 1
+        timing_accum["fast_path_total_s"] += float(row["elapsed_s"])
+        _progress(
+            status="RUNNING",
+            phase="SHARED_ACCESS_FAST_DEFER",
+            job_id=job_id,
+            worker_id=worker_id,
+            current_opportunity_id=oid,
+            current_index=idx,
+            access_decision=access.get("decision"),
+            pass_mode=pass_mode,
+            timing_accum=timing_accum,
+        )
+        _commit_row(idx, item, row)
+
+    # One BidNet client per slice phase. PG registration can TimeoutError and
+    # leave Playwright unusable — always re-open a fresh client for opportunities.
+    auth_status: dict[str, Any] = {}
+    auth_client = None
+    pg_slice_report = None
+    pg_ran_start = False
+    defer_pg = bool(registered_pending)
+    if browser_pending or not fast_pending:
+        auth_status, auth_client = _open_bidnet_auth_client()
+        try:
+            from bidnet_auth.purchasing_group_queue import process_group_registration_slice
+
+            if (
+                not defer_pg
+                and auth_client is not None
+                and getattr(auth_client, "is_authenticated", False)
+            ):
+                pg_slice_report = process_group_registration_slice(
+                    auth_client, max_groups=1, job_id=job_id
+                )
+                pg_ran_start = True
+                _progress(
+                    status="RUNNING",
+                    phase="PG_GROUP_REGISTRATION_SLICE",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    pg_group_slice=pg_slice_report,
+                    bidnet_auth_status=auth_status.get("status"),
+                )
+            elif defer_pg:
+                pg_slice_report = {"deferred": True, "reason": "registered_group_unlock_priority"}
+        except Exception as exc:
+            pg_slice_report = {"error": type(exc).__name__}
+        finally:
+            if auth_client is not None:
+                try:
+                    auth_client.close()
+                except Exception:
+                    pass
+                auth_client = None
+
+    try:
+        if browser_pending:
+            auth_status, auth_client = _open_bidnet_auth_client()
+            if not auth_status.get("authenticated"):
+                _progress(
+                    status="BLOCKED",
+                    phase="AUTH_BLOCKER",
+                    last_blocker=auth_status.get("external_blocker") or auth_status.get("status"),
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    bidnet_auth_status=auth_status.get("status"),
+                    auth_message=(auth_status.get("message") or "")[:200],
+                    timing_accum=timing_accum,
+                )
+                return {
+                    "slice_complete": False,
+                    "processed_this_slice": processed,
+                    "queue_exhausted": False,
+                    "job_id": job_id,
+                    "blocked": True,
+                    "reason": "BIDNET_AUTH_REQUIRED",
+                    "auth_status": auth_status,
+                    "pg_group_slice": pg_slice_report,
+                    "timing_accum": timing_accum,
+                }
+        for idx, item in browser_pending:
             if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
                 break
             oid = str(item["opportunity_id"])
@@ -2208,26 +2390,12 @@ def process_slice(
                 }
                 log.exception("FSPF one-pass funnel failed oid=%s", oid)
 
-            result = _map_result(row)
-            prior_cp = store.load_item(job_id, oid)
-            slim = _slim_checkpoint(row, result=result, index=idx, prior=prior_cp)
-            store.write_item_checkpoint(job_id, slim)
-            _append_rfq(row)
-            # Back-of-line: software errors / external deps during first pass
-            if row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
-                _defer_opportunity(
-                    opportunity_id=oid,
-                    stage=row.get("stage_reached"),
-                    outcome=str(row.get("funnel_outcome") or result),
-                    defect_key=row.get("software_defect_key"),
-                    shared_access_key=row.get("shared_access_key"),
-                    blocker=row.get("terminal_blocker"),
-                    index=idx,
-                )
-                if row.get("software_defect_key"):
-                    _note_component_defect(str(row.get("software_defect_key")))
-            elif not first_pass and result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
-                # Resolved on deferred recovery — drop from deferred queue
+            elapsed_browser = round(time.time() - t0, 3)
+            row["elapsed_s"] = row.get("elapsed_s") or elapsed_browser
+            timing_accum["browser_path_count"] += 1
+            timing_accum["browser_path_total_s"] += float(elapsed_browser)
+            result = _commit_row(idx, item, row)
+            if not first_pass and result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
                 dq = _load_deferred_queue()
                 dq["items"] = [
                     x
@@ -2237,66 +2405,23 @@ def process_slice(
                 dq["count"] = len(dq["items"])
                 dq["updated_at"] = _utc()
                 _save(DEFERRED_QUEUE_FILE, dq)
-            processed += 1
-            docs_dl = int(slim.get("documents_downloaded") or 0)
-            fetch_via = str(slim.get("fetch_via") or "")
-            pg_waiting = str(slim.get("purchasing_group_registration_status") or "").upper() in {
-                "QUEUED",
-                "REGISTERING",
-                "PREPARED",
-            }
-            unhealthy_fetch = fetch_via in {
-                "httpx_public_or_cookie",
-                "httpx_fallback_after_auth_error",
-                "bidnet_auth_required",
-                "bidnet_auth_fetch_failed",
-                "none",
-            } or result == "AUTH_FAILED"
-            if docs_dl == 0 and unhealthy_fetch and not pg_waiting:
-                zero_doc_streak += 1
-            elif docs_dl > 0:
-                zero_doc_streak = 0
-            # Pause registered-group unlock lane when DETAIL_FETCH_EMPTY repeats
-            # (avoids thousands of identical failures while search path is broken).
-            reg_empty = (
-                docs_dl == 0
-                and str(slim.get("terminal_blocker") or "") == "DETAIL_FETCH_EMPTY"
-                and (
-                    str(slim.get("purchasing_group_registration_status") or "") == "REGISTERED"
-                    or bool(slim.get("pg_registered_awaiting_docs"))
-                )
-            )
-            if reg_empty and slim.get("early_search_status"):
-                registered_empty_streak += 1
-            elif not reg_empty:
-                registered_empty_streak = 0
-            job = store.recompute_counts(job_id)
-            job["RESUME_CURSOR"] = _contiguous_resume_cursor(
-                store, job_id, rows, from_index=slice_start_cursor
-            )
+            job = store.load_job(job_id) or job
             job["META"] = {
                 **(job.get("META") or {}),
-                "last_blocker": slim.get("terminal_blocker"),
-                "last_result": result,
                 "bidnet_auth_status": auth_status.get("status"),
                 "zero_doc_streak": zero_doc_streak,
-                "last_fetch_via": fetch_via,
                 "pg_group_slice": pg_slice_report,
-                "pass_mode": pass_mode,
-                "one_pass_orchestrator": True,
-                "stage_reached": slim.get("stage_reached"),
-                "funnel_outcome": slim.get("funnel_outcome"),
-                "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
+                "timing_accum": timing_accum,
             }
             store.save_job(job)
-            # Refresh scorecard every 5 items so operators see repaired blocker taxonomy live
             if processed % 5 == 0:
                 try:
                     _aggregate_scorecard(job, store.list_items(job_id), queue)
                 except Exception:
                     pass
 
-            if SOURCE_COOLDOWN_S > 0:
+            # Skip cooldown after access fast-path (already filtered); keep for browser work
+            if SOURCE_COOLDOWN_S > 0 and not row.get("access_fast_path"):
                 time.sleep(SOURCE_COOLDOWN_S)
 
             # Hard stop on credential failure — resume later

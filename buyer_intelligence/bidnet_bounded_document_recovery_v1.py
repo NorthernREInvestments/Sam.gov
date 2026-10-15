@@ -957,10 +957,13 @@ def _recover_one_inner(
                 or "/open-bids/" in url_l
                 or "bidnetdirect.com" in url_l
             )
+            # Statewide/public first probe: shorter wall clock — usually enough to
+            # surface PG interceptor / paid redirect without a full docs budget.
+            first_cap = 8_000 if needs_browser else 12_000
             html = (
                 auth_client.fetch_html(
                     url,
-                    timeout_ms=_remain_ms(18_000 if needs_browser else 12_000),
+                    timeout_ms=_remain_ms(first_cap),
                     prefer_http=not needs_browser,
                 )
                 or ""
@@ -1175,6 +1178,56 @@ def _recover_one_inner(
         elif st or out.get("purchasing_group_gate"):
             package_state = "PACKAGE_PG_REGISTRATION_INCOMPLETE"
             detail_status = detail_status or "DETAIL_ACCESS_GATE"
+
+        # Fast exit: known unresolved PG — do not continue docs/search work.
+        st_u = st.upper()
+        if (
+            not docs
+            and (
+                out.get("package_blocker_hint") == "AWAITING_PURCHASING_GROUP_REGISTRATION"
+                or st_u
+                in {
+                    "QUEUED",
+                    "REGISTERING",
+                    "INCOMPLETE",
+                    "PAID_REQUIRED",
+                    "OWNER_APPROVAL_REQUIRED",
+                    "PREPARED",
+                    "ERROR",
+                }
+            )
+            and st_u != "REGISTERED"
+        ):
+            try:
+                from buyer_intelligence.shared_access_registry_v1 import learn_access
+
+                learn_access(
+                    opportunity_id=oid,
+                    url=url,
+                    buyer=item.get("buyer"),
+                    purchasing_group_id=(out.get("purchasing_group_registration") or {}).get(
+                        "purchasing_group_id"
+                    )
+                    or (out.get("purchasing_group_gate") or {}).get("purchasing_group_id"),
+                    paid_entitlement=paid_req,
+                    blocker=out.get("package_blocker_hint") or st,
+                )
+            except Exception:
+                pass
+            out["primary_blocker"] = (
+                PAID_ENTITLEMENT
+                if st_u == "PAID_REQUIRED" or paid_req
+                else "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+            )
+            out["documents"] = []
+            out["line_items"] = []
+            out["timed_out"] = False
+            out["package_state"] = package_state
+            out["detail_status"] = detail_status
+            out["paid_entitlement_requirement"] = paid_req
+            out["access_note"] = out.get("access_note") or "early_exit_unresolved_pg_gate"
+            out["finished_at"] = _utc()
+            return out
 
     # 2) Bounded path: attachment scrape for REAL private detail URLs only.
     # Statewide / open-bids IDs are a different namespace — never invent
