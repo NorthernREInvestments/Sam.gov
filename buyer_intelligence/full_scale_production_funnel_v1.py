@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e9"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e10"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -265,6 +265,18 @@ def _progress(**kwargs: Any) -> dict[str, Any]:
         "build": BUILD,
         "status": "IDLE",
     }
+    # Zombie workers (lease superseded) must not clobber the live worker's progress
+    # with STOPPED / LEASE_SUPERSEDED — that falsely looks like production halted.
+    incoming_worker = str(kwargs.get("worker_id") or "")
+    incoming_status = str(kwargs.get("status") or "")
+    incoming_phase = str(kwargs.get("phase") or "")
+    if incoming_worker and (
+        incoming_status in {"STOPPED", "CANCELLED"}
+        or incoming_phase == "LEASE_SUPERSEDED"
+    ):
+        jid = str(kwargs.get("job_id") or cur.get("job_id") or "")
+        if jid and not _is_active_lease_worker(jid, incoming_worker):
+            return cur
     cur.update(kwargs)
     cur["build"] = BUILD
     cur["heartbeat_at"] = _utc()
@@ -2780,6 +2792,33 @@ def process_slice(
     except Exception as exc:
         pg_slice_report = {**(pg_slice_report or {}), "access_manager_error": type(exc).__name__}
 
+    def _try_unlock_micro_recovery(reason: str) -> dict[str, Any] | None:
+        """Advance one unlocked opportunity when first-pass browser work cannot run."""
+        if not first_pass or not _is_active_lease_worker(job_id, worker_id):
+            return None
+        try:
+            report = _recover_one_unlocked_opportunity(
+                job_id=job_id,
+                worker_id=worker_id,
+                rows=rows,
+                store=store,
+                http=http,
+                evidence_index=evidence_index,
+                l23=l23,
+            )
+            report = {**(report or {}), "trigger": reason}
+            if report.get("processed"):
+                _progress(
+                    status="RUNNING",
+                    phase="PG_UNLOCK_MICRO_RECOVERY",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    unlock_recovery=report,
+                )
+            return report
+        except Exception as exc:
+            return {"processed": 0, "reason": "micro_recovery_error", "error": type(exc).__name__, "trigger": reason}
+
     browser_slot_held = False
     try:
         if browser_pending:
@@ -2793,12 +2832,14 @@ def process_slice(
                 holder=f"fspf-{worker_id}", timeout_s=90.0
             )
             if not browser_slot_held:
+                unlock_recovery_report = _try_unlock_micro_recovery("browser_slot_deferred")
                 _progress(
                     status="RUNNING",
                     phase="WAIT_PG_BROWSER_SLOT",
                     job_id=job_id,
                     worker_id=worker_id,
                     note="pg_access_manager_holds_playwright_deferring_browser_slice",
+                    unlock_micro_recovery=unlock_recovery_report,
                 )
                 # Do not block the whole slice forever — return and retry next tick
                 return {
@@ -2807,31 +2848,50 @@ def process_slice(
                     "queue_exhausted": False,
                     "job_id": job_id,
                     "browser_slot_deferred": True,
-                    "pg_group_slice": pg_slice_report,
+                    "pg_group_slice": {
+                        **(pg_slice_report or {}),
+                        "unlock_micro_recovery": unlock_recovery_report,
+                    },
                     "timing_accum": timing_accum,
+                    "unlock_micro_recovery": unlock_recovery_report,
                 }
             auth_status, auth_client = _open_bidnet_auth_client()
             if not auth_status.get("authenticated"):
+                # Release slot so PG manager / unlock recovery can use Playwright.
+                if browser_slot_held:
+                    try:
+                        release_bidnet_browser(holder=f"fspf-{worker_id}")
+                    except Exception:
+                        pass
+                    browser_slot_held = False
+                unlock_recovery_report = _try_unlock_micro_recovery("auth_unavailable")
+                # Transient browser/auth failure must not halt the entire first pass.
                 _progress(
-                    status="BLOCKED",
-                    phase="AUTH_BLOCKER",
+                    status="RUNNING",
+                    phase="AUTH_DEFERRED_CONTINUE",
                     last_blocker=auth_status.get("external_blocker") or auth_status.get("status"),
                     job_id=job_id,
                     worker_id=worker_id,
                     bidnet_auth_status=auth_status.get("status"),
                     auth_message=(auth_status.get("message") or "")[:200],
                     timing_accum=timing_accum,
+                    unlock_micro_recovery=unlock_recovery_report,
+                    note="browser_auth_failed_first_pass_continues_fast_path_and_unlock_recovery",
                 )
                 return {
-                    "slice_complete": False,
+                    "slice_complete": True,
                     "processed_this_slice": processed,
                     "queue_exhausted": False,
                     "job_id": job_id,
-                    "blocked": True,
-                    "reason": "BIDNET_AUTH_REQUIRED",
+                    "browser_auth_deferred": True,
+                    "reason": "BIDNET_AUTH_TRANSIENT",
                     "auth_status": auth_status,
-                    "pg_group_slice": pg_slice_report,
+                    "pg_group_slice": {
+                        **(pg_slice_report or {}),
+                        "unlock_micro_recovery": unlock_recovery_report,
+                    },
                     "timing_accum": timing_accum,
+                    "unlock_micro_recovery": unlock_recovery_report,
                 }
         for idx, item in browser_pending:
             if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
