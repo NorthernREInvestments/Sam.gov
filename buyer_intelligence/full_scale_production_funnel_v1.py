@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v3a"
+BUILD = "20261014-m3-full-scale-production-funnel-v3b"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -1717,10 +1717,127 @@ def _contiguous_resume_cursor(
     while c < len(rows):
         oid = str((rows[c] or {}).get("opportunity_id") or "")
         prev = store.load_item(job_id, oid) if oid else None
-        if not _item_should_skip(prev):
+        if not _item_should_skip(prev, first_pass=True):
             break
         c += 1
     return c
+
+
+def _first_unattempted_index(
+    store: Any,
+    job_id: str,
+    rows: list[dict[str, Any]],
+    *,
+    from_index: int = 0,
+) -> int:
+    """Index of first opportunity not yet attempted in first-pass; len(rows) if none."""
+    return _contiguous_resume_cursor(store, job_id, rows, from_index=from_index)
+
+
+def _backfill_deferred_from_attempted(
+    store: Any,
+    job_id: str,
+    rows: list[dict[str, Any]],
+) -> int:
+    """Ensure previously attempted non-terminal failures are in the deferred queue."""
+    dq = _load_deferred_queue()
+    known = {str(x.get("opportunity_id")) for x in (dq.get("items") or [])}
+    added = 0
+    for i, item in enumerate(rows):
+        oid = str(item.get("opportunity_id") or "")
+        if not oid or oid in known:
+            continue
+        prev = store.load_item(job_id, oid)
+        if not prev:
+            continue
+        result = str(prev.get("RESULT") or "")
+        if not result or result in _PRESERVE_RESULTS:
+            continue
+        if result in {"SUCCESS", "PARTIAL", "SKIPPED_ALREADY_COMPLETE"}:
+            continue
+        # Already-attempted technical / external outcomes → second pass only
+        _defer_opportunity(
+            opportunity_id=oid,
+            stage=prev.get("stage_reached") or prev.get("STAGE_REACHED"),
+            outcome=str(prev.get("funnel_outcome") or result),
+            defect_key=prev.get("software_defect_key"),
+            shared_access_key=prev.get("shared_access_key"),
+            blocker=prev.get("terminal_blocker") or prev.get("TERMINAL_BLOCKER"),
+            index=int(prev.get("INDEX") if prev.get("INDEX") is not None else i),
+        )
+        known.add(oid)
+        added += 1
+    return added
+
+
+def _collect_first_pass_pending(
+    store: Any,
+    job_id: str,
+    rows: list[dict[str, Any]],
+    *,
+    cursor: int,
+    slice_size: int,
+    registered_pgs: set[str],
+) -> tuple[list[tuple[int, dict[str, Any]]], list[tuple[int, dict[str, Any]]], int]:
+    """Collect next first-pass slice. Continues past skipped regions until work is found."""
+    pending: list[tuple[int, dict[str, Any]]] = []
+    registered_pending: list[tuple[int, dict[str, Any]]] = []
+    start = max(0, int(cursor))
+    scan_end = start
+    for j in range(start, len(rows)):
+        scan_end = j + 1
+        item = rows[j]
+        oid = str(item.get("opportunity_id") or "")
+        prev = store.load_item(job_id, oid) if oid else None
+        if _item_should_skip(prev, first_pass=True):
+            continue
+        pg = _pg_id_from_url(item.get("authoritative_url"))
+        if pg and pg in registered_pgs:
+            registered_pending.append((j, item))
+        else:
+            pending.append((j, item))
+        if len(registered_pending) >= slice_size:
+            break
+        if len(registered_pending) + len(pending) >= slice_size * 3 and registered_pending:
+            break
+        if len(pending) >= slice_size * 3 and not registered_pending:
+            break
+
+    out = (registered_pending[:slice_size] + pending)[:slice_size]
+    out.sort(key=lambda t: t[0])
+    return out, registered_pending, scan_end
+
+
+def _heal_false_first_pass_exhaustion(
+    store: Any,
+    job: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str, bool, int]:
+    """If deferred mode was entered while unattempted work remains, restore FIRST_PASS."""
+    meta = dict(job.get("META") or {})
+    pass_mode = str(meta.get("pass_mode") or "FIRST_PASS")
+    cursor = int(job.get("RESUME_CURSOR") or 0)
+    job_id = str(job.get("JOB_ID") or "")
+    next_i = _first_unattempted_index(store, job_id, rows, from_index=0)
+    if pass_mode == "DEFERRED_RECOVERY" and next_i < len(rows):
+        meta["pass_mode"] = "FIRST_PASS"
+        meta["healed_false_exhaustion_at"] = _utc()
+        meta["healed_from_cursor"] = cursor
+        meta["healed_to_cursor"] = next_i
+        job["RESUME_CURSOR"] = next_i
+        job["META"] = meta
+        store.save_job(job)
+        return job, "FIRST_PASS", True, next_i
+    if pass_mode != "DEFERRED_RECOVERY" and cursor > next_i and next_i < len(rows):
+        # Cursor jumped past unattempted work (prior bug) — pull back
+        job["RESUME_CURSOR"] = next_i
+        meta["cursor_healed_at"] = _utc()
+        meta["healed_from_cursor"] = cursor
+        meta["healed_to_cursor"] = next_i
+        job["META"] = meta
+        store.save_job(job)
+        return job, pass_mode or "FIRST_PASS", True, next_i
+    return job, pass_mode, pass_mode != "DEFERRED_RECOVERY", cursor
 
 
 def process_slice(
@@ -1745,10 +1862,8 @@ def process_slice(
 
     queue = _load(QUEUE_FILE) or build_eligible_queue()
     rows = queue.get("rows") or []
-    cursor = int(job.get("RESUME_CURSOR") or 0)
+    job, pass_mode, first_pass, cursor = _heal_false_first_pass_exhaustion(store, job, rows)
     meta = dict(job.get("META") or {})
-    pass_mode = str(meta.get("pass_mode") or "FIRST_PASS")
-    first_pass = pass_mode != "DEFERRED_RECOVERY"
 
     # Rebuild PG registration queue from checkpoints awaiting group access so
     # blocked solicitations are not stranded while the in-memory queue is empty.
@@ -1783,36 +1898,47 @@ def process_slice(
     registered_pending: list[tuple[int, dict[str, Any]]] = []
 
     if first_pass:
-        scan_limit = min(len(rows), cursor + max(slice_size * 40, 800))
-        for i in range(cursor, scan_limit):
-            item = rows[i]
-            oid = str(item.get("opportunity_id") or "")
-            prev = store.load_item(job_id, oid)
-            if _item_should_skip(prev, first_pass=True):
-                continue
-            pg = _pg_id_from_url(item.get("authoritative_url"))
-            if pg and pg in registered_pgs:
-                registered_pending.append((i, item))
-            else:
-                pending.append((i, item))
-            if len(registered_pending) >= slice_size:
-                break
-            if len(registered_pending) + len(pending) >= slice_size * 3 and registered_pending:
-                break
-        pending = (registered_pending[:slice_size] + pending)[:slice_size]
-        pending.sort(key=lambda t: t[0])
+        pending, registered_pending, _scan_end = _collect_first_pass_pending(
+            store,
+            job_id,
+            rows,
+            cursor=cursor,
+            slice_size=slice_size,
+            registered_pgs=registered_pgs,
+        )
         if not pending:
-            # First-pass exhausted → switch to deferred recovery (second pass)
-            meta["pass_mode"] = "DEFERRED_RECOVERY"
-            meta["first_pass_exhausted_at"] = _utc()
-            job["META"] = meta
-            job["RESUME_CURSOR"] = len(rows)
-            store.save_job(job)
-            first_pass = False
-            pass_mode = "DEFERRED_RECOVERY"
+            # Only after the full queue has no unattempted work → deferred recovery
+            next_i = _first_unattempted_index(store, job_id, rows, from_index=0)
+            if next_i < len(rows):
+                job["RESUME_CURSOR"] = next_i
+                meta["pass_mode"] = "FIRST_PASS"
+                job["META"] = meta
+                store.save_job(job)
+                pending, registered_pending, _ = _collect_first_pass_pending(
+                    store,
+                    job_id,
+                    rows,
+                    cursor=next_i,
+                    slice_size=slice_size,
+                    registered_pgs=registered_pgs,
+                )
+                cursor = next_i
+                slice_start_cursor = next_i
+            else:
+                backfilled = _backfill_deferred_from_attempted(store, job_id, rows)
+                meta["pass_mode"] = "DEFERRED_RECOVERY"
+                meta["first_pass_exhausted_at"] = _utc()
+                meta["deferred_backfill_count"] = backfilled
+                job["META"] = meta
+                job["RESUME_CURSOR"] = len(rows)
+                store.save_job(job)
+                first_pass = False
+                pass_mode = "DEFERRED_RECOVERY"
 
     if not first_pass:
         # Second pass: resume deferred errors at exact stage (oldest first)
+        if not (_load_deferred_queue().get("items")):
+            _backfill_deferred_from_attempted(store, job_id, rows)
         dq = _load_deferred_queue()
         deferred_items = list(dq.get("items") or [])
         pending = []
@@ -1828,8 +1954,7 @@ def process_slice(
             idx = int(d.get("queue_index") or 0)
             item = rows[idx] if 0 <= idx < len(rows) else {"opportunity_id": oid}
             if str(item.get("opportunity_id") or "") != oid:
-                item = {"opportunity_id": oid, **{k: item.get(k) for k in ()}}
-                # find by oid in queue
+                item = {"opportunity_id": oid}
                 for j, r in enumerate(rows):
                     if str(r.get("opportunity_id")) == oid:
                         item = r
@@ -1840,6 +1965,21 @@ def process_slice(
                 break
 
     if not pending:
+        # Truly idle only when first-pass has no unattempted work AND deferred is empty
+        next_i = _first_unattempted_index(store, job_id, rows, from_index=0)
+        if next_i < len(rows):
+            job["RESUME_CURSOR"] = next_i
+            meta["pass_mode"] = "FIRST_PASS"
+            job["META"] = meta
+            store.save_job(job)
+            return {
+                "slice_complete": True,
+                "processed_this_slice": 0,
+                "queue_exhausted": False,
+                "job_id": job_id,
+                "pass_mode": "FIRST_PASS",
+                "healed_resume_cursor": next_i,
+            }
         job["RESUME_CURSOR"] = len(rows)
         meta["pass_mode"] = pass_mode
         job["META"] = meta
