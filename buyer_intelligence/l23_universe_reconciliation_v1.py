@@ -43,8 +43,10 @@ EXCLUSION_IDS = f"{OUT}/m3_l23_universe_exclusion_ids_v1.json"
 FROZEN_MANIFEST_CANDIDATES = (
     f"{OUT}/m3_fcf_v1_run_manifest.json",
     f"{OUT}/m3_wddr_v1_frozen_manifest.json",
+    f"{OUT}/m3_wddr_v1_frozen_manifest_ids_only.json",
     f"{OUT}/m3_wddr_v1_manifest.json",
     "m3_wddr_v1_frozen_manifest.json",
+    "m3_wddr_v1_frozen_manifest_ids_only.json",
     "m3_fcf_v1_run_manifest.json",
 )
 QUEUE_FILE = f"{OUT}/m3_fspf_v1_eligible_queue.json"
@@ -93,6 +95,37 @@ def _load_frozen_ids() -> tuple[list[str], str | None]:
         ids = man.get("ids") or man.get("frozen_ids") or []
         if isinstance(ids, list) and ids:
             return [str(x) for x in ids if str(x).strip()], rel
+    # Bundled repo/image fallback (volume may lack the historical manifest).
+    here = Path(__file__).resolve().parents[1]
+    for rel in (
+        here / "fixtures" / "m3_wddr_v1_frozen_manifest_ids_only.json",
+        here / "data" / "_og_commercial_research_pipeline_out" / "m3_wddr_v1_frozen_manifest_ids_only.json",
+        here / "data" / "_og_commercial_research_pipeline_out" / "m3_wddr_v1_frozen_manifest.json",
+        here / "_og_commercial_research_pipeline_out" / "m3_wddr_v1_frozen_manifest_ids_only.json",
+    ):
+        try:
+            if not rel.exists():
+                continue
+            man = json.loads(rel.read_text(encoding="utf-8"))
+            ids = man.get("ids") or man.get("frozen_ids") or []
+            if isinstance(ids, list) and ids:
+                # Seed volume copy so subsequent reconcile/report paths see it.
+                try:
+                    _save(
+                        f"{OUT}/m3_wddr_v1_frozen_manifest_ids_only.json",
+                        {
+                            "kind": "m3_wddr_v1_frozen_manifest",
+                            "frozen": len(ids),
+                            "ids": [str(x) for x in ids if str(x).strip()],
+                            "seeded_from": str(rel),
+                            "NOTE": "ids-only seed from image/repo backup",
+                        },
+                    )
+                except Exception:
+                    pass
+                return [str(x) for x in ids if str(x).strip()], str(rel)
+        except Exception:
+            continue
     return [], None
 
 

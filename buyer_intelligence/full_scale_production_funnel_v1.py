@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e20"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e21"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -292,11 +292,11 @@ def _utc() -> str:
 
 
 def _save(rel: str, obj: Any) -> Path:
+    """Write JSON with volume-safe fallback (see m3_jobs.store._atomic_write)."""
+    from m3_jobs.store import _atomic_write
+
     path = Path(data_path(rel))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, indent=2, default=str), encoding="utf-8")
-    os.replace(tmp, path)
+    _atomic_write(path, obj)
     return path
 
 
@@ -1614,12 +1614,29 @@ def _priority_score(row: dict[str, Any]) -> float:
 
 
 def _save_queue_compact(man: dict[str, Any]) -> Path:
-    """Compact JSON (no indent) — 10k-row queues must stay writable under memory pressure."""
+    """Compact JSON (no indent) — large queues must stay writable under memory pressure."""
     path = Path(data_path(QUEUE_FILE))
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(man, separators=(",", ":"), default=str), encoding="utf-8")
-    os.replace(tmp, path)
+    raw = json.dumps(man, separators=(",", ":"), default=str)
+    try:
+        import tempfile
+
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(raw)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp_name, path)
+        except OSError:
+            try:
+                if os.path.exists(tmp_name):
+                    os.unlink(tmp_name)
+            except OSError:
+                pass
+            path.write_text(raw, encoding="utf-8")
+    except Exception:
+        path.write_text(raw, encoding="utf-8")
     return path
 
 
@@ -1898,6 +1915,61 @@ def archive_prior_run(job_id: str) -> dict[str, Any]:
         "archive_path": str(arch_root),
         "item_count": payload["item_count"],
         "eligible_total": payload["queue_eligible_total"],
+    }
+
+
+def verify_expanded_queue_integrity(
+    *,
+    expected_total: int = 29845,
+    expected_original: int = 10099,
+    expected_appended: int = 19746,
+) -> dict[str, Any]:
+    """Bounded uniqueness / durability check for the expanded production queue."""
+    queue = _load(QUEUE_FILE) or {}
+    rows = [r for r in (queue.get("rows") or []) if isinstance(r, dict)]
+    ids = [str(r.get("opportunity_id") or "").strip() for r in rows]
+    ids = [x for x in ids if x]
+    unique = set(ids)
+    appended_flag = [
+        str(r.get("opportunity_id") or "").strip()
+        for r in rows
+        if isinstance(r, dict) and r.get("l23_universe_append") and r.get("opportunity_id")
+    ]
+    append_man = _load(f"{OUT}/m3_l23_universe_append_manifest_v1.json") or {}
+    sample_appended = list(append_man.get("sample_appended_ids") or [])
+    missing_samples = [x for x in sample_appended if x not in unique]
+    store = JobStore(FAMILY)
+    active = store.find_active_job(stale_seconds=86400) or {}
+    job_id = str(active.get("JOB_ID") or "")
+    job = store.load_job(job_id) if job_id else None
+    cursor = int((job or {}).get("RESUME_CURSOR") or 0) if job else None
+    return {
+        "kind": "ExpandedQueueIntegrity",
+        "build": BUILD,
+        "at": _utc(),
+        "expected_total": expected_total,
+        "expected_original": expected_original,
+        "expected_appended": expected_appended,
+        "row_count": len(rows),
+        "id_count": len(ids),
+        "unique_ids": len(unique),
+        "duplicate_ids": len(ids) - len(unique),
+        "eligible_total_field": queue.get("eligible_total"),
+        "l23_append_flag_count": len(appended_flag),
+        "append_manifest_appended": append_man.get("appended"),
+        "append_manifest_queue_after": append_man.get("queue_after"),
+        "sample_appended_present": len(sample_appended) - len(missing_samples),
+        "sample_appended_missing": missing_samples[:20],
+        "resume_cursor": cursor,
+        "job_id": job_id or None,
+        "job_status": (job or {}).get("STATUS"),
+        "ok": bool(
+            len(unique) == expected_total
+            and len(ids) == expected_total
+            and (len(ids) - len(unique)) == 0
+            and int(queue.get("eligible_total") or 0) == expected_total
+            and not missing_samples
+        ),
     }
 
 
@@ -2587,17 +2659,33 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
     total = max(int(job.get("TOTAL") or 0), int(queue.get("eligible_total") or 0))
     if int(queue.get("eligible_total") or 0) > int(job.get("TOTAL") or 0):
         total = int(queue.get("eligible_total") or total)
+    # Prefer live progress heartbeat/worker — job.json may lag when volume renames fail.
+    prog_live = _load(PROGRESS_FILE) or {}
+    live_hb = str(prog_live.get("heartbeat_at") or "")
+    job_hb = str(job.get("HEARTBEAT_AT") or "")
+    prefer_prog = bool(live_hb and (not job_hb or live_hb > job_hb))
     scorecard = {
         "kind": "FullScaleProductionFunnelScorecard",
         "build": BUILD,
         "at": _utc(),
         "AUTO_SEND": AUTO_SEND,
         "job_id": job.get("JOB_ID"),
-        "worker_id": job.get("WORKER_ID"),
-        "status": job.get("STATUS") or "UNKNOWN",
-        "heartbeat_at": job.get("HEARTBEAT_AT"),
-        "last_checkpoint_at": job.get("LAST_CHECKPOINT_AT"),
-        "current_opportunity_id": job.get("CURRENT_OPPORTUNITY_ID"),
+        "worker_id": (
+            (prog_live.get("worker_id") if prefer_prog else None)
+            or job.get("WORKER_ID")
+            or prog_live.get("worker_id")
+        ),
+        "status": (
+            (prog_live.get("status") if prefer_prog else None)
+            or job.get("STATUS")
+            or "UNKNOWN"
+        ),
+        "heartbeat_at": live_hb if prefer_prog else (job_hb or live_hb or None),
+        "last_checkpoint_at": job.get("LAST_CHECKPOINT_AT") or live_hb or None,
+        "current_opportunity_id": (
+            prog_live.get("current_opportunity_id")
+            or job.get("CURRENT_OPPORTUNITY_ID")
+        ),
         "metrics": {
             "live_eligible_product_opportunities": total,
             "opportunities_processed": completed,
@@ -4103,19 +4191,34 @@ def start_job(
             "CANCELLED",
             "BLOCKED",
             "ERROR",
+            "FAILED",
         }:
             # Resume original production job even after stop/error — do not create a parallel worker job
             chosen_id = str(active["JOB_ID"])
             job = store.load_job(chosen_id) or active
         else:
             # Scan newest for the original family job before creating
+            # (includes FAILED — volume write crashes must not spawn a competing job)
             chosen_id = None
             for p in sorted(store.root.glob("*/job.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:10]:
                 cand = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
                 if isinstance(cand, dict) and cand.get("FAMILY") == FAMILY:
-                    chosen_id = str(cand["JOB_ID"])
-                    job = cand
-                    break
+                    st = str(cand.get("STATUS") or "")
+                    if st in {
+                        "RUNNING",
+                        "CREATED",
+                        "INTERRUPTED",
+                        "STALE_RELEASED",
+                        "STOPPED",
+                        "CANCELLED",
+                        "BLOCKED",
+                        "ERROR",
+                        "FAILED",
+                        "COMPLETED",
+                    } or not st:
+                        chosen_id = str(cand["JOB_ID"])
+                        job = cand
+                        break
             if not chosen_id:
                 job = store.create_job(
                     total=prior_total or 0,

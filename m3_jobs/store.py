@@ -19,10 +19,36 @@ def _utc() -> str:
 
 
 def _atomic_write(path: Path, payload: Any) -> None:
+    """Persist JSON durably.
+
+    Prefer same-directory temp + replace. Some Railway volume mounts intermittently
+    fail Path.replace on ``*.json.tmp`` (FileNotFoundError on the temp source) —
+    fall back to a direct write so heartbeats/checkpoints cannot kill the worker.
+    """
+    import os
+    import tempfile
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-    tmp.replace(path)
+    raw = json.dumps(payload, indent=2, default=str)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(raw)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    except OSError:
+        try:
+            if os.path.exists(tmp_name):
+                os.unlink(tmp_name)
+        except OSError:
+            pass
+        # Direct overwrite — still durable enough for checkpoint/heartbeat continuity.
+        path.write_text(raw, encoding="utf-8")
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -324,7 +350,16 @@ class JobStore:
             candidates = sorted(self.root.glob("*/job.json"), key=lambda p: p.stat().st_mtime, reverse=True)
             for p in candidates[:5]:
                 job = _read_json(p)
-                if job and job.get("STATUS") in {"RUNNING", "CREATED", "INTERRUPTED", "STALE_RELEASED"}:
+                if job and job.get("STATUS") in {
+                    "RUNNING",
+                    "CREATED",
+                    "INTERRUPTED",
+                    "STALE_RELEASED",
+                    "STOPPED",
+                    "FAILED",
+                    "ERROR",
+                    "BLOCKED",
+                }:
                     return job
             return None
         job = self.load_job(str(ptr["JOB_ID"]))

@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e20"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e21"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1795,6 +1795,13 @@ def api_m3_full_scale_production_funnel_reconcile():
     from buyer_intelligence.full_scale_production_funnel_v1 import reconcile_eligible_universe
 
     return {"build_version": APP_BUILD_VERSION, **reconcile_eligible_universe()}
+
+
+@app.get("/api/m3/full-scale-production-funnel/queue-integrity")
+def api_m3_full_scale_production_funnel_queue_integrity():
+    from buyer_intelligence.full_scale_production_funnel_v1 import verify_expanded_queue_integrity
+
+    return {"build_version": APP_BUILD_VERSION, **verify_expanded_queue_integrity()}
 
 
 @app.get("/api/m3/full-scale-production-funnel/reconcile-l23-universe")
