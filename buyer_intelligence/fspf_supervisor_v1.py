@@ -26,13 +26,17 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.fspf_supervisor_v1")
 
-BUILD = "20261015-m3-fspf-supervisor-v1"
+BUILD = "20261015-m3-fspf-supervisor-v1b"
 FAMILY = "full_scale_production_funnel_v1"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_fspf_supervisor_status_v1.json"
 
 POLL_S = float(os.environ.get("M3_FSPF_SUPERVISOR_POLL_S") or "12")
 STALL_DETECT_S = float(os.environ.get("M3_FSPF_STALL_DETECT_S") or "90")
 STALL_RECOVER_S = float(os.environ.get("M3_FSPF_STALL_RECOVER_S") or "120")
+# Fresh heartbeat buys bounded grace up to one opportunity wall-clock.
+ITEM_BUDGET_S = float(os.environ.get("M3_FSPF_SUPERVISOR_ITEM_BUDGET_S") or "140")
+# After a recovery/start, allow queue load + slice setup before stalling.
+POST_START_GRACE_S = float(os.environ.get("M3_FSPF_SUPERVISOR_POST_START_GRACE_S") or "180")
 # Max automatic recoveries in a rolling window
 MAX_RECOVERIES = int(os.environ.get("M3_FSPF_SUPERVISOR_MAX_RECOVERIES") or "8")
 RECOVERY_WINDOW_S = float(os.environ.get("M3_FSPF_SUPERVISOR_RECOVERY_WINDOW_S") or "3600")
@@ -207,10 +211,20 @@ def _supervisor_loop(*, supervisor_id: str) -> None:
         ticks += 1
         try:
             store = JobStore(FSPF_FAMILY)
-            # Prefer active pointer / unfinished family job (includes STALE/FAILED)
-            job = store.find_active_job(stale_seconds=STALL_DETECT_S) or {}
+            # READ-ONLY discovery — never call find_active_job with a short
+            # stale_seconds here (that mutates RUNNING → STALE_RELEASED).
+            job: dict[str, Any] = {}
+            ptr = store.active_pointer_path()
+            try:
+                import json as _json
+
+                if ptr.exists():
+                    ptr_data = _json.loads(ptr.read_text(encoding="utf-8"))
+                    if isinstance(ptr_data, dict) and ptr_data.get("JOB_ID"):
+                        job = store.load_job(str(ptr_data["JOB_ID"])) or {}
+            except Exception:
+                job = {}
             if not job or not job.get("JOB_ID"):
-                # Scan for unfinished production job
                 for p in sorted(
                     store.root.glob("*/job.json"),
                     key=lambda x: x.stat().st_mtime,
@@ -232,6 +246,7 @@ def _supervisor_loop(*, supervisor_id: str) -> None:
             hb_age = _age_s(
                 (job or {}).get("HEARTBEAT_AT") or prog.get("heartbeat_at")
             )
+            worker_started = _age_s((job or {}).get("UPDATED_AT") or prog.get("at"))
             # Already-stale / failed jobs: seed idle clock from heartbeat age so
             # deploy-time recovery does not wait another full 120s blindly.
             if last_marker is None and marker is not None:
@@ -257,10 +272,34 @@ def _supervisor_loop(*, supervisor_id: str) -> None:
                 > int(job.get("COMPLETED") or prog.get("completed") or 0)
             ):
                 idle_s = now - last_marker_at
-                # Heartbeat-stale RUNNING with no progress also counts.
-                if hb_age is not None and hb_age > idle_s:
-                    idle_s = hb_age
-                if idle_s >= STALL_DETECT_S:
+                # Post-start grace: queue load / slice setup can take >120s on 30k.
+                if (
+                    status == "RUNNING"
+                    and worker_started is not None
+                    and worker_started < POST_START_GRACE_S
+                    and (hb_age is None or hb_age < POST_START_GRACE_S)
+                ):
+                    _save_status(
+                        running=True,
+                        phase="POST_START_GRACE",
+                        ticks=ticks,
+                        job_id=jid or None,
+                        worker_started_s=round(worker_started, 1),
+                        hb_age_s=None if hb_age is None else round(hb_age, 1),
+                        idle_s=round(idle_s, 1),
+                    )
+                    _stop.wait(POLL_S)
+                    continue
+                # Fresh heartbeat ⇒ allow up to one item budget before declaring stall.
+                if hb_age is not None and hb_age <= 45.0:
+                    recover_after = max(STALL_RECOVER_S, ITEM_BUDGET_S)
+                else:
+                    # Dead/missing heartbeat — recover at the hard 120s target.
+                    recover_after = STALL_RECOVER_S
+                    if hb_age is not None and hb_age > idle_s:
+                        idle_s = hb_age
+                detect_after = min(STALL_DETECT_S, recover_after)
+                if idle_s >= detect_after:
                     if stall_since is None:
                         stall_since = last_marker_at + STALL_DETECT_S
                     _save_status(
@@ -274,7 +313,7 @@ def _supervisor_loop(*, supervisor_id: str) -> None:
                         job_status=job.get("STATUS"),
                         progress_status=prog.get("status"),
                     )
-                    if idle_s >= STALL_RECOVER_S:
+                    if idle_s >= recover_after:
                         recovery_times = _trim_recoveries(recovery_times)
                         last_rec = recovery_times[-1] if recovery_times else 0.0
                         if now - last_rec < RECOVERY_COOLDOWN_S:

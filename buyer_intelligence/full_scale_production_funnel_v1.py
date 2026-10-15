@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e22"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e23"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -3185,8 +3185,47 @@ def process_slice(
             "lease_superseded": True,
         }
 
+    # Heartbeat before heavy I/O so supervisor post-start grace sees a live pulse.
+    try:
+        store.heartbeat(
+            job_id,
+            worker_id=worker_id,
+            lease_generation=lease_generation,
+            current_index=job.get("CURRENT_INDEX"),
+            current_opportunity_id=job.get("CURRENT_OPPORTUNITY_ID"),
+        )
+        _progress(
+            status="RUNNING",
+            phase="SLICE_SETUP",
+            job_id=job_id,
+            worker_id=worker_id,
+            lease_generation=lease_generation,
+        )
+    except JobLeaseError:
+        return {
+            "slice_complete": False,
+            "processed_this_slice": 0,
+            "queue_exhausted": False,
+            "job_id": job_id,
+            "lease_superseded": True,
+        }
+
     queue = _load(QUEUE_FILE) or build_eligible_queue()
     rows = queue.get("rows") or []
+    try:
+        store.heartbeat(
+            job_id,
+            worker_id=worker_id,
+            lease_generation=lease_generation,
+        )
+    except JobLeaseError:
+        return {
+            "slice_complete": False,
+            "processed_this_slice": 0,
+            "queue_exhausted": False,
+            "job_id": job_id,
+            "lease_superseded": True,
+        }
     job, pass_mode, first_pass, cursor = _heal_false_first_pass_exhaustion(store, job, rows)
     meta = dict(job.get("META") or {})
     # One-shot: if this job is a ground-zero new_run, drop deferred items that

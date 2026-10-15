@@ -399,7 +399,18 @@ class JobStore:
             _atomic_write(self.lease_path(job_id), lease)
             return job
 
-    def find_active_job(self, *, stale_seconds: float = 120.0) -> dict[str, Any] | None:
+    def find_active_job(
+        self,
+        *,
+        stale_seconds: float = 120.0,
+        mutate_stale: bool = True,
+    ) -> dict[str, Any] | None:
+        """Return the active family job.
+
+        When ``mutate_stale`` is False, a heartbeat older than ``stale_seconds``
+        is reported as STALE_RELEASED in the returned dict without writing disk
+        (supervisors must not side-effect-kill a live worker).
+        """
         ptr = _read_json(self.active_pointer_path())
         if not ptr or not ptr.get("JOB_ID"):
             # scan newest dirs
@@ -429,6 +440,12 @@ class JobStore:
                 try:
                     ts = datetime.fromisoformat(str(hb).replace("Z", "+00:00"))
                     if (datetime.now(timezone.utc) - ts).total_seconds() > stale_seconds:
+                        if not mutate_stale:
+                            out = dict(job)
+                            out["STATUS"] = "STALE_RELEASED"
+                            out["LAST_ERROR"] = "STALE_NO_HEARTBEAT"
+                            out["_stale_observed_only"] = True
+                            return out
                         job["STATUS"] = "STALE_RELEASED"
                         job["LAST_ERROR"] = "STALE_NO_HEARTBEAT"
                         return self.save_job(job)
