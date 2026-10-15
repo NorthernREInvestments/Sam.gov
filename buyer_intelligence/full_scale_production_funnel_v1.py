@@ -1920,11 +1920,15 @@ def archive_prior_run(job_id: str) -> dict[str, Any]:
 
 def verify_expanded_queue_integrity(
     *,
-    expected_total: int = 29845,
+    expected_total: int | None = None,
     expected_original: int = 10099,
-    expected_appended: int = 19746,
+    expected_appended: int | None = None,
 ) -> dict[str, Any]:
-    """Bounded uniqueness / durability check for the expanded production queue."""
+    """Bounded uniqueness / durability check for the expanded production queue.
+
+    When expected_total is omitted, the live queue ``eligible_total`` / unique
+    count is the authority (supports further L23 admissions beyond 29,845).
+    """
     queue = _load(QUEUE_FILE) or {}
     rows = [r for r in (queue.get("rows") or []) if isinstance(r, dict)]
     ids = [str(r.get("opportunity_id") or "").strip() for r in rows]
@@ -1938,6 +1942,11 @@ def verify_expanded_queue_integrity(
     append_man = _load(f"{OUT}/m3_l23_universe_append_manifest_v1.json") or {}
     sample_appended = list(append_man.get("sample_appended_ids") or [])
     missing_samples = [x for x in sample_appended if x not in unique]
+    live_total = int(queue.get("eligible_total") or len(unique) or 0)
+    if expected_total is None:
+        expected_total = live_total
+    if expected_appended is None:
+        expected_appended = max(0, live_total - int(expected_original))
     store = JobStore(FAMILY)
     active = store.find_active_job(stale_seconds=86400) or {}
     job_id = str(active.get("JOB_ID") or "")
@@ -1950,6 +1959,7 @@ def verify_expanded_queue_integrity(
         "expected_total": expected_total,
         "expected_original": expected_original,
         "expected_appended": expected_appended,
+        "baseline_29845_preserved": len(unique) >= 29845,
         "row_count": len(rows),
         "id_count": len(ids),
         "unique_ids": len(unique),
@@ -1969,6 +1979,7 @@ def verify_expanded_queue_integrity(
             and (len(ids) - len(unique)) == 0
             and int(queue.get("eligible_total") or 0) == expected_total
             and not missing_samples
+            and len(unique) >= 29845
         ),
     }
 
