@@ -34,7 +34,7 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = logging.getLogger("govtracker.l23_universe_reconciliation_v1")
 
-BUILD = "20261015-m3-l23-universe-reconciliation-v1b"
+BUILD = "20261015-m3-l23-universe-reconciliation-v1c"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_l23_universe_reconciliation_v1.json"
 PROGRESS = f"{OUT}/m3_l23_universe_reconciliation_progress_v1.json"
@@ -76,27 +76,11 @@ def _load(rel: str) -> Any:
 
 
 def _save(rel: str, payload: Any) -> Path:
-    import os
-    import tempfile
-
+    """Write JSON durably. Prefer direct write — some volume mounts reject *.json.tmp rename."""
     path = Path(data_path(rel))
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = json.dumps(payload, separators=(",", ":"), default=str)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".",
-        suffix=".tmp",
-        dir=str(path.parent),
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(raw)
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except Exception:
-            pass
-        raise
+    path.write_text(raw, encoding="utf-8")
     return path
 
 
