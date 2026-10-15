@@ -1799,10 +1799,25 @@ def api_m3_full_scale_production_funnel_reconcile():
 
 @app.get("/api/m3/full-scale-production-funnel/reconcile-l23-universe")
 def api_m3_full_scale_production_funnel_reconcile_l23():
-    """Full L23 (all physical records) ↔ production queue reconciliation."""
-    from buyer_intelligence.l23_universe_reconciliation_v1 import reconcile_l23_universe
+    """Status / last report for full L23 reconciliation (non-blocking)."""
+    from buyer_intelligence.l23_universe_reconciliation_v1 import reconciliation_status
 
-    return {"build_version": APP_BUILD_VERSION, **reconcile_l23_universe()}
+    return {"build_version": APP_BUILD_VERSION, **reconciliation_status()}
+
+
+@app.post("/api/m3/full-scale-production-funnel/reconcile-l23-universe")
+def api_m3_full_scale_production_funnel_reconcile_l23_start(body: dict | None = None):
+    """Start background full-L23 reconciliation (avoids HTTP gateway timeouts)."""
+    from buyer_intelligence.l23_universe_reconciliation_v1 import (
+        reconcile_l23_universe,
+        start_reconcile_l23_universe_async,
+    )
+
+    payload = body or {}
+    if payload.get("sync"):
+        # Explicit sync only for small test envs — production uses async.
+        return {"build_version": APP_BUILD_VERSION, **reconcile_l23_universe()}
+    return {"build_version": APP_BUILD_VERSION, **start_reconcile_l23_universe_async()}
 
 
 @app.post("/api/m3/full-scale-production-funnel/append-missing-from-l23")
@@ -1811,10 +1826,11 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
 
     Does not reset RESUME_CURSOR or start a competing worker.
     """
+    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
     from buyer_intelligence.l23_universe_reconciliation_v1 import (
         append_missing_to_production_queue,
+        reconciliation_status,
     )
-    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
     from m3_jobs.store import JobStore
 
     payload = body or {}
@@ -1822,6 +1838,18 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
     if not jid:
         active = JobStore(FAMILY).find_active_job(stale_seconds=86400) or {}
         jid = active.get("JOB_ID")
+    st = reconciliation_status()
+    prog = (st.get("progress") or {}).get("status")
+    if not payload.get("force_reconcile") and prog not in {"COMPLETE"} and not st.get(
+        "report_ready"
+    ):
+        return {
+            "ok": False,
+            "error": "reconciliation_not_complete",
+            "hint": "POST /reconcile-l23-universe then poll GET until status=COMPLETE",
+            "build_version": APP_BUILD_VERSION,
+            **st,
+        }
     return {
         "build_version": APP_BUILD_VERSION,
         **append_missing_to_production_queue(
@@ -1832,6 +1860,7 @@ def api_m3_full_scale_production_funnel_append_missing_from_l23(body: dict | Non
                 if payload.get("max_append") not in (None, "")
                 else None
             ),
+            force_reconcile=bool(payload.get("force_reconcile", False)),
         ),
     }
 

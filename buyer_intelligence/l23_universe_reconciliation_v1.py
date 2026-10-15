@@ -3,12 +3,16 @@
 Accounts for every physical L23 record by canonical opportunity ID.
 Appends incorrectly excluded / unresolved IDs onto the EXISTING FSPF queue
 without resetting RESUME_CURSOR or starting a competing worker.
+
+Reconciliation is an inexpensive local scan (no Playwright / SAM). Long scans
+run in a background thread so HTTP proxies do not 502.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import threading
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -19,6 +23,10 @@ from buyer_intelligence.available_deals_visibility_v1 import (
     NEEDS_VERIFICATION,
     READY,
     WORTH,
+    _deadline_status,
+    _is_expired,
+    _product_class,
+    classify_eligibility,
     classify_record,
 )
 from m3_data_root import data_path
@@ -26,9 +34,10 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = logging.getLogger("govtracker.l23_universe_reconciliation_v1")
 
-BUILD = "20261015-m3-l23-universe-reconciliation-v1"
+BUILD = "20261015-m3-l23-universe-reconciliation-v1b"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_l23_universe_reconciliation_v1.json"
+PROGRESS = f"{OUT}/m3_l23_universe_reconciliation_progress_v1.json"
 APPEND_MANIFEST = f"{OUT}/m3_l23_universe_append_manifest_v1.json"
 EXCLUSION_IDS = f"{OUT}/m3_l23_universe_exclusion_ids_v1.json"
 FROZEN_MANIFEST_CANDIDATES = (
@@ -37,6 +46,9 @@ FROZEN_MANIFEST_CANDIDATES = (
 )
 QUEUE_FILE = f"{OUT}/m3_fspf_v1_eligible_queue.json"
 ADV_DEALS = f"{OUT}/m3_adv_v1_available_deals.json"
+
+_recon_lock = threading.Lock()
+_recon_thread: threading.Thread | None = None
 
 # Mutually exclusive physical-record categories (priority order applied in classify).
 CAT_IN_QUEUE = "existing_production_queue"
@@ -156,19 +168,108 @@ def _category_for_classified(cl: dict[str, Any], *, in_queue: bool) -> tuple[str
     return CAT_OTHER, f"unclassified:{bucket or funnel or pc or 'NONE'}"
 
 
+def _fast_gate_classify(oid: str, rec: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic visibility gates without commercial overlay / priority scoring."""
+    elig = classify_eligibility(rec)
+    pc = _product_class(rec)
+    expired = _is_expired(rec)
+    dl_status = _deadline_status(rec)
+    funnel = str(rec.get("current_funnel_state") or "")
+
+    if expired:
+        bucket = BLOCKED
+        block_reason = "EXPIRED" if dl_status != "CANCELLED" else "CANCELLED"
+    elif pc == "NON_PRODUCT":
+        bucket = BLOCKED
+        block_reason = "NON_PRODUCT"
+    elif elig.get("eligible") is False:
+        bucket = BLOCKED
+        block_reason = elig.get("reason") or "INELIGIBLE_SET_ASIDE"
+    elif dl_status in {"DEADLINE_UNKNOWN", "DEADLINE_CONFLICT"}:
+        bucket = NEEDS_VERIFICATION
+        block_reason = dl_status
+    elif funnel.upper() in {"DUPLICATE", "SUPERSEDED", "AMENDED_SUPERSEDED"}:
+        bucket = BLOCKED
+        block_reason = "DUPLICATE"
+    else:
+        bucket = WORTH
+        block_reason = None
+
+    return {
+        "opportunity_id": oid,
+        "product": rec.get("title"),
+        "visibility_bucket": bucket,
+        "block_reason": block_reason,
+        "deadline_status": dl_status,
+        "product_class": pc,
+        "funnel_state": funnel,
+        "eligible": elig.get("eligible"),
+        "eligibility_reason": elig.get("reason"),
+        "authoritative_url": rec.get("authoritative_url"),
+        "deadline": rec.get("deadline"),
+        "days_left": None,
+        "common_product": False,
+        "research_priority_score": 0,
+    }
+
+
+def _write_progress(**kwargs: Any) -> None:
+    blob = _load(PROGRESS) or {}
+    blob.update(kwargs)
+    blob["at"] = _utc()
+    blob["build"] = BUILD
+    _save(PROGRESS, blob)
+
+
+def reconciliation_status() -> dict[str, Any]:
+    prog = _load(PROGRESS) or {}
+    report = _load(REPORT) or {}
+    excl = _load(EXCLUSION_IDS) or {}
+    return {
+        "build": BUILD,
+        "progress": prog,
+        "report_ready": bool(report.get("total_reconciled")),
+        "append_candidates": (
+            len(excl.get("append_candidates") or [])
+            if excl
+            else report.get("append_candidates")
+        ),
+        "report_summary": {
+            k: report.get(k)
+            for k in (
+                "l23_physical_records",
+                "total_reconciled",
+                "unexplained_gap",
+                "mutually_exclusive_breakdown",
+                "frozen_cohort_ids",
+                "frozen_ids_found_in_l23",
+                "frozen_ids_missing_from_l23",
+                "current_production_queue",
+                "append_candidates",
+                "at",
+            )
+        }
+        if report
+        else None,
+    }
+
+
 def reconcile_l23_universe(*, progress_cb: Any | None = None) -> dict[str, Any]:
     """Classify every L23 physical record; reconcile against queue + frozen cohort."""
-    import buyer_intelligence.available_deals_visibility_v1 as adv_mod
-
-    # Skip commercial overlay I/O during universe scan (deterministic gates only).
-    adv_mod._COMMERCIAL_INDEX = {}
-
+    _write_progress(status="RUNNING", phase="LOAD_STORE", examined=0)
     store = load_store() or {}
     physical = len(store)
     queue_ids = _queue_ids()
     adv_ids = _adv_deal_ids()
     frozen_ids, frozen_src = _load_frozen_ids()
     frozen_set = set(frozen_ids)
+    _write_progress(
+        status="RUNNING",
+        phase="CLASSIFY",
+        examined=0,
+        physical=physical,
+        queue_size=len(queue_ids),
+    )
 
     by_cat: dict[str, list[str]] = {
         CAT_IN_QUEUE: [],
@@ -191,7 +292,7 @@ def reconcile_l23_universe(*, progress_cb: Any | None = None) -> dict[str, Any]:
             continue
         oid_s = str(oid).strip()
         try:
-            cl = classify_record(oid_s, rec)
+            cl = _fast_gate_classify(oid_s, rec)
         except Exception as exc:
             by_cat[CAT_OTHER].append(oid_s)
             reason_counts[f"classify_error:{type(exc).__name__}"] += 1
@@ -209,21 +310,28 @@ def reconcile_l23_universe(*, progress_cb: Any | None = None) -> dict[str, Any]:
                     "block_reason": cl.get("block_reason"),
                     "deadline_status": cl.get("deadline_status"),
                     "product_class": cl.get("product_class"),
-                    "title": (cl.get("product") or "")[:120],
+                    "title": (str(cl.get("product") or ""))[:120],
                 }
             )
-        if progress_cb and (i + 1) % 2000 == 0:
-            try:
-                progress_cb(examined=i + 1, physical=physical)
-            except Exception:
-                pass
+        if (i + 1) % 2000 == 0:
+            _write_progress(
+                status="RUNNING",
+                phase="CLASSIFY",
+                examined=i + 1,
+                physical=physical,
+            )
+            if progress_cb:
+                try:
+                    progress_cb(examined=i + 1, physical=physical)
+                except Exception:
+                    pass
 
     counts = {k: len(v) for k, v in by_cat.items()}
     reconciled = sum(counts.values())
 
-    frozen_in_l23 = sorted(frozen_set & set(store.keys()))
+    frozen_in_l23 = frozen_set & set(store.keys())
     frozen_missing = sorted(frozen_set - set(store.keys()))
-    queue_in_l23 = sorted(queue_ids & set(store.keys()))
+    queue_in_l23 = queue_ids & set(store.keys())
     queue_not_in_l23 = sorted(queue_ids - set(store.keys()))
 
     append_candidates = sorted(
@@ -235,7 +343,7 @@ def reconcile_l23_universe(*, progress_cb: Any | None = None) -> dict[str, Any]:
         "build": BUILD,
         "at": _utc(),
         "l23_physical_records": physical,
-        "l23_unique_canonical_ids": physical,  # store is keyed by canonical id
+        "l23_unique_canonical_ids": physical,
         "physical_vs_unique_note": (
             "L23 store is a dict keyed by canonical_opportunity_id; "
             "physical record count equals unique canonical IDs."
@@ -277,7 +385,40 @@ def reconcile_l23_universe(*, progress_cb: Any | None = None) -> dict[str, Any]:
             "queue_not_in_l23": queue_not_in_l23,
         },
     )
+    _write_progress(
+        status="COMPLETE",
+        phase="DONE",
+        examined=physical,
+        physical=physical,
+        append_candidates=len(append_candidates),
+        total_reconciled=reconciled,
+    )
     return report
+
+
+def start_reconcile_l23_universe_async() -> dict[str, Any]:
+    """Start (or report) background reconciliation — avoids HTTP gateway timeouts."""
+    global _recon_thread
+    with _recon_lock:
+        if _recon_thread is not None and _recon_thread.is_alive():
+            return {"ok": True, "started": False, "status": "ALREADY_RUNNING", **reconciliation_status()}
+
+        def _run() -> None:
+            try:
+                reconcile_l23_universe()
+            except Exception as exc:
+                _write_progress(
+                    status="FAILED",
+                    phase="ERROR",
+                    error=f"{type(exc).__name__}:{exc}"[:240],
+                )
+
+        _recon_thread = threading.Thread(
+            target=_run, name="l23-universe-reconcile", daemon=True
+        )
+        _recon_thread.start()
+        _write_progress(status="STARTED", phase="THREAD", examined=0)
+        return {"ok": True, "started": True, "status": "STARTED", "build": BUILD}
 
 
 def append_missing_to_production_queue(
@@ -285,6 +426,7 @@ def append_missing_to_production_queue(
     job_id: str | None = None,
     dry_run: bool = False,
     max_append: int | None = None,
+    force_reconcile: bool = False,
 ) -> dict[str, Any]:
     """Atomically append missing eligible/unresolved IDs to the end of the live queue.
 
@@ -299,9 +441,11 @@ def append_missing_to_production_queue(
     )
     from m3_jobs.store import JobStore
 
-    # Ensure fresh classification
-    recon = reconcile_l23_universe()
     excl = _load(EXCLUSION_IDS) or {}
+    recon = _load(REPORT) or {}
+    if force_reconcile or not isinstance(excl.get("by_category"), dict):
+        recon = reconcile_l23_universe()
+        excl = _load(EXCLUSION_IDS) or {}
     candidates = list(excl.get("append_candidates") or [])
     if max_append is not None:
         candidates = candidates[: int(max_append)]
