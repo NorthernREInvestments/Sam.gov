@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e10"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e11"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2819,6 +2819,34 @@ def process_slice(
         except Exception as exc:
             return {"processed": 0, "reason": "micro_recovery_error", "error": type(exc).__name__, "trigger": reason}
 
+    def _defer_browser_pending_back(reason: str, blocker: str) -> int:
+        """Send unrun browser items to the back of the line and advance the cursor.
+
+        Prevents infinite re-selection of the same slice while Playwright is busy
+        with PG registration — first-pass must keep moving.
+        """
+        deferred_n = 0
+        for idx, item in browser_pending:
+            oid = str(item.get("opportunity_id") or "")
+            if not oid:
+                continue
+            row = {
+                "opportunity_id": oid,
+                "terminal_blocker": blocker,
+                "funnel_outcome": "DEFERRED_EXTERNAL",
+                "stage_reached": "ACCESS_DOCS",
+                "defer": True,
+                "software_defect_key": reason,
+                "shared_access_key": item.get("shared_access_key"),
+                "access_fast_path": False,
+                "fetch_via": "browser_unavailable_deferred",
+                "documents_downloaded": 0,
+                "note": f"Deferred to back of line: {reason}",
+            }
+            _commit_row(idx, item, row)
+            deferred_n += 1
+        return deferred_n
+
     browser_slot_held = False
     try:
         if browser_pending:
@@ -2827,27 +2855,31 @@ def process_slice(
                 try_acquire_bidnet_browser,
             )
 
-            # Opportunity lane owns Playwright while browser work runs; PG manager waits.
+            # Bounded wait — do not stall first-pass for minutes behind PG registration.
             browser_slot_held = try_acquire_bidnet_browser(
-                holder=f"fspf-{worker_id}", timeout_s=90.0
+                holder=f"fspf-{worker_id}", timeout_s=20.0
             )
             if not browser_slot_held:
+                deferred_n = _defer_browser_pending_back(
+                    "browser_slot_busy", "BROWSER_SLOT_BUSY"
+                )
                 unlock_recovery_report = _try_unlock_micro_recovery("browser_slot_deferred")
                 _progress(
                     status="RUNNING",
-                    phase="WAIT_PG_BROWSER_SLOT",
+                    phase="BROWSER_SLOT_DEFER_CONTINUE",
                     job_id=job_id,
                     worker_id=worker_id,
-                    note="pg_access_manager_holds_playwright_deferring_browser_slice",
+                    note="playwright_busy_browser_items_sent_to_back_of_line",
+                    browser_items_deferred=deferred_n,
                     unlock_micro_recovery=unlock_recovery_report,
                 )
-                # Do not block the whole slice forever — return and retry next tick
                 return {
                     "slice_complete": True,
                     "processed_this_slice": processed,
                     "queue_exhausted": False,
                     "job_id": job_id,
                     "browser_slot_deferred": True,
+                    "browser_items_deferred": deferred_n,
                     "pg_group_slice": {
                         **(pg_slice_report or {}),
                         "unlock_micro_recovery": unlock_recovery_report,
@@ -2864,6 +2896,10 @@ def process_slice(
                     except Exception:
                         pass
                     browser_slot_held = False
+                deferred_n = _defer_browser_pending_back(
+                    "browser_auth_transient",
+                    str(auth_status.get("external_blocker") or auth_status.get("status") or "BIDNET_AUTH_TRANSIENT"),
+                )
                 unlock_recovery_report = _try_unlock_micro_recovery("auth_unavailable")
                 # Transient browser/auth failure must not halt the entire first pass.
                 _progress(
@@ -2875,8 +2911,9 @@ def process_slice(
                     bidnet_auth_status=auth_status.get("status"),
                     auth_message=(auth_status.get("message") or "")[:200],
                     timing_accum=timing_accum,
+                    browser_items_deferred=deferred_n,
                     unlock_micro_recovery=unlock_recovery_report,
-                    note="browser_auth_failed_first_pass_continues_fast_path_and_unlock_recovery",
+                    note="browser_auth_failed_items_deferred_first_pass_continues",
                 )
                 return {
                     "slice_complete": True,
@@ -2884,6 +2921,7 @@ def process_slice(
                     "queue_exhausted": False,
                     "job_id": job_id,
                     "browser_auth_deferred": True,
+                    "browser_items_deferred": deferred_n,
                     "reason": "BIDNET_AUTH_TRANSIENT",
                     "auth_status": auth_status,
                     "pg_group_slice": {
