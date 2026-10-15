@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4c"
+BUILD = "20261015-m3-full-scale-production-funnel-v4d"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2145,7 +2145,15 @@ def process_slice(
             registered_empty_streak += 1
         elif not reg_empty:
             registered_empty_streak = 0
-        job = store.recompute_counts(job_id)
+        # Fast-path: avoid full O(n) recompute every item; batch every 10.
+        do_recompute = (not row.get("access_fast_path")) or (
+            timing_accum.get("fast_path_count", 0) % 10 == 0
+        )
+        if do_recompute:
+            job = store.recompute_counts(job_id)
+        else:
+            job = store.load_job(job_id) or job
+            job["COMPLETED"] = int(job.get("COMPLETED") or 0) + 1
         job["RESUME_CURSOR"] = _contiguous_resume_cursor(
             store, job_id, rows, from_index=slice_start_cursor
         )
@@ -2213,6 +2221,9 @@ def process_slice(
             timing_accum=timing_accum,
         )
         _commit_row(idx, item, row)
+    if fast_pending:
+        # Final accurate counts after batched fast-path writes
+        job = store.recompute_counts(job_id)
 
     # One BidNet client per slice phase. PG registration can TimeoutError and
     # leave Playwright unusable — always re-open a fresh client for opportunities.
@@ -2483,8 +2494,14 @@ def process_slice(
 
         # Commercial research for already-complete RFQs (lines recovered earlier).
         price_pass: dict[str, Any] | None = None
+        # Skip expensive end-of-slice price/PG browser work when this slice only
+        # performed shared-access fast deferrals (no new specs to price).
+        slice_all_fast = (
+            int(timing_accum.get("fast_path_count") or 0) > 0
+            and int(timing_accum.get("browser_path_count") or 0) == 0
+        )
         try:
-            if _is_active_lease_worker(job_id, worker_id):
+            if _is_active_lease_worker(job_id, worker_id) and not slice_all_fast:
                 price_pass = _research_prices_from_rfq_queue(
                     job_id=job_id, max_items=3, budget_s=55.0
                 )
@@ -2495,6 +2512,8 @@ def process_slice(
                     worker_id=worker_id,
                     price_pass=price_pass,
                 )
+            elif slice_all_fast:
+                price_pass = {"skipped": True, "reason": "slice_all_shared_access_fast_path"}
         except Exception as exc:
             price_pass = {"error": type(exc).__name__}
 
@@ -2503,7 +2522,11 @@ def process_slice(
         try:
             from bidnet_auth.purchasing_group_queue import process_group_registration_slice
 
-            if not pg_ran_start and _is_active_lease_worker(job_id, worker_id):
+            if (
+                not pg_ran_start
+                and not slice_all_fast
+                and _is_active_lease_worker(job_id, worker_id)
+            ):
                 pg_auth_status, pg_client = _open_bidnet_auth_client()
                 try:
                     if pg_client is not None and getattr(pg_client, "is_authenticated", False):
@@ -2538,7 +2561,14 @@ def process_slice(
             else:
                 pg_slice_report = {
                     "start_of_slice": pg_slice_report,
-                    "end_of_slice": {"skipped": True, "reason": "start_already_ran_or_superseded"},
+                    "end_of_slice": {
+                        "skipped": True,
+                        "reason": (
+                            "slice_all_shared_access_fast_path"
+                            if slice_all_fast
+                            else "start_already_ran_or_superseded"
+                        ),
+                    },
                     "price_pass": price_pass,
                 }
         except Exception as exc:
