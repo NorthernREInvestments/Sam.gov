@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4a"
+BUILD = "20261015-m3-full-scale-production-funnel-v4b"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -1866,6 +1866,27 @@ def process_slice(
     rows = queue.get("rows") or []
     job, pass_mode, first_pass, cursor = _heal_false_first_pass_exhaustion(store, job, rows)
     meta = dict(job.get("META") or {})
+    # One-shot: if this job is a ground-zero new_run, drop deferred items that
+    # belong to an archived prior job (prevents second-pass pollution).
+    if meta.get("new_run") and not meta.get("deferred_cleared_for_new_run"):
+        _save(
+            DEFERRED_QUEUE_FILE,
+            {
+                "kind": "FullScaleDeferredQueue",
+                "build": BUILD,
+                "items": [],
+                "by_defect": {},
+                "updated_at": _utc(),
+                "cleared_for_new_run": True,
+                "job_id": job_id,
+            },
+        )
+        meta["deferred_cleared_for_new_run"] = True
+        meta["pass_mode"] = "FIRST_PASS"
+        job["META"] = meta
+        store.save_job(job)
+        pass_mode = "FIRST_PASS"
+        first_pass = True
 
     # Rebuild PG registration queue from checkpoints awaiting group access so
     # blocked solicitations are not stranded while the in-memory queue is empty.
@@ -2571,6 +2592,22 @@ def start_job(
                 except Exception as exc:
                     archive_report = {"ok": False, "error": type(exc).__name__, "job_id": aid}
             rebuild_queue = True
+            # Fresh funnel decisions — do not carry prior deferred/circuit state
+            _save(
+                DEFERRED_QUEUE_FILE,
+                {
+                    "kind": "FullScaleDeferredQueue",
+                    "build": BUILD,
+                    "items": [],
+                    "by_defect": {},
+                    "updated_at": _utc(),
+                    "cleared_for_new_run": True,
+                },
+            )
+            _save(
+                CIRCUIT_FILE,
+                {"kind": "ComponentCircuits", "build": BUILD, "circuits": {}, "updated_at": _utc()},
+            )
 
         active = None if new_run else store.find_active_job(stale_seconds=STALE_LEASE_S)
         existing_queue = None if rebuild_queue else _load(QUEUE_FILE)
