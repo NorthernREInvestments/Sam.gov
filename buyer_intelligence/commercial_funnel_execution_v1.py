@@ -35,7 +35,7 @@ from phase_l.l23_full_population_funnel import load_store
 
 log = __import__("logging").getLogger("govtracker.commercial_funnel_execution_v1")
 
-BUILD = "20261014-m3-commercial-funnel-execution-v1b"
+BUILD = "20261015-m3-commercial-funnel-execution-v1c"
 OUT = "_og_commercial_research_pipeline_out"
 FCF_CLASS = f"{OUT}/m3_fcf_v1_classifications.json"
 MANIFEST = f"{OUT}/m3_cfe_v1_50_manifest.json"
@@ -756,13 +756,24 @@ def process_one(
         "bidnet_auth_status": auth_status.get("status"),
         "url_resolved_from_l23": bool(url) and url != str(item.get("authoritative_url") or "").strip(),
     }
-    # Evidence join first
+    # Evidence join first — only skip live price research for KNOWN verified public prices.
+    # product_cost / unverified overlays must not short-circuit commercial research.
     ev = lookup_evidence_for_opportunity(oid, title=title, index=evidence_index)
     out["evidence_sources"] = ev.get("sources") or []
     out["historical_unit_price"] = ev.get("historical_unit") or ev.get("historical_government_price")
-    out["public_unit_price"] = ev.get("public_acquisition_cost")
-    if isinstance(ev.get("acquisition_prices"), (int, float, str)):
-        out["public_unit_price"] = out["public_unit_price"] or ev.get("acquisition_prices")
+    cached_public = ev.get("public_acquisition_cost")
+    if cached_public in (None, "") and isinstance(ev.get("acquisition_prices"), (int, float, str)):
+        cached_public = ev.get("acquisition_prices")
+    pricing_known = str(ev.get("pricing_status") or "").upper() == "KNOWN"
+    if pricing_known and cached_public not in (None, ""):
+        out["public_unit_price"] = cached_public
+        out["public_price_verified"] = True
+        out["public_price_route"] = "evidence_index_known"
+    else:
+        out["public_unit_price"] = None
+        out["public_price_verified"] = False
+        if cached_public not in (None, ""):
+            out["cached_unverified_public_hint"] = cached_public
     out["prior_package_depth"] = ev.get("package_depth")
     out["prior_real_lines"] = ev.get("real_lines")
 
@@ -822,8 +833,11 @@ def process_one(
             if pg_id_from_url:
                 out["purchasing_group_id"] = pg_id_from_url
             pg_registered = bool(pg_id_from_url and is_registered(str(pg_id_from_url)))
-            # 45s default; 90s only when group already registered (docs-tab recovery)
-            item_budget = 90.0 if pg_registered else 45.0
+            # Reserve wall-clock for PRICE stage; align with FSPF item timeout.
+            wall = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
+            price_reserve = float(os.environ.get("M3_FSPF_PRICE_RESERVE_S") or "35")
+            docs_cap = 90.0 if pg_registered else 50.0
+            item_budget = max(25.0, min(docs_cap, wall - price_reserve))
             bounded = recover_one_bounded(
                 {
                     "opportunity_id": oid,
@@ -951,7 +965,8 @@ def process_one(
                     f"PAID_ENTITLEMENT:{bounded.get('paid_entitlement_requirement') or 'verified'}"
                 )
             if bounded.get("timed_out"):
-                out["package_blocker"] = out.get("package_blocker") or "PER_OPPORTUNITY_TIMEOUT_45S"
+                out["package_blocker"] = out.get("package_blocker") or "PER_OPPORTUNITY_TIMEOUT"
+                out["bounded_timed_out"] = True
                 # Client may have been closed by timeout — caller recreates on next item
                 try:
                     if not getattr(auth_client, "is_authenticated", False):
@@ -962,7 +977,10 @@ def process_one(
             out["process_bidnet_error"] = f"{type(exc).__name__}:{exc}"[:200]
             fetch_via = "process_bidnet_opportunity_failed"
 
-    if fetch_via in {"none", "process_bidnet_opportunity_failed"}:
+    # After a hard docs timeout with no lines, do not burn the price reserve on chase.
+    skip_fallback_chase = bool(out.get("bounded_timed_out")) and not lines
+
+    if (not skip_fallback_chase) and fetch_via in {"none", "process_bidnet_opportunity_failed"}:
         try:
             if (
                 url.startswith("http")
@@ -1094,33 +1112,38 @@ def process_one(
             out["package_blocker"] = out.get("package_blocker") or "ABSTRACT_PARSE_UNAVAILABLE"
 
     # Free public package chase (existing BidNet→buyer-portal path; no membership bypass)
-    try:
-        from bidnet_recovery.free_package_chase import chase_free_package
+    # Skip after docs timeout so pricing budget is not consumed by chase.
+    if skip_fallback_chase:
+        out["free_chase_status"] = "SKIPPED_AFTER_DOCS_TIMEOUT"
+    else:
+        try:
+            from bidnet_recovery.free_package_chase import chase_free_package
 
-        rec = dict(l23_rec or {})
-        rec.update(
-            {
-                "opportunity_id": oid,
-                "title": title,
-                "buyer": item.get("buyer"),
-                "authoritative_url": url,
-            }
-        )
-        free_chase = chase_free_package(rec, parsed=parsed or None)
-        out["free_chase_status"] = free_chase.get("status")
-        out["free_chase_route"] = free_chase.get("recovery_route")
-        out["free_chase_docs"] = len(free_chase.get("documents") or [])
-        out["free_chase_source_url"] = free_chase.get("source_url") or free_chase.get("official_source_url")
-        docs = free_chase.get("documents") or []
-        if docs:
-            package_status = "FREE_PACKAGE_FOUND"
-            out.pop("package_blocker", None)
-            # Prefer any line items recovered via chase / store
-            chase_lines = free_chase.get("line_items") or free_chase.get("lines") or []
-            if chase_lines:
-                lines = list(chase_lines)
-    except Exception as exc:
-        out["free_chase_error"] = f"{type(exc).__name__}:{exc}"[:160]
+            rec = dict(l23_rec or {})
+            rec.update(
+                {
+                    "opportunity_id": oid,
+                    "title": title,
+                    "buyer": item.get("buyer"),
+                    "authoritative_url": url,
+                }
+            )
+            free_chase = chase_free_package(rec, parsed=parsed or None)
+            out["free_chase_status"] = free_chase.get("status")
+            out["free_chase_route"] = free_chase.get("recovery_route")
+            out["free_chase_docs"] = len(free_chase.get("documents") or [])
+            out["free_chase_source_url"] = free_chase.get("source_url") or free_chase.get(
+                "official_source_url"
+            )
+            docs = free_chase.get("documents") or []
+            if docs:
+                package_status = "FREE_PACKAGE_FOUND"
+                out.pop("package_blocker", None)
+                chase_lines = free_chase.get("line_items") or free_chase.get("lines") or []
+                if chase_lines:
+                    lines = list(chase_lines)
+        except Exception as exc:
+            out["free_chase_error"] = f"{type(exc).__name__}:{exc}"[:160]
 
     out["package_status"] = package_status
     out["line_items"] = lines
@@ -1215,13 +1238,16 @@ def process_one(
         and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
         and any(_line_desc(li) for li in lines if isinstance(li, dict))
     )
-    if spec_for_research and out.get("public_unit_price") in (None, ""):
-        remain = max(8.0, 55.0 - (time.time() - t0))
+    if spec_for_research and (
+        out.get("public_unit_price") in (None, "") or not out.get("public_price_verified")
+    ):
+        wall = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
+        remain = max(20.0, wall - (time.time() - t0))
         price_research = _research_public_prices_for_lines(
             opportunity_id=oid,
             lines=lines,
-            budget_s=min(40.0, remain),
-            max_lines=3,
+            budget_s=min(45.0, remain),
+            max_lines=int(os.environ.get("M3_FSPF_PRICE_MAX_LINES") or "8"),
         )
         if price_research.get("verified_public_unit_price") not in (None, ""):
             out["public_unit_price"] = price_research["verified_public_unit_price"]

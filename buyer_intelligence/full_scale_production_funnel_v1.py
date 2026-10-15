@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261014-m3-full-scale-production-funnel-v3b"
+BUILD = "20261015-m3-full-scale-production-funnel-v4a"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -563,8 +563,9 @@ def _queue_row_from_any(r: dict[str, Any], *, oid: str | None = None) -> dict[st
     if not oid:
         return None
     title = str(r.get("product") or r.get("title") or "")
-    if _COMPLEX.search(title) and not _COMMON.search(title):
-        return None
+    # Do NOT drop complex titles from the universe — fast_qualify handles service
+    # rejection with evidence. Demote priority only.
+    complex_title_needs_qualify = bool(_COMPLEX.search(title) and not _COMMON.search(title))
     pc = str(r.get("product_class") or r.get("product_service_classification") or "")
     if pc in {"NON_PRODUCT", "PURE_SERVICE", "CONSTRUCTION"}:
         return None
@@ -612,9 +613,12 @@ def _queue_row_from_any(r: dict[str, Any], *, oid: str | None = None) -> dict[st
         "funnel_class": "LIVE_ELIGIBLE",
         "deadline_status": dl_status or ("OPEN_CONFIRMED" if days is not None else "DEADLINE_UNKNOWN"),
         "common_product": bool(r.get("common_product") or _COMMON.search(title)),
+        "complex_title_needs_qualify": complex_title_needs_qualify,
         "selection_score": 0.0,
     }
     row["selection_score"] = _priority_score(row)
+    if complex_title_needs_qualify:
+        row["selection_score"] = float(row["selection_score"] or 0) - 25.0
     return row
 
 
@@ -698,8 +702,6 @@ def build_eligible_queue(
             }:
                 continue
             title = str(rec.get("title") or "")
-            if _COMPLEX.search(title) and not _COMMON.search(title):
-                continue
             row = _queue_row_from_any(
                 {
                     **rec,
@@ -2109,15 +2111,44 @@ def process_slice(
                             pass
                     auth_status, auth_client = _open_bidnet_auth_client()
 
-                # ONE continuous journey: qualify → docs → extract → source → price → econ
-                row = run_one_opportunity(
-                    item,
-                    client=http,
-                    evidence_index=evidence_index,
-                    auth_status=auth_status,
-                    l23_rec=l23.get(oid) or {},
-                    auth_client=auth_client,
-                )
+                # ONE continuous journey with hard wall-clock so hung Playwright
+                # cannot strand the worker past ITEM_TIMEOUT_S.
+                from concurrent.futures import ThreadPoolExecutor
+                from concurrent.futures import TimeoutError as FuturesTimeout
+
+                def _run() -> dict[str, Any]:
+                    return run_one_opportunity(
+                        item,
+                        client=http,
+                        evidence_index=evidence_index,
+                        auth_status=auth_status,
+                        l23_rec=l23.get(oid) or {},
+                        auth_client=auth_client,
+                    )
+
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    fut = pool.submit(_run)
+                    try:
+                        row = fut.result(timeout=ITEM_TIMEOUT_S)
+                    except FuturesTimeout:
+                        try:
+                            if auth_client is not None:
+                                auth_client.close()
+                        except Exception:
+                            pass
+                        auth_client = None
+                        row = {
+                            "opportunity_id": oid,
+                            "title": item.get("title"),
+                            "terminal_blocker": "PER_OPPORTUNITY_TIMEOUT",
+                            "bounded_timed_out": True,
+                            "funnel_outcome": "SOFTWARE_ERROR",
+                            "stage_reached": "ACCESS_DOCS",
+                            "defer": True,
+                            "software_defect_key": "TIMEOUT",
+                            "one_pass": True,
+                            "elapsed_s": round(time.time() - t0, 2),
+                        }
                 # Shared client may be poisoned by Playwright target-closed errors
                 note = str(row.get("access_note") or "")
                 early_st = str(

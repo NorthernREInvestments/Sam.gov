@@ -18,7 +18,7 @@ from typing import Any
 
 from application_clock import now_utc
 
-BUILD = "20261014-m3-opportunity-funnel-orchestrator-v1"
+BUILD = "20261015-m3-opportunity-funnel-orchestrator-v1a"
 
 STAGE_QUALIFY = "QUALIFY"
 STAGE_ACCESS_DOCS = "ACCESS_DOCS"
@@ -318,19 +318,27 @@ def run_one_opportunity(
             "one_pass": True,
         }
 
-    # process_one already ran ACCESS→EXTRACT→SOURCE→PRICE→ECONOMICS→RFQ continuously
-    stages_run.extend(
-        [
-            STAGE_ACCESS_DOCS,
-            STAGE_EXTRACT,
-            STAGE_SOURCE,
-            STAGE_PRICE,
-            STAGE_ECONOMICS,
-            STAGE_FINANCE,
-            STAGE_BID_PREP,
-        ]
-    )
     classification = classify_process_one_outcome(row)
+    # Honest stage telemetry: only stages up to the furthest reached, not a fiction list
+    stage_order = [
+        STAGE_ACCESS_DOCS,
+        STAGE_EXTRACT,
+        STAGE_SOURCE,
+        STAGE_PRICE,
+        STAGE_ECONOMICS,
+        STAGE_FINANCE,
+        STAGE_BID_PREP,
+    ]
+    reached = str(classification.get("stage_reached") or STAGE_ACCESS_DOCS)
+    if reached in stage_order:
+        stages_run.extend(stage_order[: stage_order.index(reached) + 1])
+    else:
+        stages_run.append(STAGE_ACCESS_DOCS)
+    # Mark pricing executed vs skipped for operators
+    pr = row.get("price_research") or {}
+    if pr.get("ok") or int(pr.get("price_evidence_count") or 0) > 0:
+        if STAGE_PRICE not in stages_run:
+            stages_run.append(STAGE_PRICE)
     row["funnel_outcome"] = classification["outcome"]
     row["stage_reached"] = classification["stage_reached"]
     row["stages_run"] = stages_run
