@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e6"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e7"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -330,14 +330,28 @@ def request_stop(*, force_release_stale: bool = True) -> dict[str, Any]:
     }
 
 
+def _pg_id_from_item(it: dict[str, Any]) -> str:
+    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
+
+    pg = str(it.get("purchasing_group_id") or "").strip()
+    if pg:
+        return pg
+    sak = str(it.get("shared_access_key") or "")
+    if sak.startswith("pg:"):
+        return sak.split(":", 1)[1].strip()
+    return (
+        extract_pg_id_from_url(str(it.get("authoritative_url") or it.get("AUTHORITATIVE_URL") or ""))
+        or ""
+    )
+
+
 def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
     """Mark deferred/blocked opportunities eligible for recovery after PG REGISTERED.
 
     Does NOT reset RESUME_CURSOR — first-pass continues uninterrupted. Matching
-    deferred-queue items become recovery-eligible and are resumed after first-pass
-    (or when the deferred lane runs). Exact stage checkpoints are preserved.
+    checkpoints are PENDING_RETRY + recovery_eligible and are also written into the
+    deferred queue so post-first-pass recovery cannot lose them.
     """
-    from bidnet_auth.purchasing_group_registration import extract_pg_id_from_url
     from bidnet_auth.purchasing_group_tracker import is_registered, load_tracker
 
     store = JobStore(FAMILY)
@@ -352,21 +366,21 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
     }
     marked = 0
     examined = 0
-    deferred_marked = 0
+    deferred_enqueued = 0
     for it in store.list_items(job_id):
         if not isinstance(it, dict):
             continue
         examined += 1
         blocker = str(it.get("terminal_blocker") or it.get("TERMINAL_BLOCKER") or "")
         result = str(it.get("RESULT") or "")
-        sak = str(it.get("shared_access_key") or "")
         if result in _PRESERVE_RESULTS and result != "OWNER_ACTION_REQUIRED":
             continue
-        pg = str(it.get("purchasing_group_id") or "") or extract_pg_id_from_url(
-            str(it.get("authoritative_url") or "")
-        )
-        if not pg and sak.startswith("pg:"):
-            pg = sak.split(":", 1)[1].strip()
+        # Already successfully completed after unlock — leave alone
+        if result in {"SUCCESS", "PARTIAL", "SKIPPED_ALREADY_COMPLETE"} and it.get(
+            "PG_UNLOCK_ELIGIBLE"
+        ):
+            continue
+        pg = _pg_id_from_item(it)
         if not pg:
             continue
         if pg not in registered and not is_registered(pg):
@@ -384,65 +398,60 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
             "DEFERRED_ERROR",
             "TIMEOUT",
         }
-        if not blocker_ok and not result_ok:
+        already_flagged = bool(it.get("PG_UNLOCK_ELIGIBLE") or it.get("recovery_eligible"))
+        if not blocker_ok and not result_ok and not already_flagged:
             continue
-        it["PREVIOUS_RESULT"] = result
-        it["PREVIOUS_BLOCKER"] = blocker
-        it["RETRYABLE"] = True
-        it["RESULT"] = "PENDING_RETRY"
-        it["RETRY_QUEUED_AT"] = _utc()
-        it["NOTE"] = f"Released after purchasing group {pg} REGISTERED"
-        it["purchasing_group_id"] = pg
-        it["PG_UNLOCK_ELIGIBLE"] = True
-        it["recovery_eligible"] = True
-        # Preserve interrupted stage for deferred resume — do not wipe checkpoints
-        # Reset retry budget once for post-registration unlock
-        if not it.get("PG_UNLOCK_RETRY"):
-            it["PG_UNLOCK_RETRY"] = True
-            it["RETRY_COUNT"] = 0
-        store.write_item_checkpoint(job_id, it)
-        marked += 1
-
-    # Flag matching deferred-queue rows for post-first-pass recovery
-    try:
-        dq = _load_deferred_queue()
-        items = list(dq.get("items") or [])
-        changed = False
-        for d in items:
-            if not isinstance(d, dict):
-                continue
-            sak = str(d.get("shared_access_key") or "")
-            blocker = str(d.get("terminal_blocker") or "")
-            pg = ""
-            if sak.startswith("pg:"):
-                pg = sak.split(":", 1)[1].strip()
-            if not pg and "PURCHASING" in blocker.upper():
-                pg = extract_pg_id_from_url(str(d.get("authoritative_url") or "")) or ""
-            if not pg or (pg not in registered and not is_registered(pg)):
-                continue
-            if d.get("recovery_eligible") and d.get("pg_unlocked"):
-                continue
-            d["recovery_eligible"] = True
-            d["pg_unlocked"] = pg
-            d["unlocked_at"] = _utc()
-            deferred_marked += 1
-            changed = True
-        if changed:
-            dq["items"] = items
-            dq["updated_at"] = _utc()
-            dq["pg_unlock_eligible_count"] = sum(
-                1 for x in items if isinstance(x, dict) and x.get("recovery_eligible")
-            )
+        oid = str(it.get("OPPORTUNITY_ID") or it.get("opportunity_id") or "").strip()
+        if not oid:
+            continue
+        if result != "PENDING_RETRY" or not already_flagged:
+            it["PREVIOUS_RESULT"] = result
+            it["PREVIOUS_BLOCKER"] = blocker
+            it["RETRYABLE"] = True
+            it["RESULT"] = "PENDING_RETRY"
+            it["RETRY_QUEUED_AT"] = _utc()
+            it["NOTE"] = f"Released after purchasing group {pg} REGISTERED"
+            it["purchasing_group_id"] = pg
+            it["PG_UNLOCK_ELIGIBLE"] = True
+            it["recovery_eligible"] = True
+            it["shared_access_key"] = it.get("shared_access_key") or f"pg:{pg}"
+            if not it.get("PG_UNLOCK_RETRY"):
+                it["PG_UNLOCK_RETRY"] = True
+                it["RETRY_COUNT"] = 0
+            store.write_item_checkpoint(job_id, it)
+            marked += 1
+        # Always ensure deferred-queue membership (idempotent) for post-first-pass.
+        _defer_opportunity(
+            opportunity_id=oid,
+            stage=it.get("stage_reached") or it.get("STAGE_REACHED") or "ACCESS_DOCS",
+            outcome="PG_UNLOCK_RECOVERY",
+            defect_key=None,
+            shared_access_key=f"pg:{pg}",
+            blocker="AWAITING_PURCHASING_GROUP_REGISTRATION_RESOLVED",
+            index=int(it.get("INDEX") if it.get("INDEX") is not None else -1),
+        )
+        # Stamp recovery flags on the deferred row
+        try:
+            dq = _load_deferred_queue()
+            for d in dq.get("items") or []:
+                if str(d.get("opportunity_id")) == oid:
+                    d["recovery_eligible"] = True
+                    d["pg_unlocked"] = pg
+                    d["unlocked_at"] = d.get("unlocked_at") or _utc()
+                    deferred_enqueued += 1
+                    break
             _save(DEFERRED_QUEUE_FILE, dq)
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    if marked or deferred_marked:
+    if marked or deferred_enqueued:
         job = store.load_job(job_id) or job
         # Do NOT reset RESUME_CURSOR — that would interrupt unfinished first-pass work.
         meta = dict(job.get("META") or {})
         meta["pg_unlock_released"] = int(meta.get("pg_unlock_released") or 0) + marked
-        meta["pg_unlock_deferred_marked"] = int(meta.get("pg_unlock_deferred_marked") or 0) + deferred_marked
+        meta["pg_unlock_deferred_enqueued"] = int(
+            meta.get("pg_unlock_deferred_enqueued") or 0
+        ) + deferred_enqueued
         meta["pg_unlock_at"] = _utc()
         meta["repair_build"] = BUILD
         job["META"] = meta
@@ -453,9 +462,279 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
         "registered_groups": sorted(registered),
         "examined": examined,
         "released": marked,
-        "deferred_marked": deferred_marked,
+        "deferred_enqueued": deferred_enqueued,
         "build": BUILD,
     }
+
+
+def reconcile_released_pg_unlocks(
+    job_id: str | None = None,
+    *,
+    repair: bool = True,
+) -> dict[str, Any]:
+    """Account for every PG-unlock released opportunity. Optionally restore orphans.
+
+    Valid states:
+      completed — SUCCESS/PARTIAL/SKIPPED after unlock (or durable success)
+      recovery_scheduled — PENDING_RETRY + in deferred queue (post-first-pass)
+      pending_first_pass — not yet attempted (should be rare for released)
+      currently_processing — RESULT empty / in-flight
+      rejected_or_expired — EXPIRED/INELIGIBLE/OWNER durable
+      orphaned — unlock-eligible but missing from deferred queue (repaired when repair=True)
+    """
+    from bidnet_auth.purchasing_group_tracker import is_registered, load_tracker
+
+    store = JobStore(FAMILY)
+    if not job_id:
+        active = store.find_active_job(stale_seconds=86400)
+        job_id = str((active or {}).get("JOB_ID") or "")
+    if not job_id:
+        return {"ok": False, "error": "job_id_required", "build": BUILD}
+    job = store.load_job(job_id)
+    if not job:
+        return {"ok": False, "error": "job_not_found", "job_id": job_id, "build": BUILD}
+
+    tracker = load_tracker()
+    registered = {
+        str(pg)
+        for pg, g in (tracker.get("groups") or {}).items()
+        if isinstance(g, dict) and g.get("status") == "REGISTERED"
+    }
+    # Seed released set from tracker blocked lists + checkpoints
+    from_tracker: set[str] = set()
+    for pg in registered:
+        g = (tracker.get("groups") or {}).get(pg) or {}
+        for oid in g.get("blocked_opportunity_ids") or []:
+            if oid:
+                from_tracker.add(str(oid))
+
+    dq = _load_deferred_queue()
+    deferred_by_oid = {
+        str(x.get("opportunity_id")): x
+        for x in (dq.get("items") or [])
+        if isinstance(x, dict) and x.get("opportunity_id")
+    }
+
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "completed": [],
+        "recovery_scheduled": [],
+        "pending_first_pass": [],
+        "currently_processing": [],
+        "rejected_or_expired": [],
+        "orphaned": [],
+        "still_blocked_unregistered_pg": [],
+    }
+    released_ids: list[str] = []
+    repaired = 0
+    by_pg: dict[str, int] = {}
+
+    for it in store.list_items(job_id):
+        if not isinstance(it, dict):
+            continue
+        oid = str(it.get("OPPORTUNITY_ID") or it.get("opportunity_id") or "").strip()
+        if not oid:
+            continue
+        pg = _pg_id_from_item(it)
+        note = str(it.get("NOTE") or "")
+        is_released = bool(
+            it.get("PG_UNLOCK_ELIGIBLE")
+            or it.get("PG_UNLOCK_RETRY")
+            or "Released after purchasing group" in note
+            or (pg in registered and oid in from_tracker)
+        )
+        # Also catch registered-PG blockers not yet flagged
+        result = str(it.get("RESULT") or "")
+        blocker = str(it.get("terminal_blocker") or it.get("TERMINAL_BLOCKER") or "")
+        sak = str(it.get("shared_access_key") or "")
+        should_be_released = bool(
+            pg
+            and pg in registered
+            and (
+                result
+                in {
+                    "DEFERRED_EXTERNAL",
+                    "PENDING_RETRY",
+                    "NO_PACKAGE",
+                    "TIMEOUT",
+                    "DEFERRED_ERROR",
+                    "OWNER_ACTION_REQUIRED",
+                }
+                or "PURCHASING" in blocker.upper()
+                or sak == f"pg:{pg}"
+            )
+            and result not in {"SUCCESS", "PARTIAL", "SKIPPED_ALREADY_COMPLETE"}
+        )
+        if not is_released and not should_be_released:
+            continue
+        if not is_released and should_be_released:
+            is_released = True
+        released_ids.append(oid)
+        by_pg[pg or "?"] = by_pg.get(pg or "?", 0) + 1
+        row = {
+            "opportunity_id": oid,
+            "result": result or None,
+            "purchasing_group_id": pg or None,
+            "stage_reached": it.get("stage_reached") or it.get("STAGE_REACHED"),
+            "in_deferred_queue": oid in deferred_by_oid,
+            "recovery_eligible": bool(
+                it.get("recovery_eligible")
+                or (deferred_by_oid.get(oid) or {}).get("recovery_eligible")
+            ),
+        }
+        if result in {"SUCCESS", "PARTIAL", "SKIPPED_ALREADY_COMPLETE"}:
+            buckets["completed"].append(row)
+        elif result in {"EXPIRED_EXIT", "INELIGIBLE_EXIT"}:
+            buckets["rejected_or_expired"].append(row)
+        elif result == "OWNER_ACTION_REQUIRED" and not it.get("PG_UNLOCK_ELIGIBLE"):
+            buckets["rejected_or_expired"].append(row)
+        elif not result or result in {"RUNNING", "IN_PROGRESS"}:
+            buckets["currently_processing"].append(row)
+        elif pg and pg not in registered and not is_registered(pg):
+            buckets["still_blocked_unregistered_pg"].append(row)
+        elif oid in deferred_by_oid or (
+            result == "PENDING_RETRY" and it.get("PG_UNLOCK_ELIGIBLE")
+        ):
+            # Ensure deferred membership
+            if oid not in deferred_by_oid and repair:
+                _defer_opportunity(
+                    opportunity_id=oid,
+                    stage=row["stage_reached"] or "ACCESS_DOCS",
+                    outcome="PG_UNLOCK_RECOVERY",
+                    defect_key=None,
+                    shared_access_key=f"pg:{pg}" if pg else it.get("shared_access_key"),
+                    blocker="AWAITING_PURCHASING_GROUP_REGISTRATION_RESOLVED",
+                    index=int(it.get("INDEX") if it.get("INDEX") is not None else -1),
+                )
+                dq2 = _load_deferred_queue()
+                for d in dq2.get("items") or []:
+                    if str(d.get("opportunity_id")) == oid:
+                        d["recovery_eligible"] = True
+                        d["pg_unlocked"] = pg
+                        d["unlocked_at"] = _utc()
+                _save(DEFERRED_QUEUE_FILE, dq2)
+                deferred_by_oid[oid] = {"opportunity_id": oid}
+                repaired += 1
+                row["in_deferred_queue"] = True
+                row["repaired"] = True
+            buckets["recovery_scheduled"].append(row)
+        else:
+            buckets["orphaned"].append(row)
+            if repair:
+                # Restore unlock flags + deferred membership
+                it["RESULT"] = "PENDING_RETRY"
+                it["RETRYABLE"] = True
+                it["PG_UNLOCK_ELIGIBLE"] = True
+                it["recovery_eligible"] = True
+                it["purchasing_group_id"] = pg
+                it["shared_access_key"] = it.get("shared_access_key") or (f"pg:{pg}" if pg else None)
+                it["NOTE"] = f"Reconciled unlock after purchasing group {pg} REGISTERED"
+                it["RETRY_QUEUED_AT"] = _utc()
+                if not it.get("PG_UNLOCK_RETRY"):
+                    it["PG_UNLOCK_RETRY"] = True
+                    it["RETRY_COUNT"] = 0
+                store.write_item_checkpoint(job_id, it)
+                _defer_opportunity(
+                    opportunity_id=oid,
+                    stage=row["stage_reached"] or "ACCESS_DOCS",
+                    outcome="PG_UNLOCK_RECOVERY",
+                    defect_key=None,
+                    shared_access_key=f"pg:{pg}" if pg else None,
+                    blocker="AWAITING_PURCHASING_GROUP_REGISTRATION_RESOLVED",
+                    index=int(it.get("INDEX") if it.get("INDEX") is not None else -1),
+                )
+                dq2 = _load_deferred_queue()
+                for d in dq2.get("items") or []:
+                    if str(d.get("opportunity_id")) == oid:
+                        d["recovery_eligible"] = True
+                        d["pg_unlocked"] = pg
+                        d["unlocked_at"] = _utc()
+                _save(DEFERRED_QUEUE_FILE, dq2)
+                repaired += 1
+                row["repaired"] = True
+                buckets["recovery_scheduled"].append(row)
+                buckets["orphaned"].pop()
+
+    # Also include tracker-blocked IDs that have no checkpoint yet (awaiting first pass)
+    seen = set(released_ids)
+    for oid in from_tracker:
+        if oid in seen:
+            continue
+        prev = store.load_item(job_id, oid)
+        if prev:
+            continue
+        # Never attempted — still first-pass eligible; not "released from deferral"
+        buckets["pending_first_pass"].append(
+            {"opportunity_id": oid, "result": None, "note": "tracker_blocked_unattempted"}
+        )
+        released_ids.append(oid)
+
+    # Deduplicate released_ids preserving order
+    uniq: list[str] = []
+    seen2: set[str] = set()
+    for oid in released_ids:
+        if oid not in seen2:
+            seen2.add(oid)
+            uniq.append(oid)
+
+    # Prefer recovery-eligible items at front of deferred queue (still after first-pass)
+    if repair:
+        dq = _load_deferred_queue()
+        items = list(dq.get("items") or [])
+        unlock = [x for x in items if isinstance(x, dict) and x.get("recovery_eligible")]
+        other = [x for x in items if not (isinstance(x, dict) and x.get("recovery_eligible"))]
+        dq["items"] = unlock + other
+        dq["count"] = len(dq["items"])
+        dq["pg_unlock_eligible_count"] = len(unlock)
+        dq["reconciled_at"] = _utc()
+        dq["build"] = BUILD
+        _save(DEFERRED_QUEUE_FILE, dq)
+
+    summary = {k: len(v) for k, v in buckets.items()}
+    accounted = (
+        summary["completed"]
+        + summary["recovery_scheduled"]
+        + summary["pending_first_pass"]
+        + summary["currently_processing"]
+        + summary["rejected_or_expired"]
+        + summary["still_blocked_unregistered_pg"]
+    )
+    # After repair, orphans should be 0 (moved into recovery_scheduled)
+    orphan_remaining = summary["orphaned"]
+    report = {
+        "ok": True,
+        "build": BUILD,
+        "job_id": job_id,
+        "registered_groups": sorted(registered),
+        "released_opportunity_ids_count": len(uniq),
+        "released_by_pg": by_pg,
+        "summary": summary,
+        "fully_accounted": orphan_remaining == 0,
+        "missing_or_orphaned": orphan_remaining,
+        "accounted_non_orphan": accounted,
+        "repaired": repaired,
+        "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
+        "recovery_eligible_in_deferred": int(
+            (_load_deferred_queue() or {}).get("pg_unlock_eligible_count") or 0
+        ),
+        "sample_completed": buckets["completed"][:8],
+        "sample_recovery": buckets["recovery_scheduled"][:8],
+        "sample_orphaned": buckets["orphaned"][:8],
+        "sample_rejected": buckets["rejected_or_expired"][:8],
+        "pass_mode": (job.get("META") or {}).get("pass_mode") or "FIRST_PASS",
+        "resume_cursor": job.get("RESUME_CURSOR"),
+        "note": (
+            "Recovery runs automatically after first-pass exhaustion; "
+            "unlocked IDs are queued but do not interrupt untouched first-pass work."
+        ),
+    }
+    try:
+        _save(
+            f"{OUT}/m3_fspf_v1_released_unlock_reconcile.json",
+            {**report, "released_opportunity_ids": uniq[:5000], "at": _utc()},
+        )
+    except Exception:
+        pass
+    return report
 
 
 def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
@@ -1573,6 +1852,14 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
                 pg_access_mgr.get("groups_completed") or 0
             ),
             "pg_access_manager_heartbeat_at": pg_access_mgr.get("heartbeat_at"),
+            "pg_unlock_recovery_eligible": int(
+                (_load_deferred_queue() or {}).get("pg_unlock_eligible_count")
+                or sum(
+                    1
+                    for x in ((_load_deferred_queue() or {}).get("items") or [])
+                    if isinstance(x, dict) and x.get("recovery_eligible")
+                )
+            ),
             "pass_mode": (job.get("META") or {}).get("pass_mode") or "FIRST_PASS",
             "one_pass_orchestrator": True,
             "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
@@ -2038,11 +2325,23 @@ def process_slice(
                 pass_mode = "DEFERRED_RECOVERY"
 
     if not first_pass:
-        # Second pass: resume deferred errors at exact stage (oldest first)
+        # Second pass: resume deferred errors at exact stage.
+        # Prefer PG-unlock recovery_eligible items first (blocker resolved).
         if not (_load_deferred_queue().get("items")):
             _backfill_deferred_from_attempted(store, job_id, rows)
+        try:
+            reconcile_released_pg_unlocks(job_id, repair=True)
+        except Exception:
+            pass
         dq = _load_deferred_queue()
-        deferred_items = list(dq.get("items") or [])
+        raw_deferred = list(dq.get("items") or [])
+        unlock_first = [
+            d for d in raw_deferred if isinstance(d, dict) and d.get("recovery_eligible")
+        ]
+        rest = [
+            d for d in raw_deferred if not (isinstance(d, dict) and d.get("recovery_eligible"))
+        ]
+        deferred_items = unlock_first + rest
         pending = []
         for d in deferred_items[: slice_size * 3]:
             oid = str(d.get("opportunity_id") or "")
@@ -2051,9 +2350,17 @@ def process_slice(
             prev = store.load_item(job_id, oid)
             if prev and str(prev.get("RESULT") or "") in _PRESERVE_RESULTS:
                 continue
+            # Skip paid entitlements / unresolved external that still lack access
+            blocker = str(
+                (prev or {}).get("terminal_blocker")
+                or d.get("terminal_blocker")
+                or ""
+            )
+            if blocker.startswith("PAID_ENTITLEMENT:") and not d.get("recovery_eligible"):
+                continue
             if _component_circuit_tripped(d.get("software_defect_key")):
                 continue
-            idx = int(d.get("queue_index") or 0)
+            idx = int(d.get("queue_index") or -1)
             item = rows[idx] if 0 <= idx < len(rows) else {"opportunity_id": oid}
             if str(item.get("opportunity_id") or "") != oid:
                 item = {"opportunity_id": oid}

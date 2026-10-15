@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e6"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e7"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1830,12 +1830,65 @@ def api_m3_full_scale_production_funnel_deferred_queue():
     )
 
     q = _load(DEFERRED_QUEUE_FILE) or {"items": [], "count": 0}
+    items = q.get("items") or []
     return {
         "build_version": APP_BUILD_VERSION,
-        "count": int(q.get("count") or len(q.get("items") or [])),
+        "count": int(q.get("count") or len(items)),
+        "pg_unlock_eligible_count": int(
+            q.get("pg_unlock_eligible_count")
+            or sum(1 for x in items if isinstance(x, dict) and x.get("recovery_eligible"))
+        ),
         "by_defect": q.get("by_defect") or {},
-        "items": (q.get("items") or [])[:50],
+        "items": items[:50],
         "updated_at": q.get("updated_at"),
+    }
+
+
+@app.get("/api/m3/full-scale-production-funnel/released-unlock-reconcile")
+def api_m3_full_scale_production_funnel_released_unlock_reconcile(repair: bool = True):
+    """Account for every PG-unlock released opportunity; restore orphans when repair=1."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        reconcile_released_pg_unlocks,
+    )
+
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **reconcile_released_pg_unlocks(repair=bool(repair)),
+    }
+
+
+@app.post("/api/m3/full-scale-production-funnel/released-unlock-reconcile")
+def api_m3_full_scale_production_funnel_released_unlock_reconcile_post(body: dict | None = None):
+    """Repair-path reconcile: restore orphaned unlock IDs into deferred recovery queue."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        reconcile_released_pg_unlocks,
+        release_pg_blocked_for_registered_groups,
+    )
+
+    payload = body or {}
+    job_id = str(payload.get("job_id") or "").strip() or None
+    repair = bool(payload.get("repair", True))
+    release_first = bool(payload.get("release_first", True))
+    release_report = None
+    if release_first:
+        try:
+            from m3_jobs.store import JobStore
+
+            jid = job_id
+            if not jid:
+                active = JobStore("full_scale_production_funnel_v1").find_active_job(
+                    stale_seconds=86400
+                )
+                jid = str((active or {}).get("JOB_ID") or "")
+            if jid:
+                release_report = release_pg_blocked_for_registered_groups(jid)
+        except Exception as exc:
+            release_report = {"error": type(exc).__name__}
+    recon = reconcile_released_pg_unlocks(job_id, repair=repair)
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "release": release_report,
+        **recon,
     }
 
 
