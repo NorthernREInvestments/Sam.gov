@@ -638,7 +638,8 @@ def append_missing_to_production_queue(
             meta["l23_universe_append_count"] = len(appended)
             meta["eligible_total_after_append"] = queue_before + len(appended)
             job["META"] = meta
-            # Do NOT touch RESUME_CURSOR
+            # Reflect new queue size for scorecards — do NOT touch RESUME_CURSOR.
+            job["TOTAL"] = queue_before + len(appended)
             jstore.save_job(job)
         except Exception as exc:
             job_meta["save_error"] = type(exc).__name__

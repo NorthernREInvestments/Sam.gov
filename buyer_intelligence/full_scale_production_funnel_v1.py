@@ -2583,7 +2583,10 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
         pg_access_mgr = {}
 
     completed = int(job.get("COMPLETED") or 0)
-    total = int(job.get("TOTAL") or queue.get("eligible_total") or 0)
+    # Queue file is authoritative after L23 appends; job.TOTAL may lag until saved.
+    total = max(int(job.get("TOTAL") or 0), int(queue.get("eligible_total") or 0))
+    if int(queue.get("eligible_total") or 0) > int(job.get("TOTAL") or 0):
+        total = int(queue.get("eligible_total") or total)
     scorecard = {
         "kind": "FullScaleProductionFunnelScorecard",
         "build": BUILD,
