@@ -76,12 +76,27 @@ def _load(rel: str) -> Any:
 
 
 def _save(rel: str, payload: Any) -> Path:
+    import os
+    import tempfile
+
     path = Path(data_path(rel))
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, separators=(",", ":"), default=str), encoding="utf-8")
-    os_replace = __import__("os").replace
-    os_replace(tmp, path)
+    raw = json.dumps(payload, separators=(",", ":"), default=str)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=path.name + ".",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(raw)
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except Exception:
+            pass
+        raise
     return path
 
 
