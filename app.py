@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e15"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e16"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1941,6 +1941,30 @@ def api_m3_full_scale_production_funnel_requeue_retryable(body: dict | None = No
     if not jid:
         return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
     return {"ok": True, "build_version": APP_BUILD_VERSION, **requeue_retryable_failures(jid)}
+
+
+@app.post("/api/m3/full-scale-production-funnel/validate-unlock-recovery")
+def api_m3_full_scale_production_funnel_validate_unlock_recovery(body: dict | None = None):
+    """Bounded production-path validation of PG-unlock deferred recovery handoff.
+
+    Does not start a competing worker, does not modify RESUME_CURSOR, and does
+    not drain the unlock queue. Uses the shared orchestrator + browser mutex.
+    """
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        validate_unlock_recovery_path,
+    )
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **validate_unlock_recovery_path(
+            job_id=str(payload["job_id"]).strip() if payload.get("job_id") else None,
+            opportunity_id=(
+                str(payload["opportunity_id"]).strip() if payload.get("opportunity_id") else None
+            ),
+            browser_timeout_s=float(payload.get("browser_timeout_s") or 45.0),
+        ),
+    }
 
 
 @app.get("/api/m3/bidnet-auth/purchasing-group-queue")

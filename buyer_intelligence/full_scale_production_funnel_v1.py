@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e15"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e16"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -184,22 +184,57 @@ def _defer_opportunity(
     shared_access_key: str | None,
     blocker: str | None,
     index: int | None,
+    recovery_eligible: bool | None = None,
+    pg_unlocked: str | None = None,
 ) -> None:
-    """Append to back-of-line deferred queue (idempotent per oid)."""
+    """Append to back-of-line deferred queue (idempotent per oid).
+
+    Preserves PG-unlock recovery_eligible / pg_unlocked when re-deferring an
+    already-unlocked opportunity so failed browser attempts do not drop it from
+    the unlock recovery set.
+    """
     q = _load_deferred_queue()
-    items = [x for x in (q.get("items") or []) if str(x.get("opportunity_id")) != opportunity_id]
-    items.append(
-        {
-            "opportunity_id": opportunity_id,
-            "stage_reached": stage,
-            "funnel_outcome": outcome,
-            "software_defect_key": defect_key,
-            "shared_access_key": shared_access_key,
-            "terminal_blocker": (blocker or "")[:160] or None,
-            "queue_index": index,
-            "deferred_at": _utc(),
-        }
+    prior = next(
+        (
+            x
+            for x in (q.get("items") or [])
+            if isinstance(x, dict) and str(x.get("opportunity_id")) == str(opportunity_id)
+        ),
+        None,
     )
+    items = [x for x in (q.get("items") or []) if str(x.get("opportunity_id")) != opportunity_id]
+    prior_eligible = bool((prior or {}).get("recovery_eligible"))
+    prior_pg = str((prior or {}).get("pg_unlocked") or "") or None
+    elig = prior_eligible if recovery_eligible is None else bool(recovery_eligible)
+    pg = (str(pg_unlocked).strip() if pg_unlocked else None) or prior_pg
+    if elig and not pg and shared_access_key and str(shared_access_key).startswith("pg:"):
+        pg = str(shared_access_key).split(":", 1)[1].strip() or None
+    entry: dict[str, Any] = {
+        "opportunity_id": opportunity_id,
+        "stage_reached": stage,
+        "funnel_outcome": outcome,
+        "software_defect_key": defect_key,
+        "shared_access_key": shared_access_key
+        or ((prior or {}).get("shared_access_key") if elig else None),
+        "terminal_blocker": (blocker or "")[:160] or None,
+        "queue_index": index if index is not None else (prior or {}).get("queue_index"),
+        "deferred_at": _utc(),
+    }
+    if elig:
+        entry["recovery_eligible"] = True
+        entry["pg_unlocked"] = pg
+        entry["unlocked_at"] = (prior or {}).get("unlocked_at") or _utc()
+        if not entry.get("shared_access_key") and pg:
+            entry["shared_access_key"] = f"pg:{pg}"
+        # Keep unlock outcome stable so deferred-pass preferencing still works.
+        if not entry.get("funnel_outcome") or str(entry.get("funnel_outcome")) in {
+            "DEFERRED_EXTERNAL",
+            "DEFERRED_ERROR",
+            "TIMEOUT",
+            "EXTERNAL_DEPENDENCY",
+        }:
+            entry["funnel_outcome"] = "PG_UNLOCK_RECOVERY"
+    items.append(entry)
     q["items"] = items[-20000:]
     by_def = dict(q.get("by_defect") or {})
     if defect_key:
@@ -208,6 +243,9 @@ def _defer_opportunity(
     q["updated_at"] = _utc()
     q["build"] = BUILD
     q["count"] = len(q["items"])
+    q["pg_unlock_eligible_count"] = sum(
+        1 for x in q["items"] if isinstance(x, dict) and x.get("recovery_eligible")
+    )
     _save(DEFERRED_QUEUE_FILE, q)
 
 
@@ -803,6 +841,34 @@ def _recover_one_unlocked_opportunity(
                 idx = j
                 break
 
+    # Enrich from deferred entry + prior checkpoint so recovery does not drop URL/PG.
+    prior_cp = store.load_item(job_id, oid) or {}
+    pg_unlocked = str(
+        picked.get("pg_unlocked")
+        or prior_cp.get("purchasing_group_id")
+        or ""
+    ).strip() or None
+    item = dict(item)
+    item["opportunity_id"] = oid
+    item["authoritative_url"] = (
+        item.get("authoritative_url")
+        or prior_cp.get("authoritative_url")
+        or prior_cp.get("AUTHORITATIVE_URL")
+    )
+    item["title"] = item.get("title") or prior_cp.get("title")
+    item["buyer"] = item.get("buyer") or prior_cp.get("buyer")
+    item["purchasing_group_id"] = pg_unlocked or item.get("purchasing_group_id")
+    item["shared_access_key"] = (
+        picked.get("shared_access_key")
+        or prior_cp.get("shared_access_key")
+        or (f"pg:{pg_unlocked}" if pg_unlocked else None)
+    )
+    item["stage_reached"] = (
+        picked.get("stage_reached") or prior_cp.get("stage_reached") or "ACCESS_DOCS"
+    )
+    item["recovery_eligible"] = True
+    item["PG_UNLOCK_ELIGIBLE"] = True
+
     # Keep exclusive job lease alive across browser wait + funnel (can exceed 2m).
     try:
         store.heartbeat(
@@ -818,6 +884,7 @@ def _recover_one_unlocked_opportunity(
             worker_id=worker_id,
             current_opportunity_id=oid,
             note="unlock_micro_recovery_acquired_candidate",
+            resume_cursor=(store.load_job(job_id) or {}).get("RESUME_CURSOR"),
         )
     except Exception:
         pass
@@ -879,14 +946,22 @@ def _recover_one_unlocked_opportunity(
                     pass
 
     result = _map_result(row)
-    prior_cp = store.load_item(job_id, oid)
     slim = _slim_checkpoint(row, result=result, index=max(0, idx), prior=prior_cp)
     slim["PG_UNLOCK_RECOVERY_AT"] = _utc()
     slim["recovery_pass"] = "MICRO_DURING_FIRST_PASS"
+    slim["PG_UNLOCK_ELIGIBLE"] = True
+    slim["purchasing_group_id"] = (
+        slim.get("purchasing_group_id") or pg_unlocked or row.get("purchasing_group_id")
+    )
+    slim["shared_access_key"] = (
+        slim.get("shared_access_key")
+        or item.get("shared_access_key")
+        or (f"pg:{pg_unlocked}" if pg_unlocked else None)
+    )
     store.write_item_checkpoint(job_id, slim)
     _append_rfq(row)
 
-    # Remove from deferred on durable success; otherwise keep for full deferred pass
+    # Remove from deferred on durable success; otherwise keep unlock-eligible.
     if result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
         dq2 = _load_deferred_queue()
         dq2["items"] = [
@@ -898,26 +973,43 @@ def _recover_one_unlocked_opportunity(
         )
         _save(DEFERRED_QUEUE_FILE, dq2)
     elif row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+        still_unlock = bool(picked.get("recovery_eligible"))
+        try:
+            from bidnet_auth.purchasing_group_tracker import is_registered
+
+            if pg_unlocked and is_registered(pg_unlocked):
+                still_unlock = True
+        except Exception:
+            pass
+        blocker = str(row.get("terminal_blocker") or "")
+        if blocker.startswith("PAID_ENTITLEMENT"):
+            still_unlock = False
         _defer_opportunity(
             opportunity_id=oid,
-            stage=row.get("stage_reached"),
+            stage=row.get("stage_reached") or "ACCESS_DOCS",
             outcome=str(row.get("funnel_outcome") or result),
             defect_key=row.get("software_defect_key"),
             shared_access_key=row.get("shared_access_key") or picked.get("shared_access_key"),
             blocker=row.get("terminal_blocker"),
             index=idx,
+            recovery_eligible=still_unlock,
+            pg_unlocked=pg_unlocked if still_unlock else None,
         )
 
     out = {
         "processed": 1,
         "opportunity_id": oid,
-        "purchasing_group_id": picked.get("pg_unlocked") or slim.get("purchasing_group_id"),
+        "purchasing_group_id": pg_unlocked or slim.get("purchasing_group_id"),
         "result": result,
         "stage_reached": slim.get("stage_reached"),
         "documents_downloaded": slim.get("documents_downloaded"),
         "fully_specified_product_lines": slim.get("fully_specified_product_lines"),
+        "public_price_evidence_count": slim.get("public_price_evidence_count"),
+        "supplier_status": slim.get("supplier_status"),
+        "econ_state": slim.get("econ_state"),
         "terminal_blocker": slim.get("terminal_blocker"),
         "funnel_outcome": slim.get("funnel_outcome"),
+        "stages_run": row.get("stages_run"),
         "at": _utc(),
     }
     try:
@@ -932,6 +1024,281 @@ def _recover_one_unlocked_opportunity(
     except Exception:
         pass
     return out
+
+
+def validate_unlock_recovery_path(
+    *,
+    job_id: str | None = None,
+    opportunity_id: str | None = None,
+    browser_timeout_s: float = 45.0,
+) -> dict[str, Any]:
+    """Bounded production-path validation of PG-unlock recovery handoff.
+
+    Uses the same orchestrator as production micro-recovery. Does NOT:
+    - modify RESUME_CURSOR
+    - start a competing production worker
+    - acquire the FSPF job lease
+    - drain the unlock queue
+    """
+    from bidnet_auth.browser_mutex_v1 import bidnet_browser_slot
+    from buyer_intelligence.commercial_evidence_index_v1 import build_commercial_evidence_index
+    from buyer_intelligence.commercial_funnel_execution_v1 import (
+        _cookies_client,
+        _open_bidnet_auth_client,
+    )
+    from buyer_intelligence.opportunity_funnel_orchestrator_v1 import run_one_opportunity
+    from phase_l.l23_full_population_funnel import load_store
+
+    store = JobStore(FAMILY)
+    if not job_id:
+        active = store.find_active_job(stale_seconds=86400)
+        job_id = str((active or {}).get("JOB_ID") or "")
+    if not job_id or not store.load_job(job_id):
+        return {"ok": False, "error": "job_not_found", "build": BUILD}
+
+    cursor_before = int((store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0)
+    queue = _load(QUEUE_FILE) or {}
+    rows = queue.get("rows") or []
+    dq = _load_deferred_queue()
+    candidates = [
+        d
+        for d in (dq.get("items") or [])
+        if isinstance(d, dict) and d.get("recovery_eligible") and d.get("opportunity_id")
+    ]
+    if opportunity_id:
+        candidates = [d for d in candidates if str(d.get("opportunity_id")) == str(opportunity_id)]
+    if not candidates:
+        return {
+            "ok": False,
+            "error": "no_recovery_eligible_candidate",
+            "build": BUILD,
+            "job_id": job_id,
+            "resume_cursor_before": cursor_before,
+            "resume_cursor_after": cursor_before,
+        }
+
+    picked = candidates[0]
+    oid = str(picked.get("opportunity_id"))
+    idx = int(picked.get("queue_index") or -1)
+    item = rows[idx] if 0 <= idx < len(rows) else {"opportunity_id": oid}
+    if str(item.get("opportunity_id") or "") != oid:
+        item = {"opportunity_id": oid}
+        for j, r in enumerate(rows):
+            if str(r.get("opportunity_id")) == oid:
+                item = r
+                idx = j
+                break
+    prior_cp = store.load_item(job_id, oid) or {}
+    pg_unlocked = str(picked.get("pg_unlocked") or prior_cp.get("purchasing_group_id") or "").strip() or None
+    item = dict(item)
+    item["opportunity_id"] = oid
+    item["authoritative_url"] = (
+        item.get("authoritative_url")
+        or prior_cp.get("authoritative_url")
+        or prior_cp.get("AUTHORITATIVE_URL")
+    )
+    item["title"] = item.get("title") or prior_cp.get("title")
+    item["buyer"] = item.get("buyer") or prior_cp.get("buyer")
+    item["purchasing_group_id"] = pg_unlocked or item.get("purchasing_group_id")
+    item["shared_access_key"] = (
+        picked.get("shared_access_key")
+        or (f"pg:{pg_unlocked}" if pg_unlocked else None)
+    )
+    item["stage_reached"] = picked.get("stage_reached") or prior_cp.get("stage_reached") or "ACCESS_DOCS"
+    item["recovery_eligible"] = True
+
+    # Confirm registered access without inventing membership.
+    pg_registered = False
+    try:
+        from bidnet_auth.purchasing_group_tracker import is_registered
+
+        pg_registered = bool(pg_unlocked and is_registered(pg_unlocked))
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": f"pg_status_check_failed:{type(exc).__name__}",
+            "build": BUILD,
+            "opportunity_id": oid,
+            "purchasing_group_id": pg_unlocked,
+        }
+    if not pg_registered:
+        return {
+            "ok": False,
+            "error": "purchasing_group_not_registered",
+            "build": BUILD,
+            "opportunity_id": oid,
+            "purchasing_group_id": pg_unlocked,
+            "resume_cursor_before": cursor_before,
+            "resume_cursor_after": int((store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0),
+        }
+
+    evidence_index = build_commercial_evidence_index()
+    l23 = load_store()
+    http = _cookies_client()
+    auth_client = None
+    row: dict[str, Any] = {}
+    browser_got = False
+    try:
+        with bidnet_browser_slot(
+            holder=f"validate-unlock-{uuid.uuid4().hex[:8]}",
+            timeout_s=float(browser_timeout_s),
+            ttl_s=240.0,
+        ) as got:
+            browser_got = bool(got)
+            if not got:
+                return {
+                    "ok": False,
+                    "error": "browser_slot_busy",
+                    "build": BUILD,
+                    "opportunity_id": oid,
+                    "purchasing_group_id": pg_unlocked,
+                    "note": "first_pass_or_pg_manager_holds_playwright",
+                    "resume_cursor_before": cursor_before,
+                    "resume_cursor_after": int(
+                        (store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0
+                    ),
+                }
+            auth_status, auth_client = _open_bidnet_auth_client()
+            if not auth_status.get("authenticated") or auth_client is None:
+                return {
+                    "ok": False,
+                    "error": "auth_unavailable",
+                    "build": BUILD,
+                    "opportunity_id": oid,
+                    "purchasing_group_id": pg_unlocked,
+                    "auth_status": auth_status.get("status"),
+                    "auth_message": (auth_status.get("message") or "")[:200],
+                    "resume_cursor_before": cursor_before,
+                    "resume_cursor_after": int(
+                        (store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0
+                    ),
+                }
+            row = run_one_opportunity(
+                item,
+                client=http,
+                evidence_index=evidence_index,
+                auth_status=auth_status,
+                l23_rec=(l23 or {}).get(oid) or {},
+                auth_client=auth_client,
+            )
+    except Exception as exc:
+        row = {
+            "opportunity_id": oid,
+            "terminal_blocker": type(exc).__name__,
+            "funnel_outcome": "SOFTWARE_ERROR",
+            "stage_reached": item.get("stage_reached") or "ACCESS_DOCS",
+            "defer": True,
+            "software_defect_key": type(exc).__name__,
+            "stages_run": ["QUALIFY", "ACCESS_DOCS"],
+        }
+    finally:
+        if auth_client is not None:
+            try:
+                auth_client.close()
+            except Exception:
+                pass
+        try:
+            http.close()
+        except Exception:
+            pass
+
+    result = _map_result(row)
+    slim = _slim_checkpoint(row, result=result, index=max(0, idx), prior=prior_cp)
+    slim["PG_UNLOCK_RECOVERY_AT"] = _utc()
+    slim["recovery_pass"] = "VALIDATE_UNLOCK_HANDOFF"
+    slim["PG_UNLOCK_ELIGIBLE"] = True
+    slim["purchasing_group_id"] = slim.get("purchasing_group_id") or pg_unlocked
+    slim["shared_access_key"] = slim.get("shared_access_key") or item.get("shared_access_key")
+    store.write_item_checkpoint(job_id, slim)
+    _append_rfq(row)
+
+    # Keep in unlock recovery set unless successfully completed or paid entitlement.
+    if result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
+        dq2 = _load_deferred_queue()
+        dq2["items"] = [
+            x for x in (dq2.get("items") or []) if str(x.get("opportunity_id")) != oid
+        ]
+        dq2["count"] = len(dq2["items"])
+        dq2["pg_unlock_eligible_count"] = sum(
+            1 for x in dq2["items"] if isinstance(x, dict) and x.get("recovery_eligible")
+        )
+        _save(DEFERRED_QUEUE_FILE, dq2)
+        still_in_recovery = False
+    else:
+        still_unlock = True
+        blocker = str(row.get("terminal_blocker") or "")
+        if blocker.startswith("PAID_ENTITLEMENT"):
+            still_unlock = False
+        _defer_opportunity(
+            opportunity_id=oid,
+            stage=row.get("stage_reached") or "ACCESS_DOCS",
+            outcome=str(row.get("funnel_outcome") or result),
+            defect_key=row.get("software_defect_key"),
+            shared_access_key=row.get("shared_access_key") or item.get("shared_access_key"),
+            blocker=row.get("terminal_blocker"),
+            index=idx,
+            recovery_eligible=still_unlock,
+            pg_unlocked=pg_unlocked if still_unlock else None,
+        )
+        still_in_recovery = still_unlock
+
+    cursor_after = int((store.load_job(job_id) or {}).get("RESUME_CURSOR") or 0)
+    recon = reconcile_released_pg_unlocks(job_id, repair=False)
+    stages = list(row.get("stages_run") or [])
+    docs = int(slim.get("documents_downloaded") or 0)
+    lines = int(slim.get("fully_specified_product_lines") or 0)
+    price_n = int(slim.get("public_price_evidence_count") or 0)
+    # Handoff PASS: selected unlock ID, registered PG, orchestrator ran past qualify,
+    # and either advanced commercially or recorded a precise external/software blocker.
+    handoff_pass = bool(
+        browser_got
+        and pg_registered
+        and oid
+        and cursor_before == cursor_after
+        and (
+            docs > 0
+            or lines > 0
+            or price_n > 0
+            or "ACCESS_DOCS" in stages
+            or "EXTRACT" in stages
+            or slim.get("terminal_blocker")
+            or slim.get("funnel_outcome")
+        )
+    )
+    return {
+        "ok": True,
+        "build": BUILD,
+        "job_id": job_id,
+        "handoff": "PASS" if handoff_pass else "FAIL",
+        "opportunity_id": oid,
+        "purchasing_group_id": pg_unlocked,
+        "pg_registered": pg_registered,
+        "shared_access_key": item.get("shared_access_key"),
+        "authoritative_url": (item.get("authoritative_url") or "")[:220] or None,
+        "result": result,
+        "stage_reached": slim.get("stage_reached"),
+        "stages_run": stages,
+        "documents_downloaded": docs,
+        "fully_specified_product_lines": lines,
+        "supplier_status": slim.get("supplier_status"),
+        "public_price_evidence_count": price_n,
+        "econ_state": slim.get("econ_state"),
+        "terminal_blocker": slim.get("terminal_blocker"),
+        "funnel_outcome": slim.get("funnel_outcome") or row.get("funnel_outcome"),
+        "fetch_via": slim.get("fetch_via") or row.get("fetch_via"),
+        "still_in_recovery_queue": still_in_recovery,
+        "resume_cursor_before": cursor_before,
+        "resume_cursor_after": cursor_after,
+        "cursor_unchanged": cursor_before == cursor_after,
+        "reconcile": {
+            "released_unique": recon.get("released_opportunity_ids_count"),
+            "fully_accounted": recon.get("fully_accounted"),
+            "orphans": recon.get("missing_or_orphaned"),
+            "recovery_eligible_in_deferred": recon.get("recovery_eligible_in_deferred"),
+            "summary": recon.get("summary"),
+        },
+        "at": _utc(),
+    }
 
 
 def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
