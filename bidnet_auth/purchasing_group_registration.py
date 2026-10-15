@@ -35,7 +35,7 @@ from bidnet_auth.purchasing_group_tracker import (
 
 log = logging.getLogger("govtracker.bidnet_pg_registration")
 
-BUILD = "20261015-m3-bidnet-pg-registration-v2d"
+BUILD = "20261015-m3-bidnet-pg-registration-v2e"
 DEFAULT_SUPPLIER_ORG_ID = "9785456456"
 
 # Conditional text fields that only apply when a related YES cert radio is chosen.
@@ -480,6 +480,51 @@ def prepare_empire_state_answers(answers: dict[str, Any] | None = None) -> dict[
         "held_certifications": ans.get("held_certifications") or [],
     }
     return plan
+
+
+def click_unanswered_radios_no(client: Any) -> dict[str, Any]:
+    """Click NO on every radio group that still has no selection.
+
+    BidNet PG forms often leave SBE/MDBE/other-cert radios out of our label scan
+    (labels collapse to 'Amended'). Answering NO is safe — we never invent YES
+    certifications. Groups that look like legal attestations are skipped.
+    """
+    page = client._page
+    try:
+        result = page.evaluate(
+            """() => {
+              const attestation = /attest|under penalty|legally binding|i agree|terms of use/i;
+              const groups = {};
+              for (const n of Array.from(document.querySelectorAll('input[type=radio]'))) {
+                const name = n.getAttribute('name') || '';
+                if (!name) continue;
+                (groups[name] = groups[name] || []).push(n);
+              }
+              const clicked = [];
+              for (const [name, nodes] of Object.entries(groups)) {
+                if (nodes.some(n => n.checked)) continue;
+                const blob = nodes.map(n => (n.id||'')+' '+(n.value||'')).join(' ');
+                const nearby = (nodes[0].closest('.mets-field, .form-group, tr, .field') || {})
+                  .innerText || '';
+                if (attestation.test(blob + ' ' + nearby)) {
+                  clicked.push({name, skipped: 'attestation'});
+                  continue;
+                }
+                let el = nodes.find(n => /\\.NO\\b|_NO\\b|(^|[^A-Z])NO([^A-Z]|$)|false|\\b0\\b/i
+                  .test((n.id||'') + ' ' + (n.value||'')));
+                if (!el) el = nodes[nodes.length - 1];
+                const lab = el.id ? document.querySelector('label[for=\"'+el.id+'\"]') : null;
+                if (lab) lab.click(); else el.click();
+                el.checked = true;
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+                clicked.push({name, ok: !!el.checked, id: el.id || null});
+              }
+              return clicked;
+            }"""
+        )
+        return {"ok": True, "clicked": result or []}
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
 
 
 def apply_fills(client: Any, plan: dict[str, Any], *, answers: dict[str, Any]) -> dict[str, Any]:
@@ -1343,6 +1388,10 @@ def run_purchasing_group_registration(
                 "purchasing_group_id": pg_id,
             }
 
+        # Sweep any required radios the label scanner missed (Dallas SBE, etc.).
+        unanswered = click_unanswered_radios_no(client)
+        fill_result["unanswered_radio_sweep"] = unanswered
+
         client._page.locator("#saveButton").click(timeout=5_000)
         client._page.wait_for_timeout(2_500)
         url = str(client._page.url or "")
@@ -1362,6 +1411,7 @@ def run_purchasing_group_registration(
         if failed_check and plan.get("fills"):
             try:
                 fill_result = apply_fills(client, plan, answers=answers)
+                click_unanswered_radios_no(client)
                 client._page.locator("#saveButton").click(timeout=5_000)
                 client._page.wait_for_timeout(2_500)
                 url = str(client._page.url or "")

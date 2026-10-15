@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e5"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e6"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
