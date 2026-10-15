@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e11"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e12"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2847,6 +2847,8 @@ def process_slice(
             deferred_n += 1
         return deferred_n
 
+    unlock_recovery_report: dict[str, Any] | None = None
+    price_pass: dict[str, Any] | None = None
     browser_slot_held = False
     try:
         if browser_pending:
@@ -3140,14 +3142,12 @@ def process_slice(
                 registered_empty_streak = 0
 
         # Commercial research for already-complete RFQs (lines recovered earlier).
-        price_pass: dict[str, Any] | None = None
         # Skip expensive end-of-slice price/PG browser work when this slice only
         # performed shared-access fast deferrals (no new specs to price).
         slice_all_fast = (
             int(timing_accum.get("fast_path_count") or 0) > 0
             and int(timing_accum.get("browser_path_count") or 0) == 0
         )
-        unlock_recovery_report: dict[str, Any] | None = None
         try:
             if _is_active_lease_worker(job_id, worker_id) and not slice_all_fast:
                 price_pass = _research_prices_from_rfq_queue(
@@ -3162,32 +3162,6 @@ def process_slice(
                 )
             elif slice_all_fast:
                 price_pass = {"skipped": True, "reason": "slice_all_shared_access_fast_path"}
-                # Browser free: advance ONE unlock-eligible recovery without touching
-                # unattempted first-pass positions (cursor unchanged).
-                if first_pass and _is_active_lease_worker(job_id, worker_id):
-                    unlock_recovery_report = _recover_one_unlocked_opportunity(
-                        job_id=job_id,
-                        worker_id=worker_id,
-                        rows=rows,
-                        store=store,
-                        http=http,
-                        evidence_index=evidence_index,
-                        l23=l23,
-                    )
-                    if unlock_recovery_report.get("processed"):
-                        _progress(
-                            status="RUNNING",
-                            phase="PG_UNLOCK_MICRO_RECOVERY",
-                            job_id=job_id,
-                            worker_id=worker_id,
-                            unlock_recovery=unlock_recovery_report,
-                        )
-                        try:
-                            price_pass = _research_prices_from_rfq_queue(
-                                job_id=job_id, max_items=2, budget_s=40.0
-                            )
-                        except Exception as exc:
-                            price_pass = {"error": type(exc).__name__, "after": "unlock_micro"}
         except Exception as exc:
             price_pass = {"error": type(exc).__name__}
 
@@ -3235,6 +3209,19 @@ def process_slice(
                 release_bidnet_browser(holder=f"fspf-{worker_id}")
             except Exception:
                 pass
+            browser_slot_held = False
+
+    # After Playwright is released: recover ONE unlocked opportunity (docs→lines→prices).
+    # Runs for every first-pass slice so browser-path work does not starve unlock recovery.
+    if first_pass and not (unlock_recovery_report or {}).get("processed"):
+        unlock_recovery_report = _try_unlock_micro_recovery("post_slice_browser_released")
+        if (unlock_recovery_report or {}).get("processed"):
+            try:
+                price_pass = _research_prices_from_rfq_queue(
+                    job_id=job_id, max_items=2, budget_s=40.0
+                )
+            except Exception as exc:
+                price_pass = {"error": type(exc).__name__, "after": "unlock_micro"}
 
     job = store.recompute_counts(job_id)
     items = store.list_items(job_id)
@@ -3249,6 +3236,8 @@ def process_slice(
         eligible_total=job.get("TOTAL"),
         last_opportunity_id=last_oid,
         scorecard_metrics=scorecard.get("metrics"),
+        unlock_micro_recovery=unlock_recovery_report,
+        price_pass=price_pass,
     )
     return {
         "slice_complete": True,
@@ -3258,6 +3247,8 @@ def process_slice(
         "completed": job.get("COMPLETED"),
         "total": job.get("TOTAL"),
         "scorecard": scorecard.get("metrics"),
+        "unlock_micro_recovery": unlock_recovery_report,
+        "price_pass": price_pass,
     }
 
 
