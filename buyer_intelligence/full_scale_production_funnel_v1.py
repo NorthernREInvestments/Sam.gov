@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e21"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e22"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -80,12 +80,18 @@ SLICE_SIZE = int(os.environ.get("M3_FSPF_SLICE_SIZE") or "25")
 ITEM_TIMEOUT_S = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
 # Concurrent full (browser) opportunity funnels — keep low; fast-path is sequential/cheap
 BROWSER_CONCURRENCY = max(1, min(4, int(os.environ.get("M3_FSPF_BROWSER_CONCURRENCY") or "2")))
-# Browser + unlock micro-recovery regularly exceeds 120s without an interim
-# heartbeat; keep the exclusive lease alive for the full item budget.
+# Lease staleness for fencing — independent supervisor recovers at ~120s of
+# zero progress. Keep lease window slightly above ITEM_TIMEOUT_S + heartbeat.
 STALE_LEASE_S = float(
     os.environ.get("M3_FSPF_STALE_LEASE_S")
-    or max(float(LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS") or 120), 600.0)
+    or max(
+        float(LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS") or 120),
+        float(ITEM_TIMEOUT_S) + 40.0,
+        150.0,
+    )
 )
+# Independent heartbeat while a per-opportunity future is in flight.
+WORKER_HEARTBEAT_S = float(os.environ.get("M3_FSPF_WORKER_HEARTBEAT_S") or "12")
 SOURCE_COOLDOWN_S = float(os.environ.get("M3_FSPF_SOURCE_COOLDOWN_S") or "0.4")
 AUTO_SEND = False
 
@@ -1566,11 +1572,17 @@ def requeue_retryable_failures(job_id: str) -> dict[str, Any]:
     }
 
 
-def _is_active_lease_worker(job_id: str, worker_id: str) -> bool:
+def _is_active_lease_worker(
+    job_id: str,
+    worker_id: str,
+    *,
+    lease_generation: int | None = None,
+) -> bool:
     """True only while this worker still holds the exclusive job lease.
 
     Prevents zombie threads (from force-restart) from continuing after a newer
     worker acquires the lease — clearing _stop_requested must not revive them.
+    Generation fencing blocks superseded workers even if WORKER_ID were reused.
     """
     try:
         job = JobStore(FAMILY).load_job(job_id) or {}
@@ -1578,7 +1590,82 @@ def _is_active_lease_worker(job_id: str, worker_id: str) -> bool:
         return False
     if str(job.get("WORKER_ID") or "") != str(worker_id or ""):
         return False
+    if lease_generation is not None:
+        if int(job.get("LEASE_GENERATION") or 0) != int(lease_generation):
+            return False
     return str(job.get("STATUS") or "") in {"RUNNING", "CREATED"}
+
+
+def _run_with_timeout_no_hang(
+    fn: Any,
+    *,
+    timeout_s: float,
+    on_timeout: Any = None,
+) -> Any:
+    """Run ``fn`` with a wall-clock timeout WITHOUT blocking forever on shutdown.
+
+    Python's ``with ThreadPoolExecutor`` waits for the worker on exit. A hung
+    Playwright call that already exceeded ``timeout_s`` would then freeze the
+    entire FSPF worker (no heartbeats) for hours. Always shutdown(wait=False).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FuturesTimeout
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        fut = pool.submit(fn)
+        try:
+            return fut.result(timeout=timeout_s)
+        except FuturesTimeout:
+            if callable(on_timeout):
+                return on_timeout()
+            raise
+    finally:
+        try:
+            pool.shutdown(wait=False, cancel_futures=True)
+        except TypeError:
+            # Python <3.9 cancel_futures unavailable
+            pool.shutdown(wait=False)
+
+
+def _heartbeat_pulse(
+    *,
+    job_id: str,
+    worker_id: str,
+    lease_generation: int | None,
+    current_index: int | None = None,
+    current_opportunity_id: str | None = None,
+    stop_event: threading.Event,
+    interval_s: float = WORKER_HEARTBEAT_S,
+) -> None:
+    """Independent heartbeat while a long opportunity op runs."""
+    store = JobStore(FAMILY)
+    while not stop_event.wait(interval_s):
+        if not _is_active_lease_worker(
+            job_id, worker_id, lease_generation=lease_generation
+        ):
+            break
+        try:
+            store.heartbeat(
+                job_id,
+                worker_id=worker_id,
+                current_index=current_index,
+                current_opportunity_id=current_opportunity_id,
+                lease_generation=lease_generation,
+            )
+            _progress(
+                status="RUNNING",
+                phase="WORKER_HEARTBEAT",
+                job_id=job_id,
+                worker_id=worker_id,
+                lease_generation=lease_generation,
+                current_index=current_index,
+                current_opportunity_id=current_opportunity_id,
+            )
+        except JobLeaseError:
+            break
+        except Exception:
+            break
 
 
 def _stop_flag() -> bool:
@@ -3070,6 +3157,7 @@ def process_slice(
     job_id: str,
     worker_id: str,
     slice_size: int = SLICE_SIZE,
+    lease_generation: int | None = None,
 ) -> dict[str, Any]:
     """Process the next slice via one-pass orchestrator (first-pass, then deferred)."""
     from buyer_intelligence.commercial_evidence_index_v1 import build_commercial_evidence_index
@@ -3084,6 +3172,18 @@ def process_slice(
     job = store.load_job(job_id)
     if not job:
         raise KeyError(job_id)
+    if lease_generation is None:
+        lease_generation = int(job.get("LEASE_GENERATION") or 0)
+    if not _is_active_lease_worker(
+        job_id, worker_id, lease_generation=lease_generation
+    ):
+        return {
+            "slice_complete": False,
+            "processed_this_slice": 0,
+            "queue_exhausted": False,
+            "job_id": job_id,
+            "lease_superseded": True,
+        }
 
     queue = _load(QUEUE_FILE) or build_eligible_queue()
     rows = queue.get("rows") or []
@@ -3447,17 +3547,23 @@ def process_slice(
             "access_fast_path": bool(slim.get("access_fast_path") or row.get("access_fast_path")),
         }
         store.save_job(job)
-        store.heartbeat(
-            job_id,
-            worker_id=worker_id,
-            current_index=idx,
-            current_opportunity_id=oid_local,
-        )
+        try:
+            store.heartbeat(
+                job_id,
+                worker_id=worker_id,
+                current_index=idx,
+                current_opportunity_id=oid_local,
+                lease_generation=lease_generation,
+            )
+        except JobLeaseError:
+            return result
         return result
 
     # --- Fast path: no browser ---
     for idx, item, access in fast_pending:
-        if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
+        if _stop_flag() or not _is_active_lease_worker(
+            job_id, worker_id, lease_generation=lease_generation
+        ):
             break
         t0 = time.time()
         oid = str(item["opportunity_id"])
@@ -3528,7 +3634,9 @@ def process_slice(
 
     def _try_unlock_micro_recovery(reason: str) -> dict[str, Any] | None:
         """Advance one unlocked opportunity when first-pass browser work cannot run."""
-        if not first_pass or not _is_active_lease_worker(job_id, worker_id):
+        if not first_pass or not _is_active_lease_worker(
+            job_id, worker_id, lease_generation=lease_generation
+        ):
             return None
         try:
             report = _recover_one_unlocked_opportunity(
@@ -3670,16 +3778,22 @@ def process_slice(
                     "unlock_micro_recovery": unlock_recovery_report,
                 }
         for idx, item in browser_pending:
-            if _stop_flag() or not _is_active_lease_worker(job_id, worker_id):
+            if _stop_flag() or not _is_active_lease_worker(
+                job_id, worker_id, lease_generation=lease_generation
+            ):
                 break
             oid = str(item["opportunity_id"])
             last_oid = oid
-            store.heartbeat(
-                job_id,
-                worker_id=worker_id,
-                current_index=idx,
-                current_opportunity_id=oid,
-            )
+            try:
+                store.heartbeat(
+                    job_id,
+                    worker_id=worker_id,
+                    current_index=idx,
+                    current_opportunity_id=oid,
+                    lease_generation=lease_generation,
+                )
+            except JobLeaseError:
+                break
             if browser_slot_held:
                 try:
                     from bidnet_auth.browser_mutex_v1 import refresh_bidnet_browser_lease
@@ -3710,11 +3824,10 @@ def process_slice(
                             pass
                     auth_status, auth_client = _open_bidnet_auth_client()
 
-                # ONE continuous journey with hard wall-clock so hung Playwright
-                # cannot strand the worker past ITEM_TIMEOUT_S.
-                from concurrent.futures import ThreadPoolExecutor
-                from concurrent.futures import TimeoutError as FuturesTimeout
-
+                # ONE continuous journey with hard wall-clock. Critical: do NOT
+                # use ``with ThreadPoolExecutor`` — its __exit__ waits forever for
+                # hung Playwright threads after fut.result timeout (root cause of
+                # multi-hour RUNNING-but-dead workers).
                 def _run() -> dict[str, Any]:
                     return run_one_opportunity(
                         item,
@@ -3725,29 +3838,53 @@ def process_slice(
                         auth_client=auth_client,
                     )
 
-                with ThreadPoolExecutor(max_workers=1) as pool:
-                    fut = pool.submit(_run)
+                def _timeout_row() -> dict[str, Any]:
                     try:
-                        row = fut.result(timeout=ITEM_TIMEOUT_S)
-                    except FuturesTimeout:
-                        try:
-                            if auth_client is not None:
-                                auth_client.close()
-                        except Exception:
-                            pass
+                        if auth_client is not None:
+                            auth_client.close()
+                    except Exception:
+                        pass
+                    return {
+                        "opportunity_id": oid,
+                        "title": item.get("title"),
+                        "terminal_blocker": "PER_OPPORTUNITY_TIMEOUT",
+                        "bounded_timed_out": True,
+                        "funnel_outcome": "SOFTWARE_ERROR",
+                        "stage_reached": "ACCESS_DOCS",
+                        "defer": True,
+                        "software_defect_key": "TIMEOUT",
+                        "one_pass": True,
+                        "elapsed_s": round(time.time() - t0, 2),
+                    }
+
+                hb_stop = threading.Event()
+                hb_thread = threading.Thread(
+                    target=_heartbeat_pulse,
+                    kwargs={
+                        "job_id": job_id,
+                        "worker_id": worker_id,
+                        "lease_generation": lease_generation,
+                        "current_index": idx,
+                        "current_opportunity_id": oid,
+                        "stop_event": hb_stop,
+                    },
+                    name=f"fspf-hb-{oid[:8]}",
+                    daemon=True,
+                )
+                hb_thread.start()
+                row: dict[str, Any] | None = None
+                try:
+                    row = _run_with_timeout_no_hang(
+                        _run,
+                        timeout_s=ITEM_TIMEOUT_S,
+                        on_timeout=_timeout_row,
+                    )
+                finally:
+                    hb_stop.set()
+                    if isinstance(row, dict) and row.get("bounded_timed_out"):
                         auth_client = None
-                        row = {
-                            "opportunity_id": oid,
-                            "title": item.get("title"),
-                            "terminal_blocker": "PER_OPPORTUNITY_TIMEOUT",
-                            "bounded_timed_out": True,
-                            "funnel_outcome": "SOFTWARE_ERROR",
-                            "stage_reached": "ACCESS_DOCS",
-                            "defer": True,
-                            "software_defect_key": "TIMEOUT",
-                            "one_pass": True,
-                            "elapsed_s": round(time.time() - t0, 2),
-                        }
+                if not isinstance(row, dict):
+                    row = _timeout_row()
                 # Shared client may be poisoned by Playwright target-closed errors
                 note = str(row.get("access_note") or "")
                 early_st = str(
@@ -3885,7 +4022,12 @@ def process_slice(
             and int(timing_accum.get("browser_path_count") or 0) == 0
         )
         try:
-            if _is_active_lease_worker(job_id, worker_id) and not slice_all_fast:
+            if (
+                _is_active_lease_worker(
+                    job_id, worker_id, lease_generation=lease_generation
+                )
+                and not slice_all_fast
+            ):
                 price_pass = _research_prices_from_rfq_queue(
                     job_id=job_id, max_items=3, budget_s=55.0
                 )
@@ -4014,6 +4156,8 @@ def process_slice(
 def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE) -> dict[str, Any]:
     """Run slice after slice until queue exhausted, stop, or hard blocker."""
     store = JobStore(FAMILY)
+    job0 = store.load_job(job_id) or {}
+    lease_generation = int(job0.get("LEASE_GENERATION") or 0)
     # Independent PG access lane — separate browser, never blocks opportunity workers.
     try:
         from bidnet_auth.purchasing_group_access_manager_v1 import ensure_access_manager_running
@@ -4021,26 +4165,60 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
         ensure_access_manager_running(job_id=job_id)
     except Exception as exc:
         log.warning("pg access manager start failed: %s", type(exc).__name__)
+    # Independent supervisor — stall detection outside this worker thread.
+    try:
+        from buyer_intelligence.fspf_supervisor_v1 import ensure_supervisor_running
+
+        ensure_supervisor_running()
+    except Exception as exc:
+        log.warning("fspf supervisor start failed: %s", type(exc).__name__)
     slices = 0
     while True:
-        if not _is_active_lease_worker(job_id, worker_id):
+        if not _is_active_lease_worker(
+            job_id, worker_id, lease_generation=lease_generation
+        ):
             _progress(
                 status="STOPPED",
                 phase="LEASE_SUPERSEDED",
                 job_id=job_id,
                 worker_id=worker_id,
+                lease_generation=lease_generation,
                 note="exiting_zombie_worker",
             )
             break
         if _stop_flag():
             # Only the lease holder may release / cancel the job.
-            if _is_active_lease_worker(job_id, worker_id):
+            if _is_active_lease_worker(
+                job_id, worker_id, lease_generation=lease_generation
+            ):
                 store.release_lease(job_id, worker_id, final_status="CANCELLED")
                 _progress(status="CANCELLED", phase="STOPPED", job_id=job_id)
             break
-        out = process_slice(job_id=job_id, worker_id=worker_id, slice_size=slice_size)
+        out = process_slice(
+            job_id=job_id,
+            worker_id=worker_id,
+            slice_size=slice_size,
+            lease_generation=lease_generation,
+        )
         slices += 1
-        if not _is_active_lease_worker(job_id, worker_id):
+        if not _is_active_lease_worker(
+            job_id, worker_id, lease_generation=lease_generation
+        ):
+            _progress(
+                status="STOPPED",
+                phase="LEASE_SUPERSEDED",
+                job_id=job_id,
+                worker_id=worker_id,
+                lease_generation=lease_generation,
+            )
+            break
+        try:
+            store.heartbeat(
+                job_id,
+                worker_id=worker_id,
+                lease_generation=lease_generation,
+            )
+        except JobLeaseError:
             _progress(
                 status="STOPPED",
                 phase="LEASE_SUPERSEDED",
@@ -4048,7 +4226,6 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
                 worker_id=worker_id,
             )
             break
-        store.heartbeat(job_id, worker_id=worker_id)
         if out.get("queue_exhausted"):
             store.release_lease(job_id, worker_id, final_status="DONE")
             _progress(status="DONE", phase="QUEUE_EXHAUSTED", job_id=job_id, slices=slices)

@@ -23,13 +23,17 @@ def _atomic_write(path: Path, payload: Any) -> None:
 
     Prefer same-directory temp + replace. Some Railway volume mounts intermittently
     fail Path.replace on ``*.json.tmp`` (FileNotFoundError on the temp source) —
-    fall back to a direct write so heartbeats/checkpoints cannot kill the worker.
+    fall back to a direct write AFTER backing up the previous good file so a
+    truncated write cannot destroy the sole valid job.json.
     """
     import os
+    import shutil
     import tempfile
 
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = json.dumps(payload, indent=2, default=str)
+    # Validate payload round-trips before touching disk.
+    json.loads(raw)
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".tmp",
@@ -47,8 +51,30 @@ def _atomic_write(path: Path, payload: Any) -> None:
                 os.unlink(tmp_name)
         except OSError:
             pass
-        # Direct overwrite — still durable enough for checkpoint/heartbeat continuity.
-        path.write_text(raw, encoding="utf-8")
+        # Preserve prior valid snapshot before direct overwrite.
+        if path.exists():
+            bak = path.with_suffix(path.suffix + ".bak")
+            try:
+                shutil.copy2(path, bak)
+            except OSError:
+                pass
+        # Write via adjacent .new then best-effort replace; last resort overwrite.
+        new_path = path.with_suffix(path.suffix + ".new")
+        try:
+            new_path.write_text(raw, encoding="utf-8")
+            try:
+                os.replace(str(new_path), str(path))
+            except OSError:
+                path.write_text(raw, encoding="utf-8")
+                try:
+                    new_path.unlink(missing_ok=True)  # type: ignore[call-arg]
+                except TypeError:
+                    if new_path.exists():
+                        new_path.unlink()
+                except OSError:
+                    pass
+        except OSError:
+            path.write_text(raw, encoding="utf-8")
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -226,11 +252,24 @@ class JobStore:
         worker_id: str,
         current_index: int | None = None,
         current_opportunity_id: str | None = None,
+        lease_generation: int | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             job = self.load_job(job_id)
             if not job:
                 raise KeyError(job_id)
+            # Generation fencing — superseded workers cannot refresh the lease.
+            cur_gen = int(job.get("LEASE_GENERATION") or 0)
+            if lease_generation is not None and int(lease_generation) != cur_gen:
+                raise JobLeaseError(
+                    f"stale_generation:{lease_generation}!={cur_gen}"
+                )
+            if (
+                job.get("WORKER_ID")
+                and str(job.get("WORKER_ID")) != str(worker_id)
+                and job.get("STATUS") == "RUNNING"
+            ):
+                raise JobLeaseError(f"job_leased_by:{job.get('WORKER_ID')}")
             now = _utc()
             job["HEARTBEAT_AT"] = now
             job["UPDATED_AT"] = now
@@ -243,6 +282,7 @@ class JobStore:
             lease = {
                 "JOB_ID": job_id,
                 "WORKER_ID": worker_id,
+                "LEASE_GENERATION": cur_gen,
                 "HEARTBEAT_AT": now,
                 "CURRENT_ITEM": current_opportunity_id,
                 "COMPLETED": job.get("COMPLETED"),
@@ -280,13 +320,29 @@ class JobStore:
                 job["STATUS"] = "STALE_RELEASED"
                 job["LAST_ERROR"] = "STALE_WORKER_LEASE_EXPIRED"
                 self.save_job(job)
+            # Bump generation so prior workers are fenced out of heartbeats/checkpoints.
+            job["LEASE_GENERATION"] = int(job.get("LEASE_GENERATION") or 0) + 1
             job["STATUS"] = "RUNNING"
             if not job.get("STARTED_AT"):
                 job["STARTED_AT"] = _utc()
             job["WORKER_ID"] = worker_id
+            job["LAST_ERROR"] = None
+            job["SUPERSEDED_PRIOR_WORKER"] = lease.get("WORKER_ID")
             self.save_job(job)
-            _atomic_write(self.active_pointer_path(), {"JOB_ID": job_id, "UPDATED_AT": _utc()})
-            return self.heartbeat(job_id, worker_id=worker_id)
+            _atomic_write(
+                self.active_pointer_path(),
+                {
+                    "JOB_ID": job_id,
+                    "UPDATED_AT": _utc(),
+                    "LEASE_GENERATION": job["LEASE_GENERATION"],
+                    "WORKER_ID": worker_id,
+                },
+            )
+            return self.heartbeat(
+                job_id,
+                worker_id=worker_id,
+                lease_generation=int(job["LEASE_GENERATION"]),
+            )
 
     def release_lease(self, job_id: str, worker_id: str, *, final_status: str) -> dict[str, Any]:
         with self._lock:
