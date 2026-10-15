@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e14"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e15"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -80,10 +80,11 @@ SLICE_SIZE = int(os.environ.get("M3_FSPF_SLICE_SIZE") or "25")
 ITEM_TIMEOUT_S = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
 # Concurrent full (browser) opportunity funnels — keep low; fast-path is sequential/cheap
 BROWSER_CONCURRENCY = max(1, min(4, int(os.environ.get("M3_FSPF_BROWSER_CONCURRENCY") or "2")))
+# Browser + unlock micro-recovery regularly exceeds 120s without an interim
+# heartbeat; keep the exclusive lease alive for the full item budget.
 STALE_LEASE_S = float(
     os.environ.get("M3_FSPF_STALE_LEASE_S")
-    or LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS")
-    or 120
+    or max(float(LONG_RUNNING_JOB_EXECUTION_STANDARD.get("STALE_RUNNING_SECONDS") or 120), 600.0)
 )
 SOURCE_COOLDOWN_S = float(os.environ.get("M3_FSPF_SOURCE_COOLDOWN_S") or "0.4")
 AUTO_SEND = False
@@ -802,12 +803,40 @@ def _recover_one_unlocked_opportunity(
                 idx = j
                 break
 
+    # Keep exclusive job lease alive across browser wait + funnel (can exceed 2m).
+    try:
+        store.heartbeat(
+            job_id,
+            worker_id=worker_id,
+            current_index=max(0, idx),
+            current_opportunity_id=oid,
+        )
+        _progress(
+            status="RUNNING",
+            phase="PG_UNLOCK_MICRO_RECOVERY",
+            job_id=job_id,
+            worker_id=worker_id,
+            current_opportunity_id=oid,
+            note="unlock_micro_recovery_acquired_candidate",
+        )
+    except Exception:
+        pass
+
     auth_client = None
     row: dict[str, Any] = {}
-    with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=45.0, ttl_s=180.0) as got:
+    with bidnet_browser_slot(holder=f"unlock-{worker_id}", timeout_s=20.0, ttl_s=240.0) as got:
         if not got:
             return {"processed": 0, "reason": "browser_slot_busy", "opportunity_id": oid}
         try:
+            try:
+                store.heartbeat(
+                    job_id,
+                    worker_id=worker_id,
+                    current_index=max(0, idx),
+                    current_opportunity_id=oid,
+                )
+            except Exception:
+                pass
             auth_status, auth_client = _open_bidnet_auth_client()
             if not auth_status.get("authenticated") or auth_client is None:
                 return {
@@ -816,6 +845,15 @@ def _recover_one_unlocked_opportunity(
                     "opportunity_id": oid,
                     "auth_status": auth_status.get("status"),
                 }
+            try:
+                store.heartbeat(
+                    job_id,
+                    worker_id=worker_id,
+                    current_index=max(0, idx),
+                    current_opportunity_id=oid,
+                )
+            except Exception:
+                pass
             row = run_one_opportunity(
                 item,
                 client=http,
@@ -3258,6 +3296,7 @@ def process_slice(
         processed_this_slice=processed,
         completed=job.get("COMPLETED"),
         eligible_total=job.get("TOTAL"),
+        resume_cursor=job.get("RESUME_CURSOR"),
         last_opportunity_id=last_oid,
         scorecard_metrics=scorecard.get("metrics"),
         unlock_micro_recovery=unlock_recovery_report,
