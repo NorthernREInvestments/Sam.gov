@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -127,19 +129,50 @@ class BidNetAuthenticatedClient:
             return result
 
         try:
+            from bidnet_auth.auth_lifecycle_v1 import (
+                browser_circuit_status,
+                format_browser_unavailable,
+                record_browser_failure,
+                record_browser_success,
+            )
+
+            circuit = browser_circuit_status()
+            if circuit.get("open"):
+                result = AuthResult(
+                    status=AUTH_FAILED,
+                    authenticated=False,
+                    message=(
+                        f"browser_unavailable:BROWSER_CIRCUIT_OPEN:"
+                        f"cooldown_{circuit.get('remaining_s')}s"
+                    ),
+                )
+                self.last_result = result
+                record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
+                return result
             self._ensure_browser()
+            record_browser_success()
         except Exception as exc:
-            # Preserve exception type AND a short message — production was only
-            # seeing browser_unavailable:Error with no actionable detail.
-            detail = f"{type(exc).__name__}:{exc}"[:160]
+            from bidnet_auth.auth_lifecycle_v1 import (
+                classify_browser_exception,
+                force_cleanup_orphaned_chromium,
+                format_browser_unavailable,
+                record_browser_failure,
+            )
+
+            # Cross-thread close / abandoned Playwright threads leave orphans that
+            # make the next launch fail with a bare playwright Error.
+            force_cleanup_orphaned_chromium(max_kill=6)
+            klass = classify_browser_exception(exc)
+            msg = format_browser_unavailable(exc)
+            record_browser_failure(klass=klass, detail=msg)
             result = AuthResult(
                 status=AUTH_FAILED,
                 authenticated=False,
-                message=f"browser_unavailable:{detail}",
+                message=msg,
             )
             self.last_result = result
             record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
-            log.warning("BidNet browser unavailable: %s", detail)
+            log.warning("BidNet browser unavailable class=%s msg=%s", klass, msg[:160])
             return result
 
         # 1) Try existing session (works even when credentials absent)
@@ -178,7 +211,7 @@ class BidNetAuthenticatedClient:
                 record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
                 return result
 
-        # 2) Automatic login (requires credentials)
+        # 2) Automatic login (requires credentials) — single-flight refresh lock
         if not cfg.credentials_present:
             result = AuthResult(
                 status=AUTH_FAILED,
@@ -188,9 +221,27 @@ class BidNetAuthenticatedClient:
             self.last_result = result
             record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
             return result
-        login = self._perform_login()
-        self.last_result = login
-        return login
+        from bidnet_auth.auth_lifecycle_v1 import (
+            acquire_auth_refresh_lock,
+            release_auth_refresh_lock,
+        )
+
+        holder = f"login-pid:{os.getpid()}-thr:{threading.get_ident()}"
+        if not acquire_auth_refresh_lock(holder=holder, ttl_s=120.0):
+            result = AuthResult(
+                status=AUTH_FAILED,
+                authenticated=False,
+                message="AUTH_REFRESH_IN_PROGRESS",
+            )
+            self.last_result = result
+            record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
+            return result
+        try:
+            login = self._perform_login()
+            self.last_result = login
+            return login
+        finally:
+            release_auth_refresh_lock(holder=holder)
 
     def fetch_html(self, url: str, *, timeout_ms: int = 20_000, prefer_http: bool = True) -> str:
         """Fetch HTML. Prefer authenticated HTTP request; fall back to page navigation.
@@ -1470,7 +1521,22 @@ class BidNetAuthenticatedClient:
             return
         try:
             state = self._context.storage_state()
-            save_storage_state(state)
+            # Generation-fenced write so a superseded timed-out worker cannot
+            # overwrite a newer authenticated session.
+            try:
+                from bidnet_auth.auth_lifecycle_v1 import (
+                    save_storage_state_fenced,
+                    session_write_generation,
+                )
+
+                gen = session_write_generation()
+                save_storage_state_fenced(
+                    state,
+                    writer=f"pid:{os.getpid()}",
+                    min_generation=gen,
+                )
+            except Exception:
+                save_storage_state(state)
         except Exception as exc:
             log.warning("Failed persisting BidNet storage state: %s", type(exc).__name__)
 

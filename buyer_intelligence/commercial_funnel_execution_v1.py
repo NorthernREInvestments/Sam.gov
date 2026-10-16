@@ -485,10 +485,20 @@ def _open_bidnet_auth_client() -> tuple[dict[str, Any], Any | None]:
         status["session_reused"] = bool(result.reused_session)
         if not result.authenticated:
             msg = str(result.message or "")
+            try:
+                from bidnet_auth.auth_lifecycle_v1 import classify_auth_result_message
+
+                status["failure_class"] = classify_auth_result_message(
+                    status=str(result.status), message=msg
+                )
+            except Exception:
+                status["failure_class"] = None
             if "EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED" in msg:
                 status["external_blocker"] = "EXTERNAL_ACCOUNT_CREDENTIALS_REQUIRED"
             elif result.status == "AUTH_CHALLENGE":
                 status["external_blocker"] = "EXTERNAL_CAPTCHA_HUMAN_ACTION_REQUIRED"
+            elif status.get("failure_class"):
+                status["external_blocker"] = status["failure_class"]
             else:
                 status["external_blocker"] = str(result.status)
             client.close()
@@ -499,9 +509,23 @@ def _open_bidnet_auth_client() -> tuple[dict[str, Any], Any | None]:
             client.close()
         except Exception:
             pass
-        status["status"] = "AUTH_PROBE_FAILED"
-        status["external_blocker"] = "AUTH_PROBE_FAILED"
-        status["message"] = type(exc).__name__
+        try:
+            from bidnet_auth.auth_lifecycle_v1 import (
+                classify_browser_exception,
+                force_cleanup_orphaned_chromium,
+                format_browser_unavailable,
+            )
+
+            force_cleanup_orphaned_chromium(max_kill=4)
+            klass = classify_browser_exception(exc)
+            status["status"] = klass
+            status["external_blocker"] = klass
+            status["failure_class"] = klass
+            status["message"] = format_browser_unavailable(exc)[:200]
+        except Exception:
+            status["status"] = "AUTH_PROBE_FAILED"
+            status["external_blocker"] = "AUTH_PROBE_FAILED"
+            status["message"] = type(exc).__name__
         return status, None
 
 
@@ -1044,12 +1068,27 @@ def process_one(
                     f"PAID_ENTITLEMENT:{bounded.get('paid_entitlement_requirement') or 'verified'}"
                 )
             elif str(bounded.get("primary_blocker") or "") == "SOLICITATION_RESOLUTION_FAILED":
-                # Registered PG still could not resolve private solicitation from
-                # statewide/open-bids ID namespace — not an incomplete-spec outcome.
-                out["package_blocker"] = "SOLICITATION_RESOLUTION_FAILED"
-                out["software_defect_key"] = out.get("software_defect_key") or (
-                    "bidnet_solicitation_resolution"
-                )
+                # Only assign after authenticated search actually ran. A browser
+                # failure must never be counted as proof the solicitation is missing.
+                auth_st = str(out.get("bidnet_auth_status") or auth_status.get("status") or "")
+                if auth_st in {
+                    "AUTH_FAILED",
+                    "BROWSER_STARTUP_FAILED",
+                    "BROWSER_PROCESS_FAILED",
+                    "BROWSER_CONTEXT_INVALID",
+                    "SESSION_RESTORE_FAILED",
+                } or str(out.get("auth_message") or "").startswith("browser_unavailable"):
+                    out["package_blocker"] = str(
+                        auth_status.get("failure_class")
+                        or auth_status.get("external_blocker")
+                        or "BROWSER_CONTEXT_INVALID"
+                    )
+                    out["software_defect_key"] = "browser_auth_transient"
+                else:
+                    out["package_blocker"] = "SOLICITATION_RESOLUTION_FAILED"
+                    out["software_defect_key"] = out.get("software_defect_key") or (
+                        "bidnet_solicitation_resolution"
+                    )
             stage_timings["docs_recovery_s"] = round(time.time() - t_docs, 3)
             # Soft budget exceed after durable docs+lines is NOT a terminal timeout.
             if bounded.get("docs_budget_exceeded_after_success") or (

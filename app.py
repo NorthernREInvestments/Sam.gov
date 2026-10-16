@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e26b"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e27"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1857,6 +1857,39 @@ def api_m3_full_scale_production_funnel_ready_audit(limit: int = 200):
     return {
         "build_version": APP_BUILD_VERSION,
         **audit_ready_attempts(limit=max(1, min(int(limit or 200), 500))),
+    }
+
+
+@app.post("/api/m3/full-scale-production-funnel/requeue-browser-auth-failures")
+def api_m3_full_scale_production_funnel_requeue_browser_auth(body: dict | None = None):
+    """Re-open READY eligibility for rows that failed only because the browser was down."""
+    from buyer_intelligence.fspf_auth_failure_recovery_v1 import requeue_browser_auth_failures
+    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = payload.get("job_id")
+    if not jid:
+        active = JobStore(FAMILY).find_active_job(stale_seconds=86400, mutate_stale=False) or {}
+        jid = active.get("JOB_ID")
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **requeue_browser_auth_failures(
+            job_id=str(jid) if jid else None,
+            max_requeue=int(payload.get("max_requeue") or 200),
+        ),
+    }
+
+
+@app.get("/api/m3/bidnet-auth/browser-circuit")
+def api_m3_bidnet_browser_circuit():
+    from bidnet_auth.auth_lifecycle_v1 import browser_circuit_status
+    from bidnet_auth.browser_mutex_v1 import browser_mutex_status
+
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "circuit": browser_circuit_status(),
+        "mutex": browser_mutex_status(),
     }
 
 

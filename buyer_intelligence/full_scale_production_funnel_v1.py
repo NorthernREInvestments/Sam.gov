@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e26b"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e27"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -3982,7 +3982,18 @@ def process_slice(
                     "timing_accum": timing_accum,
                     "unlock_micro_recovery": unlock_recovery_report,
                 }
-            auth_status, auth_client = _open_bidnet_auth_client()
+            # Probe auth once on THIS thread (slot holder). Do not keep the
+            # long-lived Playwright client across ThreadPool item workers —
+            # Playwright sync is thread-affine and cross-thread close after
+            # timeout was the root of browser_unavailable:Error.
+            auth_status, probe_client = _open_bidnet_auth_client()
+            if probe_client is not None:
+                try:
+                    probe_client.close()
+                except Exception:
+                    pass
+                probe_client = None
+            auth_client = None
             if not auth_status.get("authenticated"):
                 # Release slot so PG manager / unlock recovery can use Playwright.
                 if browser_slot_held:
@@ -3991,20 +4002,38 @@ def process_slice(
                     except Exception:
                         pass
                     browser_slot_held = False
+                try:
+                    from bidnet_auth.auth_lifecycle_v1 import (
+                        classify_auth_result_message,
+                        force_cleanup_orphaned_chromium,
+                    )
+
+                    force_cleanup_orphaned_chromium(max_kill=6)
+                    blocker = classify_auth_result_message(
+                        status=str(auth_status.get("status") or ""),
+                        message=str(auth_status.get("message") or ""),
+                    )
+                except Exception:
+                    blocker = str(
+                        auth_status.get("external_blocker")
+                        or auth_status.get("status")
+                        or "BIDNET_AUTH_TRANSIENT"
+                    )
                 deferred_n = _defer_browser_pending_back(
                     "browser_auth_transient",
-                    str(auth_status.get("external_blocker") or auth_status.get("status") or "BIDNET_AUTH_TRANSIENT"),
+                    blocker,
                 )
                 unlock_recovery_report = _try_unlock_micro_recovery("auth_unavailable")
                 # Transient browser/auth failure must not halt the entire first pass.
                 _progress(
                     status="RUNNING",
                     phase="AUTH_DEFERRED_CONTINUE",
-                    last_blocker=auth_status.get("external_blocker") or auth_status.get("status"),
+                    last_blocker=blocker,
                     job_id=job_id,
                     worker_id=worker_id,
                     bidnet_auth_status=auth_status.get("status"),
                     auth_message=(auth_status.get("message") or "")[:200],
+                    auth_failure_class=blocker,
                     timing_accum=timing_accum,
                     browser_items_deferred=deferred_n,
                     unlock_micro_recovery=unlock_recovery_report,
@@ -4018,7 +4047,7 @@ def process_slice(
                     "job_id": job_id,
                     "browser_auth_deferred": True,
                     "browser_items_deferred": deferred_n,
-                    "reason": "BIDNET_AUTH_TRANSIENT",
+                    "reason": blocker,
                     "auth_status": auth_status,
                     "pg_group_slice": {
                         **(pg_slice_report or {}),
@@ -4065,33 +4094,61 @@ def process_slice(
 
             t0 = time.time()
             try:
-                # Recreate auth client if prior timeout/exception closed it
-                if auth_client is None or not getattr(auth_client, "is_authenticated", False):
-                    if auth_client is not None:
-                        try:
-                            auth_client.close()
-                        except Exception:
-                            pass
-                    auth_status, auth_client = _open_bidnet_auth_client()
-
                 # ONE continuous journey with hard wall-clock. Critical: do NOT
                 # use ``with ThreadPoolExecutor`` — its __exit__ waits forever for
                 # hung Playwright threads after fut.result timeout (root cause of
                 # multi-hour RUNNING-but-dead workers).
+                #
+                # Playwright sync is thread-affine: create + use + close the
+                # BidNet client INSIDE the worker thread. Never close it from the
+                # main thread on timeout (that produced browser_unavailable:Error).
                 def _run() -> dict[str, Any]:
-                    return run_one_opportunity(
-                        item,
-                        client=http,
-                        evidence_index=evidence_index,
-                        auth_status=auth_status,
-                        l23_rec=l23.get(oid) or {},
-                        auth_client=auth_client,
-                    )
+                    local_status, local_client = _open_bidnet_auth_client()
+                    try:
+                        if not local_status.get("authenticated") or local_client is None:
+                            return {
+                                "opportunity_id": oid,
+                                "title": item.get("title"),
+                                "terminal_blocker": str(
+                                    local_status.get("external_blocker")
+                                    or local_status.get("status")
+                                    or "BROWSER_STARTUP_FAILED"
+                                ),
+                                "bidnet_auth_status": local_status.get("status"),
+                                "auth_message": (local_status.get("message") or "")[:200],
+                                "funnel_outcome": "EXTERNAL_DEPENDENCY",
+                                "stage_reached": "ACCESS_DOCS",
+                                "defer": True,
+                                "software_defect_key": "browser_auth_transient",
+                                "fetch_via": "auth_failed_in_item_thread",
+                                "documents_downloaded": 0,
+                                "one_pass": True,
+                                "elapsed_s": round(time.time() - t0, 2),
+                            }
+                        return run_one_opportunity(
+                            item,
+                            client=http,
+                            evidence_index=evidence_index,
+                            auth_status=local_status,
+                            l23_rec=l23.get(oid) or {},
+                            auth_client=local_client,
+                        )
+                    finally:
+                        if local_client is not None:
+                            try:
+                                local_client.close()
+                            except Exception:
+                                pass
 
                 def _timeout_row() -> dict[str, Any]:
+                    # Do NOT touch Playwright objects created in the abandoned
+                    # worker thread. Kill orphan Chromium processes instead.
                     try:
-                        if auth_client is not None:
-                            auth_client.close()
+                        from bidnet_auth.auth_lifecycle_v1 import (
+                            force_cleanup_orphaned_chromium,
+                        )
+
+                        force_cleanup_orphaned_chromium(max_kill=6)
                     except Exception:
                         pass
                     return {
@@ -4105,6 +4162,7 @@ def process_slice(
                         "software_defect_key": "TIMEOUT",
                         "one_pass": True,
                         "elapsed_s": round(time.time() - t0, 2),
+                        "browser_cleanup": "orphans_killed_no_cross_thread_close",
                     }
 
                 hb_stop = threading.Event()
@@ -4131,27 +4189,24 @@ def process_slice(
                     )
                 finally:
                     hb_stop.set()
-                    if isinstance(row, dict) and row.get("bounded_timed_out"):
-                        auth_client = None
+                    # Drop any stale outer reference; client lifetime is per-thread.
+                    auth_client = None
                 if not isinstance(row, dict):
                     row = _timeout_row()
-                # Shared client may be poisoned by Playwright target-closed errors
-                note = str(row.get("access_note") or "")
-                early_st = str(
-                    ((row.get("early_search_to_detail") or {}).get("status") or "")
-                )
-                if (
-                    "recover_exception" in note
-                    or early_st.startswith("SEARCH_EXCEPTION")
-                    or early_st == "RECOVER_EXCEPTION"
-                    or "TargetClosed" in note
-                    or "TargetClosed" in early_st
-                ):
-                    try:
-                        auth_client.close()
-                    except Exception:
-                        pass
-                    auth_client = None
+                # Propagate precise browser/auth class when present
+                auth_msg = str(row.get("auth_message") or "")
+                if auth_msg.startswith("browser_unavailable:") or row.get(
+                    "terminal_blocker"
+                ) in {
+                    "BROWSER_STARTUP_FAILED",
+                    "BROWSER_PROCESS_FAILED",
+                    "BROWSER_CONTEXT_INVALID",
+                    "SESSION_RESTORE_FAILED",
+                    "SESSION_EXPIRED",
+                    "AUTH_REJECTED",
+                }:
+                    # Never reclassify as solicitation-resolution failure.
+                    row["auth_failure_class"] = row.get("terminal_blocker")
                 if time.time() - t0 > ITEM_TIMEOUT_S and not row.get("complete_spec"):
                     row["bounded_timed_out"] = True
                     row["terminal_blocker"] = row.get("terminal_blocker") or "PER_OPPORTUNITY_TIMEOUT"
