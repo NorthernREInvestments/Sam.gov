@@ -207,11 +207,28 @@ def run_official_source_batch(
     from phase_l.l23_full_population_funnel import load_store, save_store
 
     store = load_store()
-    selected = [(cid, rec) for cid, rec in select_bidnet_official_sample(limit=limit * 2, store=store) if cid not in done][
-        :limit
-    ]
+    # Default sample window is small; when resume checkpoint covers it, expand
+    # the pool so recovery does not silently attempt=0.
+    pool_limit = max(limit * 2, 500)
+    selected = [
+        (cid, rec)
+        for cid, rec in select_bidnet_official_sample(limit=pool_limit, store=store)
+        if cid not in done
+    ][:limit]
+    if not selected and resume:
+        pool_limit = max(limit * 40, 8000)
+        selected = [
+            (cid, rec)
+            for cid, rec in select_bidnet_official_sample(limit=pool_limit, store=store)
+            if cid not in done
+        ][:limit]
+        stats_expand_note = f"expanded_pool_to_{pool_limit}"
+    else:
+        stats_expand_note = None
 
     stats: Counter = Counter()
+    if stats_expand_note:
+        stats["selection_expand"] = 1
     platform_c: Counter = Counter()
     route_c: Counter = Counter()
     fail_c: Counter = Counter()

@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-direct-source-recovery-funnel-v4e38a"
+APP_BUILD_VERSION = "20261016-m3-direct-source-recovery-funnel-v4e38b"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1038,6 +1038,16 @@ def api_m3_socrata_dedup_audit_run(body: dict | None = None):
     return out
 
 
+@app.post("/api/m3/socrata-dedup-audit/ingest-net-new")
+def api_m3_socrata_dedup_ingest_net_new(body: dict | None = None):
+    """Ingest verified Socrata net-new rows into L23 without weakening dedup."""
+    from socrata_dedup_audit_v1 import ingest_socrata_net_new_from_live
+
+    out = ingest_socrata_net_new_from_live(limit=int((body or {}).get("limit") or 400))
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
 @app.post("/api/m3/non-bidnet-commercial-pilot/run")
 def api_m3_non_bidnet_commercial_pilot_run(body: dict | None = None):
     """Production CFE path on non-BidNet product candidates (AUTO_SEND=false)."""
@@ -1076,6 +1086,7 @@ def api_m3_non_bidnet_commercial_pilot_run(body: dict | None = None):
                                 "attempted": result.get("attempted"),
                                 "usable_product_lines_total": result.get("usable_product_lines_total"),
                                 "verified_public_prices": result.get("verified_public_prices"),
+                                "inventory": result.get("inventory"),
                                 "persisted_path": result.get("persisted_path"),
                             },
                         },
@@ -1101,7 +1112,14 @@ def api_m3_non_bidnet_commercial_pilot_run(body: dict | None = None):
             "poll": f"/api/m3/non-bidnet-commercial-pilot/job/{job_id}",
             "build_version": APP_BUILD_VERSION,
         }
-    out = _run()
+    try:
+        out = _run()
+    except Exception as exc:
+        return {
+            "status": "FAILED",
+            "error": f"{type(exc).__name__}: {exc}",
+            "build_version": APP_BUILD_VERSION,
+        }
     out["build_version"] = APP_BUILD_VERSION
     return out
 
@@ -2523,6 +2541,29 @@ def api_m3_full_scale_production_funnel_requeue_retryable(body: dict | None = No
     if not jid:
         return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
     return {"ok": True, "build_version": APP_BUILD_VERSION, **requeue_retryable_failures(jid)}
+
+
+@app.post("/api/m3/full-scale-production-funnel/reclassify-abandoned-bidnet-pg")
+def api_m3_full_scale_production_funnel_reclassify_abandoned_bidnet_pg(body: dict | None = None):
+    """Clear BidNet PG-registration waits when BidNet is abandoned (no job reset)."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        reclassify_abandoned_bidnet_pg_blockers,
+    )
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = str(payload.get("job_id") or "").strip()
+    if not jid:
+        store = JobStore("full_scale_production_funnel_v1")
+        active = store.find_active_job(stale_seconds=3600)
+        jid = str((active or {}).get("JOB_ID") or "")
+    if not jid:
+        return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
+    return {
+        "ok": True,
+        "build_version": APP_BUILD_VERSION,
+        **reclassify_abandoned_bidnet_pg_blockers(jid, limit=int(payload.get("limit") or 2000)),
+    }
 
 
 @app.post("/api/m3/full-scale-production-funnel/validate-unlock-recovery")

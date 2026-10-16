@@ -64,3 +64,15 @@ def test_product_line_validation_rejects_boilerplate():
         {"description": "Workers Compensation Insurance shall be provided", "quantity": 1, "uom": "ea"}
     )
     assert v["classification"] == INVALID_EXTRACTION
+
+
+def test_reclassify_abandoned_pg_skips_when_bidnet_active(monkeypatch):
+    from buyer_intelligence import full_scale_production_funnel_v1 as fspf
+
+    monkeypatch.setattr(
+        "anonymous_source_policy_v1.bidnet_abandoned",
+        lambda: False,
+    )
+    out = fspf.reclassify_abandoned_bidnet_pg_blockers("job-x")
+    assert out.get("skipped") is True
+    assert out.get("reason") == "bidnet_not_abandoned"

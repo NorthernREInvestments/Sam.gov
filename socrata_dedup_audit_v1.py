@@ -241,3 +241,118 @@ def audit_socrata_dedup_against_l23(*, limit: int = 5000) -> dict[str, Any]:
     except Exception:
         log.exception("persist dedup audit failed")
     return report
+
+
+def ingest_socrata_net_new_from_live(*, limit: int = 400) -> dict[str, Any]:
+    """Ingest Socrata rows that are genuinely net-new vs L23 (no dedup weaken)."""
+    from discovery.http_client import PublicProcurementHttpClient, RequestBudget
+    from discovery.live_fetchers import StructuredOpenDataLiveFetcher
+    from discovery.structured_source_registry import all_structured_live_candidates
+    from m3_canonical_discovery_bridge import merge_discovery_into_canonical
+    from phase_l.l23_full_population_funnel import load_store
+
+    store = load_store()
+    existing_ids = set(store.keys()) if isinstance(store, dict) else set()
+    client = PublicProcurementHttpClient(
+        budget=RequestBudget(
+            max_total_requests=400,
+            max_requests_per_source=6,
+            max_pages_per_source=4,
+            max_records_per_source=800,
+            max_runtime_seconds=420.0,
+            max_retries=0,
+            min_interval_seconds=0.2,
+            timeout_seconds=20.0,
+        ),
+        authorize_live=True,
+        user_agent="M3SocrataNetNewIngest/1.0",
+    )
+    fetcher = StructuredOpenDataLiveFetcher()
+    preferred = [
+        c
+        for c in (all_structured_live_candidates() or [])
+        if isinstance(c, dict)
+        and (
+            "socrata" in str(c.get("source_id") or "").lower()
+            or str(c.get("platform_family") or "") == "Socrata"
+        )
+    ][:25]
+
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    per_source: dict[str, Any] = {}
+    for src in preferred:
+        if len(records) >= limit:
+            break
+        sid = str(src.get("source_id") or "structured")
+        url = src.get("list_url")
+        if not url:
+            continue
+        try:
+            result = fetcher.fetch_listing(
+                client,
+                list_url=url,
+                source_id=sid,
+                max_pages=3,
+                pagination_exhaust=False,
+                pagination_safety_max_pages=3,
+            )
+            opps = result.get("opportunities") or []
+            added = 0
+            for opp in opps:
+                if len(records) >= limit:
+                    break
+                d = opp.to_dict() if hasattr(opp, "to_dict") else dict(opp or {})
+                d.setdefault("source_id", sid)
+                d.setdefault("platform", "Socrata")
+                d.setdefault("agency", d.get("agency") or d.get("buyer") or src.get("name"))
+                cid = canonical_id_for(d)
+                if not cid or cid in existing_ids or cid in seen:
+                    continue
+                seen.add(cid)
+                d["canonical_id"] = cid
+                records.append(d)
+                added += 1
+            per_source[sid] = {"raw": len(opps), "net_new_selected": added, "ok": True}
+        except Exception as exc:
+            per_source[sid] = {"ok": False, "error": type(exc).__name__}
+
+    merge = None
+    if records:
+        merge = merge_discovery_into_canonical(
+            run_id=f"socrata-net-new-{now_utc().strftime('%Y%m%d%H%M%S')}",
+            trigger="socrata_dedup_audit_net_new_ingest",
+            records=records,
+            sources_attempted=list(per_source.keys()),
+            sources_succeeded=[k for k, v in per_source.items() if v.get("ok")],
+            sources_failed=[k for k, v in per_source.items() if not v.get("ok")],
+            source_counts=per_source,
+            raw_opportunities_found=sum(int(v.get("raw") or 0) for v in per_source.values()),
+            records_normalized=len(records),
+            persist=True,
+        )
+    out = {
+        "kind": "SocrataNetNewIngest",
+        "build": BUILD,
+        "at": now_utc().isoformat(),
+        "candidates_selected": len(records),
+        "per_source": per_source,
+        "canonical_merge": {
+            "new": (merge or {}).get("new_canonical_opportunities_added"),
+            "updated": (merge or {}).get("existing_opportunities_updated"),
+            "available_after": (merge or {}).get("currently_available_after"),
+            "total_after": (merge or {}).get("canonical_total_after"),
+        }
+        if merge
+        else None,
+        "sample_ids": [r.get("canonical_id") for r in records[:20]],
+    }
+    try:
+        from m3_data_root import data_path
+
+        path = data_path("m3_socrata_net_new_ingest_last_report.json")
+        path.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+        out["persisted_path"] = str(path)
+    except Exception:
+        log.exception("persist socrata net-new ingest failed")
+    return out

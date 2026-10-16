@@ -245,6 +245,17 @@ def run_historical_direct_source_recovery(
         run_id=f"{run_id}-osr",
         handoff_line_items=True,
     )
+    # If the shared OSR checkpoint already covered the default sample, force a
+    # fresh resolve pass on the highest-priority unscored slice (still no BidNet).
+    if int(osr.get("attempted") or 0) == 0 and resume:
+        osr = run_official_source_batch(
+            limit=limit,
+            resume=False,
+            download=download,
+            run_id=f"{run_id}-osr-fresh",
+            handoff_line_items=True,
+        )
+        osr["note"] = "retried_with_resume_false_after_empty_checkpoint_window"
 
     store = load_store()
     classes: Counter = Counter()

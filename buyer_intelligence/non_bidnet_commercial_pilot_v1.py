@@ -61,12 +61,9 @@ def inventory_non_bidnet_commercial(*, limit_scan: int = 20000) -> dict[str, Any
         stats["active_non_bidnet"] += 1
         title = str(rec.get("title") or "")
         url = str(rec.get("authoritative_url") or rec.get("detail_url") or "")
-        has_docs = bool(
-            rec.get("attachments_metadata")
-            or (rec.get("bidnet_recovery") or {}).get("free_package_chase", {}).get("documents")
-            if isinstance(rec.get("bidnet_recovery"), dict)
-            else False
-        )
+        br = rec.get("bidnet_recovery") if isinstance(rec.get("bidnet_recovery"), dict) else {}
+        chase = br.get("free_package_chase") if isinstance(br.get("free_package_chase"), dict) else {}
+        has_docs = bool(rec.get("attachments_metadata") or chase.get("documents"))
         if has_docs:
             stats["with_package_hints"] += 1
         if _PRODUCT.search(title):
@@ -98,9 +95,13 @@ def run_non_bidnet_commercial_pilot(
     from phase_l.l23_full_population_funnel import load_store
 
     run_id = run_id or f"NBCP-{uuid4().hex[:10]}"
-    inv = inventory_non_bidnet_commercial()
+    inv = inventory_non_bidnet_commercial(limit_scan=5000)
     store = load_store()
-    evidence = build_commercial_evidence_index()
+    try:
+        evidence = build_commercial_evidence_index()
+    except Exception as exc:
+        log.warning("commercial evidence index unavailable for pilot: %s", type(exc).__name__)
+        evidence = {}
     http = PublicProcurementHttpClient(
         budget=RequestBudget(
             max_total_requests=200,

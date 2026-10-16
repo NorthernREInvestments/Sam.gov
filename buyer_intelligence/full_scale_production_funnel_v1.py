@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e36c"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e38b"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -1480,6 +1480,92 @@ def validate_unlock_recovery_path(
             "recovery_eligible_in_deferred": recon.get("recovery_eligible_in_deferred"),
             "summary": recon.get("summary"),
         },
+        "at": _utc(),
+    }
+
+
+def reclassify_abandoned_bidnet_pg_blockers(
+    job_id: str,
+    *,
+    limit: int = 2000,
+) -> dict[str, Any]:
+    """When BidNet is abandoned, stop treating PG-registration waits as active work.
+
+    Does NOT reset the job or wipe checkpoints. Marks AWAITING_PURCHASING_GROUP
+    BidNet-origin items as PENDING_RETRY with BIDNET_ABANDONED_AWAITING_OFFICIAL_SOURCE
+    so the public/official-source path can process them without BidNet auth/PG.
+    """
+    try:
+        from anonymous_source_policy_v1 import bidnet_abandoned
+
+        if not bidnet_abandoned():
+            return {
+                "job_id": job_id,
+                "skipped": True,
+                "reason": "bidnet_not_abandoned",
+                "build": BUILD,
+            }
+    except Exception:
+        pass
+
+    store = JobStore(FAMILY)
+    job = store.load_job(job_id)
+    if not job:
+        raise KeyError(job_id)
+
+    marked = 0
+    skipped = 0
+    samples: list[dict[str, Any]] = []
+    for it in store.list_items(job_id):
+        if marked >= limit:
+            break
+        if not isinstance(it, dict):
+            continue
+        blocker = str(it.get("terminal_blocker") or "")
+        result = str(it.get("RESULT") or "")
+        if blocker not in {
+            "AWAITING_PURCHASING_GROUP_REGISTRATION",
+            "PURCHASING_GROUP_REGISTRATION_REQUIRED",
+        } and "PURCHASING_GROUP" not in blocker:
+            skipped += 1
+            continue
+        if result in _PRESERVE_RESULTS:
+            skipped += 1
+            continue
+        url = str(it.get("authoritative_url") or it.get("AUTHORITATIVE_URL") or "").lower()
+        platform = str(it.get("platform") or it.get("PLATFORM") or "").lower()
+        if "bidnet" not in url and "bidnet" not in platform:
+            # Non-BidNet PG wait is unexpected; leave alone
+            skipped += 1
+            continue
+        it["PREVIOUS_RESULT"] = result
+        it["PREVIOUS_BLOCKER"] = blocker
+        it["RESULT"] = "PENDING_RETRY"
+        it["terminal_blocker"] = "BIDNET_ABANDONED_AWAITING_OFFICIAL_SOURCE"
+        it["NOTE"] = "BidNet abandoned — PG wait cleared; official-source/public path on retry"
+        it["bidnet_lane_abandoned"] = True
+        it["RETRY_QUEUED_AT"] = _utc()
+        it["RETRYABLE"] = True
+        store.write_item_checkpoint(job_id, it)
+        marked += 1
+        if len(samples) < 15:
+            samples.append(
+                {
+                    "opportunity_id": it.get("OPPORTUNITY_ID"),
+                    "prior_blocker": blocker,
+                    "title": (it.get("TITLE") or it.get("title") or "")[:80],
+                }
+            )
+
+    # Do not move RESUME_CURSOR — worker continues; pending retries are picked up
+    # by existing retry / deferred recovery paths without a queue wipe.
+    store.recompute_counts(job_id)
+    return {
+        "job_id": job_id,
+        "reclassified": marked,
+        "skipped": skipped,
+        "samples": samples,
+        "build": BUILD,
         "at": _utc(),
     }
 
