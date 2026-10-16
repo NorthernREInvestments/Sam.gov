@@ -2565,8 +2565,17 @@
         </p>
       </section>
       <section class="panel" style="margin-top:.75rem">
+        <h2>Anonymous Replacement — 25k Target</h2>
+        <p class="muted">BidNet/Euna abandoned. Progress = unique live non-BidNet opportunities from public sources only.</p>
+        <div id="anon-replacement-progress">Loading…</div>
+        <p style="margin-top:.75rem">
+          <button type="button" class="btn secondary" id="set-run-anon-replacement">Run Anonymous Replacement Harvest</button>
+          <span class="muted" style="margin-left:.5rem">No BidNet · no paid subs · preserves FSPF job</span>
+        </p>
+      </section>
+      <section class="panel" style="margin-top:.75rem">
         <h2>Source Coverage — Production</h2>
-        <p class="muted">Free national first · BidNet + OpenGov · Euna is PAID_OPTIONAL (not in national health). Twice-daily 06:00 / 14:00.</p>
+        <p class="muted">Free national first · OpenGov + open data + state boards · BidNet/Euna abandoned. Twice-daily 06:00 / 14:00.</p>
         <div id="source-coverage-prod">Loading…</div>
         <div id="free-source-roadmap" style="margin-top:.75rem">Loading roadmap…</div>
       </section>
@@ -2949,6 +2958,43 @@
       });
     }
     try {
+      const ap = await api("/api/m3/anonymous-replacement/progress");
+      const el = document.getElementById("anon-replacement-progress");
+      if (el) {
+        const gap = ap.replacement_gap_remaining;
+        const pct = ap.progress_pct;
+        el.innerHTML = `
+          <div class="meta-row">
+            <span>Non-BidNet live: <strong>${esc(ap.total_live_non_bidnet_inventory ?? "—")}</strong></span>
+            <span>Target: <strong>${esc(ap.replacement_target ?? 25000)}</strong></span>
+            <span>Progress: <strong>${esc(pct != null ? pct + "%" : "—")}</strong></span>
+            <span>Gap: <strong>${esc(gap ?? "—")}</strong></span>
+            <span>Achieved: <strong>${esc(ap.replacement_target_achieved ? "YES" : "NO")}</strong></span>
+          </div>
+          <div class="meta-row">
+            <span>BidNet calls remaining: <strong>0</strong></span>
+            <span>BidNet historical retained: <strong>${esc(ap.bidnet_live_retained_historical ?? "—")}</strong></span>
+            <span>Policy: <strong>${esc((ap.policy || {}).bidnet_abandoned ? "BidNet abandoned" : "—")}</strong></span>
+          </div>`;
+      }
+    } catch (e) {
+      const el = document.getElementById("anon-replacement-progress");
+      if (el) el.textContent = e.message || "Could not load replacement progress";
+    }
+    const anonBtn = document.getElementById("set-run-anon-replacement");
+    if (anonBtn) {
+      anonBtn.addEventListener("click", async () => {
+        try {
+          setHint("Starting anonymous replacement harvest…");
+          const r = await api("/api/m3/anonymous-replacement/run", { method: "POST", body: JSON.stringify({ async: true }) });
+          setHint(`Replacement job ${r.job_id || "started"} — ${r.status || "STARTED"}`);
+          setTimeout(() => renderSettings(), 5000);
+        } catch (err) {
+          setHint(err.message || "Failed to start replacement harvest");
+        }
+      });
+    }
+    try {
       const sc = await api("/api/m3/source-coverage/production");
       const el = document.getElementById("source-coverage-prod");
       if (el) {
@@ -2956,7 +3002,6 @@
         const og = (sc.owner || {}).opengov || {};
         const eu = (sc.owner || {}).euna || {};
         const comb = sc.combined || {};
-        const nh = sc.national_source_health || {};
         el.innerHTML = `
           <div class="meta-row">
             <span>Build: <strong>${esc(sc.build_version || "—")}</strong></span>
@@ -2965,20 +3010,16 @@
             <span>Free net-new: <strong>${esc(comb.free_source_net_new_this_run ?? comb.net_new_this_run ?? "—")}</strong></span>
           </div>
           <div class="meta-row">
-            <span>National health: BidNet <strong>${esc(nh.bidnet_ok ? "ok" : "—")}</strong></span>
-            <span>OpenGov: <strong>in repair</strong></span>
-            <span>Euna affects score: <strong>no</strong></span>
+            <span>National health sources: <strong>${esc((sc.national_health_sources || []).join(", ") || "opengov, socrata")}</strong></span>
+            <span>Abandoned: <strong>${esc((sc.abandoned_sources || ["bidnet","euna"]).join(", "))}</strong></span>
           </div>
-          <p style="margin:.5rem 0 .25rem"><strong>BIDNET</strong> <span class="badge green">FREE_ACTIVE</span></p>
+          <p style="margin:.5rem 0 .25rem"><strong>BIDNET</strong> <span class="badge gray">ABANDONED</span></p>
           <div class="meta-row">
-            <span>Reported: <strong>${esc(bn.reported_open ?? "—")}</strong></span>
-            <span>Retrieved: <strong>${esc(bn.retrieved ?? "—")}</strong></span>
-            <span>Retrieval %: <strong>${esc(bn.retrieval_pct != null ? bn.retrieval_pct + "%" : "—")}</strong></span>
-            <span>Pagination: <strong>${esc(bn.pagination_complete ? "complete" : "open")}</strong></span>
-            <span>Net-new: <strong>${esc(bn.net_new ?? "—")}</strong></span>
-            <span>Gap: <strong>${esc(bn.remaining_gap ?? "—")}</strong></span>
+            <span>Historical retrieved: <strong>${esc(bn.retrieved ?? "—")}</strong></span>
+            <span>Auth: <strong>disabled</strong></span>
+            <span>New discovery: <strong>0</strong></span>
           </div>
-          <p style="margin:.5rem 0 .25rem"><strong>OPENGOV</strong> <span class="badge orange">FREE_PARTIAL</span> — primary repair</p>
+          <p style="margin:.5rem 0 .25rem"><strong>OPENGOV</strong> <span class="badge orange">FREE_PARTIAL</span> — primary free source</p>
           <div class="meta-row">
             <span>Known: <strong>${esc(og.known_entities ?? "—")}</strong></span>
             <span>Attempted: <strong>${esc(og.attempted ?? "—")}</strong></span>

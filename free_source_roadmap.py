@@ -16,31 +16,46 @@ NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 FREE_SOURCE_PRIORITY: list[dict[str, Any]] = [
     {
         "source": "BidNet",
-        "priority": 1,
-        "category": FREE_ACTIVE,
-        "notes": "~96.9% of reported open harvested via partitioned national+state fill-in",
-        "next_action": "Continue incremental recovery + detail/docs",
+        "priority": 99,
+        "category": BROKEN,
+        "notes": "ABANDONED — auth/IdP and paid PG walls. Retained as historical evidence only. No new discovery.",
+        "next_action": "Do not call BidNet unless owner reverses M3_BIDNET_ABANDONED",
+        "counts_toward_national_health": False,
     },
     {
         "source": "OpenGov",
-        "priority": 2,
+        "priority": 1,
         "category": FREE_ACTIVE,
-        "notes": "Public POST government/{code}/project/public — 322+ structured entities producing",
+        "notes": "Public POST government/{code}/project/public — preserve and expand free public entities",
         "next_action": "Twice-daily cascade + detail recovery on product candidates",
     },
     {
-        "source": "PublicPurchase",
+        "source": "Socrata/OpenData",
+        "priority": 2,
+        "category": FREE_ACTIVE,
+        "notes": "NYC/LA/Montgomery and auto-discovered municipal solicitation datasets — anonymous JSON",
+        "next_action": "Expand catalog + live due_date filters nationally",
+    },
+    {
+        "source": "State-hosted boards",
         "priority": 3,
+        "category": FREE_PARTIAL,
+        "notes": "GA GPR, NC IPS, LaPAC, SciQuest public events, NH/AR boards — anonymous where proven",
+        "next_action": "Admission-test then exhaust pagination",
+    },
+    {
+        "source": "PublicPurchase",
+        "priority": 4,
         "category": FREE_PENDING_ACCOUNT,
-        "notes": "Vendor account pending approval; architecture prepared",
-        "next_action": "Activate auth/session harvest after approval",
+        "notes": "Often registration-gated for docs; listing-only when public",
+        "next_action": "Use only when admission class is public listing/docs",
     },
     {
         "source": "PlanetBids",
-        "priority": 4,
+        "priority": 5,
         "category": FREE_PARTIAL,
-        "notes": "HTML adapter exists; L.17.3 mapped portals largely ADAPTER_FAILED / host DNS issues",
-        "next_action": "Audit portal patterns; fix reachable agency portals",
+        "notes": "pbsystem often AWS WAF challenge (CAPTCHA_BLOCKED) for anonymous HTTP",
+        "next_action": "Skip WAF-blocked portals; keep only verified public instances",
     },
     {
         "source": "IonWave",
@@ -64,18 +79,18 @@ FREE_SOURCE_PRIORITY: list[dict[str, Any]] = [
         "next_action": "Adapter design after Public Purchase + PlanetBids gains",
     },
     {
-        "source": "State-hosted systems",
+        "source": "Universities/schools/utilities/transit",
         "priority": 8,
         "category": FREE_PARTIAL,
-        "notes": "Heterogeneous state portals; selective harvest",
-        "next_action": "Prioritize high-volume state boards",
+        "notes": "Prefer OpenGov/IonWave/PlanetBids public agency portals only",
+        "next_action": "Harvest via free public agency portals only",
     },
     {
-        "source": "Universities/schools/utilities/transit",
+        "source": "DLA/DIBBS + SAM (budgeted)",
         "priority": 9,
-        "category": FREE_PARTIAL,
-        "notes": "Platform-family clusters (Bonfire agency hubs, etc.)",
-        "next_action": "Harvest via free public agency portals only",
+        "category": FREE_ACTIVE,
+        "notes": "Federal non-BidNet; SAM API hard-capped",
+        "next_action": "Preserve DIBBS; keep SAM within 10/day",
     },
     {
         "source": "Other free public networks",
@@ -86,10 +101,11 @@ FREE_SOURCE_PRIORITY: list[dict[str, Any]] = [
     },
     {
         "source": "Euna/Bonfire",
-        "priority": 99,
+        "priority": 100,
         "category": PAID_OPTIONAL,
-        "notes": "Connector preserved; nationwide requires ~$100/state/year — not default national source",
-        "next_action": "Enable via EUNA_ENABLED_STATES for targeted profitable states only",
+        "notes": "ABANDONED for national discovery — paid/account dependent",
+        "next_action": "Do not enable unless owner reverses M3_EUNA_ABANDONED",
+        "counts_toward_national_health": False,
     },
 ]
 
@@ -98,6 +114,7 @@ def source_coverage_categories() -> dict[str, Any]:
     """Build owner dashboard of free vs paid-optional sources."""
     rows = []
     for item in FREE_SOURCE_PRIORITY:
+        default_counts = item["category"] in {FREE_ACTIVE, FREE_PARTIAL, FREE_PENDING_ACCOUNT}
         rows.append(
             {
                 "source": item["source"],
@@ -105,8 +122,9 @@ def source_coverage_categories() -> dict[str, Any]:
                 "priority": item["priority"],
                 "notes": item["notes"],
                 "next_action": item["next_action"],
-                "counts_toward_national_health": item["category"]
-                in {FREE_ACTIVE, FREE_PARTIAL, FREE_PENDING_ACCOUNT},
+                "counts_toward_national_health": item.get(
+                    "counts_toward_national_health", default_counts
+                ),
             }
         )
     # Overlay live status from auth modules when available
@@ -180,6 +198,8 @@ def source_coverage_categories() -> dict[str, Any]:
         "free_sources": free_rows,
         "paid_optional": [r for r in rows if r["category"] == PAID_OPTIONAL],
         "priority_order": [r["source"] for r in rows if r["priority"] < 99],
-        "primary_repair_target": "OpenGov",
-        "next_free_source_after_opengov": "PublicPurchase",
+        "primary_repair_target": "Socrata/OpenData + OpenGov",
+        "next_free_source_after_opengov": "State-hosted boards",
+        "replacement_target_live_non_bidnet": 25000,
+        "bidnet_status": "ABANDONED",
     }

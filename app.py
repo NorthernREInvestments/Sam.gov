@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36c"
+APP_BUILD_VERSION = "20261016-m3-anonymous-replacement-discovery-v4e37a"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -812,18 +812,133 @@ def api_m3_discovery_coverage():
 
 @app.post("/api/m3/discovery/expansion-harvest")
 def api_m3_discovery_expansion_harvest(body: dict | None = None):
-    """Free national expansion harvest — BidNet + platform families → L23 merge. Does not burn SAM."""
+    """Free national expansion harvest → L23 merge. BidNet off by default (abandoned)."""
     from discovery_expansion import run_expansion_harvest
 
     payload = body or {}
     return run_expansion_harvest(
-        include_bidnet=bool(payload.get("include_bidnet", True)),
+        include_bidnet=bool(payload.get("include_bidnet", False)),
         include_structured=bool(payload.get("include_structured", True)),
         include_platform_catalog=bool(payload.get("include_platform_catalog", True)),
         max_pages=int(payload.get("max_pages") or 80),
         max_catalog_entities_per_family=int(payload.get("max_catalog_entities_per_family") or 40),
         persist=True,
     )
+
+
+@app.get("/api/m3/anonymous-replacement/progress")
+def api_m3_anonymous_replacement_progress():
+    """Operator dashboard: progress toward 25k non-BidNet live opportunities."""
+    from anonymous_replacement_discovery_v1 import replacement_progress_dashboard
+
+    out = replacement_progress_dashboard()
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/anonymous-replacement/admission")
+def api_m3_anonymous_replacement_admission():
+    """Run / return anonymous source admission matrix."""
+    from anonymous_source_admission_v1 import run_admission_matrix
+
+    out = run_admission_matrix()
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.post("/api/m3/anonymous-replacement/run")
+def api_m3_anonymous_replacement_run(body: dict | None = None):
+    """Nationwide anonymous replacement discovery (no BidNet / no Euna). Async-capable."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+
+    def _run() -> dict:
+        from anonymous_replacement_discovery_v1 import run_anonymous_replacement_discovery
+
+        return run_anonymous_replacement_discovery(
+            run_admission=bool(payload.get("run_admission", True)),
+            include_structured=bool(payload.get("include_structured", True)),
+            include_platform_catalog=bool(payload.get("include_platform_catalog", True)),
+            include_state_boards=bool(payload.get("include_state_boards", True)),
+            include_socrata_catalog=bool(payload.get("include_socrata_catalog", True)),
+            include_opengov=bool(payload.get("include_opengov", True)),
+            max_pages=int(payload.get("max_pages") or 40),
+            persist=True,
+        )
+
+    if async_mode:
+        import threading
+        from uuid import uuid4
+
+        from m3_data_root import data_path
+
+        job_id = f"anon-rep-{uuid4().hex[:10]}"
+        status_path = data_path(f"m3_anonymous_replacement_job_{job_id}.json")
+        status_path.write_text(
+            __import__("json").dumps(
+                {"job_id": job_id, "status": "RUNNING", "started_at": __import__("application_clock").now_utc().isoformat()},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        def _bg() -> None:
+            import json as _json
+
+            try:
+                result = _run()
+                status_path.write_text(
+                    _json.dumps(
+                        {"job_id": job_id, "status": "COMPLETE", "result_summary": {
+                            "new_unique_non_bidnet_this_run": result.get("new_unique_non_bidnet_this_run"),
+                            "total_live_non_bidnet_inventory": result.get("total_live_non_bidnet_inventory"),
+                            "replacement_gap_remaining": result.get("replacement_gap_remaining"),
+                            "replacement_target_achieved": result.get("replacement_target_achieved"),
+                            "persisted_path": result.get("persisted_path"),
+                        }},
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                status_path.write_text(
+                    _json.dumps(
+                        {"job_id": job_id, "status": "FAILED", "error": f"{type(exc).__name__}: {exc}"},
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+
+        threading.Thread(target=_bg, name=job_id, daemon=True).start()
+        return {
+            "async": True,
+            "job_id": job_id,
+            "status": "STARTED",
+            "poll": f"/api/m3/anonymous-replacement/job/{job_id}",
+            "build_version": APP_BUILD_VERSION,
+        }
+
+    out = _run()
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/anonymous-replacement/job/{job_id}")
+def api_m3_anonymous_replacement_job(job_id: str):
+    import json
+    import re
+
+    from m3_data_root import data_path
+
+    if not re.fullmatch(r"anon-rep-[a-f0-9]{10}", job_id or ""):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    path = data_path(f"m3_anonymous_replacement_job_{job_id}.json")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
 
 
 @app.get("/api/m3/universe-pass/funnel")
@@ -3619,8 +3734,9 @@ def api_m3_source_coverage_production():
         "strategy": "FREE_NATIONAL_MULTI_STATE_FIRST",
         "owner": {},
         "combined": {},
-        "national_health_sources": ["bidnet", "opengov"],
+        "national_health_sources": ["opengov", "socrata", "state_boards", "dla"],
         "paid_optional_sources": ["euna"],
+        "abandoned_sources": ["bidnet", "euna"],
     }
     try:
         from bidnet_auth import owner_connection_status as bn

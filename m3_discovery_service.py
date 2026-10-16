@@ -1225,17 +1225,35 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 phase="CANONICAL_MERGE",
             )
 
-        # BidNet authenticated recovery — same scheduled discovery path (not a second scheduler).
-        # Failures must not abort non-BidNet discovery / handoff finalization.
+        # BidNet authenticated recovery — SAME scheduled path, but ABANDONED by default.
+        # Owner must set M3_BIDNET_ABANDONED=false to re-enable. Never blocks non-BidNet work.
         bidnet_auth_report: dict[str, Any] | None = None
         try:
-            _update_run(run_id, phase="BIDNET_AUTH_RECOVERY", progress_percent=92)
-            from bidnet_auth import run_scheduled_bidnet_auth_recovery
+            from anonymous_source_policy_v1 import bidnet_abandoned
 
-            bidnet_auth_report = run_scheduled_bidnet_auth_recovery(
-                run_id=run_id,
-                trigger_type=trigger_type,
-            )
+            if bidnet_abandoned():
+                bidnet_auth_report = {
+                    "skipped": True,
+                    "blocker": "BIDNET_ABANDONED",
+                    "auth": {"authenticated": False, "status": "ABANDONED"},
+                    "recovery": {"stats": {"skipped": True}},
+                }
+                _update_run(
+                    run_id,
+                    phase="BIDNET_ABANDONED",
+                    progress_percent=92,
+                    bidnet_auth=bidnet_auth_report.get("auth"),
+                    bidnet_auth_blocker="BIDNET_ABANDONED",
+                )
+                log.info("M3 discovery %s BidNet abandoned — skipping auth/harvest", run_id)
+            else:
+                _update_run(run_id, phase="BIDNET_AUTH_RECOVERY", progress_percent=92)
+                from bidnet_auth import run_scheduled_bidnet_auth_recovery
+
+                bidnet_auth_report = run_scheduled_bidnet_auth_recovery(
+                    run_id=run_id,
+                    trigger_type=trigger_type,
+                )
             _update_run(
                 run_id,
                 bidnet_auth=bidnet_auth_report.get("auth"),
@@ -1293,13 +1311,30 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 run_id=f"{run_id}-ogdocs",
                 handoff_line_items=True,
             )
-            osr = run_official_source_batch(
-                limit=int(os.environ.get("M3_PACKAGE_ACCESS_BIDNET_LIMIT") or 200),
-                resume=True,
-                download=True,
-                run_id=f"{run_id}-osr",
-                handoff_line_items=True,
-            )
+            try:
+                from anonymous_source_policy_v1 import bidnet_abandoned as _bn_off
+
+                skip_bn_osr = bool(_bn_off())
+            except Exception:
+                skip_bn_osr = False
+            if skip_bn_osr:
+                osr = {
+                    "attempted": 0,
+                    "official_source_resolved": 0,
+                    "valid_packages": 0,
+                    "partial_packages": 0,
+                    "valid_or_partial_package_yield": 0,
+                    "skipped": True,
+                    "skip_reason": "BIDNET_ABANDONED",
+                }
+            else:
+                osr = run_official_source_batch(
+                    limit=int(os.environ.get("M3_PACKAGE_ACCESS_BIDNET_LIMIT") or 200),
+                    resume=True,
+                    download=True,
+                    run_id=f"{run_id}-osr",
+                    handoff_line_items=True,
+                )
             package_access_report = {
                 "opengov_public_docs": {
                     "attempted": og_docs.get("attempted"),
@@ -1312,6 +1347,8 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                     "valid_or_partial": int(osr.get("valid_packages") or 0)
                     + int(osr.get("partial_packages") or 0),
                     "yield": osr.get("valid_or_partial_package_yield"),
+                    "skipped": osr.get("skipped"),
+                    "skip_reason": osr.get("skip_reason"),
                 },
             }
             _update_run(run_id, package_access=package_access_report)
@@ -1342,16 +1379,87 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
         except Exception:
             log.exception("Product identity stage failed (non-fatal to discovery)")
 
-        # Euna/Bonfire — OPTIONAL_TARGETED / PAID_OPTIONAL (skipped by default).
+        # Commercial funnel slice — same scheduled discovery path (bounded; AUTO_SEND=false).
+        # Rebuilds evidence index + refreshes Available Deals overlays; optional CFE top-N.
+        commercial_funnel_report: dict[str, Any] | None = None
+        try:
+            _update_run(run_id, phase="COMMERCIAL_FUNNEL", progress_percent=98)
+            from buyer_intelligence.commercial_evidence_index_v1 import build_commercial_evidence_index
+            from buyer_intelligence.available_deals_visibility_v1 import run_visibility_rebuild
+
+            evid = build_commercial_evidence_index()
+            # Clear visibility cache so next rebuild consumes the new index
+            try:
+                import buyer_intelligence.available_deals_visibility_v1 as _adv
+
+                _adv._COMMERCIAL_INDEX = None
+            except Exception:
+                pass
+            vis = run_visibility_rebuild()
+            commercial_funnel_report = {
+                "evidence_oids": evid.get("by_opportunity_count"),
+                "evidence_historical": evid.get("opportunities_with_historical_price"),
+                "evidence_public": evid.get("opportunities_with_public_price"),
+                "visibility_available": (vis or {}).get("available_count")
+                or (vis or {}).get("counts", {}).get("AVAILABLE"),
+                "AUTO_SEND": False,
+            }
+            # Optional bounded commercial execution — OFF by default (owner enables).
+            # Evidence index + Available Deals rebuild always run above.
+            if str(os.environ.get("M3_COMMERCIAL_FUNNEL_EXECUTE") or "0").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }:
+                from buyer_intelligence.commercial_funnel_execution_v1 import run_commercial_funnel_50
+
+                cfe_n = int(os.environ.get("M3_COMMERCIAL_FUNNEL_N") or 10)
+                cfe = run_commercial_funnel_50(n=max(1, min(cfe_n, 50)), resume=True)
+                commercial_funnel_report["cfe"] = {
+                    "ok": cfe.get("ok"),
+                    "tested": (cfe.get("metrics") or {}).get("opportunities_tested"),
+                    "blockers": cfe.get("blockers"),
+                    "AUTO_SEND": False,
+                }
+            else:
+                commercial_funnel_report["cfe"] = {
+                    "skipped": True,
+                    "reason": "M3_COMMERCIAL_FUNNEL_EXECUTE not enabled",
+                    "AUTO_SEND": False,
+                }
+            _update_run(run_id, commercial_funnel=commercial_funnel_report)
+        except Exception:
+            log.exception("Commercial funnel stage failed (non-fatal to discovery)")
+
+        # Euna/Bonfire — ABANDONED by default (paid/account). Owner must set M3_EUNA_ABANDONED=false.
         euna_report: dict[str, Any] | None = None
         try:
-            from euna_auth import run_scheduled_euna_pipeline
+            from anonymous_source_policy_v1 import euna_abandoned
 
-            _update_run(run_id, phase="EUNA_OPTIONAL", progress_percent=94)
-            euna_report = run_scheduled_euna_pipeline(
-                run_id=run_id,
-                trigger_type=trigger_type,
-            )
+            if euna_abandoned():
+                euna_report = {
+                    "skipped": True,
+                    "skip_reason": "EUNA_ABANDONED",
+                    "blocker": "EUNA_ABANDONED",
+                }
+                _update_run(
+                    run_id,
+                    phase="EUNA_ABANDONED",
+                    progress_percent=94,
+                    euna_skipped=True,
+                    euna_coverage_category="ABANDONED",
+                    euna_discovery={"skipped": True, "skip_reason": "EUNA_ABANDONED"},
+                )
+                log.info("M3 discovery %s Euna abandoned — skipping", run_id)
+            else:
+                from euna_auth import run_scheduled_euna_pipeline
+
+                _update_run(run_id, phase="EUNA_OPTIONAL", progress_percent=94)
+                euna_report = run_scheduled_euna_pipeline(
+                    run_id=run_id,
+                    trigger_type=trigger_type,
+                )
             skipped = bool(euna_report.get("skipped"))
             _update_run(
                 run_id,
@@ -1363,7 +1471,11 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 ),
                 euna_blocker=None if skipped else euna_report.get("blocker"),
                 euna_skipped=skipped,
-                euna_coverage_category="PAID_OPTIONAL",
+                euna_coverage_category=(
+                    "ABANDONED"
+                    if (euna_report.get("skip_reason") == "EUNA_ABANDONED")
+                    else "PAID_OPTIONAL"
+                ),
             )
             if skipped:
                 log.info(

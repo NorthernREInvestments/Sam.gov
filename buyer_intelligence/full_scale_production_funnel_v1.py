@@ -2563,10 +2563,21 @@ def _slim_checkpoint(
     docs = row.get("recovered_documents") or []
     lines = row.get("line_items") or []
     fully_specified = 0
+    try:
+        from buyer_intelligence.product_line_validation_v1 import is_fully_specified_commercial
+
+        use_strict = True
+    except Exception:
+        use_strict = False
+        is_fully_specified_commercial = None  # type: ignore
     for li in lines:
         if not isinstance(li, dict):
             continue
         if li.get("source") == "title_fallback" or li.get("LINE_SOURCE_TYPE") == "TITLE_FALLBACK":
+            continue
+        if use_strict and is_fully_specified_commercial is not None:
+            if is_fully_specified_commercial(li):
+                fully_specified += 1
             continue
         qty = _line_qty(li)
         desc = _line_desc(li)

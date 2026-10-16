@@ -175,7 +175,7 @@ def _fetch_bidnet_networks(*, max_pages: int = 80, pagination_exhaust: bool = Tr
     return {"records": records, "per_source": per_source, "truncated": truncated}
 
 
-def _fetch_structured_sources(*, max_pages: int = 5) -> dict[str, Any]:
+def _fetch_structured_sources(*, max_pages: int = 5, max_datasets: int | None = None) -> dict[str, Any]:
     records: list[dict[str, Any]] = []
     per_source: dict[str, Any] = {}
     try:
@@ -184,8 +184,11 @@ def _fetch_structured_sources(*, max_pages: int = 5) -> dict[str, Any]:
 
         client = _client()
         fetcher = StructuredOpenDataLiveFetcher()
-        candidates = all_structured_live_candidates()
-        for src in list(candidates or [])[:40]:
+        candidates = list(all_structured_live_candidates() or [])
+        # max_datasets=None → exhaust all structured candidates (no artificial [:40])
+        if max_datasets is not None:
+            candidates = candidates[: max(0, int(max_datasets))]
+        for src in candidates:
             if not isinstance(src, dict):
                 continue
             sid = str(src.get("source_id") or src.get("id") or "structured")
@@ -232,7 +235,7 @@ def _fetch_structured_sources(*, max_pages: int = 5) -> dict[str, Any]:
 def _fetch_platform_catalog(
     *,
     families: tuple[str, ...] | None = None,
-    max_entities_per_family: int = 40,
+    max_entities_per_family: int | None = 40,
     max_pages: int = 5,
 ) -> dict[str, Any]:
     """Cross-agency harvest via shared platform-family adapters + buyer catalog."""
@@ -247,7 +250,9 @@ def _fetch_platform_catalog(
     target_families = families or _CATALOG_FAMILIES
 
     for fam in target_families:
-        rows = by_family.get(fam) or []
+        rows = list(by_family.get(fam) or [])
+        if max_entities_per_family is not None:
+            rows = rows[: max(0, int(max_entities_per_family))]
         fetcher = get_fetcher_for_platform(fam)
         if fetcher is None:
             for row in rows[:3]:
@@ -264,7 +269,7 @@ def _fetch_platform_catalog(
                 }
             continue
 
-        for row in rows[:max_entities_per_family]:
+        for row in rows:
             url = str(row.get("portal_url") or "")
             if not url:
                 continue
@@ -346,12 +351,36 @@ def run_expansion_harvest(
     include_structured: bool = True,
     include_platform_catalog: bool = True,
     max_pages: int = 80,
-    max_catalog_entities_per_family: int = 40,
+    max_catalog_entities_per_family: int | None = 40,
+    max_structured_datasets: int | None = 40,
+    catalog_page_cap: int | None = 8,
     persist: bool = True,
     run_id: str | None = None,
+    exhaustive: bool = False,
 ) -> dict[str, Any]:
-    """Fetch free high-gain sources and merge every record into L23 canonical store."""
+    """Fetch free high-gain sources and merge every record into L23 canonical store.
+
+    exhaustive=True removes artificial entity/page/dataset caps (source-native
+    pagination_exhaust / safety still apply).
+
+    BidNet/Euna/Bonfire are forced off when anonymous abandonment policy is active.
+    """
     from m3_canonical_discovery_bridge import merge_discovery_into_canonical
+
+    try:
+        from anonymous_source_policy_v1 import bidnet_abandoned, euna_abandoned
+
+        if bidnet_abandoned():
+            include_bidnet = False
+        drop_bonfire = bool(euna_abandoned())
+    except Exception:
+        drop_bonfire = False
+
+    if exhaustive:
+        max_catalog_entities_per_family = None
+        max_structured_datasets = None
+        catalog_page_cap = None
+        max_pages = max(int(max_pages or 80), 120)
 
     started = now_utc().isoformat()
     run_id = run_id or f"EXP-{uuid4().hex[:12]}"
@@ -359,6 +388,10 @@ def run_expansion_harvest(
     per_source: dict[str, Any] = {}
     truncated: list[str] = []
     platform_counts: dict[str, int] = {}
+
+    catalog_families = _CATALOG_FAMILIES
+    if drop_bonfire:
+        catalog_families = tuple(f for f in _CATALOG_FAMILIES if f != "Bonfire")
 
     if include_bidnet:
         bn = _fetch_bidnet_networks(max_pages=max_pages, pagination_exhaust=True)
@@ -368,9 +401,12 @@ def run_expansion_harvest(
         platform_counts["BidNet"] = len(bn["records"])
 
     if include_platform_catalog:
+        # None entities = full catalog; page cap None = use max_pages fully
+        cat_pages = int(max_pages) if catalog_page_cap is None else min(int(catalog_page_cap), int(max_pages))
         cat = _fetch_platform_catalog(
+            families=catalog_families,
             max_entities_per_family=max_catalog_entities_per_family,
-            max_pages=min(8, max_pages),
+            max_pages=cat_pages,
         )
         all_records.extend(cat["records"])
         per_source.update(cat["per_source"])
@@ -380,7 +416,10 @@ def run_expansion_harvest(
             platform_counts[plat] = platform_counts.get(plat, 0) + 1
 
     if include_structured:
-        st = _fetch_structured_sources()
+        st = _fetch_structured_sources(
+            max_pages=min(20, max_pages) if not exhaustive else max(40, int(max_pages)),
+            max_datasets=max_structured_datasets,
+        )
         all_records.extend(st["records"])
         per_source.update(st["per_source"])
         platform_counts["Socrata"] = platform_counts.get("Socrata", 0) + len(st["records"])

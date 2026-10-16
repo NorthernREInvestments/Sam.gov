@@ -149,6 +149,35 @@ STRUCTURED_LIVE_SOURCES: list[dict[str, Any]] = [
         estimated_unique_commercial="high",
         commercial_categories=["IT", "fleet", "equipment", "electronics", "facility", "lab"],
     ),
+    # NYC Current Solicitations (owner-specified dataset) — LIVE due_date filter applied at harvest
+    # via anonymous_replacement_discovery_v1._nyc_live_structured_source(); static seed uses recent start.
+    _socrata(
+        source_id="structured_socrata_nyc_current_solicitations",
+        name="NYC Current Solicitations (3khw-qi8f)",
+        domain="data.cityofnewyork.us",
+        dataset_id="3khw-qi8f",
+        field_map={
+            "title": "short_title",
+            "solicitation_number": ["pin", "request_id"],
+            "deadline": "due_date",
+            "open_date": "start_date",
+            "buyer": "agency_name",
+            "description": ["additional_description_1", "category_description"],
+            "category": "category_description",
+            "status": "type_of_notice_description",
+            "live_status_values": ["Solicitation"],
+        },
+        role="LIVE",
+        state_code="NY",
+        buyer_type="CITY",
+        params={
+            "$where": "type_of_notice_description='Solicitation' AND start_date > '2026-01-01T00:00:00.000'",
+            "$limit": "2000",
+            "$order": "due_date ASC",
+        },
+        estimated_unique_commercial="high",
+        commercial_categories=["IT", "fleet", "equipment", "MRO", "facility", "office", "PPE"],
+    ),
     _socrata(
         source_id="structured_socrata_nyc_mwbe_upcoming",
         name="NYC M/WBE Upcoming Procurements",

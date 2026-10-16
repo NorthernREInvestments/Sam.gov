@@ -230,12 +230,21 @@ def select_all_eligible_sources(
 
     Priority determines execution ORDER, never silent exclusion.
     Blocked/auth sources are accounted for explicitly when include_blocked_accounted.
+    BidNet/Euna are excluded when anonymous abandonment policy is active.
     """
     pool = _pool_map()
     if status_overrides:
         for sid, st in status_overrides.items():
             if sid in pool:
                 pool[sid]["adapter_status"] = st
+
+    try:
+        from anonymous_source_policy_v1 import filter_out_abandoned_sources
+
+        kept = filter_out_abandoned_sources(list(pool.values()))
+        pool = {r["source_id"]: r for r in kept if r.get("source_id")}
+    except Exception:
+        pass
 
     eligible: list[dict[str, Any]] = []
     accounted: list[dict[str, Any]] = []
