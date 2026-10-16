@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e25"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e26"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -238,12 +238,16 @@ def _defer_opportunity(
         )
         or False,
     }
+    # Always retain the purchasing-group id when known — REGISTERED membership is
+    # durable even if this solicitation needs an additional paid entitlement and
+    # must leave the READY lane.
+    if pg:
+        entry["pg_unlocked"] = pg
+        if not entry.get("shared_access_key"):
+            entry["shared_access_key"] = f"pg:{pg}"
     if elig:
         entry["recovery_eligible"] = True
-        entry["pg_unlocked"] = pg
         entry["unlocked_at"] = (prior or {}).get("unlocked_at") or _utc()
-        if not entry.get("shared_access_key") and pg:
-            entry["shared_access_key"] = f"pg:{pg}"
         # Keep unlock outcome stable so deferred-pass preferencing still works.
         if not entry.get("funnel_outcome") or str(entry.get("funnel_outcome")) in {
             "DEFERRED_EXTERNAL",
@@ -252,6 +256,8 @@ def _defer_opportunity(
             "EXTERNAL_DEPENDENCY",
         }:
             entry["funnel_outcome"] = "PG_UNLOCK_RECOVERY"
+    else:
+        entry["recovery_eligible"] = False
     items.append(entry)
     q["items"] = items[-20000:]
     by_def = dict(q.get("by_defect") or {})
@@ -3671,17 +3677,26 @@ def process_slice(
                     "TIMEOUT",
                 }:
                     # Genuine error → back of the line (priority 3), leave READY.
+                    _tb = str(row.get("terminal_blocker") or "")
                     demote_ready_to_deferred(
                         opportunity_id=oid_local,
-                        reason=str(row.get("terminal_blocker") or result or "READY_ERROR"),
+                        reason=_tb or result or "READY_ERROR",
                         stage=row.get("stage_reached"),
                         blocker=row.get("terminal_blocker"),
                         defect_key=row.get("software_defect_key"),
+                        # Paid entitlement after PG unlock is external — do not
+                        # keep READY-eligible on a stale pg_unlocked flag.
                         keep_recovery_eligible=bool(
-                            row.get("recovery_eligible")
-                            or item.get("recovery_eligible")
-                            or str(row.get("terminal_blocker") or "").startswith(
-                                "PURCHASING"
+                            not _tb.startswith("PAID_ENTITLEMENT")
+                            and (
+                                row.get("recovery_eligible")
+                                or item.get("recovery_eligible")
+                                or _tb.startswith("PURCHASING")
+                                or _tb
+                                in {
+                                    "DETAIL_FETCH_EMPTY",
+                                    "SOLICITATION_RESOLUTION_FAILED",
+                                }
                             )
                         ),
                         pg_unlocked=str(

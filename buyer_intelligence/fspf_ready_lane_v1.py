@@ -18,7 +18,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.fspf_ready_lane_v1")
 
-BUILD = "20261015-m3-fspf-ready-lane-v1"
+BUILD = "20261016-m3-fspf-ready-lane-v2"
 OUT = "_og_commercial_research_pipeline_out"
 READY_QUEUE_FILE = f"{OUT}/m3_fspf_v1_ready_queue.json"
 DEFERRED_QUEUE_FILE = f"{OUT}/m3_fspf_v1_deferred_queue.json"
@@ -26,6 +26,15 @@ DEFERRED_QUEUE_FILE = f"{OUT}/m3_fspf_v1_deferred_queue.json"
 # Fair capacity: 1 READY per 3 first-pass when both have work (≈25%/75%).
 READY_RATIO_NUM = int(os.environ.get("M3_FSPF_READY_RATIO_NUM") or "1")
 READY_RATIO_DEN = int(os.environ.get("M3_FSPF_READY_RATIO_DEN") or "4")
+
+# Software defects repaired in this READY build — allow one more promote after
+# ready_fail_count cap for opportunities that failed the prior broken path.
+REPAIR_RETRY_BUILD = "v4e26-solicitation-resolution"
+_REPAIRABLE_BLOCKERS = {
+    "DETAIL_FETCH_EMPTY",
+    "SOLICITATION_RESOLUTION_FAILED",
+    "ABSTRACT_FETCH_FAILED_OR_WAF",
+}
 
 _COMMON = re.compile(
     r"\b(tool|tools|screw|fastener|mro|lubricant|filter|toner|paper|janitorial|"
@@ -213,7 +222,13 @@ def promote_unlock_eligible_to_ready(
 
         # Do not endlessly re-promote the same READY failure during first-pass.
         fail_n = int(d.get("ready_fail_count") or 0)
-        if fail_n >= 2:
+        prior_blocker = str(d.get("terminal_blocker") or d.get("ready_demote_reason") or "")
+        repair_eligible = (
+            fail_n >= 2
+            and prior_blocker.split(":")[0] in _REPAIRABLE_BLOCKERS
+            and str(d.get("ready_repair_retry_build") or "") != REPAIR_RETRY_BUILD
+        )
+        if fail_n >= 2 and not repair_eligible:
             skipped_retry_cap += 1
             continue
 
@@ -232,16 +247,14 @@ def promote_unlock_eligible_to_ready(
         blocker = str(
             (cp or {}).get("terminal_blocker") or d.get("terminal_blocker") or ""
         )
-        # Paid walls stay deferred unless this row is a genuine PG-unlock recovery.
+        # Paid walls are external entitlements — never re-promote on stale pg_unlocked.
+        # REGISTERED PG membership does not grant paid subscription documents.
         if blocker.startswith("PAID_ENTITLEMENT:"):
-            pg_gate = bool(
-                d.get("pg_unlocked")
-                or (cp or {}).get("PG_UNLOCK_ELIGIBLE")
-                or str(d.get("funnel_outcome") or "") == "PG_UNLOCK_RECOVERY"
-            )
-            if not pg_gate:
-                skipped_paid += 1
-                continue
+            skipped_paid += 1
+            continue
+        if str(d.get("additional_access_dependency") or "").startswith("PAID_ENTITLEMENT"):
+            skipped_paid += 1
+            continue
 
         row = queue_rows.get(oid)
         score = _priority_score(entry=d, checkpoint=cp, queue_row=row)
@@ -275,7 +288,12 @@ def promote_unlock_eligible_to_ready(
             "source": "pg_unlock_recovery",
             "job_id": job_id,
             "lane": "READY",
+            "repair_retry": bool(repair_eligible),
+            "repair_retry_build": REPAIR_RETRY_BUILD if repair_eligible else None,
         }
+        if repair_eligible:
+            d["ready_repair_retry_build"] = REPAIR_RETRY_BUILD
+            d["ready_fail_count"] = 0  # one fresh attempt after shared repair
         # ATOMIC STEP 1: durable READY membership first
         ready_items = list(ready.get("items") or [])
         ready_items = [
@@ -374,17 +392,23 @@ def demote_ready_to_deferred(
     try:
         from buyer_intelligence.full_scale_production_funnel_v1 import _defer_opportunity
 
+        blocker_s = str(blocker or reason or "")
+        # Additional paid entitlement after PG unlock is an external dependency —
+        # keep the registered PG status elsewhere, but stop READY promotion until
+        # that entitlement changes.
+        paid_extra = blocker_s.startswith("PAID_ENTITLEMENT")
+        still_eligible = bool(keep_recovery_eligible) and not paid_extra
         _defer_opportunity(
             opportunity_id=oid,
             stage=stage or (removed or {}).get("stage_reached"),
             outcome="DEFERRED_ERROR" if defect_key else "DEFERRED_EXTERNAL",
             defect_key=defect_key,
             shared_access_key=(removed or {}).get("shared_access_key"),
-            blocker=(blocker or reason or "")[:160],
+            blocker=blocker_s[:160],
             index=queue_index
             if queue_index is not None
             else (removed or {}).get("queue_index"),
-            recovery_eligible=keep_recovery_eligible,
+            recovery_eligible=still_eligible,
             pg_unlocked=pg_unlocked or (removed or {}).get("pg_unlocked"),
             next_stage=next_stage or (removed or {}).get("next_stage"),
             last_completed_stage=last_completed_stage
@@ -401,6 +425,11 @@ def demote_ready_to_deferred(
                 d["ready_promoted"] = False
                 d["ready_demoted_at"] = _utc()
                 d["ready_demote_reason"] = (reason or "")[:160]
+                d["terminal_blocker"] = blocker_s[:160] or d.get("terminal_blocker")
+                if paid_extra:
+                    d["additional_access_dependency"] = blocker_s[:160]
+                    d["recovery_eligible"] = False
+                    d["ready_blocked_external"] = True
                 break
         dq["updated_at"] = _utc()
         _save(DEFERRED_QUEUE_FILE, dq)
@@ -563,6 +592,164 @@ def interleave_fair(
         "ready": ri,
         "ratio": f"{den - num}/{num}" if num else "100/0",
         "slice_size": len(out),
+    }
+
+
+def audit_ready_attempts(*, job_id: str | None = None, limit: int = 200) -> dict[str, Any]:
+    """Classify READY-lane attempts from demotions + READY-flagged checkpoints.
+
+    Mutually exclusive primary outcome per opportunity (latest evidence wins).
+    """
+    from collections import Counter
+
+    from m3_jobs.store import JobStore
+
+    family = "full_scale_production_funnel_v1"
+    store = JobStore(family)
+    if not job_id:
+        active = store.find_active_job(stale_seconds=86400, mutate_stale=False) or {}
+        job_id = str(active.get("JOB_ID") or "") or None
+
+    dq = _load(DEFERRED_QUEUE_FILE) or {"items": []}
+    ready = load_ready_queue()
+    by_oid: dict[str, dict[str, Any]] = {}
+
+    def _cat(blocker: str, *, docs: int = 0, lines: int = 0, result: str = "") -> str:
+        b = (blocker or "").upper()
+        if result in {"SUCCESS", "PARTIAL"} or (docs > 0 and lines > 0 and "DEFERRED" not in result):
+            return "SUCCESSFULLY_PROCESSED"
+        if b.startswith("PAID_ENTITLEMENT"):
+            return "ADDITIONAL_ENTITLEMENT_REQUIRED"
+        if "AUTH" in b or "SESSION" in b or "LOGIN" in b:
+            return "AUTH_SESSION_INVALID"
+        if b in {"SOLICITATION_RESOLUTION_FAILED"} or "NO_INTERCEPTION" in b:
+            return "SOLICITATION_ID_RESOLUTION_FAILED"
+        if b in {"DETAIL_FETCH_EMPTY", "ABSTRACT_FETCH_FAILED_OR_WAF"}:
+            return "DETAIL_NAVIGATION_FAILED"
+        if "DOCUMENT_TAB" in b or "DOCS_TAB" in b:
+            return "DOCUMENT_TAB_FAILED"
+        if "DOWNLOAD" in b or "ATTACHMENT" in b:
+            return "DOCUMENT_DOWNLOAD_FAILED"
+        if "UNSUPPORTED" in b or "FORMAT" in b:
+            return "DOCUMENT_FORMAT_UNSUPPORTED"
+        if "EXTRACT" in b or "PARSER" in b:
+            return "DOCUMENT_EXTRACTION_FAILED"
+        if "INCOMPLETE" in b:
+            return "INCOMPLETE_SPECIFICATIONS"
+        if "TIMEOUT" in b or "BUDGET" in b:
+            return "STAGE_TIMEOUT"
+        if "UNAVAILABLE" in b or "WAF" in b or "SOURCE_UNAVAILABLE" in b:
+            return "SOURCE_UNAVAILABLE"
+        if "RESTRICT" in b:
+            return "LEGITIMATE_SOLICITATION_RESTRICTION"
+        if "AWAITING_PURCHASING" in b or "PURCHASING_GROUP" in b:
+            return "ACCESS_SCOPE_INSUFFICIENT"
+        if b:
+            return f"OTHER:{b[:50]}"
+        return "OTHER:UNKNOWN"
+
+    for d in dq.get("items") or []:
+        if not isinstance(d, dict):
+            continue
+        if not (
+            d.get("ready_fail_count")
+            or d.get("ready_demoted_at")
+            or d.get("ready_demote_reason")
+            or d.get("ready_promoted")
+            or d.get("ready_lane")
+        ):
+            continue
+        oid = str(d.get("opportunity_id") or "").strip()
+        if not oid:
+            continue
+        blocker = str(d.get("terminal_blocker") or d.get("ready_demote_reason") or "")
+        by_oid[oid] = {
+            "opportunity_id": oid,
+            "purchasing_group_id": d.get("pg_unlocked"),
+            "stage_reached": d.get("stage_reached"),
+            "terminal_blocker": blocker,
+            "ready_fail_count": int(d.get("ready_fail_count") or 0),
+            "ready_demoted_at": d.get("ready_demoted_at"),
+            "additional_access_dependency": d.get("additional_access_dependency"),
+            "recovery_eligible": d.get("recovery_eligible"),
+            "source": "deferred_demotion",
+            "outcome": _cat(blocker),
+        }
+
+    if job_id:
+        try:
+            items = store.list_items(job_id)
+        except Exception:
+            items = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            if not (it.get("READY_LANE") or it.get("ready_processed_at")):
+                continue
+            oid = str(it.get("OPPORTUNITY_ID") or it.get("opportunity_id") or "").strip()
+            if not oid:
+                continue
+            blocker = str(it.get("terminal_blocker") or "")
+            docs = int(it.get("documents_downloaded") or 0)
+            lines = int(it.get("fully_specified_product_lines") or it.get("line_count") or 0)
+            result = str(it.get("RESULT") or "")
+            row = {
+                "opportunity_id": oid,
+                "purchasing_group_id": it.get("purchasing_group_id"),
+                "authoritative_url": (it.get("authoritative_url") or "")[:160],
+                "bidnet_solicitation_id": it.get("bidnet_solicitation_id"),
+                "registration_status": it.get("purchasing_group_registration_status"),
+                "stage_reached": it.get("stage_reached"),
+                "terminal_blocker": blocker,
+                "documents_downloaded": docs,
+                "line_count": lines,
+                "early_search_status": it.get("early_search_status"),
+                "search_to_detail_status": it.get("search_to_detail_status"),
+                "bounded_blocker": it.get("bounded_blocker"),
+                "RESULT": result,
+                "source": "ready_checkpoint",
+                "outcome": _cat(blocker, docs=docs, lines=lines, result=result),
+            }
+            # Prefer checkpoint over demotion tombstone when both exist
+            prior = by_oid.get(oid)
+            if prior is None or row["source"] == "ready_checkpoint":
+                if prior and prior.get("ready_fail_count"):
+                    row["ready_fail_count"] = prior["ready_fail_count"]
+                by_oid[oid] = row
+
+    for d in ready.get("items") or []:
+        if not isinstance(d, dict):
+            continue
+        oid = str(d.get("opportunity_id") or "").strip()
+        if not oid or oid in by_oid:
+            continue
+        by_oid[oid] = {
+            "opportunity_id": oid,
+            "purchasing_group_id": d.get("pg_unlocked"),
+            "stage_reached": d.get("stage_reached"),
+            "source": "ready_queue_pending",
+            "outcome": "PENDING_READY",
+        }
+
+    cats = Counter(r["outcome"] for r in by_oid.values())
+    examples: dict[str, list[dict[str, Any]]] = {}
+    for r in by_oid.values():
+        cat = r["outcome"]
+        examples.setdefault(cat, [])
+        if len(examples[cat]) < 8:
+            examples[cat].append(r)
+
+    return {
+        "ok": True,
+        "build": BUILD,
+        "repair_retry_build": REPAIR_RETRY_BUILD,
+        "job_id": job_id,
+        "total_examined": len(by_oid),
+        "by_outcome": dict(cats),
+        "examples": examples,
+        "ready_queue_count": ready.get("count"),
+        "metrics": ready.get("metrics"),
+        "limit_note": f"capped_examples_per_category=8 examined={len(by_oid)}",
     }
 
 

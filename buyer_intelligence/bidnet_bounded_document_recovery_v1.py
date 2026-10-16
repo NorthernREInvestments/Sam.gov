@@ -22,7 +22,7 @@ from m3_data_root import data_path
 
 log = __import__("logging").getLogger("govtracker.bidnet_bounded_document_recovery_v1")
 
-BUILD = "20261014-m3-bidnet-bounded-document-recovery-v2"
+BUILD = "20261016-m3-bidnet-bounded-document-recovery-v3"
 OUT = "_og_commercial_research_pipeline_out"
 REPORT = f"{OUT}/m3_bdd_v1_report.json"
 RESULTS = f"{OUT}/m3_bdd_v1_results.json"
@@ -44,6 +44,9 @@ FREE_PORTAL_UNAVAILABLE = "FREE_PORTAL_UNAVAILABLE"
 PER_OPP_TIMEOUT = "PER_OPPORTUNITY_TIMEOUT"
 COMPLETE_PACKAGE = "COMPLETE_PACKAGE_RECOVERED"
 PG_REGISTRATION_REQUIRED = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
+# Registered PG + statewide/open-bids: authenticated search never found the private
+# solicitation (wrong ID namespace / empty title / no interception row).
+SOLICITATION_RESOLUTION_FAILED = "SOLICITATION_RESOLUTION_FAILED"
 
 
 def _utc() -> str:
@@ -179,6 +182,61 @@ def classify_document_blocker(
         return DOCS_INACCESSIBLE, evidence
     evidence["classification_basis"] = "no_document_links_after_auth"
     return MISSING_DOC_LINKS, evidence
+
+
+def _harvest_title_from_source_url(
+    auth_client: Any,
+    url: str,
+    *,
+    timeout_ms: int = 12_000,
+) -> dict[str, Any]:
+    """Read human title / solicitation number from a statewide or open-bids abstract.
+
+    Production queue rows often have empty titles. Statewide path IDs are a different
+    namespace from private solicitation IDs, so searching by those digits alone yields
+    NO_INTERCEPTION_RESULT. Harvesting the public abstract title first is required.
+    """
+    out: dict[str, Any] = {
+        "title": None,
+        "solicitation_number": None,
+        "html_len": 0,
+        "ok": False,
+    }
+    if not url or not hasattr(auth_client, "fetch_html"):
+        return out
+    try:
+        html = (
+            auth_client.fetch_html(url, timeout_ms=max(1_000, int(timeout_ms)), prefer_http=False)
+            or ""
+        )
+    except Exception as exc:
+        out["error"] = type(exc).__name__
+        return out
+    out["html_len"] = len(html or "")
+    if len(html or "") < 200:
+        out["error"] = "ABSTRACT_HTML_TOO_SHORT"
+        return out
+    try:
+        from bidnet_recovery.parse_abstract import parse_bidnet_abstract
+
+        parsed = parse_bidnet_abstract(html, detail_url=url) or {}
+    except Exception as exc:
+        out["error"] = type(exc).__name__
+        return out
+    title = str(parsed.get("title") or "").strip()
+    if title and len(title) >= 6 and not re.search(
+        r"^(login|search|bidnet|welcome|home|solicitation search)\b", title, re.I
+    ):
+        out["title"] = title[:160]
+        out["ok"] = True
+    sol = str(parsed.get("solicitation_number") or "").strip()
+    if sol and len(sol) >= 4 and not re.fullmatch(r"\d{10,}", sol):
+        # Prefer buyer solicitation numbers over long statewide path IDs.
+        out["solicitation_number"] = sol[:80]
+        out["ok"] = True
+    elif sol and len(sol) >= 4 and not out.get("solicitation_number"):
+        out["solicitation_number"] = sol[:80]
+    return out
 
 
 def _is_real_doc(d: dict[str, Any]) -> bool:
@@ -824,6 +882,28 @@ def _recover_one_inner(
         }
         # Prefer human title/slug first. Open-bids/statewide path IDs are a
         # different namespace than private solicitation IDs — try them last.
+        # When the queue title is empty (common for statewide abstracts), harvest
+        # the public abstract title before searching — otherwise every query is
+        # a statewide digit string and search returns NO_INTERCEPTION_RESULT.
+        if len(str(title or "").strip()) < 6 and time.monotonic() < deadline:
+            harvested = _harvest_title_from_source_url(
+                auth_client, url, timeout_ms=_remain_ms(12_000)
+            )
+            out["title_harvest"] = {
+                "ok": bool(harvested.get("ok")),
+                "title": (harvested.get("title") or "")[:120] or None,
+                "solicitation_number": harvested.get("solicitation_number"),
+                "html_len": harvested.get("html_len"),
+                "error": harvested.get("error"),
+            }
+            out["network_requests"] += 1
+            if harvested.get("title"):
+                title = str(harvested["title"])
+                out["title"] = title
+                meta["title"] = title
+            if harvested.get("solicitation_number") and not out.get("bidnet_solicitation_id"):
+                out["harvested_solicitation_number"] = harvested["solicitation_number"]
+
         search_queries: list[str] = []
         m_slug = re.search(r"/open-bids/([^/]+)/\d+", url, re.I)
         slug_title = ""
@@ -840,6 +920,9 @@ def _recover_one_inner(
                 compact = " ".join(toks[:6])[:120]
                 if compact.lower() not in {q.lower() for q in search_queries}:
                     search_queries.append(compact)
+        harvested_sol = str(out.get("harvested_solicitation_number") or "").strip()
+        if harvested_sol and harvested_sol.lower() not in {q.lower() for q in search_queries}:
+            search_queries.append(harvested_sol[:120])
         m_ob = re.search(r"/open-bids/[^/]+/(\d{6,})", url, re.I)
         m_sw = re.search(r"/statewide/(\d{6,})", url, re.I)
         if m_ob:
@@ -847,7 +930,8 @@ def _recover_one_inner(
             stripped = m_ob.group(1).lstrip("0") or m_ob.group(1)
             if stripped != m_ob.group(1):
                 search_queries.append(stripped)
-        if m_sw:
+        # Statewide path IDs are last-resort only — they rarely index in private search.
+        if m_sw and len(search_queries) < 2:
             search_queries.append(m_sw.group(1))
         # de-dupe preserve order
         seen_q: set[str] = set()
@@ -904,7 +988,8 @@ def _recover_one_inner(
                 "detail_url": (early.get("detail_url") or "")[:160] or None,
                 "solicitation_id": early.get("solicitation_id"),
                 "access_gate": early.get("access_gate"),
-                "attempts": attempts[:6],
+                "attempts": attempts[:8],
+                "title_harvested": bool((out.get("title_harvest") or {}).get("ok")),
             }
             if early.get("ok") and early.get("detail_url"):
                 break
@@ -942,6 +1027,46 @@ def _recover_one_inner(
             out["access_note"] = "early_registered_still_action_required"
         elif uniq_q:
             out["access_note"] = f"early_registered_resolve_{early.get('status') or 'failed'}"
+            # Search failed: try statewide/open-bids CTA → private refs → attachments.
+            # Shared production path — not a READY-only special case.
+            if (
+                not _has_downloaded_docs(docs)
+                and time.monotonic() < deadline
+                and hasattr(auth_client, "discover_attachments_from_statewide")
+                and (
+                    "/statewide/" in (url or "").lower()
+                    or "/open-bids/" in (url or "").lower()
+                )
+            ):
+                out["network_requests"] += 1
+                try:
+                    sw_docs = (
+                        auth_client.discover_attachments_from_statewide(
+                            url,
+                            title=title or None,
+                            timeout_ms=_remain_ms(35_000),
+                        )
+                        or []
+                    )
+                except Exception as exc:
+                    sw_docs = []
+                    out["statewide_fallback_error"] = type(exc).__name__
+                real_sw = [d for d in sw_docs if isinstance(d, dict) and _is_real_doc(d)]
+                out["statewide_fallback"] = {
+                    "attempted": True,
+                    "docs_found": len(real_sw),
+                    "title_used": (title or "")[:120] or None,
+                }
+                if real_sw:
+                    docs = real_sw
+                    package_state = "PACKAGE_ACQUIRED_BIDNET"
+                    detail_status = "DETAIL_OK"
+                    out["access_note"] = "early_registered_statewide_fallback_docs"
+                    out["early_search_to_detail"] = {
+                        **(out.get("early_search_to_detail") or {}),
+                        "status": "STATEWIDE_FALLBACK_DOCS",
+                        "docs_found": len(real_sw),
+                    }
 
     # 1) Authenticated detail fetch — browser path required for public/statewide +
     # purchasing-group URLs (prefer_http=True was causing DETAIL_FETCH_EMPTY at scale;
@@ -1465,6 +1590,41 @@ def _recover_one_inner(
     if docs and qty_ok and not title_only:
         blocker = COMPLETE_PACKAGE
         evidence["classification_basis"] = "docs_plus_qty_lines"
+    # Do not label authenticated search resolution failure as FREE_PORTAL_UNAVAILABLE.
+    early_st = str((out.get("early_search_to_detail") or {}).get("status") or "").upper()
+    s2d_st = str(
+        (out.get("search_to_detail") or {}).get("status")
+        or (out.get("search_to_detail_docs") or {}).get("status")
+        or (out.get("search_to_detail_retry") or {}).get("status")
+        or ""
+    ).upper()
+    resolution_miss = early_st in {
+        "NO_INTERCEPTION_RESULT",
+        "NO_SEARCH_QUERIES",
+        "INTERCEPTION_NAV_FAILED",
+        "STILL_SEARCH",
+        "NOT_DETAIL",
+    } or s2d_st in {
+        "NO_INTERCEPTION_RESULT",
+        "NO_SEARCH_QUERIES",
+        "INTERCEPTION_NAV_FAILED",
+        "STILL_SEARCH",
+        "NOT_DETAIL",
+    }
+    if (
+        not docs
+        and resolution_miss
+        and blocker
+        in {
+            FREE_PORTAL_UNAVAILABLE,
+            MISSING_DOC_LINKS,
+            DOCS_INACCESSIBLE,
+        }
+    ):
+        blocker = SOLICITATION_RESOLUTION_FAILED
+        evidence["classification_basis"] = "authenticated_search_no_private_solicitation"
+        evidence["early_search_status"] = early_st or None
+        evidence["search_to_detail_status"] = s2d_st or None
     evidence["final_url"] = (out.get("final_url") or "")[:220] or None
     evidence["access_note"] = out.get("access_note")
     evidence["bidnet_discovery_skipped"] = out.get("bidnet_discovery_skipped")

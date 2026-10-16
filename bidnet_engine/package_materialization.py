@@ -119,9 +119,10 @@ _INTERCEPTION_HREF = re.compile(
     r'(?:open-solicitation/\d+[^"\']*|view-notice/\d+[^"\']*))["\']',
     re.I,
 )
+# class may appear before or after href on live BidNet search markup
 _TITLE_LINK_BLOCK = re.compile(
-    r'<a[^>]+href=["\'](?P<href>/private/supplier/interception/[^"\']+)["\'][^>]*'
-    r'class=["\'][^"\']*solicitationsTitleLink[^"\']*["\'][^>]*>'
+    r'<a(?=[^>]*class=["\'][^"\']*solicitationsTitleLink[^"\']*["\'])'
+    r'[^>]*href=["\'](?P<href>/private/supplier/interception/[^"\']+)["\'][^>]*>'
     r'(?P<body>.*?)</a>',
     re.I | re.S,
 )

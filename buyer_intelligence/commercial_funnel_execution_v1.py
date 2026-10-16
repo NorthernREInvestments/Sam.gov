@@ -994,7 +994,16 @@ def process_one(
                 elif pg_st == "REGISTERED" or pg_reg.get("already_registered"):
                     # Registered: docs recovery should have run; if empty, precise retryable
                     if not (bounded.get("documents") or []):
-                        out["package_blocker"] = out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
+                        if str(bounded.get("primary_blocker") or "") == "SOLICITATION_RESOLUTION_FAILED":
+                            out["package_blocker"] = "SOLICITATION_RESOLUTION_FAILED"
+                            out["software_defect_key"] = (
+                                out.get("software_defect_key")
+                                or "bidnet_solicitation_resolution"
+                            )
+                        else:
+                            out["package_blocker"] = (
+                                out.get("package_blocker") or "DETAIL_FETCH_EMPTY"
+                            )
                         out["pg_registered_awaiting_docs"] = True
                 elif str(bounded.get("primary_blocker") or "").upper().find("PURCHASING") >= 0:
                     out["package_blocker"] = "PURCHASING_GROUP_REGISTRATION_REQUIRED"
@@ -1033,6 +1042,13 @@ def process_one(
             elif bounded.get("primary_blocker") == PAID_ENTITLEMENT:
                 out["package_blocker"] = (
                     f"PAID_ENTITLEMENT:{bounded.get('paid_entitlement_requirement') or 'verified'}"
+                )
+            elif str(bounded.get("primary_blocker") or "") == "SOLICITATION_RESOLUTION_FAILED":
+                # Registered PG still could not resolve private solicitation from
+                # statewide/open-bids ID namespace — not an incomplete-spec outcome.
+                out["package_blocker"] = "SOLICITATION_RESOLUTION_FAILED"
+                out["software_defect_key"] = out.get("software_defect_key") or (
+                    "bidnet_solicitation_resolution"
                 )
             stage_timings["docs_recovery_s"] = round(time.time() - t_docs, 3)
             # Soft budget exceed after durable docs+lines is NOT a terminal timeout.
@@ -1568,8 +1584,52 @@ def process_one(
         out["next_action"] = f"Resolve package access: {out['package_blocker']}"
         out["terminal_blocker"] = out["package_blocker"]
     elif not out.get("complete_spec"):
-        out["next_action"] = "Recover full solicitation package / line quantities from buyer portal"
-        out["terminal_blocker"] = "INCOMPLETE_LINE_ITEMS"
+        # Zero-doc resolution misses must not be mislabeled as incomplete specs.
+        docs_n = int(out.get("documents_downloaded") or 0)
+        early_st = str(
+            ((out.get("early_search_to_detail") or {}) if isinstance(out.get("early_search_to_detail"), dict) else {}).get(
+                "status"
+            )
+            or out.get("early_search_status")
+            or ""
+        ).upper()
+        s2d_st = str(
+            (
+                (out.get("search_to_detail") or {})
+                if isinstance(out.get("search_to_detail"), dict)
+                else {}
+            ).get("status")
+            or out.get("search_to_detail_status")
+            or ""
+        ).upper()
+        if docs_n == 0 and (
+            str(out.get("bounded_blocker") or "") == "SOLICITATION_RESOLUTION_FAILED"
+            or early_st
+            in {
+                "NO_INTERCEPTION_RESULT",
+                "NO_SEARCH_QUERIES",
+                "INTERCEPTION_NAV_FAILED",
+            }
+            or s2d_st
+            in {
+                "NO_INTERCEPTION_RESULT",
+                "NO_SEARCH_QUERIES",
+                "INTERCEPTION_NAV_FAILED",
+            }
+        ):
+            out["next_action"] = (
+                "Resolve private solicitation via authenticated search (statewide/open-bids "
+                "IDs are not private solicitation IDs)"
+            )
+            out["terminal_blocker"] = "SOLICITATION_RESOLUTION_FAILED"
+            out["software_defect_key"] = out.get("software_defect_key") or (
+                "bidnet_solicitation_resolution"
+            )
+        else:
+            out["next_action"] = (
+                "Recover full solicitation package / line quantities from buyer portal"
+            )
+            out["terminal_blocker"] = "INCOMPLETE_LINE_ITEMS"
     elif source_outcome == "PROVIDER_ERROR":
         out["next_action"] = "Retry supplier/price research after provider error"
         out["terminal_blocker"] = "SOURCE_PROVIDER_ERROR"

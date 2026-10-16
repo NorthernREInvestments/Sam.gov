@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e25"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e26"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1846,6 +1846,17 @@ def api_m3_full_scale_production_funnel_ready_promote(body: dict | None = None):
             job_id=str(jid) if jid else None,
             max_promote=int(payload["max_promote"]) if payload.get("max_promote") else None,
         ),
+    }
+
+
+@app.get("/api/m3/full-scale-production-funnel/ready-lane/audit")
+def api_m3_full_scale_production_funnel_ready_audit(limit: int = 200):
+    """Mutually exclusive READY-lane failure taxonomy from demotions + checkpoints."""
+    from buyer_intelligence.fspf_ready_lane_v1 import audit_ready_attempts
+
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **audit_ready_attempts(limit=max(1, min(int(limit or 200), 500))),
     }
 
 
