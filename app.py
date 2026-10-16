@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36b"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36c"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1903,6 +1903,17 @@ def api_m3_full_scale_production_funnel_commercial_price_pass(body: dict | None 
         budget_s=float(payload.get("budget_s") or 180.0),
     )
     return {"ok": True, "build_version": APP_BUILD_VERSION, "job_id": jid, **report}
+
+
+@app.get("/api/m3/full-scale-production-funnel/commercial-evidence-audit")
+def api_m3_full_scale_production_funnel_commercial_evidence_audit(job_id: str | None = None):
+    """Read-only audit of recovered product lines, RFQs, and access classifications."""
+    from buyer_intelligence.commercial_evidence_audit_v1 import run_commercial_evidence_audit
+
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **run_commercial_evidence_audit(job_id=job_id),
+    }
 
 
 @app.get("/api/m3/bidnet-auth/browser-circuit")

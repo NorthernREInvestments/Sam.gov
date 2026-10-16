@@ -5,14 +5,47 @@ from __future__ import annotations
 import importlib
 
 
-def test_builds_are_v4e36b():
+def test_builds_are_v4e36c():
     fspf = importlib.import_module("buyer_intelligence.full_scale_production_funnel_v1")
     pg = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
     q = importlib.import_module("bidnet_auth.purchasing_group_queue")
-    assert "v4e36b" in fspf.BUILD
+    assert "v4e36c" in fspf.BUILD
     assert "v1k" in pg.BUILD
     assert "v1j" in q.BUILD
     assert float(pg.BROWSER_SLOT_WAIT_S) >= 30.0
+
+
+def test_commercial_evidence_audit_classifies_lines():
+    from buyer_intelligence.commercial_evidence_audit_v1 import classify_line, classify_rfq
+
+    assert (
+        classify_line(
+            {
+                "description": "Hammermill Copy Plus 8.5x11 20lb ream",
+                "manufacturer": "Hammermill",
+                "mpn": "150010",
+                "qty": 40,
+                "uom": "CS",
+            }
+        )
+        == "EXACT_PRODUCT_IDENTIFIED"
+    )
+    assert classify_line({"description": "x", "mpn": None}) == "INVALID_EXTRACTION"
+    assert (
+        classify_rfq(
+            {
+                "opportunity_id": "x",
+                "title": "Paper",
+                "buyer": "City",
+                "deadline": "2026-12-01",
+                "rfq": {
+                    "status": "AWAITING_OWNER_APPROVED_OUTREACH",
+                    "line_items": [{"description": "Copy paper 8.5x11 case", "qty": 10}],
+                },
+            }
+        )
+        == "NEEDS_SUPPLIER_TARGET"
+    )
 
 
 def test_saml_idp_url_detection():
