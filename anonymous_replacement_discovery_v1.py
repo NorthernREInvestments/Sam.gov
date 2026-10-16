@@ -35,37 +35,50 @@ def _is_bidnetish(rec: dict[str, Any]) -> bool:
 
 
 def _canonical_non_bidnet_counts() -> dict[str, Any]:
-    """Compute live non-BidNet inventory from L23 store without loading full payloads twice."""
+    """Compute live non-BidNet inventory using the same L23 live rules as coverage dashboard."""
     try:
-        from m3_data_root import canonical_opportunity_store_path
+        from phase_l.l23_full_population_funnel import load_store
+        from phase_l.owner_ui_service import DEAD_FUNNEL_STATES, _is_available_rec
 
-        path = canonical_opportunity_store_path()
-        if not path.exists():
-            return {"canonical_live_total": 0, "non_bidnet_live": 0, "bidnet_live": 0, "by_platform": {}}
-        data = json.loads(path.read_text(encoding="utf-8"))
-        rows = data.get("opportunities") or data.get("records") or data.get("items") or []
-        if isinstance(data, list):
-            rows = data
+        store = load_store()
         live_total = 0
         non_bn = 0
         bn = 0
         by_plat: dict[str, int] = {}
-        for r in rows:
-            if not isinstance(r, dict):
+        live_states = {
+            "RAW",
+            "ACCESSIBLE_PRODUCT",
+            "FAST_RESEARCH_PENDING",
+            "FAST_RESEARCH_COMPLETE",
+            "DEEP_RESEARCH_PRIORITY",
+            "DEEP_RESEARCH_IN_PROGRESS",
+            "DEEP_RESEARCH_COMPLETE",
+            "WATCH",
+            "WATCH_FEDERAL_ACCESS",
+            "WATCH_OTHER",
+            "NEEDS_SOURCE_DATA",
+            "LOW_PRIORITY_RESEARCH",
+        }
+        for rec in store.values() if isinstance(store, dict) else []:
+            if not isinstance(rec, dict):
                 continue
-            status = str(r.get("live_status") or r.get("status") or r.get("inventory_freshness") or "").upper()
-            if status and status not in {"OPEN", "LIVE", "ACTIVE", "CURRENT"} and r.get("discovery_universe") != "LIVE":
-                # still count if explicitly marked live universe
-                if not (r.get("discovery_universe") == "LIVE" or r.get("inventory_freshness") == "LIVE"):
-                    continue
+            st = str(rec.get("current_funnel_state") or "")
+            if st in DEAD_FUNNEL_STATES:
+                continue
+            fresh = str(rec.get("freshness") or "").upper()
+            if fresh in {"EXPIRED", "CANCELED", "CANCELLED"}:
+                continue
+            if not (_is_available_rec(rec) or st in live_states):
+                continue
             live_total += 1
-            plat = str(r.get("platform") or r.get("platform_family") or r.get("source_id") or "other")
-            if _is_bidnetish(r):
+            plat = str(rec.get("platform") or rec.get("source_id") or "other")
+            sid = str(rec.get("source_id") or "")
+            if _is_bidnetish(rec) or "bidnet" in plat.lower() or "bidnet" in sid.lower():
                 bn += 1
                 by_plat["BidNet"] = by_plat.get("BidNet", 0) + 1
             else:
                 non_bn += 1
-                key = plat if len(plat) < 40 else plat[:40]
+                key = plat if len(plat) < 48 else plat[:48]
                 by_plat[key] = by_plat.get(key, 0) + 1
         return {
             "canonical_live_total": live_total,
@@ -490,10 +503,34 @@ def _harvest_state_validation_candidates(*, max_pages: int, persist: bool, run_i
     }
 
 
+def _load_or_seed_baseline(non_bn_now: int) -> dict[str, Any]:
+    """Baseline freezes pre-existing non-BidNet inventory so OpenGov isn't counted as replacement."""
+    try:
+        from m3_data_root import data_path
+
+        path = data_path("m3_anonymous_replacement_baseline_v1.json")
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+        baseline = {
+            "kind": "AnonymousReplacementBaseline",
+            "seeded_at": now_utc().isoformat(),
+            "non_bidnet_live_at_abandon": int(non_bn_now),
+            "note": "Existing OpenGov/other non-BidNet inventory is baseline, not replacement volume",
+        }
+        path.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
+        return baseline
+    except Exception as exc:
+        return {"non_bidnet_live_at_abandon": int(non_bn_now), "error": f"{type(exc).__name__}: {exc}"}
+
+
 def replacement_progress_dashboard() -> dict[str, Any]:
     """Operator-facing replacement progress (honest counts)."""
     counts = _canonical_non_bidnet_counts()
     non_bn = int(counts.get("non_bidnet_live") or 0)
+    baseline = _load_or_seed_baseline(non_bn)
+    baseline_n = int(baseline.get("non_bidnet_live_at_abandon") or 0)
+    # Net-new replacement volume excludes inventory that already existed when BidNet was abandoned
+    net_new_replacement = max(0, non_bn - baseline_n)
     last = None
     try:
         from m3_data_root import data_path
@@ -520,11 +557,14 @@ def replacement_progress_dashboard() -> dict[str, Any]:
         "replacement_target": REPLACEMENT_TARGET,
         "bidnet_active_calls_remaining": 0,
         "total_live_non_bidnet_inventory": non_bn,
+        "existing_non_bidnet_baseline": baseline_n,
+        "new_unique_non_bidnet_replacement": net_new_replacement,
         "bidnet_live_retained_historical": int(counts.get("bidnet_live") or 0),
-        "replacement_gap_remaining": max(0, REPLACEMENT_TARGET - non_bn),
-        "replacement_target_achieved": non_bn >= REPLACEMENT_TARGET,
-        "progress_pct": round(min(100.0, 100.0 * non_bn / REPLACEMENT_TARGET), 2),
+        "replacement_gap_remaining": max(0, REPLACEMENT_TARGET - net_new_replacement),
+        "replacement_target_achieved": net_new_replacement >= REPLACEMENT_TARGET,
+        "progress_pct": round(min(100.0, 100.0 * net_new_replacement / REPLACEMENT_TARGET), 2),
         "by_platform": counts.get("by_platform"),
+        "canonical_live_total": counts.get("canonical_live_total"),
         "last_run": {
             "run_id": (last or {}).get("run_id"),
             "completed_at": (last or {}).get("completed_at"),
