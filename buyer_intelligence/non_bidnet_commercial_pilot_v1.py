@@ -90,7 +90,7 @@ def run_non_bidnet_commercial_pilot(
 ) -> dict[str, Any]:
     """Run production run_one_opportunity on product-ish non-BidNet opportunities."""
     from buyer_intelligence.commercial_evidence_index_v1 import build_commercial_evidence_index
-    from buyer_intelligence.commercial_funnel_execution_v1 import run_one_opportunity
+    from buyer_intelligence.opportunity_funnel_orchestrator_v1 import run_one_opportunity
     from discovery.http_client import PublicProcurementHttpClient, RequestBudget
     from phase_l.l23_full_population_funnel import load_store
 
