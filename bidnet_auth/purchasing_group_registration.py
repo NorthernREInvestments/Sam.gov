@@ -294,22 +294,68 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         page.set_default_navigation_timeout(nav_timeout)
     except Exception:
         pass
+    import time as _time
+
+    t_nav = _time.time()
+    stage_trace: list[dict[str, Any]] = [
+        {
+            "stage": "nav_start",
+            "has_accessed_element": "accessedElementId=" in str(form_url or ""),
+            "nav_timeout_ms": nav_timeout,
+        }
+    ]
     nav_err: Exception | None = None
-    for wait_until in ("commit", "domcontentloaded"):
-        try:
-            page.goto(form_url, wait_until=wait_until, timeout=nav_timeout)
-            nav_err = None
-            break
-        except Exception as exc:
-            nav_err = exc
-            continue
+    # Single primary wait — do not burn two full budgets on a dead page.
+    try:
+        page.goto(form_url, wait_until="commit", timeout=nav_timeout)
+        nav_err = None
+        stage_trace.append(
+            {"stage": "goto_commit", "ok": True, "elapsed_s": round(_time.time() - t_nav, 3)}
+        )
+    except Exception as exc:
+        nav_err = exc
+        stage_trace.append(
+            {
+                "stage": "goto_commit",
+                "ok": False,
+                "error": type(exc).__name__,
+                "message": (str(exc) or repr(exc))[:200],
+                "elapsed_s": round(_time.time() - t_nav, 3),
+            }
+        )
+        # Only retry domcontentloaded when the page is still alive.
+        closed = "closed" in (str(exc) or "").lower() or "Target" in type(exc).__name__
+        if not closed:
+            try:
+                page.goto(form_url, wait_until="domcontentloaded", timeout=min(30_000, nav_timeout))
+                nav_err = None
+                stage_trace.append(
+                    {
+                        "stage": "goto_domcontentloaded",
+                        "ok": True,
+                        "elapsed_s": round(_time.time() - t_nav, 3),
+                    }
+                )
+            except Exception as exc2:
+                nav_err = exc2
+                stage_trace.append(
+                    {
+                        "stage": "goto_domcontentloaded",
+                        "ok": False,
+                        "error": type(exc2).__name__,
+                        "message": (str(exc2) or repr(exc2))[:200],
+                        "elapsed_s": round(_time.time() - t_nav, 3),
+                    }
+                )
     if nav_err is not None:
         return {
             "ok": False,
             "error": type(nav_err).__name__,
             "form_url": form_url[:220],
-            "message": str(nav_err)[:200],
+            "message": (str(nav_err) or repr(nav_err))[:200],
             "nav_timeout_ms": nav_timeout,
+            "stage_trace": stage_trace,
+            "failure_point": "navigation",
         }
     try:
         page.wait_for_load_state("domcontentloaded", timeout=20_000)
@@ -1228,31 +1274,28 @@ def run_purchasing_group_registration(
         }
 
     try:
-        # Prefer clean form URL up front — stale accessedElementId causes ~5–8s
-        # Playwright TimeoutError before the group-level budget can help.
-        if "accessedElementId=" in str(form_url or ""):
-            cleaned_upfront = strip_stale_accessed_element(form_url) or build_group_form_url(
-                purchasing_group_id=pg_id, solicitation_id=None
-            )
-            if cleaned_upfront:
-                form_url = cleaned_upfront
+        # Keep session-scoped accessedElementId when present — BidNet group forms
+        # often require solicitation context. Path-only URLs fail in ~6s.
         inspected = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
-        # Any nav TimeoutError/Error — retry once with a freshly built clean URL.
+        # On nav failure with a stale accessedElementId, rebuild WITH solicitation
+        # id from the failed URL (not a path-only strip).
         if not inspected.get("ok") and str(inspected.get("error") or "") in {
             "TimeoutError",
             "Error",
             "FORM_NAV_REDIRECT",
         }:
-            clean = strip_stale_accessed_element(form_url) or build_group_form_url(
-                purchasing_group_id=pg_id, solicitation_id=None
+            sol_retry = solicitation_id or extract_solicitation_id_from_url(form_url or "")
+            rebuilt = build_group_form_url(
+                purchasing_group_id=pg_id, solicitation_id=sol_retry
             )
-            if clean and clean != form_url:
+            if rebuilt and rebuilt != form_url:
                 log.info(
-                    "pg_form_nav_retry_clean_url pg=%s prior_err=%s",
+                    "pg_form_nav_retry_rebuilt_url pg=%s prior_err=%s has_sol=%s",
                     pg_id,
                     inspected.get("error"),
+                    bool(sol_retry),
                 )
-                form_url = clean
+                form_url = rebuilt
                 inspected = inspect_group_form(client, form_url=form_url, timeout_ms=60_000)
         if not inspected.get("ok"):
             upsert_group(

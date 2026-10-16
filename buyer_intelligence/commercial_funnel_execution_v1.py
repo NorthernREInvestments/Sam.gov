@@ -1404,7 +1404,8 @@ def process_one(
     }
     commercial_budget_deferred = False
     source_outcome = "NOT_ATTEMPTED"
-    min_price_budget = float(os.environ.get("M3_FSPF_MIN_PRICE_BUDGET_S") or "18")
+    min_price_budget = float(os.environ.get("M3_FSPF_MIN_PRICE_BUDGET_S") or "12")
+    micro_price_budget = float(os.environ.get("M3_FSPF_MICRO_PRICE_BUDGET_S") or "10")
     wall = float(os.environ.get("M3_FSPF_ITEM_TIMEOUT_S") or "100")
     remain_before_commercial = wall - (time.time() - t0)
     stage_timings["remain_before_commercial_s"] = round(remain_before_commercial, 3)
@@ -1420,10 +1421,15 @@ def process_one(
         and any(_line_qty(li) not in (None, "") for li in lines if isinstance(li, dict))
         and any(_line_desc(li) for li in lines if isinstance(li, dict))
     )
+    has_mpn_line = any(_line_mpn(li) for li in lines if isinstance(li, dict))
     if spec_for_research and (
         out.get("public_unit_price") in (None, "") or not out.get("public_price_verified")
     ):
-        if remain_before_commercial < min_price_budget:
+        # Prefer a short MPN micro-pass over full defer when wall is tight —
+        # known catalog / exact MPN lookups often complete under 2s.
+        if remain_before_commercial < min_price_budget and not (
+            has_mpn_line and remain_before_commercial >= micro_price_budget
+        ):
             commercial_budget_deferred = True
             source_outcome = "SKIPPED_INSUFFICIENT_BUDGET"
             stage_status["SOURCE"] = "DEFERRED_INSUFFICIENT_BUDGET"
@@ -1446,18 +1452,25 @@ def process_one(
             t_price = time.time()
             stage_status["SOURCE"] = "STARTED"
             stage_status["PRICE"] = "STARTED"
-            remain = max(min_price_budget, remain_before_commercial)
+            remain = max(micro_price_budget, remain_before_commercial)
+            max_lines = int(os.environ.get("M3_FSPF_PRICE_MAX_LINES") or "8")
+            if remain_before_commercial < min_price_budget:
+                max_lines = 1  # micro MPN pass only
             price_research = _research_public_prices_for_lines(
                 opportunity_id=oid,
                 lines=lines,
                 budget_s=min(45.0, remain),
-                max_lines=int(os.environ.get("M3_FSPF_PRICE_MAX_LINES") or "8"),
+                max_lines=max_lines,
             )
             stage_timings["price_research_s"] = round(time.time() - t_price, 3)
             stage_timings["supplier_research_s"] = stage_timings["price_research_s"]
             if price_research.get("verified_public_unit_price") not in (None, ""):
                 out["public_unit_price"] = price_research["verified_public_unit_price"]
                 out["public_price_evidence"] = (price_research.get("prices") or [])[:5]
+                out["public_price_evidence_count"] = int(
+                    price_research.get("price_evidence_count") or 0
+                )
+                out["public_price_verified"] = True
                 out["public_price_route"] = "live_research_mpn_or_description"
                 stage_status["PRICE"] = "COMPLETED"
                 source_outcome = "SUPPLIER_AND_PRICE_FOUND"

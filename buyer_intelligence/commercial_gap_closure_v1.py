@@ -408,6 +408,15 @@ def research_mpn_public_price(
             "class": "EXACT_PUBLIC_ACQUISITION_PRICE",
             "reused": True,
         },
+        # Re-verified 2026-10-16 via live public_price_search (Elliott Electric).
+        "150010": {
+            "unit_price": "360.79",
+            "uom": "CARTON",
+            "url": "https://www.elliottelectric.com/P/Item/WIR/150010/",
+            "supplier": "Elliott Electric",
+            "class": "EXACT_PUBLIC_ACQUISITION_PRICE",
+            "reused": True,
+        },
     }
     if mpn_u in known:
         hit = known[mpn_u]

@@ -5,12 +5,42 @@ from __future__ import annotations
 import importlib
 
 
-def test_builds_are_v4e29():
+def test_builds_are_v4e30():
     fspf = importlib.import_module("buyer_intelligence.full_scale_production_funnel_v1")
     pg = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
-    assert "v4e29" in fspf.BUILD
-    assert "v1d" in pg.BUILD
+    q = importlib.import_module("bidnet_auth.purchasing_group_queue")
+    assert "v4e30" in fspf.BUILD
+    assert "v1e" in pg.BUILD
+    assert "v1f" in q.BUILD
     assert float(pg.BROWSER_SLOT_WAIT_S) >= 30.0
+
+
+def test_resolve_form_url_preserves_accessed_element():
+    q = importlib.import_module("bidnet_auth.purchasing_group_queue")
+    dirty = (
+        "https://www.bidnetdirect.com/private/supplier/9785456456/purchasing-groups/"
+        "12555501/group-form/edit?accessedElementId=2718664187&originalAction=SOLICITATION_OPEN"
+    )
+    kept = q._resolve_form_url("12555501", dirty, strip_stale=False)
+    assert kept and "accessedElementId=2718664187" in kept
+    stripped = q._resolve_form_url("12555501", dirty, strip_stale=True)
+    assert stripped and "accessedElementId=" not in stripped
+
+
+def test_hammermill_known_catalog_price():
+    gap = importlib.import_module("buyer_intelligence.commercial_gap_closure_v1")
+    pr = gap.research_mpn_public_price(
+        mpn="150010",
+        manufacturer="Hammermill",
+        description="Hammermill Copy Plus",
+        opportunity_id="ctrl",
+        deadline_s=5,
+    )
+    assert pr.get("unit_price") == "360.79"
+    assert pr.get("route") == "KNOWN_CATALOG_REUSED"
+    assert "elliot" in str(pr.get("supplier") or "").lower() or "elliottelectric" in str(
+        pr.get("url") or ""
+    ).lower()
 
 
 def test_orphan_cleanup_skips_while_pg_holds_mutex(monkeypatch):

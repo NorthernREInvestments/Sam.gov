@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261015-m3-bidnet-pg-group-queue-v1e"
+BUILD = "20261016-m3-bidnet-pg-group-queue-v1f"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -84,8 +84,18 @@ def save_queue(state: dict[str, Any]) -> Path:
     return path
 
 
-def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
-    """Prefer explicit form URL; else tracker path; else clean constructed URL."""
+def _resolve_form_url(
+    pg_id: str,
+    form_url: str | None = None,
+    *,
+    strip_stale: bool = False,
+) -> str | None:
+    """Prefer explicit form URL; else tracker path; else constructed URL.
+
+    Do NOT strip accessedElementId by default — BidNet needs a session-scoped
+    solicitation id for many group forms. Stripping on every resolve caused
+    ~6s TimeoutError on path-only URLs.
+    """
     cand = str(form_url or "").strip()
     if not cand:
         try:
@@ -103,7 +113,7 @@ def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
             cand = ""
     if cand.startswith("/"):
         cand = "https://www.bidnetdirect.com" + cand
-    if cand and "accessedElementId=" in cand:
+    if strip_stale and cand and "accessedElementId=" in cand:
         cand = _form_url_without_stale_id(cand) or cand
     if not cand and pg_id:
         try:
@@ -113,6 +123,107 @@ def _resolve_form_url(pg_id: str, form_url: str | None = None) -> str | None:
         except Exception:
             cand = ""
     return cand or None
+
+
+def mint_fresh_form_url_from_source(
+    auth_client: Any,
+    *,
+    purchasing_group_id: str,
+    source_url: str,
+) -> dict[str, Any]:
+    """Open solicitation abstract and mint a session-fresh group-form URL.
+
+    Uses interceptorProceedBtn / gate HTML when present. Never fabricates group IDs.
+    """
+    import time as _time
+
+    from bidnet_auth.purchasing_group_registration import (
+        build_group_form_url,
+        extract_pg_gate_from_html,
+        extract_pg_id_from_url,
+        extract_solicitation_id_from_url,
+    )
+
+    t0 = _time.time()
+    trace: list[dict[str, Any]] = []
+    src = str(source_url or "").strip()
+    pg_id = str(purchasing_group_id or "").strip()
+    if not src or not pg_id:
+        return {"ok": False, "error": "MISSING_SOURCE_OR_PG", "trace": trace}
+    html = ""
+    page_url = src
+    try:
+        if hasattr(auth_client, "fetch_html"):
+            html = (
+                auth_client.fetch_html(src, timeout_ms=GATE_FETCH_TIMEOUT_MS, prefer_http=True)
+                or ""
+            )
+            page_url = str(
+                getattr(getattr(auth_client, "_page", None), "url", None) or src
+            )
+            trace.append(
+                {
+                    "stage": "source_fetch",
+                    "ok": bool(html),
+                    "elapsed_s": round(_time.time() - t0, 3),
+                    "html_len": len(html),
+                }
+            )
+    except Exception as exc:
+        trace.append(
+            {
+                "stage": "source_fetch",
+                "ok": False,
+                "error": type(exc).__name__,
+                "message": str(exc)[:160],
+                "elapsed_s": round(_time.time() - t0, 3),
+            }
+        )
+        return {"ok": False, "error": type(exc).__name__, "message": str(exc)[:160], "trace": trace}
+
+    gate = extract_pg_gate_from_html(html, page_url=page_url) or {}
+    proceed = str(gate.get("complete_form_url") or "").strip()
+    # Confirm proceed URL targets the same purchasing group
+    proceed_pg = extract_pg_id_from_url(proceed) if proceed else None
+    if proceed and proceed_pg and str(proceed_pg) != pg_id:
+        trace.append(
+            {
+                "stage": "gate_pg_mismatch",
+                "expected": pg_id,
+                "got": proceed_pg,
+                "elapsed_s": round(_time.time() - t0, 3),
+            }
+        )
+        proceed = ""
+    sol_id = extract_solicitation_id_from_url(page_url) or extract_solicitation_id_from_url(src)
+    if not proceed:
+        proceed = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=sol_id) or ""
+        trace.append(
+            {
+                "stage": "built_form_url",
+                "has_accessed_element": "accessedElementId=" in proceed,
+                "sol_id": sol_id,
+                "elapsed_s": round(_time.time() - t0, 3),
+            }
+        )
+    else:
+        trace.append(
+            {
+                "stage": "gate_proceed_url",
+                "has_accessed_element": "accessedElementId=" in proceed,
+                "elapsed_s": round(_time.time() - t0, 3),
+            }
+        )
+    if not proceed:
+        return {"ok": False, "error": "FORM_URL_MINT_FAILED", "trace": trace, "gate": gate}
+    return {
+        "ok": True,
+        "form_url": proceed,
+        "solicitation_id": sol_id,
+        "gate": gate,
+        "trace": trace,
+        "elapsed_s": round(_time.time() - t0, 3),
+    }
 
 
 def enqueue_group_registration(
@@ -499,34 +610,61 @@ def process_group_registration_slice(
 
         item["attempts"] = int(item.get("attempts") or 0) + 1
         group_t0 = _time.time()
+        stage_trace: list[dict[str, Any]] = []
         try:
-            form_url = _resolve_form_url(pg_id, item.get("form_url"))
-            # Prefer clean form URL (no accessedElementId) after prior Timeout.
-            if int(item.get("attempts") or 0) >= 2 or "Timeout" in str(
-                item.get("last_error") or ""
+            source_url = str(item.get("source_url") or "").strip()
+            form_url = _resolve_form_url(pg_id, item.get("form_url"), strip_stale=False)
+            prior_timeout = "Timeout" in str(item.get("last_error") or "")
+            # After timeouts / 2nd+ attempt: mint a FRESH session-scoped form URL
+            # from the solicitation abstract. Do not strip accessedElementId and
+            # retry a path-only URL — that yields ~6s TimeoutError.
+            mint_meta: dict[str, Any] | None = None
+            if source_url and (
+                prior_timeout
+                or int(item.get("attempts") or 0) >= 2
+                or not form_url
+                or "accessedElementId=" not in str(form_url)
             ):
-                form_url = _form_url_without_stale_id(form_url) or form_url
-                if not form_url:
-                    from bidnet_auth.purchasing_group_registration import build_group_form_url
-
-                    form_url = build_group_form_url(
-                        purchasing_group_id=pg_id, solicitation_id=None
+                mint_meta = mint_fresh_form_url_from_source(
+                    auth_client,
+                    purchasing_group_id=pg_id,
+                    source_url=source_url,
+                )
+                stage_trace.extend(list(mint_meta.get("trace") or []))
+                if mint_meta.get("ok") and mint_meta.get("form_url"):
+                    form_url = str(mint_meta["form_url"])
+                    stage_trace.append(
+                        {
+                            "stage": "form_url_minted",
+                            "has_accessed_element": "accessedElementId=" in form_url,
+                            "elapsed_s": round(_time.time() - group_t0, 3),
+                        }
                     )
             if form_url and form_url != item.get("form_url"):
                 item["form_url"] = form_url
                 _bump_pending(pg_id, item)
-            source_url = str(item.get("source_url") or "").strip()
             # Prefer direct form URL for the known PG id — never guess group IDs
             # from unrelated statewide URLs. Gate-resolve only when form_url missing.
             if form_url:
                 if _time.time() - group_t0 >= GROUP_REGISTRATION_TIMEOUT_S:
                     raise TimeoutError("GROUP_REGISTRATION_TIMEOUT_S")
+                stage_trace.append(
+                    {
+                        "stage": "registration_start",
+                        "form_url_has_accessed_element": "accessedElementId="
+                        in str(form_url),
+                        "elapsed_s": round(_time.time() - group_t0, 3),
+                    }
+                )
+                sol_for_reg = None
+                if mint_meta and mint_meta.get("solicitation_id"):
+                    sol_for_reg = mint_meta.get("solicitation_id")
                 reg = run_purchasing_group_registration(
                     auth_client,
                     purchasing_group_id=pg_id,
                     form_url=form_url,
                     name=item.get("name"),
-                    solicitation_id=None,
+                    solicitation_id=sol_for_reg,
                     allow_submit=True,
                     opportunity_id=(item.get("opportunity_ids") or [None])[0],
                 )
@@ -598,6 +736,16 @@ def process_group_registration_slice(
             if fresh_form:
                 item["form_url"] = fresh_form
                 _bump_pending(pg_id, item)
+            if isinstance(reg, dict) and reg.get("stage_trace"):
+                stage_trace.extend(list(reg.get("stage_trace") or []))
+            stage_trace.append(
+                {
+                    "stage": "registration_result",
+                    "status": reg.get("status") if isinstance(reg, dict) else None,
+                    "error": (reg.get("error") if isinstance(reg, dict) else None),
+                    "elapsed_s": round(_time.time() - group_t0, 3),
+                }
+            )
             row = {
                 "purchasing_group_id": pg_id,
                 "status": reg.get("status"),
@@ -606,12 +754,18 @@ def process_group_registration_slice(
                 "ok": reg.get("ok"),
                 "attempts": item["attempts"],
                 "error": reg.get("error") or reg.get("reason"),
-                "error_message": str(reg.get("message") or "")[:160] or None,
-                "form_url_used": (form_url or item.get("form_url") or "")[:160] or None,
+                "error_message": (
+                    str(reg.get("message") or reg.get("error_message") or "")[:200] or None
+                ),
+                "failure_point": reg.get("failure_point"),
+                "form_url_used": (form_url or item.get("form_url") or "")[:220] or None,
+                "form_url_has_accessed_element": "accessedElementId="
+                in str(form_url or item.get("form_url") or ""),
                 "source_url": (source_url or "")[:160] or None,
                 "elapsed_s": round(_time.time() - group_t0, 2),
                 "validation_errors": (reg.get("validation_errors") or [])[:4] or None,
                 "access_verify": reg.get("access_verify"),
+                "stage_trace": stage_trace[:12],
             }
             if reg.get("error") or reg.get("message"):
                 item["last_error"] = str(reg.get("error") or reg.get("message") or "")[:120]
@@ -661,12 +815,23 @@ def process_group_registration_slice(
             else:
                 _bump_pending(pg_id, item)
         except Exception as exc:
+            stage_trace.append(
+                {
+                    "stage": "exception",
+                    "error": type(exc).__name__,
+                    "message": (str(exc) or repr(exc))[:200],
+                    "elapsed_s": round(_time.time() - group_t0, 3),
+                }
+            )
             row = {
                 "purchasing_group_id": pg_id,
                 "status": "ERROR",
                 "error": type(exc).__name__,
+                "error_message": (str(exc) or repr(exc))[:200] or None,
+                "failure_point": "exception",
                 "attempts": item["attempts"],
                 "elapsed_s": round(_time.time() - group_t0, 2),
+                "stage_trace": stage_trace[:12],
             }
             processed.append(row)
             # Transient Playwright timeouts: keep pending longer; don't burn AUTH
