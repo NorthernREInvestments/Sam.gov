@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261016-m3-bidnet-pg-group-queue-v1g"
+BUILD = "20261016-m3-bidnet-pg-group-queue-v1h"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -170,8 +170,39 @@ def mint_fresh_form_url_from_source(
     if src not in fetch_targets:
         fetch_targets.append(src)
 
+    def _extract_proceed_from_page(page: Any) -> str | None:
+        """Read live DOM attributes — interceptor is often JS-rendered."""
+        if page is None:
+            return None
+        selectors = (
+            "#interceptorProceedBtn",
+            "[data-href*='group-form/edit']",
+            "a[href*='group-form/edit']",
+            "text=Complete Form",
+            "text=Complete Registration",
+        )
+        for sel in selectors:
+            try:
+                loc = page.locator(sel)
+                if not loc.count():
+                    continue
+                href = (
+                    loc.first.get_attribute("data-href")
+                    or loc.first.get_attribute("href")
+                    or ""
+                )
+                href = str(href).replace("&amp;", "&").strip()
+                if href.startswith("/"):
+                    href = "https://www.bidnetdirect.com" + href
+                if "group-form/edit" in href:
+                    return href
+            except Exception:
+                continue
+        return None
+
     html = ""
     page_url = src
+    proceed_live: str | None = None
     for target in fetch_targets:
         try:
             if hasattr(auth_client, "fetch_html"):
@@ -187,10 +218,24 @@ def mint_fresh_form_url_from_source(
                 try:
                     page = getattr(auth_client, "_page", None)
                     if page is not None:
+                        try:
+                            page.wait_for_timeout(800)
+                        except Exception:
+                            pass
                         html = page.content() or html
                         page_url = str(page.url or target)
+                        proceed_live = _extract_proceed_from_page(page)
                 except Exception:
                     page_url = target
+            # Lightweight diagnostic — no secrets, just whether gate cues exist
+            low = (html or "").lower()
+            cue_hits = {
+                "incomplete_pg": "incomplete purchasing group" in low
+                or "registration form for this purchasing group is incomplete" in low,
+                "interceptor_id": "interceptorproceedbtn" in low,
+                "group_form_edit": "group-form/edit" in low,
+                "action_required": "action is required before access" in low,
+            }
             trace.append(
                 {
                     "stage": "source_fetch",
@@ -206,12 +251,16 @@ def mint_fresh_form_url_from_source(
                     "ok": bool(html) and len(html) > 400,
                     "html_len": len(html or ""),
                     "final_url_statewide": is_statewide_solicitation_id_url(page_url),
+                    "gate_cues": cue_hits,
+                    "live_proceed": bool(proceed_live),
                     "elapsed_s": round(_time.time() - t0, 3),
                 }
             )
             gate_probe = extract_pg_gate_from_html(html, page_url=page_url) or {}
-            if gate_probe.get("complete_form_url") or (
-                "interceptorProceedBtn" in (html or "")
+            if (
+                proceed_live
+                or gate_probe.get("complete_form_url")
+                or "interceptorProceedBtn" in (html or "")
             ):
                 break
         except Exception as exc:
@@ -234,7 +283,7 @@ def mint_fresh_form_url_from_source(
         }
 
     gate = extract_pg_gate_from_html(html, page_url=page_url) or {}
-    proceed = str(gate.get("complete_form_url") or "").strip()
+    proceed = str(proceed_live or gate.get("complete_form_url") or "").strip()
     proceed_pg = extract_pg_id_from_url(proceed) if proceed else None
     if proceed and proceed_pg and str(proceed_pg) != pg_id:
         trace.append(

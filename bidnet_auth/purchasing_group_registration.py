@@ -362,11 +362,13 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
                     }
                 )
     if nav_err is not None:
+        msg = (str(nav_err) or "").strip() or repr(nav_err)
         return {
             "ok": False,
             "error": type(nav_err).__name__,
             "form_url": form_url[:220],
-            "message": (str(nav_err) or repr(nav_err))[:200],
+            "message": msg[:240],
+            "error_message": msg[:240],
             "nav_timeout_ms": nav_timeout,
             "stage_trace": stage_trace,
             "failure_point": "navigation",
