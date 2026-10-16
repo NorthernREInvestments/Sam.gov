@@ -316,8 +316,22 @@ def force_cleanup_orphaned_chromium(*, max_kill: int = 8) -> dict[str, Any]:
     """Best-effort cleanup of leaked Chromium processes from abandoned Playwright threads.
 
     Safe on Railway Linux. Never raises. Does not touch unrelated browsers.
+    Never kills Chromium while the purchasing-group access manager holds the
+    BidNet browser lease — that was aborting form navigation in ~5–8s.
     """
     report: dict[str, Any] = {"killed": 0, "examined": 0, "errors": []}
+    try:
+        from bidnet_auth.browser_mutex_v1 import browser_mutex_status
+
+        lease = browser_mutex_status()
+        holder = str(lease.get("holder") or "")
+        if lease.get("held") and holder.startswith("pg-access"):
+            report["skipped"] = "pg_registration_holds_browser"
+            report["holder"] = holder
+            report["remaining_s"] = lease.get("remaining_s")
+            return report
+    except Exception as exc:
+        report["lease_check_error"] = type(exc).__name__
     try:
         import psutil  # type: ignore
     except Exception:

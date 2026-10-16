@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e28"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e29"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -4232,13 +4232,19 @@ def process_slice(
 
                 def _timeout_row() -> dict[str, Any]:
                     # Do NOT touch Playwright objects created in the abandoned
-                    # worker thread. Kill orphan Chromium processes instead.
+                    # worker thread. Kill orphan Chromium only when we still own
+                    # the BidNet browser lease (never while PG registration runs).
                     try:
                         from bidnet_auth.auth_lifecycle_v1 import (
                             force_cleanup_orphaned_chromium,
                         )
+                        from bidnet_auth.browser_mutex_v1 import browser_mutex_status
 
-                        force_cleanup_orphaned_chromium(max_kill=6)
+                        lease = browser_mutex_status()
+                        holder = str(lease.get("holder") or "")
+                        if not lease.get("held") or holder.startswith(f"fspf-{worker_id}") or holder.startswith("fspf-"):
+                            if not holder.startswith("pg-access"):
+                                force_cleanup_orphaned_chromium(max_kill=6)
                     except Exception:
                         pass
                     return {

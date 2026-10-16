@@ -5,12 +5,27 @@ from __future__ import annotations
 import importlib
 
 
-def test_builds_are_v4e28():
+def test_builds_are_v4e29():
     fspf = importlib.import_module("buyer_intelligence.full_scale_production_funnel_v1")
     pg = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
-    assert "v4e28" in fspf.BUILD
-    assert "v1c" in pg.BUILD
+    assert "v4e29" in fspf.BUILD
+    assert "v1d" in pg.BUILD
     assert float(pg.BROWSER_SLOT_WAIT_S) >= 30.0
+
+
+def test_orphan_cleanup_skips_while_pg_holds_mutex(monkeypatch):
+    life = importlib.import_module("bidnet_auth.auth_lifecycle_v1")
+    monkeypatch.setattr(
+        "bidnet_auth.browser_mutex_v1.browser_mutex_status",
+        lambda: {
+            "held": True,
+            "holder": "pg-access-deadbeef",
+            "remaining_s": 90.0,
+        },
+    )
+    out = life.force_cleanup_orphaned_chromium(max_kill=4)
+    assert out.get("killed") == 0
+    assert out.get("skipped") == "pg_registration_holds_browser"
 
 
 def test_price_research_maps_budget_exhausted(monkeypatch):

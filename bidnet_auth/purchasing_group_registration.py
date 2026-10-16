@@ -288,27 +288,33 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         return {"ok": False, "error": "FORM_URL_MISSING"}
     page = client._page
     # domcontentloaded only — networkidle hangs on BidNet analytics beacons
+    nav_timeout = max(45_000, int(timeout_ms))
     try:
-        # commit is more reliable than domcontentloaded on BidNet form pages
-        nav_timeout = max(45_000, int(timeout_ms))
-        # Override client default (often 15s) so form navigation gets a real budget.
+        page.set_default_timeout(nav_timeout)
+        page.set_default_navigation_timeout(nav_timeout)
+    except Exception:
+        pass
+    nav_err: Exception | None = None
+    for wait_until in ("commit", "domcontentloaded"):
         try:
-            page.set_default_timeout(nav_timeout)
-            page.set_default_navigation_timeout(nav_timeout)
-        except Exception:
-            pass
-        page.goto(form_url, wait_until="commit", timeout=nav_timeout)
-        try:
-            page.wait_for_load_state("domcontentloaded", timeout=20_000)
-        except Exception:
-            pass
-    except Exception as exc:
+            page.goto(form_url, wait_until=wait_until, timeout=nav_timeout)
+            nav_err = None
+            break
+        except Exception as exc:
+            nav_err = exc
+            continue
+    if nav_err is not None:
         return {
             "ok": False,
-            "error": type(exc).__name__,
+            "error": type(nav_err).__name__,
             "form_url": form_url[:220],
-            "message": str(exc)[:160],
+            "message": str(nav_err)[:200],
+            "nav_timeout_ms": nav_timeout,
         }
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=20_000)
+    except Exception:
+        pass
     try:
         page.wait_for_load_state("load", timeout=8_000)
     except Exception:
