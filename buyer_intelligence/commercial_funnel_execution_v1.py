@@ -936,6 +936,13 @@ def process_one(
     recovered_docs: list[dict[str, Any]] = []
     is_bidnet_url = "bidnet" in url.lower()
     out["is_bidnet_url"] = is_bidnet_url
+    try:
+        from anonymous_source_policy_v1 import bidnet_abandoned as _bn_off_cfe
+
+        bidnet_lane_abandoned = bool(_bn_off_cfe())
+    except Exception:
+        bidnet_lane_abandoned = False
+    out["bidnet_lane_abandoned"] = bidnet_lane_abandoned
     resume = _prior_commercial_resume(item)
     skip_docs_recovery = bool(resume.get("usable"))
     if skip_docs_recovery:
@@ -975,6 +982,7 @@ def process_one(
             out["auth_refresh_error"] = type(exc).__name__
     if (
         not skip_docs_recovery
+        and (not bidnet_lane_abandoned)
         and auth_client is not None
         and getattr(auth_client, "is_authenticated", False)
         and url.startswith("http")
@@ -1217,13 +1225,18 @@ def process_one(
                 fetch_via = "BidNetAuthenticatedClient.fetch_html"
             elif is_bidnet_url:
                 # Never treat unauthenticated public httpx as BidNet package recovery.
-                out["package_blocker"] = str(
-                    auth_status.get("external_blocker")
-                    or auth_status.get("status")
-                    or "BIDNET_AUTH_REQUIRED"
-                )
-                out["terminal_blocker"] = out["package_blocker"]
-                fetch_via = "bidnet_auth_required"
+                if bidnet_lane_abandoned:
+                    out["package_blocker"] = "BIDNET_ABANDONED_AWAITING_OFFICIAL_SOURCE"
+                    out["terminal_blocker"] = out["package_blocker"]
+                    fetch_via = "bidnet_abandoned_official_chase_only"
+                else:
+                    out["package_blocker"] = str(
+                        auth_status.get("external_blocker")
+                        or auth_status.get("status")
+                        or "BIDNET_AUTH_REQUIRED"
+                    )
+                    out["terminal_blocker"] = out["package_blocker"]
+                    fetch_via = "bidnet_auth_required"
             elif url.startswith("http"):
                 r = client.get(url)
                 status = int(r.status_code)
@@ -1357,6 +1370,22 @@ def process_one(
                     "authoritative_url": url,
                 }
             )
+            # When BidNet is abandoned, resolve official buyer portal first.
+            if bidnet_lane_abandoned or is_bidnet_url:
+                try:
+                    from official_source.resolver import OfficialSourceResolver
+
+                    osr = OfficialSourceResolver().resolve(rec)
+                    br = dict(rec.get("bidnet_recovery") or {})
+                    br["official_source"] = osr
+                    rec["bidnet_recovery"] = br
+                    if osr.get("official_source_resolved") and osr.get("resolved_opportunity_url"):
+                        rec["agency_source_url"] = osr.get("resolved_opportunity_url")
+                        out["official_source_resolved"] = True
+                        out["official_source_url"] = osr.get("resolved_opportunity_url")
+                        out["official_source_platform"] = osr.get("resolved_platform")
+                except Exception as exc:
+                    out["official_source_resolve_error"] = type(exc).__name__
             free_chase = chase_free_package(rec, parsed=parsed or None)
             out["free_chase_status"] = free_chase.get("status")
             out["free_chase_route"] = free_chase.get("recovery_route")

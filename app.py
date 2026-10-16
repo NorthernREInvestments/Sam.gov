@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-anonymous-replacement-discovery-v4e37b"
+APP_BUILD_VERSION = "20261016-m3-direct-source-recovery-funnel-v4e38a"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -922,6 +922,205 @@ def api_m3_anonymous_replacement_run(body: dict | None = None):
     out = _run()
     out["build_version"] = APP_BUILD_VERSION
     return out
+
+
+@app.post("/api/m3/historical-direct-source/run")
+def api_m3_historical_direct_source_run(body: dict | None = None):
+    """Recover BidNet-origin rows via official buyer portals (no BidNet HTTP)."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+
+    def _run() -> dict:
+        from historical_direct_source_recovery_v1 import run_historical_direct_source_recovery
+
+        return run_historical_direct_source_recovery(
+            limit=int(payload.get("limit") or 200),
+            resume=bool(payload.get("resume", True)),
+            download=bool(payload.get("download", True)),
+            onboard_buyers=bool(payload.get("onboard_buyers", True)),
+        )
+
+    if async_mode:
+        import json as _json
+        import threading
+        from uuid import uuid4
+
+        from application_clock import now_utc
+        from m3_data_root import data_path
+
+        job_id = f"hdsr-{uuid4().hex[:10]}"
+        path = data_path(f"m3_historical_direct_source_job_{job_id}.json")
+        path.write_text(
+            _json.dumps({"job_id": job_id, "status": "RUNNING", "started_at": now_utc().isoformat()}, indent=2),
+            encoding="utf-8",
+        )
+
+        def _bg() -> None:
+            try:
+                result = _run()
+                path.write_text(
+                    _json.dumps(
+                        {
+                            "job_id": job_id,
+                            "status": "COMPLETE",
+                            "result_summary": {
+                                "documents_recovered_count": result.get("documents_recovered_count"),
+                                "buyers_onboarded": result.get("buyers_onboarded"),
+                                "classification_counts": result.get("classification_counts"),
+                                "official_source_batch": result.get("official_source_batch"),
+                                "persisted_path": result.get("persisted_path"),
+                            },
+                        },
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                path.write_text(
+                    _json.dumps(
+                        {"job_id": job_id, "status": "FAILED", "error": f"{type(exc).__name__}: {exc}"},
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+
+        threading.Thread(target=_bg, name=job_id, daemon=True).start()
+        return {
+            "async": True,
+            "job_id": job_id,
+            "status": "STARTED",
+            "poll": f"/api/m3/historical-direct-source/job/{job_id}",
+            "build_version": APP_BUILD_VERSION,
+        }
+    out = _run()
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/historical-direct-source/job/{job_id}")
+def api_m3_historical_direct_source_job(job_id: str):
+    import json
+    import re
+
+    from m3_data_root import data_path
+
+    if not re.fullmatch(r"hdsr-[a-f0-9]{10}", job_id or ""):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    path = data_path(f"m3_historical_direct_source_job_{job_id}.json")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.get("/api/m3/historical-direct-source/last-report")
+def api_m3_historical_direct_source_last_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_historical_direct_source_recovery_last_report.json")
+    if not path.exists():
+        return {"status": "NO_REPORT", "build_version": APP_BUILD_VERSION}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
+
+
+@app.post("/api/m3/socrata-dedup-audit/run")
+def api_m3_socrata_dedup_audit_run(body: dict | None = None):
+    from socrata_dedup_audit_v1 import audit_socrata_dedup_against_l23
+
+    out = audit_socrata_dedup_against_l23(limit=int((body or {}).get("limit") or 5000))
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.post("/api/m3/non-bidnet-commercial-pilot/run")
+def api_m3_non_bidnet_commercial_pilot_run(body: dict | None = None):
+    """Production CFE path on non-BidNet product candidates (AUTO_SEND=false)."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+
+    def _run() -> dict:
+        from buyer_intelligence.non_bidnet_commercial_pilot_v1 import run_non_bidnet_commercial_pilot
+
+        return run_non_bidnet_commercial_pilot(limit=int(payload.get("limit") or 15))
+
+    if async_mode:
+        import json as _json
+        import threading
+        from uuid import uuid4
+
+        from application_clock import now_utc
+        from m3_data_root import data_path
+
+        job_id = f"nbcp-{uuid4().hex[:10]}"
+        path = data_path(f"m3_non_bidnet_commercial_pilot_job_{job_id}.json")
+        path.write_text(
+            _json.dumps({"job_id": job_id, "status": "RUNNING", "started_at": now_utc().isoformat()}, indent=2),
+            encoding="utf-8",
+        )
+
+        def _bg() -> None:
+            try:
+                result = _run()
+                path.write_text(
+                    _json.dumps(
+                        {
+                            "job_id": job_id,
+                            "status": "COMPLETE",
+                            "result_summary": {
+                                "attempted": result.get("attempted"),
+                                "usable_product_lines_total": result.get("usable_product_lines_total"),
+                                "verified_public_prices": result.get("verified_public_prices"),
+                                "persisted_path": result.get("persisted_path"),
+                            },
+                        },
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                path.write_text(
+                    _json.dumps(
+                        {"job_id": job_id, "status": "FAILED", "error": f"{type(exc).__name__}: {exc}"},
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+
+        threading.Thread(target=_bg, name=job_id, daemon=True).start()
+        return {
+            "async": True,
+            "job_id": job_id,
+            "status": "STARTED",
+            "poll": f"/api/m3/non-bidnet-commercial-pilot/job/{job_id}",
+            "build_version": APP_BUILD_VERSION,
+        }
+    out = _run()
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/non-bidnet-commercial-pilot/job/{job_id}")
+def api_m3_non_bidnet_commercial_pilot_job(job_id: str):
+    import json
+    import re
+
+    from m3_data_root import data_path
+
+    if not re.fullmatch(r"nbcp-[a-f0-9]{10}", job_id or ""):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    path = data_path(f"m3_non_bidnet_commercial_pilot_job_{job_id}.json")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["build_version"] = APP_BUILD_VERSION
+    return data
 
 
 @app.get("/api/m3/anonymous-replacement/job/{job_id}")

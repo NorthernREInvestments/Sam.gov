@@ -4096,7 +4096,19 @@ def process_slice(
             # long-lived Playwright client across ThreadPool item workers —
             # Playwright sync is thread-affine and cross-thread close after
             # timeout was the root of browser_unavailable:Error.
-            auth_status, probe_client = _open_bidnet_auth_client()
+            # BidNet abandoned / auth disabled: do NOT stall the funnel.
+            # Process without BidNet Playwright — CFE uses official-source chase
+            # and public HTTP for non-BidNet URLs.
+            try:
+                from anonymous_source_policy_v1 import bidnet_abandoned as _bn_abandoned
+
+                bn_off = bool(_bn_abandoned())
+            except Exception:
+                bn_off = False
+            auth_status, probe_client = (
+                {"authenticated": False, "status": "BIDNET_ABANDONED", "external_blocker": "BIDNET_ABANDONED"},
+                None,
+            ) if bn_off else _open_bidnet_auth_client()
             if probe_client is not None:
                 try:
                     probe_client.close()
@@ -4104,7 +4116,7 @@ def process_slice(
                     pass
                 probe_client = None
             auth_client = None
-            if not auth_status.get("authenticated"):
+            if (not bn_off) and (not auth_status.get("authenticated")):
                 # Release slot so PG manager / unlock recovery can use Playwright.
                 if browser_slot_held:
                     try:
@@ -4166,6 +4178,23 @@ def process_slice(
                     "timing_accum": timing_accum,
                     "unlock_micro_recovery": unlock_recovery_report,
                 }
+            if bn_off:
+                # Release BidNet browser mutex — official/public path needs no Playwright.
+                if browser_slot_held:
+                    try:
+                        release_bidnet_browser(holder=f"fspf-{worker_id}")
+                    except Exception:
+                        pass
+                    browser_slot_held = False
+                _progress(
+                    status="RUNNING",
+                    phase="BIDNET_ABANDONED_PUBLIC_PATH",
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    bidnet_auth_status="BIDNET_ABANDONED",
+                    note="processing_without_bidnet_browser_official_source_and_public_http",
+                    browser_path_count=len(browser_pending),
+                )
         for idx, item in browser_pending:
             if _stop_flag() or not _is_active_lease_worker(
                 job_id, worker_id, lease_generation=lease_generation
@@ -4213,6 +4242,21 @@ def process_slice(
                 # BidNet client INSIDE the worker thread. Never close it from the
                 # main thread on timeout (that produced browser_unavailable:Error).
                 def _run() -> dict[str, Any]:
+                    if bn_off:
+                        local_status = {
+                            "authenticated": False,
+                            "status": "BIDNET_ABANDONED",
+                            "external_blocker": "BIDNET_ABANDONED",
+                        }
+                        local_client = None
+                        return run_one_opportunity(
+                            item,
+                            client=http,
+                            evidence_index=evidence_index,
+                            auth_status=local_status,
+                            l23_rec=l23.get(oid) or {},
+                            auth_client=None,
+                        )
                     local_status, local_client = _open_bidnet_auth_client()
                     try:
                         if not local_status.get("authenticated") or local_client is None:

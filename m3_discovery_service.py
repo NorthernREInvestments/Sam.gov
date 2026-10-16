@@ -1311,30 +1311,16 @@ def _execute_run(run_id: str, trigger_type: str) -> None:
                 run_id=f"{run_id}-ogdocs",
                 handoff_line_items=True,
             )
-            try:
-                from anonymous_source_policy_v1 import bidnet_abandoned as _bn_off
-
-                skip_bn_osr = bool(_bn_off())
-            except Exception:
-                skip_bn_osr = False
-            if skip_bn_osr:
-                osr = {
-                    "attempted": 0,
-                    "official_source_resolved": 0,
-                    "valid_packages": 0,
-                    "partial_packages": 0,
-                    "valid_or_partial_package_yield": 0,
-                    "skipped": True,
-                    "skip_reason": "BIDNET_ABANDONED",
-                }
-            else:
-                osr = run_official_source_batch(
-                    limit=int(os.environ.get("M3_PACKAGE_ACCESS_BIDNET_LIMIT") or 200),
-                    resume=True,
-                    download=True,
-                    run_id=f"{run_id}-osr",
-                    handoff_line_items=True,
-                )
+            # Official-source batch resolves historical BidNet *metadata* to public
+            # buyer portals (OpenGov/agency). It must KEEP running when BidNet is
+            # abandoned — it never calls BidNet.
+            osr = run_official_source_batch(
+                limit=int(os.environ.get("M3_PACKAGE_ACCESS_BIDNET_LIMIT") or 200),
+                resume=True,
+                download=True,
+                run_id=f"{run_id}-osr",
+                handoff_line_items=True,
+            )
             package_access_report = {
                 "opengov_public_docs": {
                     "attempted": og_docs.get("attempted"),
