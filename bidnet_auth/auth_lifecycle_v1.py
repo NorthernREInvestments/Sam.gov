@@ -28,7 +28,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_auth.lifecycle")
 
-BUILD = "20261016-m3-bidnet-auth-lifecycle-v1"
+BUILD = "20261016-m3-bidnet-auth-lifecycle-v1b"
 OUT = "_og_commercial_research_pipeline_out"
 CIRCUIT_FILE = f"{OUT}/m3_bidnet_browser_circuit_v1.json"
 REFRESH_LOCK_FILE = f"{OUT}/m3_bidnet_auth_refresh.lock"
@@ -66,6 +66,17 @@ def classify_browser_exception(exc: BaseException | None, *, message: str | None
             message or "",
         ]
     ).lower()
+    if any(
+        x in blob
+        for x in (
+            "blockingioerror",
+            "errno 11",
+            "resource temporarily unavailable",
+            "too many open files",
+            "cannot allocate memory",
+        )
+    ):
+        return BROWSER_STARTUP_FAILED
     if any(
         x in blob
         for x in (
@@ -312,24 +323,54 @@ def save_storage_state_fenced(
     return {"ok": True, "generation": new_gen, "path": str(storage_state_path())}
 
 
-def force_cleanup_orphaned_chromium(*, max_kill: int = 8) -> dict[str, Any]:
+def reset_browser_circuit() -> dict[str, Any]:
+    """Clear the launch circuit breaker so the next auth attempt is allowed."""
+    with _circuit_lock:
+        cur = {
+            "kind": "BidNetBrowserCircuit",
+            "build": BUILD,
+            "open": False,
+            "failures": 0,
+            "reset_at": _utc(),
+        }
+        _save_circuit(cur)
+        return browser_circuit_status()
+
+
+def force_cleanup_orphaned_chromium(
+    *, max_kill: int = 8, aggressive: bool = False
+) -> dict[str, Any]:
     """Best-effort cleanup of leaked Chromium processes from abandoned Playwright threads.
 
     Safe on Railway Linux. Never raises. Does not touch unrelated browsers.
     Never kills Chromium while the purchasing-group access manager holds the
     BidNet browser lease — that was aborting form navigation in ~5–8s.
+
+    aggressive=True also kills headless chrome/chromium without an explicit
+    playwright marker (resource-exhaustion recoveries after BlockingIOError).
     """
-    report: dict[str, Any] = {"killed": 0, "examined": 0, "errors": []}
+    report: dict[str, Any] = {
+        "killed": 0,
+        "examined": 0,
+        "errors": [],
+        "aggressive": bool(aggressive),
+    }
     try:
         from bidnet_auth.browser_mutex_v1 import browser_mutex_status
 
         lease = browser_mutex_status()
         holder = str(lease.get("holder") or "")
-        if lease.get("held") and holder.startswith("pg-access"):
-            report["skipped"] = "pg_registration_holds_browser"
-            report["holder"] = holder
-            report["remaining_s"] = lease.get("remaining_s")
-            return report
+        if lease.get("held") and (
+            holder.startswith("pg-access") or holder.startswith("fspf-")
+        ):
+            # Only skip for active PG registration; fspf holders that are stale
+            # still block forever if we never clean. Skip only when remaining.
+            rem = float(lease.get("remaining_s") or 0)
+            if holder.startswith("pg-access") or rem > 5.0:
+                report["skipped"] = "active_browser_lease"
+                report["holder"] = holder
+                report["remaining_s"] = lease.get("remaining_s")
+                return report
     except Exception as exc:
         report["lease_check_error"] = type(exc).__name__
     try:
@@ -347,7 +388,13 @@ def force_cleanup_orphaned_chromium(*, max_kill: int = 8) -> dict[str, Any]:
                 text=True,
                 timeout=5,
             )
-            lines = [ln for ln in (out.stdout or "").splitlines() if "playwright" in ln.lower()]
+            lines = []
+            for ln in (out.stdout or "").splitlines():
+                low = ln.lower()
+                if "playwright" in low or "ms-playwright" in low:
+                    lines.append(ln)
+                elif aggressive and ("headless" in low or "--no-sandbox" in low):
+                    lines.append(ln)
             report["examined"] = len(lines)
             for ln in lines[:max_kill]:
                 try:
@@ -367,7 +414,9 @@ def force_cleanup_orphaned_chromium(*, max_kill: int = 8) -> dict[str, Any]:
                 cmd = " ".join(proc.info.get("cmdline") or []).lower()
                 if "chrom" not in name and "chrom" not in cmd:
                     continue
-                if "playwright" not in cmd and "ms-playwright" not in cmd:
+                is_pw = "playwright" in cmd or "ms-playwright" in cmd
+                is_headless = "headless" in cmd or "--no-sandbox" in cmd
+                if not is_pw and not (aggressive and is_headless):
                     continue
                 report["examined"] += 1
                 if report["killed"] >= max_kill:
@@ -379,3 +428,20 @@ def force_cleanup_orphaned_chromium(*, max_kill: int = 8) -> dict[str, Any]:
     except Exception as exc:
         report["errors"].append(type(exc).__name__)
     return report
+
+
+def recover_bidnet_browser(*, max_kill: int = 16) -> dict[str, Any]:
+    """Owner/ops recover: kill orphan Chromium, reset circuit, report readiness."""
+    cleanup = force_cleanup_orphaned_chromium(max_kill=max_kill, aggressive=True)
+    # Brief settle so OS reclaims FDs / process slots after SIGKILL.
+    time.sleep(1.5)
+    cleanup2 = force_cleanup_orphaned_chromium(max_kill=max(4, max_kill // 2), aggressive=True)
+    circuit = reset_browser_circuit()
+    return {
+        "ok": True,
+        "build": BUILD,
+        "cleanup": cleanup,
+        "cleanup_second_pass": cleanup2,
+        "circuit": circuit,
+        "at": _utc(),
+    }

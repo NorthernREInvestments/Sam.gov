@@ -15,7 +15,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.fspf_auth_failure_recovery_v1")
 
-BUILD = "20261016-m3-fspf-auth-failure-recovery-v1"
+BUILD = "20261016-m3-fspf-auth-failure-recovery-v1b"
 OUT = "_og_commercial_research_pipeline_out"
 DEFERRED_QUEUE_FILE = f"{OUT}/m3_fspf_v1_deferred_queue.json"
 
@@ -104,21 +104,45 @@ def requeue_browser_auth_failures(
         if blocker.startswith("PAID_ENTITLEMENT") or d.get("additional_access_dependency"):
             skipped_paid += 1
             continue
+        # Pure browser/slot outages must retry even without a registered PG —
+        # first-pass deferred them solely because Chromium was dead/busy.
+        pure_browser = _is_browser_auth_defect(d) and (
+            any(
+                tok in blocker or tok in str(d.get("software_defect_key") or "")
+                for tok in (
+                    "BROWSER_SLOT_BUSY",
+                    "BROWSER_STARTUP_FAILED",
+                    "BROWSER_PROCESS_FAILED",
+                    "BROWSER_CONTEXT_INVALID",
+                    "browser_slot_busy",
+                    "browser_auth_transient",
+                    "browser_unavailable",
+                    "AUTH_FAILED",
+                    "BIDNET_AUTH_TRANSIENT",
+                )
+            )
+            or str(d.get("fetch_via") or "") in _BROWSER_AUTH_MARKERS
+        )
         pg = str(d.get("pg_unlocked") or "").strip()
-        if not pg:
-            # Still clear incorrect solicitation-resolution conclusions from auth outages
-            if str(d.get("terminal_blocker") or "") in {
-                "SOLICITATION_RESOLUTION_FAILED",
-                "DETAIL_FETCH_EMPTY",
-                "NO_INTERCEPTION_RESULT",
-            } and str(d.get("software_defect_key") or "") in _BROWSER_AUTH_MARKERS:
-                pass
-            else:
+        if not pure_browser:
+            if not pg:
+                # Still clear incorrect solicitation-resolution conclusions from auth outages
+                if str(d.get("terminal_blocker") or "") in {
+                    "SOLICITATION_RESOLUTION_FAILED",
+                    "DETAIL_FETCH_EMPTY",
+                    "NO_INTERCEPTION_RESULT",
+                } and str(d.get("software_defect_key") or "") in _BROWSER_AUTH_MARKERS:
+                    pass
+                else:
+                    skipped_no_pg += 1
+                    continue
+            if pg and not is_registered(pg):
                 skipped_no_pg += 1
                 continue
-        if pg and not is_registered(pg):
-            skipped_no_pg += 1
-            continue
+        elif pg and not is_registered(pg):
+            # Browser defect with a known unpaid PG key — still requeue; PG
+            # manager may have registered since the outage.
+            pass
 
         d["recovery_eligible"] = True
         d["ready_promoted"] = False
@@ -131,6 +155,7 @@ def requeue_browser_auth_failures(
             "DETAIL_FETCH_EMPTY",
             "NO_INTERCEPTION_RESULT",
             "AUTH_FAILED",
+            "BROWSER_SLOT_BUSY",
         } or str(d.get("terminal_blocker") or "").startswith("BROWSER_"):
             d["previous_terminal_blocker"] = d.get("terminal_blocker")
             d["terminal_blocker"] = "AWAITING_AUTH_REPAIR_RETRY"

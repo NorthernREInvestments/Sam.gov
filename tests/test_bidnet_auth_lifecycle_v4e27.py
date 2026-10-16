@@ -107,19 +107,51 @@ def test_auth_failure_requeue_preserves_paid(tmp_path, monkeypatch):
                 "pg_unlocked": "8407551",
                 "recovery_eligible": False,
             },
+            {
+                # Pure browser slot busy — no PG required to requeue.
+                "opportunity_id": "slot1",
+                "terminal_blocker": "BROWSER_SLOT_BUSY",
+                "software_defect_key": "browser_slot_busy",
+                "fetch_via": "browser_unavailable_deferred",
+                "recovery_eligible": False,
+            },
         ],
-        "count": 2,
+        "count": 3,
     }
     Path(rec.DEFERRED_QUEUE_FILE).write_text(json.dumps(deferred), encoding="utf-8")
     report = rec.requeue_browser_auth_failures(job_id="job1")
-    assert report["requeued"] == 1
+    assert report["requeued"] == 2
     assert report["skipped_paid"] == 1
     dq = json.loads(Path(rec.DEFERRED_QUEUE_FILE).read_text(encoding="utf-8"))
     auth_row = next(x for x in dq["items"] if x["opportunity_id"] == "auth1")
     assert auth_row["recovery_eligible"] is True
     assert auth_row["ready_fail_count"] == 0
+    slot = next(x for x in dq["items"] if x["opportunity_id"] == "slot1")
+    assert slot["recovery_eligible"] is True
     paid = next(x for x in dq["items"] if x["opportunity_id"] == "paid1")
     assert paid.get("recovery_eligible") is not True
+
+
+def test_recover_bidnet_browser_resets_circuit(tmp_path, monkeypatch):
+    monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
+    from m3_data_root import set_data_root
+    import bidnet_auth.auth_lifecycle_v1 as life
+
+    set_data_root(tmp_path)
+    monkeypatch.setattr(life, "CIRCUIT_FAILURE_THRESHOLD", 1)
+    monkeypatch.setattr(life, "CIRCUIT_COOLDOWN_S", 120.0)
+    life.record_browser_failure(klass="BROWSER_STARTUP_FAILED", detail="BlockingIOError")
+    assert life.browser_circuit_status()["open"] is True
+    monkeypatch.setattr(
+        life,
+        "force_cleanup_orphaned_chromium",
+        lambda **kw: {"killed": 0, "examined": 0, "errors": [], "aggressive": True},
+    )
+    monkeypatch.setattr(life.time, "sleep", lambda *_a, **_k: None)
+    out = life.recover_bidnet_browser(max_kill=4)
+    assert out["ok"] is True
+    assert life.browser_circuit_status()["open"] is False
+    assert life.browser_circuit_status()["failures"] == 0
 
 
 def test_solicitation_resolution_not_assigned_on_auth_failure():

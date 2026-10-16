@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e34"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e35"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1890,6 +1890,49 @@ def api_m3_bidnet_browser_circuit():
         "build_version": APP_BUILD_VERSION,
         "circuit": browser_circuit_status(),
         "mutex": browser_mutex_status(),
+    }
+
+
+@app.post("/api/m3/bidnet-auth/browser-recover")
+def api_m3_bidnet_browser_recover(body: dict | None = None):
+    """Kill orphan Chromium, reset circuit, optionally re-auth + requeue browser defects.
+
+    Use when live status is AUTH_FAILED / browser_unavailable / BlockingIOError.
+    Does not restart the FSPF job or wipe progress.
+    """
+    from bidnet_auth import test_connection
+    from bidnet_auth.auth_lifecycle_v1 import recover_bidnet_browser
+    from bidnet_auth.browser_mutex_v1 import browser_mutex_status
+    from buyer_intelligence.fspf_auth_failure_recovery_v1 import requeue_browser_auth_failures
+    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    recover = recover_bidnet_browser(max_kill=int(payload.get("max_kill") or 16))
+    auth = None
+    if payload.get("test_connection", True):
+        try:
+            auth = test_connection()
+        except Exception as exc:
+            auth = {"authenticated": False, "error": type(exc).__name__, "message": str(exc)[:200]}
+    jid = payload.get("job_id")
+    if not jid:
+        active = JobStore(FAMILY).find_active_job(stale_seconds=86400, mutate_stale=False) or {}
+        jid = active.get("JOB_ID")
+    requeue = None
+    if payload.get("requeue", True) and jid:
+        requeue = requeue_browser_auth_failures(
+            job_id=str(jid),
+            max_requeue=int(payload.get("max_requeue") or 400),
+        )
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "ok": bool((auth or {}).get("authenticated")) if auth is not None else True,
+        "recover": recover,
+        "auth": auth,
+        "requeue": requeue,
+        "mutex": browser_mutex_status(),
+        "job_id": jid,
     }
 
 

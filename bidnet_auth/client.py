@@ -160,20 +160,38 @@ class BidNetAuthenticatedClient:
             )
 
             # Cross-thread close / abandoned Playwright threads leave orphans that
-            # make the next launch fail with a bare playwright Error.
-            force_cleanup_orphaned_chromium(max_kill=6)
-            klass = classify_browser_exception(exc)
-            msg = format_browser_unavailable(exc)
-            record_browser_failure(klass=klass, detail=msg)
-            result = AuthResult(
-                status=AUTH_FAILED,
-                authenticated=False,
-                message=msg,
-            )
-            self.last_result = result
-            record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
-            log.warning("BidNet browser unavailable class=%s msg=%s", klass, msg[:160])
-            return result
+            # make the next launch fail with BlockingIOError / bare playwright Error.
+            # Clean aggressively, then retry launch once before declaring AUTH_FAILED.
+            force_cleanup_orphaned_chromium(max_kill=12, aggressive=True)
+            try:
+                self.close()
+            except Exception:
+                pass
+            try:
+                import time as _time
+
+                _time.sleep(1.0)
+                self._ensure_browser()
+                record_browser_success()
+            except Exception as exc2:
+                force_cleanup_orphaned_chromium(max_kill=8, aggressive=True)
+                klass = classify_browser_exception(exc2)
+                msg = format_browser_unavailable(exc2)
+                record_browser_failure(klass=klass, detail=msg)
+                result = AuthResult(
+                    status=AUTH_FAILED,
+                    authenticated=False,
+                    message=msg,
+                )
+                self.last_result = result
+                record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
+                log.warning(
+                    "BidNet browser unavailable after retry class=%s msg=%s first=%s",
+                    klass,
+                    msg[:160],
+                    type(exc).__name__,
+                )
+                return result
 
         # 1) Try existing session (works even when credentials absent)
         if has_session:
