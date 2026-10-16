@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e26"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e26b"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -49,6 +49,7 @@ _RETRYABLE_BLOCKERS = {
     "ABSTRACT_FETCH_FAILED_OR_WAF",
     "ABSTRACT_PARSE_UNAVAILABLE",
     "DETAIL_FETCH_EMPTY",
+    "SOLICITATION_RESOLUTION_FAILED",
     "WAF_OR_CHALLENGE_PAGE",
     "MISSING_AUTHORITATIVE_URL",
     "PER_OPPORTUNITY_TIMEOUT_45S",
@@ -2639,6 +2640,10 @@ def _slim_checkpoint(
         "pg_registered_awaiting_docs": bool(row.get("pg_registered_awaiting_docs")),
         "access_note": (row.get("access_note") or "")[:120] or None,
         "early_search_status": ((row.get("early_search_to_detail") or {}).get("status")),
+        "early_search_query": ((row.get("early_search_to_detail") or {}).get("query")),
+        "title_harvest_ok": bool((row.get("title_harvest") or {}).get("ok")),
+        "title_harvest_title": ((row.get("title_harvest") or {}).get("title")),
+        "statewide_fallback": row.get("statewide_fallback"),
         "search_to_detail_status": (
             ((row.get("search_to_detail_retry") or {}).get("status"))
             or ((row.get("search_to_detail_docs") or {}).get("status"))

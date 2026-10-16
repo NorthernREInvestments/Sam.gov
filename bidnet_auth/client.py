@@ -129,14 +129,17 @@ class BidNetAuthenticatedClient:
         try:
             self._ensure_browser()
         except Exception as exc:
+            # Preserve exception type AND a short message — production was only
+            # seeing browser_unavailable:Error with no actionable detail.
+            detail = f"{type(exc).__name__}:{exc}"[:160]
             result = AuthResult(
                 status=AUTH_FAILED,
                 authenticated=False,
-                message=f"browser_unavailable:{type(exc).__name__}",
+                message=f"browser_unavailable:{detail}",
             )
             self.last_result = result
             record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
-            log.warning("BidNet browser unavailable: %s", type(exc).__name__)
+            log.warning("BidNet browser unavailable: %s", detail)
             return result
 
         # 1) Try existing session (works even when credentials absent)

@@ -945,6 +945,27 @@ def _recover_one_inner(
 
         early: dict[str, Any] = {}
         attempts: list[dict[str, Any]] = []
+        # Hard cap queries + reserve wall-clock for statewide CTA fallback.
+        # Prior production READY failures burned the full docs budget on 3–4
+        # NO_INTERCEPTION searches (often statewide digit IDs) and never reached
+        # the CTA / attachment fallback.
+        fallback_reserve_s = 18.0
+        search_deadline = min(deadline, time.monotonic() + max(8.0, (deadline - time.monotonic()) - fallback_reserve_s))
+        # Prefer human queries; drop pure statewide digit IDs when a title exists.
+        has_human_q = any(
+            not re.fullmatch(r"\d{6,}", q) for q in uniq_q
+        )
+        if has_human_q:
+            uniq_q = [q for q in uniq_q if not re.fullmatch(r"\d{6,}", q)] + [
+                q for q in uniq_q if re.fullmatch(r"\d{6,}", q)
+            ]
+            uniq_q = [
+                q
+                for i, q in enumerate(uniq_q)
+                if i < 2 or not re.fullmatch(r"\d{6,}", q)
+            ][:3]
+        else:
+            uniq_q = uniq_q[:2]
         if not uniq_q:
             out["early_search_to_detail"] = {
                 "status": "NO_SEARCH_QUERIES",
@@ -955,8 +976,8 @@ def _recover_one_inner(
             }
             out["access_note"] = "early_registered_no_search_queries"
         for q in uniq_q:
-            if time.monotonic() >= deadline:
-                attempts.append({"query": q[:80], "status": "DEADLINE"})
+            if time.monotonic() >= search_deadline:
+                attempts.append({"query": q[:80], "status": "SEARCH_BUDGET"})
                 break
             out["network_requests"] += 1
             try:
@@ -964,7 +985,7 @@ def _recover_one_inner(
                     auth_client.resolve_detail_via_authenticated_search(
                         title=q,
                         source_url=url,
-                        timeout_ms=_remain_ms(35_000),
+                        timeout_ms=min(15_000, _remain_ms(15_000)),
                     )
                     or {}
                 )
@@ -1067,6 +1088,11 @@ def _recover_one_inner(
                         "status": "STATEWIDE_FALLBACK_DOCS",
                         "docs_found": len(real_sw),
                     }
+                else:
+                    out["access_note"] = (
+                        f"early_registered_resolve_{early.get('status') or 'failed'}"
+                        + ";statewide_fallback_empty"
+                    )
 
     # 1) Authenticated detail fetch — browser path required for public/statewide +
     # purchasing-group URLs (prefer_http=True was causing DETAIL_FETCH_EMPTY at scale;
