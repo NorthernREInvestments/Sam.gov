@@ -1270,8 +1270,9 @@ class BidNetAuthenticatedClient:
         """
         report: dict[str, Any] = {"steps": 0, "final_url": None}
         assert self._page is not None
-        deadline = time.time() + 35.0
-        while time.time() < deadline:
+        deadline = time.time() + 28.0
+        max_steps = 8
+        while time.time() < deadline and int(report.get("steps") or 0) < max_steps:
             try:
                 current = self._page.url or ""
             except Exception:
@@ -1290,6 +1291,70 @@ class BidNetAuthenticatedClient:
                 html = self._page.content() or ""
             except Exception:
                 html = ""
+            # Sanitized page cues — never include form values / secrets.
+            try:
+                title_m = re.search(r"<title>([^<]{0,120})</title>", html or "", re.I)
+                report["page_title"] = (title_m.group(1).strip() if title_m else "")[:120]
+            except Exception:
+                report["page_title"] = None
+            low = (html or "").lower()
+            report["page_cues"] = {
+                "has_password": bool(re.search(r'type=["\']password["\']', html or "", re.I)),
+                "has_username": bool(
+                    re.search(r'name=["\']username["\']|id=["\']username["\']', html or "", re.I)
+                ),
+                "has_saml_response": "samlresponse" in low,
+                "duo_or_mfa": bool(
+                    re.search(r"\bduo\b|multi[\-\s]?factor|one[\-\s]?time|otp|push\s*notification", low)
+                ),
+                "bad_cred": bool(
+                    re.search(r"invalid|incorrect|denied|locked|disabled|not\s*authorized", low)
+                ),
+                "continue_btn": bool(
+                    re.search(r">\s*continue\s*<|name=[\"']_eventId_proceed", low)
+                ),
+            }
+            if report["page_cues"].get("duo_or_mfa"):
+                report["blocker"] = "IDP_MFA_OR_DUO"
+                report["ok"] = False
+                return report
+            if report["page_cues"].get("bad_cred") and report["steps"] <= 3:
+                report["blocker"] = "IDP_BAD_CREDENTIALS_OR_DENIED"
+                report["ok"] = False
+                return report
+
+            # Shibboleth often uses _eventId_proceed / Continue without a classic
+            # password field on later execution steps.
+            try:
+                proceeded = self._page.evaluate(
+                    """() => {
+                      const sel = [
+                        'input[name="_eventId_proceed"]',
+                        'button[name="_eventId_proceed"]',
+                        'input[value="Continue"]',
+                        'button[value="Continue"]',
+                        'button[type="submit"]'
+                      ].join(',');
+                      const proceed = document.querySelector(sel);
+                      if (proceed) { proceed.click(); return 'proceed_click'; }
+                      const forms = Array.from(document.forms || []);
+                      for (const f of forms) {
+                        if ((f.action || '').includes('SAML') || f.querySelector('[name="_eventId_proceed"]')) {
+                          f.submit(); return 'form_submit';
+                        }
+                      }
+                      return null;
+                    }"""
+                )
+                if proceeded:
+                    report["last_action"] = proceeded
+                    try:
+                        self._page.wait_for_load_state("domcontentloaded", timeout=12_000)
+                    except Exception:
+                        pass
+                    continue
+            except Exception as exc:
+                report["proceed_error"] = type(exc).__name__
 
             # IdP may ask for credentials again on a later execution step.
             user_sel = self._find_username_locator()
@@ -1500,6 +1565,29 @@ class BidNetAuthenticatedClient:
                 message=f"login_submit_error:{type(exc).__name__}",
             )
             record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
+            return result
+
+        if str(saml_meta.get("blocker") or "") in {
+            "IDP_MFA_OR_DUO",
+            "IDP_BAD_CREDENTIALS_OR_DENIED",
+        }:
+            st = AUTH_CHALLENGE if "MFA" in str(saml_meta.get("blocker")) else AUTH_FAILED
+            result = AuthResult(
+                status=st,
+                authenticated=False,
+                message=str(saml_meta.get("blocker")),
+                challenge_type=str(saml_meta.get("blocker")) if st == AUTH_CHALLENGE else None,
+                details={
+                    "saml": {
+                        k: saml_meta.get(k)
+                        for k in ("ok", "steps", "final_url", "page_title", "page_cues", "last_action")
+                    }
+                },
+            )
+            if st == AUTH_CHALLENGE:
+                record_auth_event(AUTH_CHALLENGE, challenge=True, failure_reason=result.message)
+            else:
+                record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
             return result
 
         html = ""

@@ -637,6 +637,41 @@ def _research_public_prices_for_lines(
         qty = _line_qty(li)
         remain = max(5.0, budget_s - (time.time() - t0))
         hit: dict[str, Any] | None = None
+        # Reject non-identity tokens that poison public search (e.g. MPN="and").
+        _mpn_stop = {
+            "and",
+            "or",
+            "the",
+            "a",
+            "an",
+            "for",
+            "with",
+            "to",
+            "of",
+            "in",
+            "on",
+            "at",
+            "by",
+            "from",
+            "as",
+            "is",
+            "are",
+            "be",
+            "this",
+            "that",
+            "it",
+            "w/",
+            "w",
+        }
+        if mpn and (len(mpn) < 3 or mpn.lower() in _mpn_stop or not re.search(r"[0-9A-Za-z]", mpn)):
+            failures.append(
+                {
+                    "mpn": mpn,
+                    "failure_class": "PRODUCT_IDENTITY_INSUFFICIENT",
+                    "detail": "mpn_token_rejected",
+                }
+            )
+            mpn = ""
         if mpn:
             try:
                 pr = research_mpn_public_price(
@@ -647,7 +682,27 @@ def _research_public_prices_for_lines(
                     qty=qty,
                     deadline_s=min(35.0, remain),
                 )
-                if pr.get("unit_price"):
+                url_l = str(pr.get("url") or "").lower()
+                supplier_l = str(pr.get("supplier") or "").lower()
+                junk_host = any(
+                    h in url_l or h in supplier_l
+                    for h in (
+                        "wiktionary.org",
+                        "wikipedia.org",
+                        "dictionary.com",
+                        "merriam-webster",
+                    )
+                )
+                if pr.get("unit_price") and junk_host:
+                    failures.append(
+                        {
+                            "mpn": mpn,
+                            "failure_class": "PRODUCT_MATCH_REJECTED",
+                            "detail": "non_commerce_host",
+                            "url": (pr.get("url") or "")[:160],
+                        }
+                    )
+                elif pr.get("unit_price"):
                     hit = {
                         "mpn": mpn,
                         "description": desc[:160] or None,
