@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e27"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e28"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -2919,49 +2919,116 @@ def _budget_snapshot() -> dict[str, Any]:
 def _research_prices_from_rfq_queue(
     *,
     job_id: str,
-    max_items: int = 3,
-    budget_s: float = 55.0,
+    max_items: int = 5,
+    budget_s: float = 90.0,
 ) -> dict[str, Any]:
-    """Bounded public-price research for RFQs that already have complete specs.
+    """Bounded public-price research for RFQs / checkpoints with complete specs.
 
     Closes the gap where packages/lines were recovered before live pricing was
-    wired into process_one. Never invents prices; updates slim checkpoints.
+    wired into process_one. Also picks PRICE_UNAVAILABLE / MISSING_ACQUISITION
+    checkpoints so commercial research does not stall at zero verified prices.
+    Never invents prices; updates slim checkpoints.
     """
     from buyer_intelligence.commercial_funnel_execution_v1 import (
         _research_public_prices_for_lines,
     )
 
     t0 = time.time()
+    try:
+        from public_price_search.budget import ensure_budget, snapshot as price_budget_snap
+
+        ensure_budget(minimum_remaining=80)
+        budget_meta = price_budget_snap()
+    except Exception:
+        budget_meta = {}
     blob = _load(RFQ_QUEUE_FILE) or {}
     items = list(blob.get("items") or blob.get("rows") or [])
     store = JobStore(FAMILY)
+    # Supplement RFQ queue with checkpoints that already extracted lines but
+    # lack acquisition prices (common after docs recovery under time pressure).
+    try:
+        for it in store.list_items(job_id) or []:
+            if not isinstance(it, dict):
+                continue
+            oid = str(it.get("OPPORTUNITY_ID") or it.get("opportunity_id") or "")
+            if not oid:
+                continue
+            if it.get("public_unit_price") not in (None, ""):
+                continue
+            fully = int(it.get("fully_specified_product_lines") or 0)
+            docs = int(it.get("documents_downloaded") or 0)
+            blocker = str(it.get("terminal_blocker") or "")
+            if docs <= 0 and fully <= 0 and not it.get("complete_spec"):
+                continue
+            if fully <= 0 and not it.get("complete_spec"):
+                continue
+            if blocker not in {
+                "PRICE_UNAVAILABLE_AFTER_SEARCH",
+                "MISSING_ACQUISITION_AND_GOV_PRICE",
+                "COMMERCIAL_STAGE_BUDGET_DEFERRED",
+                "AWAITING_OWNER_APPROVED_OUTREACH",
+                "",
+            } and not it.get("complete_spec") and fully <= 0:
+                continue
+            lines = list(it.get("line_items") or [])
+            if not lines:
+                try:
+                    from buyer_intelligence.product_line_store_v1 import get_lines as _pls_lines
+
+                    lines = list(_pls_lines(oid) or [])
+                except Exception:
+                    lines = []
+            if not lines:
+                continue
+            items.append(
+                {
+                    "opportunity_id": oid,
+                    "line_items": lines,
+                    "public_unit_price": None,
+                    "rfq": {
+                        "status": "AWAITING_OWNER_APPROVED_OUTREACH",
+                        "opportunity_id": oid,
+                        "line_items": lines,
+                    },
+                    "_from_checkpoint": True,
+                }
+            )
+    except Exception:
+        pass
     researched = 0
     priced = 0
     examples: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
+    seen_oids: set[str] = set()
     for entry in items:
         if researched >= max_items or time.time() - t0 >= budget_s:
             break
         if not isinstance(entry, dict):
             continue
         rfq = entry.get("rfq") if isinstance(entry.get("rfq"), dict) else entry
-        if rfq.get("status") != "AWAITING_OWNER_APPROVED_OUTREACH":
+        if (
+            rfq.get("status") != "AWAITING_OWNER_APPROVED_OUTREACH"
+            and not entry.get("_from_checkpoint")
+        ):
             continue
         if rfq.get("public_unit_price") not in (None, "") or entry.get(
             "public_unit_price"
         ) not in (None, ""):
             continue
         oid = str(entry.get("opportunity_id") or rfq.get("opportunity_id") or "")
+        if not oid or oid in seen_oids:
+            continue
+        seen_oids.add(oid)
         lines = list(rfq.get("line_items") or entry.get("line_items") or [])
         if not oid or not lines:
             continue
-        remain = max(8.0, budget_s - (time.time() - t0))
+        remain = max(12.0, budget_s - (time.time() - t0))
         researched += 1
         pr = _research_public_prices_for_lines(
             opportunity_id=oid,
             lines=lines,
-            budget_s=min(35.0, remain),
-            max_lines=2,
+            budget_s=min(45.0, remain),
+            max_lines=3,
         )
         if pr.get("verified_public_unit_price") not in (None, ""):
             priced += 1
@@ -3005,10 +3072,31 @@ def _research_prices_from_rfq_queue(
                 }
             )
     if researched:
+        # Persist only real RFQ-queue rows (skip synthetic checkpoint supplements).
+        persist_items = [x for x in items if isinstance(x, dict) and not x.get("_from_checkpoint")]
         if "items" in blob or blob.get("items") is not None:
-            blob["items"] = items
+            blob["items"] = persist_items or list(blob.get("items") or [])
+            # Merge price fields back onto matching RFQ entries
+            by_oid = {
+                str(x.get("opportunity_id") or ""): x
+                for x in items
+                if isinstance(x, dict) and x.get("public_unit_price") not in (None, "")
+            }
+            merged = []
+            for x in blob["items"]:
+                if not isinstance(x, dict):
+                    continue
+                oid_m = str(x.get("opportunity_id") or "")
+                if oid_m in by_oid:
+                    hit = by_oid[oid_m]
+                    x = dict(x)
+                    x["public_unit_price"] = hit.get("public_unit_price")
+                    if isinstance(x.get("rfq"), dict) and isinstance(hit.get("rfq"), dict):
+                        x["rfq"] = {**x["rfq"], **{k: hit["rfq"][k] for k in ("public_unit_price", "public_price_evidence") if k in hit["rfq"]}}
+                merged.append(x)
+            blob["items"] = merged
         else:
-            blob["rows"] = items
+            blob["rows"] = persist_items
         blob["updated_at"] = _utc()
         _save(RFQ_QUEUE_FILE, blob)
     return {
@@ -3017,6 +3105,8 @@ def _research_prices_from_rfq_queue(
         "examples": examples,
         "failures": failures[:8],
         "elapsed_s": round(time.time() - t0, 2),
+        "price_budget": budget_meta,
+        "candidate_oids": len(seen_oids),
     }
 
 
@@ -4261,6 +4351,74 @@ def process_slice(
             # Skip cooldown after access fast-path (already filtered); keep for browser work
             if SOURCE_COOLDOWN_S > 0 and not row.get("access_fast_path"):
                 time.sleep(SOURCE_COOLDOWN_S)
+
+            # Yield Playwright every other browser item so the PG access manager
+            # can register groups without waiting for the whole browser slice.
+            try:
+                cur_pos = next(
+                    i
+                    for i, (_idx, it) in enumerate(browser_pending)
+                    if str(it.get("opportunity_id") or "") == oid
+                )
+            except StopIteration:
+                cur_pos = len(browser_pending) - 1
+            remaining_browser = cur_pos < len(browser_pending) - 1
+            should_yield = (
+                browser_slot_held
+                and remaining_browser
+                and (cur_pos % 2 == 1)  # after 2nd, 4th, … item
+            )
+            if should_yield:
+                try:
+                    from bidnet_auth.browser_mutex_v1 import (
+                        release_bidnet_browser,
+                        try_acquire_bidnet_browser,
+                    )
+
+                    release_bidnet_browser(holder=f"fspf-{worker_id}")
+                    browser_slot_held = False
+                    time.sleep(4.0)  # PG manager re-polls every ~3s while waiting
+                    browser_slot_held = try_acquire_bidnet_browser(
+                        holder=f"fspf-{worker_id}",
+                        timeout_s=30.0,
+                        ttl_s=150.0,
+                    )
+                    if not browser_slot_held:
+                        # Defer only remaining unprocessed items (not already committed).
+                        deferred_n = 0
+                        for ridx, ritem in browser_pending[cur_pos + 1 :]:
+                            roid = str(ritem.get("opportunity_id") or "")
+                            if not roid:
+                                continue
+                            _commit_row(
+                                ridx,
+                                ritem,
+                                {
+                                    "opportunity_id": roid,
+                                    "terminal_blocker": "PG_BROWSER_INTERLEAVE",
+                                    "funnel_outcome": "EXTERNAL_DEPENDENCY",
+                                    "stage_reached": "ACCESS_DOCS",
+                                    "defer": True,
+                                    "software_defect_key": "browser_slot_yielded_to_pg",
+                                    "shared_access_key": ritem.get("shared_access_key"),
+                                    "access_fast_path": False,
+                                    "fetch_via": "browser_unavailable_deferred",
+                                    "documents_downloaded": 0,
+                                    "note": "Deferred: Playwright yielded to PG registration",
+                                },
+                            )
+                            deferred_n += 1
+                        _progress(
+                            status="RUNNING",
+                            phase="BROWSER_YIELD_TO_PG",
+                            job_id=job_id,
+                            worker_id=worker_id,
+                            browser_items_deferred=deferred_n,
+                            note="released_playwright_for_purchasing_group_registration",
+                        )
+                        break
+                except Exception:
+                    pass
 
             # Hard stop on credential failure — resume later
             if result == "AUTH_FAILED" and auth_status.get("external_blocker"):

@@ -595,7 +595,11 @@ def _research_public_prices_for_lines(
     distributors: list[dict[str, Any]] = []
     try:
         from buyer_intelligence.commercial_gap_closure_v1 import research_mpn_public_price
-        from public_price_search.models import PUBLIC_PRICE_FOUND, PUBLIC_PRICE_PARTIAL
+        from public_price_search.models import (
+            PRICE_SEARCH_BUDGET_EXHAUSTED,
+            PUBLIC_PRICE_FOUND,
+            PUBLIC_PRICE_PARTIAL,
+        )
         from public_price_search.resolver import resolve_public_price
     except Exception as exc:
         return {
@@ -606,6 +610,13 @@ def _research_public_prices_for_lines(
             "distributors": [],
             "verified_public_unit_price": None,
         }
+
+    try:
+        from public_price_search.budget import ensure_budget
+
+        ensure_budget(minimum_remaining=40)
+    except Exception:
+        pass
 
     # Prefer MPN lines, then long descriptions
     ranked = sorted(
@@ -696,11 +707,18 @@ def _research_public_prices_for_lines(
                         "qty": qty,
                     }
                 else:
+                    fail_cls = "NO_PUBLIC_PRICE"
+                    if status == PRICE_SEARCH_BUDGET_EXHAUSTED:
+                        fail_cls = "SEARCH_BUDGET"
+                    elif status and "BLOCKED" in str(status).upper():
+                        fail_cls = "SOURCE_BLOCKED_OR_LOGIN"
                     failures.append(
                         {
                             "description": desc[:80],
                             "status": status,
-                            "failure_class": "NO_PUBLIC_PRICE",
+                            "failure_class": fail_cls,
+                            "stop_reason": result.get("stop_reason")
+                            or result.get("failure_reason"),
                         }
                     )
             except Exception as exc:

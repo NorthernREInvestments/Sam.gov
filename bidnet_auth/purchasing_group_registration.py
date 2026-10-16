@@ -907,12 +907,32 @@ def build_group_form_url(
 
 
 def strip_stale_accessed_element(url: str | None) -> str | None:
-    """Drop session-bound accessedElementId so form navigation can succeed."""
+    """Drop session-bound accessedElementId so form navigation can succeed.
+
+    Preserve purchasingGroupId / group id query params — those are durable.
+    """
     u = str(url or "").strip()
     if not u or "accessedElementId=" not in u:
         return u or None
-    # Keep path only — query params are solicitation-session scoped and go stale.
-    return u.split("?", 1)[0]
+    try:
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+        parsed = urlparse(u)
+        q = parse_qs(parsed.query, keep_blank_values=False)
+        for drop in (
+            "accessedElementId",
+            "originalAction",
+            "SOLICITATION_OPEN",
+        ):
+            q.pop(drop, None)
+        # Flatten single-value lists
+        flat = {k: v[0] if len(v) == 1 else v for k, v in q.items()}
+        new_q = urlencode(flat, doseq=True)
+        return urlunparse(
+            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_q, "")
+        )
+    except Exception:
+        return u.split("?", 1)[0]
 
 
 def is_conditional_other_cert_field(name: str = "", label: str = "") -> bool:
@@ -1202,13 +1222,21 @@ def run_purchasing_group_registration(
         }
 
     try:
+        # Prefer clean form URL up front — stale accessedElementId causes ~5–8s
+        # Playwright TimeoutError before the group-level budget can help.
+        if "accessedElementId=" in str(form_url or ""):
+            cleaned_upfront = strip_stale_accessed_element(form_url) or build_group_form_url(
+                purchasing_group_id=pg_id, solicitation_id=None
+            )
+            if cleaned_upfront:
+                form_url = cleaned_upfront
         inspected = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
-        # Stale accessedElementId routinely hangs Playwright — retry clean form URL once.
-        if (
-            not inspected.get("ok")
-            and str(inspected.get("error") or "") in {"TimeoutError", "Error"}
-            and "accessedElementId=" in str(form_url or "")
-        ):
+        # Any nav TimeoutError/Error — retry once with a freshly built clean URL.
+        if not inspected.get("ok") and str(inspected.get("error") or "") in {
+            "TimeoutError",
+            "Error",
+            "FORM_NAV_REDIRECT",
+        }:
             clean = strip_stale_accessed_element(form_url) or build_group_form_url(
                 purchasing_group_id=pg_id, solicitation_id=None
             )
@@ -1219,7 +1247,7 @@ def run_purchasing_group_registration(
                     inspected.get("error"),
                 )
                 form_url = clean
-                inspected = inspect_group_form(client, form_url=form_url, timeout_ms=45_000)
+                inspected = inspect_group_form(client, form_url=form_url, timeout_ms=60_000)
         if not inspected.get("ok"):
             upsert_group(
                 pg_id,

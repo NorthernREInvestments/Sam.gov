@@ -20,11 +20,13 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_access_manager")
 
-BUILD = "20261015-m3-bidnet-pg-access-manager-v1b"
+BUILD = "20261016-m3-bidnet-pg-access-manager-v1c"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_pg_access_manager_status_v1.json"
 
 # Idle pause between registration attempts (keeps opportunity lane uncontested)
 IDLE_SLEEP_S = float(os.environ.get("M3_PG_ACCESS_IDLE_S") or "12")
+# Wait long enough that opportunity-lane item gaps can yield the mutex.
+BROWSER_SLOT_WAIT_S = float(os.environ.get("M3_PG_ACCESS_BROWSER_WAIT_S") or "45")
 # Hard ceiling per registration slice call
 SLICE_MAX_GROUPS = int(os.environ.get("M3_PG_ACCESS_GROUPS_PER_TICK") or "1")
 # Stop manager when opportunity worker requests stop
@@ -164,16 +166,20 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
             from bidnet_auth.browser_mutex_v1 import bidnet_browser_slot
 
             slice_report: dict[str, Any] | None = None
-            with bidnet_browser_slot(holder=worker_id, timeout_s=8.0) as got_browser:
+            with bidnet_browser_slot(
+                holder=worker_id, timeout_s=BROWSER_SLOT_WAIT_S, ttl_s=240.0
+            ) as got_browser:
                 if not got_browser:
                     _save_status(
                         {
                             "phase": "WAIT_BROWSER_SLOT",
                             "heartbeat_at": _utc(),
                             "note": "opportunity_lane_holds_playwright",
+                            "browser_wait_s": BROWSER_SLOT_WAIT_S,
                         }
                     )
-                    _stop.wait(IDLE_SLEEP_S)
+                    # Short poll — FSPF yields ~4s between opportunity items.
+                    _stop.wait(min(3.0, IDLE_SLEEP_S))
                     continue
 
                 # Dedicated auth client for this registration tick only
