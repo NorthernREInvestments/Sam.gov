@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36a"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1879,6 +1879,30 @@ def api_m3_full_scale_production_funnel_requeue_browser_auth(body: dict | None =
             max_requeue=int(payload.get("max_requeue") or 200),
         ),
     }
+
+
+@app.post("/api/m3/full-scale-production-funnel/commercial-price-pass")
+def api_m3_full_scale_production_funnel_commercial_price_pass(body: dict | None = None):
+    """Run bounded public-price research on already-extracted lines (no BidNet browser)."""
+    from buyer_intelligence.full_scale_production_funnel_v1 import (
+        FAMILY,
+        _research_prices_from_rfq_queue,
+    )
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = payload.get("job_id")
+    if not jid:
+        active = JobStore(FAMILY).find_active_job(stale_seconds=86400, mutate_stale=False) or {}
+        jid = active.get("JOB_ID")
+    if not jid:
+        return {"ok": False, "error": "job_id_required", "build_version": APP_BUILD_VERSION}
+    report = _research_prices_from_rfq_queue(
+        job_id=str(jid),
+        max_items=int(payload.get("max_items") or 12),
+        budget_s=float(payload.get("budget_s") or 180.0),
+    )
+    return {"ok": True, "build_version": APP_BUILD_VERSION, "job_id": jid, **report}
 
 
 @app.get("/api/m3/bidnet-auth/browser-circuit")

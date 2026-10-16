@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -1256,6 +1257,100 @@ class BidNetAuthenticatedClient:
         except Exception:
             pass
 
+    def _on_saml_idp(self, url: str | None = None) -> bool:
+        u = (url or (self._page.url if self._page is not None else "") or "").lower()
+        return "idp.bidnetdirect.com" in u or "/saml2/" in u or "/profile/saml2/" in u
+
+    def _complete_saml_idp_flow(self, cfg: Any) -> dict[str, Any]:
+        """Finish Shibboleth/SAML hops after BidNet password submit.
+
+        Observed failure mode: post_login_verification_failed with
+        still_login=0 and url=https://idp.bidnetdirect.com/profile/SAML2/POST/SSO?execution=e2s1
+        — mid-IdP, not authenticated yet.
+        """
+        report: dict[str, Any] = {"steps": 0, "final_url": None}
+        assert self._page is not None
+        deadline = time.time() + 35.0
+        while time.time() < deadline:
+            try:
+                current = self._page.url or ""
+            except Exception:
+                current = ""
+            report["final_url"] = current[:180]
+            if not self._on_saml_idp(current):
+                # Already past IdP (or never entered).
+                if "authentication/login" not in current.lower():
+                    report["ok"] = True
+                    return report
+                break
+
+            report["steps"] = int(report.get("steps") or 0) + 1
+            html = ""
+            try:
+                html = self._page.content() or ""
+            except Exception:
+                html = ""
+
+            # IdP may ask for credentials again on a later execution step.
+            user_sel = self._find_username_locator()
+            pass_sel = self._find_password_locator()
+            if user_sel is not None and pass_sel is not None:
+                try:
+                    user_sel.fill(cfg.username, timeout=8_000)
+                    pass_sel.fill(cfg.password, timeout=8_000)
+                    self._submit_login()
+                    try:
+                        self._page.wait_for_load_state("domcontentloaded", timeout=15_000)
+                    except Exception:
+                        pass
+                    continue
+                except Exception:
+                    pass
+
+            # Auto-post SAMLResponse / RelayState form (common Shibboleth hop).
+            try:
+                posted = self._page.evaluate(
+                    """() => {
+                      const forms = Array.from(document.querySelectorAll('form'));
+                      for (const f of forms) {
+                        const hasSaml = f.querySelector('[name="SAMLResponse"], [name="SAMLRequest"]');
+                        if (hasSaml) { f.submit(); return 'saml_form'; }
+                      }
+                      const btn = document.querySelector(
+                        'button[type="submit"], input[type="submit"], button#submit, input#submit'
+                      );
+                      if (btn) { btn.click(); return 'submit_click'; }
+                      return null;
+                    }"""
+                )
+                report["last_action"] = posted
+            except Exception as exc:
+                report["last_action_error"] = type(exc).__name__
+
+            # Wait for navigation off this execution step.
+            try:
+                self._page.wait_for_load_state("domcontentloaded", timeout=12_000)
+            except Exception:
+                pass
+            try:
+                self._page.wait_for_timeout(800)
+            except Exception:
+                pass
+            try:
+                # Prefer landing on BidNet app host.
+                self._page.wait_for_url(
+                    re.compile(r"https?://(www\.)?bidnetdirect\.com/(?!.*authentication/login).", re.I),
+                    timeout=10_000,
+                )
+                report["ok"] = True
+                report["final_url"] = (self._page.url or "")[:180]
+                return report
+            except Exception:
+                continue
+
+        report["ok"] = not self._on_saml_idp(report.get("final_url"))
+        return report
+
     def _probe_authenticated(self) -> dict[str, Any]:
         assert self._page is not None
         url = self.config.verify_url
@@ -1361,6 +1456,7 @@ class BidNetAuthenticatedClient:
             record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
             return result
 
+        saml_meta: dict[str, Any] = {}
         try:
             user_sel.fill(cfg.username, timeout=15_000)
             pass_sel.fill(cfg.password, timeout=15_000)
@@ -1381,7 +1477,7 @@ class BidNetAuthenticatedClient:
                 self._page.wait_for_load_state("networkidle", timeout=8_000)
             except Exception:
                 pass
-            # Wait for redirect off the login page (SPA / multi-hop redirects).
+            # Wait for redirect off the public login page (SPA / multi-hop).
             try:
                 self._page.wait_for_url(
                     re.compile(r"^(?!.*authentication/login).+", re.I),
@@ -1392,6 +1488,10 @@ class BidNetAuthenticatedClient:
                     self._page.wait_for_timeout(1200)
                 except Exception:
                     pass
+            # BidNet uses Shibboleth/SAML IdP steps after password submit
+            # (idp.bidnetdirect.com/.../SAML2/POST/SSO?execution=eNsM). Complete
+            # those before claiming verification failure.
+            saml_meta = self._complete_saml_idp_flow(cfg)
         except Exception as exc:
             # Never include exception text that might echo credentials
             result = AuthResult(
@@ -1488,17 +1588,23 @@ class BidNetAuthenticatedClient:
             probe2 = {}
 
         still_login = "authentication/login" in (current or "").lower()
+        on_idp = self._on_saml_idp(probe.get("url") or current)
         final_u = (probe.get("url") or current or "")[:120]
         result = AuthResult(
             status=AUTH_FAILED,
             authenticated=False,
             message=(
                 f"post_login_verification_failed:still_login={int(still_login)}"
-                f":url={final_u}"
+                f":on_idp={int(on_idp)}:url={final_u}"
             ),
             details={
                 "post_submit_url": (current or "")[:160],
                 "still_on_login": still_login,
+                "on_saml_idp": on_idp,
+                "saml": {
+                    k: saml_meta.get(k)
+                    for k in ("ok", "steps", "final_url", "last_action")
+                },
                 "probe_error": probe.get("error"),
                 "probe2_authenticated": bool((probe2 or {}).get("authenticated")),
             },
