@@ -331,8 +331,11 @@ def run_anonymous_replacement_discovery(
 
     after = _canonical_non_bidnet_counts()
     after_non_bn = int(after.get("non_bidnet_live") or 0)
-    net_new = max(0, after_non_bn - baseline_non_bn)
-    gap = max(0, REPLACEMENT_TARGET - after_non_bn)
+    # Net-new vs abandon baseline (not vs pre-run snapshot alone) — OpenGov preexisting excluded
+    baseline_doc = _load_or_seed_baseline(baseline_non_bn)
+    baseline_frozen = int(baseline_doc.get("non_bidnet_live_at_abandon") or baseline_non_bn)
+    net_new = max(0, after_non_bn - baseline_frozen)
+    gap = max(0, REPLACEMENT_TARGET - net_new)
 
     # Family rollup from harvest
     family_rows: list[dict[str, Any]] = []
