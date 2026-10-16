@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e24"
+APP_BUILD_VERSION = "20261015-m3-full-scale-production-funnel-v4e25"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1819,6 +1819,34 @@ def api_m3_full_scale_production_funnel_supervisor():
 
     ensure_supervisor_running()
     return {"build_version": APP_BUILD_VERSION, **supervisor_status()}
+
+
+@app.get("/api/m3/full-scale-production-funnel/ready-lane")
+def api_m3_full_scale_production_funnel_ready_lane():
+    from buyer_intelligence.fspf_ready_lane_v1 import ready_status
+
+    return {"build_version": APP_BUILD_VERSION, **ready_status()}
+
+
+@app.post("/api/m3/full-scale-production-funnel/ready-lane/promote")
+def api_m3_full_scale_production_funnel_ready_promote(body: dict | None = None):
+    """Promote unlock-eligible deferred items into READY (same job, no cursor reset)."""
+    from buyer_intelligence.fspf_ready_lane_v1 import promote_unlock_eligible_to_ready
+    from buyer_intelligence.full_scale_production_funnel_v1 import FAMILY
+    from m3_jobs.store import JobStore
+
+    payload = body or {}
+    jid = payload.get("job_id")
+    if not jid:
+        active = JobStore(FAMILY).find_active_job(stale_seconds=86400, mutate_stale=False) or {}
+        jid = active.get("JOB_ID")
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **promote_unlock_eligible_to_ready(
+            job_id=str(jid) if jid else None,
+            max_promote=int(payload["max_promote"]) if payload.get("max_promote") else None,
+        ),
+    }
 
 
 @app.post("/api/m3/full-scale-production-funnel/supervisor/ensure")

@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261015-m3-full-scale-production-funnel-v4e24"
+BUILD = "20261015-m3-full-scale-production-funnel-v4e25"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -527,6 +527,20 @@ def release_pg_blocked_for_registered_groups(job_id: str) -> dict[str, Any]:
         job["META"] = meta
         store.save_job(job)
         store.recompute_counts(job_id)
+        # Promote unlock-eligible into READY priority lane (does not reset cursor).
+        try:
+            from buyer_intelligence.fspf_ready_lane_v1 import promote_unlock_eligible_to_ready
+
+            promote_unlock_eligible_to_ready(job_id=job_id)
+        except Exception:
+            pass
+        # Promote unlock-eligible into READY priority lane (does not reset cursor).
+        try:
+            from buyer_intelligence.fspf_ready_lane_v1 import promote_unlock_eligible_to_ready
+
+            promote_unlock_eligible_to_ready(job_id=job_id)
+        except Exception:
+            pass
     return {
         "job_id": job_id,
         "registered_groups": sorted(registered),
@@ -2763,6 +2777,16 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
     live_hb = str(prog_live.get("heartbeat_at") or "")
     job_hb = str(job.get("HEARTBEAT_AT") or "")
     prefer_prog = bool(live_hb and (not job_hb or live_hb > job_hb))
+    ready_n = 0
+    ready_done = 0
+    try:
+        from buyer_intelligence.fspf_ready_lane_v1 import load_ready_queue, ready_count
+
+        ready_n = int(ready_count())
+        ready_done = int((load_ready_queue().get("metrics") or {}).get("completed") or 0)
+    except Exception:
+        ready_n = int(prog_live.get("ready_queue_size") or 0)
+        ready_done = 0
     scorecard = {
         "kind": "FullScaleProductionFunnelScorecard",
         "build": BUILD,
@@ -2805,6 +2829,9 @@ def _aggregate_scorecard(job: dict[str, Any], items: list[dict[str, Any]], queue
                     if isinstance(x, dict) and x.get("recovery_eligible")
                 )
             ),
+            "ready_priority_opportunities": ready_n,
+            "ready_completed": ready_done,
+            "ready_schedule": (job.get("META") or {}).get("ready_schedule"),
             "pass_mode": (job.get("META") or {}).get("pass_mode") or "FIRST_PASS",
             "one_pass_orchestrator": True,
             "deferred_queue_size": len((_load_deferred_queue().get("items") or [])),
@@ -3306,6 +3333,24 @@ def process_slice(
 
     pending: list[tuple[int, dict[str, Any]]] = []
     registered_pending: list[tuple[int, dict[str, Any]]] = []
+    ready_schedule: dict[str, Any] = {"first_pass": 0, "ready": 0, "ratio": "n/a"}
+    ready_promote_report: dict[str, Any] | None = None
+
+    # Keep READY lane stocked from unlock-eligible deferred (lightweight, idempotent).
+    try:
+        from buyer_intelligence.fspf_ready_lane_v1 import (
+            interleave_fair,
+            pick_ready_batch,
+            promote_unlock_eligible_to_ready,
+            ready_count,
+        )
+
+        ready_promote_report = promote_unlock_eligible_to_ready(job_id=job_id)
+    except Exception as exc:
+        ready_promote_report = {"ok": False, "error": type(exc).__name__}
+        interleave_fair = None  # type: ignore
+        pick_ready_batch = None  # type: ignore
+        ready_count = lambda: 0  # type: ignore
 
     if first_pass:
         pending, registered_pending, _scan_end = _collect_first_pass_pending(
@@ -3316,44 +3361,106 @@ def process_slice(
             slice_size=slice_size,
             registered_pgs=registered_pgs,
         )
-        if not pending:
-            # Only after the full queue has no unattempted work → deferred recovery
-            next_i = _first_unattempted_index(store, job_id, rows, from_index=0)
-            if next_i < len(rows):
-                job["RESUME_CURSOR"] = next_i
-                meta["pass_mode"] = "FIRST_PASS"
-                job["META"] = meta
-                store.save_job(job)
-                pending, registered_pending, _ = _collect_first_pass_pending(
-                    store,
-                    job_id,
-                    rows,
-                    cursor=next_i,
-                    slice_size=slice_size,
-                    registered_pgs=registered_pgs,
+        # Fair interleave: ~75% first-pass / ~25% READY unlock recovery.
+        ready_batch: list[tuple[int, dict[str, Any]]] = []
+        if pick_ready_batch is not None:
+            try:
+                ready_batch = pick_ready_batch(
+                    job_id=job_id,
+                    store=store,
+                    rows=rows,
+                    limit=max(1, slice_size),
                 )
-                cursor = next_i
-                slice_start_cursor = next_i
-            else:
-                backfilled = _backfill_deferred_from_attempted(store, job_id, rows)
-                meta["pass_mode"] = "DEFERRED_RECOVERY"
-                meta["first_pass_exhausted_at"] = _utc()
-                meta["deferred_backfill_count"] = backfilled
+            except Exception:
+                ready_batch = []
+        if (pending or ready_batch) and interleave_fair is not None:
+            pending, ready_schedule = interleave_fair(
+                pending, ready_batch, slice_size=slice_size
+            )
+            if ready_schedule.get("ready"):
+                pass_mode = "FIRST_PASS_WITH_READY"
+                meta["pass_mode"] = pass_mode
+                meta["ready_schedule"] = ready_schedule
                 job["META"] = meta
-                job["RESUME_CURSOR"] = len(rows)
                 store.save_job(job)
-                first_pass = False
-                pass_mode = "DEFERRED_RECOVERY"
+        if not pending:
+            # READY-only work still available → do not wait for first-pass exhaustion
+            if ready_batch and interleave_fair is not None:
+                pending, ready_schedule = interleave_fair(
+                    [], ready_batch, slice_size=slice_size
+                )
+                pass_mode = "READY_PRIORITY"
+                meta["pass_mode"] = pass_mode
+                meta["ready_schedule"] = ready_schedule
+                job["META"] = meta
+                store.save_job(job)
+            else:
+                # Only after the full queue has no unattempted work → deferred recovery
+                next_i = _first_unattempted_index(store, job_id, rows, from_index=0)
+                if next_i < len(rows):
+                    job["RESUME_CURSOR"] = next_i
+                    meta["pass_mode"] = "FIRST_PASS"
+                    job["META"] = meta
+                    store.save_job(job)
+                    pending, registered_pending, _ = _collect_first_pass_pending(
+                        store,
+                        job_id,
+                        rows,
+                        cursor=next_i,
+                        slice_size=slice_size,
+                        registered_pgs=registered_pgs,
+                    )
+                    cursor = next_i
+                    slice_start_cursor = next_i
+                    if pick_ready_batch is not None and interleave_fair is not None:
+                        try:
+                            rb2 = pick_ready_batch(
+                                job_id=job_id,
+                                store=store,
+                                rows=rows,
+                                limit=max(1, slice_size),
+                            )
+                            pending, ready_schedule = interleave_fair(
+                                pending, rb2, slice_size=slice_size
+                            )
+                        except Exception:
+                            pass
+                else:
+                    backfilled = _backfill_deferred_from_attempted(store, job_id, rows)
+                    meta["pass_mode"] = "DEFERRED_RECOVERY"
+                    meta["first_pass_exhausted_at"] = _utc()
+                    meta["deferred_backfill_count"] = backfilled
+                    job["META"] = meta
+                    job["RESUME_CURSOR"] = len(rows)
+                    store.save_job(job)
+                    first_pass = False
+                    pass_mode = "DEFERRED_RECOVERY"
 
     if not first_pass:
-        # Second pass: resume deferred errors at exact stage.
-        # Prefer PG-unlock recovery_eligible items first (blocker resolved).
+        # Second pass: READY lane first, then remaining deferred errors.
         if not (_load_deferred_queue().get("items")):
             _backfill_deferred_from_attempted(store, job_id, rows)
         try:
             reconcile_released_pg_unlocks(job_id, repair=True)
         except Exception:
             pass
+        try:
+            from buyer_intelligence.fspf_ready_lane_v1 import (
+                pick_ready_batch as _pick_ready,
+                promote_unlock_eligible_to_ready as _promote_ready,
+            )
+
+            _promote_ready(job_id=job_id)
+            pending = _pick_ready(
+                job_id=job_id, store=store, rows=rows, limit=slice_size
+            )
+            ready_schedule = {
+                "first_pass": 0,
+                "ready": len(pending),
+                "ratio": "0/100",
+            }
+        except Exception:
+            pending = []
         dq = _load_deferred_queue()
         raw_deferred = list(dq.get("items") or [])
         unlock_first = [
@@ -3375,10 +3482,10 @@ def process_slice(
             )
         ]
         deferred_items = unlock_first + commercial_first + rest
-        pending = []
+        ready_oids_now = {str(it.get("opportunity_id")) for _, it in pending}
         for d in deferred_items[: slice_size * 3]:
             oid = str(d.get("opportunity_id") or "")
-            if not oid:
+            if not oid or oid in ready_oids_now:
                 continue
             prev = store.load_item(job_id, oid)
             if prev and str(prev.get("RESULT") or "") in _PRESERVE_RESULTS:
@@ -3468,6 +3575,9 @@ def process_slice(
         pass_mode=pass_mode,
         one_pass_orchestrator=True,
         deferred_queue_size=len((_load_deferred_queue().get("items") or [])),
+        ready_queue_size=int(ready_count() if callable(ready_count) else 0),
+        ready_schedule=ready_schedule,
+        ready_promote=ready_promote_report,
     )
 
     evidence_index = build_commercial_evidence_index()
@@ -3540,9 +3650,61 @@ def process_slice(
         result = _map_result(row)
         prior_cp = store.load_item(job_id, oid_local)
         slim = _slim_checkpoint(row, result=result, index=idx, prior=prior_cp)
+        if item.get("_ready_lane"):
+            slim["READY_LANE"] = True
+            slim["ready_processed_at"] = _utc()
         store.write_item_checkpoint(job_id, slim)
         _append_rfq(row)
-        if row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
+        is_ready = bool(item.get("_ready_lane"))
+        if is_ready:
+            try:
+                from buyer_intelligence.fspf_ready_lane_v1 import (
+                    demote_ready_to_deferred,
+                    remove_from_ready,
+                )
+
+                if result in _PRESERVE_RESULTS | {"SUCCESS", "PARTIAL"}:
+                    remove_from_ready(oid_local, reason="completed")
+                elif row.get("defer") or result in {
+                    "DEFERRED_ERROR",
+                    "DEFERRED_EXTERNAL",
+                    "TIMEOUT",
+                }:
+                    # Genuine error → back of the line (priority 3), leave READY.
+                    demote_ready_to_deferred(
+                        opportunity_id=oid_local,
+                        reason=str(row.get("terminal_blocker") or result or "READY_ERROR"),
+                        stage=row.get("stage_reached"),
+                        blocker=row.get("terminal_blocker"),
+                        defect_key=row.get("software_defect_key"),
+                        keep_recovery_eligible=bool(
+                            row.get("recovery_eligible")
+                            or item.get("recovery_eligible")
+                            or str(row.get("terminal_blocker") or "").startswith(
+                                "PURCHASING"
+                            )
+                        ),
+                        pg_unlocked=str(
+                            row.get("purchasing_group_id")
+                            or item.get("purchasing_group_id")
+                            or ""
+                        )
+                        or None,
+                        next_stage=row.get("next_stage"),
+                        last_completed_stage=row.get("last_completed_stage"),
+                        commercial_resume=bool(row.get("commercial_resume")),
+                        queue_index=idx,
+                    )
+                    if row.get("software_defect_key"):
+                        _note_component_defect(str(row.get("software_defect_key")))
+                else:
+                    # Non-terminal incomplete — keep in READY for another attempt later
+                    # unless it's a hard reject
+                    if result in {"EXPIRED_EXIT", "INELIGIBLE_EXIT"}:
+                        remove_from_ready(oid_local, reason=result.lower())
+            except Exception:
+                pass
+        elif row.get("defer") or result in {"DEFERRED_ERROR", "DEFERRED_EXTERNAL", "TIMEOUT"}:
             _defer_opportunity(
                 opportunity_id=oid_local,
                 stage=row.get("stage_reached"),
