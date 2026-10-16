@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261016-m3-bidnet-pg-group-queue-v1h"
+BUILD = "20261016-m3-bidnet-pg-group-queue-v1i"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -321,35 +321,37 @@ def mint_fresh_form_url_from_source(
             }
         )
     else:
-        # Only attach accessedElementId when we have a non-statewide private context.
-        if sol_id and not is_statewide_solicitation_id_url(page_url):
-            use_sol = sol_id
-        elif sol_id and not is_statewide_solicitation_id_url(src):
-            use_sol = sol_id
-        # If we only have statewide listing id, open path-only form (membership page)
-        # rather than a doomed accessedElementId=statewideId URL.
-        if use_sol is None and sol_from_src and is_statewide_solicitation_id_url(src):
-            proceed = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=None) or ""
-            trace.append(
-                {
-                    "stage": "built_path_only_form_url",
-                    "reason": "statewide_id_not_valid_form_context",
-                    "statewide_sol_id": sol_from_src,
-                    "elapsed_s": round(_time.time() - t0, 3),
-                }
+        # No interceptor / group-form link on the private page. Do NOT fall back to
+        # a path-only edit URL — that page is empty and times out in ~6s.
+        # Caller should try title-search resolution or rotate to another source.
+        cue_any = any(
+            (t.get("gate_cues") or {}).get(k)
+            for t in trace
+            if isinstance(t, dict)
+            for k in (
+                "incomplete_pg",
+                "interceptor_id",
+                "group_form_edit",
+                "action_required",
             )
-        else:
-            proceed = (
-                build_group_form_url(purchasing_group_id=pg_id, solicitation_id=use_sol) or ""
-            )
-            trace.append(
-                {
-                    "stage": "built_form_url",
-                    "has_accessed_element": "accessedElementId=" in proceed,
-                    "sol_id": use_sol,
-                    "elapsed_s": round(_time.time() - t0, 3),
-                }
-            )
+        )
+        trace.append(
+            {
+                "stage": "no_pg_gate_on_source",
+                "had_any_gate_cue": cue_any,
+                "page_url": (page_url or "")[:220],
+                "elapsed_s": round(_time.time() - t0, 3),
+            }
+        )
+        return {
+            "ok": False,
+            "error": "NO_PG_GATE_ON_SOURCE",
+            "message": "private solicitation page loaded but no purchasing-group form link",
+            "trace": trace,
+            "gate": gate,
+            "page_url": (page_url or "")[:220],
+            "elapsed_s": round(_time.time() - t0, 3),
+        }
 
     if not proceed:
         return {"ok": False, "error": "FORM_URL_MINT_FAILED", "trace": trace, "gate": gate}
@@ -579,6 +581,10 @@ def _pending_priority(row: dict[str, Any]) -> tuple:
         stage_rank = -2
     elif tracked_st in {"PREPARED", "REGISTERING"}:
         stage_rank = -1
+    elif "NO_PG_GATE" in last_err and int(row.get("attempts") or 0) >= 1:
+        stage_rank = 4  # source has no registration dialog — try other groups first
+    elif "NOT_REGISTRATION_FORM" in last_err:
+        stage_rank = 4
     elif "Timeout" in last_err and int(row.get("attempts") or 0) >= 2:
         stage_rank = 3  # demote repeated nav failures
     return (stage_rank, -oids, int(row.get("attempts") or 0))
@@ -759,7 +765,7 @@ def process_group_registration_slice(
             mint_meta: dict[str, Any] | None = None
             if source_url and (
                 prior_timeout
-                or int(item.get("attempts") or 0) >= 2
+                or int(item.get("attempts") or 0) >= 1
                 or not form_url
                 or "accessedElementId=" not in str(form_url)
             ):
@@ -778,6 +784,119 @@ def process_group_registration_slice(
                             "elapsed_s": round(_time.time() - group_t0, 3),
                         }
                     )
+                elif str(mint_meta.get("error") or "") == "NO_PG_GATE_ON_SOURCE":
+                    # Try authenticated title search to land on a private detail
+                    # that actually shows the interceptor dialog.
+                    title = None
+                    try:
+                        titles = list(tracked.get("sample_titles") or [])
+                        title = str(titles[0] if titles else "")[:120] or None
+                    except Exception:
+                        title = None
+                    if title and hasattr(auth_client, "resolve_detail_via_authenticated_search"):
+                        try:
+                            resolved = auth_client.resolve_detail_via_authenticated_search(
+                                title=title,
+                                timeout_ms=25_000,
+                            )
+                            stage_trace.append(
+                                {
+                                    "stage": "title_search_resolve",
+                                    "ok": bool((resolved or {}).get("ok")),
+                                    "status": (resolved or {}).get("status"),
+                                    "elapsed_s": round(_time.time() - group_t0, 3),
+                                }
+                            )
+                            page = getattr(auth_client, "_page", None)
+                            if page is not None:
+                                try:
+                                    page.wait_for_timeout(1000)
+                                except Exception:
+                                    pass
+                                html2 = ""
+                                try:
+                                    html2 = page.content() or ""
+                                except Exception:
+                                    html2 = ""
+                                from bidnet_auth.purchasing_group_registration import (
+                                    extract_pg_gate_from_html,
+                                )
+
+                                gate2 = extract_pg_gate_from_html(
+                                    html2, page_url=str(page.url or "")
+                                ) or {}
+                                proceed2 = str(gate2.get("complete_form_url") or "").strip()
+                                if not proceed2:
+                                    # live DOM extract
+                                    try:
+                                        loc = page.locator("#interceptorProceedBtn")
+                                        if loc.count():
+                                            proceed2 = (
+                                                loc.first.get_attribute("data-href") or ""
+                                            ).replace("&amp;", "&")
+                                            if proceed2.startswith("/"):
+                                                proceed2 = (
+                                                    "https://www.bidnetdirect.com" + proceed2
+                                                )
+                                    except Exception:
+                                        proceed2 = ""
+                                if proceed2 and "group-form/edit" in proceed2:
+                                    form_url = proceed2
+                                    mint_meta = {
+                                        "ok": True,
+                                        "form_url": form_url,
+                                        "solicitation_id": extract_solicitation_id_from_url(
+                                            form_url
+                                        ),
+                                    }
+                                    stage_trace.append(
+                                        {
+                                            "stage": "title_search_gate_found",
+                                            "has_accessed_element": "accessedElementId="
+                                            in form_url,
+                                            "elapsed_s": round(_time.time() - group_t0, 3),
+                                        }
+                                    )
+                        except Exception as exc:
+                            stage_trace.append(
+                                {
+                                    "stage": "title_search_resolve",
+                                    "ok": False,
+                                    "error": type(exc).__name__,
+                                    "elapsed_s": round(_time.time() - group_t0, 3),
+                                }
+                            )
+                    if not (mint_meta and mint_meta.get("ok")):
+                        # Demote this group — do not burn time on empty path-only forms.
+                        row = {
+                            "purchasing_group_id": pg_id,
+                            "status": "ERROR",
+                            "ok": False,
+                            "attempts": item["attempts"],
+                            "error": "NO_PG_GATE_ON_SOURCE",
+                            "error_message": (
+                                "source/private pages loaded without purchasing-group "
+                                "registration dialog"
+                            ),
+                            "failure_point": "no_pg_gate",
+                            "source_url": (source_url or "")[:160] or None,
+                            "elapsed_s": round(_time.time() - group_t0, 2),
+                            "stage_trace": stage_trace[:12],
+                        }
+                        item["last_error"] = "NO_PG_GATE_ON_SOURCE"
+                        processed.append(row)
+                        if int(item["attempts"]) >= 4:
+                            _fail_pending(pg_id, row, terminal=True)
+                        else:
+                            _bump_pending(pg_id, item)
+                        continue
+            # Never attempt a path-only form URL without accessedElementId after a
+            # failed mint — that path is a known ~6s TimeoutError.
+            if form_url and "accessedElementId=" not in str(form_url):
+                if mint_meta and not mint_meta.get("ok"):
+                    form_url = None
+                elif prior_timeout or int(item.get("attempts") or 0) >= 2:
+                    form_url = None
             if form_url and form_url != item.get("form_url"):
                 item["form_url"] = form_url
                 _bump_pending(pg_id, item)

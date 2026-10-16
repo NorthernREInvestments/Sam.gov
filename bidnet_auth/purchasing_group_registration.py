@@ -460,6 +460,20 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         and not f.get("has_value")
         and str(f.get("type") or "") not in {"checkbox", "radio", "submit", "button"}
     ]
+    # Empty body / no fields and no membership banner = not a registration form.
+    # Returning ok:True here caused fill/submit to burn ~6s on TimeoutError.
+    if not member_completed and (not body.strip() or not (fields or [])):
+        return {
+            "ok": False,
+            "error": "NOT_REGISTRATION_FORM",
+            "form_url": form_url[:220],
+            "final_url": final[:220],
+            "message": "group-form page had no visible fields or membership status",
+            "error_message": "group-form page had no visible fields or membership status",
+            "body_excerpt": body[:400],
+            "failure_point": "form_empty",
+            "stage_trace": stage_trace,
+        }
     return {
         "ok": True,
         "final_url": final[:220],
@@ -473,6 +487,7 @@ def inspect_group_form(client: Any, *, form_url: str, timeout_ms: int = 60_000) 
         "member_status_completed": member_completed,
         "validation_errors": validation_errors[:8],
         "missing_required_fields": missing_required[:12],
+        "stage_trace": stage_trace,
     }
 
 

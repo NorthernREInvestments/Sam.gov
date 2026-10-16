@@ -43,7 +43,7 @@ def test_mint_fresh_form_url_from_gate_html():
     assert "gate_proceed_url" in stages
 
 
-def test_statewide_only_builds_path_only_form():
+def test_no_gate_returns_explicit_error_not_path_only():
     q = importlib.import_module("bidnet_auth.purchasing_group_queue")
 
     class _Client:
@@ -58,9 +58,9 @@ def test_statewide_only_builds_path_only_form():
             "444191583889/abstract?purchasingGroupId=88020151"
         ),
     )
-    assert out.get("ok") is True
-    assert "accessedElementId=" not in str(out.get("form_url") or "")
-    assert "88020151/group-form/edit" in str(out.get("form_url") or "")
+    assert out.get("ok") is False
+    assert out.get("error") == "NO_PG_GATE_ON_SOURCE"
+    assert not out.get("form_url")
 
 
 def test_live_dom_proceed_preferred_over_path_only():
