@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261016-m3-bidnet-pg-group-queue-v1f"
+BUILD = "20261016-m3-bidnet-pg-group-queue-v1g"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -131,10 +131,14 @@ def mint_fresh_form_url_from_source(
     purchasing_group_id: str,
     source_url: str,
 ) -> dict[str, Any]:
-    """Open solicitation abstract and mint a session-fresh group-form URL.
+    """Mint a session-fresh group-form URL with a *private* BidNet context.
 
-    Uses interceptorProceedBtn / gate HTML when present. Never fabricates group IDs.
+    Public/statewide abstracts do not contain interceptorProceedBtn. Route through
+    `/private/supplier/interception/open-solicitation/{id}` first so BidNet can
+    emit a valid accessedElementId. Never treat a statewide listing id as a
+    private form context by itself.
     """
+    import re
     import time as _time
 
     from bidnet_auth.purchasing_group_registration import (
@@ -142,6 +146,7 @@ def mint_fresh_form_url_from_source(
         extract_pg_gate_from_html,
         extract_pg_id_from_url,
         extract_solicitation_id_from_url,
+        is_statewide_solicitation_id_url,
     )
 
     t0 = _time.time()
@@ -150,40 +155,86 @@ def mint_fresh_form_url_from_source(
     pg_id = str(purchasing_group_id or "").strip()
     if not src or not pg_id:
         return {"ok": False, "error": "MISSING_SOURCE_OR_PG", "trace": trace}
+
+    sol_from_src = extract_solicitation_id_from_url(src)
+    fetch_targets: list[str] = []
+    # Prefer private interception — this is what surfaces the PG gate dialog.
+    if sol_from_src:
+        fetch_targets.append(
+            "https://www.bidnetdirect.com/private/supplier/interception/"
+            f"open-solicitation/{sol_from_src}?target=view"
+        )
+        fetch_targets.append(
+            f"https://www.bidnetdirect.com/private/solicitations/{sol_from_src}"
+        )
+    if src not in fetch_targets:
+        fetch_targets.append(src)
+
     html = ""
     page_url = src
-    try:
-        if hasattr(auth_client, "fetch_html"):
-            html = (
-                auth_client.fetch_html(src, timeout_ms=GATE_FETCH_TIMEOUT_MS, prefer_http=True)
-                or ""
-            )
-            page_url = str(
-                getattr(getattr(auth_client, "_page", None), "url", None) or src
-            )
+    for target in fetch_targets:
+        try:
+            if hasattr(auth_client, "fetch_html"):
+                # prefer_http=False so Playwright runs JS and interceptor dialog renders
+                html = (
+                    auth_client.fetch_html(
+                        target,
+                        timeout_ms=GATE_FETCH_TIMEOUT_MS,
+                        prefer_http=False,
+                    )
+                    or ""
+                )
+                try:
+                    page = getattr(auth_client, "_page", None)
+                    if page is not None:
+                        html = page.content() or html
+                        page_url = str(page.url or target)
+                except Exception:
+                    page_url = target
             trace.append(
                 {
                     "stage": "source_fetch",
-                    "ok": bool(html),
+                    "target_kind": (
+                        "open_solicitation"
+                        if "open-solicitation" in target
+                        else (
+                            "private_solicitations"
+                            if "/private/solicitations/" in target
+                            else "source"
+                        )
+                    ),
+                    "ok": bool(html) and len(html) > 400,
+                    "html_len": len(html or ""),
+                    "final_url_statewide": is_statewide_solicitation_id_url(page_url),
                     "elapsed_s": round(_time.time() - t0, 3),
-                    "html_len": len(html),
                 }
             )
-    except Exception as exc:
-        trace.append(
-            {
-                "stage": "source_fetch",
-                "ok": False,
-                "error": type(exc).__name__,
-                "message": str(exc)[:160],
-                "elapsed_s": round(_time.time() - t0, 3),
-            }
-        )
-        return {"ok": False, "error": type(exc).__name__, "message": str(exc)[:160], "trace": trace}
+            gate_probe = extract_pg_gate_from_html(html, page_url=page_url) or {}
+            if gate_probe.get("complete_form_url") or (
+                "interceptorProceedBtn" in (html or "")
+            ):
+                break
+        except Exception as exc:
+            trace.append(
+                {
+                    "stage": "source_fetch",
+                    "ok": False,
+                    "error": type(exc).__name__,
+                    "message": (str(exc) or repr(exc))[:160],
+                    "elapsed_s": round(_time.time() - t0, 3),
+                }
+            )
+            continue
+
+    if not html:
+        return {
+            "ok": False,
+            "error": "SOURCE_FETCH_EMPTY",
+            "trace": trace,
+        }
 
     gate = extract_pg_gate_from_html(html, page_url=page_url) or {}
     proceed = str(gate.get("complete_form_url") or "").strip()
-    # Confirm proceed URL targets the same purchasing group
     proceed_pg = extract_pg_id_from_url(proceed) if proceed else None
     if proceed and proceed_pg and str(proceed_pg) != pg_id:
         trace.append(
@@ -195,18 +246,24 @@ def mint_fresh_form_url_from_source(
             }
         )
         proceed = ""
-    sol_id = extract_solicitation_id_from_url(page_url) or extract_solicitation_id_from_url(src)
-    if not proceed:
-        proceed = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=sol_id) or ""
-        trace.append(
-            {
-                "stage": "built_form_url",
-                "has_accessed_element": "accessedElementId=" in proceed,
-                "sol_id": sol_id,
-                "elapsed_s": round(_time.time() - t0, 3),
-            }
-        )
-    else:
+
+    # Prefer private solicitation id from final page URL / proceed link — not statewide.
+    sol_id: str | None = None
+    use_sol: str | None = None
+    if proceed:
+        sol_id = extract_solicitation_id_from_url(proceed)
+    if not sol_id and not is_statewide_solicitation_id_url(page_url):
+        sol_id = extract_solicitation_id_from_url(page_url)
+    # Last resort: scrape private solicitation ids from HTML
+    if not sol_id:
+        m_priv = re.search(
+            r"/private/(?:supplier/)?solicitations/(\d{6,})", html or "", re.I
+        ) or re.search(r"accessedElementId=(\d{6,})", html or "", re.I)
+        if m_priv:
+            sol_id = m_priv.group(1)
+
+    if proceed:
+        use_sol = sol_id
         trace.append(
             {
                 "stage": "gate_proceed_url",
@@ -214,15 +271,47 @@ def mint_fresh_form_url_from_source(
                 "elapsed_s": round(_time.time() - t0, 3),
             }
         )
+    else:
+        # Only attach accessedElementId when we have a non-statewide private context.
+        if sol_id and not is_statewide_solicitation_id_url(page_url):
+            use_sol = sol_id
+        elif sol_id and not is_statewide_solicitation_id_url(src):
+            use_sol = sol_id
+        # If we only have statewide listing id, open path-only form (membership page)
+        # rather than a doomed accessedElementId=statewideId URL.
+        if use_sol is None and sol_from_src and is_statewide_solicitation_id_url(src):
+            proceed = build_group_form_url(purchasing_group_id=pg_id, solicitation_id=None) or ""
+            trace.append(
+                {
+                    "stage": "built_path_only_form_url",
+                    "reason": "statewide_id_not_valid_form_context",
+                    "statewide_sol_id": sol_from_src,
+                    "elapsed_s": round(_time.time() - t0, 3),
+                }
+            )
+        else:
+            proceed = (
+                build_group_form_url(purchasing_group_id=pg_id, solicitation_id=use_sol) or ""
+            )
+            trace.append(
+                {
+                    "stage": "built_form_url",
+                    "has_accessed_element": "accessedElementId=" in proceed,
+                    "sol_id": use_sol,
+                    "elapsed_s": round(_time.time() - t0, 3),
+                }
+            )
+
     if not proceed:
         return {"ok": False, "error": "FORM_URL_MINT_FAILED", "trace": trace, "gate": gate}
     return {
         "ok": True,
         "form_url": proceed,
-        "solicitation_id": sol_id,
+        "solicitation_id": use_sol or sol_id,
         "gate": gate,
         "trace": trace,
         "elapsed_s": round(_time.time() - t0, 3),
+        "page_url": (page_url or "")[:220],
     }
 
 

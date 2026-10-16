@@ -5,13 +5,13 @@ from __future__ import annotations
 import importlib
 
 
-def test_builds_are_v4e30():
+def test_builds_are_v4e31():
     fspf = importlib.import_module("buyer_intelligence.full_scale_production_funnel_v1")
     pg = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
     q = importlib.import_module("bidnet_auth.purchasing_group_queue")
-    assert "v4e30" in fspf.BUILD
-    assert "v1e" in pg.BUILD
-    assert "v1f" in q.BUILD
+    assert "v4e31" in fspf.BUILD
+    assert "v1f" in pg.BUILD
+    assert "v1g" in q.BUILD
     assert float(pg.BROWSER_SLOT_WAIT_S) >= 30.0
 
 

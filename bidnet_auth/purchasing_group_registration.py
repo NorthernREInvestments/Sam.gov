@@ -100,8 +100,12 @@ def extract_pg_gate_from_html(html: str, *, page_url: str = "") -> dict[str, Any
     if "incomplete purchasing group form" not in text.lower() and not re.search(
         r"registration form for this purchasing group is incomplete", text, re.I
     ):
-        # Still try proceed button
-        if "interceptorProceedBtn" not in text and "group-form/edit" not in text:
+        # Still try proceed button / group-form links
+        if (
+            "interceptorProceedBtn" not in text
+            and "group-form/edit" not in text
+            and "purchasing-groups/" not in text
+        ):
             return None
     name = None
     m = re.search(
@@ -115,15 +119,19 @@ def extract_pg_gate_from_html(html: str, *, page_url: str = "") -> dict[str, Any
     if m:
         name = (m.group(1) if m.lastindex else m.group(0)).strip()
     proceed = None
-    pm = re.search(
+    for pat in (
         r'id="interceptorProceedBtn"[^>]*data-href="([^"]+)"',
-        text,
-        re.I,
-    )
-    if pm:
-        proceed = pm.group(1).replace("&amp;", "&")
-        if proceed.startswith("/"):
-            proceed = "https://www.bidnetdirect.com" + proceed
+        r'data-href="([^"]*group-form/edit[^"]*)"',
+        r'href="([^"]*group-form/edit[^"]*)"',
+    ):
+        pm = re.search(pat, text, re.I)
+        if pm:
+            proceed = pm.group(1).replace("&amp;", "&")
+            if proceed.startswith("/"):
+                proceed = "https://www.bidnetdirect.com" + proceed
+            if "group-form/edit" in proceed:
+                break
+            proceed = None
     pg_id = extract_pg_id_from_url(proceed or "") or extract_pg_id_from_url(page_url)
     fee = bool(re.search(r"\$\d|payment|credit card|purchase a plan|subscription fee", text, re.I))
     return {
@@ -140,6 +148,12 @@ def extract_pg_gate_from_html(html: str, *, page_url: str = "") -> dict[str, Any
         "fee_mentioned": fee,
         "gate_kind": "PAID_REQUIRED" if fee else "PURCHASING_GROUP_REGISTRATION_INCOMPLETE",
     }
+
+
+def is_statewide_solicitation_id_url(url: str | None) -> bool:
+    """True when URL is a public/statewide listing id — not a private form context."""
+    u = str(url or "")
+    return bool(re.search(r"/statewide/\d+", u, re.I) or re.search(r"/open-bids/\d+", u, re.I))
 
 
 def load_verified_company_answers() -> dict[str, Any]:
