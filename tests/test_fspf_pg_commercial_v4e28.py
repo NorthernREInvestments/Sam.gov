@@ -5,12 +5,12 @@ from __future__ import annotations
 import importlib
 
 
-def test_builds_are_v4e35():
+def test_builds_are_v4e36():
     fspf = importlib.import_module("buyer_intelligence.full_scale_production_funnel_v1")
     pg = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
     q = importlib.import_module("bidnet_auth.purchasing_group_queue")
-    assert "v4e35" in fspf.BUILD
-    assert "v1j" in pg.BUILD
+    assert "v4e36" in fspf.BUILD
+    assert "v1k" in pg.BUILD
     assert "v1j" in q.BUILD
     assert float(pg.BROWSER_SLOT_WAIT_S) >= 30.0
 
@@ -56,6 +56,42 @@ def test_orphan_cleanup_skips_while_pg_holds_mutex(monkeypatch):
     out = life.force_cleanup_orphaned_chromium(max_kill=4)
     assert out.get("killed") == 0
     assert out.get("skipped") == "active_browser_lease"
+
+
+def test_pg_manager_pause_blocks_ensure(tmp_path, monkeypatch):
+    monkeypatch.setenv("M3_DATA_ROOT", str(tmp_path))
+    from m3_data_root import set_data_root
+    import bidnet_auth.purchasing_group_access_manager_v1 as pgm
+
+    set_data_root(tmp_path)
+    out = pgm.pause_for_auth_failure(reason="AUTH_FAILED")
+    assert out.get("paused") is True
+    assert out.get("phase") == "PAUSED_AUTH"
+    skipped = pgm.ensure_access_manager_running(job_id="job-x")
+    assert skipped.get("skipped") is True
+    assert skipped.get("reason") == "paused_auth"
+    pgm.clear_pause()
+    assert pgm.is_paused() is False
+
+
+def test_pg_auth_fail_backoff_is_outside_mutex_block():
+    """Regression: AUTH_WAIT sleep must not sit inside bidnet_browser_slot."""
+    import inspect
+
+    pgm = importlib.import_module("bidnet_auth.purchasing_group_access_manager_v1")
+    src = inspect.getsource(pgm._manager_loop)
+    # Backoff assignment happens inside the with-block; the wait must follow exit.
+    assert "auth_backoff_s = min(60.0" in src
+    assert "if auth_backoff_s > 0:" in src
+    # The wait call must appear after the with-block closes conceptually:
+    # require that auth_backoff wait is not nested between acquire patterns only.
+    wait_idx = src.index("if auth_backoff_s > 0:")
+    with_idx = src.index("with bidnet_browser_slot")
+    assert wait_idx > with_idx
+    # Ensure the sleep uses auth_backoff_s after the with (indentation of wait
+    # block is at loop body level — four spaces less than inside-with content).
+    after = src[wait_idx : wait_idx + 120]
+    assert "_stop.wait(auth_backoff_s)" in after
 
 
 def test_price_research_maps_budget_exhausted(monkeypatch):

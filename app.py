@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e35"
+APP_BUILD_VERSION = "20261016-m3-full-scale-production-funnel-v4e36"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -2220,6 +2220,39 @@ def api_m3_bidnet_purchasing_group_access_manager():
         "build_version": APP_BUILD_VERSION,
         "manager": manager_status(),
         "ranked_by_unlock_impact": rank_groups_by_unlock_impact(15),
+    }
+
+
+@app.post("/api/m3/bidnet-auth/purchasing-group-access-manager/pause")
+def api_m3_bidnet_purchasing_group_access_manager_pause(body: dict | None = None):
+    """Pause PG registration while BidNet auth is unhealthy. Preserves queue/memberships."""
+    from bidnet_auth.purchasing_group_access_manager_v1 import pause_for_auth_failure
+
+    payload = body or {}
+    return {
+        "build_version": APP_BUILD_VERSION,
+        **pause_for_auth_failure(reason=str(payload.get("reason") or "AUTH_FAILED")),
+    }
+
+
+@app.post("/api/m3/bidnet-auth/purchasing-group-access-manager/resume")
+def api_m3_bidnet_purchasing_group_access_manager_resume(body: dict | None = None):
+    """Clear durable PG pause and optionally restart the registration lane."""
+    from bidnet_auth.purchasing_group_access_manager_v1 import (
+        clear_pause,
+        ensure_access_manager_running,
+    )
+
+    payload = body or {}
+    cleared = clear_pause()
+    started = None
+    if payload.get("start", True):
+        jid = payload.get("job_id")
+        started = ensure_access_manager_running(job_id=str(jid) if jid else None)
+    return {
+        "build_version": APP_BUILD_VERSION,
+        "cleared": cleared,
+        "started": started,
     }
 
 

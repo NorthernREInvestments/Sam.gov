@@ -228,6 +228,8 @@ class BidNetAuthenticatedClient:
                 self.last_result = result
                 record_auth_event(AUTH_FAILED, failure_reason=result.message, login_failure=True)
                 return result
+            # Stale cookies poison the login form / redirect. Clear before refresh.
+            self._clear_browser_session_cookies()
 
         # 2) Automatic login (requires credentials) — single-flight refresh lock
         if not cfg.credentials_present:
@@ -1246,6 +1248,14 @@ class BidNetAuthenticatedClient:
         except Exception:
             pass
 
+    def _clear_browser_session_cookies(self) -> None:
+        """Drop expired BidNet cookies so a fresh login is not poisoned."""
+        try:
+            if self._context is not None:
+                self._context.clear_cookies()
+        except Exception:
+            pass
+
     def _probe_authenticated(self) -> dict[str, Any]:
         assert self._page is not None
         url = self.config.verify_url
@@ -1256,17 +1266,26 @@ class BidNetAuthenticatedClient:
             except Exception:
                 pass
         except Exception as exc:
-            return {"authenticated": False, "error": type(exc).__name__}
+            return {
+                "authenticated": False,
+                "error": type(exc).__name__,
+                "url": (self._page.url if self._page is not None else "")[:160],
+            }
 
         html = self._page.content()
         current = self._page.url or ""
         challenge = self._detect_challenge(html, current)
         if challenge:
-            return {"authenticated": False, "challenge": True, "challenge_type": challenge}
+            return {
+                "authenticated": False,
+                "challenge": True,
+                "challenge_type": challenge,
+                "url": current[:160],
+            }
 
         if self._looks_authenticated(html, current):
-            return {"authenticated": True}
-        return {"authenticated": False}
+            return {"authenticated": True, "url": current[:160]}
+        return {"authenticated": False, "url": current[:160]}
 
     def _looks_authenticated(self, html: str, url: str) -> bool:
         if "public/authentication/login" in (url or "").lower():
@@ -1362,11 +1381,17 @@ class BidNetAuthenticatedClient:
                 self._page.wait_for_load_state("networkidle", timeout=8_000)
             except Exception:
                 pass
-            # Login redirects can still be in-flight after networkidle
+            # Wait for redirect off the login page (SPA / multi-hop redirects).
             try:
-                self._page.wait_for_timeout(800)
+                self._page.wait_for_url(
+                    re.compile(r"^(?!.*authentication/login).+", re.I),
+                    timeout=15_000,
+                )
             except Exception:
-                pass
+                try:
+                    self._page.wait_for_timeout(1200)
+                except Exception:
+                    pass
         except Exception as exc:
             # Never include exception text that might echo credentials
             result = AuthResult(
@@ -1443,10 +1468,40 @@ class BidNetAuthenticatedClient:
             log.info("BidNet LOGIN_SUCCESS — session persisted")
             return result
 
+        # Second probe after an explicit private landing — some portals land on
+        # interstitial pages that are neither login nor search.
+        try:
+            self._page.goto(cfg.verify_url, wait_until="domcontentloaded", timeout=20_000)
+            probe2 = self._probe_authenticated()
+            if probe2.get("authenticated"):
+                self._persist_state()
+                result = AuthResult(
+                    status=LOGIN_SUCCESS,
+                    authenticated=True,
+                    message="login succeeded after verify_url",
+                )
+                record_auth_event(LOGIN_SUCCESS, login_success=True)
+                record_auth_event(CONNECTED, login_success=False)
+                log.info("BidNet LOGIN_SUCCESS after verify_url — session persisted")
+                return result
+        except Exception:
+            probe2 = {}
+
+        still_login = "authentication/login" in (current or "").lower()
+        final_u = (probe.get("url") or current or "")[:120]
         result = AuthResult(
             status=AUTH_FAILED,
             authenticated=False,
-            message="post_login_verification_failed",
+            message=(
+                f"post_login_verification_failed:still_login={int(still_login)}"
+                f":url={final_u}"
+            ),
+            details={
+                "post_submit_url": (current or "")[:160],
+                "still_on_login": still_login,
+                "probe_error": probe.get("error"),
+                "probe2_authenticated": bool((probe2 or {}).get("authenticated")),
+            },
         )
         record_auth_event(AUTH_FAILED, login_failure=True, failure_reason=result.message)
         return result

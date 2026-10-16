@@ -20,7 +20,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_access_manager")
 
-BUILD = "20261016-m3-bidnet-pg-access-manager-v1j"
+BUILD = "20261016-m3-bidnet-pg-access-manager-v1k"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_pg_access_manager_status_v1.json"
 
 # Idle pause between registration attempts (keeps opportunity lane uncontested)
@@ -89,11 +89,62 @@ def request_stop() -> dict[str, Any]:
     return _save_status({"running": False, "phase": "STOP_REQUESTED"})
 
 
+def pause_for_auth_failure(*, reason: str = "AUTH_FAILED") -> dict[str, Any]:
+    """Durable pause: stop the lane and refuse restart until clear_pause().
+
+    Preserves PG queue + registered memberships. Used when BidNet auth is
+    unhealthy so the opportunity worker keeps the Playwright slot.
+    """
+    _stop.set()
+    return _save_status(
+        {
+            "running": False,
+            "paused": True,
+            "phase": "PAUSED_AUTH",
+            "pause_reason": (reason or "AUTH_FAILED")[:160],
+            "paused_at": _utc(),
+        }
+    )
+
+
+def clear_pause() -> dict[str, Any]:
+    """Allow ensure_access_manager_running to start again after auth recovers."""
+    with _lock:
+        _status.pop("pause_reason", None)
+        _status.pop("paused_at", None)
+    return _save_status({"paused": False, "phase": "PAUSE_CLEARED"})
+
+
+def is_paused() -> bool:
+    with _lock:
+        if _status.get("paused"):
+            return True
+    # Survive process restart: read durable status file
+    try:
+        import json
+        from pathlib import Path
+
+        path = Path(data_path(STATUS_REL))
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return bool(data.get("paused"))
+    except Exception:
+        pass
+    return False
+
+
 def ensure_access_manager_running(*, job_id: str | None = None) -> dict[str, Any]:
     """Start the independent registration lane if not already alive."""
     global _thread
     if not _ENABLED:
         return {"ok": False, "skipped": True, "reason": "M3_PG_ACCESS_MANAGER_disabled"}
+    if is_paused():
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": "paused_auth",
+            **manager_status(),
+        }
     with _lock:
         if _thread and _thread.is_alive() and not _stop.is_set():
             if job_id:
@@ -104,6 +155,7 @@ def ensure_access_manager_running(*, job_id: str | None = None) -> dict[str, Any
         _save_status(
             {
                 "running": True,
+                "paused": False,
                 "phase": "STARTING",
                 "worker_id": worker_id,
                 "job_id": job_id,
@@ -166,6 +218,7 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
             from bidnet_auth.browser_mutex_v1 import bidnet_browser_slot
 
             slice_report: dict[str, Any] | None = None
+            auth_backoff_s = 0.0
             with bidnet_browser_slot(
                 holder=worker_id, timeout_s=BROWSER_SLOT_WAIT_S, ttl_s=240.0
             ) as got_browser:
@@ -179,52 +232,66 @@ def _manager_loop(*, job_id: str | None, worker_id: str) -> None:
                         }
                     )
                     # Short poll — FSPF yields ~4s between opportunity items.
-                    _stop.wait(min(3.0, IDLE_SLEEP_S))
-                    continue
-
-                # Dedicated auth client for this registration tick only
-                if auth_client is not None:
-                    try:
-                        auth_client.close()
-                    except Exception:
-                        pass
-                    auth_client = None
-                try:
-                    auth_status, auth_client = _open_bidnet_auth_client()
-                except Exception as exc:
-                    auth_status = {"authenticated": False, "error": type(exc).__name__}
-                    auth_client = None
-                if not (auth_status or {}).get("authenticated") or auth_client is None:
-                    consecutive_auth_fail += 1
-                    _save_status(
-                        {
-                            "phase": "AUTH_WAIT",
-                            "last_error": (auth_status or {}).get("error")
-                            or (auth_status or {}).get("status")
-                            or "BIDNET_AUTH_REQUIRED",
-                            "auth_fail_streak": consecutive_auth_fail,
-                        }
-                    )
-                    _stop.wait(min(60.0, IDLE_SLEEP_S * (1 + consecutive_auth_fail)))
-                    continue
-                consecutive_auth_fail = 0
-
-                try:
-                    slice_report = process_group_registration_slice(
-                        auth_client,
-                        max_groups=SLICE_MAX_GROUPS,
-                        job_id=active_job,
-                    )
-                except Exception as exc:
-                    log.exception("pg access manager slice failed")
-                    slice_report = {"error": type(exc).__name__, "message": str(exc)[:160]}
-                finally:
+                    # Wait OUTSIDE the slot (already not held).
+                    auth_backoff_s = min(3.0, IDLE_SLEEP_S)
+                else:
+                    # Dedicated auth client for this registration tick only
                     if auth_client is not None:
                         try:
                             auth_client.close()
                         except Exception:
                             pass
                         auth_client = None
+                    try:
+                        auth_status, auth_client = _open_bidnet_auth_client()
+                    except Exception as exc:
+                        auth_status = {"authenticated": False, "error": type(exc).__name__}
+                        auth_client = None
+                    if not (auth_status or {}).get("authenticated") or auth_client is None:
+                        consecutive_auth_fail += 1
+                        _save_status(
+                            {
+                                "phase": "AUTH_WAIT",
+                                "last_error": (auth_status or {}).get("error")
+                                or (auth_status or {}).get("status")
+                                or "BIDNET_AUTH_REQUIRED",
+                                "auth_fail_streak": consecutive_auth_fail,
+                            }
+                        )
+                        # CRITICAL: do NOT sleep while holding the browser mutex —
+                        # that starved FSPF for up to 60s per failed auth tick.
+                        if auth_client is not None:
+                            try:
+                                auth_client.close()
+                            except Exception:
+                                pass
+                            auth_client = None
+                        auth_backoff_s = min(60.0, IDLE_SLEEP_S * (1 + consecutive_auth_fail))
+                    else:
+                        consecutive_auth_fail = 0
+                        try:
+                            slice_report = process_group_registration_slice(
+                                auth_client,
+                                max_groups=SLICE_MAX_GROUPS,
+                                job_id=active_job,
+                            )
+                        except Exception as exc:
+                            log.exception("pg access manager slice failed")
+                            slice_report = {
+                                "error": type(exc).__name__,
+                                "message": str(exc)[:160],
+                            }
+                        finally:
+                            if auth_client is not None:
+                                try:
+                                    auth_client.close()
+                                except Exception:
+                                    pass
+                                auth_client = None
+
+            if auth_backoff_s > 0:
+                _stop.wait(auth_backoff_s)
+                continue
 
             processed = list((slice_report or {}).get("processed") or [])
             completed_n = sum(

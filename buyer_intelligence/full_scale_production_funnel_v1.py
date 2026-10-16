@@ -31,7 +31,7 @@ from m3_jobs.store import JobLeaseError, JobStore
 
 log = logging.getLogger("govtracker.full_scale_production_funnel_v1")
 
-BUILD = "20261016-m3-full-scale-production-funnel-v4e35"
+BUILD = "20261016-m3-full-scale-production-funnel-v4e36"
 FAMILY = "full_scale_production_funnel_v1"
 MAX_TECHNICAL_RETRIES = 2
 # First-pass: no immediate per-opp retry loops. Deferred recovery is second pass.
@@ -3958,15 +3958,24 @@ def process_slice(
     try:
         from bidnet_auth.purchasing_group_access_manager_v1 import (
             ensure_access_manager_running,
+            is_paused as pg_mgr_is_paused,
             manager_status,
         )
 
-        ensure_access_manager_running(job_id=job_id)
-        pg_slice_report = {
-            **pg_slice_report,
-            "access_manager": manager_status(),
-            "registered_unlock_priority": bool(registered_pending),
-        }
+        if pg_mgr_is_paused():
+            pg_slice_report = {
+                **pg_slice_report,
+                "access_manager": manager_status(),
+                "skipped_reason": "pg_manager_paused_auth",
+                "registered_unlock_priority": bool(registered_pending),
+            }
+        else:
+            ensure_access_manager_running(job_id=job_id)
+            pg_slice_report = {
+                **pg_slice_report,
+                "access_manager": manager_status(),
+                "registered_unlock_priority": bool(registered_pending),
+            }
     except Exception as exc:
         pg_slice_report = {**(pg_slice_report or {}), "access_manager_error": type(exc).__name__}
 
@@ -4629,10 +4638,15 @@ def run_continuous(*, job_id: str, worker_id: str, slice_size: int = SLICE_SIZE)
     job0 = store.load_job(job_id) or {}
     lease_generation = int(job0.get("LEASE_GENERATION") or 0)
     # Independent PG access lane — separate browser, never blocks opportunity workers.
+    # Skipped while paused for unhealthy BidNet auth (preserves memberships/queue).
     try:
-        from bidnet_auth.purchasing_group_access_manager_v1 import ensure_access_manager_running
+        from bidnet_auth.purchasing_group_access_manager_v1 import (
+            ensure_access_manager_running,
+            is_paused as pg_mgr_is_paused,
+        )
 
-        ensure_access_manager_running(job_id=job_id)
+        if not pg_mgr_is_paused():
+            ensure_access_manager_running(job_id=job_id)
     except Exception as exc:
         log.warning("pg access manager start failed: %s", type(exc).__name__)
     # Independent supervisor — stall detection outside this worker thread.
