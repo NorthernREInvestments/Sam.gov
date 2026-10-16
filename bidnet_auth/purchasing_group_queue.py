@@ -19,7 +19,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_queue")
 
-BUILD = "20261016-m3-bidnet-pg-group-queue-v1i"
+BUILD = "20261016-m3-bidnet-pg-group-queue-v1j"
 QUEUE_REL = "bidnet_auth/purchasing_group_registration_queue_v1.json"
 _lock = threading.RLock()
 
@@ -235,7 +235,34 @@ def mint_fresh_form_url_from_source(
                 "interceptor_id": "interceptorproceedbtn" in low,
                 "group_form_edit": "group-form/edit" in low,
                 "action_required": "action is required before access" in low,
+                "paid_subscription": "subscription-management" in (page_url or "").lower()
+                or "cb_sw_" in (page_url or "").lower()
+                or "subscription-management" in low,
             }
+            # Paid BidNet regional entitlement — not a free purchasing-group form.
+            paid_req = None
+            m_paid = re.search(
+                r"requirements=(CB_SW_[A-Z0-9_]+)", page_url or "", re.I
+            ) or re.search(r"requirements=(CB_SW_[A-Z0-9_]+)", html or "", re.I)
+            if m_paid or cue_hits["paid_subscription"]:
+                paid_req = (m_paid.group(1) if m_paid else "CB_SW_UNKNOWN").upper()
+                trace.append(
+                    {
+                        "stage": "paid_entitlement_redirect",
+                        "requirement": paid_req,
+                        "page_url": (page_url or "")[:220],
+                        "elapsed_s": round(_time.time() - t0, 3),
+                    }
+                )
+                return {
+                    "ok": False,
+                    "error": "PAID_ENTITLEMENT_REQUIRED",
+                    "paid_requirement": paid_req,
+                    "message": f"BidNet subscription required: {paid_req}",
+                    "page_url": (page_url or "")[:220],
+                    "trace": trace,
+                    "elapsed_s": round(_time.time() - t0, 3),
+                }
             trace.append(
                 {
                     "stage": "source_fetch",
@@ -784,6 +811,42 @@ def process_group_registration_slice(
                             "elapsed_s": round(_time.time() - group_t0, 3),
                         }
                     )
+                elif str(mint_meta.get("error") or "") == "PAID_ENTITLEMENT_REQUIRED":
+                    from bidnet_auth.purchasing_group_tracker import (
+                        STATUS_PAID_REQUIRED,
+                        upsert_group,
+                    )
+
+                    req_code = str(mint_meta.get("paid_requirement") or "CB_SW_UNKNOWN")
+                    upsert_group(
+                        pg_id,
+                        name=tracked.get("name") or item.get("name"),
+                        status=STATUS_PAID_REQUIRED,
+                        owner_blocker_reason=(
+                            f"BidNet paid subscription required ({req_code}) — "
+                            "do not purchase without owner authorization"
+                        ),
+                        fee_required=True,
+                        relevant=True,
+                        last_error=f"PAID_ENTITLEMENT:{req_code}",
+                    )
+                    row = {
+                        "purchasing_group_id": pg_id,
+                        "status": STATUS_PAID_REQUIRED,
+                        "ok": False,
+                        "attempts": item["attempts"],
+                        "error": "PAID_ENTITLEMENT_REQUIRED",
+                        "error_message": f"BidNet subscription required: {req_code}",
+                        "failure_point": "paid_entitlement",
+                        "paid_requirement": req_code,
+                        "source_url": (source_url or "")[:160] or None,
+                        "elapsed_s": round(_time.time() - group_t0, 2),
+                        "stage_trace": stage_trace[:12],
+                    }
+                    item["last_error"] = f"PAID_ENTITLEMENT:{req_code}"
+                    processed.append(row)
+                    _fail_pending(pg_id, row, terminal=True)
+                    continue
                 elif str(mint_meta.get("error") or "") == "NO_PG_GATE_ON_SOURCE":
                     # Try authenticated title search to land on a private detail
                     # that actually shows the interceptor dialog.

@@ -20,7 +20,7 @@ from m3_data_root import data_path
 
 log = logging.getLogger("govtracker.bidnet_pg_access_manager")
 
-BUILD = "20261016-m3-bidnet-pg-access-manager-v1h"
+BUILD = "20261016-m3-bidnet-pg-access-manager-v1i"
 STATUS_REL = "_og_commercial_research_pipeline_out/m3_pg_access_manager_status_v1.json"
 
 # Idle pause between registration attempts (keeps opportunity lane uncontested)

@@ -63,6 +63,47 @@ def test_no_gate_returns_explicit_error_not_path_only():
     assert not out.get("form_url")
 
 
+def test_paid_subscription_redirect_classified():
+    q = importlib.import_module("bidnet_auth.purchasing_group_queue")
+
+    class _Page:
+        url = (
+            "https://www.bidnetdirect.com/private/subscription-management/"
+            "#/intercept/plans?requirements=CB_SW_PENNSYLVANIA&cancelUrl=%2F"
+        )
+
+        def content(self):
+            return "<html><body>subscription plans</body></html>"
+
+        def wait_for_timeout(self, ms):
+            return None
+
+        def locator(self, sel):
+            class _L:
+                def count(self):
+                    return 0
+
+            return _L()
+
+    class _Client:
+        _page = _Page()
+
+        def fetch_html(self, url, timeout_ms=20000, prefer_http=True):
+            return "<html><body>subscription plans</body></html>"
+
+    out = q.mint_fresh_form_url_from_source(
+        _Client(),
+        purchasing_group_id="88022651",
+        source_url=(
+            "https://www.bidnetdirect.com/public/supplier/solicitations/statewide/"
+            "444180531885/abstract?purchasingGroupId=88022651"
+        ),
+    )
+    assert out.get("ok") is False
+    assert out.get("error") == "PAID_ENTITLEMENT_REQUIRED"
+    assert out.get("paid_requirement") == "CB_SW_PENNSYLVANIA"
+
+
 def test_live_dom_proceed_preferred_over_path_only():
     q = importlib.import_module("bidnet_auth.purchasing_group_queue")
 
