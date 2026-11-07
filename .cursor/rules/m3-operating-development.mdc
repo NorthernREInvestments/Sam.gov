@@ -1,0 +1,46 @@
+---
+description: Permanent M3 production workflow, operator UX, and development quality rules
+alwaysApply: true
+---
+
+# M3 Supply — Operating & Development Directive (Permanent)
+
+These supersede conflicting historical assumptions. Reconcile with existing rules (SAM 10/day, BidNet abandoned, credential persistence, bounded execution)—do not weaken them.
+
+## One authoritative workflow
+
+Discovery → Qualification → Documents → Product Identity → Historical Research → Supplier Sourcing → Verified Pricing → Economics → Financing → Bid Preparation → Fulfillment → Outcome Tracking.
+
+- Preserve evidence; checkpoint failures; resume at the exact unfinished stage.
+- Discard routine rejects from active work; keep minimal audit.
+- No parallel discovery/research/classifier systems that bypass the primary pipeline.
+- **Verified commercial decision engine** is authoritative for commercial readiness. Never weaken 15%/$5k/$0-cash gates for dashboard volume.
+- Multi-line solicitations: account for every required line; never invent missing specs/qty.
+
+## Commercial intelligence (long-term asset)
+
+Retain and reuse validated buyers, awards, product IDs/MPNs/equivalents, supplier contacts/quotes/terms, financing providers, real costs, freight, bid/award outcomes, realized margins. Historical pricing ≠ guaranteed current pricing.
+
+## Operator experience
+
+- Primary workflow learnable in ~15–30 minutes.
+- Owner sees: PROVEN deals, research in progress, access/evidence blockers, genuine owner actions, submitted bids, awards, realized results.
+- Hide mass rejects and engineering internals. One clear next step per actionable record.
+- Automate research/admin; keep financial commitments and bid submission under **explicit owner control**.
+
+## Development quality
+
+1. Inspect existing code first; preserve working capabilities.
+2. Integrate into the shared production workflow—no competing architectures.
+3. Persistent checkpoints; bounded requests/retries.
+4. SAM.gov ≤10 API calls/day (all endpoints); cache; avoid duplicate spend; keep reserve when practical.
+5. Do not reactivate abandoned BidNet Direct.
+6. Keep UI and backend classifications synchronized.
+7. Test real regressions; synthetic data only in explicitly labeled tests.
+8. Never present fabricated opportunities or financial evidence as real.
+9. Avoid unnecessary manual server/worker intervention; keep evidence auditable.
+10. Do not change code solely to inflate superficial dashboard metrics.
+
+## Guiding principle
+
+M3 succeeds when it **repeatedly wins direct-prime product contracts**, sources competitively, finances without personal cash, delivers, collects, and retains substantial verified net profit.

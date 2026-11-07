@@ -17,16 +17,22 @@ from application_clock import now_utc
 
 log = logging.getLogger("govtracker.live_contract_pipeline_bridge_v1")
 
-BUILD = "20261107-m3-live-contract-pipeline-bridge-v1"
+BUILD = "20261107-m3-live-contract-pipeline-bridge-v1c"
 
 _PRODUCT = re.compile(
     r"\b(supply|supplies|equipment|materials|furniture|paper|toner|ppe|gloves|"
-    r"tools|parts|vehicle|fleet|chemical|commodity|goods|product|kit)\b",
+    r"tools|parts|chemical|commodity|goods|product|kit|monitor|computer|"
+    r"lighting|electrical|janitorial|safety)\b",
     re.I,
 )
 _SERVICE = re.compile(
     r"\b(service|services|consulting|construction|renovation|staffing|labor|"
-    r"professional\s+services|janitorial\s+service|landscap|roofing)\b",
+    r"professional\s+services|janitorial\s+service|landscap|roofing|install)\b",
+    re.I,
+)
+_EXCLUDED_FOCUS = re.compile(
+    r"\b(vehicle|vehicles|fleet\s+vehicle|radio|radios|perishable|food\s+service|"
+    r"catering|ambulance|aircraft)\b",
     re.I,
 )
 
@@ -41,6 +47,8 @@ def _is_bidnet(rec: dict[str, Any]) -> bool:
 
 def _is_productish(rec: dict[str, Any]) -> bool:
     title = str(rec.get("title") or "")
+    if _EXCLUDED_FOCUS.search(title) and not _PRODUCT.search(title):
+        return False
     if _PRODUCT.search(title):
         return True
     if _SERVICE.search(title) and not _PRODUCT.search(title):
@@ -591,6 +599,102 @@ def probe_sam_live_one_call(*, authorize_live: bool = True) -> dict[str, Any]:
     }
 
 
+def attach_product_identity_to_l23(*, limit: int = 80) -> dict[str, Any]:
+    """Copy usable OpenGov product-identity lines onto matching L23 canonical rows.
+
+    Product identity stores keys as opengov:{gov}:{pid}. L23 rows that already
+    carry package chase / OpenGov URLs get usable_product_lines + stage advance.
+    Does not invent identities — only attaches existing store evidence.
+    """
+    from m3_data_root import data_path
+    from phase_l.l23_full_population_funnel import load_store, save_store
+
+    store_path = data_path("m3_product_identity_store.json")
+    if not store_path.exists():
+        return {"attached": 0, "reason": "no_product_identity_store"}
+    try:
+        pi_store = json.loads(store_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"attached": 0, "error": f"{type(exc).__name__}: {exc}"}
+
+    by_opp = pi_store.get("by_opportunity") if isinstance(pi_store, dict) else None
+    if not isinstance(by_opp, dict) or not by_opp:
+        return {"attached": 0, "reason": "empty_identity_store"}
+
+    # Index by project_id (last segment of opengov:gov:pid)
+    by_pid: dict[str, dict[str, Any]] = {}
+    for oid, payload in by_opp.items():
+        if not isinstance(payload, dict):
+            continue
+        parts = str(oid).split(":")
+        pid = parts[-1] if len(parts) >= 3 else ""
+        usable = [
+            i
+            for i in (payload.get("identities") or [])
+            if isinstance(i, dict) and str(i.get("confidence_grade") or "") in {"A", "B", "C"}
+        ]
+        if not usable and int(payload.get("usable_count") or 0) <= 0:
+            continue
+        if not usable:
+            usable = list(payload.get("identities") or [])[:50]
+        if pid:
+            by_pid[pid] = {
+                "opportunity_key": oid,
+                "usable": usable,
+                "usable_count": int(payload.get("usable_count") or len(usable)),
+            }
+
+    if not by_pid:
+        return {"attached": 0, "reason": "no_usable_identities"}
+
+    store = load_store()
+    attached = 0
+    samples: list[dict[str, Any]] = []
+    for cid, rec in store.items():
+        if attached >= limit:
+            break
+        if not isinstance(rec, dict) or _is_bidnet(rec):
+            continue
+        blob = " ".join(
+            str(rec.get(k) or "")
+            for k in ("detail_url", "authoritative_url", "external_id", "solicitation_number")
+        )
+        matched = None
+        for pid, payload in by_pid.items():
+            if pid and pid in blob:
+                matched = (pid, payload)
+                break
+        if not matched:
+            continue
+        pid, payload = matched
+        usable = payload["usable"]
+        row = dict(rec)
+        row["usable_product_lines"] = usable[:80]
+        row["usable_product_line_count"] = len(usable)
+        row["product_identity_opportunity_key"] = payload["opportunity_key"]
+        row["live_pipeline_stage"] = "PRODUCT_IDENTITY"
+        row["product_identity_attached_at"] = now_utc().isoformat()
+        row["product_identity_via"] = BUILD
+        store[cid] = row
+        attached += 1
+        if len(samples) < 12:
+            samples.append(
+                {
+                    "opportunity_id": cid,
+                    "project_id": pid,
+                    "usable_lines": len(usable),
+                    "identity_key": payload["opportunity_key"],
+                }
+            )
+    if attached:
+        save_store(store)
+    return {
+        "attached": attached,
+        "identity_projects_available": len(by_pid),
+        "samples": samples,
+    }
+
+
 def run_live_contract_pipeline_bridge(
     *,
     limit: int = 30,
@@ -667,6 +771,12 @@ def run_live_contract_pipeline_bridge(
         except Exception as exc:
             product_identity = {"error": f"{type(exc).__name__}: {exc}"}
 
+    identity_attach = None
+    try:
+        identity_attach = attach_product_identity_to_l23(limit=max(limit, 80))
+    except Exception as exc:
+        identity_attach = {"error": f"{type(exc).__name__}: {exc}"}
+
     commercial = None
     if evaluate_commercial:
         try:
@@ -738,6 +848,7 @@ def run_live_contract_pipeline_bridge(
         }
         if product_identity
         else None,
+        "l23_product_identity_attach": identity_attach,
         "commercial_decision_scan": {
             "examined": (commercial or {}).get("examined"),
             "counts": (commercial or {}).get("counts"),

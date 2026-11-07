@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261107-m3-live-contract-access-v1b"
+APP_BUILD_VERSION = "20261107-m3-live-contract-access-v1c"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1102,6 +1102,7 @@ def api_m3_live_contract_pipeline_run(body: dict | None = None):
                                 },
                                 "opengov_public_docs_batch": result.get("opengov_public_docs_batch"),
                                 "l23_package_attach": result.get("l23_package_attach"),
+                                "l23_product_identity_attach": result.get("l23_product_identity_attach"),
                                 "commercial_decision_scan": result.get("commercial_decision_scan"),
                                 "inventory_snapshot": result.get("inventory_snapshot"),
                                 "persisted_path": result.get("persisted_path"),
