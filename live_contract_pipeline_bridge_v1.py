@@ -415,6 +415,25 @@ def attach_opengov_docs_to_l23(
     return {"attached": attached, "projects_with_docs": len(by_pid), "samples": samples}
 
 
+def _probe_sam_public_html() -> dict[str, Any]:
+    """Zero-credit SAM.gov public search page reachability (not a full API substitute)."""
+    try:
+        import httpx
+
+        url = "https://sam.gov/search/?index=opp&page=1&pageSize=25&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ALL"
+        r = httpx.get(url, timeout=30.0, follow_redirects=True)
+        return {
+            "ok": r.status_code < 400,
+            "http_status": r.status_code,
+            "bytes": len(r.content or b""),
+            "url": url[:180],
+            "credits_consumed": 0,
+            "note": "Public HTML reachability only — does not enumerate notice payloads without API/cache",
+        }
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "credits_consumed": 0}
+
+
 def probe_sam_live_one_call(*, authorize_live: bool = True) -> dict[str, Any]:
     """Spend at most one SAM API call (never the reserve) for live federal discovery proof."""
     try:
@@ -425,6 +444,15 @@ def probe_sam_live_one_call(*, authorize_live: bool = True) -> dict[str, Any]:
         )
     except Exception as exc:
         return {"ok": False, "error": f"import:{type(exc).__name__}:{exc}"}
+
+    public_html = _probe_sam_public_html()
+    paid_paused = False
+    try:
+        from buyer_intelligence.commercial_budget_control_v1 import is_paid_research_paused
+
+        paid_paused = bool(is_paid_research_paused())
+    except Exception:
+        paid_paused = False
 
     dash_before = owner_credit_dashboard()
     remaining = int(
@@ -441,21 +469,49 @@ def probe_sam_live_one_call(*, authorize_live: bool = True) -> dict[str, Any]:
                 "REMAINING_REAL_CREDITS": dash_before.get("REMAINING_REAL_CREDITS"),
                 "production_budget_remaining": dash_before.get("production_budget_remaining"),
             },
+            "paid_research_paused": paid_paused,
+            "public_html": public_html,
             "note": "No production SAM calls remaining; skipped live call",
         }
 
+    if paid_paused:
+        return {
+            "ok": False,
+            "status": "PAID_RESEARCH_PAUSED",
+            "blocker": "M3_PAID_RESEARCH_PAUSED or budget pause file — SAM API calls fail-closed",
+            "paid_research_paused": True,
+            "public_html": public_html,
+            "dashboard_before": {
+                "used": dash_before.get("REAL_SAM_API_CALLS_TODAY"),
+                "remaining_real": dash_before.get("REMAINING_REAL_CREDITS"),
+                "production_remaining": remaining,
+                "budget": sam_daily_call_budget(),
+            },
+            "note": "Ledger shows credits available, but commercial gate pauses paid SAM API spend",
+        }
+
     # Prefer cache; if miss, one live call for active product-ish notices
-    result = search_opportunities(
-        {
-            "limit": 25,
-            "offset": 0,
-            "ptype": "o,k",
-            "ncode": "339113",
-        },
-        reason="live_contract_pipeline_bridge:product_probe",
-        authorize_live=authorize_live,
-        use_reserve=False,
-    )
+    try:
+        result = search_opportunities(
+            {
+                "limit": 25,
+                "offset": 0,
+                "ptype": "o,k",
+                "ncode": "339113",
+            },
+            reason="live_contract_pipeline_bridge:product_probe",
+            authorize_live=authorize_live,
+            use_reserve=False,
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "LIVE_CALL_EXCEPTION",
+            "error": f"{type(exc).__name__}: {exc}",
+            "paid_research_paused": paid_paused,
+            "public_html": public_html,
+        }
+
     meta = result.get("_meta") or {}
     opps = list(result.get("opportunitiesData") or [])
     merged = None
@@ -524,6 +580,8 @@ def probe_sam_live_one_call(*, authorize_live: bool = True) -> dict[str, Any]:
         }
         if merged
         else None,
+        "paid_research_paused": paid_paused,
+        "public_html": public_html,
         "dashboard_before": {
             "used": dash_before.get("REAL_SAM_API_CALLS_TODAY"),
             "remaining_real": dash_before.get("REMAINING_REAL_CREDITS"),
