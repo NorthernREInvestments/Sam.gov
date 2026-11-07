@@ -935,7 +935,7 @@ def search_opportunities(
             from buyer_intelligence.sam_commercial_gate_v1 import reserve_sam_call
 
             commercial_rid = reserve_sam_call(purpose=f"sam_budgeted_client:{reason}")
-        except BudgetDenied:
+        except BudgetDenied as _bden:
             return {
                 "opportunitiesData": [],
                 "totalRecords": 0,
@@ -944,7 +944,8 @@ def search_opportunities(
                     "credits_consumed": 0,
                     "blocked": True,
                     "fingerprint": fp,
-                    "reason": "COMMERCIAL_BUDGET_DENIED",
+                    "reason": f"COMMERCIAL_BUDGET_DENIED:{getattr(_bden, 'reason', _bden)}",
+                    "budget_denied_detail": getattr(_bden, "detail", None),
                 },
             }
         except Exception:
