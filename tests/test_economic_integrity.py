@@ -310,16 +310,19 @@ def test_actual_profit_unknown_blocks_bid():
     assert bid["decision"] == BID_NEEDS_RESEARCH
 
 
-def test_actual_profit_9999_fails_threshold():
+def test_actual_profit_below_5000_fails_threshold(monkeypatch):
+    """Dollar floor is $5,000 (not $2,500 / $10,000)."""
+    monkeypatch.setenv("M3_MIN_EXPECTED_PROFIT_USD", "5000")
+    monkeypatch.setenv("AI_MIN_ACTUAL_PROFIT_USD", "5000")
     profit = calculate_actual_profit(
-        revenue=_rev(19999),
+        revenue=_rev(14999),
         costs={
             "supplier": cost_item(category="supplier", status=COST_VERIFIED, value=10000, required=True),
             "freight": cost_item(category="freight", status=COST_NOT_APPLICABLE),
             "financing": cost_item(category="financing", status=COST_NOT_APPLICABLE),
         },
     )
-    assert profit["actual_profit"] == 9999.0
+    assert profit["actual_profit"] == 4999.0
     assert profit["meets_min_actual_profit"] is False
     bid = evaluate_bid_eligibility(
         actual_profit_result=profit,

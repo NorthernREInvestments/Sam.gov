@@ -54,10 +54,17 @@ BID_INELIGIBLE = "INELIGIBLE"
 
 
 def min_actual_profit_usd() -> float:
+    """Configured minimum net dollar profit. Default $5,000 (not $2,500 / $10,000)."""
     try:
-        return max(0.0, float(os.getenv("AI_MIN_ACTUAL_PROFIT_USD", "10000")))
+        # Prefer M3 owner target; fall back to AI_MIN then $5000.
+        raw = (
+            os.getenv("M3_MIN_EXPECTED_PROFIT_USD")
+            or os.getenv("AI_MIN_ACTUAL_PROFIT_USD")
+            or "5000"
+        )
+        return max(0.0, float(raw))
     except (TypeError, ValueError):
-        return 10000.0
+        return 5000.0
 
 
 def cost_item(

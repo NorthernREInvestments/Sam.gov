@@ -28,18 +28,19 @@ def _extract_single_line_inputs(rec: dict[str, Any]) -> dict[str, Any]:
     pe = rec.get("phase_l_economics") if isinstance(rec.get("phase_l_economics"), dict) else {}
     de = rec.get("deal_economics") if isinstance(rec.get("deal_economics"), dict) else {}
 
+    # Proposed bid revenue only — never historical award totals.
     revenue = (
-        _f(econ.get("expected_revenue"))
-        or _f(econ.get("historical_award_total"))
-        or _f(pe.get("expected_revenue"))
-        or _f(de.get("expected_revenue") or de.get("revenue"))
-        or _f(rec.get("estimated_value"))
+        _f(econ.get("proposed_bid_revenue") or econ.get("company_proposed_bid_price"))
+        or _f(pe.get("proposed_bid_revenue"))
+        or _f(de.get("proposed_bid_revenue") or de.get("bid_revenue"))
+        or _f(econ.get("expected_revenue"))  # only if already stored as proposed
     )
-    # Prefer unit*qty when available
-    hist_u = _f(econ.get("historical_unit_price") or rr.get("historical_award_unit_price") or pe.get("historical_unit_price"))
+    historical = (
+        _f(econ.get("historical_award_total") or econ.get("TOTAL_KNOWN_HISTORICAL_VALUE"))
+        or _f(pe.get("historical_award_total"))
+        or _f(rr.get("historical_award_total"))
+    )
     qty = _f(econ.get("quantity") or rr.get("quantity") or rec.get("quantity"))
-    if revenue is None and hist_u is not None and qty is not None:
-        revenue = hist_u * qty
 
     cost = (
         _f(econ.get("acquisition_cost") or econ.get("public_retail_total"))
@@ -52,7 +53,8 @@ def _extract_single_line_inputs(rec: dict[str, Any]) -> dict[str, Any]:
 
     freight = _f(econ.get("freight") or pe.get("freight") or de.get("freight") or rec.get("freight"))
     financing = _f(econ.get("financing_cost") or pe.get("financing_cost") or de.get("financing"))
-    other = _f(econ.get("other_costs") or pe.get("compliance_direct_costs") or 0) or 0.0
+    # Unknown other costs stay unknown — never coerce to 0
+    other = _f(econ.get("other_costs") or pe.get("compliance_direct_costs"))
 
     price_basis = (
         econ.get("price_basis")
@@ -61,6 +63,7 @@ def _extract_single_line_inputs(rec: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "expected_revenue": revenue,
+        "historical_award_value": historical,
         "product_cost": cost,
         "freight": freight,
         "financing": financing,
@@ -124,10 +127,14 @@ def evaluate_opportunity_profit(
             evidence_grade = (line_item_analysis.get("rollup") or {}).get("completeness_grade")
         if not price_basis:
             price_basis = "PUBLIC_RETAIL"
-        # Recompute with explicit overrides if caller provided
-        if expected_revenue is not None or product_cost is not None:
+        # Recompute when caller provides explicit proposed revenue / costs
+        if expected_revenue is not None or product_cost is not None or freight is not None or financing is not None:
             econ = compute_expected_profit(
-                expected_revenue=expected_revenue if expected_revenue is not None else econ.get("expected_revenue"),
+                expected_revenue=None,
+                proposed_bid_revenue=expected_revenue
+                if expected_revenue is not None
+                else econ.get("proposed_bid_revenue"),
+                historical_award_value=econ.get("historical_award_value"),
                 product_cost=product_cost if product_cost is not None else econ.get("product_cost"),
                 freight=freight if freight is not None else econ.get("freight"),
                 financing=financing if financing is not None else econ.get("financing"),
@@ -135,25 +142,35 @@ def evaluate_opportunity_profit(
                 price_basis=price_basis,
                 completeness_pct=completeness_pct,
                 evidence_grade=evidence_grade,
-                execution_pass=execution_pass if execution_pass is not None else True,
+                execution_pass=execution_pass,  # never invent True
                 execution_blockers=execution_blockers,
                 targets=targets,
-                unresolved_material=float((line_item_analysis.get("rollup") or {}).get("unresolved_value_share") or 0) > 0.15,
+                unresolved_material=float((line_item_analysis.get("rollup") or {}).get("unresolved_value_share") or 0)
+                > 0.15,
+                financing_transaction_verified=True if financing is not None else False,
             )
     else:
         pulled = _extract_single_line_inputs(rec)
         econ = compute_expected_profit(
-            expected_revenue=expected_revenue if expected_revenue is not None else pulled["expected_revenue"],
+            expected_revenue=None,
+            proposed_bid_revenue=expected_revenue if expected_revenue is not None else pulled["expected_revenue"],
+            historical_award_value=pulled.get("historical_award_value"),
             product_cost=product_cost if product_cost is not None else pulled["product_cost"],
             freight=freight if freight is not None else pulled["freight"],
             financing=financing if financing is not None else pulled["financing"],
             other_costs=other_costs if other_costs is not None else pulled["other_costs"],
             price_basis=price_basis or pulled["price_basis"],
-            completeness_pct=completeness_pct if completeness_pct is not None else (100.0 if expected_revenue and product_cost else None),
-            evidence_grade=evidence_grade or ("B" if (expected_revenue and product_cost) else "D"),
+            completeness_pct=completeness_pct
+            if completeness_pct is not None
+            else (100.0 if (expected_revenue or pulled["expected_revenue"]) and (product_cost or pulled["product_cost"]) else None),
+            evidence_grade=evidence_grade
+            or ("B" if (expected_revenue or pulled["expected_revenue"]) and (product_cost or pulled["product_cost"]) else "D"),
             execution_pass=execution_pass,
             execution_blockers=execution_blockers,
             targets=targets,
+            financing_transaction_verified=True
+            if (financing is not None or pulled.get("financing") is not None)
+            else False,
         )
 
     identity_known = bool(
@@ -164,15 +181,15 @@ def evaluate_opportunity_profit(
     research = research_next_priority(econ, identity_known=identity_known)
     ranking = profit_probability_score(econ=econ, signals=ranking_signals)
 
+    readiness = econ.get("readiness")
     status = econ.get("profit_status")
-    if status in {"PROVEN_PROFITABLE", "LIKELY_PROFITABLE"} and execution_pass is not False:
+    # Only fully PROVEN opportunities are owner bid-review candidates
+    if readiness == "PROVEN" or status == "PROVEN_PROFITABLE":
         route = "OWNER_CANDIDATE"
     elif status == "EXECUTION_BLOCKED":
         route = "EXECUTION_BLOCKER"
-    elif status == "UNPROFITABLE":
+    elif readiness == "REJECT" or status == "UNPROFITABLE":
         route = "HIDE_OR_REJECT"
-    elif status in {"POSSIBLE_PROFIT", "UNPROVEN"}:
-        route = "CONTINUE_RESEARCH"
     else:
         route = "CONTINUE_RESEARCH"
 

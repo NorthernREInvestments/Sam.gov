@@ -22,6 +22,8 @@ from economic_integrity import (
 
 PROPOSED_BID_FACT_CLASS = "COMPANY_PROPOSED_BID_PRICE"
 GROSS_RETENTION_POLICY = 0.20  # POLICY — not a contract cost
+# Historical government award values must NEVER be passed as proposed_bid_amount.
+# Use verified_commercial_decision_v1 for authoritative PROVEN/VERIFY/REJECT.
 
 
 def record_proposed_bid(

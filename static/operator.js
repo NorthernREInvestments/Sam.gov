@@ -180,6 +180,38 @@
       <span>Unique blocked <strong>${esc(health.unique_blocked_opportunities == null ? "—" : health.unique_blocked_opportunities)}</strong></span>
       ${healthMissing ? `<span class="badge red">Store missing</span>` : ""}
     </div>`;
+    let provenStrip = "";
+    let provenCards = "";
+    try {
+      const pq = await api("/api/m3/owner/proven-queue?limit=12");
+      const blockers = pq.verify_blocker_counts || {};
+      const blockerBits = Object.keys(blockers).slice(0, 6).map((k) =>
+        `<span>${esc(k.replace(/_/g, " "))} <strong>${esc(blockers[k])}</strong></span>`
+      ).join("");
+      provenStrip = `<div class="summary-strip" aria-label="Verified commercial readiness" style="margin-top:.75rem">
+        <span>Proven bid-review <strong>${esc(pq.count ?? 0)}</strong></span>
+        <span>Examined <strong>${esc(pq.examined ?? "—")}</strong></span>
+        ${blockerBits}
+        <span class="muted">Only ≥15% net + $5k floor + financing + $0 cash</span>
+      </div>`;
+      provenCards = (pq.opportunities || []).slice(0, 8).map((o) => `
+        <article class="deal-card">
+          <h3>${esc(o.title || o.opportunity_id || "—")}</h3>
+          <p class="muted">${esc(o.buyer || "")} · Deadline ${esc(o.deadline || "—")}</p>
+          <p>Bid <strong>${esc(o.proposed_bid_revenue ?? "—")}</strong>
+            · Acq ${esc(o.verified_acquisition_cost ?? "—")}
+            · Fin ${esc(o.verified_financing_cost ?? "—")}
+            · Net <strong>${esc(o.verified_net_profit ?? "—")}</strong>
+            (${esc(o.verified_net_margin_pct ?? "—")}%)</p>
+          <p><strong>Next:</strong> ${esc(o.next_action || "Owner review")}</p>
+        </article>`).join("");
+      if (!provenCards) {
+        provenCards = `<p class="muted">No PROVEN opportunities yet — research continues in VERIFY. Incomplete evidence is never shown as ready.</p>`;
+      }
+    } catch (_) {
+      provenStrip = "";
+      provenCards = "";
+    }
     const cards = (data.cards || []).map((c) => `
       <button type="button" class="stat-card ${esc(c.color)}" data-go="${esc(c.id)}">
         <span class="label">${esc(c.label)}</span>
@@ -202,6 +234,9 @@
       ${discoveryStrip}
       ${healthStrip}
       ${finStrip}
+      ${provenStrip}
+      <h2 style="margin-top:1.25rem">Profitable opportunities (PROVEN only)</h2>
+      <div class="deal-list">${provenCards}</div>
       <p style="margin-top:1rem">
         <button type="button" class="btn primary" data-route="today">Open Today's Work</button>
         <button type="button" class="btn secondary" data-route-deals style="margin-left:.5rem">Available Deals</button>

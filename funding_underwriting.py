@@ -93,7 +93,13 @@ EV_CLASS_UNKNOWN = "UNKNOWN"
 DEFAULT_OPERATOR_PERSONAL_FICO = 480
 
 # Profit floor
-MINIMUM_ACTUAL_PROFIT_USD = 10000.0
+# Default $5,000 — keep in sync with verified_commercial_decision_v1 / economic_integrity
+try:
+    from economic_integrity import min_actual_profit_usd as _min_profit
+
+    MINIMUM_ACTUAL_PROFIT_USD = float(_min_profit())
+except Exception:
+    MINIMUM_ACTUAL_PROFIT_USD = 5000.0
 
 
 def empty_personal_guarantee_model() -> dict[str, Any]:

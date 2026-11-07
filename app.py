@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261016-m3-direct-source-recovery-funnel-v4e38c"
+APP_BUILD_VERSION = "20261107-m3-verified-profit-engine-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -12442,6 +12442,44 @@ def api_ui_source_coverage_gaps_record(body: dict | None = None):
         title=payload.get("title"),
         notes=payload.get("notes"),
     )
+
+
+@app.get("/api/m3/commercial-decision/targets")
+def api_m3_commercial_decision_targets():
+    from profit_first.config import owner_targets
+    from verified_commercial_decision_v1 import BUILD as VCD_BUILD
+
+    return {"build_version": APP_BUILD_VERSION, "decision_build": VCD_BUILD, "targets": owner_targets()}
+
+
+@app.post("/api/m3/commercial-decision/evaluate")
+def api_m3_commercial_decision_evaluate(body: dict | None = None):
+    """Authoritative PROVEN/VERIFY/REJECT decision — single commercial truth."""
+    from verified_commercial_decision_v1 import evaluate_verified_commercial_decision
+
+    payload = body or {}
+    out = evaluate_verified_commercial_decision(**{k: v for k, v in payload.items() if k != "async"})
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/owner/proven-queue")
+def api_m3_owner_proven_queue(limit: int = 50):
+    from owner_commercial_queue_v1 import proven_bid_review_queue
+
+    out = proven_bid_review_queue(limit=min(int(limit or 50), 200))
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.post("/api/m3/owner/commercial-queues/scan")
+def api_m3_owner_commercial_queues_scan(body: dict | None = None):
+    from owner_commercial_queue_v1 import scan_owner_commercial_queues
+
+    payload = body or {}
+    out = scan_owner_commercial_queues(limit=int(payload.get("limit") or 400))
+    out["build_version"] = APP_BUILD_VERSION
+    return out
 
 
 @app.get("/api/ui/profit-first/{opportunity_id:path}")
