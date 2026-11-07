@@ -38,7 +38,7 @@ from sync import contract_to_dict, get_naics_sync_status, list_contracts, sync_a
 from screen import force_full_analysis, screen_one, screen_pending
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-APP_BUILD_VERSION = "20261107-m3-verified-profit-engine-v1"
+APP_BUILD_VERSION = "20261107-m3-live-contract-access-v1"
 
 _startup_lock = threading.Lock()
 _startup_state = {"ready": False, "error": None}
@@ -1046,6 +1046,126 @@ def api_m3_socrata_dedup_ingest_net_new(body: dict | None = None):
     out = ingest_socrata_net_new_from_live(limit=int((body or {}).get("limit") or 400))
     out["build_version"] = APP_BUILD_VERSION
     return out
+
+
+@app.post("/api/m3/live-contract-pipeline/run")
+def api_m3_live_contract_pipeline_run(body: dict | None = None):
+    """Bridge live anonymous/OpenGov/SAM discovery into docs → commercial decision."""
+    payload = body or {}
+    async_mode = bool(payload.get("async", True))
+
+    def _run() -> dict:
+        from live_contract_pipeline_bridge_v1 import run_live_contract_pipeline_bridge
+
+        return run_live_contract_pipeline_bridge(
+            limit=int(payload.get("limit") or 30),
+            opengov_limit=int(payload.get("opengov_limit") or 25),
+            ingest_opengov=bool(payload.get("ingest_opengov", True)),
+            probe_sam=bool(payload.get("probe_sam", True)),
+            evaluate_commercial=bool(payload.get("evaluate_commercial", True)),
+            run_product_identity=bool(payload.get("run_product_identity", True)),
+            run_opengov_batch=bool(payload.get("run_opengov_batch", True)),
+        )
+
+    if async_mode:
+        import json as _json
+        import threading
+        from uuid import uuid4
+
+        from application_clock import now_utc
+        from m3_data_root import data_path
+
+        job_id = f"lcpb-{uuid4().hex[:10]}"
+        path = data_path(f"m3_live_contract_pipeline_job_{job_id}.json")
+        path.write_text(
+            _json.dumps({"job_id": job_id, "status": "RUNNING", "started_at": now_utc().isoformat()}, indent=2),
+            encoding="utf-8",
+        )
+
+        def _bg() -> None:
+            try:
+                result = _run()
+                path.write_text(
+                    _json.dumps(
+                        {
+                            "job_id": job_id,
+                            "status": "COMPLETE",
+                            "result_summary": {
+                                "packages_with_docs": result.get("packages_with_docs"),
+                                "opengov_ingest": result.get("opengov_ingest"),
+                                "sam_live_probe": {
+                                    "ok": (result.get("sam_live_probe") or {}).get("ok"),
+                                    "opportunity_count": (result.get("sam_live_probe") or {}).get(
+                                        "opportunity_count"
+                                    ),
+                                    "meta": (result.get("sam_live_probe") or {}).get("meta"),
+                                },
+                                "opengov_public_docs_batch": result.get("opengov_public_docs_batch"),
+                                "l23_package_attach": result.get("l23_package_attach"),
+                                "commercial_decision_scan": result.get("commercial_decision_scan"),
+                                "inventory_snapshot": result.get("inventory_snapshot"),
+                                "persisted_path": result.get("persisted_path"),
+                            },
+                        },
+                        indent=2,
+                        default=str,
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                path.write_text(
+                    _json.dumps(
+                        {"job_id": job_id, "status": "FAILED", "error": f"{type(exc).__name__}: {exc}"},
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+
+        threading.Thread(target=_bg, name=job_id, daemon=True).start()
+        return {
+            "async": True,
+            "job_id": job_id,
+            "status": "STARTED",
+            "poll": f"/api/m3/live-contract-pipeline/job/{job_id}",
+            "build_version": APP_BUILD_VERSION,
+        }
+    try:
+        out = _run()
+    except Exception as exc:
+        return {
+            "status": "FAILED",
+            "error": f"{type(exc).__name__}: {exc}",
+            "build_version": APP_BUILD_VERSION,
+        }
+    out["build_version"] = APP_BUILD_VERSION
+    return out
+
+
+@app.get("/api/m3/live-contract-pipeline/job/{job_id}")
+def api_m3_live_contract_pipeline_job(job_id: str):
+    import json
+    import re
+
+    from m3_data_root import data_path
+
+    if not re.fullmatch(r"lcpb-[a-f0-9]{10}", job_id or ""):
+        return {"ok": False, "error": "invalid_job_id"}
+    path = data_path(f"m3_live_contract_pipeline_job_{job_id}.json")
+    if not path.exists():
+        return {"ok": False, "error": "not_found", "job_id": job_id}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/m3/live-contract-pipeline/last-report")
+def api_m3_live_contract_pipeline_last_report():
+    import json
+
+    from m3_data_root import data_path
+
+    path = data_path("m3_live_contract_pipeline_bridge_last_report.json")
+    if not path.exists():
+        return {"ok": False, "error": "no_report"}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.post("/api/m3/non-bidnet-commercial-pilot/run")

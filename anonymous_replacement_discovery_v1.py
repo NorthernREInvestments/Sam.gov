@@ -404,6 +404,35 @@ def run_anonymous_replacement_discovery(
             "FSPF job not reset; use append-missing-from-l23 to feed new IDs.",
         ],
     }
+    # Connect new inventory into document + commercial pipeline (existing engines).
+    pipeline_bridge = None
+    try:
+        from live_contract_pipeline_bridge_v1 import run_live_contract_pipeline_bridge
+
+        pipeline_bridge = run_live_contract_pipeline_bridge(
+            limit=int(os.environ.get("M3_ANON_PIPELINE_BRIDGE_LIMIT") or 25),
+            opengov_limit=int(os.environ.get("M3_ANON_PIPELINE_OPENGOV_DOCS") or 20),
+            ingest_opengov=True,
+            # SAM probe is opt-in via env — default off here to avoid burning daily budget
+            # on every harvest; dedicated bridge endpoint / acceptance probe can enable it.
+            probe_sam=str(os.environ.get("M3_ANON_PIPELINE_PROBE_SAM") or "").lower()
+            in {"1", "true", "yes"},
+            evaluate_commercial=True,
+            run_product_identity=True,
+            run_id=f"{run_id}-lcpb",
+        )
+        report["live_pipeline_bridge"] = {
+            "run_id": pipeline_bridge.get("run_id"),
+            "packages_with_docs": pipeline_bridge.get("packages_with_docs"),
+            "opengov_ingest": pipeline_bridge.get("opengov_ingest"),
+            "opengov_public_docs_batch": pipeline_bridge.get("opengov_public_docs_batch"),
+            "l23_package_attach": pipeline_bridge.get("l23_package_attach"),
+            "commercial_decision_scan": pipeline_bridge.get("commercial_decision_scan"),
+            "inventory_snapshot": pipeline_bridge.get("inventory_snapshot"),
+        }
+    except Exception as exc:
+        report["live_pipeline_bridge"] = {"error": f"{type(exc).__name__}: {exc}"}
+
     path = _persist_report("m3_anonymous_replacement_discovery_last_report.json", report)
     report["persisted_path"] = path
     return report
