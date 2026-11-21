@@ -13,9 +13,11 @@
   <tbody>
   {% for e in events %}
   <tr>
-    <td>{{ e.at }}</td>
-    <td>{{ e.actor_label }}</td>
-    <td>{{ e.action }}</td>
+    <td>{{ e.at_human or e.at }}</td>
+    <td>{{ e.actor_name or e.actor_label }}</td>
+    <td><span title="{{ e.action }}">{{ e.action_label or e.action }}</span>
+      <div class="muted" style="font-size:.75rem">{{ e.action }}</div>
+    </td>
     <td>{{ e.entity_type }} {{ e.entity_id }}</td>
   </tr>
   {% endfor %}

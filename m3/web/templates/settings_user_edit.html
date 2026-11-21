@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ target.full_name }} · M3{% endblock %}
+{% block content %}
+<a class="back-link" href="/settings">← Team</a>
+<h1>Edit team member</h1>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+<p class="muted">Internal ID {{ target.id }} is permanent. Historical activity stays attributed to this person.</p>
+
+<form method="post" action="/settings/users/{{ target.id }}/edit" class="panel form-grid cols-2">
+  <label class="field"><span>Name</span><input type="text" name="full_name" value="{{ target.full_name }}" required></label>
+  <label class="field"><span>Email</span><input type="email" name="email" value="{{ target.email }}" required></label>
+  <label class="field"><span>Role</span>
+    <select name="role">
+      <option value="supplier_manager" {% if target.role=='supplier_manager' %}selected{% endif %}>Supplier Manager</option>
+      <option value="contract_specialist" {% if target.role=='contract_specialist' %}selected{% endif %}>Contract Specialist</option>
+    </select>
+  </label>
+  <label class="field"><span>Account status</span>
+    <select name="is_active">
+      <option value="1" {% if target.is_active %}selected{% endif %}>Active</option>
+      <option value="0" {% if not target.is_active %}selected{% endif %}>Inactive</option>
+    </select>
+  </label>
+  {% if target.pending_email %}
+  <p class="muted form-span-all">Email change pending activation for <strong>{{ target.pending_email }}</strong>. Old login is blocked until they accept the invitation.</p>
+  {% endif %}
+  <p class="muted form-span-all">Changing email invalidates the current login and creates a secure activation invitation to the new address.</p>
+  <div class="form-actions form-span-all">
+    <button type="submit">Save changes</button>
+    <a class="btn secondary" href="/settings">Cancel</a>
+  </div>
+</form>
+
+<section class="panel" style="margin-top:1rem">
+  <h2 style="margin-top:0">Password reset</h2>
+  <p class="muted">Sets a temporary password. Prefer inviting the person to set their own password when possible.</p>
+  <form method="post" action="/settings/users/{{ target.id }}/reset-password" class="form-grid cols-2">
+    <label class="field"><span>New temporary password</span><input type="password" name="password" minlength="10" required autocomplete="new-password"></label>
+    <label class="field"><span>Confirm</span><input type="password" name="password_confirm" minlength="10" required autocomplete="new-password"></label>
+    <div class="form-actions form-span-all">
+      <button type="submit" class="secondary">Reset password</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel" style="margin-top:1rem">
+  <h2 style="margin-top:0">Invitation</h2>
+  <p class="muted">Send a fresh invitation if they never received one or the previous link expired.</p>
+  <form method="post" action="/settings/users/{{ target.id }}/reinvite">
+    <button type="submit" class="secondary">Create invitation for this email</button>
+  </form>
+</section>
+
+<div class="actions" style="margin-top:1rem">
+  <a class="btn secondary" href="/settings/users/{{ target.id }}/remove">Remove from team…</a>
+</div>
+{% endblock %}

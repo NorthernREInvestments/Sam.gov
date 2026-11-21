@@ -202,6 +202,9 @@ a.stat:hover { border-color: var(--accent); text-decoration: none; }
 table { width: 100%; border-collapse: collapse; background: var(--card); }
 th, td { text-align: left; padding: .55rem .45rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: .75rem; color: var(--muted); }
+.actions-cell { white-space: nowrap; }
+.actions-cell form { display: inline; }
+.actions-cell .btn, .actions-cell button { margin: .1rem .15rem .1rem 0; }
 .empty { padding: .9rem; border: 1px dashed var(--line); border-radius: var(--radius); color: var(--muted); font-size: .9rem; }
 .login-box { width: min(420px, 100%); margin: 8vh auto; }
 .footer { color: var(--muted); font-size: .78rem; padding: 1rem 0 2rem; }

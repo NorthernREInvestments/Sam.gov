@@ -25,49 +25,68 @@
   <a href="/settings/audit">Audit</a>
 </nav>
 
-<section class="panel" style="margin-bottom:1rem">
-  <h2 style="margin-top:0">Add user (invitation)</h2>
-  <p class="muted">Creates a pending invitation. Copy the link and send it yourself — M3 does not email invitations in this build.</p>
-  <form method="post" action="/settings/invitations" class="form-grid cols-2">
-    <label class="field"><span>Email</span><input type="email" name="email" required></label>
-    <label class="field"><span>Role</span>
-      <select name="role">
-        <option value="supplier_manager">Supplier Manager</option>
-        <option value="contract_specialist">Contract Specialist</option>
-      </select>
-    </label>
-    <div class="form-actions form-span-all">
-      <button type="submit">Create invitation</button>
-    </div>
-  </form>
-  {% if invite_link %}
-  <div class="flash ok" style="margin-top:.75rem">
-    <div>Invitation created. Copy this single-use link (expires in 14 days):</div>
-    <input type="text" readonly value="{{ invite_link }}" onclick="this.select()" style="margin-top:.4rem; width:100%">
+{% if invite_link %}
+<div class="flash ok panel" style="margin-bottom:1rem">
+  <strong>Invitation ready</strong>
+  {% if invite_expires %}<div class="muted">Expires {{ invite_expires }}</div>{% endif %}
+  <div class="form-actions" style="margin-top:.5rem">
+    <input id="invite-link-field" type="text" readonly value="{{ invite_link }}" onclick="this.select()" style="flex:1; min-width:0">
+    <button type="button" class="secondary" onclick="navigator.clipboard.writeText(document.getElementById('invite-link-field').value)">Copy Invitation Link</button>
   </div>
-  {% endif %}
-</section>
+</div>
+{% endif %}
 
-{% if invitations %}
 <section class="panel" style="margin-bottom:1rem">
-  <h2 style="margin-top:0">Pending invitations</h2>
-  <div class="table-wrap">
+  <div class="dash-row" style="border:0; padding:0; align-items:center">
+    <h2 style="margin:0">Team</h2>
+    <a class="btn" href="/settings?add=1#add-user">Add User</a>
+  </div>
+  <p class="muted">Invitation-only. The invited person creates their own password.</p>
+
+  <div class="table-wrap" style="margin-top:.75rem">
   <table>
-    <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead>
-    <tbody>
-    {% for inv in invitations %}
+    <thead>
       <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.full_name }}{% if u.is_primary_owner %} <span class="badge">Owner</span>{% endif %}</td>
+        <td>{{ u.email }}{% if u.pending_email %}<div class="muted">Pending: {{ u.pending_email }}</div>{% endif %}</td>
+        <td>{{ u.role_label }}</td>
+        <td>{{ u.status_label }}</td>
+        <td class="actions-cell">
+          {% if not u.is_primary_owner %}
+          <a class="btn secondary small" href="/settings/users/{{ u.id }}">Edit</a>
+          <a class="btn secondary small" href="/settings/users/{{ u.id }}/remove">Remove</a>
+          {% else %}
+          <span class="muted">Protected</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">No team members yet.</td></tr>
+    {% endfor %}
+
+    {% for inv in invitations if inv.status in ['pending', 'expired'] %}
+      <tr>
+        <td>{{ inv.invited_name or '—' }} <span class="badge warn">Invitation</span></td>
         <td>{{ inv.email }}</td>
         <td>{{ inv.role_label }}</td>
-        <td>{{ inv.status_label }}</td>
-        <td>{{ inv.expires_at }}</td>
-        <td>
-          {% if inv.status == 'pending' %}
-          <form method="post" action="/settings/invitations/{{ inv.id }}/revoke" style="display:inline"><button class="secondary small" type="submit">Revoke</button></form>
-          {% endif %}
-          {% if inv.status in ['expired','revoked','pending'] %}
-          <form method="post" action="/settings/invitations/{{ inv.id }}/renew" style="display:inline"><button class="secondary small" type="submit">Renew</button></form>
-          {% endif %}
+        <td>{% if inv.status == 'expired' %}Expired{% else %}Pending{% endif %} · {{ inv.expires_human }}</td>
+        <td class="actions-cell">
+          <form method="post" action="/settings/invitations/{{ inv.id }}/renew" style="display:inline">
+            <button class="secondary small" type="submit">{% if inv.status == 'expired' %}Reissue Link{% else %}Copy / Reissue Link{% endif %}</button>
+          </form>
+          <form method="post" action="/settings/invitations/{{ inv.id }}/revoke" style="display:inline">
+            <button class="secondary small" type="submit">Revoke</button>
+          </form>
         </td>
       </tr>
     {% endfor %}
@@ -75,63 +94,30 @@
   </table>
   </div>
 </section>
-{% endif %}
 
-<div class="table-wrap panel" style="padding:0; overflow:hidden">
-<table>
-  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Primary owner</th><th>Active</th><th>Actions</th></tr></thead>
-  <tbody>
-  {% for u in users %}
-    <tr>
-      <td>
-        {% if not u.is_primary_owner %}
-        <form method="post" action="/settings/users/{{ u.id }}/edit" class="form-grid" style="grid-template-columns:1fr; gap:.35rem">
-          <input type="text" name="full_name" value="{{ u.full_name }}" required>
-          <input type="email" name="email" value="{{ u.email }}" required>
-          <select name="role">
-            <option value="supplier_manager" {% if u.role=='supplier_manager' %}selected{% endif %}>Supplier Manager</option>
-            <option value="contract_specialist" {% if u.role=='contract_specialist' %}selected{% endif %}>Contract Specialist</option>
-          </select>
-          <button class="secondary small" type="submit">Save</button>
-        </form>
-        {% else %}
-        {{ u.full_name }}
-        {% endif %}
-        {% if u.review_flag %} <span class="badge warn">{{ u.review_flag }}</span>{% endif %}
-      </td>
-      <td>{{ u.email }}</td>
-      <td>{{ u.role_label }}</td>
-      <td>{{ 'Yes' if u.is_primary_owner else 'No' }}</td>
-      <td>{{ 'Yes' if u.is_active else 'No' }}</td>
-      <td>
-        {% if not u.is_primary_owner and u.id != user.id %}
-        <form method="post" action="/settings/users/{{ u.id }}/toggle" style="display:inline"><button class="secondary small" type="submit">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>
-        <form method="post" action="/settings/users/{{ u.id }}/reset-password" class="form-grid" style="margin-top:.35rem; grid-template-columns:1fr auto">
-          <input type="password" name="password" placeholder="Reset password" minlength="10" required>
-          <button class="secondary small" type="submit">Reset</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
-
-{% if test_accounts %}
-<section class="panel" style="margin-top:1rem">
-  <h2 style="margin-top:0">Possible test accounts</h2>
-  <p class="muted">Use Data cleanup to deactivate confirmed test accounts. Nothing is removed automatically.</p>
-  <ul>
-  {% for t in test_accounts %}
-    <li>{{ t.email }} · {{ t.full_name }} · {{ t.role }} · active={{ t.is_active }} · {{ t.reason if t.reason is defined else t.reasons|join(', ') }}</li>
-  {% endfor %}
-  </ul>
+{% if show_add_form %}
+<section class="panel" id="add-user" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Add User</h2>
+  <form method="post" action="/settings/invitations" class="form-grid cols-2">
+    <label class="field"><span>Name</span><input type="text" name="full_name" required placeholder="Full name"></label>
+    <label class="field"><span>Email address</span><input type="email" name="email" required></label>
+    <label class="field"><span>Role</span>
+      <select name="role">
+        <option value="supplier_manager">Supplier Manager</option>
+        <option value="contract_specialist">Contract Specialist</option>
+      </select>
+    </label>
+    <label class="field"><span>Extra note (optional)</span><input type="text" name="note" placeholder="Permissions follow the selected role"></label>
+    <div class="form-actions form-span-all">
+      <button type="submit">Create Invitation</button>
+      <a class="btn secondary" href="/settings">Cancel</a>
+    </div>
+  </form>
 </section>
 {% endif %}
 
-<p class="muted" style="margin-top:1rem"><a href="/settings/cleanup">Review production data cleanup preview</a> · <a href="/settings/audit">Audit history</a></p>
+<p class="muted"><a href="/settings/cleanup">Data cleanup</a> · <a href="/settings/audit">Audit history</a></p>
 {% else %}
-<p class="lead">User management is limited to the primary owner. Contact the owner for account changes.</p>
+<p class="lead">User management is limited to the primary owner.</p>
 {% endif %}
 {% endblock %}

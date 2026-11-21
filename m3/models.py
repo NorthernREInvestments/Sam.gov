@@ -51,6 +51,9 @@ class User(Base):
     is_primary_owner: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # Bumped on deactivate / password reset to invalidate cookies
     session_version: Mapped[int] = mapped_column(Integer, default=1)
+    # active = shown on Team; archived = removed from team but attribution preserved
+    team_status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    pending_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -299,8 +302,12 @@ class UserInvitation(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(String(255), index=True)
+    invited_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(64), default=RoleName.contract_specialist.value)
     extra_permissions: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # new_user | email_change
+    purpose: Mapped[str] = mapped_column(String(32), default="new_user")
+    target_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     invited_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)  # pending | accepted | revoked | expired

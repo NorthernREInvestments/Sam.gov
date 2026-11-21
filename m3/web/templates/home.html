@@ -133,8 +133,8 @@
   {% for e in recent_activity %}
   <div class="dash-row">
     <div>
-      {{ e.action }}
-      <div class="meta">{{ e.actor_label }} · {{ e.at }} · {{ e.entity_type }}</div>
+      {{ e.action_label }}
+      <div class="meta">{{ e.actor_name }} · {{ e.at_human }}{% if e.entity_type %} · {{ e.entity_type }}{% endif %}</div>
     </div>
   </div>
   {% else %}

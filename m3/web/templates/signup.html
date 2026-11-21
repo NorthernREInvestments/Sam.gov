@@ -6,10 +6,10 @@
 {% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
 
 {% if invitation %}
-<p class="muted">Invitation for <strong>{{ invitation.email }}</strong> · Role: {{ role_label }}</p>
+<p class="muted">Invitation for <strong>{{ invitation.email }}</strong> · Role: {{ role_label }}{% if invitation.purpose=='email_change' %} · Email confirmation{% endif %}</p>
 <form method="post" action="/signup" class="panel form-grid cols-2" style="max-width:36rem">
   <input type="hidden" name="token" value="{{ token }}">
-  <label class="field form-span-all"><span>Full name</span><input type="text" name="full_name" required autocomplete="name"></label>
+  <label class="field form-span-all"><span>Full name</span><input type="text" name="full_name" value="{{ invitation.invited_name or '' }}" required autocomplete="name"></label>
   <label class="field"><span>Password</span><input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
   <label class="field"><span>Confirm password</span><input type="password" name="password_confirm" required minlength="10" autocomplete="new-password"></label>
   <div class="form-actions form-span-all">

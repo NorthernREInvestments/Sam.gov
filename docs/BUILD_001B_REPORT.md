@@ -61,5 +61,12 @@ Measure on Filter results before/after enrichment (same discovery run):
 
 Do **not** treat “Not published” / reason text as a lower Unknown rate — those are honest status labels.
 
+## Deploy
+- Live: https://samgov-production.up.railway.app — `GET /healthz` → `{"ok":true,"build":"20261121-m3-2-build-001b"}`
+- Additive columns only; no credential wipe; cleanup is owner-confirmed only (Settings → Data cleanup).
+
+## Owner next step
+Review **Settings → Data cleanup** on production and apply selected items (confirmed test accounts/noise pre-checked; seed suppliers left unchecked as likely_test until you confirm).
+
 ## Await
-Owner acceptance testing after Railway deploy of `001b`. Do not begin Build 002.
+Owner acceptance testing. Do not begin Build 002.

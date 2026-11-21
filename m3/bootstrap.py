@@ -15,6 +15,11 @@ def _ensure_columns(engine) -> None:
     stmts = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_primary_owner BOOLEAN DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS team_status VARCHAR(32) DEFAULT 'active'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)",
+        "ALTER TABLE user_invitations ADD COLUMN IF NOT EXISTS invited_name VARCHAR(255)",
+        "ALTER TABLE user_invitations ADD COLUMN IF NOT EXISTS purpose VARCHAR(32) DEFAULT 'new_user'",
+        "ALTER TABLE user_invitations ADD COLUMN IF NOT EXISTS target_user_id UUID",
         "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS result_snapshot JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS requirement_class VARCHAR(64)",
         "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS quantity VARCHAR(128)",

@@ -66,7 +66,7 @@ def create_user(
 
 def authenticate(db: Session, email: str, password: str) -> User | None:
     user = find_user_by_email(db, email)
-    if not user or not user.is_active:
+    if not user or not user.is_active or (getattr(user, "team_status", None) or "active") != "active":
         return None
     if not verify_password(password, user.password_hash):
         return None

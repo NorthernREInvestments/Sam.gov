@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Remove {{ target.full_name }} · M3{% endblock %}
+{% block content %}
+<a class="back-link" href="/settings">← Team</a>
+<h1>Remove team member</h1>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+
+<div class="panel">
+  <p><strong>{{ target.full_name }}</strong> · {{ target.email }} · {{ role_label }}</p>
+  {% if is_samantha %}
+  <div class="flash warn">This looks like Samantha’s account. Removal is allowed only with explicit confirmation — it will not happen automatically.</div>
+  {% endif %}
+  {% if has_activity %}
+  <p>This person has historical business activity. M3 will <strong>archive</strong> them (remove from the active team and revoke login) while preserving audit attribution.</p>
+  {% else %}
+  <p>No business activity was found. After confirmation, this unused account can be <strong>deleted</strong> safely so you can invite the correct email.</p>
+  {% endif %}
+  <form method="post" action="/settings/users/{{ target.id }}/remove" class="stack" style="margin-top:1rem">
+    <label class="checks">
+      <input type="checkbox" name="confirm" value="1" required>
+      <span>I confirm removal of this account from the active team and revocation of login access.</span>
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="danger">Remove</button>
+      <a class="btn secondary" href="/settings/users/{{ target.id }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

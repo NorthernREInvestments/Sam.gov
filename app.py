@@ -1,4 +1,4 @@
-"""M3 2.0 Build 001B — FastAPI application entrypoint."""
+"""M3 2.0 Build 001C — FastAPI application entrypoint."""
 
 from __future__ import annotations
 
@@ -22,7 +22,16 @@ from m3.audit import record_audit
 from m3.bootstrap import init_database
 from m3.config import get_settings
 from m3.db import get_db
-from m3.invites import accept_invitation, bump_session_version, create_invitation, find_valid_invitation
+from m3.invites import (
+    accept_invitation,
+    bump_session_version,
+    create_invitation,
+    detach_user_for_safe_delete,
+    find_valid_invitation,
+    is_protected_samantha,
+    user_has_business_activity,
+)
+from m3.web.activity import enrich_activity_events, format_activity_time
 from m3.models import (
     AuditEvent,
     CatalogProduct,
@@ -415,7 +424,13 @@ def home(request: Request, db: Session = Depends(get_db), user: User | None = De
     recent_opps = active.order_by(Opportunity.created_at.desc()).limit(12).all()
     recent_activity = []
     if user.is_primary_owner or user.role == "owner":
-        recent_activity = db.query(AuditEvent).order_by(AuditEvent.at.desc()).limit(20).all()
+        raw_events = db.query(AuditEvent).order_by(AuditEvent.at.desc()).limit(20).all()
+        actor_ids = {e.actor_user_id for e in raw_events if e.actor_user_id}
+        users_by_id = {}
+        if actor_ids:
+            for u in db.query(User).filter(User.id.in_(list(actor_ids))).all():
+                users_by_id[u.id] = u
+        recent_activity = enrich_activity_events(raw_events, users_by_id)
     return TEMPLATES.TemplateResponse(
         "home.html",
         _ctx(
@@ -1249,22 +1264,48 @@ def task_done(task_id: uuid.UUID, db: Session = Depends(get_db), user: User | No
     return RedirectResponse("/tasks", status_code=303)
 
 
+def _invite_redirect(request: Request, raw: str, expires_at) -> RedirectResponse:
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/signup?token={raw}"
+    exp = format_activity_time(expires_at)
+    return RedirectResponse(
+        f"/settings?invite_link={quote(link, safe='')}&invite_expires={quote(exp, safe='')}",
+        status_code=303,
+    )
+
+
 # ---- Settings / users / audit ----
 @app.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
     if not user:
         return _login_redirect()
     can = is_primary_owner(user)
-    users = db.query(User).order_by(User.created_at.asc()).all() if can else []
-    for u in users:
-        u.review_flag = None  # type: ignore[attr-defined]
-        u.role_label = label(u.role)  # type: ignore[attr-defined]
-        if (u.email or "").endswith("@m3.local") or "test" in (u.email or "").lower():
-            u.review_flag = "review"  # type: ignore[attr-defined]
-    test_accounts = _identify_test_accounts(users) if can else []
+    users = []
     invitations = []
     if can:
-        for inv in db.query(UserInvitation).order_by(UserInvitation.created_at.desc()).limit(40).all():
+        users = (
+            db.query(User)
+            .filter(or_(User.team_status.is_(None), User.team_status == "active"))
+            .order_by(User.created_at.asc())
+            .all()
+        )
+        for u in users:
+            u.role_label = label(u.role)  # type: ignore[attr-defined]
+            if u.is_primary_owner:
+                u.status_label = "Primary owner"  # type: ignore[attr-defined]
+            elif u.pending_email:
+                u.status_label = "Pending email confirmation"  # type: ignore[attr-defined]
+            elif u.is_active:
+                u.status_label = "Active"  # type: ignore[attr-defined]
+            else:
+                u.status_label = "Inactive"  # type: ignore[attr-defined]
+        for inv in (
+            db.query(UserInvitation)
+            .filter(UserInvitation.status.in_(["pending", "expired"]))
+            .order_by(UserInvitation.created_at.desc())
+            .limit(40)
+            .all()
+        ):
             invitations.append(
                 type(
                     "Inv",
@@ -1272,20 +1313,29 @@ def settings_page(request: Request, db: Session = Depends(get_db), user: User | 
                     {
                         "id": inv.id,
                         "email": inv.email,
+                        "invited_name": inv.invited_name,
                         "role": inv.role,
                         "role_label": label(inv.role),
                         "status": inv.status,
                         "status_label": label(inv.status),
                         "expires_at": inv.expires_at,
+                        "expires_human": format_activity_time(inv.expires_at),
                     },
                 )()
             )
     invite_link = request.query_params.get("invite_link") or ""
+    invite_expires = request.query_params.get("invite_expires") or ""
     flash = None
     if invite_link:
-        flash = {"message": "Invitation created. Copy the link below.", "kind": "ok"}
+        flash = {"message": "Invitation created. Copy the link and send it to the person.", "kind": "ok"}
     elif request.query_params.get("err") == "password":
         flash = {"message": "Password update failed — check length and confirmation.", "kind": "err"}
+    elif request.query_params.get("err") == "duplicate":
+        flash = {"message": "An active team member already uses that email.", "kind": "err"}
+    elif request.query_params.get("removed") == "1":
+        flash = {"message": "Team member removed from the active list. Login access revoked.", "kind": "ok"}
+    elif request.query_params.get("archived") == "1":
+        flash = {"message": "Team member archived. Historical attribution preserved; login revoked.", "kind": "ok"}
     return TEMPLATES.TemplateResponse(
         "settings.html",
         _ctx(
@@ -1294,9 +1344,10 @@ def settings_page(request: Request, db: Session = Depends(get_db), user: User | 
             "settings",
             can_manage_users=can,
             users=users,
-            test_accounts=test_accounts,
             invitations=invitations,
             invite_link=invite_link,
+            invite_expires=invite_expires,
+            show_add_form=request.query_params.get("add") == "1",
             settings_tab="team",
             flash=flash,
         ),
@@ -1352,6 +1403,7 @@ def settings_create_invitation(
     request: Request,
     email: str = Form(...),
     role: str = Form(...),
+    full_name: str = Form(""),
     db: Session = Depends(get_db),
     user: User | None = Depends(current_user),
 ):
@@ -1359,11 +1411,13 @@ def settings_create_invitation(
         return RedirectResponse("/settings", status_code=303)
     if role not in {"supplier_manager", "contract_specialist"}:
         role = "contract_specialist"
-    _inv, raw = create_invitation(db, email=email, role=role, actor=user)
-    # Build absolute invite URL for owner to copy
-    base = str(request.base_url).rstrip("/")
-    link = f"{base}/signup?token={raw}"
-    return RedirectResponse(f"/settings?invite_link={quote(link, safe='')}", status_code=303)
+    try:
+        inv, raw = create_invitation(
+            db, email=email, role=role, actor=user, full_name=full_name or None
+        )
+    except ValueError:
+        return RedirectResponse("/settings?add=1&err=duplicate", status_code=303)
+    return _invite_redirect(request, raw, inv.expires_at)
 
 
 @app.post("/settings/invitations/{invite_id}/revoke")
@@ -1375,7 +1429,7 @@ def settings_revoke_invitation(
     if not user or not is_primary_owner(user):
         return RedirectResponse("/settings", status_code=303)
     inv = db.get(UserInvitation, invite_id)
-    if inv and inv.status == "pending":
+    if inv and inv.status in {"pending", "expired"}:
         inv.status = "revoked"
         db.add(inv)
         record_audit(
@@ -1403,18 +1457,51 @@ def settings_renew_invitation(
     inv = db.get(UserInvitation, invite_id)
     if not inv:
         return RedirectResponse("/settings", status_code=303)
-    _new, raw = create_invitation(db, email=inv.email, role=inv.role, actor=user, extra_permissions=inv.extra_permissions)
-    base = str(request.base_url).rstrip("/")
-    link = f"{base}/signup?token={raw}"
-    return RedirectResponse(f"/settings?invite_link={quote(link, safe='')}", status_code=303)
+    new_inv, raw = create_invitation(
+        db,
+        email=inv.email,
+        role=inv.role,
+        actor=user,
+        full_name=inv.invited_name,
+        extra_permissions=inv.extra_permissions,
+        purpose=inv.purpose or "new_user",
+        target_user_id=inv.target_user_id,
+    )
+    return _invite_redirect(request, raw, new_inv.expires_at)
+
+
+@app.get("/settings/users/{user_id}", response_class=HTMLResponse)
+def settings_user_edit_page(
+    user_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    target = db.get(User, user_id)
+    if not target or target.is_primary_owner or (target.team_status or "active") != "active":
+        return RedirectResponse("/settings", status_code=303)
+    flash = None
+    if request.query_params.get("email_pending") == "1":
+        flash = {
+            "message": "Email change started. Copy the invitation link from Team and send it to the new address.",
+            "kind": "ok",
+        }
+    return TEMPLATES.TemplateResponse(
+        "settings_user_edit.html",
+        _ctx(request, user, "settings", target=target, flash=flash),
+    )
 
 
 @app.post("/settings/users/{user_id}/edit")
 def settings_edit_user(
     user_id: uuid.UUID,
+    request: Request,
     full_name: str = Form(...),
     email: str = Form(...),
     role: str = Form(...),
+    is_active: str = Form("1"),
     db: Session = Depends(get_db),
     user: User | None = Depends(current_user),
 ):
@@ -1425,10 +1512,54 @@ def settings_edit_user(
         return RedirectResponse("/settings", status_code=303)
     if role not in {"supplier_manager", "contract_specialist"}:
         role = target.role
-    before = {"full_name": target.full_name, "email": target.email, "role": target.role}
+    new_email = email.lower().strip()
+    before = {
+        "full_name": target.full_name,
+        "email": target.email,
+        "role": target.role,
+        "is_active": target.is_active,
+    }
     target.full_name = full_name.strip() or target.full_name
-    target.email = email.lower().strip() or target.email
     target.role = role
+    want_active = is_active == "1"
+    email_changed = new_email and new_email != (target.email or "").lower()
+    invite_raw = None
+    invite_exp = None
+    if email_changed:
+        conflict = (
+            db.query(User)
+            .filter(User.email == new_email, User.id != target.id, User.team_status == "active")
+            .one_or_none()
+        )
+        if conflict:
+            return RedirectResponse(f"/settings/users/{user_id}?err=duplicate", status_code=303)
+        target.pending_email = new_email
+        target.is_active = False
+        bump_session_version(db, target, actor=user, reason="email_change_pending")
+        inv, invite_raw = create_invitation(
+            db,
+            email=new_email,
+            role=target.role,
+            actor=user,
+            full_name=target.full_name,
+            purpose="email_change",
+            target_user_id=target.id,
+        )
+        invite_exp = inv.expires_at
+        record_audit(
+            db,
+            action="user.email_change_pending",
+            entity_type="user",
+            entity_id=str(target.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            before=before,
+            after={"pending_email": new_email},
+        )
+    else:
+        target.is_active = want_active
+        if not want_active:
+            bump_session_version(db, target, actor=user, reason="deactivated")
     db.add(target)
     record_audit(
         db,
@@ -1438,32 +1569,17 @@ def settings_edit_user(
         actor_user_id=user.id,
         actor_label=user.email,
         before=before,
-        after={"full_name": target.full_name, "email": target.email, "role": target.role},
+        after={
+            "full_name": target.full_name,
+            "email": target.email,
+            "role": target.role,
+            "is_active": target.is_active,
+            "pending_email": target.pending_email,
+        },
     )
     db.commit()
-    return RedirectResponse("/settings", status_code=303)
-
-
-@app.post("/settings/users/{user_id}/toggle")
-def settings_toggle_user(user_id: uuid.UUID, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
-    if not user or not is_primary_owner(user):
-        return RedirectResponse("/settings", status_code=303)
-    target = db.get(User, user_id)
-    if target and target.id != user.id and not target.is_primary_owner:
-        target.is_active = not target.is_active
-        db.add(target)
-        record_audit(
-            db,
-            action="user.toggle",
-            entity_type="user",
-            entity_id=str(target.id),
-            actor_user_id=user.id,
-            actor_label=user.email,
-            after={"is_active": target.is_active},
-        )
-        if not target.is_active:
-            bump_session_version(db, target, actor=user, reason="deactivated")
-        db.commit()
+    if invite_raw:
+        return _invite_redirect(request, invite_raw, invite_exp)
     return RedirectResponse("/settings", status_code=303)
 
 
@@ -1471,27 +1587,148 @@ def settings_toggle_user(user_id: uuid.UUID, db: Session = Depends(get_db), user
 def settings_reset_password(
     user_id: uuid.UUID,
     password: str = Form(...),
+    password_confirm: str = Form(""),
     db: Session = Depends(get_db),
     user: User | None = Depends(current_user),
 ):
     if not user or not is_primary_owner(user):
         return RedirectResponse("/settings", status_code=303)
     target = db.get(User, user_id)
-    if target and not target.is_primary_owner and len(password) >= 10:
-        target.password_hash = hash_password(password)
+    if not target or target.is_primary_owner:
+        return RedirectResponse("/settings", status_code=303)
+    if password != password_confirm or len(password) < 10:
+        return RedirectResponse(f"/settings/users/{user_id}?err=password", status_code=303)
+    target.password_hash = hash_password(password)
+    db.add(target)
+    record_audit(
+        db,
+        action="user.password_reset",
+        entity_type="user",
+        entity_id=str(target.id),
+        actor_user_id=user.id,
+        actor_label=user.email,
+        after={"reset_by_primary_owner": True},
+    )
+    bump_session_version(db, target, actor=user, reason="password_reset")
+    db.commit()
+    return RedirectResponse(f"/settings/users/{user_id}", status_code=303)
+
+
+@app.post("/settings/users/{user_id}/reinvite")
+def settings_user_reinvite(
+    user_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    target = db.get(User, user_id)
+    if not target or target.is_primary_owner:
+        return RedirectResponse("/settings", status_code=303)
+    # Only useful while an email change is pending (activation for the corrected address).
+    email = target.pending_email or target.email
+    inv, raw = create_invitation(
+        db,
+        email=email,
+        role=target.role,
+        actor=user,
+        full_name=target.full_name,
+        purpose="email_change",
+        target_user_id=target.id,
+    )
+    if not target.pending_email:
+        target.pending_email = email
+        target.is_active = False
+        bump_session_version(db, target, actor=user, reason="reinvite_activation")
+        db.add(target)
+        db.commit()
+    return _invite_redirect(request, raw, inv.expires_at)
+
+
+@app.get("/settings/users/{user_id}/remove", response_class=HTMLResponse)
+def settings_user_remove_page(
+    user_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    target = db.get(User, user_id)
+    if not target or target.is_primary_owner:
+        return RedirectResponse("/settings", status_code=303)
+    return TEMPLATES.TemplateResponse(
+        "settings_user_remove.html",
+        _ctx(
+            request,
+            user,
+            "settings",
+            target=target,
+            role_label=label(target.role),
+            has_activity=user_has_business_activity(db, target.id),
+            is_samantha=is_protected_samantha(target),
+        ),
+    )
+
+
+@app.post("/settings/users/{user_id}/remove")
+def settings_user_remove(
+    user_id: uuid.UUID,
+    confirm: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    if confirm != "1":
+        return RedirectResponse(f"/settings/users/{user_id}/remove", status_code=303)
+    target = db.get(User, user_id)
+    if not target or target.is_primary_owner or target.id == user.id:
+        return RedirectResponse("/settings", status_code=303)
+
+    # Revoke pending invitations for this email
+    for inv in db.query(UserInvitation).filter(
+        UserInvitation.email.in_([target.email, target.pending_email or ""]),
+        UserInvitation.status == "pending",
+    ).all():
+        inv.status = "revoked"
+        db.add(inv)
+
+    has_activity = user_has_business_activity(db, target.id)
+    bump_session_version(db, target, actor=user, reason="removed_from_team")
+    if has_activity:
+        target.is_active = False
+        target.team_status = "archived"
+        target.pending_email = None
         db.add(target)
         record_audit(
             db,
-            action="user.password_reset",
+            action="user.archive",
             entity_type="user",
             entity_id=str(target.id),
             actor_user_id=user.id,
             actor_label=user.email,
-            after={"reset_by_primary_owner": True},
+            after={"email": target.email, "team_status": "archived"},
         )
-        bump_session_version(db, target, actor=user, reason="password_reset")
         db.commit()
-    return RedirectResponse("/settings", status_code=303)
+        return RedirectResponse("/settings?archived=1", status_code=303)
+
+    email = target.email
+    record_audit(
+        db,
+        action="user.remove",
+        entity_type="user",
+        entity_id=str(target.id),
+        actor_user_id=user.id,
+        actor_label=user.email,
+        after={"email": email, "deleted": True},
+    )
+    # Keep audit history; drop FK links so unused test accounts can be removed.
+    detach_user_for_safe_delete(db, target)
+    db.delete(target)
+    db.commit()
+    return RedirectResponse("/settings?removed=1", status_code=303)
 
 
 @app.get("/settings/cleanup", response_class=HTMLResponse)
@@ -1611,7 +1848,13 @@ def audit_page(request: Request, db: Session = Depends(get_db), user: User | Non
         q = q.filter(AuditEvent.actor_label.ilike(f"%{actor}%"))
     if action:
         q = q.filter(AuditEvent.action.ilike(f"%{action}%"))
-    events = q.limit(200).all()
+    raw_events = q.limit(200).all()
+    actor_ids = {e.actor_user_id for e in raw_events if e.actor_user_id}
+    users_by_id = {}
+    if actor_ids:
+        for u in db.query(User).filter(User.id.in_(list(actor_ids))).all():
+            users_by_id[u.id] = u
+    events = enrich_activity_events(raw_events, users_by_id)
     return TEMPLATES.TemplateResponse(
         "audit.html", _ctx(request, user, "settings", events=events, actor=actor, action=action)
     )

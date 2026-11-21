@@ -26,6 +26,8 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User | None
         return None
     if not user or not user.is_active:
         return None
+    if (getattr(user, "team_status", None) or "active") != "active":
+        return None
     # Invalidate sessions after deactivate / password reset / owner revoke
     if int(getattr(user, "session_version", 1) or 1) != int(payload.get("sv") or 1):
         return None
