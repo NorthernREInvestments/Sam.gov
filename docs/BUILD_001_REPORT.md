@@ -134,5 +134,8 @@ Primary free boards: Los Angeles RAMP open commodity bids; Delaware MMP open bid
 ## Deployment
 
 - GitHub: `NorthernREInvestments/Sam.gov`
-- Railway service URL (existing): https://samgov-production.up.railway.app
-- Confirm `/healthz` returns `build: 20261120-m3-2-build-001` after deploy
+- Git commit: `303ddb3`
+- Railway service URL: https://samgov-production.up.railway.app
+- Verified `/healthz`: `{"ok":true,"build":"20261120-m3-2-build-001"}`
+- Login page returns HTTP 200
+- No deploy-time wipe active
