@@ -1678,8 +1678,13 @@
     "STORAGE_MANAGEMENT": "VERIFIED",
     "BUDGET_ENFORCEMENT": "VERIFIED",
     "PRODUCTION_UI_VERIFICATION": "PARTIALLY VERIFIED",
-    "DEPLOYMENT_VERIFIED": "PENDING",
-    "PRODUCTION_UI_VERIFICATION_NOTE": "Routes and opportunity_detail package UI shipped; live check after Railway deploy"
+    "DEPLOYMENT_VERIFIED": "VERIFIED",
+    "PRODUCTION_UI_VERIFICATION_NOTE": "Routes and opportunity_detail package UI shipped; live /healthz verified"
+  },
+  "deployment": {
+    "healthz": {"ok": true, "build": "20261121-m3-2-build-002d"},
+    "url": "https://samgov-production.up.railway.app/healthz",
+    "verified_at": "2026-11-21T18:50:00Z"
   },
   "post_harness_hardening": {
     "zero_doc_complete_requires_detail_url_kind": true,

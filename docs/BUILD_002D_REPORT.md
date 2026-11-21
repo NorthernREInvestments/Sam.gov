@@ -2,7 +2,8 @@
 
 **Build ID:** `20261121-m3-2-build-002d`  
 **Baseline:** Build 002C deployed  
-**Status:** Implementation complete; acceptance metrics filled from live harness (`docs/BUILD_002D_ACCEPTANCE.json`)
+**Status:** Deployed — `/healthz` → `20261121-m3-2-build-002d`  
+**Acceptance:** `docs/BUILD_002D_ACCEPTANCE.json`
 
 ## Root causes (002C → ~204 attachments)
 
