@@ -69,7 +69,33 @@ def classify_requirement(
             "classification_evidence": evidence,
             "include_in_product_resale": False,
         }
-    if cat and CATEGORY_SERVICE.search(cat) and not CATEGORY_COMMODITY.search(cat) and not PRODUCT_HINTS.search(title or ""):
+    title_text = title or ""
+    # Title evidence wins over misleading source categories (e.g. tree trimming tagged Commodity).
+    has_product_title = bool(PRODUCT_HINTS.search(title_text))
+    has_service_title = bool(SERVICE_ONLY.search(title_text))
+    has_construction_title = bool(CONSTRUCTION_ONLY.search(title_text))
+
+    if has_service_title and not has_product_title:
+        m = SERVICE_ONLY.search(title_text)
+        evidence.append(f"matched service-only pattern in title: {(m.group(0) if m else '')[:80]}")
+        if cat:
+            evidence.append(f"source_category={cat} (overridden by title)")
+        return {
+            "requirement_class": "services",
+            "classification_evidence": evidence,
+            "include_in_product_resale": False,
+        }
+    if has_construction_title and not has_product_title:
+        evidence.append("matched construction-only pattern in title")
+        if cat:
+            evidence.append(f"source_category={cat} (overridden by title)")
+        return {
+            "requirement_class": "construction",
+            "classification_evidence": evidence,
+            "include_in_product_resale": False,
+        }
+
+    if cat and CATEGORY_SERVICE.search(cat) and not CATEGORY_COMMODITY.search(cat) and not has_product_title:
         evidence.append(f"source_category={cat}")
         return {
             "requirement_class": "services",
@@ -77,19 +103,19 @@ def classify_requirement(
             "include_in_product_resale": False,
         }
 
-    has_product = bool(PRODUCT_HINTS.search(text))
+    has_product = has_product_title or bool(PRODUCT_HINTS.search(f"{category_raw or ''} {procurement_type or ''}"))
     has_service_only = bool(SERVICE_ONLY.search(text))
     has_construction = bool(CONSTRUCTION_ONLY.search(text))
     has_incidental = bool(INCIDENTAL_SERVICE.search(text))
 
-    if has_construction and not has_product:
+    if has_construction and not has_product_title:
         evidence.append("matched construction-only pattern")
         return {
             "requirement_class": "construction",
             "classification_evidence": evidence,
             "include_in_product_resale": False,
         }
-    if has_service_only and not has_product:
+    if has_service_only and not has_product_title:
         m = SERVICE_ONLY.search(text)
         evidence.append(f"matched service-only pattern: {(m.group(0) if m else '')[:80]}")
         return {
@@ -97,15 +123,15 @@ def classify_requirement(
             "classification_evidence": evidence,
             "include_in_product_resale": False,
         }
-    if has_product and (has_incidental or has_service_only):
+    if has_product_title and (has_incidental or has_service_only):
         evidence.append("product terms present with incidental service/delivery language")
         return {
             "requirement_class": "product_with_incidental_services",
             "classification_evidence": evidence,
             "include_in_product_resale": True,
         }
-    if has_product or (cat and CATEGORY_COMMODITY.search(cat)):
-        if cat and CATEGORY_COMMODITY.search(cat):
+    if has_product_title or (cat and CATEGORY_COMMODITY.search(cat) and not has_service_only and not has_construction):
+        if cat and CATEGORY_COMMODITY.search(cat) and not has_product_title:
             evidence.append(f"source_category={cat}")
         else:
             evidence.append("matched product-supply terms")

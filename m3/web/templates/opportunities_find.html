@@ -72,10 +72,10 @@
           <input type="hidden" name="payload" value="{{ row|b64json }}">
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="anchor" value="r-{{ row.external_key }}">
-          <button class="small" type="submit">Save</button>
+          <button class="small" type="submit">Save Opportunity</button>
         </form>
         {% endif %}
-        {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official</a>{% endif %}
+        {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
       </td>
     </tr>
   {% endfor %}

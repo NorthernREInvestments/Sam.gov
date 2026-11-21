@@ -15,8 +15,8 @@
 | 4 | Compact actionable dashboard | **VERIFIED** |
 | 5 | Global form styling standard | **VERIFIED** |
 | 6 | Primary-owner-only user management + test-record review list | **VERIFIED** |
-| 7 | Product-resale filtering (exclude clear services/construction) | **VERIFIED** |
-| 8 | Mobile / usability checks (360–1440) | **VERIFIED** (rendered locally; deploy health confirmed) |
+| 7 | Product-resale filtering (exclude clear services/construction) | **VERIFIED** (title service-only overrides misleading Commodity tags; tree trimming excluded from Filter) |
+| 8 | Mobile / usability checks (360–1440) | **VERIFIED** (rendered locally at 390/1440; live `/healthz` build `001a`) |
 
 ## Notes by correction
 
@@ -46,7 +46,8 @@
 ### 7. Product-resale filtering
 - Traceable `requirement_class`: product_supply | product_with_incidental_services | services | construction | unknown_mixed.
 - Default Filter mode excludes services/construction (e.g. tree trimming).
-- Prior saved records are unchanged (no silent deletes).
+- Fix: clear service-only/construction-only **title** evidence overrides misleading source categories (LA RAMP tagged tree trimming as Commodity).
+- Prior saved records are unchanged (no silent deletes); tree trimming may still appear under Saved until owner removes it.
 
 ### 8. Mobile
 - Verified layouts at 360/390/768/1024/1440 via device metrics + rendered pages.
@@ -67,6 +68,7 @@ Captured during 001A QA (Cursor screenshot store):
 ## Deploy
 - Existing Railway service only; additive DB columns (`is_primary_owner`, `result_snapshot`, `requirement_class`, `quantity`).
 - No credential changes; no mass record deletion.
+- Live check: `GET /healthz` → `{"ok":true,"build":"20261120-m3-2-build-001a"}` on https://samgov-production.up.railway.app (post-push redeploy for classify hotfix).
 
 ## Await
 Owner acceptance testing. Do not begin Build 002 until approved.
