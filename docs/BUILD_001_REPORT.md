@@ -18,7 +18,7 @@
 | AUDIT_TRAIL_VERIFIED | VERIFIED |
 | MOBILE_WORKFLOW_VERIFIED | VERIFIED (login + home + opportunities at 360/390/768; touch targets) |
 | COMMERCIAL_USABILITY_VERIFIED | VERIFIED for discovery/CRM core |
-| DEPLOYMENT_VERIFIED | PENDING at report draft — confirm after Railway deploy |
+| DEPLOYMENT_VERIFIED | VERIFIED (`/healthz` → build `20261120-m3-2-build-001`) |
 
 ## Implemented
 
