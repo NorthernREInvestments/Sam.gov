@@ -110,7 +110,7 @@ screws 2 · valves 19 · equipment 128 · appliances 14 · generators 14 · furn
 | RESULT_COUNT_RECONCILIATION | **VERIFIED** | UI exposes discovery_population vs verified product vs uncertain vs matching |
 | BUDGET_ENFORCEMENT | **VERIFIED** | Free discovery independent of OpenAI; ceilings unchanged |
 | PRODUCTION_UI_VERIFICATION | **PARTIALLY VERIFIED** | Stats + Clear Filters preserved; full device QA on deploy URL |
-| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `20261121-m3-2-build-002b` after Railway deploy |
+| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `{"ok":true,"build":"20261121-m3-2-build-002b"}` (Railway `ca503e4b` SUCCESS) |
 
 ## Remaining limitations (honest)
 
