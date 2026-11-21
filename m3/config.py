@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "M3 Supply"
-    build_id: str = "20261121-m3-2-build-002c"
+    build_id: str = "20261121-m3-2-build-002d"
     secret_key: str = ""
     database_url: str = "postgresql://localhost/m3"
     m3_data_root: str = ""

@@ -69,7 +69,67 @@
     <dl class="kv">
       <dt>Availability</dt><dd>{{ display.documents }} <span class="muted">({{ display.field_status.documents or '—' }})</span></dd>
       <dt>Official URL</dt><dd>{% if official_url %}<a href="{{ official_url }}" target="_blank" rel="noopener">{{ official_url }}</a>{% else %}Unknown{% endif %}</dd>
+      {% if package %}
+      <dt>Package status</dt><dd><span class="badge">{{ package.package_status }}</span></dd>
+      <dt>Authoritative source</dt><dd>{% if package.authoritative_url %}<a href="{{ package.authoritative_url }}" target="_blank" rel="noopener">{{ package.authoritative_url }}</a>{% else %}Unresolved{% endif %} <span class="muted">({{ package.url_kind }} · {{ package.platform }})</span></dd>
+      <dt>Documents</dt><dd>{{ package.downloaded_count }}/{{ package.identified_count }} downloaded · {{ package.missing_count }} missing</dd>
+      <dt>Extraction</dt><dd>{{ package.extraction_status }} ({{ package.extracted_count }} extracted)</dd>
+      <dt>Last verified</dt><dd>{{ package.last_verified_at or '—' }}</dd>
+      {% if package.access_issues %}
+      <dt>Access issues</dt><dd>{{ package.access_issues | join('; ') }}</dd>
+      {% endif %}
+      {% endif %}
     </dl>
+    {% if package_actions %}
+    <div class="actions" style="margin:.5rem 0">
+      {% if package_actions.acquire %}
+      <form method="post" action="{{ package_actions.acquire }}" style="display:inline">
+        <button type="submit">Acquire full package</button>
+      </form>
+      {% endif %}
+      {% if package_actions.refresh %}
+      <form method="post" action="{{ package_actions.refresh }}" style="display:inline">
+        <button class="secondary" type="submit">Refresh package</button>
+      </form>
+      {% endif %}
+      {% if package_actions.retry %}
+      <form method="post" action="{{ package_actions.retry }}" style="display:inline">
+        <button class="secondary" type="submit">Retry missing documents</button>
+      </form>
+      {% endif %}
+      {% if package_actions.upload %}
+      <form method="post" action="{{ package_actions.upload }}" enctype="multipart/form-data" style="display:inline-block;margin-top:.35rem">
+        <input type="file" name="files" multiple>
+        <button class="secondary" type="submit">Upload supporting documents</button>
+      </form>
+      {% endif %}
+      {% if package_actions.zip %}
+      <a class="btn secondary" href="{{ package_actions.zip }}">Download complete package</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if package_documents %}
+    <table class="data" style="margin-top:.5rem">
+      <thead><tr><th>Document</th><th>Type</th><th>Download</th><th>Extraction</th><th>Size</th><th></th></tr></thead>
+      <tbody>
+      {% for d in package_documents %}
+        <tr>
+          <td>{{ d.document_title or d.original_filename }}{% if d.is_amendment %} <span class="muted">amendment</span>{% endif %}</td>
+          <td>{{ d.document_type }}</td>
+          <td>{{ d.download_status }}{% if d.failure_reason %} <span class="muted">({{ d.failure_reason }})</span>{% endif %}</td>
+          <td>{{ d.extraction_status }}</td>
+          <td>{% if d.file_size %}{{ d.file_size }} B{% else %}—{% endif %}</td>
+          <td>{% if d.download_href %}<a href="{{ d.download_href }}">File</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% elif package %}
+    <p class="muted">No documents identified yet. Acquire the full package from the authoritative source.</p>
+    {% endif %}
+    {% if package and package.amendment_summary %}
+    <p class="muted" style="margin-top:.5rem">Amendments on page: {{ (package.amendment_summary.amendment_urls_on_page or [])|length }}; amendment documents: {{ package.amendment_summary.amendment_documents or 0 }}</p>
+    {% endif %}
   </section>
 
   <section>

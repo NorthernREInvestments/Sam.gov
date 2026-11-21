@@ -85,3 +85,28 @@ def fetch_json(url: str, *, timeout: float | None = None) -> tuple[int, str, obj
         return status, final, json.loads(text)
     except json.JSONDecodeError:
         return status, final, None
+
+
+def fetch_bytes(
+    url: str, *, timeout: float | None = None, max_bytes: int = 25_000_000
+) -> tuple[int, str, bytes, str]:
+    """Returns status, final_url, body bytes, content_type. Bounded size."""
+    settings = get_settings()
+    safe = validate_public_https_url(url)
+    t = timeout or settings.research_timeout_seconds
+    with httpx.Client(
+        timeout=t,
+        follow_redirects=True,
+        headers=DEFAULT_HEADERS,
+    ) as client:
+        with client.stream("GET", safe) as resp:
+            validate_public_https_url(str(resp.url))
+            ctype = resp.headers.get("content-type", "") or ""
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in resp.iter_bytes():
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > max_bytes:
+                    break
+            return resp.status_code, str(resp.url), b"".join(chunks), ctype

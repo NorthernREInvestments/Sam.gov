@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import quote, urlencode
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
@@ -37,9 +37,11 @@ from m3.models import (
     CatalogProduct,
     CatalogUpload,
     Opportunity,
+    PackageDocument,
     ResearchRun,
     ResearchSpendEvent,
     SearchProfile,
+    SolicitationPackage,
     Supplier,
     Task,
     User,
@@ -152,6 +154,84 @@ def _opp_item_from_model(o: Opportunity) -> dict:
         "unavailable_reasons": ev.get("unavailable_reasons") or {},
         "saved_id": str(o.id),
         "status": o.status,
+    }
+
+
+def _find_package(db: Session, item: dict, *, opportunity_id=None) -> SolicitationPackage | None:
+    from m3.research.package import _identity_key
+
+    pkg = None
+    if opportunity_id:
+        pkg = (
+            db.query(SolicitationPackage)
+            .filter(SolicitationPackage.opportunity_id == opportunity_id)
+            .order_by(SolicitationPackage.updated_at.desc())
+            .first()
+        )
+    if not pkg:
+        ek = item.get("external_key")
+        if ek:
+            pkg = (
+                db.query(SolicitationPackage)
+                .filter(SolicitationPackage.external_key == ek)
+                .order_by(SolicitationPackage.updated_at.desc())
+                .first()
+            )
+    if not pkg:
+        pkg = db.query(SolicitationPackage).filter_by(identity_key=_identity_key(item)).one_or_none()
+    return pkg
+
+
+def _package_view(db: Session, item: dict, *, opportunity_id=None, action_base: str) -> dict:
+    pkg = _find_package(db, item, opportunity_id=opportunity_id)
+    docs = []
+    if pkg:
+        for d in pkg.documents or []:
+            docs.append(
+                {
+                    "id": str(d.id),
+                    "document_title": d.document_title,
+                    "original_filename": d.original_filename,
+                    "document_type": d.document_type,
+                    "download_status": d.download_status,
+                    "extraction_status": d.extraction_status,
+                    "failure_reason": d.failure_reason,
+                    "file_size": d.file_size,
+                    "is_amendment": d.is_amendment,
+                    "download_href": (
+                        f"/packages/{pkg.id}/documents/{d.id}/file"
+                        if d.download_status == "downloaded" and d.storage_path
+                        else None
+                    ),
+                }
+            )
+    package_dict = None
+    if pkg:
+        package_dict = {
+            "id": str(pkg.id),
+            "package_status": pkg.package_status,
+            "authoritative_url": pkg.authoritative_url,
+            "url_kind": pkg.url_kind,
+            "platform": pkg.platform,
+            "identified_count": pkg.identified_count,
+            "downloaded_count": pkg.downloaded_count,
+            "missing_count": pkg.missing_count,
+            "extracted_count": pkg.extracted_count,
+            "extraction_status": pkg.extraction_status,
+            "last_verified_at": pkg.last_verified_at.isoformat() if pkg.last_verified_at else None,
+            "access_issues": list(pkg.access_issues or []),
+            "amendment_summary": pkg.amendment_summary or {},
+        }
+    return {
+        "package": package_dict,
+        "package_documents": docs,
+        "package_actions": {
+            "acquire": f"{action_base}/package/acquire",
+            "refresh": f"{action_base}/package/refresh",
+            "retry": f"{action_base}/package/retry",
+            "upload": f"{action_base}/package/upload",
+            "zip": f"/packages/{pkg.id}/zip" if pkg and pkg.downloaded_count else None,
+        },
     }
 
 
@@ -748,6 +828,8 @@ def opportunity_discover_detail(
     return_to = request.query_params.get("return_to") or "/opportunities/find"
     hist = item.get("_historical_awards") or []
     commercial = _commercial_from_item(item, matches)
+    action_base = f"/opportunities/discover/{run_id}/{external_key}"
+    pkg_view = _package_view(db, item, opportunity_id=saved.id if saved else None, action_base=action_base)
     return TEMPLATES.TemplateResponse(
         "opportunity_detail.html",
         _ctx(
@@ -771,6 +853,7 @@ def opportunity_discover_detail(
             research_target=f"/opportunities/discover/{run_id}/{external_key}/research",
             return_to=return_to,
             opp_tab="filter",
+            **pkg_view,
         ),
     )
 
@@ -876,6 +959,7 @@ def opportunity_detail(
     if has_perm(user.role, user.extra_permissions, "opportunities.write"):
         assignable = db.query(User).filter(User.is_active.is_(True)).order_by(User.full_name.asc()).all()
     commercial = _commercial_from_item(item, matches)
+    pkg_view = _package_view(db, item, opportunity_id=opp.id, action_base=f"/opportunities/{opp.id}")
     return TEMPLATES.TemplateResponse(
         "opportunity_detail.html",
         _ctx(
@@ -899,6 +983,7 @@ def opportunity_detail(
             research_target=f"/opportunities/{opp.id}/research-awards",
             return_to=return_to,
             opp_tab="saved",
+            **pkg_view,
         ),
     )
 
@@ -934,6 +1019,170 @@ def opportunity_research_awards(
     )
     db.commit()
     return RedirectResponse(f"/opportunities/{opportunity_id}?awards_run={hist.get('run_id')}", status_code=303)
+
+
+def _run_package_acquire(db: Session, item: dict, *, opportunity_id=None, research_run_id=None, refresh: bool = False, uploaded=None):
+    from m3.research.package import acquire_solicitation_package
+
+    return acquire_solicitation_package(
+        db,
+        item,
+        opportunity_id=opportunity_id,
+        research_run_id=research_run_id,
+        refresh=refresh,
+        uploaded_files=uploaded,
+    )
+
+
+@app.post("/opportunities/{opportunity_id}/package/acquire")
+@app.post("/opportunities/{opportunity_id}/package/refresh")
+@app.post("/opportunities/{opportunity_id}/package/retry")
+async def opportunity_package_acquire(
+    opportunity_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    opp = db.get(Opportunity, opportunity_id)
+    if not opp:
+        return RedirectResponse("/opportunities", status_code=303)
+    item = _opp_item_from_model(opp)
+    refresh = request.url.path.endswith("/refresh") or request.url.path.endswith("/retry")
+    _run_package_acquire(db, item, opportunity_id=opp.id, refresh=refresh)
+    return RedirectResponse(f"/opportunities/{opportunity_id}", status_code=303)
+
+
+@app.post("/opportunities/{opportunity_id}/package/upload")
+async def opportunity_package_upload(
+    opportunity_id: uuid.UUID,
+    files: list[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    opp = db.get(Opportunity, opportunity_id)
+    if not opp:
+        return RedirectResponse("/opportunities", status_code=303)
+    uploaded = []
+    for f in files or []:
+        data = await f.read()
+        if data:
+            uploaded.append({"filename": f.filename or "upload.bin", "data": data, "content_type": f.content_type or ""})
+    item = _opp_item_from_model(opp)
+    _run_package_acquire(db, item, opportunity_id=opp.id, uploaded=uploaded)
+    return RedirectResponse(f"/opportunities/{opportunity_id}", status_code=303)
+
+
+@app.post("/opportunities/discover/{run_id}/{external_key}/package/acquire")
+@app.post("/opportunities/discover/{run_id}/{external_key}/package/refresh")
+@app.post("/opportunities/discover/{run_id}/{external_key}/package/retry")
+async def discover_package_acquire(
+    run_id: uuid.UUID,
+    external_key: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    run = db.get(ResearchRun, run_id)
+    item = None
+    if run and isinstance(run.result_snapshot, list):
+        for it in run.result_snapshot:
+            if isinstance(it, dict) and it.get("external_key") == external_key:
+                item = it
+                break
+    if not item:
+        return RedirectResponse("/opportunities/find", status_code=303)
+    saved = db.query(Opportunity).filter_by(external_key=external_key).one_or_none()
+    refresh = request.url.path.endswith("/refresh") or request.url.path.endswith("/retry")
+    _run_package_acquire(
+        db, item, opportunity_id=saved.id if saved else None, research_run_id=run_id, refresh=refresh
+    )
+    return RedirectResponse(f"/opportunities/discover/{run_id}/{external_key}", status_code=303)
+
+
+@app.post("/opportunities/discover/{run_id}/{external_key}/package/upload")
+async def discover_package_upload(
+    run_id: uuid.UUID,
+    external_key: str,
+    files: list[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    run = db.get(ResearchRun, run_id)
+    item = None
+    if run and isinstance(run.result_snapshot, list):
+        for it in run.result_snapshot:
+            if isinstance(it, dict) and it.get("external_key") == external_key:
+                item = it
+                break
+    if not item:
+        return RedirectResponse("/opportunities/find", status_code=303)
+    uploaded = []
+    for f in files or []:
+        data = await f.read()
+        if data:
+            uploaded.append({"filename": f.filename or "upload.bin", "data": data, "content_type": f.content_type or ""})
+    saved = db.query(Opportunity).filter_by(external_key=external_key).one_or_none()
+    _run_package_acquire(
+        db, item, opportunity_id=saved.id if saved else None, research_run_id=run_id, uploaded=uploaded
+    )
+    return RedirectResponse(f"/opportunities/discover/{run_id}/{external_key}", status_code=303)
+
+
+@app.get("/packages/{package_id}/documents/{document_id}/file")
+def package_document_file(
+    package_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    doc = db.get(PackageDocument, document_id)
+    if not doc or doc.package_id != package_id or not doc.storage_path:
+        return RedirectResponse("/", status_code=303)
+    path = Path(doc.storage_path)
+    if not path.exists():
+        return RedirectResponse("/", status_code=303)
+    return FileResponse(path, filename=doc.original_filename or path.name)
+
+
+@app.get("/packages/{package_id}/zip")
+def package_zip_download(
+    package_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    pkg = db.get(SolicitationPackage, package_id)
+    if not pkg:
+        return RedirectResponse("/", status_code=303)
+    import io
+    import zipfile
+
+    from fastapi.responses import Response
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for d in pkg.documents or []:
+            if d.download_status != "downloaded" or not d.storage_path:
+                continue
+            p = Path(d.storage_path)
+            if p.exists():
+                zf.write(p, arcname=d.original_filename or p.name)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="package_{package_id}.zip"'},
+    )
 
 
 @app.post("/opportunities/{opportunity_id}/status")

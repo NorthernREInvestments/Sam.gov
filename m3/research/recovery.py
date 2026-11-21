@@ -120,7 +120,86 @@ def _level2_detail(item: dict[str, Any], *, cache_get, cache_put) -> dict[str, A
     return out
 
 
-def _level3_attachments(item: dict[str, Any], *, cache_get, cache_put, max_attachments: int = 2) -> dict[str, Any]:
+def _level3_attachments(
+    item: dict[str, Any],
+    *,
+    cache_get,
+    cache_put,
+    max_attachments: int = 2,
+    db: Session | None = None,
+    research_run_id=None,
+) -> dict[str, Any]:
+    """Level 3: shared package acquisition when DB available; else legacy extract path."""
+    if db is not None:
+        try:
+            from m3.research.package import acquire_solicitation_package, package_to_item_enrichment
+
+            pkg = acquire_solicitation_package(
+                db,
+                item,
+                research_run_id=research_run_id,
+                max_documents=max(max_attachments, 30),
+            )
+            enrich = package_to_item_enrichment(pkg)
+            out = {**item, **enrich}
+            out["recovery_level"] = 3
+            out["attachments_investigated"] = pkg.downloaded_count > 0 or pkg.identified_count > 0
+            out["attachments_used"] = [
+                d.source_url for d in (pkg.documents or []) if d.download_status == "downloaded"
+            ][:20]
+            excerpts = [
+                d.extracted_excerpt
+                for d in (pkg.documents or [])
+                if d.extracted_excerpt
+            ]
+            if excerpts:
+                out["document_text"] = ((out.get("document_text") or "") + " " + " ".join(excerpts))[:12000]
+                out["_document_searchable"] = True
+            if pkg.access_issues:
+                out["recovery_blockers"] = list(out.get("recovery_blockers") or []) + list(pkg.access_issues)[:8]
+            if not excerpts and not (pkg.detail_fields or {}).get("description_excerpt"):
+                # Fall through to legacy candidate extract if package found nothing usable
+                if not (item.get("attachment_candidates") or []):
+                    return out
+            else:
+                # Re-classify with package evidence if hint missing
+                if not enrich.get("requirement_class") or enrich.get("requirement_class") == item.get(
+                    "requirement_class"
+                ):
+                    doc_text = out.get("document_text") or (pkg.detail_fields or {}).get("description_excerpt") or ""
+                    if doc_text:
+                        clf = classify_requirement(
+                            str(out.get("title") or ""),
+                            category_raw=(out.get("evidence") or {}).get("category_raw")
+                            if isinstance(out.get("evidence"), dict)
+                            else out.get("product_category"),
+                            procurement_type=out.get("procurement_type"),
+                            description=out.get("description"),
+                            document_text=doc_text,
+                            line_items_text=out.get("line_items_text"),
+                        )
+                        out["requirement_class"] = clf["requirement_class"]
+                        out["classification_evidence"] = list(clf.get("classification_evidence") or []) + [
+                            "level3_package_acquisition",
+                            f"package_status={pkg.package_status}",
+                            f"downloaded={pkg.downloaded_count}/{pkg.identified_count}",
+                        ]
+                        out["include_in_product_resale"] = clf.get("include_in_product_resale")
+                        out["recovery_evidence"] = out["classification_evidence"]
+                else:
+                    out["classification_evidence"] = list(out.get("classification_evidence") or []) + [
+                        "level3_package_acquisition",
+                        f"package_status={pkg.package_status}",
+                        f"downloaded={pkg.downloaded_count}/{pkg.identified_count}",
+                    ]
+                    out["recovery_evidence"] = out["classification_evidence"]
+                return out
+        except Exception as exc:
+            item = dict(item)
+            item["recovery_blockers"] = list(item.get("recovery_blockers") or []) + [
+                f"package_engine_error:{type(exc).__name__}"
+            ]
+
     urls = list(item.get("attachment_candidates") or [])
     # Also try official_url if it looks like a document
     ou = item.get("official_url") or ""
@@ -162,7 +241,6 @@ def _level3_attachments(item: dict[str, Any], *, cache_get, cache_put, max_attac
     out["recovery_level"] = 3
     if not texts:
         out["recovery_blockers"] = list(out.get("recovery_blockers") or []) + (blockers or ["no_attachments_extracted"])
-        # Explicit: inaccessible documents are not successful investigations
         out["attachments_investigated"] = False
         return out
     combined = " ".join(texts)[:10000]
@@ -381,23 +459,49 @@ def recover_uncertain_population(
                             merged[k] = cur[k]
                     working[j] = merged
 
-    # Level 3 — attachments for still-uncertain with candidates or document URLs
+    # Level 3 — shared package acquisition for still-uncertain with any usable URL
+    # (Build 002D: not limited to pre-discovered attachment candidates)
     remaining = [i for i in uncertain_idxs if _still_uncertain(working[i])]
     l3_n = 0
+    package_stats = {
+        "COMPLETE": 0,
+        "PARTIAL": 0,
+        "ACCESS_RESTRICTED": 0,
+        "VERIFICATION_REQUIRED": 0,
+        "FAILED": 0,
+        "identified_docs": 0,
+        "downloaded_docs": 0,
+    }
     for idx in remaining:
         if l3_n >= level3_budget:
             break
         it = working[idx]
-        if not (it.get("attachment_candidates") or (
-            (it.get("official_url") or "").lower().split("?")[0].endswith((".pdf", ".docx", ".xlsx", ".csv"))
-        )):
+        ou = (it.get("official_url") or "").strip()
+        has_url = ou.startswith("http")
+        has_candidates = bool(it.get("attachment_candidates"))
+        if not (has_url or has_candidates):
             continue
         l3_n += 1
         stats["level3_attempted"] += 1
-        cur = _level3_attachments(it, cache_get=cache_get, cache_put=cache_put)
+        if l3_n % 50 == 0:
+            print(f"recovery_l3_package_progress {l3_n}/{min(len(remaining), level3_budget)}", flush=True)
+        cur = _level3_attachments(
+            it,
+            cache_get=cache_get,
+            cache_put=cache_put,
+            max_attachments=30,
+            db=db,
+            research_run_id=research_run_id,
+        )
+        pst = cur.get("package_status") or ""
+        if pst in package_stats:
+            package_stats[pst] += 1
+        package_stats["identified_docs"] += int(cur.get("package_identified") or 0)
+        package_stats["downloaded_docs"] += int(cur.get("package_downloaded") or 0)
         if not _still_uncertain(cur):
             stats["level3_resolved"] += 1
         working[idx] = cur
+    stats["package_acquisition"] = package_stats
 
     # Level 4 — selective OpenAI for remaining with some evidence text
     if enable_openai:

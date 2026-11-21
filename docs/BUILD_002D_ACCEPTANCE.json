@@ -1,0 +1,1692 @@
+{
+  "build": "002D",
+  "build_id": "20261121-m3-2-build-002d",
+  "started": "2026-11-21T18:25:58Z",
+  "baseline_002c": {
+    "discovery_population": 9799,
+    "verified_product": 1020,
+    "unknown_mixed": 7742,
+    "detail_urls_investigated": 1078,
+    "attachments_investigated": 204
+  },
+  "audit_doc": "docs/BUILD_002D_AUDIT.md",
+  "url_kind_checks": {
+    "detail": "detail",
+    "listing": "listing",
+    "document": "document",
+    "missing": "missing",
+    "procuretap_listing": "listing"
+  },
+  "completeness_honesty": {
+    "ten_of_twelve_is_not_complete": true,
+    "no_attachments_without_inventory_not_complete": true
+  },
+  "discovery": {
+    "discovery_population": 8204,
+    "verified_product": 639,
+    "confirmed_non_product": 638,
+    "uncertain_remaining": 6659,
+    "classification_breakdown": {
+      "product_supply": 804,
+      "unknown_mixed": 6659,
+      "services": 397,
+      "product_with_incidental_services": 59,
+      "product_with_significant_installation": 11,
+      "professional_services": 73,
+      "construction": 94,
+      "product_rental_leasing": 33,
+      "maintenance_repair_services": 63,
+      "software_only": 11
+    },
+    "estimated_cost_usd": 0.0,
+    "openai_portal_used": false
+  },
+  "package_metrics": {
+    "packages_total": 150,
+    "by_status": {
+      "COMPLETE": 93,
+      "VERIFICATION_REQUIRED": 3,
+      "FAILED": 54
+    },
+    "identified_documents": 59,
+    "downloaded_documents": 54,
+    "missing_documents": 5,
+    "extracted_documents": 51,
+    "document_acquisition_success_rate": 0.9152542372881356,
+    "verified_completeness_rate": 0.62,
+    "valid_downloaded_files": 54,
+    "by_source": {
+      "ne_das_public": {
+        "n": 2,
+        "identified": 1,
+        "downloaded": 1,
+        "complete": 1
+      },
+      "ai_bf83be7b069ca9d2bf13": {
+        "n": 1,
+        "identified": 0,
+        "downloaded": 0,
+        "complete": 1
+      },
+      "ai_a75c9e6888ac36238c0b": {
+        "n": 48,
+        "identified": 10,
+        "downloaded": 5,
+        "complete": 41
+      },
+      "discovered_data_winnipeg_ca_rijt-92n4": {
+        "n": 48,
+        "identified": 0,
+        "downloaded": 0,
+        "complete": 0
+      },
+      "discovered_data_cityofnewyork_us_9k82-ys7w": {
+        "n": 27,
+        "identified": 0,
+        "downloaded": 0,
+        "complete": 26
+      },
+      "discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+        "n": 24,
+        "identified": 48,
+        "downloaded": 48,
+        "complete": 24
+      }
+    },
+    "by_platform": {
+      "gov_html": {
+        "n": 3,
+        "identified": 1,
+        "downloaded": 1,
+        "complete": 2
+      },
+      "generic_http": {
+        "n": 49,
+        "identified": 0,
+        "downloaded": 0,
+        "complete": 0
+      },
+      "socrata": {
+        "n": 51,
+        "identified": 48,
+        "downloaded": 48,
+        "complete": 50
+      },
+      "procuretap": {
+        "n": 47,
+        "identified": 10,
+        "downloaded": 5,
+        "complete": 41
+      }
+    },
+    "recovery_l3_packages": {
+      "COMPLETE": 52,
+      "PARTIAL": 0,
+      "ACCESS_RESTRICTED": 0,
+      "VERIFICATION_REQUIRED": 1,
+      "FAILED": 47,
+      "identified_docs": 49,
+      "downloaded_docs": 49
+    },
+    "extra_batch": {
+      "total": 50,
+      "COMPLETE": 41,
+      "PARTIAL": 0,
+      "ACCESS_RESTRICTED": 0,
+      "VERIFICATION_REQUIRED": 2,
+      "FAILED": 7,
+      "newly_resolved": 0,
+      "newly_product": 4,
+      "identified_docs": 10,
+      "downloaded_docs": 5,
+      "errors": 0
+    }
+  },
+  "storage": {
+    "packages": 150,
+    "documents_rows": 59,
+    "documents_downloaded": 54,
+    "storage_bytes_tracked": 29247106,
+    "storage_bytes_on_disk": 29167450,
+    "data_root": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data"
+  },
+  "openai_spend": {
+    "paid_research_enabled": true,
+    "daily_budget_usd": 1.0,
+    "monthly_budget_usd": 30.0,
+    "per_job_budget_usd": 0.5,
+    "per_user_daily_budget_usd": 1.0,
+    "max_research_depth": 2,
+    "default_model": "gpt-4o-mini",
+    "capable_model": "gpt-5-mini",
+    "search_context_size": "low",
+    "today_spent_usd": 0.9876,
+    "month_spent_usd": 0.9876,
+    "today_remaining_usd": 0.0124,
+    "month_remaining_usd": 29.0124,
+    "cost_basis": "application_estimate_not_invoice",
+    "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+  },
+  "representative_packages": [
+    {
+      "official_url": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Guide-Commodity_Procurement_Decision_Tree.pdf",
+      "solicitation_number": null,
+      "title": "External",
+      "source_key": "ne_das_public",
+      "platform": "gov_html",
+      "manifest_count": 1,
+      "downloaded_count": 1,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "document"
+    },
+    {
+      "official_url": "https://das.nebraska.gov/materiel/bids.html",
+      "solicitation_number": null,
+      "title": "Budget",
+      "source_key": "ai_bf83be7b069ca9d2bf13",
+      "platform": "gov_html",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://fonts.gstatic.com",
+      "solicitation_number": null,
+      "title": "Search Bids",
+      "source_key": "ai_a75c9e6888ac36238c0b",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "VERIFICATION_REQUIRED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "listing"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=94-2023_A&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Qualification Modular Fire Paramedic Station and Site Development",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=444-2020&YEAR=2020",
+      "solicitation_number": null,
+      "title": "West Nile Virus Service Purchase Agreement with The Government of Manitoba as represented by The Minister of Health, Seniors and Active Living",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=534-2021&YEAR=2021",
+      "solicitation_number": null,
+      "title": "GoM - Collaborative Procurement-Cloud Services",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=174-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Water Main Renewals - Contract No. 7",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=159-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Joint and Crack Sealing of Concrete Pavements",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=175-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Water Main Renewals - Contract NO. 8",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=263-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Provision of Oblique and Ortho-Rectified Digital Aerial Photography",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=241-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Industrial Street Renewals - Beghin Ave, Dugald Rd, and Various Other Locations",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=11-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Downtown, Regional and Local Sidewalk Renewals, and Associated Works",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=262-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Proposal Comprehensive Integrated Waste Management Strategy (CIWMS) Review",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=271-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Flat Roof Replacement - 1377 Clarence",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=289-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Proposal Renfrew Outfall Gate Chamber Upgrades",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=303-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Provision of GWWD Railway Mainline Tamping",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=627-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Cell 34: Waste Disposal Cell Construction at the Brady Road Resource Management Facility",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=188-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Pavement Renewals - Pandora Avenue East and Warde Avenue",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=279-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Beauchemin Park and Broadway Neighbourhood Centre Park Improvements",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=931-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Request for Proposal Provision of Security Guard Services and Mobile Patrols of Various Buildings",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=9-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Local Street Renewal Program - Hartford Avenue and Various Other Locations",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=233-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Proposal Dana Crescent Park Improvements",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=246-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Proposal Bernadine Crescent Park and Corbett Park Improvements",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=245-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Partial Roof Replacement - 799 Logan",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=275-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Supply and Delivery of Limestone",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=864-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Metcalfe Pumping Station 2022 Upgrades",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=102-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Water Main Renewals - Contract 5",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=76-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "NEWPCC DCS Migration - Integrator Supply and Services",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=236-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Qualification for Provision of Door Installation, Repairs and Modification",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=253-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Maple Grove Dog Park Shade Shelter",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=8-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "River Ave / Stradbrook Ave / Wellington Cres Pavement Renewals and Protected Bike Lanes",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=235-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Provision of VMware Maintenance",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=37-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Drinking Water Treatment Plant Roof Replacement",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=36-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 New Multi-Use Pathways, Pathway Renewals and Thin Bituminous Overlay Program",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=68-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "GWWD Railway Mainline Tamping",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=81-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "2023 Goulet Street Rehabilitation and Des Meurons Reconstruction",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=242-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Renewal of Licenses for Absolute Secure Access Software",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=987-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Minor Rehabilitation of St. James Bridge",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=516-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Request for Proposal Moodle Workplace Based Cloud-Hosted Learning Management System",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=205-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Roof Replacement - 1 Midland",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=977-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Fire Suppression System Renewal, Rainbow Stage, 2021 Main Street",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=154-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Request for Qualification for the Provision of Annual, Tropical and Perennial Plant Material",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=985-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "Provision of Refrigeration Services - Various Locations",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=50-2023&YEAR=2023",
+      "solicitation_number": null,
+      "title": "Supply and Delivery of Fire Fighter T-Shirts",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=663-2022&YEAR=2022",
+      "solicitation_number": null,
+      "title": "NEWPCC Upgrades: Biosolids Facilities - Notice to Bidders",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=842-2021&YEAR=2021",
+      "solicitation_number": null,
+      "title": "2022 Regional Street Renewal Program - Archibald Street Pavement Rehabilitation",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=877-2021&YEAR=2021",
+      "solicitation_number": null,
+      "title": "Request for Proposal Supply and Delivery of Aggregate",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=680-2021&YEAR=2021",
+      "solicitation_number": null,
+      "title": "Refurbishment of the Millennium Library Children's Area - 251 Donald Street",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=792-2020&YEAR=2020",
+      "solicitation_number": null,
+      "title": "Provision of Bacteriological Monitoring",
+      "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+      "platform": "generic_http",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, DUAL REEL AERIAL - FDNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "MOBILE COMMAND UNIT - PARKS",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, 10 CUBIC YARD REAR LOADING COLLECTION-DSNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "GRP:HOLSET TURBOCHARGERS",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "solicitation_number": "2027066",
+      "title": "Bee and Other Stinging Insect Removal Services",
+      "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "platform": "socrata",
+      "manifest_count": 2,
+      "downloaded_count": 2,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "OXYGEN NON-REBREATHER MASKS & NASAL CANNULAS -FDNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, 100' TRACTOR DRAWN AERIAL - FDNY(RE-AD)",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "VARIOUS OPEN TOP CONTAINERS AND DOLLY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "solicitation_number": "2027067",
+      "title": "Emergency and Non Emer Response for Hazardous, Universal & Bio Wastes",
+      "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "platform": "socrata",
+      "manifest_count": 2,
+      "downloaded_count": 2,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "CURAPLEX LARYNGOSCOPE BLADES- FDNY- BRAND SPECIFIC",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, WELDING - DSNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK,16 C.Y. ELECTRIC COMPACTING COLLECTION-RE-AD",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "solicitation_number": "2027062",
+      "title": "Streetlight Maint., Installations, Removals, & Rusted Pole Replacement",
+      "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "platform": "socrata",
+      "manifest_count": 2,
+      "downloaded_count": 2,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "COTS: FOLDING, ADULT SIZE",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": null,
+      "title": "TRUCK, 800 GALLON BRINE - DSNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "FAILED",
+      "extraction_status": "NOT_READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": null,
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, UTILITY, W/ENCLOSED BODY & AERIAL LIFT-DSNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRAINING MUNITIONS & PERSONAL PROTECTIVE GEAR",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, COLLECTION, HIGH COMPACTION FRONT LOADING",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://www.procuretap.com/bid/379382",
+      "solicitation_number": "Professional",
+      "title": "Glossary",
+      "source_key": "ai_a75c9e6888ac36238c0b",
+      "platform": "procuretap",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "product_with_incidental_services",
+      "url_kind": "detail"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "SHEETING, RETROREFLECTIVE VINYL FOR TRAFFIC SIGNS",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "vSZ2kYuXJ8lveTZLbN81K3ajsWEw5xK2QVCKs0INK_wjWIzNojzPkQt4Vgq3PtqGWsL0USS8rKKAyHQ",
+      "title": "TRUCK, ONE(1)TON PICK-UP, FOUR WHEEL DRIVE - FDNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "MARKING DEVICES",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "solicitation_number": "2027054",
+      "title": "Ammunition and Less Lethal Products",
+      "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "platform": "socrata",
+      "manifest_count": 2,
+      "downloaded_count": 2,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, CREW CAB/DRY FREIGHT W/POWER LIFT GATE",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, 75' AERIAL PLATFORM APPARATUS - FDNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "MOBILE CRUSHING AND SCREENING PLANT - DOT",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "solicitation_number": "2027050",
+      "title": "Total Organic Carbon (TOC) Analyzer",
+      "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "platform": "socrata",
+      "manifest_count": 2,
+      "downloaded_count": 2,
+      "package_status": "COMPLETE",
+      "extraction_status": "READY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "TRUCK, 2000 GPM PUMPER APPARATUS - FDNY",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "CANINE FOOD FOR NYPD",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "GRP: SIGNAL STAT EMERG. LIGHTS & SIREN SYSTEMS",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    },
+    {
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "solicitation_number": "that",
+      "title": "BEACH CLEANER,TRACTOR DRAWN, RAKE TYPE-DPR",
+      "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "platform": "socrata",
+      "manifest_count": 0,
+      "downloaded_count": 0,
+      "package_status": "COMPLETE",
+      "extraction_status": "DETAIL_ONLY",
+      "amendment_status": {
+        "note": "Supersession only when amendment language or authoritative evidence present",
+        "amendment_documents": 0,
+        "amendment_urls_on_page": []
+      },
+      "classification": "unknown_mixed",
+      "url_kind": "unknown"
+    }
+  ],
+  "uncertain_recovery": {
+    "investigated": 8204,
+    "resolved_product": 837,
+    "resolved_product_incidental": 59,
+    "resolved_product_installation": 11,
+    "resolved_non_product": 638,
+    "resolved_other": 789,
+    "remaining_uncertain": 5870,
+    "level1_resolved": 1498,
+    "level2_attempted": 99,
+    "level2_resolved": 47,
+    "level3_attempted": 100,
+    "level3_resolved": 0,
+    "level4_attempted": 40,
+    "level4_resolved": 0,
+    "openai_spent_usd": 0.0,
+    "unresolved_reasons": {
+      "openai:Daily research budget exhausted.": 40,
+      "listing_http_404": 1,
+      "detail_fetch_error:ValueError": 46,
+      "downloaded=2/2": 13,
+      "level2_detail_page": 653,
+      "insufficient_evidence": 5117
+    },
+    "skipped_already_classified": 0,
+    "level2_url_groups": 99,
+    "package_acquisition": {
+      "COMPLETE": 52,
+      "PARTIAL": 0,
+      "ACCESS_RESTRICTED": 0,
+      "VERIFICATION_REQUIRED": 1,
+      "FAILED": 47,
+      "identified_docs": 49,
+      "downloaded_docs": 49
+    },
+    "finished_at": "2026-11-21T18:38:23.798213+00:00"
+  },
+  "test_j_resume": {
+    "unchanged_hashes_preserved": true
+  },
+  "test_k_budget": {
+    "openai_portal_disabled": true,
+    "packages_acquired_without_openai_portal": true
+  },
+  "test_manual_import": {
+    "package_status": "FAILED",
+    "downloaded": 1,
+    "note": "manual upload does not alone establish authoritative completeness",
+    "completeness_not_forced": true
+  },
+  "gates": {
+    "AUTHORITATIVE_SOURCE_RESOLUTION": "VERIFIED",
+    "DETAIL_PAGE_ACQUISITION": "VERIFIED",
+    "ATTACHMENT_DISCOVERY": "VERIFIED",
+    "DOCUMENT_MANIFEST_ACCURACY": "VERIFIED",
+    "COMPLETE_DOCUMENT_DOWNLOAD": "PARTIALLY VERIFIED",
+    "DOCUMENT_VALIDITY": "VERIFIED",
+    "DOCUMENT_EXTRACTION": "VERIFIED",
+    "PACKAGE_COMPLETENESS_VERIFICATION": "VERIFIED",
+    "AMENDMENT_TRACKING": "PARTIALLY VERIFIED",
+    "VERSION_CONTROL": "PARTIALLY VERIFIED",
+    "PLATFORM_REUSABILITY": "VERIFIED",
+    "MANUAL_IMPORT": "VERIFIED",
+    "FULL_POPULATION_PROCESSING": "PARTIALLY VERIFIED",
+    "CLASSIFICATION_RECOVERY": "PARTIALLY VERIFIED",
+    "RESUMABLE_ACQUISITION": "VERIFIED",
+    "STORAGE_MANAGEMENT": "VERIFIED",
+    "BUDGET_ENFORCEMENT": "VERIFIED",
+    "PRODUCTION_UI_VERIFICATION": "PARTIALLY VERIFIED",
+    "DEPLOYMENT_VERIFIED": "PENDING",
+    "PRODUCTION_UI_VERIFICATION_NOTE": "Routes and opportunity_detail package UI shipped; live check after Railway deploy"
+  },
+  "post_harness_hardening": {
+    "zero_doc_complete_requires_detail_url_kind": true,
+    "junk_cdn_hosts_rejected": true,
+    "listing_inventory_not_verified_complete": true,
+    "unknown_url_not_auto_resolved": true
+  },
+  "elapsed_seconds": 899.7,
+  "finished": "2026-11-21T18:40:58Z"
+}

@@ -396,6 +396,114 @@ class ResearchCache(Base):
     hit_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class SolicitationPackage(Base):
+    """Authoritative solicitation package acquisition state (Build 002D)."""
+
+    __tablename__ = "solicitation_packages"
+    __table_args__ = (
+        UniqueConstraint("identity_key", name="uq_solicitation_packages_identity"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    identity_key: Mapped[str] = mapped_column(String(255), index=True)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("opportunities.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    research_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    external_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    solicitation_number: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    buyer: Mapped[str] = mapped_column(String(255), default="")
+    source_key: Mapped[str] = mapped_column(String(128), default="", index=True)
+    platform: Mapped[str] = mapped_column(String(64), default="", index=True)
+    authoritative_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url_kind: Mapped[str] = mapped_column(String(64), default="unknown")  # detail|listing|document|unknown
+    package_status: Mapped[str] = mapped_column(String(48), default="NOT_ACQUIRED", index=True)
+    extraction_status: Mapped[str] = mapped_column(String(48), default="NOT_STARTED")
+    identified_count: Mapped[int] = mapped_column(Integer, default=0)
+    downloaded_count: Mapped[int] = mapped_column(Integer, default=0)
+    missing_count: Mapped[int] = mapped_column(Integer, default=0)
+    extracted_count: Mapped[int] = mapped_column(Integer, default=0)
+    detail_fields: Mapped[dict] = mapped_column(JSONB, default=dict)
+    access_issues: Mapped[list] = mapped_column(JSONB, default=list)
+    amendment_summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    classification_hint: Mapped[dict] = mapped_column(JSONB, default=dict)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    storage_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    documents: Mapped[list["PackageDocument"]] = relationship(
+        back_populates="package", cascade="all, delete-orphan"
+    )
+
+
+class PackageDocument(Base):
+    """One identified/downloaded document in a solicitation package."""
+
+    __tablename__ = "package_documents"
+    __table_args__ = (
+        UniqueConstraint("package_id", "source_url_hash", name="uq_package_doc_url"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    package_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("solicitation_packages.id", ondelete="CASCADE"), index=True
+    )
+    source_url: Mapped[str] = mapped_column(Text)
+    source_url_hash: Mapped[str] = mapped_column(String(64), index=True)
+    original_filename: Mapped[str] = mapped_column(String(512), default="")
+    document_title: Mapped[str] = mapped_column(String(512), default="")
+    document_type: Mapped[str] = mapped_column(String(64), default="attachment")
+    source_document_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    download_status: Mapped[str] = mapped_column(String(32), default="identified", index=True)
+    extraction_status: Mapped[str] = mapped_column(String(32), default="pending")
+    file_format: Mapped[str] = mapped_column(String(32), default="")
+    file_size: Mapped[int] = mapped_column(Integer, default=0)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    storage_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_amendment: Mapped[bool] = mapped_column(Boolean, default=False)
+    superseded: Mapped[bool] = mapped_column(Boolean, default=False)
+    version_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    extracted_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    package: Mapped["SolicitationPackage"] = relationship(back_populates="documents")
+
+
+class PackageAcquisitionJob(Base):
+    """Background / resumable package acquisition job."""
+
+    __tablename__ = "package_acquisition_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    priority: Mapped[str] = mapped_column(String(32), default="normal")
+    mode: Mapped[str] = mapped_column(String(64), default="population")  # population|saved|manual|recovery
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    queued: Mapped[int] = mapped_column(Integer, default=0)
+    processing: Mapped[int] = mapped_column(Integer, default=0)
+    completed: Mapped[int] = mapped_column(Integer, default=0)
+    partial: Mapped[int] = mapped_column(Integer, default=0)
+    restricted: Mapped[int] = mapped_column(Integer, default=0)
+    failed: Mapped[int] = mapped_column(Integer, default=0)
+    progress: Mapped[dict] = mapped_column(JSONB, default=dict)
+    checkpoint: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 # Fix forward refs for relationship typing under from __future__ annotations
 from typing import TYPE_CHECKING  # noqa: E402
 
