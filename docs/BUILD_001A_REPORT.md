@@ -60,10 +60,12 @@
 
 ## Screenshots (local verification)
 Captured during 001A QA (Cursor screenshot store):
-- Dashboard (1440)
-- Opportunity detail (Overview sections)
-- Settings / profile + team (360 mobile)
-- Filter workspace with Filter / Saved / Searches subnav
+- Dashboard (1440 + mobile 390)
+- Opportunity Filter subnav + compact results table
+- Opportunity detail (Overview…Notes)
+- Supplier contact form (HON — Name/Email/Phone + Add contact)
+- Settings / user management (primary-owner team controls + test-record review)
+- Mobile layouts (390)
 
 ## Deploy
 - Existing Railway service only; additive DB columns (`is_primary_owner`, `result_snapshot`, `requirement_class`, `quantity`).
