@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Find contracts · M3{% endblock %}
+{% block content %}
+<h1>Find contracts</h1>
+<p class="lead">Search free public government sources. Unpriced opportunities are still worth reviewing.</p>
+<form method="get" action="/opportunities/find" class="filters">
+  <label class="field">Keywords<input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="furniture, tools, appliances…"></label>
+  <fieldset>
+    <legend>Estimated value (multi-select)</legend>
+    <div class="checks">
+      {% for key,label in value_options %}
+      <label><input type="checkbox" name="value_bands" value="{{ key }}" {% if key in filters.value_bands %}checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <div class="row" style="margin-top:.6rem">
+      <label class="field">Custom min<input type="number" name="custom_value_min" value="{{ filters.custom_value_min or '' }}"></label>
+      <label class="field">Custom max<input type="number" name="custom_value_max" value="{{ filters.custom_value_max or '' }}"></label>
+      <label class="checks"><input type="checkbox" name="include_unknown_value" value="1" {% if filters.include_unknown_value %}checked{% endif %}> Include unknown value</label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Set-aside (verified when available)</legend>
+    <div class="checks">
+      {% for key,label in set_aside_options %}
+      <label><input type="checkbox" name="set_asides" value="{{ key }}" {% if key in filters.set_asides %}checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="row">
+    <label class="field">States (comma-separated)<input type="text" name="states" value="{{ filters.states_raw or 'NE' }}" placeholder="NE,IA,CO"></label>
+    <label class="field">Product categories<input type="text" name="product_categories" value="{{ filters.categories_raw or '' }}" placeholder="furniture,janitorial,it_hardware"></label>
+    <label class="field">Days remaining max<input type="number" name="days_remaining_max" value="{{ filters.days_remaining_max or '' }}"></label>
+  </div>
+  <div class="row">
+    <button type="submit">Search now</button>
+    <button class="secondary" type="submit" name="save_profile" value="1">Save this search</button>
+    <a class="btn secondary" href="/opportunities">Saved opportunities</a>
+  </div>
+</form>
+
+{% if ran %}
+<p class="muted">Found {{ result.count }} after filters ({{ result.unfiltered_count }} before filters). Sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
+{% if result.limitations %}
+<div class="flash warn">Some sources failed: {{ result.limitations[:3]|join(' · ') }}</div>
+{% endif %}
+{% if result.items %}
+<div class="list">
+  {% for item in result.items %}
+  <article class="item">
+    <h3>{{ item.title }}</h3>
+    <div class="meta">
+      <span class="badge">{{ item.product_category or 'unknown' }}</span>
+      <span>{{ item.buyer_name or 'Buyer unknown' }}</span>
+      <span>{{ item.geo_state or '—' }}</span>
+      <span>Due {{ item.deadline_at or 'unknown' }}</span>
+      <span>Set-aside: {{ item.set_aside or 'unknown' }}{% if not item.set_aside_verified %} (unverified){% endif %}</span>
+      <span>
+        {% if item.estimated_value_unknown or item.estimated_value_min is none %}Value unknown
+        {% else %}~ ${{ '%.0f'|format(item.estimated_value_min) }}
+        {% endif %}
+      </span>
+    </div>
+    <p class="muted">Source verified {{ item.source_verified_at or '—' }} · {{ item.source_key }}</p>
+    <div class="actions">
+      {% if item.official_url %}<a class="btn secondary" href="{{ item.official_url }}" target="_blank" rel="noopener">Official page</a>{% endif %}
+      <form method="post" action="/opportunities/save">
+        <input type="hidden" name="payload" value="{{ item|b64json }}">
+        <button type="submit">Save to pipeline</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No matching live results for these filters. Broaden categories or value bands.</div>
+{% endif %}
+{% endif %}
+{% endblock %}

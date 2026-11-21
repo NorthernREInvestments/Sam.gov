@@ -1,5 +1,4 @@
 #!/bin/sh
 set -eu
-cd /app/public
 PORT="${PORT:-8080}"
-exec python -m http.server "$PORT"
+exec uvicorn app:app --host 0.0.0.0 --port "$PORT"

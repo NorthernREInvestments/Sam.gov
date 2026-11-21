@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Follow-ups · M3{% endblock %}
+{% block content %}
+<h1>Supplier follow-ups</h1>
+{% if items %}
+<div class="list">
+  {% for s in items %}
+  <article class="item">
+    <h3><a href="/suppliers/{{ s.id }}">{{ s.name }}</a></h3>
+    <div class="meta"><span>Due {{ s.follow_up_on }}</span><span>{{ s.next_action or '' }}</span></div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No follow-ups due. Set dates on supplier records.</div>
+{% endif %}
+{% endblock %}

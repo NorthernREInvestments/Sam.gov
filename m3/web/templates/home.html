@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Home · M3{% endblock %}
+{% block content %}
+<h1>Hello, {{ user.full_name.split(' ')[0] }}</h1>
+<p class="lead">
+  {% if user.role == 'owner' %}
+    Review opportunities, assignments, and team activity.
+  {% elif user.role == 'supplier_manager' %}
+    Recruit suppliers, manage applications, catalogs, and follow-ups.
+  {% else %}
+    Find contracts, save opportunities, and work your tasks.
+  {% endif %}
+</p>
+<div class="grid">
+  {% if user.role == 'supplier_manager' %}
+  <a class="card" href="/suppliers/find"><h3>Find suppliers</h3><p class="muted">Recruit distributors and wholesalers</p></a>
+  <a class="card" href="/suppliers"><h3>My suppliers</h3><p class="muted">{{ supplier_count }} in CRM</p></a>
+  <a class="card" href="/suppliers/catalogs"><h3>Catalogs</h3><p class="muted">Upload and search price lists</p></a>
+  <a class="card" href="/suppliers/follow-ups"><h3>Follow-ups due</h3><p class="muted">{{ followups }} waiting</p></a>
+  <a class="card" href="/tasks"><h3>My tasks</h3><p class="muted">{{ open_tasks }} open</p></a>
+  {% elif user.role == 'owner' %}
+  <a class="card" href="/opportunities/find"><h3>Find contracts</h3><p class="muted">Search free government sources</p></a>
+  <a class="card" href="/opportunities"><h3>Saved opportunities</h3><p class="muted">{{ saved_opps }} active</p></a>
+  <a class="card" href="/suppliers"><h3>Suppliers</h3><p class="muted">{{ supplier_count }} relationships</p></a>
+  <a class="card" href="/tasks"><h3>Assignments</h3><p class="muted">{{ open_tasks }} open for you</p></a>
+  <a class="card" href="/settings/audit"><h3>Activity</h3><p class="muted">Audit history</p></a>
+  {% else %}
+  <a class="card" href="/opportunities/find"><h3>Find contracts</h3><p class="muted">Search free government sources</p></a>
+  <a class="card" href="/opportunities"><h3>Saved opportunities</h3><p class="muted">{{ saved_opps }} active</p></a>
+  <a class="card" href="/tasks"><h3>My tasks</h3><p class="muted">{{ open_tasks }} open</p></a>
+  <a class="card" href="/suppliers"><h3>Suppliers</h3><p class="muted">Read supplier records</p></a>
+  {% endif %}
+</div>
+<h2>What needs attention</h2>
+{% if attention %}
+<div class="list">
+  {% for a in attention %}
+  <div class="item">
+    <h3>{{ a.title }}</h3>
+    <div class="meta"><span class="badge">{{ a.kind }}</span><span>{{ a.detail }}</span></div>
+    <div class="actions"><a class="btn secondary" href="{{ a.href }}">Open</a></div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">Nothing urgent. Start with the primary action above.</div>
+{% endif %}
+{% endblock %}

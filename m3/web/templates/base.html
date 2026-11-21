@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}M3 Supply{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topnav">
+    <div class="wrap topnav-inner">
+      <a class="brand" href="/">M3 Supply</a>
+      {% if user %}
+      <nav class="navlinks" aria-label="Primary">
+        <a href="/" class="{% if nav=='home' %}active{% endif %}">Home</a>
+        <a href="/opportunities" class="{% if nav=='opportunities' %}active{% endif %}">Opportunities</a>
+        <a href="/suppliers" class="{% if nav=='suppliers' %}active{% endif %}">Suppliers</a>
+        <a href="/tasks" class="{% if nav=='tasks' %}active{% endif %}">Tasks</a>
+        <a href="/settings" class="{% if nav=='settings' %}active{% endif %}">Settings</a>
+      </nav>
+      <div class="userchip">{{ user.full_name }} · {{ user.role }} · <a href="/logout">Sign out</a></div>
+      {% endif %}
+    </div>
+  </header>
+  <main class="wrap">
+    {% if flash %}
+      <div class="flash {{ flash.kind }}">{{ flash.message }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    <p class="footer">M3 2.0 Build 001 · Free public sources only · SAM/paid APIs disabled</p>
+  </main>
+</body>
+</html>

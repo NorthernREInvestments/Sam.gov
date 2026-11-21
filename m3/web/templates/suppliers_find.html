@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Find suppliers · M3{% endblock %}
+{% block content %}
+<h1>Find new suppliers</h1>
+<p class="lead">Recruit distributors independently of any one contract. Terms and eligibility stay unknown until verified.</p>
+<form method="get" class="filters row">
+  <label class="field">Categories<input type="text" name="product_categories" value="{{ categories_raw }}" placeholder="mro,furniture,it_hardware,janitorial"></label>
+  <label class="field">Keyword<input type="text" name="keyword" value="{{ keyword }}"></label>
+  <button type="submit">Search suppliers</button>
+  <a class="btn secondary" href="/suppliers">My suppliers</a>
+</form>
+{% if ran %}
+<p class="muted">{{ result.count }} supplier leads · sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
+<div class="list">
+  {% for s in result.items %}
+  <article class="item">
+    <h3>{{ s.name }}</h3>
+    <div class="meta">
+      <span class="badge">{{ s.supplier_type }}</span>
+      <span>{{ (s.product_categories or [])|join(', ') }}</span>
+      <span>{{ s.geo_coverage or 'coverage unknown' }}</span>
+      <span>{{ s.verification_status }}</span>
+    </div>
+    <p class="muted">Next: {{ s.next_action or 'Review and save' }}</p>
+    <div class="actions">
+      {% if s.website %}<a class="btn secondary" href="{{ s.website }}" target="_blank" rel="noopener">Website</a>{% endif %}
+      {% if s.reseller_application_url %}<a class="btn secondary" href="{{ s.reseller_application_url }}" target="_blank" rel="noopener">Reseller / account link</a>{% endif %}
+      {% if s.phone %}<a class="btn secondary" href="tel:{{ s.phone }}">{{ s.phone }}</a>{% endif %}
+      <form method="post" action="/suppliers/save-discovery">
+        <input type="hidden" name="payload" value="{{ s|b64json }}">
+        <button type="submit">Save to CRM</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

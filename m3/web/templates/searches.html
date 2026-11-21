@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Saved searches · M3{% endblock %}
+{% block content %}
+<h1>Saved searches</h1>
+{% if profiles %}
+<div class="list">
+  {% for p in profiles %}
+  <article class="item">
+    <h3>{{ p.name }}</h3>
+    <p class="muted">{{ p.kind }} · {{ p.filters }}</p>
+    <a class="btn secondary" href="/opportunities/find?profile={{ p.id }}">Run again</a>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">Save a filter set from Find contracts.</div>
+{% endif %}
+{% endblock %}

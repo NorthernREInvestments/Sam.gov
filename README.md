@@ -1,9 +1,16 @@
-# M3 — Rebuild Pending
+# M3 Supply — Business Operating System (2.0)
 
-This repository was intentionally reset. Legacy application code and data were retired.
+Clean-sheet Build 001. Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-A minimal static placeholder is present only so the existing Railway service can remain healthy until the new M3 build is authorized.
+## Run locally
 
-No legacy business logic, research engines, database connections, background workers, or external API integrations are included.
+```bash
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8080
+```
 
-Await owner instructions before implementing the replacement application.
+Requires `DATABASE_URL`, `SECRET_KEY`, and owner bootstrap env vars (see `.env.example`).
+
+## Deploy
+
+Railway uses the existing GitHub connection and PostgreSQL service. No deploy-time data wipe.

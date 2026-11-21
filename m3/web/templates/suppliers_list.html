@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}My suppliers · M3{% endblock %}
+{% block content %}
+<h1>My suppliers</h1>
+<p class="lead">
+  <a href="/suppliers/find">Find new</a> ·
+  <a href="/suppliers/follow-ups">Follow-ups</a> ·
+  <a href="/suppliers/catalogs">Catalogs</a> ·
+  <a href="/suppliers/new">Add manually</a>
+</p>
+<form method="get" class="row">
+  <label class="field">Search<input type="text" name="q" value="{{ q }}" placeholder="Name, brand, category"></label>
+  <button type="submit">Search</button>
+</form>
+{% if items %}
+<div class="list">
+  {% for s in items %}
+  <article class="item">
+    <h3><a href="/suppliers/{{ s.id }}">{{ s.name }}</a></h3>
+    <div class="meta">
+      <span class="badge">{{ s.relationship_status }}</span>
+      <span>Reseller: {{ s.reseller_application_status }}</span>
+      <span>Credit: {{ s.credit_application_status }}</span>
+      <span>Follow-up {{ s.follow_up_on or '—' }}</span>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No suppliers yet. Find distributors or add one manually.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Saved opportunities · M3{% endblock %}
+{% block content %}
+<h1>Saved opportunities</h1>
+<p class="lead">Only contracts you chose to work. <a href="/opportunities/find">Find more</a> · <a href="/opportunities/searches">Saved searches</a></p>
+{% if items %}
+<div class="list">
+  {% for o in items %}
+  <article class="item">
+    <h3>{{ o.title }}</h3>
+    <div class="meta">
+      <span>{{ o.buyer_name or '—' }}</span>
+      <span>{{ o.geo_state or '—' }}</span>
+      <span>{{ o.solicitation_number or 'No solicitation #' }}</span>
+      <span>Due {{ o.deadline_at or 'unknown' }}</span>
+    </div>
+    <div class="actions">
+      {% if o.official_url %}<a class="btn secondary" href="{{ o.official_url }}" target="_blank" rel="noopener">Open official</a>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No saved opportunities yet. Search free sources and save what matters.</div>
+{% endif %}
+{% endblock %}

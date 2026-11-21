@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Settings · M3{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+{% if can_manage_users %}
+<h2>Team</h2>
+<form method="post" action="/settings/users" class="stack card">
+  <label class="field">Name<input name="full_name" required></label>
+  <label class="field">Email<input type="email" name="email" required></label>
+  <label class="field">Temporary password<input type="password" name="password" required minlength="10"></label>
+  <label class="field">Role
+    <select name="role">
+      <option value="supplier_manager">Supplier Manager</option>
+      <option value="contract_specialist">Contract Specialist</option>
+      <option value="owner">Owner</option>
+    </select>
+  </label>
+  <button type="submit">Create user</button>
+</form>
+<div class="table-wrap" style="margin-top:1rem">
+<table>
+  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td>{{ u.full_name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ u.role }}</td>
+      <td>{{ 'yes' if u.is_active else 'no' }}
+        {% if u.id != user.id %}
+        <form method="post" action="/settings/users/{{ u.id }}/toggle" style="display:inline"><button class="secondary" type="submit">Toggle</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<h2>Audit history</h2>
+<p class="muted"><a href="/settings/audit">Review activity</a></p>
+{% else %}
+<p class="lead">Ask the owner to change account permissions.</p>
+{% endif %}
+{% endblock %}

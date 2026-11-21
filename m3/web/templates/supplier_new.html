@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Add supplier · M3{% endblock %}
+{% block content %}
+<h1>Add supplier</h1>
+<form method="post" class="stack card">
+  <label class="field">Name<input name="name" required></label>
+  <label class="field">Website<input type="url" name="website" placeholder="https://"></label>
+  <label class="field">Type<input name="supplier_type" placeholder="distributor / wholesaler"></label>
+  <label class="field">Categories<input name="product_categories" placeholder="mro, tools"></label>
+  <button type="submit">Create</button>
+</form>
+{% endblock %}
