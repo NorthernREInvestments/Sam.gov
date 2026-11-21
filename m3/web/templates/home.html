@@ -4,45 +4,139 @@
 <h1>Hello, {{ user.full_name.split(' ')[0] }}</h1>
 <p class="lead">
   {% if user.role == 'owner' %}
-    Review opportunities, assignments, and team activity.
+    Opportunities, assignments, and team activity.
   {% elif user.role == 'supplier_manager' %}
-    Recruit suppliers, manage applications, catalogs, and follow-ups.
+    Supplier recruitment, applications, catalogs, and follow-ups.
   {% else %}
-    Find contracts, save opportunities, and work your tasks.
+    Contracts, saved opportunities, and your tasks.
   {% endif %}
 </p>
-<div class="grid">
-  {% if user.role == 'supplier_manager' %}
-  <a class="card" href="/suppliers/find"><h3>Find suppliers</h3><p class="muted">Recruit distributors and wholesalers</p></a>
-  <a class="card" href="/suppliers"><h3>My suppliers</h3><p class="muted">{{ supplier_count }} in CRM</p></a>
-  <a class="card" href="/suppliers/catalogs"><h3>Catalogs</h3><p class="muted">Upload and search price lists</p></a>
-  <a class="card" href="/suppliers/follow-ups"><h3>Follow-ups due</h3><p class="muted">{{ followups }} waiting</p></a>
-  <a class="card" href="/tasks"><h3>My tasks</h3><p class="muted">{{ open_tasks }} open</p></a>
-  {% elif user.role == 'owner' %}
-  <a class="card" href="/opportunities/find"><h3>Find contracts</h3><p class="muted">Search free government sources</p></a>
-  <a class="card" href="/opportunities"><h3>Saved opportunities</h3><p class="muted">{{ saved_opps }} active</p></a>
-  <a class="card" href="/suppliers"><h3>Suppliers</h3><p class="muted">{{ supplier_count }} relationships</p></a>
-  <a class="card" href="/tasks"><h3>Assignments</h3><p class="muted">{{ open_tasks }} open for you</p></a>
-  <a class="card" href="/settings/audit"><h3>Activity</h3><p class="muted">Audit history</p></a>
-  {% else %}
-  <a class="card" href="/opportunities/find"><h3>Find contracts</h3><p class="muted">Search free government sources</p></a>
-  <a class="card" href="/opportunities"><h3>Saved opportunities</h3><p class="muted">{{ saved_opps }} active</p></a>
-  <a class="card" href="/tasks"><h3>My tasks</h3><p class="muted">{{ open_tasks }} open</p></a>
-  <a class="card" href="/suppliers"><h3>Suppliers</h3><p class="muted">Read supplier records</p></a>
+
+<div class="stat-strip">
+  <div class="stat"><div class="n">{{ saved_opps }}</div><div class="l">Saved opportunities</div></div>
+  <div class="stat"><div class="n">{{ deadlines_count }}</div><div class="l">Due in 14 days</div></div>
+  <div class="stat"><div class="n">{{ open_tasks }}</div><div class="l">Open tasks</div></div>
+  <div class="stat"><div class="n">{{ followups }}</div><div class="l">Overdue follow-ups</div></div>
+  {% if user.role in ['owner','supplier_manager'] %}
+  <div class="stat"><div class="n">{{ apps_in_progress }}</div><div class="l">Apps in progress</div></div>
+  <div class="stat"><div class="n">{{ supplier_count }}</div><div class="l">Suppliers</div></div>
   {% endif %}
 </div>
-<h2>What needs attention</h2>
-{% if attention %}
-<div class="list">
-  {% for a in attention %}
-  <div class="item">
-    <h3>{{ a.title }}</h3>
-    <div class="meta"><span class="badge">{{ a.kind }}</span><span>{{ a.detail }}</span></div>
-    <div class="actions"><a class="btn secondary" href="{{ a.href }}">Open</a></div>
-  </div>
-  {% endfor %}
+
+<div class="dash-grid">
+  <section class="dash-section">
+    <h2>Upcoming bid deadlines <span class="count">{{ deadlines|length }}</span></h2>
+    {% for o in deadlines %}
+    <div class="dash-row">
+      <div>
+        <a href="/opportunities/{{ o.id }}">{{ o.title[:80] }}</a>
+        <div class="meta">{{ o.buyer_name or 'Unknown buyer' }} · Due {{ o.deadline_at or 'Unknown' }}</div>
+      </div>
+      <a class="btn secondary small" href="/opportunities/{{ o.id }}">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">No upcoming deadlines on saved opportunities.</div>
+    {% endfor %}
+  </section>
+
+  <section class="dash-section">
+    <h2>Assigned tasks <span class="count">{{ tasks|length }}</span></h2>
+    {% for t in tasks %}
+    <div class="dash-row">
+      <div>
+        {{ t.title }}
+        <div class="meta">Due {{ t.due_on or '—' }} · {{ t.status }}</div>
+      </div>
+      <a class="btn secondary small" href="/tasks">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">No open tasks assigned to you.</div>
+    {% endfor %}
+  </section>
+
+  {% if user.role in ['owner','supplier_manager'] %}
+  <section class="dash-section">
+    <h2>Overdue supplier follow-ups <span class="count">{{ overdue_suppliers|length }}</span></h2>
+    {% for s in overdue_suppliers %}
+    <div class="dash-row">
+      <div>
+        <a href="/suppliers/{{ s.id }}">{{ s.name }}</a>
+        <div class="meta">Due {{ s.follow_up_on }} · Reseller {{ s.reseller_application_status }}</div>
+      </div>
+      <a class="btn secondary small" href="/suppliers/{{ s.id }}">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">No overdue follow-ups.</div>
+    {% endfor %}
+  </section>
+
+  <section class="dash-section">
+    <h2>Applications in progress <span class="count">{{ app_suppliers|length }}</span></h2>
+    {% for s in app_suppliers %}
+    <div class="dash-row">
+      <div>
+        <a href="/suppliers/{{ s.id }}">{{ s.name }}</a>
+        <div class="meta">Reseller {{ s.reseller_application_status }} · Credit {{ s.credit_application_status }}</div>
+      </div>
+      <a class="btn secondary small" href="/suppliers/{{ s.id }}">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">No applications currently in progress.</div>
+    {% endfor %}
+  </section>
+
+  <section class="dash-section">
+    <h2>Recently added suppliers <span class="count">{{ recent_suppliers|length }}</span></h2>
+    {% for s in recent_suppliers %}
+    <div class="dash-row">
+      <div>
+        <a href="/suppliers/{{ s.id }}">{{ s.name }}</a>
+        <div class="meta">{{ s.created_at }}</div>
+      </div>
+      <a class="btn secondary small" href="/suppliers/{{ s.id }}">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">No suppliers yet.</div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if user.is_primary_owner or user.role == 'owner' %}
+  <section class="dash-section">
+    <h2>Recent team activity <span class="count">{{ recent_activity|length }}</span></h2>
+    {% for e in recent_activity %}
+    <div class="dash-row">
+      <div>
+        {{ e.action }}
+        <div class="meta">{{ e.actor_label }} · {{ e.at }} · {{ e.entity_type }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">No recent activity.</div>
+    {% endfor %}
+    {% if user.is_primary_owner %}
+    <div class="actions"><a class="btn secondary small" href="/settings/audit">Full audit</a></div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="dash-section">
+    <h2>Saved opportunities <span class="count">{{ recent_opps|length }}</span></h2>
+    {% for o in recent_opps %}
+    <div class="dash-row">
+      <div>
+        <a href="/opportunities/{{ o.id }}">{{ o.title[:80] }}</a>
+        <div class="meta">{{ o.buyer_name or 'Unknown' }} · {{ o.geo_state or 'Unknown' }}</div>
+      </div>
+      <a class="btn secondary small" href="/opportunities/{{ o.id }}">Open</a>
+    </div>
+    {% else %}
+    <div class="empty">None saved yet.</div>
+    {% endfor %}
+    <div class="actions">
+      <a class="btn secondary small" href="/opportunities/find">Filter</a>
+      <a class="btn secondary small" href="/opportunities">All saved</a>
+    </div>
+  </section>
 </div>
-{% else %}
-<div class="empty">Nothing urgent. Start with the primary action above.</div>
-{% endif %}
 {% endblock %}

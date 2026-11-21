@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Find contracts · M3{% endblock %}
+{% block title %}Filter contracts · M3{% endblock %}
 {% block content %}
-<h1>Find contracts</h1>
-<p class="lead">Search free public government sources. Unpriced opportunities are still worth reviewing.</p>
-<form method="get" action="/opportunities/find" class="filters">
-  <label class="field">Keywords<input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="furniture, tools, appliances…"></label>
+{% include "_opp_subnav.html" %}
+<h1>Filter contracts</h1>
+<p class="lead">Search free public government sources. Unpriced opportunities are still worth reviewing. Product-resale mode hides clear services and construction.</p>
+
+<form method="get" action="/opportunities/find" class="filters panel" id="filter-form">
+  <input type="hidden" name="run" value="1">
+  <label class="field"><span>Keywords</span><input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="furniture, tools, appliances…"></label>
   <fieldset>
     <legend>Estimated value (multi-select)</legend>
     <div class="checks">
@@ -12,10 +15,10 @@
       <label><input type="checkbox" name="value_bands" value="{{ key }}" {% if key in filters.value_bands %}checked{% endif %}> {{ label }}</label>
       {% endfor %}
     </div>
-    <div class="row" style="margin-top:.6rem">
-      <label class="field">Custom min<input type="number" name="custom_value_min" value="{{ filters.custom_value_min or '' }}"></label>
-      <label class="field">Custom max<input type="number" name="custom_value_max" value="{{ filters.custom_value_max or '' }}"></label>
-      <label class="checks"><input type="checkbox" name="include_unknown_value" value="1" {% if filters.include_unknown_value %}checked{% endif %}> Include unknown value</label>
+    <div class="form-grid cols-3" style="margin-top:.6rem">
+      <label class="field"><span>Custom min</span><input type="number" name="custom_value_min" value="{{ filters.custom_value_min or '' }}"></label>
+      <label class="field"><span>Custom max</span><input type="number" name="custom_value_max" value="{{ filters.custom_value_max or '' }}"></label>
+      <label class="checks" style="align-items:center"><input type="checkbox" name="include_unknown_value" value="1" {% if filters.include_unknown_value %}checked{% endif %}> Include unknown value</label>
     </div>
   </fieldset>
   <fieldset>
@@ -26,53 +29,92 @@
       {% endfor %}
     </div>
   </fieldset>
-  <div class="row">
-    <label class="field">States (comma-separated)<input type="text" name="states" value="{{ filters.states_raw or 'NE' }}" placeholder="NE,IA,CO"></label>
-    <label class="field">Product categories<input type="text" name="product_categories" value="{{ filters.categories_raw or '' }}" placeholder="furniture,janitorial,it_hardware"></label>
-    <label class="field">Days remaining max<input type="number" name="days_remaining_max" value="{{ filters.days_remaining_max or '' }}"></label>
+  <div class="form-grid cols-3">
+    <label class="field"><span>States (comma-separated)</span><input type="text" name="states" value="{{ filters.states_raw or '' }}" placeholder="NE,IA,CA"></label>
+    <label class="field"><span>Product categories</span><input type="text" name="product_categories" value="{{ filters.categories_raw or '' }}" placeholder="furniture,janitorial"></label>
+    <label class="field"><span>Days remaining max</span><input type="number" name="days_remaining_max" value="{{ filters.days_remaining_max or '' }}"></label>
   </div>
-  <div class="row">
-    <button type="submit">Search now</button>
+  <label class="checks"><input type="checkbox" name="product_resale_only" value="1" {% if filters.product_resale_only %}checked{% endif %}> Product-resale only (exclude clear services/construction)</label>
+  <div class="form-actions">
+    <button type="submit">Apply filters</button>
     <button class="secondary" type="submit" name="save_profile" value="1">Save this search</button>
-    <a class="btn secondary" href="/opportunities">Saved opportunities</a>
   </div>
 </form>
 
 {% if ran %}
-<p class="muted">Found {{ result.count }} after filters ({{ result.unfiltered_count }} before filters). Sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
+<p class="muted">Showing {{ result.count }} after filters ({{ result.unfiltered_count }} before). Sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
 {% if result.limitations %}
 <div class="flash warn">Some sources failed: {{ result.limitations[:3]|join(' · ') }}</div>
 {% endif %}
-{% if result.items %}
-<div class="list">
-  {% for item in result.items %}
-  <article class="item">
-    <h3>{{ item.title }}</h3>
-    <div class="meta">
-      <span class="badge">{{ item.product_category or 'unknown' }}</span>
-      <span>{{ item.buyer_name or 'Buyer unknown' }}</span>
-      <span>{{ item.geo_state or '—' }}</span>
-      <span>Due {{ item.deadline_at or 'unknown' }}</span>
-      <span>Set-aside: {{ item.set_aside or 'unknown' }}{% if not item.set_aside_verified %} (unverified){% endif %}</span>
-      <span>
-        {% if item.estimated_value_unknown or item.estimated_value_min is none %}Value unknown
-        {% else %}~ ${{ '%.0f'|format(item.estimated_value_min) }}
+{% if rows %}
+<div class="table-wrap">
+<table class="result-table">
+  <thead>
+    <tr>
+      <th>Title</th><th>Solicitation</th><th>Buyer / Location</th><th>Closes</th><th>Value</th><th>Set-aside</th><th>Category</th><th>Status</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr id="r-{{ row.external_key }}">
+      <td class="title">{{ row.display.title }}</td>
+      <td>{{ row.display.solicitation_number }}</td>
+      <td>{{ row.display.buyer }}<br><span class="muted">{{ row.display.city }}, {{ row.display.state }}</span></td>
+      <td>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}<br><span class="muted">{{ row.display.days_remaining }} days</span></td>
+      <td>{{ row.display.value }}<br><span class="muted">{{ row.display.value_class }}</span></td>
+      <td>{{ row.display.set_aside }}</td>
+      <td>{{ row.display.product_category }}<br><span class="muted">Qty {{ row.display.quantity }}</span></td>
+      <td><span class="badge {% if row.display.saved=='Saved' %}saved{% endif %}">{{ row.display.saved }}</span><br><span class="muted">{{ row.display.requirement_class }}</span></td>
+      <td class="actions-cell">
+        <a class="btn secondary small" href="/opportunities/discover/{{ run_id }}/{{ row.external_key }}?return_to={{ return_to|urlencode }}">View Details</a>
+        {% if row.display.saved != 'Saved' %}
+        <form method="post" action="/opportunities/save">
+          <input type="hidden" name="payload" value="{{ row|b64json }}">
+          <input type="hidden" name="return_to" value="{{ return_to }}">
+          <input type="hidden" name="anchor" value="r-{{ row.external_key }}">
+          <button class="small" type="submit">Save</button>
+        </form>
         {% endif %}
-      </span>
-    </div>
-    <p class="muted">Source verified {{ item.source_verified_at or '—' }} · {{ item.source_key }}</p>
-    <div class="actions">
-      {% if item.official_url %}<a class="btn secondary" href="{{ item.official_url }}" target="_blank" rel="noopener">Official page</a>{% endif %}
-      <form method="post" action="/opportunities/save">
-        <input type="hidden" name="payload" value="{{ item|b64json }}">
-        <button type="submit">Save to pipeline</button>
-      </form>
-    </div>
-  </article>
+        {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official</a>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="result-cards">
+  {% for row in rows %}
+    {% include "_result_row.html" %}
   {% endfor %}
 </div>
 {% else %}
 <div class="empty">No matching live results for these filters. Broaden categories or value bands.</div>
 {% endif %}
+{% else %}
+<div class="empty">Set filters above and choose Apply filters to search free government sources.</div>
 {% endif %}
+
+<script>
+(function () {
+  try {
+    var key = "m3_opp_scroll";
+    var saved = sessionStorage.getItem(key);
+    if (saved) {
+      var data = JSON.parse(saved);
+      sessionStorage.removeItem(key);
+      if (data.anchor) {
+        var el = document.getElementById(data.anchor);
+        if (el) el.scrollIntoView({ block: "center" });
+      } else if (typeof data.y === "number") {
+        window.scrollTo(0, data.y);
+      }
+    }
+    document.querySelectorAll('form[action="/opportunities/save"]').forEach(function (f) {
+      f.addEventListener("submit", function () {
+        sessionStorage.setItem(key, JSON.stringify({ y: window.scrollY, anchor: (f.querySelector('[name=anchor]') || {}).value }));
+      });
+    });
+  } catch (e) {}
+})();
+</script>
 {% endblock %}

@@ -2,21 +2,21 @@
 {% block title %}Tasks · M3{% endblock %}
 {% block content %}
 <h1>Tasks</h1>
-<form method="post" action="/tasks" class="stack card">
-  <label class="field">Title<input name="title" required></label>
-  <label class="field">Details<textarea name="body" rows="2"></textarea></label>
-  <div class="row">
-    <label class="field">Due<input type="date" name="due_on"></label>
+<form method="post" action="/tasks" class="panel stack">
+  <div class="form-grid cols-2">
+    <label class="field form-span-all"><span>Title</span><input type="text" name="title" required></label>
+    <label class="field form-span-all"><span>Details</span><textarea name="body" rows="2"></textarea></label>
+    <label class="field"><span>Due</span><input type="date" name="due_on"></label>
     {% if can_assign %}
-    <label class="field">Assign to
+    <label class="field"><span>Assign to</span>
       <select name="assigned_to">
         <option value="">Me</option>
         {% for u in users %}<option value="{{ u.id }}">{{ u.full_name }}</option>{% endfor %}
       </select>
     </label>
     {% endif %}
-    <button type="submit">Add task</button>
   </div>
+  <div class="form-actions"><button type="submit">Add task</button></div>
 </form>
 <div class="list" style="margin-top:1rem">
   {% for t in tasks %}
@@ -25,7 +25,7 @@
     <div class="meta"><span class="badge">{{ t.status }}</span><span>Due {{ t.due_on or '—' }}</span></div>
     <p class="muted">{{ t.body }}</p>
     {% if t.status == 'open' %}
-    <form method="post" action="/tasks/{{ t.id }}/done"><button class="secondary" type="submit">Mark done</button></form>
+    <form method="post" action="/tasks/{{ t.id }}/done"><button class="secondary small" type="submit">Mark done</button></form>
     {% endif %}
   </article>
   {% else %}

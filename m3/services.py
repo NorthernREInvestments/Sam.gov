@@ -114,7 +114,16 @@ def save_opportunity(db: Session, item: dict[str, Any], user: User) -> Opportuni
         "documents_available": item.get("documents_available") or "unknown",
         "source_key": item.get("source_key"),
         "source_verified_at": datetime.utcnow(),
-        "raw_evidence": item.get("evidence") or {},
+        "requirement_class": item.get("requirement_class"),
+        "quantity": item.get("quantity"),
+        "raw_evidence": {
+            **(item.get("evidence") or {}),
+            "classification_evidence": item.get("classification_evidence"),
+            "value_evidence_class": item.get("value_evidence_class"),
+            "value_evidence": item.get("value_evidence"),
+            "deadline_timezone": item.get("deadline_timezone"),
+            "geo_city": item.get("geo_city"),
+        },
     }
     if existing:
         before = {"title": existing.title}

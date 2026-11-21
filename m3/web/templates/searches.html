@@ -1,18 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Saved searches · M3{% endblock %}
 {% block content %}
+{% include "_opp_subnav.html" %}
 <h1>Saved searches</h1>
+<p class="lead">Reusable filter profiles. Running a saved search returns you to Filter with those settings.</p>
 {% if profiles %}
 <div class="list">
   {% for p in profiles %}
   <article class="item">
     <h3>{{ p.name }}</h3>
-    <p class="muted">{{ p.kind }} · {{ p.filters }}</p>
-    <a class="btn secondary" href="/opportunities/find?profile={{ p.id }}">Run again</a>
+    <p class="muted">Created {{ p.created_at }}</p>
+    <div class="actions">
+      <a class="btn secondary small" href="/opportunities/find?profile={{ p.id }}&run=1">Open in Filter</a>
+    </div>
   </article>
   {% endfor %}
 </div>
 {% else %}
-<div class="empty">Save a filter set from Find contracts.</div>
+<div class="empty">No saved searches yet. Apply filters and choose “Save this search”.</div>
 {% endif %}
 {% endblock %}

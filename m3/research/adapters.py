@@ -8,24 +8,8 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+from m3.research.classify import PRODUCT_HINTS, classify_requirement
 from m3.research.http_util import fetch_json, fetch_text
-
-PRODUCT_HINTS = re.compile(
-    r"\b(furniture|desk|chair|janitorial|custodial|cleaning|tool|tools|mro|"
-    r"electrical|plumbing|hvac|appliance|refrigerat|washer|dryer|laptop|"
-    r"computer|printer|toner|ppe|safety|lighting|generator|forklift|"
-    r"equipment|supply|supplies|hardware|battery|batteries|shelving|"
-    r"vehicle parts|athletic|lawn|mower|commodity|goods|materials|"
-    r"parts|lubricant|oil|filter|uniform|glove|paper|cup|fixture)\b",
-    re.I,
-)
-SERVICE_HINTS = re.compile(
-    r"\b(professional services|consulting|staffing|software as a service|"
-    r"construction only|paving|demolition|legal services|audit services|"
-    r"design[- ]build|architecture and engineering|collection services|"
-    r"personal services)\b",
-    re.I,
-)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s\-.]?)?\(?([2-9]\d{2})\)?[\s\-.]?([2-9]\d{2})[\s\-.]?(\d{4})(?!\d)")
 VALUE_RANGE_RE = re.compile(
     r"\$?\s*([\d,]+(?:\.\d+)?)\s*(?:-|–|to)\s*\$?\s*([\d,]+(?:\.\d+)?)",
@@ -127,18 +111,14 @@ def _is_productish(title: str, category_raw: str | None, cfg: dict) -> bool:
     cat = (category_raw or "").lower()
     if exclude_cats and any(x in cat for x in exclude_cats):
         return False
+    clf = classify_requirement(title, category_raw=category_raw)
     if prefer_cats and any(x in cat for x in prefer_cats):
-        return True
+        return clf["requirement_class"] not in {"services", "construction"}
     if cfg.get("is_forecast"):
-        # forecasts: keep goods-like commodity categories
         if re.search(r"commodit|supply|equipment|furniture|vehicle|goods|material", cat, re.I):
             return True
-        if SERVICE_HINTS.search(title) and not PRODUCT_HINTS.search(title):
-            return False
-        return bool(PRODUCT_HINTS.search(title) or PRODUCT_HINTS.search(cat))
-    if SERVICE_HINTS.search(title) and not PRODUCT_HINTS.search(title):
-        return False
-    return True
+        return bool(clf["include_in_product_resale"] and PRODUCT_HINTS.search(f"{title} {cat}"))
+    return bool(clf["include_in_product_resale"])
 
 
 def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dict[str, Any]:
@@ -287,6 +267,8 @@ def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dic
                     or cfg.get("procurement_type_default")
                     or "unknown"
                 )
+                clf = classify_requirement(title, category_raw=category_raw, procurement_type=proc_type)
+                qty = _row_get(row, "quantity", "qty", "estimated_quantity")
                 items.append(
                     {
                         "external_key": _key(source["source_key"], sol or title, official or ""),
@@ -294,8 +276,10 @@ def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dic
                         "solicitation_number": sol or None,
                         "buyer_name": agency[:255],
                         "geo_state": cfg.get("geo_state"),
+                        "geo_city": None,
                         "geo_location": agency[:255],
                         "deadline_at": str(deadline_raw) if deadline_raw else None,
+                        "deadline_timezone": "UTC" if deadline_raw else None,
                         "posted_at": str(posted_raw)[:10] if posted_raw else None,
                         "procurement_type": proc_type[:120],
                         "product_category": cat or ("unknown" if not category_raw else category_raw[:80].lower()),
@@ -310,8 +294,14 @@ def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dic
                             else ("published_amount" if vmin is not None else None)
                         ),
                         "value_evidence": str(value_raw)[:200] if value_raw else None,
+                        "value_evidence_class": (
+                            "published_estimate" if value_raw else "not_yet_researched"
+                        ),
                         "official_url": (official or final)[:2048],
                         "documents_available": "yes" if official and "http" in (official or "") else "unknown",
+                        "quantity": str(qty) if qty not in (None, "") else None,
+                        "requirement_class": clf["requirement_class"],
+                        "classification_evidence": clf["classification_evidence"],
                         "source_key": source["source_key"],
                         "source_verified_at": _utc(),
                         "is_forecast": bool(cfg.get("is_forecast")),
@@ -320,6 +310,7 @@ def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dic
                             "source_url": final,
                             "status": status_raw or None,
                             "category_raw": category_raw or None,
+                            "classification": clf,
                         },
                     }
                 )
@@ -381,6 +372,9 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
                 if len(title) < 6:
                     continue
                 seen.add(abs_url)
+                clf = classify_requirement(title)
+                if not clf["include_in_product_resale"] and clf["requirement_class"] in {"services", "construction"}:
+                    continue
                 items.append(
                     {
                         "external_key": _key(source["source_key"], abs_url),
@@ -388,8 +382,10 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
                         "solicitation_number": None,
                         "buyer_name": source.get("name"),
                         "geo_state": cfg.get("geo_state"),
+                        "geo_city": None,
                         "geo_location": cfg.get("geo_state"),
                         "deadline_at": None,
+                        "deadline_timezone": None,
                         "posted_at": None,
                         "procurement_type": "unknown",
                         "product_category": _guess_category(title) or "unknown",
@@ -398,11 +394,17 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
                         "estimated_value_min": None,
                         "estimated_value_max": None,
                         "estimated_value_unknown": True,
+                        "value_estimate_method": None,
+                        "value_evidence": None,
+                        "value_evidence_class": "not_yet_researched",
                         "official_url": abs_url[:2048],
                         "documents_available": "yes" if path.endswith((".pdf", ".doc", ".docx", ".xlsx")) else "unknown",
+                        "quantity": None,
+                        "requirement_class": clf["requirement_class"],
+                        "classification_evidence": clf["classification_evidence"],
                         "source_key": source["source_key"],
                         "source_verified_at": _utc(),
-                        "evidence": {"list_url": final},
+                        "evidence": {"list_url": final, "classification": clf},
                     }
                 )
                 if len(items) >= limit:

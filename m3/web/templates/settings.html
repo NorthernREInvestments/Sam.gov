@@ -2,33 +2,58 @@
 {% block title %}Settings · M3{% endblock %}
 {% block content %}
 <h1>Settings</h1>
+
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">My profile</h2>
+  <form method="post" action="/settings/profile" class="form-grid cols-2">
+    <label class="field"><span>Name</span><input type="text" name="full_name" value="{{ user.full_name }}" required></label>
+    <label class="field"><span>Email</span><input type="email" value="{{ user.email }}" disabled></label>
+    <label class="field"><span>New password (optional)</span><input type="password" name="password" minlength="10" autocomplete="new-password"></label>
+    <label class="field"><span>Confirm password</span><input type="password" name="password_confirm" minlength="10" autocomplete="new-password"></label>
+    <div class="form-actions form-span-all">
+      <button type="submit">Update profile</button>
+    </div>
+  </form>
+  <p class="muted">You can change your name and password. Role and permissions can only be changed by the primary owner.</p>
+</section>
+
 {% if can_manage_users %}
-<h2>Team</h2>
-<form method="post" action="/settings/users" class="stack card">
-  <label class="field">Name<input name="full_name" required></label>
-  <label class="field">Email<input type="email" name="email" required></label>
-  <label class="field">Temporary password<input type="password" name="password" required minlength="10"></label>
-  <label class="field">Role
-    <select name="role">
-      <option value="supplier_manager">Supplier Manager</option>
-      <option value="contract_specialist">Contract Specialist</option>
-      <option value="owner">Owner</option>
-    </select>
-  </label>
-  <button type="submit">Create user</button>
-</form>
-<div class="table-wrap" style="margin-top:1rem">
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Team (primary owner only)</h2>
+  <form method="post" action="/settings/users" class="form-grid cols-2">
+    <label class="field"><span>Name</span><input type="text" name="full_name" required></label>
+    <label class="field"><span>Email</span><input type="email" name="email" required></label>
+    <label class="field"><span>Temporary password</span><input type="password" name="password" required minlength="10"></label>
+    <label class="field"><span>Role</span>
+      <select name="role">
+        <option value="supplier_manager">Supplier Manager</option>
+        <option value="contract_specialist">Contract Specialist</option>
+      </select>
+    </label>
+    <div class="form-actions form-span-all">
+      <button type="submit">Create user</button>
+    </div>
+  </form>
+</section>
+
+<div class="table-wrap panel" style="padding:0; overflow:hidden">
 <table>
-  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Primary owner</th><th>Active</th><th>Actions</th></tr></thead>
   <tbody>
   {% for u in users %}
     <tr>
-      <td>{{ u.full_name }}</td>
+      <td>{{ u.full_name }}{% if u.review_flag %} <span class="badge warn">{{ u.review_flag }}</span>{% endif %}</td>
       <td>{{ u.email }}</td>
       <td>{{ u.role }}</td>
-      <td>{{ 'yes' if u.is_active else 'no' }}
-        {% if u.id != user.id %}
-        <form method="post" action="/settings/users/{{ u.id }}/toggle" style="display:inline"><button class="secondary" type="submit">Toggle</button></form>
+      <td>{{ 'yes' if u.is_primary_owner else 'no' }}</td>
+      <td>{{ 'yes' if u.is_active else 'no' }}</td>
+      <td>
+        {% if not u.is_primary_owner and u.id != user.id %}
+        <form method="post" action="/settings/users/{{ u.id }}/toggle" style="display:inline"><button class="secondary small" type="submit">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>
+        <form method="post" action="/settings/users/{{ u.id }}/reset-password" class="form-grid" style="margin-top:.35rem; grid-template-columns:1fr auto">
+          <input type="password" name="password" placeholder="Reset password" minlength="10" required>
+          <button class="secondary small" type="submit">Reset</button>
+        </form>
         {% endif %}
       </td>
     </tr>
@@ -36,9 +61,32 @@
   </tbody>
 </table>
 </div>
-<h2>Audit history</h2>
-<p class="muted"><a href="/settings/audit">Review activity</a></p>
+
+{% if test_accounts %}
+<section class="panel" style="margin-top:1rem">
+  <h2 style="margin-top:0">Possible test accounts (review before removal)</h2>
+  <p class="muted">Identified for owner review only. Nothing was deactivated automatically.</p>
+  <ul>
+  {% for t in test_accounts %}
+    <li>{{ t.email }} · {{ t.full_name }} · {{ t.role }} · active={{ t.is_active }} · reason={{ t.reason }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if test_records %}
+<section class="panel" style="margin-top:1rem">
+  <h2 style="margin-top:0">Possible test business records (review)</h2>
+  <ul>
+  {% for t in test_records %}
+    <li>{{ t.kind }} · {{ t.label }} · {{ t.reason }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<p class="muted" style="margin-top:1rem"><a href="/settings/audit">Review audit history</a></p>
 {% else %}
-<p class="lead">Ask the owner to change account permissions.</p>
+<p class="lead">User management is limited to the primary owner. Contact the owner for account changes.</p>
 {% endif %}
 {% endblock %}

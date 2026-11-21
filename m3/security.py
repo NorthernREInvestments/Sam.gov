@@ -97,3 +97,8 @@ def effective_permissions(role: str, extra: dict[str, Any] | None = None) -> set
 
 def has_perm(role: str, extra: dict[str, Any] | None, needed: str) -> bool:
     return needed in effective_permissions(role, extra)
+
+
+def is_primary_owner(user: Any) -> bool:
+    """Only the original bootstrap owner may manage users. Not role-delegable."""
+    return bool(getattr(user, "is_primary_owner", False) and getattr(user, "is_active", False))

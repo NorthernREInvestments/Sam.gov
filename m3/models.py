@@ -47,6 +47,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(64), default=RoleName.contract_specialist.value)
     # Extra permission keys beyond role defaults
     extra_permissions: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # Only the original bootstrap owner — not delegable via role assignment
+    is_primary_owner: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -108,6 +110,7 @@ class ResearchRun(Base):
     sources_tried: Mapped[list] = mapped_column(JSONB, default=list)
     sources_succeeded: Mapped[list] = mapped_column(JSONB, default=list)
     limitations: Mapped[list] = mapped_column(JSONB, default=list)
+    result_snapshot: Mapped[list] = mapped_column(JSONB, default=list)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -140,6 +143,8 @@ class Opportunity(Base):
     documents_available: Mapped[str] = mapped_column(String(32), default="unknown")
     source_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     source_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requirement_class: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    quantity: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="saved")
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     saved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

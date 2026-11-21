@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Sign in · M3{% endblock %}
 {% block content %}
-<section class="login-box card stack">
+<section class="login-box panel stack">
   <h1>Sign in</h1>
-  <p class="lead">Use your M3 account. Ask the owner if you need access.</p>
+  <p class="lead">Use your M3 account. Ask the owner if you need access. Public registration is disabled.</p>
   <form method="post" action="/login" class="stack">
-    <label class="field">Email<input type="email" name="email" required autocomplete="username"></label>
-    <label class="field">Password<input type="password" name="password" required autocomplete="current-password"></label>
-    <button type="submit">Sign in</button>
+    <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+    <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
+    <div class="form-actions"><button type="submit">Sign in</button></div>
   </form>
 </section>
 {% endblock %}

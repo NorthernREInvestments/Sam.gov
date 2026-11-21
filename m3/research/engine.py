@@ -222,6 +222,7 @@ def run_contract_discovery(
     run.sources_tried = tried
     run.sources_succeeded = succeeded
     run.limitations = limitations[:30]
+    run.result_snapshot = filtered[:200]
     run.finished_at = datetime.now(timezone.utc)
     db.add(run)
     record_audit(

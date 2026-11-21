@@ -3,11 +3,13 @@
 {% block content %}
 <h1>Find new suppliers</h1>
 <p class="lead">Recruit distributors independently of any one contract. Terms and eligibility stay unknown until verified.</p>
-<form method="get" class="filters row">
-  <label class="field">Categories<input type="text" name="product_categories" value="{{ categories_raw }}" placeholder="mro,furniture,it_hardware,janitorial"></label>
-  <label class="field">Keyword<input type="text" name="keyword" value="{{ keyword }}"></label>
-  <button type="submit">Search suppliers</button>
-  <a class="btn secondary" href="/suppliers">My suppliers</a>
+<form method="get" class="panel form-grid cols-3">
+  <label class="field"><span>Categories</span><input type="text" name="product_categories" value="{{ categories_raw }}" placeholder="mro,furniture,it_hardware,janitorial"></label>
+  <label class="field"><span>Keyword</span><input type="text" name="keyword" value="{{ keyword }}"></label>
+  <div class="form-actions">
+    <button type="submit">Search suppliers</button>
+    <a class="btn secondary" href="/suppliers">My suppliers</a>
+  </div>
 </form>
 {% if ran %}
 <p class="muted">{{ result.count }} supplier leads · sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>

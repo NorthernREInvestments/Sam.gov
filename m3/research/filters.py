@@ -99,10 +99,22 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
     buyer_types = [b.lower() for b in (filters.get("buyer_types") or [])]
     days_remaining_max = filters.get("days_remaining_max")
     keyword = (filters.get("keyword") or "").strip().lower()
+    # Default product-resale mode excludes clear services/construction
+    product_resale_only = filters.get("product_resale_only", True)
+    include_classes = list(
+        filters.get("requirement_classes")
+        or ["product_supply", "product_with_incidental_services", "unknown_mixed"]
+    )
 
     out = []
     now = datetime.now(timezone.utc)
     for item in items:
+        req = (item.get("requirement_class") or "unknown_mixed").lower()
+        if product_resale_only and req in {"services", "construction"}:
+            continue
+        if filters.get("requirement_classes") and req not in include_classes:
+            continue
+
         val = _mid_value(item)
         # Value filter
         if value_bands or custom_min is not None or custom_max is not None:

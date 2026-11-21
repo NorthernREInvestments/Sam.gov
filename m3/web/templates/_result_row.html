@@ -1,0 +1,39 @@
+{# Compact discovery/saved result fields. Expects `row` with display dict and optional run_id / saved_id. #}
+<article class="result-card" id="r-{{ row.external_key }}">
+  <h3>{{ row.display.title }}</h3>
+  <dl class="kv">
+    <dt>Solicitation #</dt><dd>{{ row.display.solicitation_number }}</dd>
+    <dt>Buyer</dt><dd>{{ row.display.buyer }}</dd>
+    <dt>Location</dt><dd>{{ row.display.city }}, {{ row.display.state }}</dd>
+    <dt>Closes</dt><dd>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</dd>
+    <dt>Days left</dt><dd>{{ row.display.days_remaining }}</dd>
+    <dt>Est. value</dt><dd>{{ row.display.value }} <span class="muted">({{ row.display.value_class }})</span></dd>
+    <dt>Set-aside</dt><dd>{{ row.display.set_aside }}{% if not row.display.set_aside_verified %} <span class="muted">(unverified)</span>{% endif %}</dd>
+    <dt>Category</dt><dd>{{ row.display.product_category }}</dd>
+    <dt>Quantity</dt><dd>{{ row.display.quantity }}</dd>
+    <dt>Documents</dt><dd>{{ row.display.documents }}</dd>
+    <dt>Catalog matches</dt><dd>{{ row.display.catalog_matches }}</dd>
+    <dt>Type</dt><dd>{{ row.display.requirement_class }}</dd>
+    <dt>Status</dt><dd><span class="badge {% if row.display.saved=='Saved' %}saved{% endif %}">{{ row.display.saved }}</span></dd>
+  </dl>
+  <div class="actions">
+    {% if row.saved_id %}
+    <a class="btn secondary small" href="/opportunities/{{ row.saved_id }}?return_to={{ return_to|urlencode }}">View Details</a>
+    {% elif run_id %}
+    <a class="btn secondary small" href="/opportunities/discover/{{ run_id }}/{{ row.external_key }}?return_to={{ return_to|urlencode }}">View Details</a>
+    {% endif %}
+    {% if row.display.saved != 'Saved' %}
+    <form method="post" action="/opportunities/save">
+      <input type="hidden" name="payload" value="{{ row|b64json }}">
+      <input type="hidden" name="return_to" value="{{ return_to }}">
+      <input type="hidden" name="anchor" value="r-{{ row.external_key }}">
+      <button class="small" type="submit">Save Opportunity</button>
+    </form>
+    {% else %}
+    <span class="badge saved">Saved</span>
+    {% endif %}
+    {% if row.official_url %}
+    <a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official Solicitation</a>
+    {% endif %}
+  </div>
+</article>

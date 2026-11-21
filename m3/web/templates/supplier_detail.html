@@ -3,71 +3,67 @@
 {% block content %}
 <h1>{{ supplier.name }}</h1>
 <p class="lead">{% if supplier.website %}<a href="{{ supplier.website }}" target="_blank" rel="noopener">{{ supplier.website }}</a>{% endif %}</p>
-<form method="post" action="/suppliers/{{ supplier.id }}/update" class="stack card">
-  <div class="row">
-    <label class="field">Relationship
+<form method="post" action="/suppliers/{{ supplier.id }}/update" class="panel stack">
+  <div class="form-grid cols-3">
+    <label class="field"><span>Relationship</span>
       <select name="relationship_status">
         {% for v in ['lead','contacted','active','inactive','blocked'] %}
         <option value="{{ v }}" {% if supplier.relationship_status==v %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
       </select>
     </label>
-    <label class="field">Reseller application
+    <label class="field"><span>Reseller application</span>
       <select name="reseller_application_status">
         {% for v in ['not_started','submitted','approved','denied','pending'] %}
         <option value="{{ v }}" {% if supplier.reseller_application_status==v %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
       </select>
     </label>
-    <label class="field">Credit application
+    <label class="field"><span>Credit application</span>
       <select name="credit_application_status">
         {% for v in ['not_started','submitted','approved','denied','pending'] %}
         <option value="{{ v }}" {% if supplier.credit_application_status==v %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
       </select>
     </label>
-  </div>
-  <div class="row">
-    <label class="field">Account approval
+    <label class="field"><span>Account approval</span>
       <select name="account_approval_status">
         {% for v in ['not_started','approved','pending','denied'] %}
         <option value="{{ v }}" {% if supplier.account_approval_status==v %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
       </select>
     </label>
-    <label class="field">Dealer authorization
+    <label class="field"><span>Dealer authorization</span>
       <select name="dealer_authorization_status">
         {% for v in ['not_started','approved','pending','denied','n_a'] %}
         <option value="{{ v }}" {% if supplier.dealer_authorization_status==v %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
       </select>
     </label>
-    <label class="field">Follow-up date<input type="date" name="follow_up_on" value="{{ supplier.follow_up_on or '' }}"></label>
-  </div>
-  <div class="row">
-    <label class="field">Payment terms<input type="text" name="payment_terms" value="{{ supplier.payment_terms or '' }}" placeholder="Net-30"></label>
-    <label class="field">Approved credit limit<input type="number" step="0.01" name="approved_credit_limit" value="{{ supplier.approved_credit_limit or '' }}"></label>
-    <label class="field">Personal guarantee
+    <label class="field"><span>Follow-up date</span><input type="date" name="follow_up_on" value="{{ supplier.follow_up_on or '' }}"></label>
+    <label class="field"><span>Payment terms</span><input type="text" name="payment_terms" value="{{ supplier.payment_terms or '' }}" placeholder="Net-30"></label>
+    <label class="field"><span>Approved credit limit</span><input type="number" step="0.01" name="approved_credit_limit" value="{{ supplier.approved_credit_limit or '' }}"></label>
+    <label class="field"><span>Personal guarantee</span>
       <select name="personal_guarantee_required">
         {% for v in ['unknown','yes','no'] %}<option value="{{ v }}" {% if supplier.personal_guarantee_required==v %}selected{% endif %}>{{ v }}</option>{% endfor %}
       </select>
     </label>
-    <label class="field">Personal credit
+    <label class="field"><span>Personal credit</span>
       <select name="personal_credit_required">
         {% for v in ['unknown','yes','no'] %}<option value="{{ v }}" {% if supplier.personal_credit_required==v %}selected{% endif %}>{{ v }}</option>{% endfor %}
       </select>
     </label>
+    <label class="field form-span-all"><span>Next action</span><textarea name="next_action" rows="2">{{ supplier.next_action or '' }}</textarea></label>
   </div>
-  <label class="field">Next action<textarea name="next_action" rows="2">{{ supplier.next_action or '' }}</textarea></label>
-  <button type="submit">Save supplier</button>
+  <div class="form-actions"><button type="submit">Save supplier</button></div>
 </form>
 
 <h2>Contacts</h2>
-<form method="post" action="/suppliers/{{ supplier.id }}/contacts" class="row card">
-  <label class="field">Name<input name="name"></label>
-  <label class="field">Email<input type="email" name="email"></label>
-  <label class="field">Phone<input name="phone"></label>
-  <button type="submit">Add contact</button>
+<form method="post" action="/suppliers/{{ supplier.id }}/contacts" class="panel form-grid cols-3">
+  <label class="field"><span>Name</span><input type="text" name="name"></label>
+  <label class="field"><span>Email</span><input type="email" name="email"></label>
+  <label class="field"><span>Phone</span><input type="tel" name="phone"></label>
+  <div class="form-actions form-span-all"><button type="submit">Add contact</button></div>
 </form>
 <ul>
   {% for c in supplier.contacts %}
@@ -76,9 +72,9 @@
 </ul>
 
 <h2>Notes / conversations</h2>
-<form method="post" action="/suppliers/{{ supplier.id }}/notes" class="stack card">
-  <label class="field">Note<textarea name="body" rows="3" required></textarea></label>
-  <button type="submit">Add note</button>
+<form method="post" action="/suppliers/{{ supplier.id }}/notes" class="panel stack">
+  <label class="field"><span>Note</span><textarea name="body" rows="3" required></textarea></label>
+  <div class="form-actions"><button type="submit">Add note</button></div>
 </form>
 {% for n in supplier.notes %}
 <div class="item"><p>{{ n.body }}</p><p class="muted">{{ n.created_at }}</p></div>

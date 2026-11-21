@@ -2,9 +2,9 @@
 {% block title %}Catalogs · M3{% endblock %}
 {% block content %}
 <h1>Catalogs</h1>
-<form method="get" class="row">
-  <label class="field">Search MPN / SKU / description<input name="q" value="{{ q }}" placeholder="Exact MPN preferred"></label>
-  <button type="submit">Search products</button>
+<form method="get" class="panel form-grid cols-2">
+  <label class="field"><span>Search MPN / SKU / description</span><input type="search" name="q" value="{{ q }}" placeholder="Exact MPN preferred"></label>
+  <div class="form-actions"><button type="submit">Search products</button></div>
 </form>
 {% if products %}
 <div class="list">

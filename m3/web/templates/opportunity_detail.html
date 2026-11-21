@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ display.title }} · M3{% endblock %}
+{% block content %}
+{% if return_to %}<a class="back-link" href="{{ return_to }}">← Back to results</a>{% else %}<a class="back-link" href="/opportunities">← Saved opportunities</a>{% endif %}
+{% include "_opp_subnav.html" %}
+<h1>{{ display.title }}</h1>
+<div class="actions" style="margin-bottom:.75rem">
+  {% if not saved_id and payload %}
+  <form method="post" action="/opportunities/save">
+    <input type="hidden" name="payload" value="{{ payload }}">
+    <input type="hidden" name="return_to" value="{{ return_to or '' }}">
+    <button type="submit">Save Opportunity</button>
+  </form>
+  {% elif saved_id %}
+  <span class="badge saved">Saved</span>
+  {% endif %}
+  {% if official_url %}<a class="btn secondary" href="{{ official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
+</div>
+
+<div class="detail-sections">
+  <section>
+    <h2>Overview</h2>
+    <dl class="kv">
+      <dt>Solicitation #</dt><dd>{{ display.solicitation_number }}</dd>
+      <dt>Purchasing entity</dt><dd>{{ display.buyer }}</dd>
+      <dt>City</dt><dd>{{ display.city }}</dd>
+      <dt>State</dt><dd>{{ display.state }}</dd>
+      <dt>Closing date</dt><dd>{{ display.closing_date }}</dd>
+      <dt>Closing time</dt><dd>{{ display.closing_time }} {{ display.timezone }}</dd>
+      <dt>Days remaining</dt><dd>{{ display.days_remaining }}</dd>
+      <dt>Procurement type</dt><dd>{{ display.procurement_type }}</dd>
+      <dt>Product category</dt><dd>{{ display.product_category }}</dd>
+      <dt>Requirement class</dt><dd>{{ display.requirement_class }}</dd>
+      <dt>Source</dt><dd>{{ display.source_key }}</dd>
+      <dt>Verified</dt><dd>{{ display.source_verified_at }}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Requirements</h2>
+    <dl class="kv">
+      <dt>Quantity</dt><dd>{{ display.quantity }}</dd>
+      <dt>Classification evidence</dt><dd>{{ display.classification_evidence }}</dd>
+    </dl>
+    <p class="muted">Detailed line-item extraction is not claimed in Build 001A. Only retrieved facts are shown.</p>
+  </section>
+
+  <section>
+    <h2>Documents</h2>
+    <dl class="kv">
+      <dt>Availability</dt><dd>{{ display.documents }}</dd>
+      <dt>Official URL</dt><dd>{% if official_url %}<a href="{{ official_url }}" target="_blank" rel="noopener">{{ official_url }}</a>{% else %}Unknown{% endif %}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Eligibility</h2>
+    <dl class="kv">
+      <dt>Set-aside</dt><dd>{{ display.set_aside }}{% if not display.set_aside_verified %} <span class="muted">(unverified)</span>{% endif %}</dd>
+      <dt>M3 eligibility</dt><dd>Not Yet Researched</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Estimated value and evidence</h2>
+    <dl class="kv">
+      <dt>Estimated value</dt><dd>{{ display.value }}</dd>
+      <dt>Evidence class</dt><dd>{{ display.value_class }}</dd>
+      <dt>Evidence detail</dt><dd>{{ display.value_evidence }}</dd>
+      <dt>Method</dt><dd>{{ display.value_method }}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Supplier and catalog matches</h2>
+    {% if catalog_matches %}
+    <div class="list">
+      {% for m in catalog_matches %}
+      <div class="item">
+        <h3>{{ m.mpn or 'MPN unknown' }} — {{ m.description or 'No description' }}</h3>
+        <p class="muted">Supplier #{{ m.supplier_id }} · {{ m.published_price if m.published_price is not none else 'Price unknown' }} {{ m.currency or '' }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">None found. Exact part-number matches appear here when catalog data supports them.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Notes and assignments</h2>
+    {% if saved_id %}
+    <form method="post" action="/opportunities/{{ saved_id }}/notes" class="stack">
+      <label class="field"><span>Notes</span><textarea name="notes" rows="4">{{ notes or '' }}</textarea></label>
+      <div class="form-actions"><button type="submit">Save notes</button></div>
+    </form>
+    <p class="muted" style="margin-top:.5rem">Assigned to: {{ assigned_label }}</p>
+    {% else %}
+    <p class="muted">Save this opportunity to add notes and assignments.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

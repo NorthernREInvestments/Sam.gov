@@ -8,9 +8,9 @@
   <a href="/suppliers/catalogs">Catalogs</a> ·
   <a href="/suppliers/new">Add manually</a>
 </p>
-<form method="get" class="row">
-  <label class="field">Search<input type="text" name="q" value="{{ q }}" placeholder="Name, brand, category"></label>
-  <button type="submit">Search</button>
+<form method="get" class="panel form-grid cols-2">
+  <label class="field"><span>Search</span><input type="search" name="q" value="{{ q }}" placeholder="Name, brand, category"></label>
+  <div class="form-actions"><button type="submit">Search</button></div>
 </form>
 {% if items %}
 <div class="list">

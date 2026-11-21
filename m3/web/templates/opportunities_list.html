@@ -1,26 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Saved opportunities · M3{% endblock %}
 {% block content %}
+{% include "_opp_subnav.html" %}
 <h1>Saved opportunities</h1>
-<p class="lead">Only contracts you chose to work. <a href="/opportunities/find">Find more</a> · <a href="/opportunities/searches">Saved searches</a></p>
-{% if items %}
-<div class="list">
-  {% for o in items %}
-  <article class="item">
-    <h3>{{ o.title }}</h3>
-    <div class="meta">
-      <span>{{ o.buyer_name or '—' }}</span>
-      <span>{{ o.geo_state or '—' }}</span>
-      <span>{{ o.solicitation_number or 'No solicitation #' }}</span>
-      <span>Due {{ o.deadline_at or 'unknown' }}</span>
-    </div>
+<p class="lead">Only contracts selected for M3 work. Missing fields show as Unknown or Not Yet Researched.</p>
+{% if rows %}
+<div class="table-wrap">
+<table class="result-table">
+  <thead>
+    <tr>
+      <th>Title</th><th>Solicitation</th><th>Buyer / Location</th><th>Closes</th><th>Value</th><th>Category</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td class="title">{{ row.display.title }}</td>
+      <td>{{ row.display.solicitation_number }}</td>
+      <td>{{ row.display.buyer }}<br><span class="muted">{{ row.display.city }}, {{ row.display.state }}</span></td>
+      <td>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</td>
+      <td>{{ row.display.value }}</td>
+      <td>{{ row.display.product_category }}</td>
+      <td class="actions-cell">
+        <a class="btn secondary small" href="/opportunities/{{ row.saved_id }}">View Details</a>
+        {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="result-cards">
+  {% for row in rows %}
+  <article class="result-card">
+    <h3>{{ row.display.title }}</h3>
+    <dl class="kv">
+      <dt>Solicitation #</dt><dd>{{ row.display.solicitation_number }}</dd>
+      <dt>Buyer</dt><dd>{{ row.display.buyer }}</dd>
+      <dt>Location</dt><dd>{{ row.display.city }}, {{ row.display.state }}</dd>
+      <dt>Closes</dt><dd>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</dd>
+      <dt>Est. value</dt><dd>{{ row.display.value }}</dd>
+      <dt>Category</dt><dd>{{ row.display.product_category }}</dd>
+    </dl>
     <div class="actions">
-      {% if o.official_url %}<a class="btn secondary" href="{{ o.official_url }}" target="_blank" rel="noopener">Open official</a>{% endif %}
+      <a class="btn secondary small" href="/opportunities/{{ row.saved_id }}">View Details</a>
+      {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
     </div>
   </article>
   {% endfor %}
 </div>
 {% else %}
-<div class="empty">No saved opportunities yet. Search free sources and save what matters.</div>
+<div class="empty">No saved opportunities yet. Use Filter to find contracts and save what matters.</div>
 {% endif %}
 {% endblock %}
