@@ -77,7 +77,7 @@ Continuation / deeper sweeps remain available without discarding prior run snaps
 | COMMERCIAL_INTEGRATION_PROOF | **PARTIALLY VERIFIED** | Path solicitation→catalog/historical→gross spread exists |
 | DAILY_REPEATABILITY_PROOF | **PARTIALLY VERIFIED** | Cache keys + no auto-save; longer soak pending |
 | MOBILE_WORKFLOW_PROOF | **PARTIALLY VERIFIED** | Existing responsive CSS preserved; full breakpoint matrix not re-shot |
-| DEPLOYMENT_VERIFIED | *(set after Railway healthz)* | Expected build `20261121-m3-2-build-002` |
+| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `20261121-m3-2-build-002` (deployment `71f80727`) |
 
 ## Await
 
