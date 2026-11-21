@@ -19,6 +19,7 @@ from m3.research.adapters import (
     search_html_links,
     search_socrata,
 )
+from m3.research.classify import PRODUCT_CLASSES, classify_batch
 from m3.research.filters import apply_contract_filters
 from m3.research.schema_map import validate_socrata_source
 from m3.research.seeds import SEED_SOURCES
@@ -273,7 +274,20 @@ def _progress(run: ResearchRun, **fields: Any) -> None:
     p = dict(run.progress or {})
     p.update(fields)
     p["updated_at"] = datetime.now(timezone.utc).isoformat()
-    run.progress = p
+    run.progress = _sanitize_for_json(p)
+
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Strip NUL / control junk so Postgres JSONB accepts research snapshots."""
+    if obj is None or isinstance(obj, (bool, int, float)):
+        return obj
+    if isinstance(obj, str):
+        return obj.replace("\x00", "").replace("\u0000", "")
+    if isinstance(obj, dict):
+        return {str(k): _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
 
 
 def _operator_keywords(filters: dict[str, Any]) -> list[str]:
@@ -289,21 +303,20 @@ def _operator_keywords(filters: dict[str, Any]) -> list[str]:
     return list(parsed["include_terms"])
 
 
-def _openai_focus_keywords(filters: dict[str, Any]) -> list[str]:
-    """Focus terms for OpenAI source discovery prompts (never used as adapter gates)."""
-    terms = _operator_keywords(filters)
-    for c in filters.get("product_categories") or []:
-        terms.append(str(c).replace("_", " "))
-    if not terms:
-        terms = ["equipment", "supplies", "furniture", "tools", "appliances", "janitorial"]
-    seen: set[str] = set()
-    out: list[str] = []
-    for k in terms:
-        kl = k.lower().strip()
-        if kl and kl not in seen:
-            seen.add(kl)
-            out.append(kl)
-    return out
+def _openai_portal_focus(_filters: dict[str, Any] | None = None) -> list[str]:
+    """Entity-type focus for OpenAI *portal* discovery — never product categories."""
+    return [
+        "state procurement portal",
+        "county purchasing",
+        "city purchasing department",
+        "school district procurement",
+        "university purchasing",
+        "public utility bids",
+        "transit authority procurement",
+        "housing authority bids",
+        "airport authority purchasing",
+        "cooperative purchasing",
+    ]
 
 
 def run_contract_discovery(
@@ -328,7 +341,7 @@ def run_contract_discovery(
     repair_summary = repair_discovered_sources(db, limit=60)
     filters = filters or {}
     operator_keywords = _operator_keywords(filters)
-    openai_keywords = _openai_focus_keywords(filters)
+    openai_portal_focus = _openai_portal_focus(filters)
     # Default ON for production research workflow (budget still gates actual spend)
     if enable_openai_sources is None:
         enable_openai_sources = True
@@ -357,9 +370,16 @@ def run_contract_discovery(
             params={
                 "filters": filters,
                 "keywords": operator_keywords,
-                "openai_focus": openai_keywords,
+                "openai_portal_focus": openai_portal_focus,
                 "offset": offset,
                 "source_repair": repair_summary,
+                "pipeline": [
+                    "unrestricted_discovery",
+                    "normalize_dedupe",
+                    "central_classification",
+                    "evidence_verification",
+                    "user_filters",
+                ],
             },
             status="running",
             progress={"phase": "starting", "sources_evaluated": 0, "source_repair": repair_summary},
@@ -547,12 +567,12 @@ def run_contract_discovery(
                 continue
             seen_tmp.add(str(k))
             uniq_tmp.append(it)
-        filtered_tmp = apply_contract_filters(uniq_tmp, filters)
+        # Mid-run: persist raw discovery population (Stage 1). Classification/filters are Stage 3–5.
         run.sources_tried = tried
         run.sources_succeeded = succeeded
         run.limitations = limitations[-80:]
-        run.result_snapshot = filtered_tmp[:5000]
-        run.result_count = len(filtered_tmp)
+        run.result_snapshot = _sanitize_for_json(uniq_tmp[:5000])
+        run.result_count = len(uniq_tmp)
         db.add(run)
         db.commit()
 
@@ -561,8 +581,8 @@ def run_contract_discovery(
         try:
             from m3.research.openai_client import web_research
 
-            cache_key = "openai_source_discover:" + hashlib.sha256(
-                ",".join(openai_keywords[:6]).encode()
+            cache_key = "openai_portal_discover_v2:" + hashlib.sha256(
+                ",".join(openai_portal_focus[:4]).encode()
             ).hexdigest()[:16]
             cached = _cache_get(db, cache_key)
             if cached:
@@ -571,17 +591,19 @@ def run_contract_discovery(
                 _progress(run, openai_cache_hit=True)
             else:
                 schema = (
-                    '{"sources":[{"entity":"","state":"","procurement_url":"","active_bids_url":"",'
-                    '"award_archive_url":"","retrieval_method":"","notes":""}]}'
+                    '{"sources":[{"entity":"","state":"","government_level":"","procurement_url":"",'
+                    '"active_bids_url":"","award_archive_url":"","retrieval_method":"","notes":""}]}'
                 )
                 prompt = (
-                    "Find free official U.S. state/local government procurement portals that publish "
-                    "active product solicitations (goods/supplies/equipment). Prioritize Nebraska, then "
-                    "other states. Prefer purchasing departments, cities, counties, school districts, "
-                    "universities, utilities, transit, airports, hospitals, housing authorities. "
-                    f"Product focus keywords: {', '.join(openai_keywords[:8])}. "
-                    "Return only portals with public bid listings (no login paywall). "
-                    "Do not invent URLs — only cite real pages you found via web search."
+                    "Find free official U.S. government procurement portals that publish active "
+                    "solicitation / bid listings (any goods or services — do not filter by product type). "
+                    "Prioritize Nebraska coverage gaps, then nationwide. Include state, county, city, "
+                    "school district, university/community college, public hospital, utility, water/"
+                    "wastewater, transit, airport, housing authority, port, and special district portals. "
+                    f"Entity focus: {', '.join(openai_portal_focus[:8])}. "
+                    "Return only portals with publicly accessible bid listings (no paid login). "
+                    "Do not invent URLs — only cite real pages found via web search. "
+                    "Do not prefer product categories; locate where governments publish solicitations."
                 )
                 ai = web_research(
                     db,
@@ -648,12 +670,16 @@ def run_contract_discovery(
         except Exception as exc:
             limitations.append(f"openai_source_discovery: {type(exc).__name__}")
 
-    # Deduplicate
+    # Stage 2 — Deduplicate (identity only; do not merge on similar titles alone)
     seen: set[str] = set()
     unique: list[dict] = []
     duplicates_excluded = 0
     for it in all_items:
-        k = it.get("external_key") or it.get("official_url") or it.get("title")
+        k = it.get("external_key") or (
+            f"{it.get('source_key')}|{it.get('solicitation_number')}"
+            if it.get("solicitation_number")
+            else None
+        ) or it.get("official_url") or it.get("title")
         if not k:
             continue
         if k in seen:
@@ -661,13 +687,28 @@ def run_contract_discovery(
             continue
         seen.add(str(k))
         unique.append(it)
+    discovery_population = len(unique)
 
-    # Resolve uncertain / unknown_mixed population before operator filters
-    uncertain_report = resolve_uncertain_batch(unique)
+    # Stage 3 — Centralized classification (independent of owner filters)
+    _progress(run, phase="central_classification", unique_before_filters=discovery_population)
+    db.add(run)
+    db.commit()
+    classified_pack = classify_batch(unique)
+    unique = classified_pack["items"]
+    classification_breakdown = classified_pack.get("classification_breakdown") or {}
+    status_breakdown = classified_pack.get("status_breakdown") or {}
+
+    # Stage 4 — Evidence verification / uncertain resolution (detail pages when needed)
+    uncertain_report = resolve_uncertain_batch(unique, fetch_details=True, detail_limit=80)
     unique = uncertain_report["items"]
+    # Recompute breakdown after uncertain pass
+    classification_breakdown = {}
+    for i in unique:
+        k = i.get("requirement_class") or "unknown_mixed"
+        classification_breakdown[k] = classification_breakdown.get(k, 0) + 1
 
+    # Stage 5 — User-selected filters only (does not alter discovery_population)
     filtered = apply_contract_filters(unique, filters)
-    # Display slice only — full filtered set stays on the run for continuation
     page_items = filtered[offset : offset + display_page]
     incomplete = bool(
         more_available
@@ -676,20 +717,35 @@ def run_contract_discovery(
             "openai_source_discovery" in (x or "") for x in limitations
         ))
     )
-    # If OpenAI ran, was cached, or was budget-denied, do not mark incomplete solely for OpenAI
     if openai_used or openai_cache_hit or any("openai_source_discovery" in (x or "") for x in limitations):
         incomplete = bool(more_available or run.cancel_requested)
 
+    inactive_statuses = {"closed", "closed_by_deadline", "cancelled", "historical_award", "forecast"}
     product_verified = sum(
         1
         for i in unique
-        if (i.get("requirement_class") or "") in {"product_supply", "product_with_incidental_services"}
+        if (i.get("requirement_class") or "") in PRODUCT_CLASSES
+        and (i.get("solicitation_status") or "unknown") not in inactive_statuses
+    )
+    product_incidental = sum(
+        1 for i in unique if (i.get("requirement_class") or "") == "product_with_incidental_services"
+    )
+    non_product = sum(
+        1
+        for i in unique
+        if (i.get("requirement_class") or "")
+        in {"services", "professional_services", "maintenance_repair_services", "construction", "software_only"}
     )
     uncertain_left = sum(
         1
         for i in unique
-        if (i.get("requirement_class") or "") in {"unknown_mixed", "unknown"}
+        if (i.get("requirement_class") or "") in {"unknown_mixed", "unknown", "pending_classification"}
         or (i.get("uncertain_resolution") or "") == "requires_further_verification"
+    )
+    verified_active = sum(
+        1
+        for i in unique
+        if (i.get("solicitation_status") or "unknown") not in inactive_statuses
     )
 
     if run.status != "cancelled":
@@ -700,7 +756,7 @@ def run_contract_discovery(
     run.sources_tried = tried
     run.sources_succeeded = succeeded
     run.limitations = limitations[-80:]
-    run.result_snapshot = filtered[:5000]
+    run.result_snapshot = _sanitize_for_json(filtered[:5000])
     run.estimated_cost_usd = float(paid_cost)
     run.finished_at = datetime.now(timezone.utc)
     _progress(
@@ -712,11 +768,18 @@ def run_contract_discovery(
         notices_examined=rows_examined,
         mapping_failures=mapping_failures_total,
         unique_matching=len(filtered),
-        unique_before_filters=len(unique),
+        unique_before_filters=discovery_population,
+        discovery_population=discovery_population,
+        verified_active=verified_active,
         verified_product=product_verified,
+        product_with_incidental_services=product_incidental,
+        confirmed_non_product=non_product,
+        classification_breakdown=classification_breakdown,
+        status_breakdown=status_breakdown,
         uncertain_remaining=uncertain_left,
         uncertain_investigated=uncertain_report.get("investigated"),
         uncertain_resolved=uncertain_report.get("resolved_counts"),
+        uncertain_newly_product=uncertain_report.get("newly_product"),
         duplicates_excluded=duplicates_excluded,
         pages_fetched=pages_total,
         sources_fully_paginated=sources_fully_paginated,
@@ -771,11 +834,18 @@ def run_contract_discovery(
         "sources_incomplete": sources_incomplete,
         "source_yield": source_yield,
         "limitations": limitations,
-        "unfiltered_count": len(unique),
+        "unfiltered_count": discovery_population,
+        "discovery_population": discovery_population,
+        "verified_active": verified_active,
         "verified_product": product_verified,
+        "product_with_incidental_services": product_incidental,
+        "confirmed_non_product": non_product,
+        "classification_breakdown": classification_breakdown,
+        "status_breakdown": status_breakdown,
         "uncertain_remaining": uncertain_left,
         "uncertain_investigated": uncertain_report.get("investigated"),
         "uncertain_resolved": uncertain_report.get("resolved_counts"),
+        "uncertain_newly_product": uncertain_report.get("newly_product"),
         "duplicates_excluded": duplicates_excluded,
         "notices_examined": rows_examined,
         "mapping_failures": mapping_failures_total,

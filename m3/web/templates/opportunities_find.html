@@ -68,7 +68,9 @@
   <dl class="kv">
     <dt>Status</dt><dd>{{ result.status or 'completed' }}{% if result.incomplete %} · <strong>incomplete / paused — not fully searched</strong>{% endif %}</dd>
     <dt>Matching results</dt><dd>{{ result.all_matching_count or result.count }} (showing {{ result.page_count or rows|length }} on this page — not the full population)</dd>
-    <dt>Verified open product</dt><dd>{{ result.verified_product or progress.verified_product or '—' }}</dd>
+    <dt>Discovery population (pre-filter)</dt><dd>{{ result.discovery_population or result.unfiltered_count or '—' }}</dd>
+    <dt>Verified tangible product</dt><dd>{{ result.verified_product or progress.verified_product or '—' }}{% if result.product_with_incidental_services %} · incidental {{ result.product_with_incidental_services }}{% endif %}</dd>
+    <dt>Confirmed non-product</dt><dd>{{ result.confirmed_non_product or progress.confirmed_non_product or '—' }}</dd>
     <dt>Uncertain</dt><dd>{{ result.uncertain_remaining or progress.uncertain_remaining or '—' }} (investigated {{ result.uncertain_investigated or progress.uncertain_investigated or 0 }})</dd>
     <dt>Before filters</dt><dd>{{ result.unfiltered_count }} unique notices</dd>
     <dt>Raw records examined</dt><dd>{{ result.notices_examined or '—' }}</dd>

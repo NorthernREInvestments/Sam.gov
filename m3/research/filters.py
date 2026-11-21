@@ -108,20 +108,44 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
     )
     include_terms = parsed["include_terms"]
     exclude_terms = parsed["exclude_terms"]
-    # Default product-resale mode excludes clear services/construction
+    # Display filter only — does not change underlying discovery population on the run
     product_resale_only = filters.get("product_resale_only", True)
-    include_classes = list(
-        filters.get("requirement_classes")
-        or ["product_supply", "product_with_incidental_services", "unknown_mixed"]
-    )
+    default_product_classes = [
+        "product_supply",
+        "product_with_incidental_services",
+        "product_with_significant_installation",
+        "product_rental_leasing",
+        "mixed_product_service",
+        "unknown_mixed",
+    ]
+    include_classes = list(filters.get("requirement_classes") or default_product_classes)
+    non_product = {
+        "services",
+        "professional_services",
+        "maintenance_repair_services",
+        "construction",
+        "software_only",
+    }
 
     out = []
     now = datetime.now(timezone.utc)
     for item in items:
         req = (item.get("requirement_class") or "unknown_mixed").lower()
-        if product_resale_only and req in {"services", "construction"}:
+        if product_resale_only and req in non_product:
             continue
         if filters.get("requirement_classes") and req not in include_classes:
+            continue
+        if product_resale_only and not filters.get("requirement_classes") and req not in include_classes:
+            continue
+        # Exclude clearly non-active from default product view (status evidence)
+        st = (item.get("solicitation_status") or "unknown").lower()
+        if product_resale_only and st in {
+            "closed",
+            "closed_by_deadline",
+            "cancelled",
+            "historical_award",
+            "forecast",
+        }:
             continue
 
         val = _mid_value(item)

@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-from m3.research.classify import PRODUCT_HINTS, classify_requirement
 from m3.research.http_util import fetch_json, fetch_text
 from m3.research.schema_map import (
     AGENCY_CANDIDATES,
@@ -57,7 +56,7 @@ def _guess_category(title: str) -> str | None:
     for cat, pat in mapping:
         if re.search(pat, t):
             return cat
-    return "general_products" if PRODUCT_HINTS.search(t) else None
+    return None
 
 
 def _parse_money(val: Any) -> float | None:
@@ -118,22 +117,6 @@ def _row_get(row: dict, *keys: str) -> Any:
     return None
 
 
-def _is_productish(title: str, category_raw: str | None, cfg: dict) -> bool:
-    prefer_cats = [c.lower() for c in (cfg.get("prefer_categories") or [])]
-    exclude_cats = [c.lower() for c in (cfg.get("exclude_categories") or [])]
-    cat = (category_raw or "").lower()
-    if exclude_cats and any(x in cat for x in exclude_cats):
-        return False
-    clf = classify_requirement(title, category_raw=category_raw)
-    if prefer_cats and any(x in cat for x in prefer_cats):
-        return clf["requirement_class"] not in {"services", "construction"}
-    if cfg.get("is_forecast"):
-        if re.search(r"commodit|supply|equipment|furniture|vehicle|goods|material", cat, re.I):
-            return True
-        return bool(clf["include_in_product_resale"] and PRODUCT_HINTS.search(f"{title} {cat}"))
-    return bool(clf["include_in_product_resale"])
-
-
 def search_socrata(
     source: dict,
     *,
@@ -144,10 +127,10 @@ def search_socrata(
     max_pages: int | None = None,
     apply_adapter_keywords: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve Socrata rows with offset pagination — no artificial commercial ceiling.
+    """Stage 1 unrestricted solicitation retrieval (status filters only).
 
-    Keyword matching belongs in the authoritative filter layer unless
-    ``apply_adapter_keywords`` is explicitly enabled for a verified source-native search.
+    Build 002B invariant: no product/keyword/category/business suitability gates.
+    Classification happens centrally after normalization/dedup.
     """
     from m3.config import get_settings
 
@@ -167,8 +150,6 @@ def search_socrata(
     total_rows_seen = 0
     mapping_failures = 0
     closed_excluded = 0
-    non_product_excluded = 0
-    keyword_excluded = 0
     truncated = False
     more_available = False
     pagination_complete = False
@@ -191,13 +172,12 @@ def search_socrata(
     url_keys = tuple(k for k in (cfg.get("url_field"), *URL_CANDIDATES) if k)
 
     def _append_row(row: dict, final: str) -> None:
-        nonlocal items, mapping_failures, closed_excluded, non_product_excluded, keyword_excluded
+        nonlocal items, mapping_failures, closed_excluded
         if not isinstance(row, dict):
             return
         title_key = pick_first_key(row, title_keys, cfg.get("title_field"))
         title = str((row.get(title_key) if title_key else "") or "").strip()
         if not title:
-            # Last resort: longest string field that looks like a title (not an id/url)
             best = ""
             for k, v in row.items():
                 if not isinstance(v, str):
@@ -212,52 +192,25 @@ def search_socrata(
             mapping_failures += 1
             return
         status_raw = str(_row_get(row, *status_keys) or "")
+        # Source-level active-status filter only (permitted). No product/category gates.
         if prefer_statuses:
-            if status_raw and status_raw.lower() not in prefer_statuses:
-                if re.search(r"cancel|closed|award|inactive|expired", status_raw, re.I):
-                    closed_excluded += 1
-                    return
-                if status_raw.strip():
-                    closed_excluded += 1
-                    return
-        elif status_raw and re.search(r"^(closed|award|awarded|cancelled|canceled|inactive|expired)$", status_raw, re.I):
-            closed_excluded += 1
-            return
-        if re.search(r"cancel|indefinitely postponed", str(row), re.I) and "cancelledpostponed" in row:
-            if row.get("cancelledpostponed"):
+            if status_raw and status_raw.lower() not in [s.lower() for s in prefer_statuses]:
                 closed_excluded += 1
                 return
-        category_raw = str(_row_get(row, *category_keys) or "")
-        if not _is_productish(title, category_raw, cfg):
-            non_product_excluded += 1
+        elif status_raw and re.search(
+            r"^(closed|award|awarded|cancelled|canceled|inactive|expired)$", status_raw, re.I
+        ):
+            closed_excluded += 1
             return
-        # Adapter keyword gate is OFF by default (Build 002A) — filter layer is authoritative
-        if apply_adapter_keywords and keywords:
-            blob = f"{title} {category_raw}".lower()
-            prefer_cats = [c.lower() for c in (cfg.get("prefer_categories") or [])]
-            is_prefer = prefer_cats and any(x in category_raw.lower() for x in prefer_cats)
-            if not is_prefer and not any(k.lower() in blob for k in keywords if k):
-                if not PRODUCT_HINTS.search(title) and not PRODUCT_HINTS.search(category_raw):
-                    keyword_excluded += 1
-                    return
-        agency = str(
-            _row_get(row, *agency_keys) or cfg.get("buyer_type") or "Unknown"
-        )
+        if "cancelledpostponed" in row and row.get("cancelledpostponed"):
+            closed_excluded += 1
+            return
+        category_raw = str(_row_get(row, *category_keys) or "")
+        # prefer_categories / exclude_categories intentionally ignored in Stage 1 (Build 002B)
+        agency = str(_row_get(row, *agency_keys) or cfg.get("buyer_type") or "Unknown")
         sol = str(_row_get(row, *number_keys) or "")
         deadline_raw = _row_get(row, *deadline_keys)
         posted_raw = _row_get(row, *posted_keys)
-        # Drop clearly past deadlines when no prefer_statuses list (active discovery)
-        if deadline_raw and not prefer_statuses:
-            try:
-                raw_d = str(deadline_raw).replace("Z", "+00:00")
-                dt = datetime.fromisoformat(raw_d[:19])
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                if dt.year >= 2000 and dt < datetime.now(timezone.utc):
-                    closed_excluded += 1
-                    return
-            except Exception:
-                pass
         value_raw = _row_get(row, *value_keys)
         vmin, vmax = _parse_value_band(value_raw)
         official = _extract_url(
@@ -282,8 +235,21 @@ def search_socrata(
             or cfg.get("procurement_type_default")
             or "unknown"
         )
-        clf = classify_requirement(title, category_raw=category_raw, procurement_type=proc_type)
         qty = _row_get(row, "quantity", "qty", "estimated_quantity")
+        sol_status = "unknown"
+        if cfg.get("is_forecast"):
+            sol_status = "forecast"
+        elif status_raw:
+            if re.search(r"(?i)amend", status_raw):
+                sol_status = "amended"
+            elif re.search(r"(?i)\b(open|active|posted|advertised)\b", status_raw):
+                sol_status = "open"
+            elif re.search(r"(?i)cancel", status_raw):
+                sol_status = "cancelled"
+            elif re.search(r"(?i)award", status_raw):
+                sol_status = "historical_award"
+            elif re.search(r"(?i)closed|expired|inactive", status_raw):
+                sol_status = "closed"
         items.append(
             {
                 "external_key": _key(source["source_key"], sol or title, official or ""),
@@ -313,18 +279,20 @@ def search_socrata(
                 "official_url": (official or final)[:2048],
                 "documents_available": "yes" if official and "http" in (official or "") else "unknown",
                 "quantity": str(qty) if qty not in (None, "") else None,
-                "requirement_class": clf["requirement_class"],
-                "classification_evidence": clf["classification_evidence"],
+                # Classification deferred to central Stage 3
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": sol_status,
                 "source_key": source["source_key"],
                 "source_verified_at": _utc(),
                 "is_forecast": bool(cfg.get("is_forecast")),
                 "title_field_used": title_key,
+                "discovery_stage": "unrestricted",
                 "evidence": {
                     "row_keys": list(row.keys())[:20],
                     "source_url": final,
                     "status": status_raw or None,
                     "category_raw": category_raw or None,
-                    "classification": clf,
                     "title_field_used": title_key,
                 },
             }
@@ -396,9 +364,8 @@ def search_socrata(
         "stats": {
             "mapping_failures": mapping_failures,
             "closed_excluded": closed_excluded,
-            "non_product_excluded": non_product_excluded,
-            "keyword_excluded": keyword_excluded,
             "accepted": len(out_items),
+            "product_gates_removed": True,
         },
     }
 
@@ -447,18 +414,12 @@ def search_html_links(
                 path = urlparse(abs_url).path.lower()
                 if path.endswith((".css", ".js", ".png", ".jpg", ".gif", ".svg")):
                     continue
-                # Keyword gate only when explicitly opted into source-native search
-                if apply_adapter_keywords and keywords and not any(k.lower() in blob for k in keywords):
-                    if not PRODUCT_HINTS.search(label):
-                        continue
+                # Stage 1: no keyword / product / service exclusions
                 title = label or abs_url.rsplit("/", 1)[-1]
                 title = re.sub(r"\s+", " ", title).strip()
                 if len(title) < 6:
                     continue
                 seen.add(abs_url)
-                clf = classify_requirement(title)
-                if not clf["include_in_product_resale"] and clf["requirement_class"] in {"services", "construction"}:
-                    continue
                 items.append(
                     {
                         "external_key": _key(source["source_key"], abs_url),
@@ -484,11 +445,13 @@ def search_html_links(
                         "official_url": abs_url[:2048],
                         "documents_available": "yes" if path.endswith((".pdf", ".doc", ".docx", ".xlsx")) else "unknown",
                         "quantity": None,
-                        "requirement_class": clf["requirement_class"],
-                        "classification_evidence": clf["classification_evidence"],
+                        "requirement_class": "pending_classification",
+                        "classification_evidence": ["deferred_to_central_classifier"],
+                        "solicitation_status": "unknown",
                         "source_key": source["source_key"],
                         "source_verified_at": _utc(),
-                        "evidence": {"list_url": final, "classification": clf},
+                        "discovery_stage": "unrestricted",
+                        "evidence": {"list_url": final},
                     }
                 )
                 if len(items) >= limit:
