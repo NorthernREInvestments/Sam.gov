@@ -296,6 +296,18 @@ def _supplier_form_options() -> dict:
 @app.on_event("startup")
 def _startup() -> None:
     init_database()
+    # Resume interrupted full-population acquisition jobs (Build 002E)
+    try:
+        from m3.db import SessionLocal
+        from m3.research.population_acquire import resume_incomplete_jobs
+
+        db = SessionLocal()
+        try:
+            resume_incomplete_jobs(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
 
 
 def _flash(request: Request, message: str, kind: str = "ok") -> None:
@@ -1183,6 +1195,60 @@ def package_zip_download(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="package_{package_id}.zip"'},
     )
+
+
+@app.get("/api/m3/package-jobs/{job_id}")
+def api_package_job_status(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return {"ok": False, "error": "auth_required"}
+    from m3.models import PackageAcquisitionJob
+    from m3.research.population_acquire import job_metrics
+
+    job = db.get(PackageAcquisitionJob, job_id)
+    if not job:
+        return {"ok": False, "error": "not_found"}
+    return {"ok": True, **job_metrics(db, job)}
+
+
+@app.post("/api/m3/package-jobs/{job_id}/resume")
+def api_package_job_resume(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.models import PackageAcquisitionJob
+    from m3.research.population_acquire import start_background_worker
+
+    job = db.get(PackageAcquisitionJob, job_id)
+    if not job:
+        return {"ok": False, "error": "not_found"}
+    if job.status == "completed":
+        return {"ok": True, "status": "completed", "started": False}
+    if job.status in {"cancelled"}:
+        return {"ok": False, "error": "cancelled"}
+    started = start_background_worker(job.id)
+    return {"ok": True, "status": job.status, "started": started}
+
+
+@app.post("/api/m3/package-jobs/{job_id}/batch")
+def api_package_job_batch(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+    batch_size: int = 40,
+):
+    """Process one bounded batch (for harness / ops). Production uses background worker."""
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.research.population_acquire import process_job_batch
+
+    return process_job_batch(db, job_id, batch_size=min(max(batch_size, 1), 100))
 
 
 @app.post("/opportunities/{opportunity_id}/status")

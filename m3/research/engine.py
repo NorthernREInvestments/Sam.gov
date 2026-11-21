@@ -837,6 +837,14 @@ def run_contract_discovery(
     run.sources_succeeded = succeeded
     run.limitations = limitations[-80:]
     run.result_snapshot = _sanitize_for_json(filtered[:5000])
+    # Full unique population on disk for freeze / full-scale acquisition (002E)
+    population_path = None
+    try:
+        from m3.research.population_acquire import write_population_file
+
+        population_path = str(write_population_file(run.id, unique))
+    except Exception as pop_exc:
+        limitations.append(f"population_freeze_write_failed:{type(pop_exc).__name__}")
     run.estimated_cost_usd = float(paid_cost)
     run.finished_at = datetime.now(timezone.utc)
     _progress(
@@ -877,6 +885,7 @@ def run_contract_discovery(
         openai_used=openai_used,
         openai_cache_hit=openai_cache_hit,
         estimated_cost_usd=float(paid_cost),
+        population_path=population_path,
         last_refresh=datetime.now(timezone.utc).isoformat(),
     )
     db.add(run)
@@ -957,6 +966,8 @@ def run_contract_discovery(
         "estimated_cost_usd": float(paid_cost),
         "openai_used": openai_used,
         "openai_cache_hit": openai_cache_hit,
+        "population_path": population_path,
+        "population_count": discovery_population,
         "coverage_matrix": coverage_matrix,
     }
 

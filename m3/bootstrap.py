@@ -34,6 +34,7 @@ def _ensure_columns(engine) -> None:
         "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS estimated_cost_usd DOUBLE PRECISION DEFAULT 0",
         "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS cancel_requested BOOLEAN DEFAULT FALSE",
         "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS parent_run_id UUID",
+        "ALTER TABLE solicitation_packages ALTER COLUMN solicitation_number TYPE VARCHAR(255)",
     ]
     with engine.begin() as conn:
         for s in stmts:

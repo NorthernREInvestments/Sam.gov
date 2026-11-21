@@ -413,7 +413,7 @@ class SolicitationPackage(Base):
         UUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL"), nullable=True, index=True
     )
     external_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    solicitation_number: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    solicitation_number: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     title: Mapped[str] = mapped_column(Text, default="")
     buyer: Mapped[str] = mapped_column(String(255), default="")
     source_key: Mapped[str] = mapped_column(String(128), default="", index=True)
@@ -502,6 +502,33 @@ class PackageAcquisitionJob(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    items: Mapped[list["PackageJobItem"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+
+
+class PackageJobItem(Base):
+    """Durable queue row for full-population acquisition (survives local↔Railway)."""
+
+    __tablename__ = "package_job_items"
+    __table_args__ = (
+        UniqueConstraint("job_id", "seq", name="uq_package_job_item_seq"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("package_acquisition_jobs.id", ondelete="CASCADE"), index=True
+    )
+    seq: Mapped[int] = mapped_column(Integer, index=True)
+    external_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)  # pending|done|error
+    package_status: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    job: Mapped["PackageAcquisitionJob"] = relationship(back_populates="items")
 
 
 # Fix forward refs for relationship typing under from __future__ annotations

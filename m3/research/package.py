@@ -522,9 +522,13 @@ def acquire_solicitation_package(
     manual_urls: list[str] | None = None,
     uploaded_files: list[dict[str, Any]] | None = None,
     refresh: bool = False,
-    max_documents: int = 30,
+    max_documents: int = 200,
 ) -> SolicitationPackage:
-    """Acquire/update one solicitation package. Shared entry point for all workflows."""
+    """Acquire/update one solicitation package. Shared entry point for all workflows.
+
+    max_documents is an operational safeguard; overflow is recorded as PARTIAL with
+    remaining URLs listed in detail_fields — not permanently abandoned.
+    """
     ikey = _identity_key(item)
     pkg = db.query(SolicitationPackage).filter_by(identity_key=ikey).one_or_none()
     if not pkg:
@@ -533,7 +537,10 @@ def acquire_solicitation_package(
     pkg.package_status = "ACQUISITION_IN_PROGRESS"
     pkg.title = str(item.get("title") or pkg.title or "")[:2000]
     pkg.buyer = str(item.get("buyer_name") or item.get("buyer") or pkg.buyer or "")[:255]
-    pkg.solicitation_number = (item.get("solicitation_number") or pkg.solicitation_number or None)
+    sn_raw = item.get("solicitation_number") or pkg.solicitation_number or None
+    if sn_raw is not None:
+        sn_raw = str(sn_raw).strip()[:128] or None
+    pkg.solicitation_number = sn_raw
     pkg.source_key = str(item.get("source_key") or pkg.source_key or "")[:128]
     pkg.external_key = item.get("external_key") or pkg.external_key
     pkg.opportunity_id = opportunity_id or pkg.opportunity_id
@@ -601,7 +608,7 @@ def acquire_solicitation_package(
                 has_substantial = bool(detail_fields.get("has_substantial_detail"))
                 pkg.authoritative_url = final
                 if detail_fields.get("solicitation_number") and not pkg.solicitation_number:
-                    pkg.solicitation_number = detail_fields["solicitation_number"]
+                    pkg.solicitation_number = str(detail_fields["solicitation_number"]).strip()[:128]
                 discovered = discover_attachments_from_html(html, final)
                 identified_docs.extend(discovered)
                 # Inventory is only verified on solicitation detail pages (not generic listings)
@@ -619,7 +626,15 @@ def acquire_solicitation_package(
     by_url: dict[str, dict] = {}
     for d in identified_docs:
         by_url[d["source_url"]] = d
-    identified_docs = list(by_url.values())[:max_documents]
+    all_identified = list(by_url.values())
+    overflow_docs = all_identified[max_documents:]
+    identified_docs = all_identified[:max_documents]
+    if overflow_docs:
+        detail_fields = dict(detail_fields or {})
+        detail_fields["document_overflow_count"] = len(overflow_docs)
+        detail_fields["document_overflow_urls"] = [d["source_url"] for d in overflow_docs[:50]]
+        access_issues.append(f"document_cap_partial:{len(overflow_docs)}_remaining")
+        inventory_verified = False  # cannot claim complete while capped remainder exists
 
     # Persist / update document rows
     existing = {d.source_url_hash: d for d in (pkg.documents or [])}

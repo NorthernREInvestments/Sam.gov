@@ -138,7 +138,7 @@ def _level3_attachments(
                 db,
                 item,
                 research_run_id=research_run_id,
-                max_documents=max(max_attachments, 30),
+                max_documents=max(max_attachments, 200),
             )
             enrich = package_to_item_enrichment(pkg)
             out = {**item, **enrich}
