@@ -106,7 +106,7 @@ Highest-value next actions: deeper listing adapters for thin HTML state portals;
 | RESULT_COUNT_RECONCILIATION | **VERIFIED** | Sum classes = population; UI recovery stats |
 | BUDGET_ENFORCEMENT | **VERIFIED** | $0.48 L4; free discovery continued; ceilings intact |
 | PRODUCTION_UI_VERIFIED | **PARTIALLY VERIFIED** | Stats updated; device QA on deploy URL |
-| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `20261121-m3-2-build-002c` |
+| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `{"ok":true,"build":"20261121-m3-2-build-002c"}` (Railway `d8491011` SUCCESS) |
 
 ## Representative sample
 
