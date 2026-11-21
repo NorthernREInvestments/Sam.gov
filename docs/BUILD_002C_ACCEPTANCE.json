@@ -1,0 +1,4755 @@
+{
+  "build": "002C",
+  "build_id": "20261121-m3-2-build-002c",
+  "started": "2026-11-21T17:30:47Z",
+  "baseline_002b": {
+    "discovery_population": 5181,
+    "openai_assisted_population": 8797,
+    "verified_product": 600,
+    "non_product": 656,
+    "uncertain": 3661
+  },
+  "audit_doc": "docs/BUILD_002C_AUDIT.md",
+  "max_pages_harness": 10,
+  "classification_spot_checks": {
+    "Janitorial Supplies": "product_supply",
+    "Janitorial Services": "services",
+    "Equipment Maintenance": "maintenance_repair_services",
+    "Purchase of 500 widgets Qty 500": "product_supply",
+    "Construction Materials": "product_supply",
+    "Software as a Service Subscription": "software_only"
+  },
+  "persisted_discovered_sources": {
+    "count": 21,
+    "sample": [
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "name": "Procurement - Buying Plan - Fiscal Year 2018 (datacatalog.cookcountyil.gov)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:08.015018+00:00",
+          "pages": 1,
+          "accepted": 194,
+          "next_offset": null,
+          "rows_examined": 194,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "name": "Bid Opportunities (data.winnipeg.ca)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:55:03.535478+00:00",
+          "pages": 10,
+          "accepted": 59,
+          "next_offset": 5000,
+          "rows_examined": 5000,
+          "more_available": true,
+          "pagination_complete": false
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "name": "City Record Online (data.cityofnewyork.us)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:55:58.868375+00:00",
+          "pages": 10,
+          "accepted": 5000,
+          "next_offset": 5000,
+          "rows_examined": 5000,
+          "more_available": true,
+          "pagination_complete": false
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "name": "Business Services - Purchasing - Solicitations (citydata.mesaaz.gov)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:55:35.359353+00:00",
+          "pages": 4,
+          "accepted": 432,
+          "next_offset": null,
+          "rows_examined": 1602,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_91ca0db4a8dfa3a2b718",
+        "name": "BidEdgeHQ",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:58:05.900264+00:00",
+          "pages": 1,
+          "accepted": 118,
+          "next_offset": null,
+          "rows_examined": 118,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_c7ea4633a76dd52b4e35",
+        "name": "ContractBeam",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": null,
+        "operational": false
+      },
+      {
+        "source_key": "ai_bf83be7b069ca9d2bf13",
+        "name": "Nebraska Department of Administrative Services (DAS) Materiel Division",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:54:46.523249+00:00",
+          "pages": 1,
+          "accepted": 1,
+          "next_offset": null,
+          "rows_examined": 1,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "name": "Bid Tabulations (Historical) (data.cityofnewyork.us)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:55:25.926179+00:00",
+          "pages": 10,
+          "accepted": 5000,
+          "next_offset": 5000,
+          "rows_examined": 5000,
+          "more_available": true,
+          "pagination_complete": false
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_61d7dedc83d6b06e9694",
+        "name": "EasBid",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": null,
+        "operational": false
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "name": "Procurement - Intent to Execute (datacatalog.cookcountyil.gov)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:15.522489+00:00",
+          "pages": 2,
+          "accepted": 564,
+          "next_offset": null,
+          "rows_examined": 564,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "name": "Current RFP (data.cityofnewyork.us)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:56:31.561068+00:00",
+          "pages": 1,
+          "accepted": 111,
+          "next_offset": null,
+          "rows_examined": 111,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "name": "Procurement Forecast (internal-sandiegocounty.data.socrata.com)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:23.333367+00:00",
+          "pages": 1,
+          "accepted": 95,
+          "next_offset": null,
+          "rows_examined": 95,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_datahub_usac_org_96rf-xd57",
+        "name": "Rural Health Care Posted Services (FCC Form 461/465) (datahub.usac.org)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:46.212071+00:00",
+          "pages": 10,
+          "accepted": 4999,
+          "next_offset": 5000,
+          "rows_examined": 5000,
+          "more_available": true,
+          "pagination_complete": false
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_7dc58c72d6f25a77e0b5",
+        "name": "BidRadarHQ",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:58:07.528194+00:00",
+          "pages": 1,
+          "accepted": 23,
+          "next_offset": null,
+          "rows_examined": 23,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_fbe283b8886e8306c75f",
+        "name": "GovBidFit",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:58:21.044341+00:00",
+          "pages": 1,
+          "accepted": 54,
+          "next_offset": null,
+          "rows_examined": 54,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_73ad9c881050902a38be",
+        "name": "ESU Coordinating Council Cooperative Purchasing",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": null,
+        "operational": false
+      },
+      {
+        "source_key": "ai_a75c9e6888ac36238c0b",
+        "name": "ProcureTap",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:54:47.456053+00:00",
+          "pages": 1,
+          "accepted": 48,
+          "next_offset": null,
+          "rows_examined": 48,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "name": "M/WBE Upcoming Procurements (data.cityofnewyork.us)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:56:51.584700+00:00",
+          "pages": 2,
+          "accepted": 940,
+          "next_offset": null,
+          "rows_examined": 940,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "name": "RAMP Open Bid Opportunities (data.lacity.org)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:29.630959+00:00",
+          "pages": 1,
+          "accepted": 226,
+          "next_offset": null,
+          "rows_examined": 226,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "name": "Solicitations (data.montgomerycountymd.gov)",
+        "adapter": "socrata_contracts",
+        "discovered": true,
+        "discovery_method": "socrata_catalog",
+        "last_yield": {
+          "at": "2026-11-21T16:57:57.556471+00:00",
+          "pages": 3,
+          "accepted": 17,
+          "next_offset": null,
+          "rows_examined": 1264,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      },
+      {
+        "source_key": "ai_17231f6c3ea025deb80c",
+        "name": "SAM.gov Contract Opportunities",
+        "adapter": "html_link_harvest",
+        "discovered": true,
+        "discovery_method": "openai_web_search",
+        "last_yield": {
+          "at": "2026-11-21T16:59:15.175283+00:00",
+          "pages": 1,
+          "accepted": 1,
+          "next_offset": null,
+          "rows_examined": 1,
+          "more_available": false,
+          "pagination_complete": true
+        },
+        "operational": true
+      }
+    ]
+  },
+  "test_c_free_source_reproducibility": {
+    "discovery_population": 9799,
+    "verified_product": 1020,
+    "confirmed_non_product": 769,
+    "uncertain_remaining": 7742,
+    "uncertain_recovery": {
+      "investigated": 9799,
+      "resolved_product": 955,
+      "resolved_product_incidental": 321,
+      "resolved_product_installation": 12,
+      "resolved_non_product": 769,
+      "resolved_other": 789,
+      "remaining_uncertain": 6953,
+      "level1_resolved": 1411,
+      "level2_attempted": 1078,
+      "level2_resolved": 600,
+      "level3_attempted": 204,
+      "level3_resolved": 13,
+      "level4_attempted": 40,
+      "level4_resolved": 33,
+      "openai_spent_usd": 0.4802,
+      "unresolved_reasons": {
+        "detail_is_document_deferred_to_l3": 177,
+        "The provided evidence does not specify the nature of the solicitation or the items being purchased.": 1,
+        "detail_http_404": 24,
+        "detail_error:ValueError": 49,
+        "The provided evidence does not specify the exact nature of the solicitation titled 'COTS: FOLDING, A": 1,
+        "The provided evidence does not specify the exact nature of the 'MARKING DEVICES' solicitation, makin": 1,
+        "The solicitation title 'MOBILE CRUSHING AND SCREENING PLANT - DOT' suggests the purchase of a mobile": 1,
+        "openai:Per-job research budget exhausted.": 2,
+        "level2_detail_page": 6511,
+        "detail_http_403": 165,
+        "detail_binary_deferred_to_l3": 10,
+        "no_usable_detail_url": 4,
+        "detail_error:ConnectError": 2,
+        "attachments=2": 2,
+        "pdf_little_or_no_extractable_text_may_be_scanned": 2,
+        "detail_http_400": 1
+      },
+      "skipped_already_classified": 0,
+      "level2_url_groups": 1078,
+      "finished_at": "2026-11-21T17:52:06.557354+00:00"
+    },
+    "sources_succeeded_n": 49,
+    "sources_succeeded": [
+      "ne_das_public",
+      "ai_bf83be7b069ca9d2bf13",
+      "ai_a75c9e6888ac36238c0b",
+      "discovered_data_winnipeg_ca_rijt-92n4",
+      "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "discovered_data_cityofnewyork_us_dg92-zbpx",
+      "la_ramp_open_bids",
+      "mesa_az_solicitations",
+      "cook_county_buying_plan_2026",
+      "discovered_data_cityofnewyork_us_bzjf-rmtp",
+      "delaware_open_bids",
+      "discovered_data_cityofnewyork_us_ww83-bcks",
+      "montgomery_md_solicitations",
+      "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+      "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+      "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+      "discovered_data_lacity_org_hf3r-utnq",
+      "discovered_datahub_usac_org_96rf-xd57",
+      "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+      "al_purchasing",
+      "ai_91ca0db4a8dfa3a2b718",
+      "ai_7dc58c72d6f25a77e0b5",
+      "co_state_purchasing",
+      "ct_das",
+      "dc_ocp",
+      "ga_doas",
+      "ai_fbe283b8886e8306c75f",
+      "hi_spo",
+      "il_cms",
+      "iowa_das",
+      "kansas_purchasing",
+      "ky_finance",
+      "la_osp",
+      "me_procurement",
+      "mo_oa_purchasing",
+      "nj_purchase",
+      "nm_gsd",
+      "nc_purchase",
+      "nd_omb",
+      "oh_das",
+      "ok_omes",
+      "or_das",
+      "pa_dgs",
+      "ai_17231f6c3ea025deb80c",
+      "socrata_catalog_discovery",
+      "sc_mmo",
+      "tx_cpa",
+      "vt_bgs",
+      "wv_purchasing"
+    ],
+    "pages_fetched": 122,
+    "duplicates_excluded": 9167,
+    "openai_portal_used": false,
+    "estimated_cost_usd": 0.4802,
+    "note": "OpenAI portal discovery disabled; persisted sources must still yield"
+  },
+  "test_a_baseline_reconcile": {
+    "classification_breakdown": {
+      "product_supply": 928,
+      "unknown_mixed": 7742,
+      "services": 493,
+      "product_with_incidental_services": 321,
+      "product_with_significant_installation": 12,
+      "professional_services": 70,
+      "construction": 128,
+      "product_rental_leasing": 27,
+      "maintenance_repair_services": 57,
+      "software_only": 21
+    },
+    "status_breakdown": {
+      "unknown": 7781,
+      "open": 706,
+      "amended": 78,
+      "forecast": 1234
+    },
+    "sum_classes": 9799,
+    "discovery_population": 9799,
+    "classes_sum_equals_population": true,
+    "verified_vs_product_classes_note": "verified_product excludes forecast/closed statuses"
+  },
+  "test_b_uncertain_recovery": {
+    "investigated": 9799,
+    "resolved_product": 955,
+    "resolved_product_incidental": 321,
+    "resolved_product_installation": 12,
+    "resolved_non_product": 769,
+    "resolved_other": 789,
+    "remaining_uncertain": 6953,
+    "level1_resolved": 1411,
+    "level2_attempted": 1078,
+    "level2_resolved": 600,
+    "level3_attempted": 204,
+    "level3_resolved": 13,
+    "level4_attempted": 40,
+    "level4_resolved": 33,
+    "openai_spent_usd": 0.4802,
+    "unresolved_reasons": {
+      "detail_is_document_deferred_to_l3": 177,
+      "The provided evidence does not specify the nature of the solicitation or the items being purchased.": 1,
+      "detail_http_404": 24,
+      "detail_error:ValueError": 49,
+      "The provided evidence does not specify the exact nature of the solicitation titled 'COTS: FOLDING, A": 1,
+      "The provided evidence does not specify the exact nature of the 'MARKING DEVICES' solicitation, makin": 1,
+      "The solicitation title 'MOBILE CRUSHING AND SCREENING PLANT - DOT' suggests the purchase of a mobile": 1,
+      "openai:Per-job research budget exhausted.": 2,
+      "level2_detail_page": 6511,
+      "detail_http_403": 165,
+      "detail_binary_deferred_to_l3": 10,
+      "no_usable_detail_url": 4,
+      "detail_error:ConnectError": 2,
+      "attachments=2": 2,
+      "pdf_little_or_no_extractable_text_may_be_scanned": 2,
+      "detail_http_400": 1
+    },
+    "skipped_already_classified": 0,
+    "level2_url_groups": 1078,
+    "finished_at": "2026-11-21T17:52:06.557354+00:00"
+  },
+  "test_d_nationwide": {
+    "discovery_population": 9799,
+    "verified_product": 1020,
+    "product_incidental": 321,
+    "source_yield": [
+      {
+        "source_key": "lincoln_ne_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "omaha_ne_finance",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_73ad9c881050902a38be",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ne_das_public",
+        "pages": 3,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_bf83be7b069ca9d2bf13",
+        "pages": 1,
+        "rows_examined": 1,
+        "accepted": 1,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 1,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_a75c9e6888ac36238c0b",
+        "pages": 1,
+        "rows_examined": 48,
+        "accepted": 48,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 48,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "pages": 10,
+        "rows_examined": 5000,
+        "accepted": 59,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 4941,
+          "accepted": 59,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "pages": 10,
+        "rows_examined": 5000,
+        "accepted": 5000,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 5000,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "pages": 0,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": false,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 0,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "pages": 10,
+        "rows_examined": 5000,
+        "accepted": 5000,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 5000,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "pages": 1,
+        "rows_examined": 226,
+        "accepted": 226,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 226,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "mesa_az_solicitations",
+        "pages": 4,
+        "rows_examined": 1602,
+        "accepted": 242,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1360,
+          "accepted": 242,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "cook_county_buying_plan_2026",
+        "pages": 1,
+        "rows_examined": 164,
+        "accepted": 164,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 164,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "pages": 1,
+        "rows_examined": 111,
+        "accepted": 111,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 111,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "delaware_open_bids",
+        "pages": 1,
+        "rows_examined": 42,
+        "accepted": 42,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 42,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "pages": 2,
+        "rows_examined": 940,
+        "accepted": 940,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 940,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "montgomery_md_solicitations",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "accepted": 17,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "pages": 1,
+        "rows_examined": 194,
+        "accepted": 194,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 194,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "pages": 2,
+        "rows_examined": 564,
+        "accepted": 564,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 564,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "pages": 1,
+        "rows_examined": 95,
+        "accepted": 95,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 95,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "pages": 1,
+        "rows_examined": 226,
+        "accepted": 226,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 226,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_datahub_usac_org_96rf-xd57",
+        "pages": 10,
+        "rows_examined": 5000,
+        "accepted": 4999,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 1,
+          "closed_excluded": 0,
+          "accepted": 4999,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "accepted": 17,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "al_purchasing",
+        "pages": 1,
+        "rows_examined": 18,
+        "accepted": 18,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 18,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ak_doa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "az_spo",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ar_dfa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_91ca0db4a8dfa3a2b718",
+        "pages": 1,
+        "rows_examined": 118,
+        "accepted": 118,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 118,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_7dc58c72d6f25a77e0b5",
+        "pages": 1,
+        "rows_examined": 23,
+        "accepted": 23,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 23,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "co_state_purchasing",
+        "pages": 1,
+        "rows_examined": 16,
+        "accepted": 16,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 16,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ct_das",
+        "pages": 1,
+        "rows_examined": 29,
+        "accepted": 29,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 29,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_c7ea4633a76dd52b4e35",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "dc_ocp",
+        "pages": 1,
+        "rows_examined": 32,
+        "accepted": 32,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 32,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_61d7dedc83d6b06e9694",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "fl_dms",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ga_doas",
+        "pages": 1,
+        "rows_examined": 25,
+        "accepted": 25,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 25,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_fbe283b8886e8306c75f",
+        "pages": 1,
+        "rows_examined": 54,
+        "accepted": 54,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 54,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "hi_spo",
+        "pages": 1,
+        "rows_examined": 3,
+        "accepted": 3,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 3,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "id_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "il_cms",
+        "pages": 1,
+        "rows_examined": 8,
+        "accepted": 8,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 8,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "iowa_das",
+        "pages": 1,
+        "rows_examined": 6,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 6,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "kansas_purchasing",
+        "pages": 1,
+        "rows_examined": 49,
+        "accepted": 49,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 49,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ky_finance",
+        "pages": 1,
+        "rows_examined": 20,
+        "accepted": 20,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 20,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "la_osp",
+        "pages": 1,
+        "rows_examined": 17,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 17,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "me_procurement",
+        "pages": 1,
+        "rows_examined": 47,
+        "accepted": 47,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 47,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "md_dgs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ma_osd",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mn_admin",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ms_dfa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mo_oa_purchasing",
+        "pages": 1,
+        "rows_examined": 23,
+        "accepted": 23,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 23,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mt_general",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nv_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nh_purchase",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nj_purchase",
+        "pages": 1,
+        "rows_examined": 286,
+        "accepted": 286,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 286,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nm_gsd",
+        "pages": 1,
+        "rows_examined": 45,
+        "accepted": 45,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 45,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ny_ogs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nc_purchase",
+        "pages": 1,
+        "rows_examined": 14,
+        "accepted": 14,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 14,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nd_omb",
+        "pages": 1,
+        "rows_examined": 32,
+        "accepted": 32,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 32,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "oh_das",
+        "pages": 1,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ok_omes",
+        "pages": 1,
+        "rows_examined": 6,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 6,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "or_das",
+        "pages": 1,
+        "rows_examined": 41,
+        "accepted": 41,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 41,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "pa_dgs",
+        "pages": 1,
+        "rows_examined": 25,
+        "accepted": 25,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 25,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ri_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ai_17231f6c3ea025deb80c",
+        "pages": 1,
+        "rows_examined": 1,
+        "accepted": 1,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 1,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sc_mmo",
+        "pages": 1,
+        "rows_examined": 55,
+        "accepted": 55,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 55,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sd_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tn_cpo",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tx_cpa",
+        "pages": 1,
+        "rows_examined": 9,
+        "accepted": 9,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 9,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ut_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "vt_bgs",
+        "pages": 1,
+        "rows_examined": 10,
+        "accepted": 10,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 10,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "va_dgs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wa_des",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wv_purchasing",
+        "pages": 1,
+        "rows_examined": 5,
+        "accepted": 5,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 5,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wi_doa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wy_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      }
+    ],
+    "sources_fully_paginated_n": 70,
+    "sources_incomplete": [
+      "discovered_data_winnipeg_ca_rijt-92n4",
+      "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "discovered_data_cityofnewyork_us_dg92-zbpx",
+      "discovered_datahub_usac_org_96rf-xd57"
+    ],
+    "coverage": {
+      "states": {
+        "AL": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "al_purchasing",
+              "name": "Alabama Purchasing Division",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:34:49.790562+00:00",
+                "accepted": 18,
+                "rows_examined": 18,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "al_purchasing",
+                "pages": 1,
+                "rows_examined": 18,
+                "accepted": 18,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 18,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "AK": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ak_doa",
+              "name": "Alaska DOA Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ak_doa",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "AZ": {
+          "known": 2,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "mesa_az_solicitations",
+              "name": "City of Mesa AZ \u2014 Purchasing Solicitations",
+              "adapter": "socrata_contracts",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:33:00.834200+00:00",
+                "accepted": 242,
+                "rows_examined": 1602,
+                "pages": 4,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "mesa_az_solicitations",
+                "pages": 4,
+                "rows_examined": 1602,
+                "accepted": 242,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "mapping_failures": 0,
+                  "closed_excluded": 1360,
+                  "accepted": 242,
+                  "product_gates_removed": true
+                }
+              }
+            },
+            {
+              "source_key": "az_spo",
+              "name": "Arizona State Procurement Office",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "az_spo",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "AR": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ar_dfa",
+              "name": "Arkansas DFA Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ar_dfa",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "CA": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "la_ramp_open_bids",
+              "name": "City of Los Angeles RAMP \u2014 Open Bid Opportunities",
+              "adapter": "socrata_contracts",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:32:49.062140+00:00",
+                "accepted": 226,
+                "rows_examined": 226,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "la_ramp_open_bids",
+                "pages": 1,
+                "rows_examined": 226,
+                "accepted": 226,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "mapping_failures": 0,
+                  "closed_excluded": 0,
+                  "accepted": 226,
+                  "product_gates_removed": true
+                }
+              }
+            }
+          ]
+        },
+        "CO": {
+          "known": 2,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "colorado_vss_public",
+              "name": "Colorado purchasing public page",
+              "adapter": "html_link_harvest",
+              "enabled": false,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": null
+            },
+            {
+              "source_key": "co_state_purchasing",
+              "name": "Colorado State Purchasing & Contracts",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:34:59.739211+00:00",
+                "accepted": 16,
+                "rows_examined": 16,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "co_state_purchasing",
+                "pages": 1,
+                "rows_examined": 16,
+                "accepted": 16,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 16,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "CT": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ct_das",
+              "name": "Connecticut DAS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:01.750693+00:00",
+                "accepted": 29,
+                "rows_examined": 29,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ct_das",
+                "pages": 1,
+                "rows_examined": 29,
+                "accepted": 29,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 29,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "DE": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "delaware_open_bids",
+              "name": "Delaware \u2014 Open Bids (MMP)",
+              "adapter": "socrata_contracts",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:33:17.777087+00:00",
+                "accepted": 42,
+                "rows_examined": 42,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "delaware_open_bids",
+                "pages": 1,
+                "rows_examined": 42,
+                "accepted": 42,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "mapping_failures": 0,
+                  "closed_excluded": 0,
+                  "accepted": 42,
+                  "product_gates_removed": true
+                }
+              }
+            }
+          ]
+        },
+        "DC": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "dc_ocp",
+              "name": "District of Columbia OCP",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:05.071432+00:00",
+                "accepted": 32,
+                "rows_examined": 32,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "dc_ocp",
+                "pages": 1,
+                "rows_examined": 32,
+                "accepted": 32,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 32,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "FL": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "fl_dms",
+              "name": "Florida DMS Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "fl_dms",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "GA": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ga_doas",
+              "name": "Georgia DOAS State Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:10.595248+00:00",
+                "accepted": 25,
+                "rows_examined": 25,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ga_doas",
+                "pages": 1,
+                "rows_examined": 25,
+                "accepted": 25,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 25,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "HI": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "hi_spo",
+              "name": "Hawaii State Procurement Office",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:14.707406+00:00",
+                "accepted": 3,
+                "rows_examined": 3,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "hi_spo",
+                "pages": 1,
+                "rows_examined": 3,
+                "accepted": 3,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 3,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "ID": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "id_purchasing",
+              "name": "Idaho Division of Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "id_purchasing",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "IL": {
+          "known": 3,
+          "operational": 2,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "chicago_procurement",
+              "name": "Chicago Data Portal \u2014 Contracts/RFPs",
+              "adapter": "socrata_contracts",
+              "enabled": false,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": null
+            },
+            {
+              "source_key": "il_cms",
+              "name": "Illinois CMS BidBuy / Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:19.886342+00:00",
+                "accepted": 8,
+                "rows_examined": 8,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "il_cms",
+                "pages": 1,
+                "rows_examined": 8,
+                "accepted": 8,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 8,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "cook_county_buying_plan_2026",
+              "name": "Cook County IL \u2014 Procurement Buying Plan FY2026",
+              "adapter": "socrata_contracts",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:33:07.722475+00:00",
+                "accepted": 164,
+                "rows_examined": 164,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "cook_county_buying_plan_2026",
+                "pages": 1,
+                "rows_examined": 164,
+                "accepted": 164,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "mapping_failures": 0,
+                  "closed_excluded": 0,
+                  "accepted": 164,
+                  "product_gates_removed": true
+                }
+              }
+            }
+          ]
+        },
+        "IN": {
+          "known": 0,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": []
+        },
+        "IA": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "iowa_das",
+              "name": "Iowa DAS procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:21.870192+00:00",
+                "accepted": 6,
+                "rows_examined": 6,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "iowa_das",
+                "pages": 1,
+                "rows_examined": 6,
+                "accepted": 6,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 6,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "KS": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "kansas_purchasing",
+              "name": "Kansas Office of Procurement and Contracts",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:24.307517+00:00",
+                "accepted": 49,
+                "rows_examined": 49,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "kansas_purchasing",
+                "pages": 1,
+                "rows_examined": 49,
+                "accepted": 49,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 49,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "KY": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ky_finance",
+              "name": "Kentucky Finance Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:27.071251+00:00",
+                "accepted": 20,
+                "rows_examined": 20,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ky_finance",
+                "pages": 1,
+                "rows_examined": 20,
+                "accepted": 20,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 20,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "LA": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "la_osp",
+              "name": "Louisiana OSP",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:29.227954+00:00",
+                "accepted": 17,
+                "rows_examined": 17,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "la_osp",
+                "pages": 1,
+                "rows_examined": 17,
+                "accepted": 17,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 17,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "ME": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "me_procurement",
+              "name": "Maine Division of Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:31.608033+00:00",
+                "accepted": 47,
+                "rows_examined": 47,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "me_procurement",
+                "pages": 1,
+                "rows_examined": 47,
+                "accepted": 47,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 47,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "MD": {
+          "known": 3,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "maryland_procure",
+              "name": "Maryland eMMA public notices (open data)",
+              "adapter": "socrata_contracts",
+              "enabled": false,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": null
+            },
+            {
+              "source_key": "md_dgs",
+              "name": "Maryland DGS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "md_dgs",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "montgomery_md_solicitations",
+              "name": "Montgomery County MD \u2014 Solicitations",
+              "adapter": "socrata_contracts",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:33:36.640855+00:00",
+                "accepted": 17,
+                "rows_examined": 1264,
+                "pages": 3,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "montgomery_md_solicitations",
+                "pages": 3,
+                "rows_examined": 1264,
+                "accepted": 17,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "mapping_failures": 0,
+                  "closed_excluded": 1247,
+                  "accepted": 17,
+                  "product_gates_removed": true
+                }
+              }
+            }
+          ]
+        },
+        "MA": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ma_osd",
+              "name": "Massachusetts OSD Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ma_osd",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "MI": {
+          "known": 0,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": []
+        },
+        "MN": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "mn_admin",
+              "name": "Minnesota Office of State Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "mn_admin",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "MS": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ms_dfa",
+              "name": "Mississippi DFA Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ms_dfa",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "MO": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "mo_oa_purchasing",
+              "name": "Missouri OA Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:41.115978+00:00",
+                "accepted": 23,
+                "rows_examined": 23,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "mo_oa_purchasing",
+                "pages": 1,
+                "rows_examined": 23,
+                "accepted": 23,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 23,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "MT": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "mt_general",
+              "name": "Montana State Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "mt_general",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NE": {
+          "known": 6,
+          "operational": 3,
+          "discovered_not_operational": 1,
+          "sources": [
+            {
+              "source_key": "omaha_ne_finance",
+              "name": "City of Omaha Finance / Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "omaha_ne_finance",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "ne_das_public",
+              "name": "Nebraska DAS Materiel / Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:31:19.159807+00:00",
+                "accepted": 2,
+                "rows_examined": 2,
+                "pages": 3,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ne_das_public",
+                "pages": 3,
+                "rows_examined": 2,
+                "accepted": 2,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 2,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "lincoln_ne_purchasing",
+              "name": "City of Lincoln Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "lincoln_ne_purchasing",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "ai_bf83be7b069ca9d2bf13",
+              "name": "Nebraska Department of Administrative Services (DAS) Materiel Division",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": true,
+              "last_yield": {
+                "at": "2026-11-21T17:31:20.372012+00:00",
+                "accepted": 1,
+                "rows_examined": 1,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ai_bf83be7b069ca9d2bf13",
+                "pages": 1,
+                "rows_examined": 1,
+                "accepted": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 1,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "ai_73ad9c881050902a38be",
+              "name": "ESU Coordinating Council Cooperative Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": true,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ai_73ad9c881050902a38be",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            },
+            {
+              "source_key": "ai_a75c9e6888ac36238c0b",
+              "name": "ProcureTap",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": true,
+              "last_yield": {
+                "at": "2026-11-21T17:31:21.989253+00:00",
+                "accepted": 48,
+                "rows_examined": 48,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ai_a75c9e6888ac36238c0b",
+                "pages": 1,
+                "rows_examined": 48,
+                "accepted": 48,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 48,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NV": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nv_purchasing",
+              "name": "Nevada Purchasing Division",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "nv_purchasing",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NH": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nh_purchase",
+              "name": "New Hampshire Bureau of Purchase",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "nh_purchase",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NJ": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nj_purchase",
+              "name": "New Jersey Purchase Bureau",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:49.241110+00:00",
+                "accepted": 286,
+                "rows_examined": 286,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "nj_purchase",
+                "pages": 1,
+                "rows_examined": 286,
+                "accepted": 286,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 286,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NM": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nm_gsd",
+              "name": "New Mexico GSD Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:53.282416+00:00",
+                "accepted": 45,
+                "rows_examined": 45,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "nm_gsd",
+                "pages": 1,
+                "rows_examined": 45,
+                "accepted": 45,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 45,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NY": {
+          "known": 2,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nyc_checkbook_solicitations",
+              "name": "NYC Open Data \u2014 Solicitations",
+              "adapter": "socrata_contracts",
+              "enabled": false,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": null
+            },
+            {
+              "source_key": "ny_ogs",
+              "name": "New York OGS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ny_ogs",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "NC": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nc_purchase",
+              "name": "North Carolina Purchase & Contract",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:57.145987+00:00",
+                "accepted": 14,
+                "rows_examined": 14,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "nc_purchase",
+                "pages": 1,
+                "rows_examined": 14,
+                "accepted": 14,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 14,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "ND": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "nd_omb",
+              "name": "North Dakota OMB Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:35:59.248758+00:00",
+                "accepted": 32,
+                "rows_examined": 32,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "nd_omb",
+                "pages": 1,
+                "rows_examined": 32,
+                "accepted": 32,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 32,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "OH": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "oh_das",
+              "name": "Ohio DAS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:36:01.104405+00:00",
+                "accepted": 2,
+                "rows_examined": 2,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "oh_das",
+                "pages": 1,
+                "rows_examined": 2,
+                "accepted": 2,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 2,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "OK": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ok_omes",
+              "name": "Oklahoma OMES Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:36:02.977608+00:00",
+                "accepted": 6,
+                "rows_examined": 6,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "ok_omes",
+                "pages": 1,
+                "rows_examined": 6,
+                "accepted": 6,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 6,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "OR": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "or_das",
+              "name": "Oregon DAS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:36:04.972367+00:00",
+                "accepted": 41,
+                "rows_examined": 41,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "or_das",
+                "pages": 1,
+                "rows_examined": 41,
+                "accepted": 41,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 41,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "PA": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "pa_dgs",
+              "name": "Pennsylvania DGS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:36:07.814355+00:00",
+                "accepted": 25,
+                "rows_examined": 25,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "pa_dgs",
+                "pages": 1,
+                "rows_examined": 25,
+                "accepted": 25,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 25,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "RI": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ri_purchasing",
+              "name": "Rhode Island Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ri_purchasing",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "SC": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "sc_mmo",
+              "name": "South Carolina MMO",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:37:11.526957+00:00",
+                "accepted": 55,
+                "rows_examined": 55,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "sc_mmo",
+                "pages": 1,
+                "rows_examined": 55,
+                "accepted": 55,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 55,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "SD": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "sd_procurement",
+              "name": "South Dakota Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "sd_procurement",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "TN": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "tn_cpo",
+              "name": "Tennessee CPO",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "tn_cpo",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "TX": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "tx_cpa",
+              "name": "Texas Comptroller Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:37:17.258077+00:00",
+                "accepted": 9,
+                "rows_examined": 9,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "tx_cpa",
+                "pages": 1,
+                "rows_examined": 9,
+                "accepted": 9,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 9,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "UT": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "ut_purchasing",
+              "name": "Utah Division of Purchasing",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "ut_purchasing",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "VT": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "vt_bgs",
+              "name": "Vermont Buildings & General Services",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:37:21.169911+00:00",
+                "accepted": 10,
+                "rows_examined": 10,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "vt_bgs",
+                "pages": 1,
+                "rows_examined": 10,
+                "accepted": 10,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 10,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "VA": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "va_dgs",
+              "name": "Virginia DGS Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "va_dgs",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "WA": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "wa_des",
+              "name": "Washington DES Contracting",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "wa_des",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "WV": {
+          "known": 1,
+          "operational": 1,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "wv_purchasing",
+              "name": "West Virginia Purchasing Division",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": true,
+              "operational": true,
+              "discovered": false,
+              "last_yield": {
+                "at": "2026-11-21T17:37:26.503373+00:00",
+                "accepted": 5,
+                "rows_examined": 5,
+                "pages": 1,
+                "pagination_complete": true,
+                "more_available": false,
+                "next_offset": null
+              },
+              "yield_now": {
+                "source_key": "wv_purchasing",
+                "pages": 1,
+                "rows_examined": 5,
+                "accepted": 5,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 5,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "WI": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "wi_doa",
+              "name": "Wisconsin State Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "wi_doa",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        },
+        "WY": {
+          "known": 1,
+          "operational": 0,
+          "discovered_not_operational": 0,
+          "sources": [
+            {
+              "source_key": "wy_procurement",
+              "name": "Wyoming Procurement",
+              "adapter": "html_link_harvest",
+              "enabled": true,
+              "verified": false,
+              "operational": false,
+              "discovered": false,
+              "last_yield": null,
+              "yield_now": {
+                "source_key": "wy_procurement",
+                "pages": 1,
+                "rows_examined": 0,
+                "accepted": 0,
+                "pagination_complete": true,
+                "more_available": false,
+                "stats": {
+                  "accepted": 0,
+                  "mapping_failures": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "states_with_any_source": 49,
+      "states_with_operational": 31,
+      "operational_sources_geotagged": 34,
+      "zero_operational_states": [
+        "AK",
+        "AR",
+        "FL",
+        "ID",
+        "IN",
+        "MA",
+        "MI",
+        "MN",
+        "MS",
+        "MT",
+        "NV",
+        "NH",
+        "NY",
+        "RI",
+        "SD",
+        "UT",
+        "VA",
+        "WA",
+        "WI",
+        "WY"
+      ],
+      "single_portal_only_states": [
+        "AL",
+        "AZ",
+        "CA",
+        "CO",
+        "CT",
+        "DE",
+        "DC",
+        "GA",
+        "HI",
+        "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MO",
+        "NJ",
+        "NM",
+        "NC",
+        "ND",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "SC",
+        "TN",
+        "TX",
+        "VT",
+        "WV"
+      ]
+    }
+  },
+  "test_f_discovery_independence": {
+    "snapshot": 5000,
+    "product_view": 3352,
+    "unfiltered_matching": 9799,
+    "filter_only_affects_display": true
+  },
+  "test_e_classification_accuracy_sample": [
+    {
+      "class": "product_supply",
+      "title": "Office Depot Contract",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://das.nebraska.gov/materiel/bid-opportunities.html",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_supply",
+      "title": "vs Bonfire",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/manufacturing",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_supply",
+      "title": "Closing this month",
+      "status": "unknown",
+      "evidence": [
+        "product_supply_terms",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/compare/bidnet-direct",
+      "recovery_level": 2
+    },
+    {
+      "class": "unknown_mixed",
+      "title": "External",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=low",
+        "The provided text includes references to various requisition codes (e.g., O8, OI, OT, OW, ON, Z5) and procurement processes, but without specific details about the items or services being procured, it's not possible to accurately classify t"
+      ],
+      "url": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Guide-Commodity_Procurement_Decision_Tree.pdf",
+      "recovery_level": 4
+    },
+    {
+      "class": "unknown_mixed",
+      "title": "Budget",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=low",
+        "The provided evidence does not specify the nature of the solicitation or the items being purchased."
+      ],
+      "url": "https://das.nebraska.gov/materiel/bids.html",
+      "recovery_level": 4
+    },
+    {
+      "class": "unknown_mixed",
+      "title": "Search Bids",
+      "status": "unknown",
+      "evidence": [
+        "insufficient_evidence"
+      ],
+      "url": "https://fonts.gstatic.com",
+      "recovery_level": 2
+    },
+    {
+      "class": "services",
+      "title": "Browse all Nebraska bids \u2192",
+      "status": "unknown",
+      "evidence": [
+        "service_pattern=Professional Services",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/stats/industry/manufacturing",
+      "recovery_level": 2
+    },
+    {
+      "class": "services",
+      "title": "Search Bids",
+      "status": "unknown",
+      "evidence": [
+        "service_pattern=Professional Services",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/stats/industry/food-services",
+      "recovery_level": 2
+    },
+    {
+      "class": "services",
+      "title": "vs BidNet Direct",
+      "status": "unknown",
+      "evidence": [
+        "service_pattern=Professional Services",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/compare/bidprime",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_with_incidental_services",
+      "title": "Glossary",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/nebraska",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_with_incidental_services",
+      "title": "Washington DC",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/south-carolina",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_with_incidental_services",
+      "title": "California",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/pennsylvania",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_with_significant_installation",
+      "title": "Construction",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/district-of-columbia",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_with_significant_installation",
+      "title": "Security System equipment and installation for DYCD offices",
+      "status": "unknown",
+      "evidence": [
+        "product_with_significant_installation"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "product_with_significant_installation",
+      "title": "PUGET SERVER EPYC 4005 WITH INSTALLATION",
+      "status": "open",
+      "evidence": [
+        "product_with_significant_installation"
+      ],
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000okXYrIAM",
+      "recovery_level": 1
+    },
+    {
+      "class": "professional_services",
+      "title": "Professional Services",
+      "status": "unknown",
+      "evidence": [
+        "service_pattern_title=Professional Services"
+      ],
+      "url": "https://www.procuretap.com/bids/new-york",
+      "recovery_level": 1
+    },
+    {
+      "class": "professional_services",
+      "title": "Request for Proposal Professional Consulting Services for Preliminary Design of Solar PV Microgrid and Energy Management",
+      "status": "open",
+      "evidence": [
+        "service_pattern_title=Consulting"
+      ],
+      "url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=286-2023&YEAR=2023",
+      "recovery_level": 1
+    },
+    {
+      "class": "professional_services",
+      "title": "Request for Proposal Consulting Services for Mobility Network Analysis for Rapid Transit Expansion",
+      "status": "open",
+      "evidence": [
+        "service_pattern_title=Consulting"
+      ],
+      "url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=912-2022&YEAR=2022",
+      "recovery_level": 1
+    },
+    {
+      "class": "construction",
+      "title": "ITB \u2014 Invitations to Bid",
+      "status": "unknown",
+      "evidence": [
+        "construction_pattern",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/bids/over-1m",
+      "recovery_level": 2
+    },
+    {
+      "class": "construction",
+      "title": "School districts",
+      "status": "unknown",
+      "evidence": [
+        "construction_pattern",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/rfq",
+      "recovery_level": 2
+    },
+    {
+      "class": "construction",
+      "title": "rfp-vs-rfq-vs-ifb",
+      "status": "unknown",
+      "evidence": [
+        "construction_pattern",
+        "level2_detail_page"
+      ],
+      "url": "https://www.procuretap.com/rfp-vs-rfq-vs-ifb",
+      "recovery_level": 2
+    },
+    {
+      "class": "product_rental_leasing",
+      "title": "EQUIPMENT II, RENTAL OF VARIOUS",
+      "status": "unknown",
+      "evidence": [
+        "rental_or_lease_of_goods"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "recovery_level": 1
+    },
+    {
+      "class": "product_rental_leasing",
+      "title": "CFOR-Heavy Equipment and Attachment Rental",
+      "status": "unknown",
+      "evidence": [
+        "rental_or_lease_of_goods"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "product_rental_leasing",
+      "title": "Rental of tables, chairs and other event supplies",
+      "status": "unknown",
+      "evidence": [
+        "rental_or_lease_of_goods"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "maintenance_repair_services",
+      "title": "HVAC Maintenance Services",
+      "status": "unknown",
+      "evidence": [
+        "maintenance_repair_services_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "maintenance_repair_services",
+      "title": "Printing Press Equipment Maintenance and Repair",
+      "status": "unknown",
+      "evidence": [
+        "maintenance_repair_services_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "maintenance_repair_services",
+      "title": "84627B0012-Maintenance and Repair of Automated Logic WebCTRL and Carrier",
+      "status": "unknown",
+      "evidence": [
+        "maintenance_repair_services_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "software_only",
+      "title": "SOFTGENETICS SOFTWARE LICENSE",
+      "status": "unknown",
+      "evidence": [
+        "software_subscription_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "software_only",
+      "title": "SOFTGENETICS SOFTWARE LICENSE UPGRADES - 25ME032",
+      "status": "unknown",
+      "evidence": [
+        "software_subscription_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    },
+    {
+      "class": "software_only",
+      "title": "Microsoft 365 Copilot Pre-Rollout Security Readiness Assessment",
+      "status": "unknown",
+      "evidence": [
+        "software_subscription_language"
+      ],
+      "url": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "recovery_level": 1
+    }
+  ],
+  "test_e_keywords": {
+    "screws": {
+      "matches": 1
+    },
+    "valves": {
+      "matches": 15
+    },
+    "furniture": {
+      "matches": 39
+    },
+    "ppe": {
+      "matches": 18
+    },
+    "toner": {
+      "matches": 0
+    },
+    "lighting": {
+      "matches": 41
+    },
+    "pumps": {
+      "matches": 20
+    }
+  },
+  "representative_product_sample": [
+    {
+      "buyer": "Nebraska DAS Materiel / Purchasing",
+      "product": "Office Depot Contract",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://das.nebraska.gov/materiel/bid-opportunities.html",
+      "state": "NE",
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Glossary",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/nebraska",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Washington DC",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/south-carolina",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "California",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/pennsylvania",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "New York",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/florida",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Virginia",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/indiana",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Maryland",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/illinois",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Louisiana",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/north-carolina",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Georgia",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/ohio",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Construction",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/district-of-columbia",
+      "state": "NE",
+      "class": "product_with_significant_installation",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "IT &amp; Software",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/texas",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Healthcare",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/california",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Facilities &amp; Maintenance",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/virginia",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Transportation",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/maryland",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Environmental",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/louisiana",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Manufacturing",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/georgia",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs BidPrime",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/construction",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs SAM.gov",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/information-technology",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs GovWin IQ",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/healthcare",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs BidSync",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/professional-services",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs FindRFP",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/facilities-maintenance",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs ConstructConnect",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/transportation",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs DemandStar",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/environmental",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "vs Bonfire",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/manufacturing",
+      "state": "NE",
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Closing this month",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/compare/bidnet-direct",
+      "state": "NE",
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "product_supply_terms",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Bid calendar",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/compare/govcb",
+      "state": "NE",
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "product_supply_terms",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Under $25K",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/compare/govbidportals",
+      "state": "NE",
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "$100K - $1M",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/compare/free-bid-sites",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Over $1M",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/posted-today",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Recently awarded",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/new-this-week",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "RFP \u2014 Requests for Proposal",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/bids/under-25k",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "RFP vs RFQ vs IFB comparison",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/awarded",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "ProcureTap",
+      "product": "Hospitals",
+      "solicitation_number": null,
+      "closing_date": null,
+      "set_aside": "unknown",
+      "official_url": "https://www.procuretap.com/ifb",
+      "state": "NE",
+      "class": "product_with_incidental_services",
+      "status": "unknown",
+      "evidence": [
+        "purchase_of_goods_context",
+        "level2_detail_page"
+      ],
+      "recovery_level": 2
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Regional Pumping Stations Concrete Equipment Pads Installation",
+      "solicitation_number": null,
+      "closing_date": "2023-05-03T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=752-2022&YEAR=2022",
+      "state": null,
+      "class": "product_supply",
+      "status": "open",
+      "evidence": [
+        "product_supply_terms"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Supply and Delivery of Cleaning Supplies",
+      "solicitation_number": null,
+      "closing_date": "2023-04-25T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=166-2023&YEAR=2023",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "supply_phrase=Cleaning Supplies",
+        "incidental_service_language"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Supply and Delivery of and Assembly of Fitness Equipment",
+      "solicitation_number": null,
+      "closing_date": "2023-04-18T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=183-2023&YEAR=2023",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "product_with_incidental_services"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Request for Proposal Professional Consulting Services for Perimeter Road Pumping Station Pump Replacement and Electrical Upgrades",
+      "solicitation_number": null,
+      "closing_date": "2023-05-03T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=133-2023&YEAR=2023",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "product_with_incidental_services"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Supply of Commercial Chain Link Fencing",
+      "solicitation_number": null,
+      "closing_date": "2023-04-19T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=91-2023&YEAR=2023",
+      "state": null,
+      "class": "product_supply",
+      "status": "open",
+      "evidence": [
+        "purchase_of_goods_context"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Request for Proposal for the Supply and Delivery of Multi-Language Library Materials and Catalogue Records",
+      "solicitation_number": null,
+      "closing_date": "2023-04-11T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=112-2023&YEAR=2023",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "product_with_incidental_services"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Supply and Delivery of CISCO UCS C220 M6 Server Hardware and Support Agreement",
+      "solicitation_number": null,
+      "closing_date": "2023-04-11T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=201-2023&YEAR=2023",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "product_with_incidental_services"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Supply and Delivery of Parking Penalty Notice Paper Rolls",
+      "solicitation_number": null,
+      "closing_date": "2023-03-01T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=872-2022&YEAR=2022",
+      "state": null,
+      "class": "product_with_incidental_services",
+      "status": "open",
+      "evidence": [
+        "product_with_incidental_services"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, DUAL REEL AERIAL - FDNY",
+      "solicitation_number": null,
+      "closing_date": "2021-03-24T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'TRUCK, DUAL REEL AERIAL - FDNY' pertains to the procurement of a specialized fire apparatus for the Fire Department of New York (FDNY). The term 'dual reel aerial' suggests a fire truck equipped with dual hose reels",
+        "\"TRUCK, DUAL WHEEL AERIAL - FDNY\"",
+        "\"Apparatus, 100' Rear Mount Aerial - FDNY\""
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "MOBILE COMMAND UNIT - PARKS",
+      "solicitation_number": null,
+      "closing_date": "2021-03-24T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'MOBILE COMMAND UNIT - PARKS' pertains to the procurement of a mobile command vehicle for use in parks, indicating the purchase of tangible equipment.",
+        "Bid Tabulations (Historical) | NYC Open Data",
+        "PRINT DATE: 03/24/21\u2003\u2003PRINT TIME: 12:02\u2003\u2003PAGE B-001"
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, 10 CUBIC YARD REAR LOADING COLLECTION-DSNY",
+      "solicitation_number": null,
+      "closing_date": "2021-03-10T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'TRUCK, 10 CUBIC YARD REAR LOADING COLLECTION-DSNY' indicates the purchase of rear-loading collection trucks with a capacity of 10 cubic yards for the Department of Sanitation of New York City (DSNY).",
+        "'TRUCK, 10 CUBIC YARD REAR LOADING COLLECTION-DSNY'"
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "FORKLIFT, 4000 LB. DIESEL ENGINE",
+      "solicitation_number": null,
+      "closing_date": "2021-02-23T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "product_supply_terms"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "GRP:HOLSET TURBOCHARGERS",
+      "solicitation_number": null,
+      "closing_date": "2021-02-17T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=medium",
+        "The solicitation title 'GRP:HOLSET TURBOCHARGERS' suggests the purchase of Holset turbochargers, which are components used in diesel engines to enhance performance. The evidence text references 'Bid Tabulations (Historical) | NYC Open Data,",
+        "'GRP:HOLSET TURBOCHARGERS'",
+        "'Bid Tabulations (Historical) | NYC Open Data'"
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "OXYGEN NON-REBREATHER MASKS & NASAL CANNULAS -FDNY",
+      "solicitation_number": null,
+      "closing_date": "2021-02-10T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'OXYGEN NON-REBREATHER MASKS & NASAL CANNULAS -FDNY' indicates the purchase of medical equipment, specifically non-rebreather masks and nasal cannulas, which are devices used to deliver oxygen to patients. This align",
+        "\"Bid Number: 2100044 (Oxygen Non-Rebreather Masks & Nasal Cannulas - FDNY)\"",
+        "\"Non-rebreather masks are usually for emergency use when a person has low blood oxygen levels, but can breathe on their own.\""
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, 100' TRACTOR DRAWN AERIAL - FDNY(RE-AD)",
+      "solicitation_number": null,
+      "closing_date": "2021-02-10T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation is for the procurement of 100-foot tractor-drawn aerial apparatuses for the Fire Department of New York (FDNY), indicating the purchase of tangible firefighting equipment.",
+        "\"The New York City Department of Citywide Administrative Services is soliciting bids for 100 FT Tractor Drawn Aerial Apparatuses for the FDNY.\"",
+        "\"The contract involves providing 15 units of 100' Tractor Drawn Aerial Apparatus as per the specifications outlined in the FDNY documentation dated September 1, 2026.\""
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "VARIOUS OPEN TOP CONTAINERS AND DOLLY",
+      "solicitation_number": null,
+      "closing_date": "2021-02-10T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'VARIOUS OPEN TOP CONTAINERS AND DOLLY' pertains to the procurement of tangible goods, specifically open-top containers and dollies, indicating a product supply requirement.",
+        "Bid Title: Various Open Top Containers and Dolly",
+        "Bid Number: 2100026"
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "EQUIPMENT II, RENTAL OF VARIOUS",
+      "solicitation_number": null,
+      "closing_date": "2021-02-09T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_rental_leasing",
+      "status": "unknown",
+      "evidence": [
+        "rental_or_lease_of_goods"
+      ],
+      "recovery_level": 1
+    },
+    {
+      "buyer": "Unknown",
+      "product": "CURAPLEX LARYNGOSCOPE BLADES- FDNY- BRAND SPECIFIC",
+      "solicitation_number": null,
+      "closing_date": "2021-02-09T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation specifies the purchase of Curaplex laryngoscope blades, which are medical instruments used for intubation procedures. These blades are tangible goods/materials/equipment.",
+        "Curaplex\u00ae Wis-Hipple Laryngoscope Blades features a modification of the Wisconsin blade with an American Profile and straight spatula. The blades are designed primarily for infants. The wider tip or break better lifts the epiglottis."
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, WELDING - DSNY",
+      "solicitation_number": null,
+      "closing_date": "2021-01-27T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'TRUCK, WELDING - DSNY' indicates the purchase of a welding truck for the New York City Department of Sanitation (DSNY). This aligns with DSNY's procurement of specialized vehicles for their operations, such as refus",
+        "\"The CITYWIDE ADMINISTRATIVE SERVICES (DCAS) has issued a Tender notice for the procurement of a Pre-Solicitation - Bid# 2700028 - Truck, BEV Utility - DSNY in the USA.\"",
+        "\"The New York City Department of Sanitation (DSNY) plans to purchase seven Mack LR Electric refuse models.\""
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK,16 C.Y. ELECTRIC COMPACTING COLLECTION-RE-AD",
+      "solicitation_number": null,
+      "closing_date": "2021-01-12T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'TRUCK,16 C.Y. ELECTRIC COMPACTING COLLECTION-RE-AD' pertains to the procurement of electric compacting collection trucks with a 16 cubic yard capacity. This is a tangible good acquisition, specifically vehicles desi",
+        "([govcb.com](https://www.govcb.com/government-bids/B-TRUCK-CUBIC-AND-23363535.htm?utm_source=openai))"
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, 800 GALLON BRINE - DSNY",
+      "solicitation_number": null,
+      "closing_date": "2021-01-05T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation titled 'TRUCK, 800 GALLON BRINE - DSNY' indicates the purchase of an 800-gallon brine truck for the Department of Sanitation. This is a tangible piece of equipment, classifying it under product_supply.",
+        "\"Bid Title: TRUCK, 800 GALLON BRINE \u2013 DSNY\"",
+        "\"Bid Number: 2100002\""
+      ],
+      "recovery_level": 4
+    },
+    {
+      "buyer": "Unknown",
+      "product": "TRUCK, UTILITY, W/ENCLOSED BODY & AERIAL LIFT-DSNY",
+      "solicitation_number": null,
+      "closing_date": "2020-12-29T00:00:00.000",
+      "set_aside": "unknown",
+      "official_url": "https://data.cityofnewyork.us/City-Government/Bid-Tabulations-Historical-/9k82-ys7w",
+      "state": null,
+      "class": "product_supply",
+      "status": "unknown",
+      "evidence": [
+        "level4_openai",
+        "confidence=high",
+        "The solicitation title specifies the purchase of a utility truck with an enclosed body and an aerial lift for the New York City Department of Sanitation (DSNY). This indicates the acquisition of tangible goods, specifically a specialized ve",
+        "\"New York City Department of Sanitation to purchase seven Mack\u00ae LR Electric models\""
+      ],
+      "recovery_level": 4
+    }
+  ],
+  "test_h_budget": {
+    "paid_research_enabled": true,
+    "daily_budget_usd": 1.0,
+    "monthly_budget_usd": 30.0,
+    "per_job_budget_usd": 0.5,
+    "per_user_daily_budget_usd": 1.0,
+    "max_research_depth": 2,
+    "default_model": "gpt-4o-mini",
+    "capable_model": "gpt-5-mini",
+    "search_context_size": "low",
+    "today_spent_usd": 0.5702,
+    "month_spent_usd": 0.5702,
+    "today_remaining_usd": 0.4298,
+    "month_remaining_usd": 29.4298,
+    "cost_basis": "application_estimate_not_invoice",
+    "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+  },
+  "coverage_matrix_summary": {
+    "states_with_operational": 31,
+    "states_with_any_source": 49,
+    "zero_operational_states": [
+      "AK",
+      "AR",
+      "FL",
+      "ID",
+      "IN",
+      "MA",
+      "MI",
+      "MN",
+      "MS",
+      "MT",
+      "NV",
+      "NH",
+      "NY",
+      "RI",
+      "SD",
+      "UT",
+      "VA",
+      "WA",
+      "WI",
+      "WY"
+    ]
+  },
+  "elapsed_seconds": 1301.4
+}

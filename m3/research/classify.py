@@ -93,6 +93,22 @@ CATEGORY_SERVICE = re.compile(r"personal services|(?<!product )services", re.I)
 CATEGORY_CONSTRUCTION = re.compile(r"construction", re.I)
 CATEGORY_COMMODITY = re.compile(r"commodity|goods|supplies|equipment|materials", re.I)
 
+# Purchasing-context signals (not a closed product whitelist)
+PURCHASE_OF_GOODS = re.compile(
+    r"(?i)\b("
+    r"purchase of|procurement of|acquisition of|furnish(?:ing)? of|"
+    r"supply of|provide(?:ing)? .+ (?:equipment|materials|supplies|goods|units)|"
+    r"qty\.?|quantity|unit price|each\b|lot of|cases? of|boxes of|pallets? of|"
+    r"n\.?i\.?g\.?p\.?|unspsc|commodity code|line item"
+    r")\b"
+)
+LABOR_PRIMARY = re.compile(
+    r"(?i)\b("
+    r"labor only|hourly (?:rate|services)|staff augmentation|"
+    r"contractor shall perform|scope of services|statement of work for services"
+    r")\b"
+)
+
 # Backward-compatible aliases used by filters / UI
 PRODUCT_CLASSES = {
     "product_supply",
@@ -155,6 +171,20 @@ def classify_requirement(
             evidence.append("incidental_service_language")
             return _out("product_with_incidental_services", evidence, True, sources_used)
         return _out("product_supply", evidence, True, sources_used)
+
+    if LABOR_PRIMARY.search(text) and not PRODUCT_HINTS.search(title_text) and not PURCHASE_OF_GOODS.search(text):
+        evidence.append("labor_primary_purchasing_context")
+        return _out("services", evidence, False, sources_used)
+
+    if PURCHASE_OF_GOODS.search(text) and not SERVICE_ONLY.search(title_text) and not CONSTRUCTION_ONLY.search(title_text):
+        # Purchasing context suggests goods even when product vocabulary is unfamiliar
+        if not MAINTENANCE_REPAIR.search(title_text):
+            evidence.append("purchase_of_goods_context")
+            if SIGNIFICANT_INSTALL.search(text):
+                return _out("product_with_significant_installation", evidence, True, sources_used)
+            if INCIDENTAL_SERVICE.search(text) or SERVICE_ONLY.search(text):
+                return _out("product_with_incidental_services", evidence, True, sources_used)
+            return _out("product_supply", evidence, True, sources_used)
 
     if SOFTWARE_ONLY.search(text) and not PRODUCT_HINTS.search(title_text):
         evidence.append("software_subscription_language")

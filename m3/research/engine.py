@@ -23,7 +23,7 @@ from m3.research.classify import PRODUCT_CLASSES, classify_batch
 from m3.research.filters import apply_contract_filters
 from m3.research.schema_map import validate_socrata_source
 from m3.research.seeds import SEED_SOURCES
-from m3.research.uncertain import resolve_uncertain_batch
+from m3.research.recovery import recover_uncertain_population
 from m3.research.vocabulary import parse_search_terms
 
 
@@ -229,19 +229,50 @@ def ensure_source_registry(db: Session) -> int:
     return created
 
 
-def _mark_source(db: Session, source_key: str, *, ok: bool, error: str | None = None) -> None:
+def _mark_source(
+    db: Session,
+    source_key: str,
+    *,
+    ok: bool,
+    error: str | None = None,
+    yield_info: dict | None = None,
+) -> None:
     row = db.query(SourceRegistry).filter_by(source_key=source_key).one_or_none()
     if not row:
         return
     now = datetime.now(timezone.utc)
+    cfg = dict(row.config or {})
     if ok:
         row.last_success_at = now
         row.experimentally_verified = True
+        if yield_info:
+            cfg["last_yield"] = {
+                "at": now.isoformat(),
+                "accepted": yield_info.get("accepted"),
+                "rows_examined": yield_info.get("rows_examined"),
+                "pages": yield_info.get("pages"),
+                "pagination_complete": yield_info.get("pagination_complete"),
+                "more_available": yield_info.get("more_available"),
+                "next_offset": yield_info.get("next_offset"),
+            }
+            hist = list(cfg.get("yield_history") or [])
+            hist.append(cfg["last_yield"])
+            cfg["yield_history"] = hist[-30:]
+            cfg["operational"] = True
+            cfg["last_verification_date"] = now.isoformat()
+            if yield_info.get("detail_capability"):
+                cfg["detail_page_retrieval"] = yield_info["detail_capability"]
+            if yield_info.get("attachment_capability"):
+                cfg["attachment_retrieval"] = yield_info["attachment_capability"]
+            row.document_access = yield_info.get("document_access") or row.document_access
+            row.config = cfg
     else:
         row.last_failure_at = now
         hist = list(row.failure_history or [])
         hist.append({"at": now.isoformat(), "error": (error or "")[:240]})
         row.failure_history = hist[-20:]
+        cfg["last_failure"] = {"at": now.isoformat(), "error": (error or "")[:240]}
+        row.config = cfg
     db.add(row)
 
 
@@ -257,26 +288,6 @@ def _cache_get(db: Session, key: str) -> dict | None:
     return row.payload
 
 
-def _cache_put(db: Session, key: str, kind: str, payload: dict, *, hours: int = 24) -> None:
-    row = db.query(ResearchCache).filter_by(cache_key=key).one_or_none()
-    exp = datetime.now(timezone.utc) + timedelta(hours=hours)
-    if row:
-        row.payload = payload
-        row.kind = kind
-        row.expires_at = exp
-        db.add(row)
-    else:
-        db.add(ResearchCache(cache_key=key, kind=kind, payload=payload, expires_at=exp))
-    db.commit()
-
-
-def _progress(run: ResearchRun, **fields: Any) -> None:
-    p = dict(run.progress or {})
-    p.update(fields)
-    p["updated_at"] = datetime.now(timezone.utc).isoformat()
-    run.progress = _sanitize_for_json(p)
-
-
 def _sanitize_for_json(obj: Any) -> Any:
     """Strip NUL / control junk so Postgres JSONB accepts research snapshots."""
     if obj is None or isinstance(obj, (bool, int, float)):
@@ -288,6 +299,32 @@ def _sanitize_for_json(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_sanitize_for_json(v) for v in obj]
     return obj
+
+
+def _cache_put(db: Session, key: str, kind: str, payload: dict, *, hours: int = 24) -> None:
+    payload = _sanitize_for_json(payload) if isinstance(payload, dict) else payload
+    try:
+        row = db.query(ResearchCache).filter_by(cache_key=key).one_or_none()
+        exp = datetime.now(timezone.utc) + timedelta(hours=hours)
+        if row:
+            row.payload = payload
+            row.kind = kind
+            row.expires_at = exp
+            db.add(row)
+        else:
+            db.add(ResearchCache(cache_key=key, kind=kind, payload=payload, expires_at=exp))
+        db.commit()
+    except Exception:
+        db.rollback()
+        # Do not fail the research run because a cache write failed
+        return
+
+
+def _progress(run: ResearchRun, **fields: Any) -> None:
+    p = dict(run.progress or {})
+    p.update(fields)
+    p["updated_at"] = datetime.now(timezone.utc).isoformat()
+    run.progress = _sanitize_for_json(p)
 
 
 def _operator_keywords(filters: dict[str, Any]) -> list[str]:
@@ -533,7 +570,22 @@ def run_contract_discovery(
             if result.get("ok") and result.get("items"):
                 if src.source_key not in succeeded:
                     succeeded.append(src.source_key)
-                _mark_source(db, src.source_key, ok=True)
+                _mark_source(
+                    db,
+                    src.source_key,
+                    ok=True,
+                    yield_info={
+                        "accepted": len(result.get("items") or []),
+                        "rows_examined": result.get("rows_examined"),
+                        "pages": result.get("pages_fetched"),
+                        "pagination_complete": result.get("pagination_complete"),
+                        "more_available": result.get("more_available"),
+                        "next_offset": result.get("next_offset"),
+                        "document_access": "url_field" if src.adapter == "socrata_contracts" else "link_harvest",
+                        "detail_capability": "official_url",
+                        "attachment_capability": "detail_page_scan",
+                    },
+                )
                 all_items.extend(result["items"])
             else:
                 err = ";".join(result.get("errors") or ["no_items"])
@@ -698,10 +750,38 @@ def run_contract_discovery(
     classification_breakdown = classified_pack.get("classification_breakdown") or {}
     status_breakdown = classified_pack.get("status_breakdown") or {}
 
-    # Stage 4 — Evidence verification / uncertain resolution (detail pages when needed)
-    uncertain_report = resolve_uncertain_batch(unique, fetch_details=True, detail_limit=80)
-    unique = uncertain_report["items"]
-    # Recompute breakdown after uncertain pass
+    # Stage 4 — Progressive classification recovery (full uncertain population)
+    import threading
+
+    _cache_lock = threading.Lock()
+
+    def _cg(key: str):
+        with _cache_lock:
+            return _cache_get(db, key)
+
+    def _cp(key: str, kind: str, payload: dict, hours: int = 24):
+        with _cache_lock:
+            _cache_put(db, key, kind, payload, hours=hours)
+
+    # L4 AI recovery uses budget independently of portal discovery checkbox
+    recovery_ai = bool(settings.paid_research_enabled and settings.openai_enabled)
+    recovery = recover_uncertain_population(
+        db,
+        unique,
+        user_id=user_id,
+        research_run_id=run.id,
+        enable_openai=recovery_ai,
+        max_level2=None,  # process all remaining uncertain at L2
+        max_level3=None,
+        max_level4=40,
+        job_spent_usd=paid_cost,
+        cache_get=_cg,
+        cache_put=_cp,
+    )
+    unique = recovery["items"]
+    paid_cost = Decimal(str(recovery.get("job_spent_usd") or paid_cost))
+    uncertain_report = recovery.get("stats") or {}
+    # Recompute breakdown after recovery
     classification_breakdown = {}
     for i in unique:
         k = i.get("requirement_class") or "unknown_mixed"
@@ -778,8 +858,12 @@ def run_contract_discovery(
         status_breakdown=status_breakdown,
         uncertain_remaining=uncertain_left,
         uncertain_investigated=uncertain_report.get("investigated"),
-        uncertain_resolved=uncertain_report.get("resolved_counts"),
-        uncertain_newly_product=uncertain_report.get("newly_product"),
+        uncertain_recovery=uncertain_report,
+        uncertain_newly_product=(
+            int(uncertain_report.get("resolved_product") or 0)
+            + int(uncertain_report.get("resolved_product_incidental") or 0)
+            + int(uncertain_report.get("resolved_product_installation") or 0)
+        ),
         duplicates_excluded=duplicates_excluded,
         pages_fetched=pages_total,
         sources_fully_paginated=sources_fully_paginated,
@@ -820,6 +904,13 @@ def run_contract_discovery(
     )
     db.commit()
 
+    try:
+        from m3.research.coverage import build_coverage_matrix
+
+        coverage_matrix = build_coverage_matrix(db, source_yield)
+    except Exception:
+        coverage_matrix = None
+
     return {
         "run_id": str(run.id),
         "status": run.status,
@@ -844,8 +935,12 @@ def run_contract_discovery(
         "status_breakdown": status_breakdown,
         "uncertain_remaining": uncertain_left,
         "uncertain_investigated": uncertain_report.get("investigated"),
-        "uncertain_resolved": uncertain_report.get("resolved_counts"),
-        "uncertain_newly_product": uncertain_report.get("newly_product"),
+        "uncertain_recovery": uncertain_report,
+        "uncertain_newly_product": (
+            int(uncertain_report.get("resolved_product") or 0)
+            + int(uncertain_report.get("resolved_product_incidental") or 0)
+            + int(uncertain_report.get("resolved_product_installation") or 0)
+        ),
         "duplicates_excluded": duplicates_excluded,
         "notices_examined": rows_examined,
         "mapping_failures": mapping_failures_total,
@@ -862,6 +957,7 @@ def run_contract_discovery(
         "estimated_cost_usd": float(paid_cost),
         "openai_used": openai_used,
         "openai_cache_hit": openai_cache_hit,
+        "coverage_matrix": coverage_matrix,
     }
 
 
