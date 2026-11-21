@@ -5,6 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from m3.research.enrich import enrich_opportunity_fields, human_datetime
+from m3.web.labels import label
+from m3.web.titles import build_display_title
+
 
 def unknown(val: Any, empty: str = "Unknown") -> str:
     if val is None:
@@ -19,6 +23,10 @@ def not_researched(val: Any) -> str:
     return unknown(val, "Not Yet Researched")
 
 
+def field_label(code: str | None) -> str:
+    return label(code)
+
+
 def days_remaining(deadline: Any) -> str | int:
     if not deadline:
         return "Unknown"
@@ -27,7 +35,10 @@ def days_remaining(deadline: Any) -> str | int:
             dt = deadline
         else:
             raw = str(deadline).replace("Z", "+00:00")
-            dt = datetime.fromisoformat(raw[:19])
+            try:
+                dt = datetime.fromisoformat(raw)
+            except ValueError:
+                dt = datetime.fromisoformat(raw[:19])
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         days = (dt - datetime.now(timezone.utc)).days
@@ -40,20 +51,34 @@ def days_remaining(deadline: Any) -> str | int:
 
 def format_deadline(deadline: Any, tz_label: str | None = None) -> dict[str, str]:
     if not deadline:
-        return {"date": "Unknown", "time": "Unknown", "timezone": unknown(tz_label)}
+        return {
+            "date": "Unknown",
+            "time": "Unknown",
+            "timezone": unknown(tz_label),
+            "human": "Not published",
+            "status": "not_published",
+        }
     try:
         if isinstance(deadline, datetime):
             dt = deadline
         else:
             raw = str(deadline).replace("Z", "+00:00")
-            dt = datetime.fromisoformat(raw[:19])
-        return {
-            "date": dt.strftime("%Y-%m-%d"),
-            "time": dt.strftime("%H:%M"),
-            "timezone": unknown(tz_label or (str(dt.tzinfo) if dt.tzinfo else None), "Unknown"),
-        }
+            try:
+                dt = datetime.fromisoformat(raw)
+            except ValueError:
+                dt = datetime.fromisoformat(raw[:19])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                    tz_label = tz_label or "UTC"
+        return human_datetime(dt, tz_label)
     except Exception:
-        return {"date": "Unknown", "time": "Unknown", "timezone": unknown(tz_label)}
+        return {
+            "date": "Unknown",
+            "time": "Unknown",
+            "timezone": unknown(tz_label),
+            "human": "Unable to parse timestamp",
+            "status": "unable_to_retrieve",
+        }
 
 
 def format_value(item: dict[str, Any] | Any) -> str:
@@ -84,34 +109,48 @@ def value_class(item: dict[str, Any] | Any) -> str:
         raw = ev.get("value_evidence_class") or getattr(item, "value_estimate_method", None)
         evidence = ev.get("value_evidence")
     if raw:
-        return str(raw).replace("_", " ")
+        return label(str(raw))
     if evidence:
-        return "published estimate"
+        return "Published Estimate"
     return "Not Yet Researched"
 
 
 def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_matches: int = 0) -> dict[str, Any]:
-    out = dict(item)
-    dl = format_deadline(item.get("deadline_at"), item.get("deadline_timezone"))
+    enriched = enrich_opportunity_fields(item)
+    out = dict(enriched)
+    titles = build_display_title(
+        official_title=out.get("title"),
+        buyer_name=out.get("buyer_name"),
+        solicitation_number=out.get("solicitation_number"),
+        source_name=(out.get("evidence") or {}).get("source_name"),
+    )
+    dl = format_deadline(out.get("deadline_at"), out.get("deadline_timezone"))
+    fs = out.get("field_status") or {}
     out["display"] = {
-        "title": unknown(item.get("title"), "Untitled"),
-        "solicitation_number": unknown(item.get("solicitation_number")),
-        "buyer": unknown(item.get("buyer_name"), "Unknown"),
-        "city": unknown(item.get("geo_city")),
-        "state": unknown(item.get("geo_state")),
+        "title": titles["display_title"],
+        "official_title": titles["official_title"],
+        "solicitation_number": unknown(out.get("solicitation_number")),
+        "buyer": titles["buyer_display"],
+        "city": unknown(out.get("geo_city")),
+        "state": unknown(out.get("geo_state")),
         "closing_date": dl["date"],
         "closing_time": dl["time"],
         "timezone": dl["timezone"],
-        "days_remaining": days_remaining(item.get("deadline_at")),
-        "value": format_value(item),
-        "value_class": value_class(item),
-        "set_aside": unknown(item.get("set_aside")),
-        "set_aside_verified": bool(item.get("set_aside_verified")),
-        "product_category": unknown(item.get("product_category")),
-        "quantity": unknown(item.get("quantity")),
-        "documents": unknown(item.get("documents_available")),
-        "requirement_class": unknown(item.get("requirement_class"), "Unknown"),
+        "closing_human": dl.get("human") or f"{dl['date']} {dl['time']} {dl['timezone']}",
+        "days_remaining": days_remaining(out.get("deadline_at")),
+        "value": format_value(out),
+        "value_class": value_class(out),
+        "set_aside": label(out.get("set_aside")) if out.get("set_aside") else "Unknown",
+        "set_aside_verified": bool(out.get("set_aside_verified")),
+        "product_category": label(out.get("product_category")) if out.get("product_category") else "Unknown",
+        "quantity": unknown(out.get("quantity")),
+        "documents": label(out.get("documents_available")) if out.get("documents_available") else "Unknown",
+        "requirement_class": label(out.get("requirement_class")),
+        "manufacturer": unknown(out.get("manufacturer"), "Not published"),
         "saved": "Saved" if saved else "Not saved",
         "catalog_matches": catalog_matches if catalog_matches else "None found",
+        "field_status": {k: label(v) for k, v in fs.items()},
+        "unavailable_reasons": out.get("unavailable_reasons") or {},
     }
+    out["display_title"] = titles["display_title"]
     return out

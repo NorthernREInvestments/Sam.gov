@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Data cleanup · M3{% endblock %}
+{% block content %}
+<h1>Production data cleanup</h1>
+<p class="lead">Preview of records identified as development/acceptance pollution. Ambiguous records are not listed for deletion. Nothing runs until you confirm.</p>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+
+<nav class="subnav" aria-label="Team settings">
+  <a href="/settings">Team</a>
+  <a href="/settings/cleanup" class="active">Data cleanup</a>
+  <a href="/settings/audit">Audit</a>
+</nav>
+
+<div class="stat-strip">
+  <div class="stat"><div class="n">{{ preview.counts.opportunities }}</div><div class="l">Opportunities flagged</div></div>
+  <div class="stat"><div class="n">{{ preview.counts.suppliers }}</div><div class="l">Suppliers flagged</div></div>
+  <div class="stat"><div class="n">{{ preview.counts.users }}</div><div class="l">Test users flagged</div></div>
+</div>
+
+<form method="post" action="/settings/cleanup/apply" class="panel stack">
+  <h2 style="margin-top:0">Opportunities (archive / remove from active)</h2>
+  {% for r in preview.opportunities %}
+  <label class="checks">
+    <input type="checkbox" name="opp_ids" value="{{ r.id }}" {% if r.confidence=='confirmed_test' %}checked{% endif %}>
+    <span><strong>{{ r.label }}</strong> · {{ r.confidence }} · {{ r.reasons|join('; ') }}</span>
+  </label>
+  {% else %}
+  <p class="muted">No actionable opportunity pollution detected.</p>
+  {% endfor %}
+
+  <h2>Suppliers (remove unconfirmed seed CRM rows)</h2>
+  {% for r in preview.suppliers %}
+  <label class="checks">
+    <input type="checkbox" name="supplier_ids" value="{{ r.id }}" {% if r.confidence=='confirmed_test' %}checked{% endif %}>
+    <span><strong>{{ r.label }}</strong> · {{ r.confidence }} · {{ r.reasons|join('; ') }}</span>
+  </label>
+  {% else %}
+  <p class="muted">No actionable supplier pollution detected.</p>
+  {% endfor %}
+
+  <h2>Test users (deactivate + invalidate sessions)</h2>
+  {% for r in preview.users %}
+  <label class="checks">
+    <input type="checkbox" name="user_ids" value="{{ r.id }}" {% if r.confidence=='confirmed_test' %}checked{% endif %}>
+    <span><strong>{{ r.label }}</strong> · {{ r.full_name }} · {{ r.reasons|join('; ') }} · active={{ r.is_active }}</span>
+  </label>
+  {% else %}
+  <p class="muted">No test users flagged.</p>
+  {% endfor %}
+
+  <label class="checks" style="margin-top:1rem">
+    <input type="checkbox" name="confirm" value="1" required>
+    <span>I reviewed this preview. Apply selected cleanup actions and write audit events.</span>
+  </label>
+  <div class="form-actions">
+    <button type="submit">Apply selected cleanup</button>
+    <a class="btn secondary" href="/settings">Cancel</a>
+  </div>
+</form>
+{% endblock %}

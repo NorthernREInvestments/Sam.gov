@@ -11,12 +11,20 @@ from m3.services import create_user, find_user_by_email
 
 
 def _ensure_columns(engine) -> None:
-    """Additive migrations for Build 001A without wiping data."""
+    """Additive migrations for Build 001A/001B without wiping data."""
     stmts = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_primary_owner BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER DEFAULT 1",
         "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS result_snapshot JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS requirement_class VARCHAR(64)",
         "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS quantity VARCHAR(128)",
+        "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS data_origin VARCHAR(64) DEFAULT 'operator'",
+        "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS display_title VARCHAR(512)",
+        "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS business_address TEXT",
+        "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address_type VARCHAR(64)",
+        "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS general_phone VARCHAR(64)",
+        "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS general_email VARCHAR(255)",
+        "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS data_origin VARCHAR(64) DEFAULT 'operator'",
     ]
     with engine.begin() as conn:
         for s in stmts:

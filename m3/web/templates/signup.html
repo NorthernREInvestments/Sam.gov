@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Sign up · M3{% endblock %}
+{% block content %}
+<h1>Sign up</h1>
+<p class="lead">Invitation-only. You need a valid invitation link from the primary owner. An approved email alone is not enough.</p>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+
+{% if invitation %}
+<p class="muted">Invitation for <strong>{{ invitation.email }}</strong> · Role: {{ role_label }}</p>
+<form method="post" action="/signup" class="panel form-grid cols-2" style="max-width:36rem">
+  <input type="hidden" name="token" value="{{ token }}">
+  <label class="field form-span-all"><span>Full name</span><input type="text" name="full_name" required autocomplete="name"></label>
+  <label class="field"><span>Password</span><input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+  <label class="field"><span>Confirm password</span><input type="password" name="password_confirm" required minlength="10" autocomplete="new-password"></label>
+  <div class="form-actions form-span-all">
+    <button type="submit">Create account</button>
+    <a class="btn secondary" href="/login">Back to sign in</a>
+  </div>
+</form>
+{% else %}
+<form method="get" action="/signup" class="panel form-grid cols-2" style="max-width:36rem">
+  <label class="field form-span-all"><span>Invitation token</span><input type="text" name="token" value="{{ token or '' }}" required placeholder="Paste token from your invitation link"></label>
+  <div class="form-actions form-span-all">
+    <button type="submit">Verify invitation</button>
+    <a class="btn secondary" href="/login">Back to sign in</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

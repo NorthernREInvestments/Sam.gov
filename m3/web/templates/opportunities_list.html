@@ -3,7 +3,14 @@
 {% block content %}
 {% include "_opp_subnav.html" %}
 <h1>Saved opportunities</h1>
-<p class="lead">Only contracts selected for M3 work. Missing fields show as Unknown or Not Yet Researched.</p>
+<p class="lead">Only contracts you explicitly saved. Missing fields show status reasons on the detail page.</p>
+<nav class="subnav" aria-label="Saved status">
+  <a href="/opportunities?status=active" class="{% if status_filter=='active' %}active{% endif %}">Active</a>
+  <a href="/opportunities?status=saved" class="{% if status_filter=='saved' %}active{% endif %}">Saved</a>
+  <a href="/opportunities?status=pursuing" class="{% if status_filter=='pursuing' %}active{% endif %}">Pursuing</a>
+  <a href="/opportunities?status=archived" class="{% if status_filter=='archived' %}active{% endif %}">Archived</a>
+  <a href="/opportunities?status=not_interested" class="{% if status_filter=='not_interested' %}active{% endif %}">Not Interested</a>
+</nav>
 {% if rows %}
 <div class="table-wrap">
 <table class="result-table">

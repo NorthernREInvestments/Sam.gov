@@ -17,14 +17,17 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User | None
     token = request.cookies.get(get_settings().session_cookie)
     if not token:
         return None
-    uid = read_session_token(token)
-    if not uid:
+    payload = read_session_token(token)
+    if not payload:
         return None
     try:
-        user = db.get(User, _uuid.UUID(uid))
+        user = db.get(User, _uuid.UUID(payload["uid"]))
     except (ValueError, TypeError):
         return None
     if not user or not user.is_active:
+        return None
+    # Invalidate sessions after deactivate / password reset / owner revoke
+    if int(getattr(user, "session_version", 1) or 1) != int(payload.get("sv") or 1):
         return None
     return user
 

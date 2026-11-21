@@ -49,6 +49,8 @@ class User(Base):
     extra_permissions: Mapped[dict] = mapped_column(JSONB, default=dict)
     # Only the original bootstrap owner — not delegable via role assignment
     is_primary_owner: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Bumped on deactivate / password reset to invalidate cookies
+    session_version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -145,7 +147,11 @@ class Opportunity(Base):
     source_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     requirement_class: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     quantity: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="saved")
+    # saved | pursuing | archived | not_interested
+    status: Mapped[str] = mapped_column(String(32), default="saved", index=True)
+    # operator | acceptance_harness | ambiguous
+    data_origin: Mapped[str] = mapped_column(String(64), default="operator", index=True)
+    display_title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     saved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
@@ -173,8 +179,15 @@ class Supplier(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(255), index=True)
     website: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Company-level contact (separate from individual sales contacts)
+    business_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    address_type: Mapped[str | None] = mapped_column(String(64), nullable=True)  # headquarters | sales_office | …
+    general_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    general_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     normalized_key: Mapped[str] = mapped_column(String(512), unique=True, index=True)
     supplier_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # operator | acceptance_harness | ambiguous
+    data_origin: Mapped[str] = mapped_column(String(64), default="operator", index=True)
     product_categories: Mapped[list] = mapped_column(JSONB, default=list)
     brands: Mapped[list] = mapped_column(JSONB, default=list)
     geo_coverage: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -277,6 +290,24 @@ class CatalogProduct(Base):
     extraction_uncertain: Mapped[bool] = mapped_column(Boolean, default=False)
     source_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     raw: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class UserInvitation(Base):
+    """Primary-owner invitation tokens — single-use, expiring, invitation-only signup."""
+
+    __tablename__ = "user_invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    role: Mapped[str] = mapped_column(String(64), default=RoleName.contract_specialist.value)
+    extra_permissions: Mapped[dict] = mapped_column(JSONB, default=dict)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)  # pending | accepted | revoked | expired
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    accepted_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Task(Base):

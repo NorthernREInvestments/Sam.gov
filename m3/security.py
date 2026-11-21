@@ -71,17 +71,37 @@ def serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(get_settings().resolved_secret(), salt="m3-session-v1")
 
 
-def issue_session_token(user_id: str) -> str:
-    return serializer().dumps({"uid": user_id, "nonce": secrets.token_hex(8)})
+def issue_session_token(user_id: str, session_version: int = 1) -> str:
+    return serializer().dumps(
+        {"uid": user_id, "sv": int(session_version or 1), "nonce": secrets.token_hex(8)}
+    )
 
 
-def read_session_token(token: str, max_age: int | None = None) -> str | None:
+def read_session_token(token: str, max_age: int | None = None) -> dict[str, Any] | None:
+    """Return {uid, sv} or None. Callers must validate session_version."""
     settings = get_settings()
     try:
         data = serializer().loads(token, max_age=max_age or settings.session_max_age_seconds)
-        return str(data.get("uid") or "") or None
+        uid = str(data.get("uid") or "") or None
+        if not uid:
+            return None
+        return {"uid": uid, "sv": int(data.get("sv") or 1)}
     except (BadSignature, SignatureExpired, Exception):
         return None
+
+
+def invite_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(get_settings().resolved_secret(), salt="m3-invite-v1")
+
+
+def hash_invite_token(raw_token: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def generate_invite_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def effective_permissions(role: str, extra: dict[str, Any] | None = None) -> set[str]:

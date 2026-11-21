@@ -85,49 +85,79 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     return user
 
 
-def save_opportunity(db: Session, item: dict[str, Any], user: User) -> Opportunity:
-    key = str(item.get("external_key") or "")
+def save_opportunity(
+    db: Session,
+    item: dict[str, Any],
+    user: User,
+    *,
+    data_origin: str = "operator",
+) -> Opportunity:
+    from m3.research.enrich import enrich_opportunity_fields
+    from m3.web.titles import build_display_title
+
+    enriched = enrich_opportunity_fields(item)
+    key = str(enriched.get("external_key") or "")
     existing = db.query(Opportunity).filter_by(external_key=key).one_or_none() if key else None
     deadline = None
-    if item.get("deadline_at"):
+    if enriched.get("deadline_at"):
         try:
-            deadline = datetime.fromisoformat(str(item["deadline_at"]).replace("Z", "+00:00")[:19])
+            raw = str(enriched["deadline_at"]).replace("Z", "+00:00")
+            try:
+                deadline = datetime.fromisoformat(raw)
+            except ValueError:
+                deadline = datetime.fromisoformat(raw[:19])
         except Exception:
             deadline = None
+    titles = build_display_title(
+        official_title=enriched.get("title"),
+        buyer_name=enriched.get("buyer_name"),
+        solicitation_number=enriched.get("solicitation_number"),
+    )
     payload = {
-        "title": item.get("title"),
-        "solicitation_number": item.get("solicitation_number"),
-        "buyer_name": item.get("buyer_name"),
-        "geo_state": item.get("geo_state"),
-        "geo_location": item.get("geo_location"),
+        "title": enriched.get("title"),
+        "display_title": titles["display_title"],
+        "solicitation_number": enriched.get("solicitation_number"),
+        "buyer_name": enriched.get("buyer_name"),
+        "geo_state": enriched.get("geo_state"),
+        "geo_location": enriched.get("geo_location"),
         "deadline_at": deadline,
-        "procurement_type": item.get("procurement_type"),
-        "product_category": item.get("product_category"),
-        "set_aside": item.get("set_aside"),
-        "set_aside_verified": bool(item.get("set_aside_verified")),
-        "estimated_value_min": item.get("estimated_value_min"),
-        "estimated_value_max": item.get("estimated_value_max"),
-        "estimated_value_unknown": bool(item.get("estimated_value_unknown", True)),
-        "value_estimate_method": item.get("value_estimate_method"),
-        "value_evidence": item.get("value_evidence") or {},
-        "official_url": item.get("official_url"),
-        "documents_available": item.get("documents_available") or "unknown",
-        "source_key": item.get("source_key"),
+        "procurement_type": enriched.get("procurement_type"),
+        "product_category": enriched.get("product_category"),
+        "set_aside": enriched.get("set_aside"),
+        "set_aside_verified": bool(enriched.get("set_aside_verified")),
+        "estimated_value_min": enriched.get("estimated_value_min"),
+        "estimated_value_max": enriched.get("estimated_value_max"),
+        "estimated_value_unknown": bool(enriched.get("estimated_value_unknown", True)),
+        "value_estimate_method": enriched.get("value_estimate_method"),
+        "value_evidence": enriched.get("value_evidence") or {},
+        "official_url": enriched.get("official_url"),
+        "documents_available": enriched.get("documents_available") or "unknown",
+        "source_key": enriched.get("source_key"),
         "source_verified_at": datetime.utcnow(),
-        "requirement_class": item.get("requirement_class"),
-        "quantity": item.get("quantity"),
+        "requirement_class": enriched.get("requirement_class"),
+        "quantity": enriched.get("quantity"),
+        "status": "saved",
+        "data_origin": data_origin if data_origin in {"operator", "acceptance_harness", "ambiguous"} else "operator",
         "raw_evidence": {
-            **(item.get("evidence") or {}),
-            "classification_evidence": item.get("classification_evidence"),
-            "value_evidence_class": item.get("value_evidence_class"),
-            "value_evidence": item.get("value_evidence"),
-            "deadline_timezone": item.get("deadline_timezone"),
-            "geo_city": item.get("geo_city"),
+            **(enriched.get("evidence") or {}),
+            "classification_evidence": enriched.get("classification_evidence"),
+            "value_evidence_class": enriched.get("value_evidence_class"),
+            "value_evidence": enriched.get("value_evidence"),
+            "deadline_timezone": enriched.get("deadline_timezone"),
+            "geo_city": enriched.get("geo_city"),
+            "field_status": enriched.get("field_status"),
+            "unavailable_reasons": enriched.get("unavailable_reasons"),
+            "official_title": enriched.get("title"),
+            "display_title": titles["display_title"],
         },
     }
     if existing:
-        before = {"title": existing.title}
+        before = {"title": existing.title, "status": existing.status}
         for k, v in payload.items():
+            if k == "data_origin" and existing.data_origin == "operator":
+                continue  # never downgrade operator provenance
+            if k == "status":
+                continue  # preserve lifecycle status on re-save
             setattr(existing, k, v)
         db.add(existing)
         record_audit(
@@ -138,7 +168,7 @@ def save_opportunity(db: Session, item: dict[str, Any], user: User) -> Opportuni
             actor_user_id=user.id,
             actor_label=user.email,
             before=before,
-            after={"title": existing.title},
+            after={"title": existing.title, "display_title": existing.display_title},
         )
         db.commit()
         return existing
@@ -152,7 +182,7 @@ def save_opportunity(db: Session, item: dict[str, Any], user: User) -> Opportuni
         entity_id=str(opp.id),
         actor_user_id=user.id,
         actor_label=user.email,
-        after={"title": opp.title, "url": opp.official_url},
+        after={"title": opp.title, "display_title": opp.display_title, "url": opp.official_url, "data_origin": opp.data_origin},
     )
     db.commit()
     db.refresh(opp)
@@ -164,9 +194,19 @@ def save_supplier_from_discovery(db: Session, item: dict[str, Any], user: User) 
     existing = db.query(Supplier).filter_by(normalized_key=key).one_or_none()
     if existing:
         return existing, False
+    # Do not invent Net-30 or application progress — leave statuses at Not Started / empty terms
+    phone = item.get("phone") or item.get("general_phone")
+    email = item.get("email") or item.get("general_email")
+    address = item.get("business_address") or item.get("address")
+    # Only store company contact when source provided it (never invent)
+    origin = item.get("data_origin") or "operator"
     sup = Supplier(
         name=item.get("name") or "Unknown",
         website=item.get("website"),
+        business_address=address,
+        address_type=item.get("address_type"),
+        general_phone=phone,
+        general_email=email,
         normalized_key=key,
         supplier_type=item.get("supplier_type"),
         product_categories=list(item.get("product_categories") or []),
@@ -178,22 +218,16 @@ def save_supplier_from_discovery(db: Session, item: dict[str, Any], user: User) 
         verification_status=item.get("verification_status") or "unverified",
         source_urls=list(item.get("source_urls") or []),
         next_action=item.get("next_action"),
+        payment_terms=None,  # unknown until confirmed — never default Net-30
         created_by=user.id,
         assigned_to=user.id if user.role == "supplier_manager" else None,
         relationship_status="lead",
+        data_origin=origin if origin in {"operator", "acceptance_harness", "ambiguous"} else "operator",
     )
     db.add(sup)
     db.flush()
-    if item.get("phone") or item.get("email"):
-        db.add(
-            SupplierContact(
-                supplier_id=sup.id,
-                name="Sales",
-                phone=item.get("phone"),
-                email=item.get("email"),
-                is_primary=True,
-            )
-        )
+    # Individual sales contacts stay empty until an operator adds them after communication.
+    # Company-level phone/email already stored on Supplier when provided by the source.
     record_audit(
         db,
         action="supplier.create",

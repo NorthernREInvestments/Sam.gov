@@ -151,10 +151,18 @@ a.btn:hover { text-decoration: none; }
 }
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: .55rem .7rem;
+  padding: .55rem .7rem; color: inherit; text-decoration: none; display: block;
 }
+a.stat:hover { border-color: var(--accent); text-decoration: none; }
 .stat .n { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
 .stat .l { color: var(--muted); font-size: .78rem; margin-top: .15rem; }
+.dash-wide { grid-column: 1 / -1; width: 100%; }
+.subnav .count {
+  margin-left: .35rem; background: rgba(255,255,255,.22); border-radius: 999px;
+  padding: .05rem .4rem; font-size: .75rem; font-weight: 700;
+}
+.subnav a:not(.active) .count { background: #e8e2d6; color: var(--muted); }
+.supplier-header .meta { display: grid; gap: .2rem; }
 
 /* Compact opportunity results */
 .result-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }

@@ -2,6 +2,7 @@
 {% block title %}Settings · M3{% endblock %}
 {% block content %}
 <h1>Settings</h1>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
 
 <section class="panel" style="margin-bottom:1rem">
   <h2 style="margin-top:0">My profile</h2>
@@ -18,12 +19,17 @@
 </section>
 
 {% if can_manage_users %}
+<nav class="subnav" aria-label="Team settings">
+  <a href="/settings" class="{% if settings_tab!='cleanup' %}active{% endif %}">Team</a>
+  <a href="/settings/cleanup" class="{% if settings_tab=='cleanup' %}active{% endif %}">Data cleanup</a>
+  <a href="/settings/audit">Audit</a>
+</nav>
+
 <section class="panel" style="margin-bottom:1rem">
-  <h2 style="margin-top:0">Team (primary owner only)</h2>
-  <form method="post" action="/settings/users" class="form-grid cols-2">
-    <label class="field"><span>Name</span><input type="text" name="full_name" required></label>
+  <h2 style="margin-top:0">Add user (invitation)</h2>
+  <p class="muted">Creates a pending invitation. Copy the link and send it yourself — M3 does not email invitations in this build.</p>
+  <form method="post" action="/settings/invitations" class="form-grid cols-2">
     <label class="field"><span>Email</span><input type="email" name="email" required></label>
-    <label class="field"><span>Temporary password</span><input type="password" name="password" required minlength="10"></label>
     <label class="field"><span>Role</span>
       <select name="role">
         <option value="supplier_manager">Supplier Manager</option>
@@ -31,10 +37,45 @@
       </select>
     </label>
     <div class="form-actions form-span-all">
-      <button type="submit">Create user</button>
+      <button type="submit">Create invitation</button>
     </div>
   </form>
+  {% if invite_link %}
+  <div class="flash ok" style="margin-top:.75rem">
+    <div>Invitation created. Copy this single-use link (expires in 14 days):</div>
+    <input type="text" readonly value="{{ invite_link }}" onclick="this.select()" style="margin-top:.4rem; width:100%">
+  </div>
+  {% endif %}
 </section>
+
+{% if invitations %}
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Pending invitations</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for inv in invitations %}
+      <tr>
+        <td>{{ inv.email }}</td>
+        <td>{{ inv.role_label }}</td>
+        <td>{{ inv.status_label }}</td>
+        <td>{{ inv.expires_at }}</td>
+        <td>
+          {% if inv.status == 'pending' %}
+          <form method="post" action="/settings/invitations/{{ inv.id }}/revoke" style="display:inline"><button class="secondary small" type="submit">Revoke</button></form>
+          {% endif %}
+          {% if inv.status in ['expired','revoked','pending'] %}
+          <form method="post" action="/settings/invitations/{{ inv.id }}/renew" style="display:inline"><button class="secondary small" type="submit">Renew</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
 
 <div class="table-wrap panel" style="padding:0; overflow:hidden">
 <table>
@@ -42,11 +83,26 @@
   <tbody>
   {% for u in users %}
     <tr>
-      <td>{{ u.full_name }}{% if u.review_flag %} <span class="badge warn">{{ u.review_flag }}</span>{% endif %}</td>
+      <td>
+        {% if not u.is_primary_owner %}
+        <form method="post" action="/settings/users/{{ u.id }}/edit" class="form-grid" style="grid-template-columns:1fr; gap:.35rem">
+          <input type="text" name="full_name" value="{{ u.full_name }}" required>
+          <input type="email" name="email" value="{{ u.email }}" required>
+          <select name="role">
+            <option value="supplier_manager" {% if u.role=='supplier_manager' %}selected{% endif %}>Supplier Manager</option>
+            <option value="contract_specialist" {% if u.role=='contract_specialist' %}selected{% endif %}>Contract Specialist</option>
+          </select>
+          <button class="secondary small" type="submit">Save</button>
+        </form>
+        {% else %}
+        {{ u.full_name }}
+        {% endif %}
+        {% if u.review_flag %} <span class="badge warn">{{ u.review_flag }}</span>{% endif %}
+      </td>
       <td>{{ u.email }}</td>
-      <td>{{ u.role }}</td>
-      <td>{{ 'yes' if u.is_primary_owner else 'no' }}</td>
-      <td>{{ 'yes' if u.is_active else 'no' }}</td>
+      <td>{{ u.role_label }}</td>
+      <td>{{ 'Yes' if u.is_primary_owner else 'No' }}</td>
+      <td>{{ 'Yes' if u.is_active else 'No' }}</td>
       <td>
         {% if not u.is_primary_owner and u.id != user.id %}
         <form method="post" action="/settings/users/{{ u.id }}/toggle" style="display:inline"><button class="secondary small" type="submit">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>
@@ -64,28 +120,17 @@
 
 {% if test_accounts %}
 <section class="panel" style="margin-top:1rem">
-  <h2 style="margin-top:0">Possible test accounts (review before removal)</h2>
-  <p class="muted">Identified for owner review only. Nothing was deactivated automatically.</p>
+  <h2 style="margin-top:0">Possible test accounts</h2>
+  <p class="muted">Use Data cleanup to deactivate confirmed test accounts. Nothing is removed automatically.</p>
   <ul>
   {% for t in test_accounts %}
-    <li>{{ t.email }} · {{ t.full_name }} · {{ t.role }} · active={{ t.is_active }} · reason={{ t.reason }}</li>
+    <li>{{ t.email }} · {{ t.full_name }} · {{ t.role }} · active={{ t.is_active }} · {{ t.reason if t.reason is defined else t.reasons|join(', ') }}</li>
   {% endfor %}
   </ul>
 </section>
 {% endif %}
 
-{% if test_records %}
-<section class="panel" style="margin-top:1rem">
-  <h2 style="margin-top:0">Possible test business records (review)</h2>
-  <ul>
-  {% for t in test_records %}
-    <li>{{ t.kind }} · {{ t.label }} · {{ t.reason }}</li>
-  {% endfor %}
-  </ul>
-</section>
-{% endif %}
-
-<p class="muted" style="margin-top:1rem"><a href="/settings/audit">Review audit history</a></p>
+<p class="muted" style="margin-top:1rem"><a href="/settings/cleanup">Review production data cleanup preview</a> · <a href="/settings/audit">Audit history</a></p>
 {% else %}
 <p class="lead">User management is limited to the primary owner. Contact the owner for account changes.</p>
 {% endif %}

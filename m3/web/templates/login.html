@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Sign in · M3{% endblock %}
 {% block content %}
-<section class="login-box panel stack">
-  <h1>Sign in</h1>
-  <p class="lead">Use your M3 account. Ask the owner if you need access. Public registration is disabled.</p>
-  <form method="post" action="/login" class="stack">
-    <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
-    <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
-    <div class="form-actions"><button type="submit">Sign in</button></div>
-  </form>
-</section>
+<h1>Sign in</h1>
+<p class="lead">M3 Supply operator workspace. Accounts are invitation-only.</p>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+<form method="post" action="/login" class="panel form-grid cols-2" style="max-width:32rem">
+  <label class="field form-span-all"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+  <label class="field form-span-all"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
+  <div class="form-actions form-span-all">
+    <button type="submit">Sign in</button>
+    <a class="btn secondary" href="/signup">Sign up with invitation</a>
+  </div>
+</form>
 {% endblock %}

@@ -1,4 +1,4 @@
-"""M3 2.0 Build 001A — FastAPI application entrypoint."""
+"""M3 2.0 Build 001B — FastAPI application entrypoint."""
 
 from __future__ import annotations
 
@@ -22,7 +22,20 @@ from m3.audit import record_audit
 from m3.bootstrap import init_database
 from m3.config import get_settings
 from m3.db import get_db
-from m3.models import AuditEvent, CatalogProduct, CatalogUpload, Opportunity, ResearchRun, SearchProfile, Supplier, Task, User
+from m3.invites import accept_invitation, bump_session_version, create_invitation, find_valid_invitation
+from m3.models import (
+    AuditEvent,
+    CatalogProduct,
+    CatalogUpload,
+    Opportunity,
+    ResearchRun,
+    SearchProfile,
+    Supplier,
+    Task,
+    User,
+    UserInvitation,
+)
+from m3.provenance import ACTIVE_OPP_STATUSES, build_cleanup_preview, classify_user_origin
 from m3.research.engine import run_contract_discovery, run_supplier_discovery
 from m3.security import hash_password, has_perm, is_primary_owner, issue_session_token
 from m3.services import (
@@ -35,7 +48,9 @@ from m3.services import (
     save_supplier_from_discovery,
 )
 from m3.web.deps import current_user, require_user
-from m3.web.display import enrich_discovery_item, format_deadline, format_value, unknown, value_class
+from m3.web.display import enrich_discovery_item, unknown
+from m3.web.labels import label
+from m3.web.titles import build_display_title
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(BASE_DIR / "m3" / "web" / "templates"))
@@ -57,11 +72,27 @@ app = FastAPI(title="M3 Supply", version="2.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "m3" / "web" / "static")), name="static")
 
 
+def _active_opps(db: Session):
+    """Genuine active saved/pursuing product-resale opportunities for dashboard counts."""
+    return (
+        db.query(Opportunity)
+        .filter(Opportunity.status.in_(list(ACTIVE_OPP_STATUSES)))
+        .filter(or_(Opportunity.data_origin.is_(None), Opportunity.data_origin != "acceptance_harness"))
+        .filter(
+            or_(
+                Opportunity.requirement_class.is_(None),
+                ~Opportunity.requirement_class.in_(["services", "construction"]),
+            )
+        )
+    )
+
+
 def _opp_item_from_model(o: Opportunity) -> dict:
     ev = o.raw_evidence or {}
     return {
         "external_key": o.external_key,
         "title": o.title,
+        "display_title": o.display_title,
         "solicitation_number": o.solicitation_number,
         "buyer_name": o.buyer_name,
         "geo_state": o.geo_state,
@@ -87,7 +118,10 @@ def _opp_item_from_model(o: Opportunity) -> dict:
         "source_key": o.source_key,
         "source_verified_at": o.source_verified_at.isoformat() if o.source_verified_at else None,
         "evidence": ev,
+        "field_status": ev.get("field_status") or {},
+        "unavailable_reasons": ev.get("unavailable_reasons") or {},
         "saved_id": str(o.id),
+        "status": o.status,
     }
 
 
@@ -108,7 +142,7 @@ def _catalog_match_count(db: Session, item: dict) -> int:
 def _detail_display(item: dict) -> dict:
     enriched = enrich_discovery_item(item)
     d = enriched["display"]
-    d["procurement_type"] = unknown(item.get("procurement_type"))
+    d["procurement_type"] = label(item.get("procurement_type")) if item.get("procurement_type") else "Unknown"
     d["source_key"] = unknown(item.get("source_key"))
     d["source_verified_at"] = unknown(item.get("source_verified_at"))
     evidence = item.get("classification_evidence") or (item.get("evidence") or {}).get("classification_evidence")
@@ -116,36 +150,37 @@ def _detail_display(item: dict) -> dict:
         d["classification_evidence"] = "; ".join(str(x) for x in evidence) if evidence else "Unknown"
     else:
         d["classification_evidence"] = unknown(evidence)
-    d["value_evidence"] = unknown(item.get("value_evidence") or (item.get("evidence") or {}).get("value_evidence"), "Not Yet Researched")
-    d["value_method"] = unknown(item.get("value_estimate_method"), "Not Yet Researched")
+    d["value_evidence"] = unknown(
+        item.get("value_evidence") or (item.get("evidence") or {}).get("value_evidence"),
+        "Not Yet Researched",
+    )
+    d["value_method"] = label(item.get("value_estimate_method")) if item.get("value_estimate_method") else "Not Yet Researched"
     return d
 
 
 def _identify_test_accounts(users: list[User]) -> list[dict]:
     out = []
     for u in users:
-        reasons = []
-        email = (u.email or "").lower()
-        if email.endswith("@m3.local") or ".local" in email:
-            reasons.append("local test domain")
-        if "test" in email or "demo" in email or email.startswith("sam.supplier"):
-            reasons.append("test/demo naming")
-        if reasons and not u.is_primary_owner:
-            out.append({"email": u.email, "full_name": u.full_name, "role": u.role, "is_active": u.is_active, "reason": ", ".join(reasons)})
+        c = classify_user_origin(u)
+        if c:
+            out.append({**c, "reason": ", ".join(c.get("reasons") or [])})
     return out
 
 
-def _identify_test_records(db: Session) -> list[dict]:
-    out = []
-    for o in db.query(Opportunity).order_by(Opportunity.created_at.desc()).limit(200):
-        title = (o.title or "").lower()
-        if title in {"word", "excel", "external"} or title.startswith("form"):
-            out.append({"kind": "opportunity", "label": o.title, "reason": "likely portal template/link noise"})
-    for s in db.query(Supplier).order_by(Supplier.created_at.desc()).limit(200):
-        name = (s.name or "").lower()
-        if "sample" in name or "test" in name or "works international" in name:
-            out.append({"kind": "supplier", "label": s.name, "reason": "possible test/seed record"})
-    return out[:40]
+def _supplier_form_options() -> dict:
+    return {
+        "relationship_options": [(v, label(v)) for v in ["lead", "contacted", "active", "inactive", "blocked"]],
+        "app_status_options": [(v, label(v)) for v in ["not_started", "in_progress", "submitted", "pending", "approved", "denied"]],
+        "approval_options": [(v, label(v)) for v in ["not_started", "pending", "approved", "denied"]],
+        "dealer_options": [(v, label(v)) for v in ["not_started", "pending", "approved", "denied", "n_a"]],
+        "yn_options": [(v, label(v)) for v in ["unknown", "yes", "no"]],
+        "address_types": [
+            ("headquarters", "Headquarters"),
+            ("sales_office", "Sales Office"),
+            ("regional_office", "Regional Office"),
+            ("distribution_location", "Distribution Location"),
+        ],
+    }
 
 
 @app.on_event("startup")
@@ -199,7 +234,7 @@ def login_submit(
     secure = not host.startswith("127.0.0.1") and not host.startswith("localhost")
     resp.set_cookie(
         settings.session_cookie,
-        issue_session_token(str(user.id)),
+        issue_session_token(str(user.id), getattr(user, "session_version", 1) or 1),
         httponly=True,
         samesite="lax",
         secure=secure,
@@ -215,39 +250,133 @@ def logout():
     return resp
 
 
+@app.get("/signup", response_class=HTMLResponse)
+def signup_form(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
+    if user:
+        return RedirectResponse("/", status_code=303)
+    token = (request.query_params.get("token") or "").strip()
+    invitation = find_valid_invitation(db, token) if token else None
+    flash = None
+    if token and not invitation:
+        flash = {"message": "Invitation is invalid, expired, or already used.", "kind": "err"}
+    return TEMPLATES.TemplateResponse(
+        "signup.html",
+        _ctx(
+            request,
+            None,
+            invitation=invitation,
+            token=token,
+            role_label=label(invitation.role) if invitation else "",
+            flash=flash,
+        ),
+    )
+
+
+@app.post("/signup")
+def signup_submit(
+    request: Request,
+    token: str = Form(...),
+    full_name: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if password != password_confirm or len(password) < 10:
+        return TEMPLATES.TemplateResponse(
+            "signup.html",
+            _ctx(
+                request,
+                None,
+                invitation=find_valid_invitation(db, token),
+                token=token,
+                role_label="",
+                flash={"message": "Passwords must match and be at least 10 characters.", "kind": "err"},
+            ),
+            status_code=400,
+        )
+    created = accept_invitation(db, raw_token=token, full_name=full_name, password=password)
+    if not created:
+        return TEMPLATES.TemplateResponse(
+            "signup.html",
+            _ctx(
+                request,
+                None,
+                invitation=None,
+                token=token,
+                flash={"message": "Could not accept invitation. It may be expired or the email already exists.", "kind": "err"},
+            ),
+            status_code=400,
+        )
+    resp = RedirectResponse("/", status_code=303)
+    settings = get_settings()
+    host = (request.headers.get("host") or "").lower()
+    secure = not host.startswith("127.0.0.1") and not host.startswith("localhost")
+    resp.set_cookie(
+        settings.session_cookie,
+        issue_session_token(str(created.id), created.session_version or 1),
+        httponly=True,
+        samesite="lax",
+        secure=secure,
+        max_age=settings.session_max_age_seconds,
+    )
+    return resp
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
     if not user:
         return _login_redirect()
+    tab = (request.query_params.get("tab") or "overview").lower()
+    allowed = {"overview", "deadlines", "tasks", "followups", "applications", "activity"}
+    if tab not in allowed:
+        tab = "overview"
+    if tab in {"followups", "applications"} and user.role not in {"owner", "supplier_manager"}:
+        tab = "overview"
+    if tab == "activity" and not (user.is_primary_owner or user.role == "owner"):
+        tab = "overview"
+
     now = datetime.now(timezone.utc)
     soon = now + timedelta(days=14)
+    active = _active_opps(db)
     open_tasks = db.query(Task).filter(Task.assigned_to == user.id, Task.status == "open").count()
+    # Only count follow-ups / apps that operators actually recorded
     followups = (
         db.query(Supplier)
-        .filter(Supplier.follow_up_on != None, Supplier.follow_up_on <= date.today())  # noqa: E711
+        .filter(
+            Supplier.follow_up_on != None,  # noqa: E711
+            Supplier.follow_up_on <= date.today(),
+            or_(Supplier.data_origin.is_(None), Supplier.data_origin != "acceptance_harness"),
+        )
         .count()
     )
-    saved_opps = db.query(Opportunity).count()
-    supplier_count = db.query(Supplier).count()
+    saved_opps = active.count()
+    supplier_count = (
+        db.query(Supplier)
+        .filter(or_(Supplier.data_origin.is_(None), Supplier.data_origin != "acceptance_harness"))
+        .count()
+    )
     deadlines = (
-        db.query(Opportunity)
-        .filter(Opportunity.deadline_at != None, Opportunity.deadline_at >= now, Opportunity.deadline_at <= soon)  # noqa: E711
+        active.filter(Opportunity.deadline_at != None, Opportunity.deadline_at >= now, Opportunity.deadline_at <= soon)  # noqa: E711
         .order_by(Opportunity.deadline_at.asc())
-        .limit(8)
+        .limit(20)
         .all()
     )
     tasks = (
         db.query(Task)
         .filter(Task.assigned_to == user.id, Task.status == "open")
         .order_by(Task.due_on.asc().nulls_last())
-        .limit(8)
+        .limit(20)
         .all()
     )
     overdue_suppliers = (
         db.query(Supplier)
-        .filter(Supplier.follow_up_on != None, Supplier.follow_up_on <= date.today())  # noqa: E711
+        .filter(
+            Supplier.follow_up_on != None,  # noqa: E711
+            Supplier.follow_up_on <= date.today(),
+            or_(Supplier.data_origin.is_(None), Supplier.data_origin != "acceptance_harness"),
+        )
         .order_by(Supplier.follow_up_on.asc())
-        .limit(8)
+        .limit(20)
         .all()
     )
     app_suppliers = (
@@ -256,23 +385,31 @@ def home(request: Request, db: Session = Depends(get_db), user: User | None = De
             or_(
                 Supplier.reseller_application_status.in_(["submitted", "pending", "in_progress"]),
                 Supplier.credit_application_status.in_(["submitted", "pending", "in_progress"]),
-            )
+            ),
+            or_(Supplier.data_origin.is_(None), Supplier.data_origin != "acceptance_harness"),
         )
         .order_by(Supplier.updated_at.desc())
+        .limit(20)
+        .all()
+    )
+    recent_suppliers = (
+        db.query(Supplier)
+        .filter(or_(Supplier.data_origin.is_(None), Supplier.data_origin != "acceptance_harness"))
+        .order_by(Supplier.created_at.desc())
         .limit(8)
         .all()
     )
-    recent_suppliers = db.query(Supplier).order_by(Supplier.created_at.desc()).limit(6).all()
-    recent_opps = db.query(Opportunity).order_by(Opportunity.created_at.desc()).limit(8).all()
+    recent_opps = active.order_by(Opportunity.created_at.desc()).limit(12).all()
     recent_activity = []
     if user.is_primary_owner or user.role == "owner":
-        recent_activity = db.query(AuditEvent).order_by(AuditEvent.at.desc()).limit(10).all()
+        recent_activity = db.query(AuditEvent).order_by(AuditEvent.at.desc()).limit(20).all()
     return TEMPLATES.TemplateResponse(
         "home.html",
         _ctx(
             request,
             user,
             "home",
+            tab=tab,
             open_tasks=open_tasks,
             followups=followups,
             saved_opps=saved_opps,
@@ -297,17 +434,24 @@ def opportunities_list(request: Request, db: Session = Depends(get_db), user: Us
         return _login_redirect()
     if not has_perm(user.role, user.extra_permissions, "opportunities.read"):
         return RedirectResponse("/", status_code=303)
-    items = db.query(Opportunity).order_by(Opportunity.created_at.desc()).limit(100).all()
+    status_filter = (request.query_params.get("status") or "active").lower()
+    q = db.query(Opportunity)
+    if status_filter == "active":
+        q = q.filter(Opportunity.status.in_(list(ACTIVE_OPP_STATUSES)))
+    elif status_filter in {"saved", "pursuing", "archived", "not_interested"}:
+        q = q.filter(Opportunity.status == status_filter)
+    items = q.order_by(Opportunity.created_at.desc()).limit(100).all()
     rows = []
     for o in items:
         item = _opp_item_from_model(o)
         row = enrich_discovery_item(item, saved=True, catalog_matches=_catalog_match_count(db, item))
         row["saved_id"] = str(o.id)
         row["official_url"] = o.official_url
+        row["status_label"] = label(o.status)
         rows.append(row)
     return TEMPLATES.TemplateResponse(
         "opportunities_list.html",
-        _ctx(request, user, "opportunities", rows=rows, opp_tab="saved"),
+        _ctx(request, user, "opportunities", rows=rows, opp_tab="saved", status_filter=status_filter),
     )
 
 
@@ -495,6 +639,11 @@ def opportunity_discover_detail(
             payload=_b64json(item) if not saved else None,
             notes=saved.notes if saved else "",
             assigned_label="Unassigned",
+            assigned_id=None,
+            saved_by_label="Not saved",
+            status_label="Discovered",
+            can_write=has_perm(user.role, user.extra_permissions, "opportunities.write"),
+            assignable_users=[],
             catalog_matches=matches[:20],
             return_to=return_to,
             opp_tab="filter",
@@ -519,7 +668,11 @@ def opportunity_detail(
     for t in re.findall(r"\b[A-Z0-9][A-Z0-9\-]{3,}\b", (opp.title or "").upper())[:8]:
         matches.extend(exact_mpn_matches(db, t))
     assignee = db.get(User, opp.assigned_to) if opp.assigned_to else None
+    saver = db.get(User, opp.saved_by) if opp.saved_by else None
     return_to = request.query_params.get("return_to") or "/opportunities"
+    assignable = []
+    if has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        assignable = db.query(User).filter(User.is_active.is_(True)).order_by(User.full_name.asc()).all()
     return TEMPLATES.TemplateResponse(
         "opportunity_detail.html",
         _ctx(
@@ -532,11 +685,104 @@ def opportunity_detail(
             payload=None,
             notes=opp.notes or "",
             assigned_label=assignee.full_name if assignee else "Unassigned",
+            assigned_id=opp.assigned_to,
+            saved_by_label=(f"{saver.full_name} ({opp.created_at})" if saver else "Unknown"),
+            status_label=label(opp.status),
+            can_write=has_perm(user.role, user.extra_permissions, "opportunities.write"),
+            assignable_users=assignable,
             catalog_matches=matches[:20],
             return_to=return_to,
             opp_tab="saved",
         ),
     )
+
+
+@app.post("/opportunities/{opportunity_id}/status")
+def opportunity_set_status(
+    opportunity_id: uuid.UUID,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return RedirectResponse("/login", status_code=303)
+    if status not in {"saved", "pursuing", "archived", "not_interested"}:
+        return RedirectResponse(f"/opportunities/{opportunity_id}", status_code=303)
+    opp = db.get(Opportunity, opportunity_id)
+    if opp:
+        before = {"status": opp.status}
+        opp.status = status
+        db.add(opp)
+        record_audit(
+            db,
+            action="opportunity.status",
+            entity_type="opportunity",
+            entity_id=str(opp.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            before=before,
+            after={"status": status},
+        )
+        db.commit()
+    return RedirectResponse(f"/opportunities/{opportunity_id}", status_code=303)
+
+
+@app.post("/opportunities/{opportunity_id}/unsave")
+def opportunity_unsave(
+    opportunity_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return RedirectResponse("/login", status_code=303)
+    opp = db.get(Opportunity, opportunity_id)
+    if opp:
+        record_audit(
+            db,
+            action="opportunity.unsave",
+            entity_type="opportunity",
+            entity_id=str(opp.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            before={"title": opp.title, "status": opp.status},
+        )
+        db.delete(opp)
+        db.commit()
+    return RedirectResponse("/opportunities", status_code=303)
+
+
+@app.post("/opportunities/{opportunity_id}/assign")
+def opportunity_assign(
+    opportunity_id: uuid.UUID,
+    assigned_to: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return RedirectResponse("/login", status_code=303)
+    opp = db.get(Opportunity, opportunity_id)
+    if opp:
+        before = {"assigned_to": str(opp.assigned_to) if opp.assigned_to else None}
+        if assigned_to:
+            try:
+                opp.assigned_to = uuid.UUID(assigned_to)
+            except ValueError:
+                opp.assigned_to = None
+        else:
+            opp.assigned_to = None
+        db.add(opp)
+        record_audit(
+            db,
+            action="opportunity.assign",
+            entity_type="opportunity",
+            entity_id=str(opp.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            before=before,
+            after={"assigned_to": str(opp.assigned_to) if opp.assigned_to else None},
+        )
+        db.commit()
+    return RedirectResponse(f"/opportunities/{opportunity_id}", status_code=303)
 
 
 @app.post("/opportunities/{opportunity_id}/notes")
@@ -711,7 +957,64 @@ def supplier_detail(supplier_id: uuid.UUID, request: Request, db: Session = Depe
     supplier = db.get(Supplier, supplier_id)
     if not supplier:
         return RedirectResponse("/suppliers", status_code=303)
-    return TEMPLATES.TemplateResponse("supplier_detail.html", _ctx(request, user, "suppliers", supplier=supplier))
+    opts = _supplier_form_options()
+    return TEMPLATES.TemplateResponse(
+        "supplier_detail.html",
+        _ctx(
+            request,
+            user,
+            "suppliers",
+            supplier=supplier,
+            address_type_label=label(supplier.address_type) if supplier.address_type else "",
+            **opts,
+        ),
+    )
+
+
+@app.post("/suppliers/{supplier_id}/company")
+async def supplier_company_update(
+    supplier_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not has_perm(user.role, user.extra_permissions, "suppliers.write"):
+        return RedirectResponse("/login", status_code=303)
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier:
+        return RedirectResponse("/suppliers", status_code=303)
+    form = await request.form()
+    before = {
+        "website": supplier.website,
+        "business_address": supplier.business_address,
+        "address_type": supplier.address_type,
+        "general_phone": supplier.general_phone,
+        "general_email": supplier.general_email,
+    }
+    supplier.website = (str(form.get("website") or "").strip() or None)
+    supplier.business_address = (str(form.get("business_address") or "").strip() or None)
+    supplier.address_type = (str(form.get("address_type") or "").strip() or None)
+    supplier.general_phone = (str(form.get("general_phone") or "").strip() or None)
+    supplier.general_email = (str(form.get("general_email") or "").strip() or None)
+    db.add(supplier)
+    record_audit(
+        db,
+        action="supplier.company_contact",
+        entity_type="supplier",
+        entity_id=str(supplier.id),
+        actor_user_id=user.id,
+        actor_label=user.email,
+        before=before,
+        after={
+            "website": supplier.website,
+            "business_address": supplier.business_address,
+            "address_type": supplier.address_type,
+            "general_phone": supplier.general_phone,
+            "general_email": supplier.general_email,
+        },
+    )
+    db.commit()
+    return RedirectResponse(f"/suppliers/{supplier.id}", status_code=303)
 
 
 @app.post("/suppliers/{supplier_id}/update")
@@ -942,10 +1245,34 @@ def settings_page(request: Request, db: Session = Depends(get_db), user: User | 
     users = db.query(User).order_by(User.created_at.asc()).all() if can else []
     for u in users:
         u.review_flag = None  # type: ignore[attr-defined]
+        u.role_label = label(u.role)  # type: ignore[attr-defined]
         if (u.email or "").endswith("@m3.local") or "test" in (u.email or "").lower():
             u.review_flag = "review"  # type: ignore[attr-defined]
     test_accounts = _identify_test_accounts(users) if can else []
-    test_records = _identify_test_records(db) if can else []
+    invitations = []
+    if can:
+        for inv in db.query(UserInvitation).order_by(UserInvitation.created_at.desc()).limit(40).all():
+            invitations.append(
+                type(
+                    "Inv",
+                    (),
+                    {
+                        "id": inv.id,
+                        "email": inv.email,
+                        "role": inv.role,
+                        "role_label": label(inv.role),
+                        "status": inv.status,
+                        "status_label": label(inv.status),
+                        "expires_at": inv.expires_at,
+                    },
+                )()
+            )
+    invite_link = request.query_params.get("invite_link") or ""
+    flash = None
+    if invite_link:
+        flash = {"message": "Invitation created. Copy the link below.", "kind": "ok"}
+    elif request.query_params.get("err") == "password":
+        flash = {"message": "Password update failed — check length and confirmation.", "kind": "err"}
     return TEMPLATES.TemplateResponse(
         "settings.html",
         _ctx(
@@ -955,7 +1282,10 @@ def settings_page(request: Request, db: Session = Depends(get_db), user: User | 
             can_manage_users=can,
             users=users,
             test_accounts=test_accounts,
-            test_records=test_records,
+            invitations=invitations,
+            invite_link=invite_link,
+            settings_tab="team",
+            flash=flash,
         ),
     )
 
@@ -976,6 +1306,7 @@ def settings_profile(
         if password != password_confirm or len(password) < 10:
             return RedirectResponse("/settings?err=password", status_code=303)
         user.password_hash = hash_password(password)
+        bump_session_version(db, user, actor=user, reason="self_password_change")
     db.add(user)
     record_audit(
         db,
@@ -988,27 +1319,114 @@ def settings_profile(
         after={"full_name": user.full_name, "password_changed": bool(password)},
     )
     db.commit()
+    if password:
+        # Re-issue cookie with new session_version
+        resp = RedirectResponse("/settings", status_code=303)
+        settings = get_settings()
+        resp.set_cookie(
+            settings.session_cookie,
+            issue_session_token(str(user.id), user.session_version or 1),
+            httponly=True,
+            samesite="lax",
+            max_age=settings.session_max_age_seconds,
+        )
+        return resp
     return RedirectResponse("/settings", status_code=303)
 
 
-@app.post("/settings/users")
-def settings_create_user(
-    full_name: str = Form(...),
+@app.post("/settings/invitations")
+def settings_create_invitation(
+    request: Request,
     email: str = Form(...),
-    password: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),
     user: User | None = Depends(current_user),
 ):
-    # Primary owner only — not role-delegable
     if not user or not is_primary_owner(user):
         return RedirectResponse("/settings", status_code=303)
     if role not in {"supplier_manager", "contract_specialist"}:
         role = "contract_specialist"
-    created = create_user(db, email=email, full_name=full_name, password=password, role=role, actor=user)
-    # Never grant primary owner via create
-    created.is_primary_owner = False
-    db.add(created)
+    _inv, raw = create_invitation(db, email=email, role=role, actor=user)
+    # Build absolute invite URL for owner to copy
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/signup?token={raw}"
+    return RedirectResponse(f"/settings?invite_link={quote(link, safe='')}", status_code=303)
+
+
+@app.post("/settings/invitations/{invite_id}/revoke")
+def settings_revoke_invitation(
+    invite_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    inv = db.get(UserInvitation, invite_id)
+    if inv and inv.status == "pending":
+        inv.status = "revoked"
+        db.add(inv)
+        record_audit(
+            db,
+            action="user.invite_revoke",
+            entity_type="invitation",
+            entity_id=str(inv.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            after={"email": inv.email},
+        )
+        db.commit()
+    return RedirectResponse("/settings", status_code=303)
+
+
+@app.post("/settings/invitations/{invite_id}/renew")
+def settings_renew_invitation(
+    request: Request,
+    invite_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    inv = db.get(UserInvitation, invite_id)
+    if not inv:
+        return RedirectResponse("/settings", status_code=303)
+    _new, raw = create_invitation(db, email=inv.email, role=inv.role, actor=user, extra_permissions=inv.extra_permissions)
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/signup?token={raw}"
+    return RedirectResponse(f"/settings?invite_link={quote(link, safe='')}", status_code=303)
+
+
+@app.post("/settings/users/{user_id}/edit")
+def settings_edit_user(
+    user_id: uuid.UUID,
+    full_name: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    target = db.get(User, user_id)
+    if not target or target.is_primary_owner:
+        return RedirectResponse("/settings", status_code=303)
+    if role not in {"supplier_manager", "contract_specialist"}:
+        role = target.role
+    before = {"full_name": target.full_name, "email": target.email, "role": target.role}
+    target.full_name = full_name.strip() or target.full_name
+    target.email = email.lower().strip() or target.email
+    target.role = role
+    db.add(target)
+    record_audit(
+        db,
+        action="user.edit",
+        entity_type="user",
+        entity_id=str(target.id),
+        actor_user_id=user.id,
+        actor_label=user.email,
+        before=before,
+        after={"full_name": target.full_name, "email": target.email, "role": target.role},
+    )
     db.commit()
     return RedirectResponse("/settings", status_code=303)
 
@@ -1030,6 +1448,8 @@ def settings_toggle_user(user_id: uuid.UUID, db: Session = Depends(get_db), user
             actor_label=user.email,
             after={"is_active": target.is_active},
         )
+        if not target.is_active:
+            bump_session_version(db, target, actor=user, reason="deactivated")
         db.commit()
     return RedirectResponse("/settings", status_code=303)
 
@@ -1056,8 +1476,115 @@ def settings_reset_password(
             actor_label=user.email,
             after={"reset_by_primary_owner": True},
         )
+        bump_session_version(db, target, actor=user, reason="password_reset")
         db.commit()
     return RedirectResponse("/settings", status_code=303)
+
+
+@app.get("/settings/cleanup", response_class=HTMLResponse)
+def settings_cleanup(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    preview = build_cleanup_preview(db)
+    return TEMPLATES.TemplateResponse(
+        "cleanup.html",
+        _ctx(request, user, "settings", preview=preview, settings_tab="cleanup"),
+    )
+
+
+@app.post("/settings/cleanup/apply")
+async def settings_cleanup_apply(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    form = await request.form()
+    if form.get("confirm") != "1":
+        return RedirectResponse("/settings/cleanup", status_code=303)
+    preview = build_cleanup_preview(db)
+    allowed_opps = {r["id"] for r in preview["opportunities"]}
+    allowed_sups = {r["id"] for r in preview["suppliers"]}
+    allowed_users = {r["id"] for r in preview["users"]}
+    removed = {"opportunities": 0, "suppliers": 0, "users": 0}
+    for oid in form.getlist("opp_ids"):
+        if str(oid) not in allowed_opps:
+            continue
+        opp = db.get(Opportunity, uuid.UUID(str(oid)))
+        if not opp:
+            continue
+        opp.status = "archived"
+        opp.data_origin = "acceptance_harness"
+        db.add(opp)
+        record_audit(
+            db,
+            action="cleanup.opportunity_archive",
+            entity_type="opportunity",
+            entity_id=str(opp.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            after={"status": "archived", "data_origin": "acceptance_harness", "title": opp.title[:120]},
+        )
+        removed["opportunities"] += 1
+    for sid in form.getlist("supplier_ids"):
+        if str(sid) not in allowed_sups:
+            continue
+        sup = db.get(Supplier, uuid.UUID(str(sid)))
+        if not sup:
+            continue
+        # Soft-remove: mark origin + deactivate relationship rather than hard-delete catalogs blindly
+        before = {"name": sup.name, "relationship_status": sup.relationship_status}
+        sup.data_origin = "acceptance_harness"
+        sup.relationship_status = "inactive"
+        sup.follow_up_on = None
+        db.add(sup)
+        record_audit(
+            db,
+            action="cleanup.supplier_deactivate",
+            entity_type="supplier",
+            entity_id=str(sup.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            before=before,
+            after={"relationship_status": "inactive", "data_origin": "acceptance_harness"},
+        )
+        removed["suppliers"] += 1
+    for uid in form.getlist("user_ids"):
+        if str(uid) not in allowed_users:
+            continue
+        target = db.get(User, uuid.UUID(str(uid)))
+        if not target or target.is_primary_owner:
+            continue
+        target.is_active = False
+        db.add(target)
+        bump_session_version(db, target, actor=user, reason="cleanup_test_account")
+        record_audit(
+            db,
+            action="cleanup.user_deactivate",
+            entity_type="user",
+            entity_id=str(target.id),
+            actor_user_id=user.id,
+            actor_label=user.email,
+            after={"email": target.email, "is_active": False},
+        )
+        removed["users"] += 1
+    db.commit()
+    return TEMPLATES.TemplateResponse(
+        "cleanup.html",
+        _ctx(
+            request,
+            user,
+            "settings",
+            preview=build_cleanup_preview(db),
+            settings_tab="cleanup",
+            flash={
+                "message": f"Cleanup applied: {removed['opportunities']} opportunities archived, "
+                f"{removed['suppliers']} suppliers deactivated, {removed['users']} users deactivated.",
+                "kind": "ok",
+            },
+        ),
+    )
 
 
 @app.get("/settings/audit", response_class=HTMLResponse)

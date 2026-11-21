@@ -4,6 +4,8 @@
 {% if return_to %}<a class="back-link" href="{{ return_to }}">← Back to results</a>{% else %}<a class="back-link" href="/opportunities">← Saved opportunities</a>{% endif %}
 {% include "_opp_subnav.html" %}
 <h1>{{ display.title }}</h1>
+<p class="muted">Official title: {{ display.official_title }}</p>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
 <div class="actions" style="margin-bottom:.75rem">
   {% if not saved_id and payload %}
   <form method="post" action="/opportunities/save">
@@ -12,7 +14,24 @@
     <button type="submit">Save Opportunity</button>
   </form>
   {% elif saved_id %}
-  <span class="badge saved">Saved</span>
+  <span class="badge saved">{{ status_label }}</span>
+  {% if can_write %}
+  <form method="post" action="/opportunities/{{ saved_id }}/status" style="display:inline">
+    <input type="hidden" name="status" value="pursuing">
+    <button class="secondary small" type="submit">Mark Pursuing</button>
+  </form>
+  <form method="post" action="/opportunities/{{ saved_id }}/status" style="display:inline">
+    <input type="hidden" name="status" value="not_interested">
+    <button class="secondary small" type="submit">Not Interested</button>
+  </form>
+  <form method="post" action="/opportunities/{{ saved_id }}/status" style="display:inline">
+    <input type="hidden" name="status" value="archived">
+    <button class="secondary small" type="submit">Archive</button>
+  </form>
+  <form method="post" action="/opportunities/{{ saved_id }}/unsave" style="display:inline" onsubmit="return confirm('Remove this from saved opportunities?');">
+    <button class="secondary small" type="submit">Unsave</button>
+  </form>
+  {% endif %}
   {% endif %}
   {% if official_url %}<a class="btn secondary" href="{{ official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
 </div>
@@ -21,16 +40,16 @@
   <section>
     <h2>Overview</h2>
     <dl class="kv">
-      <dt>Solicitation #</dt><dd>{{ display.solicitation_number }}</dd>
-      <dt>Purchasing entity</dt><dd>{{ display.buyer }}</dd>
-      <dt>City</dt><dd>{{ display.city }}</dd>
-      <dt>State</dt><dd>{{ display.state }}</dd>
-      <dt>Closing date</dt><dd>{{ display.closing_date }}</dd>
-      <dt>Closing time</dt><dd>{{ display.closing_time }} {{ display.timezone }}</dd>
+      <dt>Solicitation #</dt><dd>{{ display.solicitation_number }} <span class="muted">({{ display.field_status.solicitation_number or '—' }})</span></dd>
+      <dt>Purchasing entity</dt><dd>{{ display.buyer }} <span class="muted">({{ display.field_status.buyer_name or '—' }})</span></dd>
+      <dt>City</dt><dd>{{ display.city }} <span class="muted">({{ display.field_status.geo_city or '—' }})</span></dd>
+      <dt>State</dt><dd>{{ display.state }} <span class="muted">({{ display.field_status.geo_state or '—' }})</span></dd>
+      <dt>Closing</dt><dd>{{ display.closing_human }}</dd>
       <dt>Days remaining</dt><dd>{{ display.days_remaining }}</dd>
       <dt>Procurement type</dt><dd>{{ display.procurement_type }}</dd>
       <dt>Product category</dt><dd>{{ display.product_category }}</dd>
       <dt>Requirement class</dt><dd>{{ display.requirement_class }}</dd>
+      <dt>Manufacturer</dt><dd>{{ display.manufacturer }}</dd>
       <dt>Source</dt><dd>{{ display.source_key }}</dd>
       <dt>Verified</dt><dd>{{ display.source_verified_at }}</dd>
     </dl>
@@ -39,16 +58,16 @@
   <section>
     <h2>Requirements</h2>
     <dl class="kv">
-      <dt>Quantity</dt><dd>{{ display.quantity }}</dd>
+      <dt>Product / purchase</dt><dd>{{ display.title }}</dd>
+      <dt>Quantity</dt><dd>{{ display.quantity }} <span class="muted">({{ display.field_status.quantity or '—' }})</span></dd>
       <dt>Classification evidence</dt><dd>{{ display.classification_evidence }}</dd>
     </dl>
-    <p class="muted">Detailed line-item extraction is not claimed in Build 001A. Only retrieved facts are shown.</p>
   </section>
 
   <section>
     <h2>Documents</h2>
     <dl class="kv">
-      <dt>Availability</dt><dd>{{ display.documents }}</dd>
+      <dt>Availability</dt><dd>{{ display.documents }} <span class="muted">({{ display.field_status.documents or '—' }})</span></dd>
       <dt>Official URL</dt><dd>{% if official_url %}<a href="{{ official_url }}" target="_blank" rel="noopener">{{ official_url }}</a>{% else %}Unknown{% endif %}</dd>
     </dl>
   </section>
@@ -64,11 +83,25 @@
   <section>
     <h2>Estimated value and evidence</h2>
     <dl class="kv">
-      <dt>Estimated value</dt><dd>{{ display.value }}</dd>
+      <dt>Estimated contract value</dt><dd>{{ display.value }} <span class="muted">({{ display.field_status.estimated_value or '—' }})</span></dd>
       <dt>Evidence class</dt><dd>{{ display.value_class }}</dd>
       <dt>Evidence detail</dt><dd>{{ display.value_evidence }}</dd>
       <dt>Method</dt><dd>{{ display.value_method }}</dd>
     </dl>
+    <p class="muted">Estimated contract value is not profitability. Unknown values remain eligible for discovery.</p>
+  </section>
+
+  <section>
+    <h2>Why fields may be missing</h2>
+    {% if display.unavailable_reasons %}
+    <ul>
+      {% for k,v in display.unavailable_reasons.items() %}
+      <li><strong>{{ k }}</strong>: {{ v }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No unavailable-field notes for this record.</p>
+    {% endif %}
   </section>
 
   <section>
@@ -90,11 +123,24 @@
   <section>
     <h2>Notes and assignments</h2>
     {% if saved_id %}
+    <p class="muted">Saved by: {{ saved_by_label }} · Assigned to: {{ assigned_label }}</p>
+    {% if can_write and assignable_users %}
+    <form method="post" action="/opportunities/{{ saved_id }}/assign" class="form-grid cols-2" style="margin-bottom:.75rem">
+      <label class="field"><span>Assign to</span>
+        <select name="assigned_to">
+          <option value="">Unassigned</option>
+          {% for u in assignable_users %}
+          <option value="{{ u.id }}" {% if assigned_id and u.id==assigned_id %}selected{% endif %}>{{ u.full_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="form-actions"><button type="submit">Update assignment</button></div>
+    </form>
+    {% endif %}
     <form method="post" action="/opportunities/{{ saved_id }}/notes" class="stack">
       <label class="field"><span>Notes</span><textarea name="notes" rows="4">{{ notes or '' }}</textarea></label>
       <div class="form-actions"><button type="submit">Save notes</button></div>
     </form>
-    <p class="muted" style="margin-top:.5rem">Assigned to: {{ assigned_label }}</p>
     {% else %}
     <p class="muted">Save this opportunity to add notes and assignments.</p>
     {% endif %}

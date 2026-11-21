@@ -75,8 +75,11 @@ def main() -> None:
         },
     )
     print("filter_CA_or_DE_and_value", len(multi))
-    for it in live[:40]:
-        save_opportunity(db, it, owner)
+    # Build 001B: do NOT bulk-save discovery into production CRM.
+    # Explicit operator Save Opportunity is required. Harness may mark isolated samples only.
+    print("skip_bulk_opportunity_save", "use Filter + Save Opportunity in UI")
+    # Optional single sample under acceptance_harness origin for isolated tests:
+    # if live: save_opportunity(db, live[0], owner, data_origin="acceptance_harness")
     # Save search profile
     db.add(
         SearchProfile(
@@ -92,7 +95,11 @@ def main() -> None:
     print("=== SUPPLIERS ===")
     sups = run_supplier_discovery(db, user_id=sm.id, filters={}, limit=80)
     print("live_supplier_count", sups["count"])
-    for s in sups["items"]:
+    # Build 001B: discovery must not auto-create CRM relationships.
+    print("skip_bulk_supplier_save", "use Save to CRM explicitly in UI")
+    for s in (sups["items"] or [])[:0]:
+        s = dict(s)
+        s["data_origin"] = "acceptance_harness"
         save_supplier_from_discovery(db, s, sm)
     # CRM demo statuses
     gray = db.query(Supplier).filter(Supplier.name.ilike("%graybar%")).first()
