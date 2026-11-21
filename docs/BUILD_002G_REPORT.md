@@ -117,7 +117,7 @@ See `BUILD_002G_ACCEPTANCE.json` → `gates`. Highlights:
 
 - DATA_INTEGRITY / NO_FABRICATED_LIVE_RECORDS / RECORD_IDENTITY_ACCURACY / DISCOVERY_INVARIANT / FALSE_COMPLETE_PREVENTION / NATIONWIDE_SOURCE_EXPANSION / PROGRESSIVE_ACQUISITION / BUDGET_ENFORCEMENT → **VERIFIED**
 - RAMP / MESA / NJ recovery → **PARTIALLY VERIFIED** (mapped + probed; attachments/auth still limited)
-- DEPLOYMENT_VERIFIED → set after Railway `/healthz` confirms build id
+- DEPLOYMENT_VERIFIED → **VERIFIED** (`/healthz` → `20261121-m3-2-build-002g`, Railway deployment `10cf3fe2`)
 
 ---
 

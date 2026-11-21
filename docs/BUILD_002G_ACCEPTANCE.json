@@ -10710,8 +10710,16 @@
     "PERFORMANCE_PROTECTION": "VERIFIED",
     "BUDGET_ENFORCEMENT": "VERIFIED",
     "PRODUCTION_UI_RECONCILIATION": "PARTIALLY VERIFIED",
-    "DEPLOYMENT_VERIFIED": "PENDING"
+    "DEPLOYMENT_VERIFIED": "VERIFIED"
   },
   "finished": "2026-11-21T23:12:26Z",
-  "total_elapsed_s": 686.3
+  "total_elapsed_s": 686.3,
+  "production": {
+    "healthz": {
+      "ok": true,
+      "build": "20261121-m3-2-build-002g"
+    },
+    "url": "https://samgov-production.up.railway.app",
+    "deployment_id": "10cf3fe2-abc7-4704-9f00-8df94dede774"
+  }
 }
