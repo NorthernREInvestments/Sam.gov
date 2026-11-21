@@ -819,11 +819,13 @@
     "BUDGET_ENFORCEMENT": "VERIFIED",
     "FULL_POPULATION_ACCOUNTING": "PARTIALLY VERIFIED",
     "NO_FALSE_COMPLETE": "VERIFIED",
-    "DEPLOYMENT_VERIFIED": "PENDING",
+    "DEPLOYMENT_VERIFIED": "VERIFIED",
     "REGRESSION_SPOT": "PARTIALLY VERIFIED"
   },
   "deployment": {
-    "status": "pending_push"
+    "healthz": {"ok": true, "build": "20261121-m3-2-build-002f"},
+    "url": "https://samgov-production.up.railway.app/healthz",
+    "verified_at": "2026-11-21T22:00:00Z"
   },
   "elapsed_seconds": 2174.4,
   "finished": "2026-11-21T21:56:50Z"

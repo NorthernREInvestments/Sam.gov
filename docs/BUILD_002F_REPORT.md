@@ -1,6 +1,7 @@
 # Build 002F Report — Acquisition Optimization & Progressive Qualification
 
 **Build ID:** `20261121-m3-2-build-002f`  
+**Production:** `/healthz` → `20261121-m3-2-build-002f`  
 **Prior job:** `0db24e0c-69df-44ad-bbc9-f9c73d6e8825`
 
 ## Problems addressed
