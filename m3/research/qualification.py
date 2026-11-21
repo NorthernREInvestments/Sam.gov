@@ -1,6 +1,7 @@
-"""Progressive business qualification before full-package acquisition (Build 002F).
+"""Progressive business qualification before full-package acquisition (Build 002F/002G).
 
 Discovery remains unrestricted. Full-package acquisition is gated.
+Record identity (002G) runs before requirement classification intensity.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from m3.research.classify import PRODUCT_CLASSES
+from m3.research.identity import NON_OPPORTUNITY_TYPES, VERIFIED_SOLICITATION_TYPES
 
 CONFIRMED_NON_PRODUCT = {
     "services",
@@ -31,11 +33,14 @@ AUTO_SKIP_STATUSES = INACTIVE_STATUSES | {"forecast"}
 
 UNCERTAIN = {"unknown_mixed", "unknown", "pending_classification", ""}
 
+SKIP_IDENTITY_TYPES = set(NON_OPPORTUNITY_TYPES)
+
 DISPOSITIONS = {
     "ELIGIBLE_FULL_PACKAGE",
     "TARGETED_INVESTIGATION",
     "SKIP_CONFIRMED_NON_PRODUCT",
     "SKIP_INACTIVE_STATUS",
+    "SKIP_NON_SOLICITATION_IDENTITY",
     "MANUAL_OVERRIDE",
     "SAVED_PRIORITY",
 }
@@ -53,6 +58,9 @@ def qualify_for_acquisition(
     req = (item.get("requirement_class") or "unknown_mixed").lower()
     status = (item.get("solicitation_status") or "unknown").lower()
 
+    record_type = str(item.get("record_type") or "").upper()
+    verified_sol = bool(item.get("verified_individual_solicitation"))
+
     if manual_override:
         return {
             "disposition": "MANUAL_OVERRIDE",
@@ -61,6 +69,7 @@ def qualify_for_acquisition(
             "reason": "owner_or_manual_override",
             "requirement_class": req,
             "solicitation_status": status,
+            "record_type": record_type or None,
         }
 
     if saved and criteria.get("always_acquire_saved", True):
@@ -71,7 +80,33 @@ def qualify_for_acquisition(
             "reason": "saved_opportunity",
             "requirement_class": req,
             "solicitation_status": status,
+            "record_type": record_type or None,
         }
+
+    # Identity gate — do not full-package forecasts/portals/historical/open-data rows
+    if record_type in SKIP_IDENTITY_TYPES:
+        return {
+            "disposition": "SKIP_NON_SOLICITATION_IDENTITY",
+            "acquire_full_package": False,
+            "targeted_only": False,
+            "reason": f"record_type:{record_type}",
+            "requirement_class": req,
+            "solicitation_status": status,
+            "record_type": record_type,
+        }
+
+    if record_type and record_type not in VERIFIED_SOLICITATION_TYPES and not verified_sol:
+        # Listings / unresolved → targeted investigation only (may resolve to individuals)
+        if record_type in {"PROCUREMENT_LISTING", "UNRESOLVED_RECORD", "SUPPORTING_DOCUMENT", "PROCUREMENT_ANNOUNCEMENT"}:
+            return {
+                "disposition": "TARGETED_INVESTIGATION",
+                "acquire_full_package": False,
+                "targeted_only": True,
+                "reason": f"identity_lead:{record_type}",
+                "requirement_class": req,
+                "solicitation_status": status,
+                "record_type": record_type,
+            }
 
     # Configurable class allow-list (default: product-like + unknown for targeted)
     allow_full = set(criteria.get("full_package_classes") or list(ELIGIBLE_PRODUCT))

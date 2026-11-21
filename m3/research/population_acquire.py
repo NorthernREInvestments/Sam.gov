@@ -69,6 +69,12 @@ def write_population_file(run_id: str | UUID, items: list[dict[str, Any]]) -> Pa
                     "uncertain_resolution",
                     "attachment_candidates",
                     "classification_evidence",
+                    "record_type",
+                    "record_type_evidence",
+                    "verified_individual_solicitation",
+                    "identity_strength",
+                    "source_purpose",
+                    "discovery_url",
                 )
                 if k in it or it.get(k) is not None
             }
@@ -179,6 +185,12 @@ def _slim_item(it: dict[str, Any]) -> dict[str, Any]:
             "uncertain_resolution",
             "attachment_candidates",
             "classification_evidence",
+            "record_type",
+            "record_type_evidence",
+            "verified_individual_solicitation",
+            "identity_strength",
+            "source_purpose",
+            "discovery_url",
         )
         if it.get(k) is not None
     }
@@ -290,6 +302,7 @@ def replan_pending_progressive(
         "examined": 0,
         "skipped_non_product": 0,
         "skipped_inactive": 0,
+        "skipped_non_solicitation_identity": 0,
         "kept_eligible": 0,
         "kept_targeted": 0,
         "kept_saved": 0,
@@ -297,9 +310,24 @@ def replan_pending_progressive(
     for row in pending:
         counts["examined"] += 1
         it = dict(row.payload or {})
+        # Apply identity if missing (safe reprocess of frozen payloads)
+        if not it.get("record_type"):
+            from m3.research.identity import apply_identity
+
+            it = apply_identity(it)
+            row.payload = {**(row.payload or {}), **{k: it.get(k) for k in (
+                "record_type",
+                "record_type_evidence",
+                "verified_individual_solicitation",
+                "identity_strength",
+            ) if it.get(k) is not None}}
         ek = str(it.get("external_key") or row.external_key or "")
         q = qualify_for_acquisition(it, criteria=criteria, saved=ek in saved_keys)
-        if q["disposition"] in {"SKIP_CONFIRMED_NON_PRODUCT", "SKIP_INACTIVE_STATUS"}:
+        if q["disposition"] in {
+            "SKIP_CONFIRMED_NON_PRODUCT",
+            "SKIP_INACTIVE_STATUS",
+            "SKIP_NON_SOLICITATION_IDENTITY",
+        }:
             row.status = "skipped"
             row.package_status = "NOT_ACQUIRED"
             row.error = q["reason"][:200]
@@ -311,6 +339,8 @@ def replan_pending_progressive(
             db.add(row)
             if q["disposition"] == "SKIP_CONFIRMED_NON_PRODUCT":
                 counts["skipped_non_product"] += 1
+            elif q["disposition"] == "SKIP_NON_SOLICITATION_IDENTITY":
+                counts["skipped_non_solicitation_identity"] += 1
             else:
                 counts["skipped_inactive"] += 1
         elif q["disposition"] == "SAVED_PRIORITY":
@@ -320,9 +350,11 @@ def replan_pending_progressive(
         else:
             counts["kept_targeted"] += 1
     prog = dict(job.progress or {})
-    prog["replan_002f"] = counts
+    prog["replan_002g"] = counts
     prog["unnecessary_downloads_avoided_pending"] = (
-        counts["skipped_non_product"] + counts["skipped_inactive"]
+        counts["skipped_non_product"]
+        + counts["skipped_inactive"]
+        + counts["skipped_non_solicitation_identity"]
     )
     job.progress = prog
     job.status = "paused"

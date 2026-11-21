@@ -38,6 +38,8 @@ def test_no_attachments_requires_inventory_for_complete():
             detail_ok=True,
             inventory_verified=True,
             has_substantial_detail=True,
+            inventory_explicitly_empty=True,
+            verified_individual_solicitation=True,
         )
         == "COMPLETE"
     )

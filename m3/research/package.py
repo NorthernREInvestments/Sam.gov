@@ -76,7 +76,29 @@ LOGIN_MARKERS = (
     "access denied",
     "unauthorized",
 )
+# Salesforce Lightning / RAMP shells often lack classic login strings in the first bytes
+DYNAMIC_PLATFORM_MARKERS = (
+    "salesforce",
+    "force.com",
+    "lightning.force",
+    "embeddedservice",
+    "aura_prod",
+    "opportunity-details",
+    "visualforce",
+)
 AMENDMENT_MARKERS = ("amendment", "addendum", "addenda", "revision", "revised")
+FALSE_COMPLETE_TITLE_RE = re.compile(
+    r"(?i)^(glossary|rfp\s*vs\s*rfq|faq|home|welcome|privacy|login|"
+    r"alabama|alaska|arizona|arkansas|california|colorado|connecticut|"
+    r"delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|"
+    r"kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|"
+    r"mississippi|missouri|montana|nebraska|nevada|new\s*hampshire|"
+    r"new\s*jersey|new\s*mexico|new\s*york|north\s*carolina|north\s*dakota|"
+    r"ohio|oklahoma|oregon|pennsylvania|rhode\s*island|south\s*carolina|"
+    r"south\s*dakota|tennessee|texas|utah|vermont|virginia|washington|"
+    r"west\s*virginia|wisconsin|wyoming|district\s*of\s*columbia|"
+    r"commodity\s*codes?)$"
+)
 
 
 def _now() -> datetime:
@@ -164,7 +186,11 @@ def classify_url_kind(url: str) -> str:
 def detect_platform(url: str, source_key: str = "") -> str:
     host = (urlparse(url or "").hostname or "").lower()
     sk = (source_key or "").lower()
-    if "socrata" in sk or "data." in host or "resource/" in (url or ""):
+    if "rampla.org" in host or "la_ramp" in sk or "lacity" in sk and "ramp" in sk:
+        return "la_ramp"
+    if "mesaaz.gov" in host or "citydata.mesaaz.gov" in host or "mesa" in sk:
+        return "mesa"
+    if "socrata" in sk or "resource/" in (url or "") or host.startswith("data.") or "opendata" in host:
         return "socrata"
     if "procuretap" in host:
         return "procuretap"
@@ -176,6 +202,8 @@ def detect_platform(url: str, source_key: str = "") -> str:
         return "bidnet"
     if "sam.gov" in host:
         return "sam_gov"
+    if "mmp.delaware.gov" in host:
+        return "delaware_mmp"
     if host.endswith(".gov") or host.endswith(".us"):
         return "gov_html"
     if "ionwave" in host:
@@ -185,6 +213,69 @@ def detect_platform(url: str, source_key: str = "") -> str:
     if "publicpurchase" in host:
         return "publicpurchase"
     return "generic_http"
+
+
+def _looks_like_dynamic_platform_shell(html: str | bytes, url: str = "") -> bool:
+    """True when page is a JS/Salesforce shell without usable solicitation body."""
+    if isinstance(html, bytes):
+        head = html[:12000].decode("utf-8", errors="ignore").lower()
+    else:
+        head = (html or "")[:12000].lower()
+    hits = sum(1 for m in DYNAMIC_PLATFORM_MARKERS if m in head)
+    if hits >= 2:
+        return True
+    host = (urlparse(url or "").hostname or "").lower()
+    if "rampla.org" in host and ("opportunity-details" in (url or "").lower() or hits >= 1):
+        # RAMP opportunity pages are Salesforce Lightning; thin static HTML ≠ package
+        text_len = len(re.sub(r"<[^>]+>", " ", head))
+        if text_len < 800 or "salesforce" in head or "force.com" in head:
+            return True
+    return False
+
+
+def audit_false_complete_candidate(pkg_or_item: dict[str, Any] | Any) -> dict[str, Any]:
+    """Explain why a COMPLETE package should be demoted (Build 002G)."""
+    if hasattr(pkg_or_item, "title"):
+        title = str(getattr(pkg_or_item, "title", "") or "")
+        url_kind = str(getattr(pkg_or_item, "url_kind", "") or "")
+        downloaded = int(getattr(pkg_or_item, "downloaded_count", 0) or 0)
+        identified = int(getattr(pkg_or_item, "identified_count", 0) or 0)
+        detail = getattr(pkg_or_item, "detail_fields", None) or {}
+        auth = str(getattr(pkg_or_item, "authoritative_url", "") or "")
+        status = str(getattr(pkg_or_item, "package_status", "") or "")
+        identity = (detail or {}).get("record_type") or ""
+    else:
+        title = str(pkg_or_item.get("title") or "")
+        url_kind = str(pkg_or_item.get("url_kind") or "")
+        downloaded = int(pkg_or_item.get("downloaded_count") or 0)
+        identified = int(pkg_or_item.get("identified_count") or 0)
+        detail = pkg_or_item.get("detail_fields") or {}
+        auth = str(pkg_or_item.get("authoritative_url") or "")
+        status = str(pkg_or_item.get("package_status") or "")
+        identity = str(pkg_or_item.get("record_type") or detail.get("record_type") or "")
+    reasons: list[str] = []
+    if status and status != "COMPLETE":
+        return {"is_false_complete": False, "reasons": [], "recommended_status": status}
+    if FALSE_COMPLETE_TITLE_RE.match(title.strip()):
+        reasons.append("junk_or_non_solicitation_title")
+    if downloaded == 0 and identified == 0 and url_kind != "detail":
+        reasons.append("zero_documents_non_detail_url")
+    if downloaded == 0 and identified == 0 and not detail.get("inventory_explicitly_empty"):
+        if not detail.get("has_substantial_detail"):
+            reasons.append("zero_documents_without_substantial_inline_requirement")
+    if identity and identity != "INDIVIDUAL_SOLICITATION":
+        reasons.append(f"record_type_not_individual:{identity}")
+    if "rampla.org" in auth.lower() and downloaded == 0:
+        reasons.append("ramp_dynamic_shell_without_documents")
+    if reasons:
+        return {
+            "is_false_complete": True,
+            "reasons": reasons,
+            "recommended_status": "VERIFICATION_REQUIRED"
+            if "zero_documents" in " ".join(reasons) or "junk" in " ".join(reasons)
+            else "FAILED",
+        }
+    return {"is_false_complete": False, "reasons": [], "recommended_status": "COMPLETE"}
 
 
 def packages_root() -> Path:
@@ -468,16 +559,37 @@ def compute_package_status(
     detail_ok: bool,
     inventory_verified: bool,
     has_substantial_detail: bool,
+    verified_individual_solicitation: bool = True,
+    inventory_explicitly_empty: bool = False,
+    title: str = "",
 ) -> str:
+    """Compute package status. COMPLETE requires verified solicitation identity.
+
+    Inline-only COMPLETE is allowed only for verified individual solicitations on
+    detail pages where the attachment inventory was examined and is empty, with
+    substantial on-page requirements — never for generic/junk pages.
+    """
     auth_blockers = {
         "authentication_required",
         "registration_required",
         "access_restricted",
         "listing_requires_authentication",
+        "dynamic_platform_shell",
+        "ramp_dynamic_content_requires_auth",
     }
-    if any(a in auth_blockers or a.startswith("auth") for a in access_issues):
-        if downloaded == 0 and not detail_ok:
+    if any(a in auth_blockers or a.startswith("auth") or "dynamic_platform" in a for a in access_issues):
+        if downloaded == 0:
             return "ACCESS_RESTRICTED"
+    if not verified_individual_solicitation:
+        if any("access_restricted" in a or "authentication" in a for a in access_issues):
+            return "ACCESS_RESTRICTED"
+        if url_kind in {"listing", "unknown", "missing"}:
+            return "VERIFICATION_REQUIRED"
+        if downloaded > 0:
+            return "PARTIAL"
+        return "FAILED"
+    if title and FALSE_COMPLETE_TITLE_RE.match(title.strip()):
+        return "VERIFICATION_REQUIRED"
     if not resolved and url_kind in {"listing", "missing", "invalid", "unknown"}:
         if url_kind == "listing":
             return "VERIFICATION_REQUIRED"
@@ -490,13 +602,15 @@ def compute_package_status(
         return "FAILED"
     if identified == 0:
         # COMPLETE with zero files only when this is a solicitation detail page,
-        # inventory was examined, and substantial requirement text is on-page.
+        # inventory was examined and confirmed empty, and substantial requirement text is on-page.
         if (
             detail_ok
             and has_substantial_detail
             and inventory_verified
+            and inventory_explicitly_empty
             and url_kind == "detail"
             and resolved
+            and verified_individual_solicitation
         ):
             return "COMPLETE"
         if detail_ok and has_substantial_detail:
@@ -509,7 +623,10 @@ def compute_package_status(
     if downloaded > 0:
         return "PARTIAL"
     if access_issues:
-        return "ACCESS_RESTRICTED" if any("auth" in a or "regist" in a for a in access_issues) else "PARTIAL"
+        return "ACCESS_RESTRICTED" if any(
+            "auth" in a or "regist" in a or "dynamic_platform" in a or "access_restricted" in a
+            for a in access_issues
+        ) else "PARTIAL"
     return "FAILED"
 
 
@@ -581,8 +698,20 @@ def _acquire_solicitation_package_inner(
         and pkg.last_verified_at
         and (pkg.downloaded_count or 0) >= 0
     ):
-        # Still allow targeted refresh of classification via hint, but avoid re-download
-        if pkg.downloaded_count or pkg.package_status == "COMPLETE":
+        # Demote previously false COMPLETE packages (Build 002G integrity)
+        audit = audit_false_complete_candidate(pkg)
+        if audit.get("is_false_complete") and pkg.package_status == "COMPLETE":
+            pkg.package_status = audit["recommended_status"]
+            pkg.detail_fields = {
+                **(pkg.detail_fields or {}),
+                "false_complete_demoted": True,
+                "false_complete_reasons": audit.get("reasons") or [],
+            }
+            db.add(pkg)
+            db.commit()
+            db.refresh(pkg)
+            # Fall through to re-acquire when demoted from COMPLETE
+        elif pkg.downloaded_count or pkg.package_status in {"COMPLETE", "PARTIAL", "ACCESS_RESTRICTED"}:
             pkg.detail_fields = {
                 **(pkg.detail_fields or {}),
                 "incremental_reuse": True,
@@ -682,6 +811,16 @@ def _acquire_solicitation_package_inner(
                 access_issues.append(f"detail_http_{status}")
             elif _looks_like_login_html(html.encode("utf-8", errors="ignore"), "text/html"):
                 access_issues.append("authentication_required")
+            elif _looks_like_dynamic_platform_shell(html, final):
+                access_issues.append("dynamic_platform_shell")
+                if "rampla.org" in (final or "").lower():
+                    access_issues.append("ramp_dynamic_content_requires_auth")
+                detail_fields = {
+                    "detail_url": final,
+                    "dynamic_shell": True,
+                    "note": "Platform returns interactive shell; documents not publicly extractable from static HTML",
+                }
+                pkg.authoritative_url = final
             else:
                 detail_fields = extract_detail_fields(html, final)
                 detail_ok = True
@@ -697,8 +836,14 @@ def _acquire_solicitation_package_inner(
                 inventory_verified = effective_kind == "detail"
                 detail_fields["attachment_inventory_examined"] = inventory_verified
                 detail_fields["attachment_inventory_count"] = len(discovered)
+                detail_fields["inventory_explicitly_empty"] = bool(
+                    inventory_verified and len(discovered) == 0
+                )
                 if effective_kind == "listing":
                     access_issues.append("detail_page_is_listing_inventory_unverified")
+                # NJ / multi-notice PDF boundary detection when page links a single PDF later
+                if discovered and any((d.get("source_url") or "").lower().endswith(".pdf") for d in discovered):
+                    detail_fields["multi_notice_check_pending"] = True
         except Exception as exc:
             access_issues.append(f"detail_fetch_error:{type(exc).__name__}")
 
@@ -859,16 +1004,60 @@ def _acquire_solicitation_package_inner(
         "amendment_documents": sum(1 for d in (pkg.documents or []) if d.is_amendment),
         "note": "Supersession only when amendment language or authoritative evidence present",
     }
+    # Multi-notice PDF: record boundaries from extracted text (do not invent records)
+    try:
+        from m3.research.identity import split_multi_notice_text
+
+        for d in pkg.documents or []:
+            if d.extracted_excerpt and (d.file_format == "pdf" or (d.source_url or "").lower().endswith(".pdf")):
+                notices = split_multi_notice_text(d.extracted_excerpt)
+                if len(notices) >= 2:
+                    detail_fields = dict(detail_fields or {})
+                    detail_fields["multi_notice_boundaries"] = [
+                        {"solicitation_number": n.get("solicitation_number"), "evidence": n.get("evidence")}
+                        for n in notices[:20]
+                    ]
+                    detail_fields["multi_notice_count"] = len(notices)
+                    access_issues.append("multi_notice_document_requires_boundary_split")
+                    inventory_verified = False
+                    break
+    except Exception:
+        pass
+    pkg.detail_fields = detail_fields
+
+    # Identity gate for COMPLETE (prefer item fields; fall back to URL/doc evidence)
+    verified_sol = bool(item.get("verified_individual_solicitation"))
+    if not verified_sol:
+        from m3.research.identity import verify_record_identity
+
+        ident = verify_record_identity(item)
+        verified_sol = bool(ident.get("verified_individual_solicitation"))
+        detail_fields = dict(detail_fields or {})
+        detail_fields["record_type"] = ident.get("record_type")
+        detail_fields["record_type_evidence"] = ident.get("record_type_evidence")
+        pkg.detail_fields = detail_fields
+    # Document URL alone can verify individual solicitation for package purposes
+    if not verified_sol and pkg.url_kind == "document" and downloaded > 0:
+        verified_sol = True
+        detail_fields = dict(detail_fields or {})
+        detail_fields["record_type"] = detail_fields.get("record_type") or "INDIVIDUAL_SOLICITATION"
+        detail_fields["identity_strength"] = "downloaded_document"
+        pkg.detail_fields = detail_fields
+
     pkg.package_status = compute_package_status(
         url_kind=pkg.url_kind,
         resolved=bool(resolution.get("resolved")),
         identified=identified_count,
         downloaded=downloaded,
-        access_issues=pkg.access_issues,
+        access_issues=list(dict.fromkeys(list(pkg.access_issues or []) + access_issues)),
         detail_ok=detail_ok,
-        inventory_verified=inventory_verified and "manual_upload_supplement_only" not in pkg.access_issues,
+        inventory_verified=inventory_verified and "manual_upload_supplement_only" not in (pkg.access_issues or []),
         has_substantial_detail=has_substantial,
+        verified_individual_solicitation=verified_sol,
+        inventory_explicitly_empty=bool((detail_fields or {}).get("inventory_explicitly_empty")),
+        title=pkg.title or "",
     )
+    pkg.access_issues = list(dict.fromkeys(list(pkg.access_issues or []) + access_issues))
     if pkg.package_status == "COMPLETE" and extracted < downloaded:
         pkg.extraction_status = "PARTIAL"
     elif extracted and extracted >= downloaded and downloaded > 0:

@@ -209,7 +209,6 @@ def ensure_source_registry(db: Session) -> int:
     seed_keys = {s["source_key"] for s in SEED_SOURCES}
     obsolete = {
         "nyc_checkbook_solicitations",
-        "chicago_procurement",
         "maryland_procure",
         "colorado_vss_public",
         "supplier_grainger_gov",
@@ -741,7 +740,22 @@ def run_contract_discovery(
         unique.append(it)
     discovery_population = len(unique)
 
+    # Stage 2b — Record identity verification (Build 002G; not product filtering)
+    _progress(run, phase="record_identity", unique_before_filters=discovery_population)
+    db.add(run)
+    db.commit()
+    from m3.research.identity import apply_identity_batch
+
+    source_cfgs = {
+        r.source_key: (r.config or {})
+        for r in db.query(SourceRegistry).all()
+    }
+    identity_pack = apply_identity_batch(unique, source_configs=source_cfgs)
+    unique = identity_pack["items"]
+    identity_breakdown = identity_pack.get("identity_breakdown") or {}
+
     # Stage 3 — Centralized classification (independent of owner filters)
+    # Skip requirement classification for confirmed non-solicitation artifacts.
     _progress(run, phase="central_classification", unique_before_filters=discovery_population)
     db.add(run)
     db.commit()
@@ -864,6 +878,8 @@ def run_contract_discovery(
         confirmed_non_product=non_product,
         classification_breakdown=classification_breakdown,
         status_breakdown=status_breakdown,
+        identity_breakdown=identity_breakdown,
+        verified_individual_solicitations=identity_pack.get("verified_individual_solicitations"),
         uncertain_remaining=uncertain_left,
         uncertain_investigated=uncertain_report.get("investigated"),
         uncertain_recovery=uncertain_report,
@@ -942,6 +958,8 @@ def run_contract_discovery(
         "confirmed_non_product": non_product,
         "classification_breakdown": classification_breakdown,
         "status_breakdown": status_breakdown,
+        "identity_breakdown": identity_breakdown,
+        "verified_individual_solicitations": identity_pack.get("verified_individual_solicitations"),
         "uncertain_remaining": uncertain_left,
         "uncertain_investigated": uncertain_report.get("investigated"),
         "uncertain_recovery": uncertain_report,

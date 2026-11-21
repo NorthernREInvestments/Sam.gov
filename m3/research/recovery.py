@@ -25,6 +25,19 @@ RESOLVED_PRODUCT = PRODUCT_CLASSES | {"mixed_product_service"}
 
 def _is_uncertain(item: dict[str, Any]) -> bool:
     req = (item.get("requirement_class") or "").lower()
+    if req in {"not_applicable_non_solicitation"}:
+        return False
+    rt = str(item.get("record_type") or "")
+    if rt in {
+        "PROCUREMENT_PORTAL",
+        "HISTORICAL_AWARD",
+        "PROCUREMENT_FORECAST",
+        "PURCHASING_PLAN",
+        "VENDOR_REGISTRATION",
+        "GENERAL_PROCUREMENT_INFORMATION",
+        "UNRELATED_CONTENT",
+    }:
+        return False
     res = (item.get("uncertain_resolution") or "").lower()
     return req in {"unknown_mixed", "unknown", "pending_classification", ""} or res in {
         "requires_further_verification",

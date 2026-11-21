@@ -213,10 +213,6 @@ def search_socrata(
         posted_raw = _row_get(row, *posted_keys)
         value_raw = _row_get(row, *value_keys)
         vmin, vmax = _parse_value_band(value_raw)
-        official = _extract_url(
-            _row_get(row, *url_keys),
-            cfg.get("official_listing_url") or final,
-        )
         set_aside_raw = _row_get(row, cfg.get("set_aside_field") or "set_aside", "mwbe", "lsbrpindicator")
         set_aside = "unknown"
         set_aside_verified = False
@@ -250,6 +246,23 @@ def search_socrata(
                 sol_status = "historical_award"
             elif re.search(r"(?i)closed|expired|inactive", status_raw):
                 sol_status = "closed"
+        # Prefer mapped detail URL over dataset resource / listing fallback
+        detail_from_row = _extract_url(_row_get(row, *url_keys), None)
+        listing_fallback = cfg.get("official_listing_url") or final
+        official = detail_from_row or listing_fallback
+        source_purpose = (
+            cfg.get("dataset_purpose")
+            or cfg.get("record_purpose")
+            or (
+                "forecast"
+                if cfg.get("is_forecast")
+                else (
+                    "historical_award"
+                    if cfg.get("is_historical")
+                    else "individual_solicitation_candidate"
+                )
+            )
+        )
         items.append(
             {
                 "external_key": _key(source["source_key"], sol or title, official or ""),
@@ -277,15 +290,17 @@ def search_socrata(
                 "value_evidence": str(value_raw)[:200] if value_raw else None,
                 "value_evidence_class": ("published_estimate" if value_raw else "not_yet_researched"),
                 "official_url": (official or final)[:2048],
+                "discovery_url": (final or "")[:2048],
                 "documents_available": "yes" if official and "http" in (official or "") else "unknown",
                 "quantity": str(qty) if qty not in (None, "") else None,
-                # Classification deferred to central Stage 3
+                # Classification deferred to central Stage 3; identity applied later
                 "requirement_class": "pending_classification",
                 "classification_evidence": ["deferred_to_central_classifier"],
                 "solicitation_status": sol_status,
                 "source_key": source["source_key"],
                 "source_verified_at": _utc(),
                 "is_forecast": bool(cfg.get("is_forecast")),
+                "source_purpose": source_purpose,
                 "title_field_used": title_key,
                 "discovery_stage": "unrestricted",
                 "evidence": {
@@ -294,6 +309,7 @@ def search_socrata(
                     "status": status_raw or None,
                     "category_raw": category_raw or None,
                     "title_field_used": title_key,
+                    "detail_url_mapped": bool(detail_from_row and "resource/" not in (detail_from_row or "")),
                 },
             }
         )
@@ -420,6 +436,7 @@ def search_html_links(
                 if len(title) < 6:
                     continue
                 seen.add(abs_url)
+                is_doc = path.endswith((".pdf", ".doc", ".docx", ".xlsx", ".xls", ".zip"))
                 items.append(
                     {
                         "external_key": _key(source["source_key"], abs_url),
@@ -443,15 +460,18 @@ def search_html_links(
                         "value_evidence": None,
                         "value_evidence_class": "not_yet_researched",
                         "official_url": abs_url[:2048],
-                        "documents_available": "yes" if path.endswith((".pdf", ".doc", ".docx", ".xlsx")) else "unknown",
+                        "discovery_url": (final or "")[:2048],
+                        "documents_available": "yes" if is_doc else "unknown",
                         "quantity": None,
                         "requirement_class": "pending_classification",
                         "classification_evidence": ["deferred_to_central_classifier"],
                         "solicitation_status": "unknown",
                         "source_key": source["source_key"],
                         "source_verified_at": _utc(),
+                        "source_purpose": cfg.get("record_purpose")
+                        or ("supporting_document" if is_doc else "html_link_harvest"),
                         "discovery_stage": "unrestricted",
-                        "evidence": {"list_url": final},
+                        "evidence": {"list_url": final, "harvested_href": True},
                     }
                 )
                 if len(items) >= limit:

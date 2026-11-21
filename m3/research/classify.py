@@ -280,6 +280,25 @@ def _out(cls: str, evidence: list[str], include: bool, sources_used: list[str]) 
 def classify_solicitation_item(item: dict[str, Any]) -> dict[str, Any]:
     """Apply central classification onto a normalized discovery item (mutates copy)."""
     out = dict(item)
+    # Build 002G: do not spend classification on portals/forecasts/awards/unrelated
+    rt = str(out.get("record_type") or "")
+    if rt in {
+        "PROCUREMENT_PORTAL",
+        "HISTORICAL_AWARD",
+        "PROCUREMENT_FORECAST",
+        "PURCHASING_PLAN",
+        "VENDOR_REGISTRATION",
+        "GENERAL_PROCUREMENT_INFORMATION",
+        "UNRELATED_CONTENT",
+    }:
+        out["requirement_class"] = "not_applicable_non_solicitation"
+        out["classification_evidence"] = [f"skipped_identity:{rt}"]
+        out["include_in_product_resale"] = False
+        out["evidence_sources"] = ["identity"]
+        out["classification_stage"] = "identity_skip"
+        if not out.get("solicitation_status"):
+            out["solicitation_status"] = _infer_status(out)
+        return out
     desc = out.get("description")
     if not desc and isinstance(out.get("evidence"), dict):
         desc = out["evidence"].get("category_raw")
