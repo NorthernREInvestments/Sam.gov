@@ -110,12 +110,16 @@ class ResearchRun(Base):
     objective: Mapped[str] = mapped_column(String(64), index=True)
     requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     params: Mapped[dict] = mapped_column(JSONB, default=dict)
-    status: Mapped[str] = mapped_column(String(32), default="running")
+    status: Mapped[str] = mapped_column(String(32), default="running")  # running|completed|partial|cancelled|failed
     result_count: Mapped[int] = mapped_column(Integer, default=0)
     sources_tried: Mapped[list] = mapped_column(JSONB, default=list)
     sources_succeeded: Mapped[list] = mapped_column(JSONB, default=list)
     limitations: Mapped[list] = mapped_column(JSONB, default=list)
     result_snapshot: Mapped[list] = mapped_column(JSONB, default=list)
+    progress: Mapped[dict] = mapped_column(JSONB, default=dict)
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    parent_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("research_runs.id"), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -334,6 +338,62 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ResearchBudgetPolicy(Base):
+    """Owner-configurable OpenAI research spending ceilings (single active row)."""
+
+    __tablename__ = "research_budget_policy"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    paid_research_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    daily_budget_usd: Mapped[float] = mapped_column(Float, default=1.0)
+    monthly_budget_usd: Mapped[float] = mapped_column(Float, default=30.0)
+    per_job_budget_usd: Mapped[float] = mapped_column(Float, default=0.50)
+    per_user_daily_budget_usd: Mapped[float] = mapped_column(Float, default=1.0)
+    max_research_depth: Mapped[int] = mapped_column(Integer, default=2)
+    default_model: Mapped[str] = mapped_column(String(64), default="gpt-4o-mini")
+    capable_model: Mapped[str] = mapped_column(String(64), default="gpt-5-mini")
+    search_context_size: Mapped[str] = mapped_column(String(16), default="low")
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ResearchSpendEvent(Base):
+    """Metered OpenAI usage — application estimates for enforcement, not invoice totals."""
+
+    __tablename__ = "research_spend_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    spend_date: Mapped[date] = mapped_column(Date, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    research_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("research_runs.id"), nullable=True)
+    objective: Mapped[str] = mapped_column(String(64), index=True)
+    model: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(32), default="reserved", index=True)  # reserved|committed|released
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    web_search_calls: Mapped[int] = mapped_column(Integer, default=0)
+    response_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class ResearchCache(Base):
+    """Bounded cache for successful research methods / source discoveries."""
+
+    __tablename__ = "research_cache"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    cache_key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(64), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    hit_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 # Fix forward refs for relationship typing under from __future__ annotations

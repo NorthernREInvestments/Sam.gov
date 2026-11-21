@@ -190,33 +190,36 @@ def save_opportunity(
 
 
 def save_supplier_from_discovery(db: Session, item: dict[str, Any], user: User) -> tuple[Supplier, bool]:
-    key = normalize_supplier_key(item.get("name") or "", item.get("website"))
-    existing = db.query(Supplier).filter_by(normalized_key=key).one_or_none()
-    if existing:
-        return existing, False
     # Do not invent Net-30 or application progress — leave statuses at Not Started / empty terms
     phone = item.get("phone") or item.get("general_phone")
     email = item.get("email") or item.get("general_email")
     address = item.get("business_address") or item.get("address")
     # Only store company contact when source provided it (never invent)
     origin = item.get("data_origin") or "operator"
+    cats = list(item.get("product_categories") or item.get("categories") or [])
+    evidence = list(item.get("source_urls") or item.get("evidence_urls") or [])
+    reseller_url = item.get("reseller_application_url") or item.get("account_application_url")
+    key = normalize_supplier_key(item.get("name") or item.get("company") or "", item.get("website"))
+    existing = db.query(Supplier).filter_by(normalized_key=key).one_or_none()
+    if existing:
+        return existing, False
     sup = Supplier(
-        name=item.get("name") or "Unknown",
+        name=item.get("name") or item.get("company") or "Unknown",
         website=item.get("website"),
         business_address=address,
         address_type=item.get("address_type"),
         general_phone=phone,
         general_email=email,
         normalized_key=key,
-        supplier_type=item.get("supplier_type"),
-        product_categories=list(item.get("product_categories") or []),
+        supplier_type=item.get("supplier_type") or item.get("supplier_classification"),
+        product_categories=cats,
         brands=list(item.get("brands") or []),
-        geo_coverage=item.get("geo_coverage"),
-        reseller_application_url=item.get("reseller_application_url"),
+        geo_coverage=item.get("geo_coverage") or item.get("coverage"),
+        reseller_application_url=reseller_url,
         credit_application_url=item.get("credit_application_url"),
-        catalog_available=item.get("catalog_available") or "unknown",
+        catalog_available=item.get("catalog_available") or ("yes" if item.get("catalog_url") else "unknown"),
         verification_status=item.get("verification_status") or "unverified",
-        source_urls=list(item.get("source_urls") or []),
+        source_urls=evidence,
         next_action=item.get("next_action"),
         payment_terms=None,  # unknown until confirmed — never default Net-30
         created_by=user.id,

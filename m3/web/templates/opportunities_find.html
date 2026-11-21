@@ -3,11 +3,26 @@
 {% block content %}
 {% include "_opp_subnav.html" %}
 <h1>Filter contracts</h1>
-<p class="lead">Search free public government sources. Unpriced opportunities are still worth reviewing. Product-resale mode hides clear services and construction.</p>
+<p class="lead">Search free public government sources nationwide. Keyword search covers titles, buyers, categories, and retrieved document text when available. Product-resale mode hides clear services and construction.</p>
 
 <form method="get" action="/opportunities/find" class="filters panel" id="filter-form">
   <input type="hidden" name="run" value="1">
-  <label class="field"><span>Keywords</span><input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="furniture, tools, appliances…"></label>
+  <label class="field form-span-all"><span>Keyword search</span>
+    <input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="Screws, valves, appliances, generators, or exact MPN…" autofocus>
+  </label>
+  <div class="form-grid cols-3">
+    <label class="field"><span>Match mode</span>
+      <select name="search_mode">
+        {% for key,label in search_modes %}
+        <option value="{{ key }}" {% if filters.search_mode==key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field"><span>Exclude keywords</span><input type="text" name="exclude_keywords" value="{{ filters.exclude_keywords or '' }}" placeholder="construction, consulting"></label>
+    <label class="checks" style="align-items:end"><input type="checkbox" name="discover_sources" value="1"> Also discover new portals (uses OpenAI budget)</label>
+  </div>
+  <details class="panel" style="border:0;padding:0;margin:.5rem 0">
+    <summary>Advanced filters</summary>
   <fieldset>
     <legend>Estimated value (multi-select)</legend>
     <div class="checks">
@@ -35,17 +50,38 @@
     <label class="field"><span>Days remaining max</span><input type="number" name="days_remaining_max" value="{{ filters.days_remaining_max or '' }}"></label>
   </div>
   <label class="checks"><input type="checkbox" name="product_resale_only" value="1" {% if filters.product_resale_only %}checked{% endif %}> Product-resale only (exclude clear services/construction)</label>
+  </details>
   <div class="form-actions">
-    <button type="submit">Apply filters</button>
+    <button type="submit">Search</button>
     <button class="secondary" type="submit" name="save_profile" value="1">Save this search</button>
   </div>
 </form>
 
 {% if ran %}
-<p class="muted">Showing {{ result.count }} after filters ({{ result.unfiltered_count }} before). Sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
-{% if result.limitations %}
-<div class="flash warn">Some sources failed: {{ result.limitations[:3]|join(' · ') }}</div>
-{% endif %}
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Search progress</h2>
+  <dl class="kv">
+    <dt>Status</dt><dd>{{ result.status or 'completed' }}{% if result.incomplete %} · <strong>incomplete / partial</strong>{% endif %}</dd>
+    <dt>Matching results</dt><dd>{{ result.all_matching_count or result.count }} (showing {{ result.page_count or rows|length }} on this page)</dd>
+    <dt>Before filters</dt><dd>{{ result.unfiltered_count }} unique notices</dd>
+    <dt>Notices examined</dt><dd>{{ result.notices_examined or '—' }}</dd>
+    <dt>Sources OK</dt><dd>{{ result.sources_succeeded|length }} · {{ (result.sources_succeeded or [])[:8]|join(', ') or 'none' }}</dd>
+    <dt>Sources unavailable</dt><dd>{{ (result.sources_unavailable or [])|length }}</dd>
+    <dt>Est. research cost</dt><dd>${{ '%.4f'|format(result.estimated_cost_usd or 0) }} <span class="muted">(estimate, not invoice)</span></dd>
+  </dl>
+  {% if result.limitations %}
+  <div class="flash warn">Some sources failed: {{ result.limitations[:3]|join(' · ') }}</div>
+  {% endif %}
+  {% if result.incomplete and result.run_id %}
+  <form method="get" action="/opportunities/find" class="form-actions">
+    <input type="hidden" name="run" value="1">
+    <input type="hidden" name="continue_run" value="{{ result.run_id }}">
+    <input type="hidden" name="keyword" value="{{ filters.keyword or '' }}">
+    <input type="hidden" name="search_mode" value="{{ filters.search_mode or 'broad' }}">
+    <button type="submit" class="secondary">Continue retrieving more results</button>
+  </form>
+  {% endif %}
+</section>
 {% if rows %}
 <div class="table-wrap">
 <table class="result-table">
@@ -57,7 +93,7 @@
   <tbody>
   {% for row in rows %}
     <tr id="r-{{ row.external_key }}">
-      <td class="title">{{ row.display.title }}</td>
+      <td class="title">{{ row.display.title }}{% if row.catalog_matches %}<div class="muted">Catalog matches: {{ row.catalog_matches }}</div>{% endif %}</td>
       <td>{{ row.display.solicitation_number }}</td>
       <td>{{ row.display.buyer }}<br><span class="muted">{{ row.display.city }}, {{ row.display.state }}</span></td>
       <td>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}<br><span class="muted">{{ row.display.days_remaining }} days</span></td>
@@ -91,28 +127,17 @@
 <div class="empty">No matching live results for these filters. Broaden categories or value bands.</div>
 {% endif %}
 {% else %}
-<div class="empty">Set filters above and choose Apply filters to search free government sources.</div>
+<div class="empty">Enter a keyword or set filters, then Search free government sources.</div>
 {% endif %}
 
 <script>
 (function () {
   try {
     var key = "m3_opp_scroll";
-    var saved = sessionStorage.getItem(key);
-    if (saved) {
-      var data = JSON.parse(saved);
-      sessionStorage.removeItem(key);
-      if (data.anchor) {
-        var el = document.getElementById(data.anchor);
-        if (el) el.scrollIntoView({ block: "center" });
-      } else if (typeof data.y === "number") {
-        window.scrollTo(0, data.y);
-      }
-    }
-    document.querySelectorAll('form[action="/opportunities/save"]').forEach(function (f) {
-      f.addEventListener("submit", function () {
-        sessionStorage.setItem(key, JSON.stringify({ y: window.scrollY, anchor: (f.querySelector('[name=anchor]') || {}).value }));
-      });
+    var y = sessionStorage.getItem(key);
+    if (y) { window.scrollTo(0, parseInt(y, 10) || 0); sessionStorage.removeItem(key); }
+    document.querySelectorAll("form[action='/opportunities/save']").forEach(function (f) {
+      f.addEventListener("submit", function () { sessionStorage.setItem(key, String(window.scrollY || 0)); });
     });
   } catch (e) {}
 })();

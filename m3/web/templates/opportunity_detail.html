@@ -92,6 +92,50 @@
   </section>
 
   <section>
+    <h2>Historical awards</h2>
+    {% if research_target %}
+    <form method="post" action="{{ research_target }}" class="form-actions" style="margin-bottom:.75rem">
+      <button type="submit" class="secondary">Research historical award pricing</button>
+    </form>
+    <p class="muted">Uses OpenAI web research within the owner budget. Results are benchmarks, not guaranteed future prices.</p>
+    {% endif %}
+    {% if historical_awards %}
+    <div class="list">
+      {% for a in historical_awards %}
+      <div class="item">
+        <h3>{{ a.product or 'Award record' }} · {{ a.match_type or 'match unknown' }}</h3>
+        <p class="muted">{{ a.buyer or 'Buyer unknown' }} · {{ a.award_date or 'date unknown' }} · {{ a.awardee or 'awardee unknown' }}</p>
+        <dl class="kv">
+          <dt>Unit price</dt><dd>{{ a.unit_price or 'Unknown' }}</dd>
+          <dt>Quantity</dt><dd>{{ a.quantity or 'Unknown' }}</dd>
+          <dt>Total award</dt><dd>{{ a.total_award_value or 'Unknown' }}</dd>
+          <dt>Source</dt><dd>{% if a.source_url %}<a href="{{ a.source_url }}" target="_blank" rel="noopener">{{ a.source_url }}</a>{% else %}See citations{% endif %}</dd>
+        </dl>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Not yet researched. Do not invent historical prices.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Pricing / commercial evidence</h2>
+    {% if commercial %}
+    <dl class="kv">
+      <dt>Quantity</dt><dd>{{ commercial.quantity if commercial.quantity is not none else 'Unknown' }}</dd>
+      <dt>Historical revenue benchmark</dt><dd>{% if commercial.historical_revenue_benchmark is not none %}${{ '%.2f'|format(commercial.historical_revenue_benchmark) }}{% else %}Unknown{% endif %}</dd>
+      <dt>Catalog acquisition benchmark</dt><dd>{% if commercial.catalog_acquisition_benchmark is not none %}${{ '%.2f'|format(commercial.catalog_acquisition_benchmark) }}{% else %}Unknown{% endif %}</dd>
+      <dt>Gross spread</dt><dd>{% if commercial.gross_spread is not none %}${{ '%.2f'|format(commercial.gross_spread) }} <span class="muted">(NOT verified net profit)</span>{% else %}Unknown{% endif %}</dd>
+      <dt>Profitability status</dt><dd>{{ commercial.profitability_status }}</dd>
+    </dl>
+    <p class="muted">{{ commercial.notes[0] if commercial.notes else '' }}</p>
+    {% else %}
+    <p class="muted">Pricing evidence unavailable until quantity and acquisition/historical benchmarks exist.</p>
+    {% endif %}
+  </section>
+
+  <section>
     <h2>Why fields may be missing</h2>
     {% if display.unavailable_reasons %}
     <ul>

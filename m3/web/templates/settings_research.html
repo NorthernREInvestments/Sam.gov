@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Research spend · M3{% endblock %}
+{% block content %}
+<a class="back-link" href="/settings">← Settings</a>
+<h1>Research spending</h1>
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+<p class="muted">OpenAI costs shown here are <strong>application estimates</strong> for budget enforcement — not final OpenAI invoice totals. Free direct source retrieval continues when paid budget is exhausted.</p>
+
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Budgets</h2>
+  <dl class="kv">
+    <dt>Today (est.)</dt><dd>${{ '%.4f'|format(spend.today_spent_usd) }} · remaining ${{ '%.4f'|format(spend.today_remaining_usd) }}</dd>
+    <dt>This month (est.)</dt><dd>${{ '%.4f'|format(spend.month_spent_usd) }} · remaining ${{ '%.4f'|format(spend.month_remaining_usd) }}</dd>
+    <dt>Paid research</dt><dd>{% if spend.paid_research_enabled %}Enabled{% else %}Disabled{% endif %}</dd>
+  </dl>
+  <form method="post" action="/settings/research" class="form-grid cols-2" style="margin-top:1rem">
+    <label class="checks form-span-all"><input type="checkbox" name="paid_research_enabled" value="1" {% if spend.paid_research_enabled %}checked{% endif %}> Enable paid OpenAI web research</label>
+    <label class="field"><span>Daily ceiling (USD)</span><input type="number" step="0.01" min="0" name="daily_budget_usd" value="{{ spend.daily_budget_usd }}"></label>
+    <label class="field"><span>Monthly ceiling (USD)</span><input type="number" step="0.01" min="0" name="monthly_budget_usd" value="{{ spend.monthly_budget_usd }}"></label>
+    <label class="field"><span>Per-job ceiling (USD)</span><input type="number" step="0.01" min="0" name="per_job_budget_usd" value="{{ spend.per_job_budget_usd }}"></label>
+    <label class="field"><span>Per-user daily ceiling (USD)</span><input type="number" step="0.01" min="0" name="per_user_daily_budget_usd" value="{{ spend.per_user_daily_budget_usd }}"></label>
+    <label class="field"><span>Max research depth</span><input type="number" min="1" max="5" name="max_research_depth" value="{{ spend.max_research_depth }}"></label>
+    <label class="field"><span>Default model</span><input type="text" name="default_model" value="{{ spend.default_model }}"></label>
+    <label class="field"><span>Capable model</span><input type="text" name="capable_model" value="{{ spend.capable_model }}"></label>
+    <label class="field"><span>Search context</span>
+      <select name="search_context_size">
+        <option value="low" {% if spend.search_context_size=='low' %}selected{% endif %}>low</option>
+        <option value="medium" {% if spend.search_context_size=='medium' %}selected{% endif %}>medium</option>
+        <option value="high" {% if spend.search_context_size=='high' %}selected{% endif %}>high</option>
+      </select>
+    </label>
+    <div class="form-actions form-span-all">
+      <button type="submit">Save budget policy</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Recent research jobs</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>When</th><th>Objective</th><th>Status</th><th>Results</th><th>Est. cost</th></tr></thead>
+    <tbody>
+    {% for j in jobs %}
+      <tr>
+        <td>{{ j.started_at }}</td>
+        <td>{{ j.objective }}</td>
+        <td>{{ j.status }}</td>
+        <td>{{ j.result_count }}</td>
+        <td>${{ '%.4f'|format(j.estimated_cost_usd or 0) }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">No research jobs yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2 style="margin-top:0">Metered OpenAI events</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>When</th><th>Objective</th><th>Model</th><th>Status</th><th>Searches</th><th>Tokens</th><th>Est. USD</th></tr></thead>
+    <tbody>
+    {% for s in spends %}
+      <tr>
+        <td>{{ s.created_at }}</td>
+        <td>{{ s.objective }}</td>
+        <td>{{ s.model }}</td>
+        <td>{{ s.status }}</td>
+        <td>{{ s.web_search_calls }}</td>
+        <td>{{ s.input_tokens }}/{{ s.output_tokens }}</td>
+        <td>${{ '%.4f'|format(s.estimated_cost_usd or 0) }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="muted">No metered events yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

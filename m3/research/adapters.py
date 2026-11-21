@@ -121,211 +121,251 @@ def _is_productish(title: str, category_raw: str | None, cfg: dict) -> bool:
     return bool(clf["include_in_product_resale"])
 
 
-def search_socrata(source: dict, *, keywords: list[str], limit: int = 50) -> dict[str, Any]:
+def search_socrata(
+    source: dict,
+    *,
+    keywords: list[str],
+    limit: int | None = None,
+    offset: int = 0,
+    page_size: int = 500,
+    max_pages: int = 40,
+) -> dict[str, Any]:
+    """Retrieve Socrata rows with offset pagination — no artificial commercial ceiling."""
+    from m3.config import get_settings
+
+    settings = get_settings()
+    page_size = min(500, max(50, page_size or settings.research_socrata_page_size))
+    max_pages = max(1, max_pages or settings.research_max_pages_per_source)
+    soft_limit = int(limit) if limit else None
     cfg = source.get("config") or {}
     urls = [cfg.get("dataset_url") or source.get("base_url")]
     urls += list(cfg.get("fallback_urls") or [])
     items: list[dict] = []
     errors: list[str] = []
     used_url = None
+    pages_fetched = 0
+    total_rows_seen = 0
+    truncated = False
+    more_available = False
     prefer_statuses = [s.lower() for s in (cfg.get("prefer_statuses") or [])]
+
+    def _append_row(row: dict, final: str) -> None:
+        nonlocal items
+        if not isinstance(row, dict):
+            return
+        title = str(
+            _row_get(
+                row,
+                cfg.get("title_field") or "title",
+                "contract_title",
+                "description",
+                "project_description",
+                "procurement_name",
+                "type_of_notice_description",
+            )
+            or ""
+        ).strip()
+        if not title or len(title) < 5:
+            return
+        status_raw = str(_row_get(row, cfg.get("status_field") or "", "status", "stagename") or "")
+        if prefer_statuses:
+            if status_raw and status_raw.lower() not in prefer_statuses:
+                if re.search(r"cancel|closed|award|inactive|expired", status_raw, re.I):
+                    return
+                if status_raw.strip():
+                    return
+        if re.search(r"cancel|indefinitely postponed", str(row), re.I) and "cancelledpostponed" in row:
+            if row.get("cancelledpostponed"):
+                return
+        category_raw = str(_row_get(row, cfg.get("category_field") or "", "category") or "")
+        if not _is_productish(title, category_raw, cfg):
+            return
+        blob = f"{title} {category_raw} {row}".lower()
+        if keywords:
+            prefer_cats = [c.lower() for c in (cfg.get("prefer_categories") or [])]
+            is_prefer = prefer_cats and any(x in category_raw.lower() for x in prefer_cats)
+            if not is_prefer and not any(k.lower() in blob for k in keywords if k):
+                if not PRODUCT_HINTS.search(title) and not PRODUCT_HINTS.search(category_raw):
+                    return
+        agency = str(
+            _row_get(
+                row,
+                cfg.get("agency_field") or "agency_name",
+                "agency",
+                "department",
+                "agencycode",
+                "buyer",
+            )
+            or cfg.get("buyer_type")
+            or "Unknown"
+        )
+        sol = str(
+            _row_get(
+                row,
+                cfg.get("number_field") or "solicitation_number",
+                "contract_number",
+                "contractnumber",
+                "number",
+                "rampid",
+                "pin",
+                "tracking_number",
+                "buying_plan_number",
+                ":id",
+            )
+            or ""
+        )
+        deadline_raw = _row_get(
+            row,
+            cfg.get("deadline_field") or "due_date",
+            "end_date",
+            "bid_opening_date",
+            "closing_date",
+            "closedate",
+            "closingdate",
+            "deadlinedate",
+            "submission_deadline",
+        )
+        posted_raw = _row_get(
+            row,
+            cfg.get("posted_field") or "start_date",
+            "posted_date",
+            "bidpost",
+            "issuancedate",
+            "opendate",
+            "date_created",
+        )
+        value_raw = _row_get(
+            row,
+            cfg.get("value_field") or "contract_amount",
+            "award_amount",
+            "estimated_amount",
+            "estimated_total_contract",
+            "approximate_cost",
+            "current_amount",
+        )
+        vmin, vmax = _parse_value_band(value_raw)
+        official = _extract_url(
+            _row_get(row, cfg.get("url_field") or "url", "document_link", "link", "bidurl", "documents_url"),
+            cfg.get("official_listing_url") or final,
+        )
+        set_aside_raw = _row_get(row, cfg.get("set_aside_field") or "set_aside", "mwbe", "lsbrpindicator")
+        set_aside = "unknown"
+        set_aside_verified = False
+        if set_aside_raw is not None:
+            smap = cfg.get("set_aside_map") or {}
+            mapped = smap.get(str(set_aside_raw))
+            if mapped:
+                set_aside = mapped
+                set_aside_verified = True
+            else:
+                set_aside = str(set_aside_raw)
+                set_aside_verified = False
+        cat = _guess_category(f"{title} {category_raw}")
+        proc_type = str(
+            _row_get(row, cfg.get("type_field") or "procurement_type", "type")
+            or cfg.get("procurement_type_default")
+            or "unknown"
+        )
+        clf = classify_requirement(title, category_raw=category_raw, procurement_type=proc_type)
+        qty = _row_get(row, "quantity", "qty", "estimated_quantity")
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or title, official or ""),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": agency[:255],
+                "geo_state": cfg.get("geo_state"),
+                "geo_city": None,
+                "geo_location": agency[:255],
+                "deadline_at": str(deadline_raw) if deadline_raw else None,
+                "deadline_timezone": "UTC" if deadline_raw else None,
+                "posted_at": str(posted_raw)[:10] if posted_raw else None,
+                "procurement_type": proc_type[:120],
+                "product_category": cat or ("unknown" if not category_raw else category_raw[:80].lower()),
+                "set_aside": set_aside if isinstance(set_aside, str) else "unknown",
+                "set_aside_verified": set_aside_verified,
+                "estimated_value_min": vmin,
+                "estimated_value_max": vmax,
+                "estimated_value_unknown": vmin is None and vmax is None,
+                "value_estimate_method": (
+                    "published_estimate_band"
+                    if value_raw and vmin is not None
+                    else ("published_amount" if vmin is not None else None)
+                ),
+                "value_evidence": str(value_raw)[:200] if value_raw else None,
+                "value_evidence_class": ("published_estimate" if value_raw else "not_yet_researched"),
+                "official_url": (official or final)[:2048],
+                "documents_available": "yes" if official and "http" in (official or "") else "unknown",
+                "quantity": str(qty) if qty not in (None, "") else None,
+                "requirement_class": clf["requirement_class"],
+                "classification_evidence": clf["classification_evidence"],
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "is_forecast": bool(cfg.get("is_forecast")),
+                "evidence": {
+                    "row_keys": list(row.keys())[:20],
+                    "source_url": final,
+                    "status": status_raw or None,
+                    "category_raw": category_raw or None,
+                    "classification": clf,
+                },
+            }
+        )
 
     for url in urls:
         if not url:
             continue
         try:
-            q_url = f"{url}?$limit={min(500, max(limit * 5, 100))}"
-            order_field = cfg.get("posted_field") or cfg.get("deadline_field")
-            if order_field:
-                q_url += f"&$order={order_field} DESC"
-            status, final, data = fetch_json(q_url)
-            if status >= 400 or not isinstance(data, list):
-                errors.append(f"{url} status={status}")
-                continue
-            used_url = final
-            for row in data:
-                if not isinstance(row, dict):
-                    continue
-                title = str(
-                    _row_get(
-                        row,
-                        cfg.get("title_field") or "title",
-                        "contract_title",
-                        "description",
-                        "project_description",
-                        "procurement_name",
-                        "type_of_notice_description",
-                    )
-                    or ""
-                ).strip()
-                if not title or len(title) < 5:
-                    continue
-
-                status_raw = str(_row_get(row, cfg.get("status_field") or "", "status", "stagename") or "")
-                if prefer_statuses:
-                    if status_raw and status_raw.lower() not in prefer_statuses:
-                        # skip cancelled / closed when we have prefer list
-                        if re.search(r"cancel|closed|award|inactive|expired", status_raw, re.I):
-                            continue
-                        if status_raw.strip():
-                            continue
-
-                if re.search(r"cancel|indefinitely postponed", str(row), re.I) and "cancelledpostponed" in row:
-                    if row.get("cancelledpostponed"):
-                        continue
-
-                category_raw = str(_row_get(row, cfg.get("category_field") or "", "category") or "")
-                if not _is_productish(title, category_raw, cfg):
-                    continue
-
-                blob = f"{title} {category_raw} {row}".lower()
-                if keywords:
-                    # soft: prefer keyword hits but keep commodity rows from prefer_categories
-                    prefer_cats = [c.lower() for c in (cfg.get("prefer_categories") or [])]
-                    is_prefer = prefer_cats and any(x in category_raw.lower() for x in prefer_cats)
-                    if not is_prefer and not any(k.lower() in blob for k in keywords if k):
-                        if not PRODUCT_HINTS.search(title) and not PRODUCT_HINTS.search(category_raw):
-                            continue
-
-                agency = str(
-                    _row_get(
-                        row,
-                        cfg.get("agency_field") or "agency_name",
-                        "agency",
-                        "department",
-                        "agencycode",
-                        "buyer",
-                    )
-                    or cfg.get("buyer_type")
-                    or "Unknown"
-                )
-                sol = str(
-                    _row_get(
-                        row,
-                        cfg.get("number_field") or "solicitation_number",
-                        "contract_number",
-                        "contractnumber",
-                        "number",
-                        "rampid",
-                        "pin",
-                        "tracking_number",
-                        "buying_plan_number",
-                        ":id",
-                    )
-                    or ""
-                )
-                deadline_raw = _row_get(
-                    row,
-                    cfg.get("deadline_field") or "due_date",
-                    "end_date",
-                    "bid_opening_date",
-                    "closing_date",
-                    "closedate",
-                    "closingdate",
-                    "deadlinedate",
-                    "submission_deadline",
-                )
-                posted_raw = _row_get(
-                    row,
-                    cfg.get("posted_field") or "start_date",
-                    "posted_date",
-                    "bidpost",
-                    "issuancedate",
-                    "opendate",
-                    "date_created",
-                )
-                value_raw = _row_get(
-                    row,
-                    cfg.get("value_field") or "contract_amount",
-                    "award_amount",
-                    "estimated_amount",
-                    "estimated_total_contract",
-                    "approximate_cost",
-                    "current_amount",
-                )
-                vmin, vmax = _parse_value_band(value_raw)
-                official = _extract_url(
-                    _row_get(row, cfg.get("url_field") or "url", "document_link", "link", "bidurl", "documents_url"),
-                    cfg.get("official_listing_url") or final,
-                )
-                set_aside_raw = _row_get(row, cfg.get("set_aside_field") or "set_aside", "mwbe", "lsbrpindicator")
-                set_aside = "unknown"
-                set_aside_verified = False
-                if set_aside_raw is not None:
-                    smap = cfg.get("set_aside_map") or {}
-                    mapped = smap.get(str(set_aside_raw))
-                    if mapped:
-                        set_aside = mapped
-                        set_aside_verified = True
-                    else:
-                        set_aside = str(set_aside_raw)
-                        set_aside_verified = False
-
-                cat = _guess_category(f"{title} {category_raw}")
-                proc_type = str(
-                    _row_get(row, cfg.get("type_field") or "procurement_type", "type")
-                    or cfg.get("procurement_type_default")
-                    or "unknown"
-                )
-                clf = classify_requirement(title, category_raw=category_raw, procurement_type=proc_type)
-                qty = _row_get(row, "quantity", "qty", "estimated_quantity")
-                items.append(
-                    {
-                        "external_key": _key(source["source_key"], sol or title, official or ""),
-                        "title": title[:500],
-                        "solicitation_number": sol or None,
-                        "buyer_name": agency[:255],
-                        "geo_state": cfg.get("geo_state"),
-                        "geo_city": None,
-                        "geo_location": agency[:255],
-                        "deadline_at": str(deadline_raw) if deadline_raw else None,
-                        "deadline_timezone": "UTC" if deadline_raw else None,
-                        "posted_at": str(posted_raw)[:10] if posted_raw else None,
-                        "procurement_type": proc_type[:120],
-                        "product_category": cat or ("unknown" if not category_raw else category_raw[:80].lower()),
-                        "set_aside": set_aside if isinstance(set_aside, str) else "unknown",
-                        "set_aside_verified": set_aside_verified,
-                        "estimated_value_min": vmin,
-                        "estimated_value_max": vmax,
-                        "estimated_value_unknown": vmin is None and vmax is None,
-                        "value_estimate_method": (
-                            "published_estimate_band"
-                            if value_raw and vmin is not None
-                            else ("published_amount" if vmin is not None else None)
-                        ),
-                        "value_evidence": str(value_raw)[:200] if value_raw else None,
-                        "value_evidence_class": (
-                            "published_estimate" if value_raw else "not_yet_researched"
-                        ),
-                        "official_url": (official or final)[:2048],
-                        "documents_available": "yes" if official and "http" in (official or "") else "unknown",
-                        "quantity": str(qty) if qty not in (None, "") else None,
-                        "requirement_class": clf["requirement_class"],
-                        "classification_evidence": clf["classification_evidence"],
-                        "source_key": source["source_key"],
-                        "source_verified_at": _utc(),
-                        "is_forecast": bool(cfg.get("is_forecast")),
-                        "evidence": {
-                            "row_keys": list(row.keys())[:20],
-                            "source_url": final,
-                            "status": status_raw or None,
-                            "category_raw": category_raw or None,
-                            "classification": clf,
-                        },
-                    }
-                )
+            page_offset = max(0, int(offset or 0))
+            for _page in range(max_pages):
+                if soft_limit is not None and len(items) >= soft_limit:
+                    truncated = True
+                    more_available = True
+                    break
+                q_url = f"{url}?$limit={page_size}&$offset={page_offset}"
+                order_field = cfg.get("posted_field") or cfg.get("deadline_field")
+                if order_field:
+                    q_url += f"&$order={order_field} DESC"
+                status, final, data = fetch_json(q_url)
+                pages_fetched += 1
+                if status >= 400 or not isinstance(data, list):
+                    errors.append(f"{url} status={status} offset={page_offset}")
+                    break
+                used_url = final
+                if not data:
+                    break
+                total_rows_seen += len(data)
+                for row in data:
+                    if soft_limit is not None and len(items) >= soft_limit:
+                        truncated = True
+                        more_available = True
+                        break
+                    _append_row(row, final)
+                if len(data) < page_size:
+                    more_available = False
+                    break
+                page_offset += page_size
+                more_available = True
             if items:
                 break
         except Exception as exc:
             errors.append(f"{url}:{type(exc).__name__}:{exc}"[:200])
+
+    out_items = items if soft_limit is None else items[:soft_limit]
     return {
-        "ok": bool(items),
-        "items": items[:limit],
+        "ok": bool(out_items),
+        "items": out_items,
         "source_key": source["source_key"],
         "used_url": used_url,
         "errors": errors,
         "verified_at": _utc(),
+        "pages_fetched": pages_fetched,
+        "rows_examined": total_rows_seen,
+        "truncated": truncated,
+        "more_available": more_available,
+        "next_offset": (offset or 0) + total_rows_seen if more_available else None,
     }
+
 
 
 def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> dict[str, Any]:

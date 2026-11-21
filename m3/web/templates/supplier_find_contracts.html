@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Contracts for {{ supplier.name }} · M3{% endblock %}
+{% block content %}
+<a class="back-link" href="/suppliers/{{ supplier.id }}">← {{ supplier.name }}</a>
+<h1>Find contracts for this supplier</h1>
+<p class="lead">Mode: {{ mode }}. Broad category matches are sourcing leads, not verified product availability.</p>
+<nav class="subnav">
+  <a href="/suppliers/{{ supplier.id }}/find-contracts?mode=exact_catalog" class="{% if mode=='exact_catalog' %}active{% endif %}">Exact catalog products</a>
+  <a href="/suppliers/{{ supplier.id }}/find-contracts?mode=category" class="{% if mode=='category' %}active{% endif %}">Category match</a>
+  <a href="/suppliers/{{ supplier.id }}/find-contracts?mode=buyers" class="{% if mode=='buyers' %}active{% endif %}">Related buyers / recurring</a>
+</nav>
+<p class="muted">{{ result.all_matching_count or result.count }} matching opportunities · sources OK: {{ (result.sources_succeeded or [])|length }}</p>
+{% if rows %}
+<div class="list">
+  {% for row in rows %}
+  <div class="item">
+    <h3><a href="/opportunities/discover/{{ run_id }}/{{ row.external_key }}">{{ row.display.title }}</a></h3>
+    <p class="muted">{{ row.display.buyer }} · {{ row.display.state }} · {{ row.display.closing_human if row.display.closing_human is defined else row.display.closing_date }}</p>
+    {% if row.official_url %}<a class="btn secondary small" href="{{ row.official_url }}" target="_blank" rel="noopener">Official Solicitation</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No matching opportunities for this supplier mode yet.</div>
+{% endif %}
+{% endblock %}

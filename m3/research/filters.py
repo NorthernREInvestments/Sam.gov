@@ -89,6 +89,8 @@ def _normalize_set_aside(raw: str | None) -> str:
 
 def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any]) -> list[dict[str, Any]]:
     """Within-category OR, across-category AND."""
+    from m3.research.vocabulary import parse_search_terms
+
     value_bands = list(filters.get("value_bands") or [])
     custom_min = filters.get("custom_value_min")
     custom_max = filters.get("custom_value_max")
@@ -98,7 +100,14 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
     categories = [c.lower() for c in (filters.get("product_categories") or [])]
     buyer_types = [b.lower() for b in (filters.get("buyer_types") or [])]
     days_remaining_max = filters.get("days_remaining_max")
-    keyword = (filters.get("keyword") or "").strip().lower()
+    search_mode = (filters.get("search_mode") or "broad").strip().lower()
+    parsed = parse_search_terms(
+        filters.get("keyword") or "",
+        mode=search_mode,
+        exclude=filters.get("exclude_keywords") or "",
+    )
+    include_terms = parsed["include_terms"]
+    exclude_terms = parsed["exclude_terms"]
     # Default product-resale mode excludes clear services/construction
     product_resale_only = filters.get("product_resale_only", True)
     include_classes = list(
@@ -163,10 +172,41 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
             if cat not in categories and "unknown" not in categories:
                 continue
 
-        if keyword:
-            blob = f"{item.get('title')} {item.get('buyer_name')} {item.get('solicitation_number')}".lower()
-            if keyword not in blob:
-                continue
+        blob = " ".join(
+            str(item.get(k) or "")
+            for k in (
+                "title",
+                "buyer_name",
+                "solicitation_number",
+                "product_category",
+                "quantity",
+                "document_text",
+                "line_items_text",
+                "manufacturer",
+                "part_number",
+            )
+        ).lower()
+        # document_text only counts when actually retrieved
+        doc_searched = bool(item.get("document_text"))
+        item["_document_searchable"] = doc_searched
+
+        if include_terms:
+            if search_mode == "exact_mpn":
+                mpn = (item.get("part_number") or "").lower()
+                title_mpn = blob
+                needle = include_terms[0]
+                if needle not in mpn and needle not in title_mpn:
+                    continue
+            elif search_mode == "exact_phrase":
+                phrase = (filters.get("keyword") or "").strip().lower()
+                if phrase and phrase not in blob:
+                    continue
+            else:
+                # broad / multi-term: any include term matches (OR within keywords)
+                if not any(t in blob for t in include_terms):
+                    continue
+        if exclude_terms and any(t in blob for t in exclude_terms):
+            continue
 
         if days_remaining_max is not None and item.get("deadline_at"):
             try:

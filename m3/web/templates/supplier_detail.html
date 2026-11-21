@@ -2,6 +2,10 @@
 {% block title %}{{ supplier.name }} · M3{% endblock %}
 {% block content %}
 <h1>{{ supplier.name }}</h1>
+<div class="actions" style="margin-bottom:.75rem">
+  <a class="btn secondary" href="/suppliers/{{ supplier.id }}/find-contracts?mode=category">Find matching contracts</a>
+  <a class="btn secondary" href="/suppliers/{{ supplier.id }}/find-contracts?mode=exact_catalog">Exact catalog matches</a>
+</div>
 <div class="supplier-header panel" style="margin-bottom:1rem">
   {% if supplier.website %}
   <div><a href="{{ supplier.website }}" target="_blank" rel="noopener">{{ supplier.website }}</a></div>

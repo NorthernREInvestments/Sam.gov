@@ -2,38 +2,50 @@
 {% block title %}Find suppliers · M3{% endblock %}
 {% block content %}
 <h1>Find new suppliers</h1>
-<p class="lead">Recruit distributors independently of any one contract. Terms and eligibility stay unknown until verified.</p>
+<p class="lead">Recruit distributors independently of any one contract. Seed probes are free; OpenAI web research expands leads within budget. A lead is not an approved account.</p>
 <form method="get" class="panel form-grid cols-3">
-  <label class="field"><span>Categories</span><input type="text" name="product_categories" value="{{ categories_raw }}" placeholder="mro,furniture,it_hardware,janitorial"></label>
-  <label class="field"><span>Keyword</span><input type="text" name="keyword" value="{{ keyword }}"></label>
-  <div class="form-actions">
+  <input type="hidden" name="run" value="1">
+  <label class="field"><span>Natural-language / keyword search</span><input type="text" name="keyword" value="{{ keyword }}" placeholder="nationwide appliance wholesalers with reseller programs"></label>
+  <label class="field"><span>Categories</span><input type="text" name="product_categories" value="{{ categories_raw }}" placeholder="mro,furniture,appliances,electrical"></label>
+  <div class="form-actions" style="align-items:end">
     <button type="submit">Search suppliers</button>
     <a class="btn secondary" href="/suppliers">My suppliers</a>
   </div>
 </form>
 {% if ran %}
-<p class="muted">{{ result.count }} supplier leads · sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
+<p class="muted">{{ result.count }} supplier leads · est. cost ${{ '%.4f'|format(result.estimated_cost_usd or 0) }} · sources OK: {{ result.sources_succeeded|join(', ') or 'none' }}</p>
+{% if result.limitations %}<div class="flash warn">{{ result.limitations[:2]|join(' · ') }}</div>{% endif %}
 <div class="list">
   {% for s in result.items %}
   <article class="item">
-    <h3>{{ s.name }}</h3>
+    <h3>{{ s.name or s.company }}</h3>
     <div class="meta">
-      <span class="badge">{{ s.supplier_type }}</span>
-      <span>{{ (s.product_categories or [])|join(', ') }}</span>
-      <span>{{ s.geo_coverage or 'coverage unknown' }}</span>
-      <span>{{ s.verification_status }}</span>
+      <span class="badge">{{ s.supplier_type or s.supplier_classification or s.lead_status or 'lead' }}</span>
+      <span>{{ (s.product_categories or s.categories or [])|join(', ') }}</span>
+      <span>{{ s.geo_coverage or s.coverage or 'coverage unknown' }}</span>
+      <span>{{ s.verification_status or 'unverified' }}</span>
     </div>
-    <p class="muted">Next: {{ s.next_action or 'Review and save' }}</p>
+    {% if s.business_address or s.general_phone or s.general_email or s.phone or s.email %}
+    <p class="muted">
+      {% if s.business_address or s.address %}{{ s.business_address or s.address }} · {% endif %}
+      {% if s.general_phone or s.phone %}{{ s.general_phone or s.phone }} · {% endif %}
+      {{ s.general_email or s.email or '' }}
+    </p>
+    {% endif %}
+    <p class="muted">Next: {{ s.next_action or 'Review and decide whether to pursue' }}</p>
     <div class="actions">
       {% if s.website %}<a class="btn secondary" href="{{ s.website }}" target="_blank" rel="noopener">Website</a>{% endif %}
-      {% if s.reseller_application_url %}<a class="btn secondary" href="{{ s.reseller_application_url }}" target="_blank" rel="noopener">Reseller / account link</a>{% endif %}
-      {% if s.phone %}<a class="btn secondary" href="tel:{{ s.phone }}">{{ s.phone }}</a>{% endif %}
+      {% if s.reseller_application_url or s.account_application_url %}<a class="btn secondary" href="{{ s.reseller_application_url or s.account_application_url }}" target="_blank" rel="noopener">Account / reseller</a>{% endif %}
+      {% if s.credit_application_url %}<a class="btn secondary" href="{{ s.credit_application_url }}" target="_blank" rel="noopener">Credit app</a>{% endif %}
+      {% if s.catalog_url %}<a class="btn secondary" href="{{ s.catalog_url }}" target="_blank" rel="noopener">Catalog</a>{% endif %}
       <form method="post" action="/suppliers/save-discovery">
         <input type="hidden" name="payload" value="{{ s|b64json }}">
         <button type="submit">Save to CRM</button>
       </form>
     </div>
   </article>
+  {% else %}
+  <div class="empty">No leads for this query.</div>
   {% endfor %}
 </div>
 {% endif %}

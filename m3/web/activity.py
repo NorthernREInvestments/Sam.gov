@@ -35,6 +35,8 @@ ACTION_LABELS: dict[str, str] = {
     "task.done": "Completed a task",
     "research.contracts": "Searched for contracts",
     "research.suppliers": "Searched for suppliers",
+    "research.historical_awards": "Researched historical awards",
+    "research.budget_update": "Updated research budget policy",
     "cleanup.opportunity_archive": "Archived test opportunity data",
     "cleanup.supplier_deactivate": "Deactivated test supplier data",
     "cleanup.user_deactivate": "Deactivated a test account",

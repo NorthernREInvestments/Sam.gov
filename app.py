@@ -1,4 +1,4 @@
-"""M3 2.0 Build 001C — FastAPI application entrypoint."""
+"""M3 2.0 Build 002 — FastAPI application entrypoint."""
 
 from __future__ import annotations
 
@@ -38,6 +38,7 @@ from m3.models import (
     CatalogUpload,
     Opportunity,
     ResearchRun,
+    ResearchSpendEvent,
     SearchProfile,
     Supplier,
     Task,
@@ -45,7 +46,14 @@ from m3.models import (
     UserInvitation,
 )
 from m3.provenance import ACTIVE_OPP_STATUSES, build_cleanup_preview, classify_user_origin
-from m3.research.engine import run_contract_discovery, run_supplier_discovery
+from m3.research.budget import ensure_budget_policy, spending_snapshot, update_owner_policy
+from m3.research.commercial import build_commercial_evidence
+from m3.research.engine import (
+    cancel_research_run,
+    run_contract_discovery,
+    run_historical_award_research,
+    run_supplier_discovery,
+)
 from m3.security import hash_password, has_perm, is_primary_owner, issue_session_token
 from m3.services import (
     authenticate,
@@ -494,6 +502,8 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
     profile_id = qp.get("profile")
     filters = {
         "keyword": qp.get("keyword") or "",
+        "search_mode": qp.get("search_mode") or "broad",
+        "exclude_keywords": qp.get("exclude_keywords") or "",
         "value_bands": qp.getlist("value_bands"),
         "custom_value_min": qp.get("custom_value_min") or None,
         "custom_value_max": qp.get("custom_value_max") or None,
@@ -514,8 +524,31 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
             filters["categories_raw"] = ",".join(filters.get("product_categories") or [])
             filters["product_resale_only"] = bool(filters.get("product_resale_only", True))
 
-    ran = any(k in qp for k in ("keyword", "value_bands", "states", "product_categories", "run", "profile", "set_asides"))
-    result = {"count": 0, "items": [], "sources_succeeded": [], "limitations": [], "unfiltered_count": 0, "run_id": None}
+    ran = any(
+        k in qp
+        for k in (
+            "keyword",
+            "value_bands",
+            "states",
+            "product_categories",
+            "run",
+            "profile",
+            "set_asides",
+            "continue_run",
+        )
+    )
+    result = {
+        "count": 0,
+        "items": [],
+        "sources_succeeded": [],
+        "limitations": [],
+        "unfiltered_count": 0,
+        "run_id": None,
+        "progress": {},
+        "incomplete": False,
+        "all_matching_count": 0,
+        "estimated_cost_usd": 0,
+    }
     if ran:
         for key in ("custom_value_min", "custom_value_max", "days_remaining_max"):
             if filters[key] in ("", None):
@@ -525,7 +558,26 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
                     filters[key] = float(filters[key]) if key != "days_remaining_max" else int(filters[key])
                 except ValueError:
                     filters[key] = None
-        result = run_contract_discovery(db, user_id=user.id, filters=filters, limit=80)
+        continue_id = None
+        if qp.get("continue_run"):
+            try:
+                continue_id = uuid.UUID(qp.get("continue_run") or "")
+            except ValueError:
+                continue_id = None
+        try:
+            page_offset = int(qp.get("offset") or 0)
+        except ValueError:
+            page_offset = 0
+        page_size = get_settings().research_display_page_size
+        result = run_contract_discovery(
+            db,
+            user_id=user.id,
+            filters=filters,
+            limit=page_size,
+            offset=page_offset,
+            continue_run_id=continue_id,
+            enable_openai_sources=qp.get("discover_sources") == "1",
+        )
         if qp.get("save_profile"):
             name = f"Search {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
             db.add(SearchProfile(owner_id=user.id, name=name, kind="contracts", filters=filters))
@@ -594,10 +646,43 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
             return_to=return_to,
             value_options=value_options,
             set_aside_options=set_aside_options,
+            search_modes=[
+                ("broad", "Broad product search"),
+                ("exact_phrase", "Exact phrase"),
+                ("exact_mpn", "Exact part number"),
+            ],
             opp_tab="filter",
             flash=flash,
+            spend=spending_snapshot(db, user_id=user.id) if is_primary_owner(user) else None,
         ),
     )
+
+
+@app.get("/api/research/runs/{run_id}")
+def api_research_run(run_id: uuid.UUID, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
+    if not user:
+        return {"ok": False, "error": "login_required"}
+    run = db.get(ResearchRun, run_id)
+    if not run:
+        return {"ok": False, "error": "not_found"}
+    return {
+        "ok": True,
+        "run_id": str(run.id),
+        "status": run.status,
+        "result_count": run.result_count,
+        "progress": run.progress or {},
+        "estimated_cost_usd": run.estimated_cost_usd,
+        "sources_succeeded": run.sources_succeeded or [],
+        "limitations": (run.limitations or [])[:10],
+        "incomplete": (run.progress or {}).get("incomplete"),
+    }
+
+
+@app.post("/api/research/runs/{run_id}/cancel")
+def api_research_cancel(run_id: uuid.UUID, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
+    if not user:
+        return {"ok": False}
+    return {"ok": cancel_research_run(db, run_id)}
 
 
 @app.post("/opportunities/save")
@@ -655,6 +740,8 @@ def opportunity_discover_detail(
     for t in re.findall(r"\b[A-Z0-9][A-Z0-9\-]{3,}\b", str(item.get("title") or "").upper())[:8]:
         matches.extend(exact_mpn_matches(db, t))
     return_to = request.query_params.get("return_to") or "/opportunities/find"
+    hist = item.get("_historical_awards") or []
+    commercial = _commercial_from_item(item, matches)
     return TEMPLATES.TemplateResponse(
         "opportunity_detail.html",
         _ctx(
@@ -673,10 +760,91 @@ def opportunity_discover_detail(
             can_write=has_perm(user.role, user.extra_permissions, "opportunities.write"),
             assignable_users=[],
             catalog_matches=matches[:20],
+            historical_awards=hist,
+            commercial=commercial,
+            research_target=f"/opportunities/discover/{run_id}/{external_key}/research",
             return_to=return_to,
             opp_tab="filter",
         ),
     )
+
+
+def _commercial_from_item(item: dict, matches: list) -> dict:
+    qty = None
+    try:
+        raw_q = item.get("quantity")
+        if raw_q not in (None, ""):
+            qty = float(re.sub(r"[^\d.]", "", str(raw_q).split()[0]))
+    except Exception:
+        qty = None
+    cat = matches[0] if matches else None
+    if isinstance(cat, dict):
+        cat_price = cat.get("published_price")
+        cat_supplier = str(cat.get("supplier_id") or "")
+        cat_date = str(cat.get("price_effective_date") or "")
+    else:
+        cat_price = getattr(cat, "published_price", None) if cat else None
+        cat_supplier = str(getattr(cat, "supplier_id", "") or "") if cat else None
+        cat_date = str(getattr(cat, "price_effective_date", "") or "") if cat else None
+    hist = (item.get("_historical_awards") or [None])[0]
+    hist_price = None
+    hist_match = None
+    if isinstance(hist, dict):
+        try:
+            hist_price = float(re.sub(r"[^\d.]", "", str(hist.get("unit_price") or ""))) if hist.get("unit_price") else None
+        except Exception:
+            hist_price = None
+        hist_match = hist.get("match_type")
+    return build_commercial_evidence(
+        quantity=qty,
+        historical_unit_price=hist_price,
+        historical_match_type=hist_match,
+        catalog_unit_price=cat_price,
+        catalog_supplier=cat_supplier,
+        catalog_effective_date=cat_date,
+    )
+
+
+@app.post("/opportunities/discover/{run_id}/{external_key}/research")
+def opportunity_discover_research(
+    run_id: uuid.UUID,
+    external_key: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    run = db.get(ResearchRun, run_id)
+    item = None
+    idx = None
+    if run and isinstance(run.result_snapshot, list):
+        for i, it in enumerate(run.result_snapshot):
+            if isinstance(it, dict) and it.get("external_key") == external_key:
+                item = it
+                idx = i
+                break
+    if not item:
+        return RedirectResponse("/opportunities/find", status_code=303)
+    q = f"{item.get('title') or ''} {item.get('buyer_name') or ''} {item.get('solicitation_number') or ''}".strip()
+    hist = run_historical_award_research(
+        db,
+        user_id=user.id,
+        query=q,
+        product=item.get("title"),
+        buyer=item.get("buyer_name"),
+        part_number=item.get("part_number"),
+    )
+    item["_historical_awards"] = hist.get("awards") or []
+    item["_historical_research_cost"] = hist.get("estimated_cost_usd")
+    if idx is not None and run:
+        snap = list(run.result_snapshot or [])
+        snap[idx] = item
+        run.result_snapshot = snap
+        db.add(run)
+        db.commit()
+    return_to = request.query_params.get("return_to") or f"/opportunities/discover/{run_id}/{external_key}"
+    return RedirectResponse(return_to, status_code=303)
 
 
 @app.get("/opportunities/{opportunity_id}", response_class=HTMLResponse)
@@ -701,6 +869,7 @@ def opportunity_detail(
     assignable = []
     if has_perm(user.role, user.extra_permissions, "opportunities.write"):
         assignable = db.query(User).filter(User.is_active.is_(True)).order_by(User.full_name.asc()).all()
+    commercial = _commercial_from_item(item, matches)
     return TEMPLATES.TemplateResponse(
         "opportunity_detail.html",
         _ctx(
@@ -719,10 +888,46 @@ def opportunity_detail(
             can_write=has_perm(user.role, user.extra_permissions, "opportunities.write"),
             assignable_users=assignable,
             catalog_matches=matches[:20],
+            historical_awards=item.get("_historical_awards") or [],
+            commercial=commercial,
+            research_target=f"/opportunities/{opp.id}/research-awards",
             return_to=return_to,
             opp_tab="saved",
         ),
     )
+
+
+@app.post("/opportunities/{opportunity_id}/research-awards")
+def opportunity_research_awards(
+    opportunity_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    opp = db.get(Opportunity, opportunity_id)
+    if not opp:
+        return RedirectResponse("/opportunities", status_code=303)
+    hist = run_historical_award_research(
+        db,
+        user_id=user.id,
+        query=f"{opp.title} {opp.buyer_name or ''} {opp.solicitation_number or ''}",
+        product=opp.title,
+        buyer=opp.buyer_name,
+    )
+    # Store on opportunity notes meta via audit only — do not invent CRM fields
+    record_audit(
+        db,
+        action="research.historical_awards",
+        entity_type="opportunity",
+        entity_id=str(opp.id),
+        actor_user_id=user.id,
+        actor_label=user.email,
+        after={"count": len(hist.get("awards") or []), "estimated_cost_usd": hist.get("estimated_cost_usd")},
+        research_run_id=uuid.UUID(hist["run_id"]) if hist.get("run_id") else None,
+    )
+    db.commit()
+    return RedirectResponse(f"/opportunities/{opportunity_id}?awards_run={hist.get('run_id')}", status_code=303)
 
 
 @app.post("/opportunities/{opportunity_id}/status")
@@ -869,11 +1074,83 @@ def suppliers_find(request: Request, db: Session = Depends(get_db), user: User |
     if ran:
         cats = [c.strip() for c in categories_raw.split(",") if c.strip()]
         result = run_supplier_discovery(
-            db, user_id=user.id, filters={"product_categories": cats, "keyword": keyword}, limit=40
+            db,
+            user_id=user.id,
+            filters={"product_categories": cats, "keyword": keyword},
+            limit=None,
+            enable_openai=qp.get("ai") != "0",
         )
     return TEMPLATES.TemplateResponse(
         "suppliers_find.html",
-        _ctx(request, user, "suppliers", ran=ran, result=result, categories_raw=categories_raw, keyword=keyword),
+        _ctx(
+            request,
+            user,
+            "suppliers",
+            ran=ran,
+            result=result,
+            categories_raw=categories_raw,
+            keyword=keyword,
+            spend=spending_snapshot(db, user_id=user.id) if is_primary_owner(user) else None,
+        ),
+    )
+
+
+@app.get("/suppliers/{supplier_id}/find-contracts", response_class=HTMLResponse)
+def supplier_reverse_search(
+    supplier_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user:
+        return _login_redirect()
+    if not has_perm(user.role, user.extra_permissions, "opportunities.search"):
+        return RedirectResponse("/suppliers", status_code=303)
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier:
+        return RedirectResponse("/suppliers", status_code=303)
+    mode = request.query_params.get("mode") or "category"
+    cats = list(supplier.product_categories or [])
+    products = (
+        db.query(CatalogProduct)
+        .filter(CatalogProduct.supplier_id == supplier.id)
+        .limit(100)
+        .all()
+    )
+    keyword = ""
+    search_mode = "broad"
+    if mode == "exact_catalog" and products:
+        # Use first available MPN as exact search; UI can refine
+        mpns = [p.mpn for p in products if p.mpn]
+        keyword = mpns[0] if mpns else (products[0].description or "")[:80]
+        search_mode = "exact_mpn" if mpns else "broad"
+    elif mode == "category":
+        keyword = ", ".join(cats[:4]) if cats else (supplier.name or "")
+        search_mode = "broad"
+    else:
+        keyword = ", ".join(cats[:3] + [supplier.name or ""])
+        search_mode = "broad"
+    filters = {
+        "keyword": keyword,
+        "search_mode": search_mode,
+        "product_categories": cats,
+        "product_resale_only": True,
+        "include_unknown_value": True,
+    }
+    result = run_contract_discovery(db, user_id=user.id, filters=filters, limit=get_settings().research_display_page_size)
+    rows = [enrich_discovery_item(i, catalog_matches=_catalog_match_count(db, i)) for i in (result.get("items") or [])]
+    return TEMPLATES.TemplateResponse(
+        "supplier_find_contracts.html",
+        _ctx(
+            request,
+            user,
+            "suppliers",
+            supplier=supplier,
+            mode=mode,
+            result=result,
+            rows=rows,
+            run_id=result.get("run_id"),
+        ),
     )
 
 
@@ -1729,6 +2006,92 @@ def settings_user_remove(
     db.delete(target)
     db.commit()
     return RedirectResponse("/settings?removed=1", status_code=303)
+
+
+@app.get("/settings/research", response_class=HTMLResponse)
+def settings_research(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+    ensure_budget_policy(db)
+    snap = spending_snapshot(db, user_id=user.id)
+    jobs = (
+        db.query(ResearchRun)
+        .order_by(ResearchRun.started_at.desc())
+        .limit(40)
+        .all()
+    )
+    spends = (
+        db.query(ResearchSpendEvent)
+        .order_by(ResearchSpendEvent.created_at.desc())
+        .limit(40)
+        .all()
+    )
+    flash = None
+    if request.query_params.get("saved") == "1":
+        flash = {"message": "Research budget policy updated.", "kind": "ok"}
+    return TEMPLATES.TemplateResponse(
+        "settings_research.html",
+        _ctx(
+            request,
+            user,
+            "settings",
+            settings_tab="research",
+            spend=snap,
+            jobs=jobs,
+            spends=spends,
+            flash=flash,
+            can_manage_users=True,
+        ),
+    )
+
+
+@app.post("/settings/research")
+def settings_research_update(
+    paid_research_enabled: str = Form("0"),
+    daily_budget_usd: str = Form("1"),
+    monthly_budget_usd: str = Form("30"),
+    per_job_budget_usd: str = Form("0.5"),
+    per_user_daily_budget_usd: str = Form("1"),
+    max_research_depth: str = Form("2"),
+    default_model: str = Form("gpt-4o-mini"),
+    capable_model: str = Form("gpt-5-mini"),
+    search_context_size: str = Form("low"),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    if not user or not is_primary_owner(user):
+        return RedirectResponse("/settings", status_code=303)
+
+    def _f(v: str, default: float) -> float:
+        try:
+            return float(v)
+        except Exception:
+            return default
+
+    update_owner_policy(
+        db,
+        actor_id=user.id,
+        paid_research_enabled=paid_research_enabled == "1",
+        daily_budget_usd=max(0.0, _f(daily_budget_usd, 1.0)),
+        monthly_budget_usd=max(0.0, _f(monthly_budget_usd, 30.0)),
+        per_job_budget_usd=max(0.0, _f(per_job_budget_usd, 0.5)),
+        per_user_daily_budget_usd=max(0.0, _f(per_user_daily_budget_usd, 1.0)),
+        max_research_depth=max(1, int(_f(max_research_depth, 2))),
+        default_model=(default_model or "gpt-4o-mini").strip(),
+        capable_model=(capable_model or "gpt-5-mini").strip(),
+        search_context_size=(search_context_size or "low").strip() if search_context_size in {"low", "medium", "high"} else "low",
+    )
+    record_audit(
+        db,
+        action="research.budget_update",
+        entity_type="research_budget_policy",
+        entity_id="policy",
+        actor_user_id=user.id,
+        actor_label=user.email,
+        after=spending_snapshot(db, user_id=user.id),
+    )
+    db.commit()
+    return RedirectResponse("/settings/research?saved=1", status_code=303)
 
 
 @app.get("/settings/cleanup", response_class=HTMLResponse)

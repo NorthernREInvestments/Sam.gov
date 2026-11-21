@@ -20,7 +20,8 @@
 
 {% if can_manage_users %}
 <nav class="subnav" aria-label="Team settings">
-  <a href="/settings" class="{% if settings_tab!='cleanup' %}active{% endif %}">Team</a>
+  <a href="/settings" class="{% if settings_tab not in ['cleanup','research'] %}active{% endif %}">Team</a>
+  <a href="/settings/research" class="{% if settings_tab=='research' %}active{% endif %}">Research spend</a>
   <a href="/settings/cleanup" class="{% if settings_tab=='cleanup' %}active{% endif %}">Data cleanup</a>
   <a href="/settings/audit">Audit</a>
 </nav>

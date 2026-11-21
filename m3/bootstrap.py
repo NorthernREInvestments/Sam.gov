@@ -30,6 +30,10 @@ def _ensure_columns(engine) -> None:
         "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS general_phone VARCHAR(64)",
         "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS general_email VARCHAR(255)",
         "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS data_origin VARCHAR(64) DEFAULT 'operator'",
+        "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS progress JSONB DEFAULT '{}'::jsonb",
+        "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS estimated_cost_usd DOUBLE PRECISION DEFAULT 0",
+        "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS cancel_requested BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS parent_run_id UUID",
     ]
     with engine.begin() as conn:
         for s in stmts:

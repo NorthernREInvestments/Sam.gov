@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "M3 Supply"
-    build_id: str = "20261121-m3-2-build-001c"
+    build_id: str = "20261121-m3-2-build-002"
     secret_key: str = ""
     database_url: str = "postgresql://localhost/m3"
     m3_data_root: str = ""
@@ -26,12 +26,27 @@ class Settings(BaseSettings):
     # Legacy APP_EMAIL/APP_PASSWORD accepted as fallback for owner bootstrap
     app_email: str = ""
     app_password: str = ""
-    # Feature kills
+    # Feature kills — SAM/BidNet/Euna stay parked; OpenAI authorized when enabled
     sam_live_enabled: bool = False
     bidnet_enabled: bool = False
     euna_enabled: bool = False
     paid_research_enabled: bool = False
     openai_enabled: bool = False
+    openai_api_key: str = ""
+    openai_default_model: str = "gpt-4o-mini"
+    openai_capable_model: str = "gpt-5-mini"
+    openai_search_context_size: str = "low"
+    # Research budget ceilings (owner-overridable in DB policy; not spending targets)
+    research_daily_budget_usd: float = 1.0
+    research_monthly_budget_usd: float = 30.0
+    research_per_job_budget_usd: float = 0.50
+    research_per_user_daily_budget_usd: float = 1.0
+    research_max_depth: int = 2
+    # Discovery — no artificial commercial ceiling; page size is display/slice only
+    research_display_page_size: int = 100
+    research_socrata_page_size: int = 500
+    # 8 × 500 = up to 4,000 rows/source per job slice; raise via env for deeper sweeps
+    research_max_pages_per_source: int = 8
     # HTTP research
     research_timeout_seconds: float = 25.0
     research_max_retries: int = 2
