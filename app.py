@@ -68,6 +68,19 @@ def _b64json(value: object) -> str:
 TEMPLATES.env.filters["b64json"] = _b64json
 TEMPLATES.env.filters["urlencode"] = lambda v: quote(str(v or ""), safe="")
 
+
+def _opp_heading(o: Opportunity) -> str:
+    if getattr(o, "display_title", None):
+        return str(o.display_title)
+    return build_display_title(
+        official_title=o.title,
+        buyer_name=o.buyer_name,
+        solicitation_number=o.solicitation_number,
+    )["display_title"]
+
+
+TEMPLATES.env.filters["opp_heading"] = _opp_heading
+
 app = FastAPI(title="M3 Supply", version="2.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "m3" / "web" / "static")), name="static")
 

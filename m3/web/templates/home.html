@@ -42,7 +42,7 @@
   {% for o in recent_opps %}
   <div class="dash-row">
     <div>
-      <a href="/opportunities/{{ o.id }}">{{ o.display_title or o.title }}</a>
+      <a href="/opportunities/{{ o.id }}">{{ o|opp_heading }}</a>
       <div class="meta">{{ o.buyer_name or 'Unknown' }} · {{ o.geo_state or 'Unknown' }}</div>
     </div>
     <a class="btn secondary small" href="/opportunities/{{ o.id }}">Open</a>
@@ -61,7 +61,7 @@
   {% for o in deadlines %}
   <div class="dash-row">
     <div>
-      <a href="/opportunities/{{ o.id }}">{{ o.display_title or o.title }}</a>
+      <a href="/opportunities/{{ o.id }}">{{ o|opp_heading }}</a>
       <div class="meta">{{ o.buyer_name or 'Unknown buyer' }} · Due {{ o.deadline_at or 'Unknown' }}</div>
     </div>
     <a class="btn secondary small" href="/opportunities/{{ o.id }}">Open</a>

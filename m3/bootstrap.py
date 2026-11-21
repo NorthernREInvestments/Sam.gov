@@ -34,6 +34,32 @@ def _ensure_columns(engine) -> None:
                 pass
 
 
+def _backfill_opportunity_titles(db) -> None:
+    """One-time soft backfill for display titles + service classification (no deletes)."""
+    from m3.models import Opportunity
+    from m3.research.classify import classify_requirement
+    from m3.web.titles import build_display_title
+
+    rows = db.query(Opportunity).filter(
+        (Opportunity.display_title.is_(None)) | (Opportunity.display_title == "")
+    ).limit(500).all()
+    changed = 0
+    for o in rows:
+        titles = build_display_title(
+            official_title=o.title,
+            buyer_name=o.buyer_name,
+            solicitation_number=o.solicitation_number,
+        )
+        o.display_title = titles["display_title"]
+        if not o.requirement_class or o.requirement_class == "unknown_mixed":
+            clf = classify_requirement(o.title or "", category_raw=o.product_category, procurement_type=o.procurement_type)
+            o.requirement_class = clf["requirement_class"]
+        db.add(o)
+        changed += 1
+    if changed:
+        db.commit()
+
+
 def init_database() -> None:
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
@@ -58,5 +84,9 @@ def init_database() -> None:
                     existing.role = "owner"
                     db.add(existing)
                     db.commit()
+        try:
+            _backfill_opportunity_titles(db)
+        except Exception:
+            pass
     finally:
         db.close()
