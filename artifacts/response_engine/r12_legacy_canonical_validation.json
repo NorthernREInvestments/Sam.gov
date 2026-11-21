@@ -1,7 +1,0 @@
-{
-  "build": "20260929-m3-r12-production-corpus-ocr-amendment-hardening",
-  "canonical_source": "response_engine_r1",
-  "ready_to_submit": false,
-  "ladder": "BLOCKED",
-  "legacy_cannot_override": true
-}
