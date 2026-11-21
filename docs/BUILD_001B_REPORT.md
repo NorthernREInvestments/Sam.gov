@@ -20,7 +20,7 @@
 | 9 | Owner user management + session invalidation | **VERIFIED** |
 | 10 | Opportunity save/unsave/archive/assign + active counts | **VERIFIED** |
 | 11 | Design/mobile consistency | **VERIFIED** (tabs + forms preserved) |
-| 12 | Deploy + evidence | **PENDING deploy confirmation** |
+| 12 | Deploy + evidence | **VERIFIED** (`/healthz` → `20261121-m3-2-build-001b`) |
 
 ## Notes
 
