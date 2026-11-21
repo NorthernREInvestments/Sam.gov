@@ -61,17 +61,41 @@ def validate_public_https_url(url: str) -> str:
     return url
 
 
+import threading
+
+_thread_client: threading.local = threading.local()
+
+
+def _shared_client(timeout: float) -> httpx.Client:
+    """Reuse HTTP connections per thread (Build 002F)."""
+    client = getattr(_thread_client, "client", None)
+    t = getattr(_thread_client, "timeout", None)
+    if client is None or t != timeout or client.is_closed:
+        if client is not None and not client.is_closed:
+            try:
+                client.close()
+            except Exception:
+                pass
+        client = httpx.Client(
+            timeout=timeout,
+            follow_redirects=True,
+            headers=DEFAULT_HEADERS,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
+        _thread_client.client = client
+        _thread_client.timeout = timeout
+    return client
+
+
 def fetch_text(url: str, *, timeout: float | None = None) -> tuple[int, str, str]:
     """Returns status, final_url, text."""
+    from m3.research.perf import timed
+
     settings = get_settings()
     safe = validate_public_https_url(url)
     t = timeout or settings.research_timeout_seconds
-    with httpx.Client(
-        timeout=t,
-        follow_redirects=True,
-        headers=DEFAULT_HEADERS,
-    ) as client:
-        # Re-validate redirect targets
+    with timed("http_fetch_text"):
+        client = _shared_client(t)
         resp = client.get(safe)
         validate_public_https_url(str(resp.url))
         return resp.status_code, str(resp.url), resp.text
@@ -91,14 +115,13 @@ def fetch_bytes(
     url: str, *, timeout: float | None = None, max_bytes: int = 25_000_000
 ) -> tuple[int, str, bytes, str]:
     """Returns status, final_url, body bytes, content_type. Bounded size."""
+    from m3.research.perf import timed
+
     settings = get_settings()
     safe = validate_public_https_url(url)
     t = timeout or settings.research_timeout_seconds
-    with httpx.Client(
-        timeout=t,
-        follow_redirects=True,
-        headers=DEFAULT_HEADERS,
-    ) as client:
+    with timed("http_fetch_bytes"):
+        client = _shared_client(t)
         with client.stream("GET", safe) as resp:
             validate_public_https_url(str(resp.url))
             ctype = resp.headers.get("content-type", "") or ""

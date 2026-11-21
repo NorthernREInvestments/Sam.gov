@@ -523,17 +523,96 @@ def acquire_solicitation_package(
     uploaded_files: list[dict[str, Any]] | None = None,
     refresh: bool = False,
     max_documents: int = 200,
+    mode: str = "full",
 ) -> SolicitationPackage:
     """Acquire/update one solicitation package. Shared entry point for all workflows.
+
+    mode:
+      - full: complete package acquisition
+      - targeted: detail + at most one document for classification (002F)
+      - skip_mark: record disposition without network work
 
     max_documents is an operational safeguard; overflow is recorded as PARTIAL with
     remaining URLs listed in detail_fields — not permanently abandoned.
     """
+    from m3.research.perf import timed
+
+    if mode == "targeted":
+        max_documents = min(max_documents, 1)
+
+    with timed("acquire_package_total"):
+        return _acquire_solicitation_package_inner(
+            db,
+            item,
+            opportunity_id=opportunity_id,
+            research_run_id=research_run_id,
+            manual_urls=manual_urls,
+            uploaded_files=uploaded_files,
+            refresh=refresh,
+            max_documents=max_documents,
+            mode=mode,
+        )
+
+
+def _acquire_solicitation_package_inner(
+    db: Session,
+    item: dict[str, Any],
+    *,
+    opportunity_id=None,
+    research_run_id=None,
+    manual_urls: list[str] | None = None,
+    uploaded_files: list[dict[str, Any]] | None = None,
+    refresh: bool = False,
+    max_documents: int = 200,
+    mode: str = "full",
+) -> SolicitationPackage:
+    from m3.research.perf import timed
+
     ikey = _identity_key(item)
     pkg = db.query(SolicitationPackage).filter_by(identity_key=ikey).one_or_none()
     if not pkg:
         pkg = SolicitationPackage(identity_key=ikey)
         db.add(pkg)
+    # Incremental reuse: skip network if already complete/partial and not refresh
+    if (
+        not refresh
+        and mode == "full"
+        and pkg.package_status in {"COMPLETE", "PARTIAL", "ACCESS_RESTRICTED"}
+        and pkg.last_verified_at
+        and (pkg.downloaded_count or 0) >= 0
+    ):
+        # Still allow targeted refresh of classification via hint, but avoid re-download
+        if pkg.downloaded_count or pkg.package_status == "COMPLETE":
+            pkg.detail_fields = {
+                **(pkg.detail_fields or {}),
+                "incremental_reuse": True,
+                "reuse_mode": mode,
+            }
+            db.add(pkg)
+            db.commit()
+            db.refresh(pkg)
+            return pkg
+
+    if mode == "skip_mark":
+        pkg.title = str(item.get("title") or pkg.title or "")[:2000]
+        pkg.buyer = str(item.get("buyer_name") or item.get("buyer") or pkg.buyer or "")[:255]
+        pkg.source_key = str(item.get("source_key") or pkg.source_key or "")[:128]
+        pkg.external_key = item.get("external_key") or pkg.external_key
+        pkg.package_status = "NOT_ACQUIRED"
+        pkg.access_issues = list(pkg.access_issues or []) + [
+            f"skipped_full_acquisition:{(item.get('_skip_reason') or 'qualified_out')}"
+        ]
+        pkg.detail_fields = {
+            **(pkg.detail_fields or {}),
+            "acquisition_disposition": item.get("_qualification") or {},
+            "skipped_full_package": True,
+        }
+        pkg.last_verified_at = _now()
+        db.add(pkg)
+        db.commit()
+        db.refresh(pkg)
+        return pkg
+
     pkg.package_status = "ACQUISITION_IN_PROGRESS"
     pkg.title = str(item.get("title") or pkg.title or "")[:2000]
     pkg.buyer = str(item.get("buyer_name") or item.get("buyer") or pkg.buyer or "")[:255]
@@ -549,7 +628,8 @@ def acquire_solicitation_package(
     pkg.error = None
     db.flush()
 
-    resolution = resolve_authoritative_url(item)
+    with timed("url_resolution"):
+        resolution = resolve_authoritative_url(item)
     pkg.authoritative_url = resolution.get("authoritative_url")
     pkg.url_kind = resolution.get("url_kind") or "unknown"
     pkg.platform = resolution.get("platform") or detect_platform(pkg.authoritative_url or "", pkg.source_key)
@@ -558,7 +638,7 @@ def acquire_solicitation_package(
         access_issues.append(str(resolution["reason"]))
 
     identified_docs: list[dict[str, Any]] = []
-    detail_fields: dict[str, Any] = {}
+    detail_fields: dict[str, Any] = {"acquisition_mode": mode}
     detail_ok = False
     inventory_verified = False
     has_substantial = False

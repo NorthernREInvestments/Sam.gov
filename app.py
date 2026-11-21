@@ -1223,7 +1223,7 @@ def api_package_job_resume(
     if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
         return {"ok": False, "error": "forbidden"}
     from m3.models import PackageAcquisitionJob
-    from m3.research.population_acquire import start_background_worker
+    from m3.research.population_acquire import start_background_worker, unpause_job
 
     job = db.get(PackageAcquisitionJob, job_id)
     if not job:
@@ -1232,8 +1232,25 @@ def api_package_job_resume(
         return {"ok": True, "status": "completed", "started": False}
     if job.status in {"cancelled"}:
         return {"ok": False, "error": "cancelled"}
-    started = start_background_worker(job.id)
-    return {"ok": True, "status": job.status, "started": started}
+    if job.status == "paused":
+        unpause_job(db, job_id)
+        job = db.get(PackageAcquisitionJob, job_id)
+    started = start_background_worker(job.id, workers=2)
+    return {"ok": True, "status": job.status if job else None, "started": started}
+
+
+@app.post("/api/m3/package-jobs/{job_id}/replan")
+def api_package_job_replan(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user),
+):
+    """Apply progressive qualification to pending items (Build 002F)."""
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.research.population_acquire import replan_pending_progressive
+
+    return replan_pending_progressive(db, job_id)
 
 
 @app.post("/api/m3/package-jobs/{job_id}/batch")

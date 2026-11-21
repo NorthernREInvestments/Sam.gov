@@ -264,13 +264,89 @@ def create_population_job(
     return job
 
 
+def replan_pending_progressive(
+    db: Session,
+    job_id: UUID,
+    *,
+    criteria: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Mark pending confirmed non-product / inactive as skipped; keep uncertain + products.
+
+    Preserves completed work. Does not delete ambiguous opportunities.
+    """
+    from m3.research.qualification import default_auto_criteria, qualify_for_acquisition
+
+    criteria = criteria or default_auto_criteria()
+    job = db.get(PackageAcquisitionJob, job_id)
+    if not job:
+        return {"ok": False, "reason": "job_not_found"}
+    saved_keys = {r[0] for r in db.query(Opportunity.external_key).all() if r[0]}
+    pending = (
+        db.query(PackageJobItem)
+        .filter(PackageJobItem.job_id == job_id, PackageJobItem.status == "pending")
+        .all()
+    )
+    counts = {
+        "examined": 0,
+        "skipped_non_product": 0,
+        "skipped_inactive": 0,
+        "kept_eligible": 0,
+        "kept_targeted": 0,
+        "kept_saved": 0,
+    }
+    for row in pending:
+        counts["examined"] += 1
+        it = dict(row.payload or {})
+        ek = str(it.get("external_key") or row.external_key or "")
+        q = qualify_for_acquisition(it, criteria=criteria, saved=ek in saved_keys)
+        if q["disposition"] in {"SKIP_CONFIRMED_NON_PRODUCT", "SKIP_INACTIVE_STATUS"}:
+            row.status = "skipped"
+            row.package_status = "NOT_ACQUIRED"
+            row.error = q["reason"][:200]
+            row.processed_at = _now()
+            payload = dict(row.payload or {})
+            payload["_qualification"] = q
+            payload["_skip_reason"] = q["reason"]
+            row.payload = payload
+            db.add(row)
+            if q["disposition"] == "SKIP_CONFIRMED_NON_PRODUCT":
+                counts["skipped_non_product"] += 1
+            else:
+                counts["skipped_inactive"] += 1
+        elif q["disposition"] == "SAVED_PRIORITY":
+            counts["kept_saved"] += 1
+        elif q["acquire_full_package"]:
+            counts["kept_eligible"] += 1
+        else:
+            counts["kept_targeted"] += 1
+    prog = dict(job.progress or {})
+    prog["replan_002f"] = counts
+    prog["unnecessary_downloads_avoided_pending"] = (
+        counts["skipped_non_product"] + counts["skipped_inactive"]
+    )
+    job.progress = prog
+    job.status = "paused"
+    ck = dict(job.checkpoint or {})
+    ck["progressive_qualification"] = True
+    ck["replan_at"] = _now().isoformat()
+    job.checkpoint = ck
+    job.queued = (
+        db.query(PackageJobItem)
+        .filter(PackageJobItem.job_id == job_id, PackageJobItem.status == "pending")
+        .count()
+    )
+    db.add(job)
+    db.commit()
+    return {"ok": True, "job_id": str(job_id), **counts, "pending_remaining": job.queued}
+
+
 def process_job_batch(db: Session, job_id: UUID, *, batch_size: int | None = None) -> dict[str, Any]:
     """Process next N pending queue items. Safe to call repeatedly; resumable after restart."""
     job = db.get(PackageAcquisitionJob, job_id)
     if not job:
         return {"ok": False, "reason": "job_not_found"}
-    if job.status in {"cancelled", "completed"}:
-        return {"ok": True, "status": job.status, "done": True}
+    if job.status in {"cancelled", "completed", "paused"}:
+        return {"ok": True, "status": job.status, "done": job.status == "completed"}
 
     if job.status == "queued":
         job.status = "running"
@@ -308,75 +384,131 @@ def process_job_batch(db: Session, job_id: UUID, *, batch_size: int | None = Non
 
     errors_sample = list(ck.get("errors_sample") or [])
 
+    from m3.research.classify import PRODUCT_CLASSES
+    from m3.research.perf import timed
+    from m3.research.qualification import default_auto_criteria, qualify_for_acquisition
+
+    criteria = (ck.get("qualification_criteria") or default_auto_criteria())
+    progressive = bool(ck.get("progressive_qualification"))
+    prog.setdefault("skipped_full_package", 0)
+    prog.setdefault("targeted_investigations", 0)
+    prog.setdefault("full_packages_attempted", 0)
+    prog.setdefault("unnecessary_downloads_avoided", int(prog.get("unnecessary_downloads_avoided") or 0))
+
     for row in rows:
         it = dict(row.payload or {})
         before = (it.get("requirement_class") or "").lower()
         ek = str(it.get("external_key") or row.external_key or "")
         try:
-            saved = db.query(Opportunity).filter_by(external_key=ek).one_or_none() if ek else None
+            with timed("db_lookup_saved"):
+                saved = db.query(Opportunity).filter_by(external_key=ek).one_or_none() if ek else None
+            q = qualify_for_acquisition(
+                it,
+                criteria=criteria,
+                saved=bool(saved),
+                manual_override=bool(it.get("manual_override")),
+            )
+            it["_qualification"] = q
+            mode = "full"
+            if progressive or ck.get("progressive_qualification"):
+                if not q["acquire_full_package"] and not q.get("targeted_only"):
+                    it["_skip_reason"] = q["reason"]
+                    mode = "skip_mark"
+                    prog["skipped_full_package"] = int(prog.get("skipped_full_package") or 0) + 1
+                    prog["unnecessary_downloads_avoided"] = (
+                        int(prog.get("unnecessary_downloads_avoided") or 0) + 1
+                    )
+                elif q.get("targeted_only"):
+                    mode = "targeted"
+                    prog["targeted_investigations"] = int(prog.get("targeted_investigations") or 0) + 1
+                else:
+                    prog["full_packages_attempted"] = int(prog.get("full_packages_attempted") or 0) + 1
+            else:
+                prog["full_packages_attempted"] = int(prog.get("full_packages_attempted") or 0) + 1
+
             pkg = acquire_solicitation_package(
                 db,
                 it,
                 opportunity_id=saved.id if saved else None,
                 research_run_id=run_uuid,
-                max_documents=200,
+                max_documents=200 if mode == "full" else 1,
+                mode=mode,
             )
             enrich = package_to_item_enrichment(pkg)
             after = (enrich.get("requirement_class") or before).lower()
-            from m3.research.classify import PRODUCT_CLASSES
 
-            if before in {"unknown_mixed", "unknown", "pending_classification", ""} and after not in {
+            # Escalate targeted → full when classification recovers to product
+            if mode == "targeted" and after in PRODUCT_CLASSES:
+                prog["newly_product"] = int(prog.get("newly_product") or 0) + 1
+                prog["newly_resolved"] = int(prog.get("newly_resolved") or 0) + 1
+                pkg = acquire_solicitation_package(
+                    db,
+                    {**it, **enrich},
+                    opportunity_id=saved.id if saved else None,
+                    research_run_id=run_uuid,
+                    max_documents=200,
+                    mode="full",
+                    refresh=True,
+                )
+                enrich = package_to_item_enrichment(pkg)
+                after = (enrich.get("requirement_class") or after).lower()
+                prog["full_packages_attempted"] = int(prog.get("full_packages_attempted") or 0) + 1
+            elif before in {"unknown_mixed", "unknown", "pending_classification", ""} and after not in {
                 "unknown_mixed",
                 "unknown",
                 "pending_classification",
                 "",
             }:
                 prog["newly_resolved"] = int(prog.get("newly_resolved") or 0) + 1
-            if after in PRODUCT_CLASSES and before not in PRODUCT_CLASSES:
-                prog["newly_product"] = int(prog.get("newly_product") or 0) + 1
+                if after in PRODUCT_CLASSES and before not in PRODUCT_CLASSES:
+                    prog["newly_product"] = int(prog.get("newly_product") or 0) + 1
 
-            st = pkg.package_status
-            row.package_status = st
-            row.status = "done"
+            st = pkg.package_status if mode != "skip_mark" else "SKIPPED_FULL"
+            row.package_status = st if mode != "skip_mark" else "NOT_ACQUIRED"
+            row.status = "done" if mode != "skip_mark" else "skipped"
             row.processed_at = _now()
             by_st = dict(prog.get("by_status") or {})
             by_st[st] = int(by_st.get(st) or 0) + 1
             prog["by_status"] = by_st
-            if st == "COMPLETE":
-                job.completed = int(job.completed or 0) + 1
-            elif st == "PARTIAL":
-                job.partial = int(job.partial or 0) + 1
-            elif st == "ACCESS_RESTRICTED":
-                job.restricted = int(job.restricted or 0) + 1
-            elif st == "FAILED":
-                job.failed = int(job.failed or 0) + 1
-            elif st == "VERIFICATION_REQUIRED":
-                prog["verification_required"] = int(prog.get("verification_required") or 0) + 1
-            elif st == "UPDATE_AVAILABLE":
-                prog["update_available"] = int(prog.get("update_available") or 0) + 1
+            by_disp = dict(prog.get("by_disposition") or {})
+            by_disp[q["disposition"]] = int(by_disp.get(q["disposition"]) or 0) + 1
+            prog["by_disposition"] = by_disp
+            if mode != "skip_mark":
+                if pkg.package_status == "COMPLETE":
+                    job.completed = int(job.completed or 0) + 1
+                elif pkg.package_status == "PARTIAL":
+                    job.partial = int(job.partial or 0) + 1
+                elif pkg.package_status == "ACCESS_RESTRICTED":
+                    job.restricted = int(job.restricted or 0) + 1
+                elif pkg.package_status == "FAILED":
+                    job.failed = int(job.failed or 0) + 1
+                elif pkg.package_status == "VERIFICATION_REQUIRED":
+                    prog["verification_required"] = int(prog.get("verification_required") or 0) + 1
+                elif pkg.package_status == "UPDATE_AVAILABLE":
+                    prog["update_available"] = int(prog.get("update_available") or 0) + 1
 
-            prog["identified_docs"] = int(prog.get("identified_docs") or 0) + int(pkg.identified_count or 0)
-            prog["downloaded_docs"] = int(prog.get("downloaded_docs") or 0) + int(pkg.downloaded_count or 0)
-            prog["extracted_docs"] = int(prog.get("extracted_docs") or 0) + int(pkg.extracted_count or 0)
-            prog["missing_docs"] = int(prog.get("missing_docs") or 0) + int(pkg.missing_count or 0)
-            if (pkg.detail_fields or {}).get("attachment_inventory_examined"):
-                prog["inventory_verified"] = int(prog.get("inventory_verified") or 0) + 1
-            if pkg.url_kind in {"detail", "document"} and pkg.authoritative_url:
-                prog["detail_resolved"] = int(prog.get("detail_resolved") or 0) + 1
+                prog["identified_docs"] = int(prog.get("identified_docs") or 0) + int(pkg.identified_count or 0)
+                prog["downloaded_docs"] = int(prog.get("downloaded_docs") or 0) + int(pkg.downloaded_count or 0)
+                prog["extracted_docs"] = int(prog.get("extracted_docs") or 0) + int(pkg.extracted_count or 0)
+                prog["missing_docs"] = int(prog.get("missing_docs") or 0) + int(pkg.missing_count or 0)
+                if (pkg.detail_fields or {}).get("attachment_inventory_examined"):
+                    prog["inventory_verified"] = int(prog.get("inventory_verified") or 0) + 1
+                if pkg.url_kind in {"detail", "document"} and pkg.authoritative_url:
+                    prog["detail_resolved"] = int(prog.get("detail_resolved") or 0) + 1
 
-            sk = pkg.source_key or "unknown"
-            pl = pkg.platform or "unknown"
-            for bucket, key in (("by_source", sk), ("by_platform", pl)):
-                b = dict(prog.get(bucket) or {})
-                entry = dict(b.get(key) or {"n": 0, "downloaded": 0, "complete": 0, "failed": 0})
-                entry["n"] += 1
-                entry["downloaded"] += int(pkg.downloaded_count or 0)
-                if st == "COMPLETE":
-                    entry["complete"] += 1
-                if st == "FAILED":
-                    entry["failed"] += 1
-                b[key] = entry
-                prog[bucket] = b
+                sk = pkg.source_key or "unknown"
+                pl = pkg.platform or "unknown"
+                for bucket, key in (("by_source", sk), ("by_platform", pl)):
+                    b = dict(prog.get(bucket) or {})
+                    entry = dict(b.get(key) or {"n": 0, "downloaded": 0, "complete": 0, "failed": 0})
+                    entry["n"] += 1
+                    entry["downloaded"] += int(pkg.downloaded_count or 0)
+                    if pkg.package_status == "COMPLETE":
+                        entry["complete"] += 1
+                    if pkg.package_status == "FAILED":
+                        entry["failed"] += 1
+                    b[key] = entry
+                    prog[bucket] = b
             db.add(row)
             db.commit()
         except Exception as exc:
@@ -408,7 +540,10 @@ def process_job_batch(db: Session, job_id: UUID, *, batch_size: int | None = Non
 
     done_count = (
         db.query(PackageJobItem)
-        .filter(PackageJobItem.job_id == job_id, PackageJobItem.status.in_(["done", "error"]))
+        .filter(
+            PackageJobItem.job_id == job_id,
+            PackageJobItem.status.in_(["done", "error", "skipped"]),
+        )
         .count()
     )
     pending = (
@@ -453,7 +588,7 @@ def run_job_until_idle(
     *,
     batch_size: int = 40,
     max_batches: int | None = None,
-    pause_seconds: float = 0.2,
+    pause_seconds: float = 0.05,
 ) -> dict[str, Any]:
     """Drain a job using short DB sessions per batch (survives as successive calls)."""
     batches = 0
@@ -464,11 +599,15 @@ def run_job_until_idle(
             break
         db = db_factory()
         try:
+            job = db.get(PackageAcquisitionJob, job_id)
+            if job and job.status == "paused":
+                last = {"ok": True, "status": "paused", "done": False, "stopped_reason": "paused"}
+                break
             last = process_job_batch(db, job_id, batch_size=batch_size)
         finally:
             db.close()
         batches += 1
-        if last.get("done") or not last.get("ok"):
+        if last.get("done") or not last.get("ok") or last.get("status") == "paused":
             break
         if pause_seconds:
             time.sleep(pause_seconds)
@@ -476,8 +615,27 @@ def run_job_until_idle(
     return last
 
 
-def start_background_worker(job_id: UUID, *, batch_size: int = 40) -> bool:
-    """Start a daemon thread that processes batches until complete or interrupted."""
+def unpause_job(db: Session, job_id: UUID) -> PackageAcquisitionJob | None:
+    job = db.get(PackageAcquisitionJob, job_id)
+    if not job:
+        return None
+    if job.status == "paused":
+        job.status = "queued"
+        ck = dict(job.checkpoint or {})
+        ck["unpaused_at"] = _now().isoformat()
+        job.checkpoint = ck
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    return job
+
+
+def start_background_worker(job_id: UUID, *, batch_size: int = 40, workers: int = 1) -> bool:
+    """Start daemon thread(s) that process batches until complete or interrupted.
+
+    workers>1 runs controlled parallel batch drainers (each takes next pending rows).
+    Per-source politeness is enforced inside HTTP client timeouts; keep workers modest.
+    """
     key = str(job_id)
     with _worker_lock:
         t = _active_workers.get(key)
@@ -488,6 +646,8 @@ def start_background_worker(job_id: UUID, *, batch_size: int = 40) -> bool:
             from m3.db import SessionLocal
 
             try:
+                # Parallelism via multiple sequential batch loops is safer with DB;
+                # single loop with larger batches + connection reuse is default.
                 run_job_until_idle(SessionLocal, job_id, batch_size=batch_size, max_batches=None)
             finally:
                 with _worker_lock:
@@ -496,11 +656,19 @@ def start_background_worker(job_id: UUID, *, batch_size: int = 40) -> bool:
         th = threading.Thread(target=_loop, name=f"pkg-acq-{key[:8]}", daemon=True)
         _active_workers[key] = th
         th.start()
+        # Optional companion workers for independent source throughput
+        for i in range(1, max(1, min(workers, 4))):
+            def _loop_i(n=i):
+                from m3.db import SessionLocal
+
+                run_job_until_idle(SessionLocal, job_id, batch_size=max(5, batch_size // 2), max_batches=None)
+
+            threading.Thread(target=_loop_i, name=f"pkg-acq-{key[:8]}-w{i}", daemon=True).start()
         return True
 
 
 def resume_incomplete_jobs(db: Session) -> list[str]:
-    """On startup: mark interrupted runners and kick workers."""
+    """On startup: mark interrupted runners and kick workers. Never auto-resume paused."""
     resumed: list[str] = []
     rows = (
         db.query(PackageAcquisitionJob)
