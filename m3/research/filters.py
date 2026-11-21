@@ -172,39 +172,75 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
             if cat not in categories and "unknown" not in categories:
                 continue
 
-        blob = " ".join(
-            str(item.get(k) or "")
-            for k in (
-                "title",
-                "buyer_name",
-                "solicitation_number",
-                "product_category",
-                "quantity",
-                "document_text",
-                "line_items_text",
-                "manufacturer",
-                "part_number",
-            )
-        ).lower()
+        title_l = str(item.get("title") or "").lower()
+        desc_l = str(item.get("description") or "").lower()
+        cat_l = str(item.get("product_category") or "").lower()
+        line_l = str(item.get("line_items_text") or "").lower()
+        mfr_l = str(item.get("manufacturer") or "").lower()
+        mpn_l = str(item.get("part_number") or "").lower()
+        doc_l = str(item.get("document_text") or "").lower()
         # document_text only counts when actually retrieved
         doc_searched = bool(item.get("document_text"))
         item["_document_searchable"] = doc_searched
+        blob = " ".join(
+            [
+                title_l,
+                desc_l,
+                str(item.get("buyer_name") or "").lower(),
+                str(item.get("solicitation_number") or "").lower(),
+                cat_l,
+                str(item.get("quantity") or "").lower(),
+                line_l,
+                mfr_l,
+                mpn_l,
+                doc_l if doc_searched else "",
+            ]
+        )
 
+        match_reasons: list[str] = []
         if include_terms:
             if search_mode == "exact_mpn":
-                mpn = (item.get("part_number") or "").lower()
-                title_mpn = blob
                 needle = include_terms[0]
-                if needle not in mpn and needle not in title_mpn:
+                if needle in mpn_l:
+                    match_reasons.append("exact_part_number")
+                elif needle in title_l or needle in blob:
+                    match_reasons.append("exact_part_number_in_text")
+                else:
                     continue
             elif search_mode == "exact_phrase":
                 phrase = (filters.get("keyword") or "").strip().lower()
                 if phrase and phrase not in blob:
                     continue
+                if phrase in title_l:
+                    match_reasons.append("title_match")
+                elif phrase in desc_l:
+                    match_reasons.append("description_match")
+                elif phrase in cat_l:
+                    match_reasons.append("category_match")
+                elif phrase in line_l:
+                    match_reasons.append("line_item_match")
+                elif doc_searched and phrase in doc_l:
+                    match_reasons.append("document_content_match")
+                else:
+                    match_reasons.append("text_match")
             else:
                 # broad / multi-term: any include term matches (OR within keywords)
-                if not any(t in blob for t in include_terms):
+                hit_term = next((t for t in include_terms if t in blob), None)
+                if not hit_term:
                     continue
+                if hit_term in title_l:
+                    match_reasons.append("title_match")
+                elif hit_term in desc_l:
+                    match_reasons.append("description_match")
+                elif hit_term in cat_l:
+                    match_reasons.append("category_match")
+                elif hit_term in line_l:
+                    match_reasons.append("line_item_match")
+                elif doc_searched and hit_term in doc_l:
+                    match_reasons.append("document_content_match")
+                else:
+                    match_reasons.append("text_match")
+                match_reasons.append(f"term:{hit_term}")
         if exclude_terms and any(t in blob for t in exclude_terms):
             continue
 
@@ -226,5 +262,8 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
             if not any(b in buyer for b in buyer_types):
                 continue
 
+        if match_reasons:
+            item = dict(item)
+            item["match_reasons"] = match_reasons
         out.append(item)
     return out

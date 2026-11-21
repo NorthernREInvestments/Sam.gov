@@ -20,8 +20,156 @@ from m3.research.adapters import (
     search_socrata,
 )
 from m3.research.filters import apply_contract_filters
+from m3.research.schema_map import validate_socrata_source
 from m3.research.seeds import SEED_SOURCES
+from m3.research.uncertain import resolve_uncertain_batch
 from m3.research.vocabulary import parse_search_terms
+
+
+def _register_validated_socrata(
+    db: Session,
+    *,
+    source_key: str,
+    name: str,
+    dataset_url: str,
+    official_listing_url: str | None = None,
+    geo_state: str | None = None,
+    discovery_meta: dict | None = None,
+) -> dict[str, Any]:
+    """Validate schema before enabling a discovered Socrata dataset as operational."""
+    existing = db.query(SourceRegistry).filter_by(source_key=source_key).one_or_none()
+    validation = validate_socrata_source(dataset_url, name=name)
+    meta = discovery_meta or {}
+    if not validation.get("operational"):
+        cfg = {
+            "dataset_url": dataset_url,
+            "official_listing_url": official_listing_url,
+            "discovered": True,
+            "schema_validated": True,
+            "operational": False,
+            "quarantine_reason": (validation.get("decision") or {}).get("reason")
+            or validation.get("reason")
+            or "failed_schema_validation",
+            "dataset_kind": (validation.get("decision") or {}).get("kind"),
+            "inferred": validation.get("inferred") or {},
+            **meta,
+        }
+        if existing:
+            existing.config = {**(existing.config or {}), **cfg}
+            existing.is_enabled = False
+            existing.information_available = f"Quarantined: {cfg['quarantine_reason']}"
+            db.add(existing)
+        else:
+            db.add(
+                SourceRegistry(
+                    source_key=source_key,
+                    name=name[:255],
+                    base_url=dataset_url,
+                    source_kind="socrata",
+                    information_available=f"Quarantined: {cfg['quarantine_reason']}",
+                    adapter="socrata_contracts",
+                    config=cfg,
+                    access_cost="free",
+                    documented_ok=True,
+                    experimentally_verified=False,
+                    is_enabled=False,
+                )
+            )
+        return {"registered": True, "operational": False, "validation": validation}
+
+    inferred = validation.get("inferred") or {}
+    cfg = {
+        "dataset_url": dataset_url,
+        "official_listing_url": official_listing_url or dataset_url,
+        "discovered": True,
+        "schema_validated": True,
+        "operational": True,
+        "geo_state": geo_state,
+        "is_forecast": bool((validation.get("decision") or {}).get("is_forecast")),
+        **{k: v for k, v in inferred.items() if isinstance(v, str)},
+        **meta,
+    }
+    if existing:
+        existing.config = {**(existing.config or {}), **cfg}
+        existing.is_enabled = True
+        existing.name = name[:255]
+        existing.information_available = (
+            f"Validated solicitation dataset ({(validation.get('decision') or {}).get('kind')})"
+        )
+        db.add(existing)
+    else:
+        db.add(
+            SourceRegistry(
+                source_key=source_key,
+                name=name[:255],
+                base_url=dataset_url,
+                source_kind="socrata",
+                information_available=(
+                    f"Validated solicitation dataset ({(validation.get('decision') or {}).get('kind')})"
+                ),
+                adapter="socrata_contracts",
+                config=cfg,
+                access_cost="free",
+                documented_ok=True,
+                experimentally_verified=False,
+                is_enabled=True,
+            )
+        )
+    return {"registered": True, "operational": True, "validation": validation}
+
+
+def repair_discovered_sources(db: Session, *, limit: int = 80) -> dict[str, Any]:
+    """Re-validate previously auto-enabled discovered Socrata sources (mapping repair)."""
+    rows = (
+        db.query(SourceRegistry)
+        .filter(SourceRegistry.adapter == "socrata_contracts")
+        .all()
+    )
+    examined = 0
+    repaired = 0
+    quarantined = 0
+    skipped_ok = 0
+    for row in rows:
+        cfg = row.config or {}
+        if not cfg.get("discovered"):
+            continue
+        # Re-check previously "operational" discovered sources once under Build 002A column rules
+        needs_recheck = cfg.get("repair_pass") != "build_002a_colschema"
+        if cfg.get("schema_validated") and cfg.get("operational") is False and not needs_recheck:
+            skipped_ok += 1
+            continue
+        if (
+            cfg.get("schema_validated")
+            and cfg.get("title_field")
+            and cfg.get("operational") is not False
+            and not needs_recheck
+        ):
+            skipped_ok += 1
+            continue
+        if examined >= limit:
+            break
+        examined += 1
+        url = cfg.get("dataset_url") or row.base_url
+        result = _register_validated_socrata(
+            db,
+            source_key=row.source_key,
+            name=row.name,
+            dataset_url=url,
+            official_listing_url=cfg.get("official_listing_url"),
+            geo_state=cfg.get("geo_state"),
+            discovery_meta={"repair_pass": "build_002a_colschema"},
+        )
+        if result.get("operational"):
+            repaired += 1
+        else:
+            quarantined += 1
+    db.commit()
+    return {
+        "examined": examined,
+        "repaired_operational": repaired,
+        "quarantined": quarantined,
+        "skipped_already_validated": skipped_ok,
+    }
 
 
 def ensure_source_registry(db: Session) -> int:
@@ -128,21 +276,29 @@ def _progress(run: ResearchRun, **fields: Any) -> None:
     run.progress = p
 
 
-def _keywords_from_filters(filters: dict[str, Any]) -> list[str]:
+def _operator_keywords(filters: dict[str, Any]) -> list[str]:
+    """Keywords the operator explicitly requested — used ONLY by the filter layer."""
+    raw = (filters.get("keyword") or "").strip()
+    if not raw:
+        return []
     parsed = parse_search_terms(
-        filters.get("keyword") or "",
+        raw,
         mode=(filters.get("search_mode") or "broad"),
         exclude=filters.get("exclude_keywords") or "",
     )
-    keywords = list(parsed["include_terms"])
+    return list(parsed["include_terms"])
+
+
+def _openai_focus_keywords(filters: dict[str, Any]) -> list[str]:
+    """Focus terms for OpenAI source discovery prompts (never used as adapter gates)."""
+    terms = _operator_keywords(filters)
     for c in filters.get("product_categories") or []:
-        keywords.append(str(c).replace("_", " "))
-    if not keywords:
-        keywords = ["equipment", "supplies", "furniture", "tools", "computer", "janitorial"]
-    # unique
+        terms.append(str(c).replace("_", " "))
+    if not terms:
+        terms = ["equipment", "supplies", "furniture", "tools", "appliances", "janitorial"]
     seen: set[str] = set()
     out: list[str] = []
-    for k in keywords:
+    for k in terms:
         kl = k.lower().strip()
         if kl and kl not in seen:
             seen.add(kl)
@@ -158,17 +314,24 @@ def run_contract_discovery(
     limit: int | None = None,
     offset: int = 0,
     continue_run_id: uuid.UUID | None = None,
-    enable_openai_sources: bool = False,
+    enable_openai_sources: bool | None = None,
 ) -> dict[str, Any]:
     """Nationwide free-source discovery with pagination / continuation.
 
     `limit` is a display/slice size only — never the entire opportunity population.
     Pass limit=None to retrieve all pages within per-source max_pages.
+    Keyword matching is applied once via ``apply_contract_filters`` — not at adapters.
     """
     settings = get_settings()
     ensure_source_registry(db)
+    # Repair previously auto-enabled discovered datasets with bad/missing title maps
+    repair_summary = repair_discovered_sources(db, limit=60)
     filters = filters or {}
-    keywords = _keywords_from_filters(filters)
+    operator_keywords = _operator_keywords(filters)
+    openai_keywords = _openai_focus_keywords(filters)
+    # Default ON for production research workflow (budget still gates actual spend)
+    if enable_openai_sources is None:
+        enable_openai_sources = True
     display_page = limit if limit is not None else settings.research_display_page_size
 
     if continue_run_id:
@@ -191,9 +354,15 @@ def run_contract_discovery(
         run = ResearchRun(
             objective="open_contracts",
             requested_by=user_id,
-            params={"filters": filters, "keywords": keywords, "offset": offset},
+            params={
+                "filters": filters,
+                "keywords": operator_keywords,
+                "openai_focus": openai_keywords,
+                "offset": offset,
+                "source_repair": repair_summary,
+            },
             status="running",
-            progress={"phase": "starting", "sources_evaluated": 0},
+            progress={"phase": "starting", "sources_evaluated": 0, "source_repair": repair_summary},
         )
         db.add(run)
         db.commit()
@@ -225,10 +394,17 @@ def run_contract_discovery(
     discovered_sources: list[dict] = []
     pages_total = 0
     rows_examined = 0
+    mapping_failures_total = 0
     sources_unavailable: list[str] = []
+    sources_fully_paginated: list[str] = []
+    sources_incomplete: list[str] = []
+    source_yield: list[dict] = []
     more_available = False
     paid_cost = Decimal("0")
     openai_used = False
+    openai_cache_hit = False
+    new_operational_sources = 0
+    quarantined_sources = 0
 
     _progress(
         run,
@@ -238,6 +414,7 @@ def run_contract_discovery(
         notices_examined=0,
         unique_so_far=len(all_items),
         incomplete=True,
+        source_repair=repair_summary,
     )
     db.add(run)
     db.commit()
@@ -258,29 +435,23 @@ def run_contract_discovery(
                         succeeded.append(src.source_key)
                     _mark_source(db, src.source_key, ok=True)
                     discovered_sources.extend(result["items"])
-                    for disc in result["items"][:30]:
+                    for disc in result["items"][:40]:
                         dkey = f"discovered_{disc['domain'].replace('.', '_')}_{disc['dataset_id']}"
-                        if db.query(SourceRegistry).filter_by(source_key=dkey).one_or_none():
-                            continue
-                        db.add(
-                            SourceRegistry(
-                                source_key=dkey,
-                                name=f"{disc['name']} ({disc['domain']})",
-                                base_url=disc["dataset_url"],
-                                source_kind="socrata",
-                                information_available=f"Discovered via catalog query: {disc.get('discovered_via')}",
-                                adapter="socrata_contracts",
-                                config={
-                                    "dataset_url": disc["dataset_url"],
-                                    "official_listing_url": disc.get("link"),
-                                    "discovered": True,
-                                },
-                                access_cost="free",
-                                documented_ok=True,
-                                experimentally_verified=False,
-                                is_enabled=True,
-                            )
+                        reg = _register_validated_socrata(
+                            db,
+                            source_key=dkey,
+                            name=f"{disc['name']} ({disc['domain']})",
+                            dataset_url=disc["dataset_url"],
+                            official_listing_url=disc.get("link"),
+                            discovery_meta={
+                                "discovered_via": disc.get("discovered_via"),
+                                "discovery_method": "socrata_catalog",
+                            },
                         )
+                        if reg.get("operational"):
+                            new_operational_sources += 1
+                        else:
+                            quarantined_sources += 1
                     db.commit()
                 else:
                     err = ";".join(result.get("errors") or ["no_items"])
@@ -291,27 +462,54 @@ def run_contract_discovery(
                     run,
                     sources_evaluated=idx + 1,
                     unique_so_far=len({i.get("external_key") for i in all_items}),
+                    new_operational_sources=new_operational_sources,
+                    quarantined_sources=quarantined_sources,
                 )
                 db.add(run)
                 db.commit()
                 continue
 
             if src.adapter == "socrata_contracts":
-                # Full pagination within max_pages — slice limit does not cap a source
+                # Full pagination — no adapter keyword gate; filter layer is authoritative
                 result = search_socrata(
                     payload,
-                    keywords=keywords,
+                    keywords=None,
                     limit=None,
                     offset=0,
                     page_size=settings.research_socrata_page_size,
                     max_pages=settings.research_max_pages_per_source,
+                    apply_adapter_keywords=False,
                 )
             else:
-                result = search_html_links(payload, keywords=keywords, limit=200)
+                result = search_html_links(
+                    payload,
+                    keywords=None,
+                    limit=500,
+                    apply_adapter_keywords=False,
+                )
             pages_total += int(result.get("pages_fetched") or 1)
             rows_examined += int(result.get("rows_examined") or len(result.get("items") or []))
+            stats = result.get("stats") or {}
+            mapping_failures_total += int(stats.get("mapping_failures") or 0)
+            pag_complete = bool(result.get("pagination_complete"))
             if result.get("more_available"):
                 more_available = True
+                if src.source_key not in sources_incomplete:
+                    sources_incomplete.append(src.source_key)
+            elif pag_complete or result.get("ok"):
+                if src.source_key not in sources_fully_paginated:
+                    sources_fully_paginated.append(src.source_key)
+            source_yield.append(
+                {
+                    "source_key": src.source_key,
+                    "pages": result.get("pages_fetched"),
+                    "rows_examined": result.get("rows_examined"),
+                    "accepted": len(result.get("items") or []),
+                    "pagination_complete": pag_complete,
+                    "more_available": bool(result.get("more_available")),
+                    "stats": stats,
+                }
+            )
             if result.get("ok") and result.get("items"):
                 if src.source_key not in succeeded:
                     succeeded.append(src.source_key)
@@ -333,8 +531,11 @@ def run_contract_discovery(
             sources_succeeded=len(succeeded),
             sources_unavailable=len(sources_unavailable),
             notices_examined=rows_examined,
+            mapping_failures=mapping_failures_total,
             unique_so_far=len({i.get("external_key") for i in all_items if i.get("external_key")}),
             pages_fetched=pages_total,
+            sources_fully_paginated=len(sources_fully_paginated),
+            sources_incomplete=len(sources_incomplete),
             incomplete=True,
         )
         # Persist incremental snapshot so UI can poll
@@ -355,17 +556,18 @@ def run_contract_discovery(
         db.add(run)
         db.commit()
 
-    # Optional OpenAI source discovery (budget-gated)
+    # OpenAI source discovery — available in production workflow; budget-gated
     if enable_openai_sources and not run.cancel_requested:
         try:
             from m3.research.openai_client import web_research
 
             cache_key = "openai_source_discover:" + hashlib.sha256(
-                ",".join(keywords[:6]).encode()
+                ",".join(openai_keywords[:6]).encode()
             ).hexdigest()[:16]
             cached = _cache_get(db, cache_key)
             if cached:
                 discovered_sources.extend(cached.get("sources") or [])
+                openai_cache_hit = True
                 _progress(run, openai_cache_hit=True)
             else:
                 schema = (
@@ -377,7 +579,7 @@ def run_contract_discovery(
                     "active product solicitations (goods/supplies/equipment). Prioritize Nebraska, then "
                     "other states. Prefer purchasing departments, cities, counties, school districts, "
                     "universities, utilities, transit, airports, hospitals, housing authorities. "
-                    f"Product focus keywords: {', '.join(keywords[:8])}. "
+                    f"Product focus keywords: {', '.join(openai_keywords[:8])}. "
                     "Return only portals with public bid listings (no login paywall). "
                     "Do not invent URLs — only cite real pages you found via web search."
                 )
@@ -406,6 +608,7 @@ def run_contract_discovery(
                         dkey = "ai_" + hashlib.sha256(url.encode()).hexdigest()[:20]
                         if db.query(SourceRegistry).filter_by(source_key=dkey).one_or_none():
                             continue
+                        # HTML portals: enable but mark pending experimental verification
                         db.add(
                             SourceRegistry(
                                 source_key=dkey,
@@ -421,6 +624,14 @@ def run_contract_discovery(
                                     "discovery_method": "openai_web_search",
                                     "award_archive_url": s.get("award_archive_url"),
                                     "citations": ai.get("citations") or [],
+                                    "link_hints": [
+                                        "bid",
+                                        "rfp",
+                                        "rfq",
+                                        "ifb",
+                                        "solicitation",
+                                        "opportunity",
+                                    ],
                                 },
                                 access_cost="free",
                                 documented_ok=True,
@@ -428,6 +639,7 @@ def run_contract_discovery(
                                 is_enabled=True,
                             )
                         )
+                        new_operational_sources += 1
                     db.commit()
                 elif ai.get("budget_denied"):
                     limitations.append(f"openai_source_discovery: {ai.get('error')}")
@@ -450,13 +662,38 @@ def run_contract_discovery(
         seen.add(str(k))
         unique.append(it)
 
+    # Resolve uncertain / unknown_mixed population before operator filters
+    uncertain_report = resolve_uncertain_batch(unique)
+    unique = uncertain_report["items"]
+
     filtered = apply_contract_filters(unique, filters)
     # Display slice only — full filtered set stays on the run for continuation
     page_items = filtered[offset : offset + display_page]
-    incomplete = bool(more_available or run.cancel_requested or enable_openai_sources and not openai_used)
+    incomplete = bool(
+        more_available
+        or run.cancel_requested
+        or (enable_openai_sources and not openai_used and not openai_cache_hit and not any(
+            "openai_source_discovery" in (x or "") for x in limitations
+        ))
+    )
+    # If OpenAI ran, was cached, or was budget-denied, do not mark incomplete solely for OpenAI
+    if openai_used or openai_cache_hit or any("openai_source_discovery" in (x or "") for x in limitations):
+        incomplete = bool(more_available or run.cancel_requested)
+
+    product_verified = sum(
+        1
+        for i in unique
+        if (i.get("requirement_class") or "") in {"product_supply", "product_with_incidental_services"}
+    )
+    uncertain_left = sum(
+        1
+        for i in unique
+        if (i.get("requirement_class") or "") in {"unknown_mixed", "unknown"}
+        or (i.get("uncertain_resolution") or "") == "requires_further_verification"
+    )
 
     if run.status != "cancelled":
-        run.status = "partial" if incomplete and page_items else "completed"
+        run.status = "partial" if incomplete and (page_items or filtered) else "completed"
         if not page_items and limitations and not filtered:
             run.status = "completed"
     run.result_count = len(filtered)
@@ -473,14 +710,25 @@ def run_contract_discovery(
         sources_succeeded=len(succeeded),
         sources_unavailable=len(sources_unavailable),
         notices_examined=rows_examined,
+        mapping_failures=mapping_failures_total,
         unique_matching=len(filtered),
         unique_before_filters=len(unique),
+        verified_product=product_verified,
+        uncertain_remaining=uncertain_left,
+        uncertain_investigated=uncertain_report.get("investigated"),
+        uncertain_resolved=uncertain_report.get("resolved_counts"),
         duplicates_excluded=duplicates_excluded,
         pages_fetched=pages_total,
+        sources_fully_paginated=sources_fully_paginated,
+        sources_incomplete=sources_incomplete,
+        source_yield=source_yield[:80],
+        new_operational_sources=new_operational_sources,
+        quarantined_sources=quarantined_sources,
         display_offset=offset,
         display_page_size=display_page,
         incomplete=incomplete,
         openai_used=openai_used,
+        openai_cache_hit=openai_cache_hit,
         estimated_cost_usd=float(paid_cost),
         last_refresh=datetime.now(timezone.utc).isoformat(),
     )
@@ -519,12 +767,23 @@ def run_contract_discovery(
         "sources_tried": tried,
         "sources_succeeded": succeeded,
         "sources_unavailable": sources_unavailable,
+        "sources_fully_paginated": sources_fully_paginated,
+        "sources_incomplete": sources_incomplete,
+        "source_yield": source_yield,
         "limitations": limitations,
         "unfiltered_count": len(unique),
+        "verified_product": product_verified,
+        "uncertain_remaining": uncertain_left,
+        "uncertain_investigated": uncertain_report.get("investigated"),
+        "uncertain_resolved": uncertain_report.get("resolved_counts"),
         "duplicates_excluded": duplicates_excluded,
         "notices_examined": rows_examined,
+        "mapping_failures": mapping_failures_total,
         "pages_fetched": pages_total,
         "discovered_sources": discovered_sources[:50],
+        "new_operational_sources": new_operational_sources,
+        "quarantined_sources": quarantined_sources,
+        "source_repair": repair_summary,
         "incomplete": incomplete,
         "more_available": more_available,
         "offset": offset,
@@ -532,6 +791,7 @@ def run_contract_discovery(
         "progress": run.progress,
         "estimated_cost_usd": float(paid_cost),
         "openai_used": openai_used,
+        "openai_cache_hit": openai_cache_hit,
     }
 
 

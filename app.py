@@ -515,6 +515,7 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
         "categories_raw": qp.get("product_categories") or "",
         "days_remaining_max": qp.get("days_remaining_max") or None,
         "product_resale_only": qp.get("product_resale_only", "1") == "1",
+        "discover_sources": (qp.getlist("discover_sources") or ["1"])[-1],
     }
     if profile_id:
         prof = db.get(SearchProfile, profile_id)
@@ -576,7 +577,11 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
             limit=page_size,
             offset=page_offset,
             continue_run_id=continue_id,
-            enable_openai_sources=qp.get("discover_sources") == "1",
+            # Build 002A: OpenAI source discovery on by default; opt out with discover_sources=0
+            # Hidden+checkbox may yield ["0","1"] — use last value
+            enable_openai_sources=(
+                (qp.getlist("discover_sources") or ["1"])[-1] != "0"
+            ),
         )
         if qp.get("save_profile"):
             name = f"Search {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
@@ -641,6 +646,7 @@ def opportunities_find(request: Request, db: Session = Depends(get_db), user: Us
             filters=filters,
             ran=ran,
             result=result,
+            progress=result.get("progress") or {},
             rows=rows,
             run_id=result.get("run_id"),
             return_to=return_to,

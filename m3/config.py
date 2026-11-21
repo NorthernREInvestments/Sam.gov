@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "M3 Supply"
-    build_id: str = "20261121-m3-2-build-002"
+    build_id: str = "20261121-m3-2-build-002a"
     secret_key: str = ""
     database_url: str = "postgresql://localhost/m3"
     m3_data_root: str = ""
@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     # Discovery — no artificial commercial ceiling; page size is display/slice only
     research_display_page_size: int = 100
     research_socrata_page_size: int = 500
-    # 8 × 500 = up to 4,000 rows/source per job slice; raise via env for deeper sweeps
-    research_max_pages_per_source: int = 8
+    # Build 002A: remove prior 3-page acceptance harness / 8-page soft cap.
+    # 200 × 500 = up to 100k rows/source per job; incomplete sources report more_available.
+    research_max_pages_per_source: int = 200
     # HTTP research
     research_timeout_seconds: float = 25.0
     research_max_retries: int = 2

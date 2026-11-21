@@ -8,11 +8,14 @@ from typing import Any
 PRODUCT_HINTS = re.compile(
     r"(?i)\b("
     r"furniture|desk|chair|janitorial|custodial|cleaning supplies?|"
-    r"tools?|mro|electrical|plumbing|hvac|appliances?|refrigerators?|washer|dryer|"
+    r"tools?|mro|electrical|plumbing|hvac|appliances?|refrigerators?|freezer|washer|dryer|range|"
     r"laptops?|computers?|printers?|toner|ppe|safety equipment|lighting|generators?|"
     r"forklifts?|equipment|supplies?|hardware|batteries|battery|shelving|"
     r"parts|lubricants?|oils?|filters?|uniforms?|gloves?|paper|commodity|goods|materials|"
-    r"fixtures?|scanners?|multiplexers?|pumps?|valves?|transformers?|cables?|wires?|vehicles?"
+    r"fixtures?|scanners?|multiplexers?|pumps?|valves?|transformers?|cables?|wires?|vehicles?|"
+    r"screws?|fasteners?|bolts?|nuts?|washers?|butterfly valve|ball valve|gate valve|"
+    r"commercial laundry|fitness equipment|material handling|grounds equipment|"
+    r"industrial equipment|ice machine|ice maker"
     r")\b"
 )
 

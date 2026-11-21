@@ -10,6 +10,19 @@ from urllib.parse import urljoin, urlparse
 
 from m3.research.classify import PRODUCT_HINTS, classify_requirement
 from m3.research.http_util import fetch_json, fetch_text
+from m3.research.schema_map import (
+    AGENCY_CANDIDATES,
+    CATEGORY_CANDIDATES,
+    DEADLINE_CANDIDATES,
+    NUMBER_CANDIDATES,
+    POSTED_CANDIDATES,
+    STATUS_CANDIDATES,
+    TITLE_CANDIDATES,
+    URL_CANDIDATES,
+    VALUE_CANDIDATES,
+    pick_first_key,
+)
+
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s\-.]?)?\(?([2-9]\d{2})\)?[\s\-.]?([2-9]\d{2})[\s\-.]?(\d{4})(?!\d)")
 VALUE_RANGE_RE = re.compile(
     r"\$?\s*([\d,]+(?:\.\d+)?)\s*(?:-|–|to)\s*\$?\s*([\d,]+(?:\.\d+)?)",
@@ -124,20 +137,27 @@ def _is_productish(title: str, category_raw: str | None, cfg: dict) -> bool:
 def search_socrata(
     source: dict,
     *,
-    keywords: list[str],
+    keywords: list[str] | None = None,
     limit: int | None = None,
     offset: int = 0,
     page_size: int = 500,
-    max_pages: int = 40,
+    max_pages: int | None = None,
+    apply_adapter_keywords: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve Socrata rows with offset pagination — no artificial commercial ceiling."""
+    """Retrieve Socrata rows with offset pagination — no artificial commercial ceiling.
+
+    Keyword matching belongs in the authoritative filter layer unless
+    ``apply_adapter_keywords`` is explicitly enabled for a verified source-native search.
+    """
     from m3.config import get_settings
 
     settings = get_settings()
     page_size = min(500, max(50, page_size or settings.research_socrata_page_size))
-    max_pages = max(1, max_pages or settings.research_max_pages_per_source)
+    # 0 / None → use configured safeguard (default high); never a silent 3-page cap
+    configured = int(max_pages if max_pages is not None else settings.research_max_pages_per_source)
+    max_pages = max(1, configured if configured > 0 else 500)
     soft_limit = int(limit) if limit else None
-    cfg = source.get("config") or {}
+    cfg = dict(source.get("config") or {})
     urls = [cfg.get("dataset_url") or source.get("base_url")]
     urls += list(cfg.get("fallback_urls") or [])
     items: list[dict] = []
@@ -145,107 +165,103 @@ def search_socrata(
     used_url = None
     pages_fetched = 0
     total_rows_seen = 0
+    mapping_failures = 0
+    closed_excluded = 0
+    non_product_excluded = 0
+    keyword_excluded = 0
     truncated = False
     more_available = False
+    pagination_complete = False
+    page_offset = max(0, int(offset or 0))
     prefer_statuses = [s.lower() for s in (cfg.get("prefer_statuses") or [])]
+    keywords = list(keywords or [])
+    # Runtime field resolution from config + universal candidates
+    title_keys = tuple(
+        k
+        for k in (cfg.get("title_field"), *TITLE_CANDIDATES)
+        if k
+    )
+    status_keys = tuple(k for k in (cfg.get("status_field"), *STATUS_CANDIDATES) if k)
+    agency_keys = tuple(k for k in (cfg.get("agency_field"), *AGENCY_CANDIDATES) if k)
+    number_keys = tuple(k for k in (cfg.get("number_field"), *NUMBER_CANDIDATES) if k)
+    deadline_keys = tuple(k for k in (cfg.get("deadline_field"), *DEADLINE_CANDIDATES) if k)
+    posted_keys = tuple(k for k in (cfg.get("posted_field"), *POSTED_CANDIDATES) if k)
+    value_keys = tuple(k for k in (cfg.get("value_field"), *VALUE_CANDIDATES) if k)
+    category_keys = tuple(k for k in (cfg.get("category_field"), *CATEGORY_CANDIDATES) if k)
+    url_keys = tuple(k for k in (cfg.get("url_field"), *URL_CANDIDATES) if k)
 
     def _append_row(row: dict, final: str) -> None:
-        nonlocal items
+        nonlocal items, mapping_failures, closed_excluded, non_product_excluded, keyword_excluded
         if not isinstance(row, dict):
             return
-        title = str(
-            _row_get(
-                row,
-                cfg.get("title_field") or "title",
-                "contract_title",
-                "description",
-                "project_description",
-                "procurement_name",
-                "type_of_notice_description",
-            )
-            or ""
-        ).strip()
+        title_key = pick_first_key(row, title_keys, cfg.get("title_field"))
+        title = str((row.get(title_key) if title_key else "") or "").strip()
+        if not title:
+            # Last resort: longest string field that looks like a title (not an id/url)
+            best = ""
+            for k, v in row.items():
+                if not isinstance(v, str):
+                    continue
+                kl = str(k).lower()
+                if kl.startswith(":") or "url" in kl or "id" in kl or "date" in kl:
+                    continue
+                if 12 <= len(v.strip()) <= 400 and len(v.strip()) > len(best):
+                    best = v.strip()
+            title = best
         if not title or len(title) < 5:
+            mapping_failures += 1
             return
-        status_raw = str(_row_get(row, cfg.get("status_field") or "", "status", "stagename") or "")
+        status_raw = str(_row_get(row, *status_keys) or "")
         if prefer_statuses:
             if status_raw and status_raw.lower() not in prefer_statuses:
                 if re.search(r"cancel|closed|award|inactive|expired", status_raw, re.I):
+                    closed_excluded += 1
                     return
                 if status_raw.strip():
+                    closed_excluded += 1
                     return
+        elif status_raw and re.search(r"^(closed|award|awarded|cancelled|canceled|inactive|expired)$", status_raw, re.I):
+            closed_excluded += 1
+            return
         if re.search(r"cancel|indefinitely postponed", str(row), re.I) and "cancelledpostponed" in row:
             if row.get("cancelledpostponed"):
+                closed_excluded += 1
                 return
-        category_raw = str(_row_get(row, cfg.get("category_field") or "", "category") or "")
+        category_raw = str(_row_get(row, *category_keys) or "")
         if not _is_productish(title, category_raw, cfg):
+            non_product_excluded += 1
             return
-        blob = f"{title} {category_raw} {row}".lower()
-        if keywords:
+        # Adapter keyword gate is OFF by default (Build 002A) — filter layer is authoritative
+        if apply_adapter_keywords and keywords:
+            blob = f"{title} {category_raw}".lower()
             prefer_cats = [c.lower() for c in (cfg.get("prefer_categories") or [])]
             is_prefer = prefer_cats and any(x in category_raw.lower() for x in prefer_cats)
             if not is_prefer and not any(k.lower() in blob for k in keywords if k):
                 if not PRODUCT_HINTS.search(title) and not PRODUCT_HINTS.search(category_raw):
+                    keyword_excluded += 1
                     return
         agency = str(
-            _row_get(
-                row,
-                cfg.get("agency_field") or "agency_name",
-                "agency",
-                "department",
-                "agencycode",
-                "buyer",
-            )
-            or cfg.get("buyer_type")
-            or "Unknown"
+            _row_get(row, *agency_keys) or cfg.get("buyer_type") or "Unknown"
         )
-        sol = str(
-            _row_get(
-                row,
-                cfg.get("number_field") or "solicitation_number",
-                "contract_number",
-                "contractnumber",
-                "number",
-                "rampid",
-                "pin",
-                "tracking_number",
-                "buying_plan_number",
-                ":id",
-            )
-            or ""
-        )
-        deadline_raw = _row_get(
-            row,
-            cfg.get("deadline_field") or "due_date",
-            "end_date",
-            "bid_opening_date",
-            "closing_date",
-            "closedate",
-            "closingdate",
-            "deadlinedate",
-            "submission_deadline",
-        )
-        posted_raw = _row_get(
-            row,
-            cfg.get("posted_field") or "start_date",
-            "posted_date",
-            "bidpost",
-            "issuancedate",
-            "opendate",
-            "date_created",
-        )
-        value_raw = _row_get(
-            row,
-            cfg.get("value_field") or "contract_amount",
-            "award_amount",
-            "estimated_amount",
-            "estimated_total_contract",
-            "approximate_cost",
-            "current_amount",
-        )
+        sol = str(_row_get(row, *number_keys) or "")
+        deadline_raw = _row_get(row, *deadline_keys)
+        posted_raw = _row_get(row, *posted_keys)
+        # Drop clearly past deadlines when no prefer_statuses list (active discovery)
+        if deadline_raw and not prefer_statuses:
+            try:
+                raw_d = str(deadline_raw).replace("Z", "+00:00")
+                dt = datetime.fromisoformat(raw_d[:19])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                if dt.year >= 2000 and dt < datetime.now(timezone.utc):
+                    closed_excluded += 1
+                    return
+            except Exception:
+                pass
+        value_raw = _row_get(row, *value_keys)
         vmin, vmax = _parse_value_band(value_raw)
         official = _extract_url(
-            _row_get(row, cfg.get("url_field") or "url", "document_link", "link", "bidurl", "documents_url"),
+            _row_get(row, *url_keys),
             cfg.get("official_listing_url") or final,
         )
         set_aside_raw = _row_get(row, cfg.get("set_aside_field") or "set_aside", "mwbe", "lsbrpindicator")
@@ -302,12 +318,14 @@ def search_socrata(
                 "source_key": source["source_key"],
                 "source_verified_at": _utc(),
                 "is_forecast": bool(cfg.get("is_forecast")),
+                "title_field_used": title_key,
                 "evidence": {
                     "row_keys": list(row.keys())[:20],
                     "source_url": final,
                     "status": status_raw or None,
                     "category_raw": category_raw or None,
                     "classification": clf,
+                    "title_field_used": title_key,
                 },
             }
         )
@@ -317,6 +335,7 @@ def search_socrata(
             continue
         try:
             page_offset = max(0, int(offset or 0))
+            hit_empty = False
             for _page in range(max_pages):
                 if soft_limit is not None and len(items) >= soft_limit:
                     truncated = True
@@ -333,6 +352,9 @@ def search_socrata(
                     break
                 used_url = final
                 if not data:
+                    hit_empty = True
+                    pagination_complete = True
+                    more_available = False
                     break
                 total_rows_seen += len(data)
                 for row in data:
@@ -342,18 +364,24 @@ def search_socrata(
                         break
                     _append_row(row, final)
                 if len(data) < page_size:
+                    pagination_complete = True
                     more_available = False
                     break
                 page_offset += page_size
                 more_available = True
-            if items:
+            else:
+                # Exhausted max_pages without empty page → incomplete unless soft-limited
+                if not hit_empty and not truncated:
+                    more_available = True
+                    pagination_complete = False
+            if items or pagination_complete:
                 break
         except Exception as exc:
             errors.append(f"{url}:{type(exc).__name__}:{exc}"[:200])
 
     out_items = items if soft_limit is None else items[:soft_limit]
     return {
-        "ok": bool(out_items),
+        "ok": bool(out_items) or (pagination_complete and total_rows_seen > 0 and not errors),
         "items": out_items,
         "source_key": source["source_key"],
         "used_url": used_url,
@@ -363,12 +391,26 @@ def search_socrata(
         "rows_examined": total_rows_seen,
         "truncated": truncated,
         "more_available": more_available,
-        "next_offset": (offset or 0) + total_rows_seen if more_available else None,
+        "pagination_complete": pagination_complete and not more_available,
+        "next_offset": page_offset if more_available else None,
+        "stats": {
+            "mapping_failures": mapping_failures,
+            "closed_excluded": closed_excluded,
+            "non_product_excluded": non_product_excluded,
+            "keyword_excluded": keyword_excluded,
+            "accepted": len(out_items),
+        },
     }
 
 
 
-def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> dict[str, Any]:
+def search_html_links(
+    source: dict,
+    *,
+    keywords: list[str] | None = None,
+    limit: int = 30,
+    apply_adapter_keywords: bool = False,
+) -> dict[str, Any]:
     cfg = source.get("config") or {}
     urls = [cfg.get("list_url") or source.get("base_url")]
     urls += list(cfg.get("extra_urls") or [])
@@ -377,6 +419,7 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
     items: list[dict] = []
     errors: list[str] = []
     seen: set[str] = set()
+    keywords = list(keywords or [])
 
     for url in urls:
         if not url or len(items) >= limit:
@@ -404,8 +447,9 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
                 path = urlparse(abs_url).path.lower()
                 if path.endswith((".css", ".js", ".png", ".jpg", ".gif", ".svg")):
                     continue
-                if keywords and not any(k.lower() in blob for k in keywords):
-                    if cfg.get("geo_state") != "NE" and not PRODUCT_HINTS.search(label):
+                # Keyword gate only when explicitly opted into source-native search
+                if apply_adapter_keywords and keywords and not any(k.lower() in blob for k in keywords):
+                    if not PRODUCT_HINTS.search(label):
                         continue
                 title = label or abs_url.rsplit("/", 1)[-1]
                 title = re.sub(r"\s+", " ", title).strip()
@@ -458,6 +502,11 @@ def search_html_links(source: dict, *, keywords: list[str], limit: int = 30) -> 
         "source_key": source["source_key"],
         "errors": errors,
         "verified_at": _utc(),
+        "pages_fetched": len([u for u in urls if u]),
+        "rows_examined": len(seen) or len(items),
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {"accepted": len(items), "mapping_failures": 0},
     }
 
 

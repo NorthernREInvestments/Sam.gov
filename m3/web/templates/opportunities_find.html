@@ -19,12 +19,16 @@
       </select>
     </label>
     <label class="field"><span>Exclude keywords</span><input type="text" name="exclude_keywords" value="{{ filters.exclude_keywords or '' }}" placeholder="construction, consulting"></label>
-    <label class="checks" style="align-items:end"><input type="checkbox" name="discover_sources" value="1"> Also discover new portals (uses OpenAI budget)</label>
+    <label class="checks" style="align-items:end">
+      <input type="hidden" name="discover_sources" value="0">
+      <input type="checkbox" name="discover_sources" value="1" {% if (filters.discover_sources or '1') != '0' %}checked{% endif %}>
+      Discover new portals (OpenAI, budget-limited)
+    </label>
   </div>
   <details class="panel" style="border:0;padding:0;margin:.5rem 0">
-    <summary>Advanced filters</summary>
+    <summary>Advanced filters (optional — default search includes unknown values and all set-asides)</summary>
   <fieldset>
-    <legend>Estimated value (multi-select)</legend>
+    <legend>Estimated value (multi-select — leave empty for all bands including unknown)</legend>
     <div class="checks">
       {% for key,label in value_options %}
       <label><input type="checkbox" name="value_bands" value="{{ key }}" {% if key in filters.value_bands %}checked{% endif %}> {{ label }}</label>
@@ -54,6 +58,7 @@
   <div class="form-actions">
     <button type="submit">Search</button>
     <button class="secondary" type="submit" name="save_profile" value="1">Save this search</button>
+    <a class="btn secondary" href="/opportunities/find">Clear Filters</a>
   </div>
 </form>
 
@@ -61,13 +66,18 @@
 <section class="panel" style="margin-bottom:1rem">
   <h2 style="margin-top:0">Search progress</h2>
   <dl class="kv">
-    <dt>Status</dt><dd>{{ result.status or 'completed' }}{% if result.incomplete %} · <strong>incomplete / partial</strong>{% endif %}</dd>
-    <dt>Matching results</dt><dd>{{ result.all_matching_count or result.count }} (showing {{ result.page_count or rows|length }} on this page)</dd>
+    <dt>Status</dt><dd>{{ result.status or 'completed' }}{% if result.incomplete %} · <strong>incomplete / paused — not fully searched</strong>{% endif %}</dd>
+    <dt>Matching results</dt><dd>{{ result.all_matching_count or result.count }} (showing {{ result.page_count or rows|length }} on this page — not the full population)</dd>
+    <dt>Verified open product</dt><dd>{{ result.verified_product or progress.verified_product or '—' }}</dd>
+    <dt>Uncertain</dt><dd>{{ result.uncertain_remaining or progress.uncertain_remaining or '—' }} (investigated {{ result.uncertain_investigated or progress.uncertain_investigated or 0 }})</dd>
     <dt>Before filters</dt><dd>{{ result.unfiltered_count }} unique notices</dd>
-    <dt>Notices examined</dt><dd>{{ result.notices_examined or '—' }}</dd>
-    <dt>Sources OK</dt><dd>{{ result.sources_succeeded|length }} · {{ (result.sources_succeeded or [])[:8]|join(', ') or 'none' }}</dd>
-    <dt>Sources unavailable</dt><dd>{{ (result.sources_unavailable or [])|length }}</dd>
-    <dt>Est. research cost</dt><dd>${{ '%.4f'|format(result.estimated_cost_usd or 0) }} <span class="muted">(estimate, not invoice)</span></dd>
+    <dt>Raw records examined</dt><dd>{{ result.notices_examined or '—' }}</dd>
+    <dt>Mapping failures</dt><dd>{{ result.mapping_failures or progress.mapping_failures or 0 }}</dd>
+    <dt>Sources searched / OK / unavailable</dt><dd>{{ (result.sources_tried or [])|length }} / {{ result.sources_succeeded|length }} / {{ (result.sources_unavailable or [])|length }}</dd>
+    <dt>Fully paginated</dt><dd>{{ (result.sources_fully_paginated or progress.sources_fully_paginated or [])|length }} · incomplete {{ (result.sources_incomplete or progress.sources_incomplete or [])|length }}</dd>
+    <dt>Pages retrieved</dt><dd>{{ result.pages_fetched or progress.pages_fetched or '—' }}</dd>
+    <dt>Current research spending</dt><dd>${{ '%.4f'|format(result.estimated_cost_usd or 0) }} <span class="muted">(estimate)</span>{% if result.openai_used or progress.openai_used %} · OpenAI used{% endif %}{% if result.openai_cache_hit or progress.openai_cache_hit %} · cache hit{% endif %}</dd>
+    <dt>Last refresh</dt><dd>{{ progress.last_refresh or '—' }}</dd>
   </dl>
   {% if result.limitations %}
   <div class="flash warn">Some sources failed: {{ result.limitations[:3]|join(' · ') }}</div>
