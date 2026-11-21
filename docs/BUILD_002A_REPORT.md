@@ -21,7 +21,7 @@
 | BUDGET_ENFORCEMENT | **VERIFIED** | Ledger showed spend before/after; ceilings $1/day $30/month unchanged; denial path retained |
 | UI_RESULT_RECONCILIATION | **VERIFIED** | Progress panel: matching vs page size, verified product, uncertain, pages, pagination completeness, spending, last refresh |
 | MOBILE_WORKFLOW | **PARTIALLY VERIFIED** | Existing responsive cards/table preserved; Clear Filters + stats added; full device QA on deploy URL |
-| DEPLOYMENT_VERIFIED | *(post-deploy)* | `/healthz` must return build `20261121-m3-2-build-002a` |
+| DEPLOYMENT_VERIFIED | **VERIFIED** | `/healthz` → `{"ok":true,"build":"20261121-m3-2-build-002a"}` (Railway deploy `49eb9c35` SUCCESS) |
 
 ## Before → after (Acceptance A)
 
