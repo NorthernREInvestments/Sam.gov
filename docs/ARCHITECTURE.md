@@ -128,8 +128,8 @@ Role dashboards share the same records; differ only by default filters and prima
 
 | Build | Focus |
 |-------|--------|
-| **001 (this)** | Auth, audit, research core, contract discovery+filters, supplier discovery+CRM, catalogs, tasks, mobile |
-| 002 | Document package recovery, historical awards, value estimation maturity |
+| 001 / 001A–C | Auth, audit, research core, CRM, catalogs, team UX |
+| **002 (this)** | OpenAI Responses web_search + budget manager, nationwide pagination, keyword search, historical awards, supplier recruitment, commercial evidence |
 | 003 | Exact catalog↔contract matching UI, quote RFQ drafts |
 | 004 | Eligibility/registration tracking |
 | 005 | Verified economics + financing gates |
