@@ -36,9 +36,18 @@ Samantha’s account is never removed automatically; the remove screen warns if 
 
 ## Deploy
 
-- Target: https://samgov-production.up.railway.app
-- Expected `/healthz`: `{"ok":true,"build":"20261121-m3-2-build-001c"}`
+- Live: https://samgov-production.up.railway.app
+- `GET /healthz` → `{"ok":true,"build":"20261121-m3-2-build-001c"}` (**verified** 2026-11-20)
+- Railway deployment `1c1bbba9` · SUCCESS
 - Local smoke: remove unused test → invite → accept/password → email-change session revoke → owner-only invite gate — **passed** (no production test accounts left behind).
+- Additive schema only (`team_status`, `pending_email`, invitation purpose/name). No credential wipe. Samantha not auto-removed.
+
+## Owner workflow (wrong test email → correct invite)
+
+1. Settings → Team → **Remove** on the incorrect account (confirm).
+2. **Add User** with the correct name/email/role → **Create Invitation**.
+3. **Copy Invitation Link** (note expiry) and send it.
+4. Invitee opens the link, sets their own password.
 
 ## Await
 
