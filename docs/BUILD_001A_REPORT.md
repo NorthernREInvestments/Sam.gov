@@ -1,7 +1,7 @@
 # M3 2.0 Build 001A — Owner Acceptance Corrections
 
 **Date:** 2026-11-20  
-**Build ID:** `20261120-m3-2-build-001a`  
+**Build ID:** `20261120-m3-2-build-001a1`  
 **Deploy:** https://samgov-production.up.railway.app  
 **Scope:** Corrections only — no Build 002 work.
 
@@ -68,7 +68,7 @@ Captured during 001A QA (Cursor screenshot store):
 ## Deploy
 - Existing Railway service only; additive DB columns (`is_primary_owner`, `result_snapshot`, `requirement_class`, `quantity`).
 - No credential changes; no mass record deletion.
-- Live check: `GET /healthz` → `{"ok":true,"build":"20261120-m3-2-build-001a"}` on https://samgov-production.up.railway.app (post-push redeploy for classify hotfix).
+- Live check: `GET /healthz` → `{"ok":true,"build":"20261120-m3-2-build-001a1"}` on https://samgov-production.up.railway.app (classify hotfix redeploy).
 
 ## Await
 Owner acceptance testing. Do not begin Build 002 until approved.
