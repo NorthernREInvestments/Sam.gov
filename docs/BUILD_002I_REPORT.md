@@ -78,4 +78,6 @@ Failure to meet volume is documented; fabrication was refused.
 
 ## Deployment
 
-Expected production build: `20261121-m3-2-build-002i` via Railway after push. `/healthz` alone is not acceptance — production must re-run discovery workers and confirm fits against stored packages.
+**VERIFIED:** `https://samgov-production.up.railway.app/healthz` → `{"ok":true,"build":"20261121-m3-2-build-002i"}` (commit `7bf7d61`).
+
+`/healthz` confirms build identity only. Production still needs worker full-population reprocess against the repaired adapters; local harness already proved DE/GA Level-4 acquire + GT recall.
