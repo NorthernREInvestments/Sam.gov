@@ -175,20 +175,47 @@ def repair_discovered_sources(db: Session, *, limit: int = 80) -> dict[str, Any]
 
 def ensure_source_registry(db: Session) -> int:
     """Insert new seeds and refresh adapter/config for existing seed keys."""
+    import json
+
     created = 0
+    updated = 0
+    existing_rows = {r.source_key: r for r in db.query(SourceRegistry).all()}
     for seed in SEED_SOURCES:
-        existing = db.query(SourceRegistry).filter_by(source_key=seed["source_key"]).one_or_none()
+        existing = existing_rows.get(seed["source_key"])
         if existing:
+            new_cfg = seed.get("config") or {}
+            # Skip write when seed payload unchanged (Build 002H — remote DB latency)
+            same = (
+                existing.name == seed["name"]
+                and existing.base_url == seed["base_url"]
+                and (existing.adapter or "") == (seed.get("adapter") or existing.adapter or "")
+                and json.dumps(existing.config or {}, sort_keys=True, default=str)
+                == json.dumps(new_cfg, sort_keys=True, default=str)
+            )
+            if same and existing.is_enabled:
+                continue
             existing.name = seed["name"]
             existing.base_url = seed["base_url"]
             existing.source_kind = seed.get("source_kind") or existing.source_kind
             existing.information_available = seed.get("information_available") or existing.information_available
             existing.search_capabilities = seed.get("search_capabilities") or existing.search_capabilities
             existing.adapter = seed.get("adapter") or existing.adapter
-            existing.config = seed.get("config") or {}
+            # Preserve runtime capability/yield fields written by persist_source_intelligence
+            merged = dict(new_cfg)
+            for k in (
+                "last_yield",
+                "last_unique_solicitation_yield",
+                "last_package_yield",
+                "capability_level",
+                "operational",
+            ):
+                if k in (existing.config or {}) and k not in merged:
+                    merged[k] = existing.config[k]
+            existing.config = merged
             existing.access_cost = "free"
             existing.is_enabled = True
             db.add(existing)
+            updated += 1
             continue
         db.add(
             SourceRegistry(

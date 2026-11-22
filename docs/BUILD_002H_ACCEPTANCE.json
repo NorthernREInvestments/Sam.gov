@@ -1,0 +1,2956 @@
+{
+  "build": "002H",
+  "build_id": "20261121-m3-2-build-002h",
+  "started": "2026-11-22T00:00:35Z",
+  "audit_doc": "docs/BUILD_002H_AUDIT.md",
+  "data_integrity": "REAL_DATA_ONLY_NO_FABRICATION",
+  "root_cause_002g_zero_fit": {
+    "primary": "H_quantity_extraction_failure",
+    "evidence": "116/120 manifest samples unknown solely due to quantity_unknown",
+    "fix": "extract_fields + pipeline stages A-C; reprocess stored package excerpts"
+  },
+  "seed_source_count": 194,
+  "enabled_sources": 214,
+  "package_reprocess": {
+    "examined": 1287,
+    "quantity_extracted": 16,
+    "stage_c_fit": 4,
+    "stage_b_product": 204,
+    "excluded": 889,
+    "unknown": 394,
+    "by_failure": {
+      "quantity_unknown": 394,
+      "active_status_unverified": 210,
+      "requirement_class_unknown": 190
+    }
+  },
+  "package_reprocess_fits_sample": [
+    {
+      "identity_key": "ek:915f9097e32dc2739bb376b337639a05",
+      "external_key": "915f9097e32dc2739bb376b337639a05",
+      "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+      "buyer": "Water & Power",
+      "solicitation_number": "233012",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oNWSGIA4",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "300",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(300 UNIT)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "identity_key": "ek:2a1ff3d679657d946d1aa0a55503ac04",
+      "external_key": "2a1ff3d679657d946d1aa0a55503ac04",
+      "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+      "buyer": "Water & Power",
+      "solicitation_number": "233012",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oNWSGIA4",
+      "source_key": "discovered_data_lacity_org_hf3r-utnq",
+      "quantity": "300",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(300 UNIT)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "identity_key": "ek:122bdb254694c663ad59162fe1144489",
+      "external_key": "122bdb254694c663ad59162fe1144489",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "discovered_data_lacity_org_hf3r-utnq",
+      "quantity": "250",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "identity_key": "ek:0196616abe6d211aeb8a2d3633114d5a",
+      "external_key": "0196616abe6d211aeb8a2d3633114d5a",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "250",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    }
+  ],
+  "population_source_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance_populations\\fafee300-0f7c-40c6-93cf-8e5647416457.jsonl",
+  "frozen_or_prior_population": {
+    "total": 18023,
+    "identity_breakdown": {
+      "PROCUREMENT_LISTING": 784,
+      "SUPPORTING_DOCUMENT": 34,
+      "UNRESOLVED_RECORD": 5446,
+      "UNRELATED_CONTENT": 24,
+      "HISTORICAL_AWARD": 6057,
+      "GENERAL_PROCUREMENT_INFORMATION": 3613,
+      "INDIVIDUAL_SOLICITATION": 752,
+      "PURCHASING_PLAN": 166,
+      "PROCUREMENT_FORECAST": 1114,
+      "VENDOR_REGISTRATION": 4,
+      "PROCUREMENT_PORTAL": 29
+    },
+    "verified_individual_solicitations": 752,
+    "leads": 6264,
+    "non_opportunity": 11007,
+    "focus_examined": 6943,
+    "stage_c_fit": 4,
+    "stage_b_product": 227,
+    "quantity_extracted": 30,
+    "excluded": 6480,
+    "by_failure": {
+      "quantity_unknown": 459,
+      "requirement_class_unknown": 232,
+      "active_status_unverified": 267
+    }
+  },
+  "population_fits": [
+    {
+      "external_key": "0196616abe6d211aeb8a2d3633114d5a",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "250",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:item_reprocess"
+      ],
+      "requirement_class": "product_supply",
+      "solicitation_status": "open",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "external_key": "915f9097e32dc2739bb376b337639a05",
+      "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+      "buyer": "Water & Power",
+      "solicitation_number": "233012",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oNWSGIA4",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "300",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(300 UNIT)",
+        "source:item_reprocess"
+      ],
+      "requirement_class": "product_supply",
+      "solicitation_status": "open",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "external_key": "122bdb254694c663ad59162fe1144489",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "discovered_data_lacity_org_hf3r-utnq",
+      "quantity": "250",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:item_reprocess"
+      ],
+      "requirement_class": "product_supply",
+      "solicitation_status": "open",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "external_key": "2a1ff3d679657d946d1aa0a55503ac04",
+      "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+      "buyer": "Water & Power",
+      "solicitation_number": "233012",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oNWSGIA4",
+      "source_key": "discovered_data_lacity_org_hf3r-utnq",
+      "quantity": "300",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(300 UNIT)",
+        "source:item_reprocess"
+      ],
+      "requirement_class": "product_supply",
+      "solicitation_status": "open",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    }
+  ],
+  "saved_opportunities": {
+    "examined": 59,
+    "stage_c_fit": 0
+  },
+  "targeted_acquire_sample": [
+    {
+      "source_key": "delaware_open_bids",
+      "title": "Phase 1 Bid Pack B Demolition & Site Preparation",
+      "url": "https://mmp.delaware.gov/Bids/Details/9403",
+      "package_status": "VERIFICATION_REQUIRED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "delaware_open_bids",
+      "title": "Delaware Migrant Education Program MEP",
+      "url": "https://mmp.delaware.gov/Bids/Details/9405",
+      "package_status": "COMPLETE",
+      "downloaded": 1,
+      "identified": 1,
+      "qty_hint": null
+    },
+    {
+      "source_key": "delaware_open_bids",
+      "title": "Bond Issuance Underwriting Team",
+      "url": "https://mmp.delaware.gov/Bids/Details/9404",
+      "package_status": "VERIFICATION_REQUIRED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "delaware_open_bids",
+      "title": "Phase 1 Bid Pack A Site Electrical Reconfiguration",
+      "url": "https://mmp.delaware.gov/Bids/Details/9402",
+      "package_status": "VERIFICATION_REQUIRED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "delaware_open_bids",
+      "title": "Indoor Access Point Purchase & Installation",
+      "url": "https://mmp.delaware.gov/Bids/Details/9399",
+      "package_status": "VERIFICATION_REQUIRED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "la_ramp_open_bids",
+      "title": "146970 BATTERY TESTING KIT",
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000ov3nZIAQ",
+      "package_status": "ACCESS_RESTRICTED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "la_ramp_open_bids",
+      "title": "146733 60-inch Butterfly Valves for RSC Connecting Trunk Line Project",
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000ov1c5IAA",
+      "package_status": "ACCESS_RESTRICTED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "la_ramp_open_bids",
+      "title": "147079 COPPER, HARD TEMPERED, BUS PIPE",
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000ouyMTIAY",
+      "package_status": "ACCESS_RESTRICTED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "la_ramp_open_bids",
+      "title": "147051 BATTERY, 12 VOLT",
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000ouwJ3IAI",
+      "package_status": "ACCESS_RESTRICTED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    },
+    {
+      "source_key": "la_ramp_open_bids",
+      "title": "147140 PP1 8-INCH 150# AND 300# AIR RELEASE/VACUUM BREAKERS",
+      "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oug80IAA",
+      "package_status": "ACCESS_RESTRICTED",
+      "downloaded": 0,
+      "identified": 0,
+      "qty_hint": null
+    }
+  ],
+  "live_source_fits": [
+    {
+      "external_key": "0196616abe6d211aeb8a2d3633114d5a",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "250",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:title_listing"
+      ],
+      "requirement_class": "product_supply",
+      "solicitation_status": "open",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+      "package_status": null
+    }
+  ],
+  "unique_m3_procurement_fits": 2,
+  "evidence_manifest": [
+    {
+      "identity_key": "ek:915f9097e32dc2739bb376b337639a05",
+      "external_key": "915f9097e32dc2739bb376b337639a05",
+      "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+      "buyer": "Water & Power",
+      "solicitation_number": "233012",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oNWSGIA4",
+      "source_key": "la_ramp_open_bids",
+      "quantity": "300",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(300 UNIT)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    },
+    {
+      "identity_key": "ek:122bdb254694c663ad59162fe1144489",
+      "external_key": "122bdb254694c663ad59162fe1144489",
+      "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+      "buyer": "General Services",
+      "solicitation_number": "233123",
+      "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oj55BIAQ",
+      "source_key": "discovered_data_lacity_org_hf3r-utnq",
+      "quantity": "250",
+      "quantity_kind": "fixed",
+      "quantity_evidence": [
+        "numeric_quantity_without_estimated_markers",
+        "(250 PER CUP)",
+        "source:stored_package_excerpt"
+      ],
+      "requirement_class": "product_supply",
+      "package_status": "FAILED",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT"
+    }
+  ],
+  "evidence_manifest_count": 2,
+  "package_recount": {
+    "packages": 6051,
+    "by_status": {
+      "VERIFICATION_REQUIRED": 4711,
+      "COMPLETE": 481,
+      "ACCESS_RESTRICTED": 231,
+      "FAILED": 581,
+      "PARTIAL": 47
+    },
+    "identified_documents": 4133,
+    "downloaded_documents": 4043,
+    "missing_documents": 90,
+    "extracted_documents": 1453,
+    "detail_urls_resolved": 506,
+    "inventories_verified": 240,
+    "document_download_success_rate": 0.9782240503266393,
+    "extraction_success_rate": 0.3593865941132822,
+    "package_complete_rate": 0.07949099322426045
+  },
+  "coverage_matrix": {
+    "states": {
+      "AL": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "al_purchasing",
+            "name": "Alabama Purchasing Division",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 18
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "AK": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ak_doa",
+            "name": "Alaska DOA Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "AZ": {
+        "known": 5,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 3,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "tucson_procurement",
+            "name": "City of Tucson Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "maricopa_county_procurement",
+            "name": "Maricopa County AZ Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "phoenix_procurement",
+            "name": "City of Phoenix Finance Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 33
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "mesa_az_solicitations",
+            "name": "City of Mesa AZ \u2014 Purchasing Solicitations (open-data archive)",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": "historical_award",
+            "last_yield": {
+              "accepted": 242
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "az_spo",
+            "name": "Arizona State Procurement Office",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "AR": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ar_dfa",
+            "name": "Arkansas DFA Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "CA": {
+        "known": 10,
+        "operational": 4,
+        "discovered_not_operational": 0,
+        "level_0": 6,
+        "level_1": 3,
+        "level_2": 0,
+        "level_3": 1,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "la_ramp_open_bids",
+            "name": "City of Los Angeles RAMP \u2014 Open Bid Opportunities",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 3,
+            "dataset_purpose": "individual_solicitation_candidate",
+            "last_yield": {
+              "accepted": 100,
+              "verified_individual_solicitations": 100
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "fresno_purchasing",
+            "name": "City of Fresno Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "san_diego_purchasing",
+            "name": "City of San Diego Purchasing & Contracting",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "los_angeles_county_isd",
+            "name": "Los Angeles County ISD Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "la_usd_procurement",
+            "name": "Los Angeles Unified School District Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "port_of_la",
+            "name": "Port of Los Angeles Contracts",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "sfo_procurement",
+            "name": "San Francisco Airport Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "sacramento_procurement",
+            "name": "City of Sacramento Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 28
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "uc_procurement",
+            "name": "University of California Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 15
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "mwd_ca_procurement",
+            "name": "Metropolitan Water District of Southern California",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 2
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "CO": {
+        "known": 3,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "colorado_vss_public",
+            "name": "Colorado purchasing public page",
+            "adapter": "html_link_harvest",
+            "enabled": false,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "co_state_purchasing",
+            "name": "Colorado State Purchasing & Contracts",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 16
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "denver_purchasing",
+            "name": "City of Denver Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "CT": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ct_das",
+            "name": "Connecticut DAS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 29
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "DE": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 1,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "delaware_open_bids",
+            "name": "Delaware \u2014 Open Bids (MMP)",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 3,
+            "dataset_purpose": "individual_solicitation_candidate",
+            "last_yield": {
+              "accepted": 42,
+              "verified_individual_solicitations": 42
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "DC": {
+        "known": 3,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "dc_ocp",
+            "name": "District of Columbia OCP",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 32
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "wmata_procurement",
+            "name": "WMATA Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "naspo_valuepoint",
+            "name": "NASPO ValuePoint Cooperative Contracts",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 4
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "FL": {
+        "known": 5,
+        "operational": 3,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 3,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "tampa_bay_water",
+            "name": "Tampa Bay Water Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "miami_dade_procurement",
+            "name": "Miami-Dade County Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 19
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "university_of_florida_procurement",
+            "name": "University of Florida Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 43
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "fl_dms",
+            "name": "Florida DMS Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "jacksonville_procurement",
+            "name": "City of Jacksonville Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 37
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "GA": {
+        "known": 3,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "atlanta_airport_procurement",
+            "name": "Hartsfield-Jackson Atlanta Airport Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "atlanta_procurement",
+            "name": "City of Atlanta Office of Contract Compliance / Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "ga_doas",
+            "name": "Georgia DOAS State Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 25
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "HI": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "hi_spo",
+            "name": "Hawaii State Procurement Office",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 3
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "ID": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "id_purchasing",
+            "name": "Idaho Division of Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "IL": {
+        "known": 7,
+        "operational": 5,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 5,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "il_cms",
+            "name": "Illinois CMS BidBuy / Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 8
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "chicago_procurement",
+            "name": "City of Chicago Procurement Services",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 59
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "illinois_future_solicitations",
+            "name": "Illinois \u2014 Future Solicitations (forecast)",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": "forecast",
+            "last_yield": {
+              "accepted": 43
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "cta_procurement",
+            "name": "Chicago Transit Authority Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 39
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "housing_authority_chicago",
+            "name": "Chicago Housing Authority Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "chicago_public_schools_procurement",
+            "name": "Chicago Public Schools Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "cook_county_buying_plan_2026",
+            "name": "Cook County IL \u2014 Procurement Buying Plan FY2026",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": "purchasing_plan",
+            "last_yield": {
+              "accepted": 164
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "IN": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "indianapolis_purchasing",
+            "name": "City of Indianapolis Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "IA": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "iowa_das",
+            "name": "Iowa DAS procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 6
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "KS": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "kansas_purchasing",
+            "name": "Kansas Office of Procurement and Contracts",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 49
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "KY": {
+        "known": 2,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ky_finance",
+            "name": "Kentucky Finance Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 20
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "louisville_procurement",
+            "name": "Louisville Metro Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "LA": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "la_osp",
+            "name": "Louisiana OSP",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 17
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "ME": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "me_procurement",
+            "name": "Maine Division of Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 47
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "MD": {
+        "known": 4,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 3,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 1,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "montgomery_md_solicitations",
+            "name": "Montgomery County MD \u2014 Solicitations",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 3,
+            "dataset_purpose": "individual_solicitation_candidate",
+            "last_yield": {
+              "accepted": 17,
+              "verified_individual_solicitations": 17
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "maryland_procure",
+            "name": "Maryland eMMA public notices (open data)",
+            "adapter": "socrata_contracts",
+            "enabled": false,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "baltimore_procurement",
+            "name": "City of Baltimore Bureau of Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "md_dgs",
+            "name": "Maryland DGS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "MA": {
+        "known": 4,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "mwra_procurement",
+            "name": "Massachusetts Water Resources Authority Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "boston_procurement",
+            "name": "City of Boston Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 44
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "cambridge_ma_bids_historical",
+            "name": "Cambridge MA \u2014 Bid List (Historical)",
+            "adapter": "socrata_contracts",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": "historical_award",
+            "last_yield": {
+              "accepted": 4999
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "ma_osd",
+            "name": "Massachusetts OSD Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "MI": {
+        "known": 2,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "university_of_michigan_procurement",
+            "name": "University of Michigan Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "detroit_purchasing",
+            "name": "City of Detroit Office of Contracting & Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 35
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "MN": {
+        "known": 4,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 3,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "hennepin_county_purchasing",
+            "name": "Hennepin County MN Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "sourcewell_contracts",
+            "name": "Sourcewell Cooperative Contracts",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 3
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "metro_transit_mn",
+            "name": "Metro Transit MN Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "mn_admin",
+            "name": "Minnesota Office of State Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "MS": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ms_dfa",
+            "name": "Mississippi DFA Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "MO": {
+        "known": 2,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "mo_oa_purchasing",
+            "name": "Missouri OA Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 23
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "kansas_city_mo_procurement",
+            "name": "Kansas City MO Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "MT": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "mt_general",
+            "name": "Montana State Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "NE": {
+        "known": 7,
+        "operational": 3,
+        "discovered_not_operational": 1,
+        "level_0": 4,
+        "level_1": 1,
+        "level_2": 2,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "university_of_nebraska_procurement",
+            "name": "University of Nebraska Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "ai_73ad9c881050902a38be",
+            "name": "ESU Coordinating Council Cooperative Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": true,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "ai_a75c9e6888ac36238c0b",
+            "name": "ProcureTap",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": true,
+            "capability_level": 2,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 48
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "lincoln_ne_purchasing",
+            "name": "City of Lincoln Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "omaha_ne_finance",
+            "name": "City of Omaha Finance / Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "ai_bf83be7b069ca9d2bf13",
+            "name": "Nebraska Department of Administrative Services (DAS) Materiel Division",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": true,
+            "capability_level": 2,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 1
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "ne_das_public",
+            "name": "Nebraska DAS Materiel / Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 2
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "NV": {
+        "known": 3,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "las_vegas_airport",
+            "name": "Harry Reid Airport Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "nv_purchasing",
+            "name": "Nevada Purchasing Division",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "las_vegas_purchasing",
+            "name": "City of Las Vegas Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 1
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "NH": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nh_purchase",
+            "name": "New Hampshire Bureau of Purchase",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "NJ": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nj_purchase",
+            "name": "New Jersey Purchase Bureau",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 286
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "NM": {
+        "known": 2,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nm_gsd",
+            "name": "New Mexico GSD Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 45
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "albuquerque_purchasing",
+            "name": "City of Albuquerque Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 9
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "NY": {
+        "known": 5,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 5,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nyc_checkbook_solicitations",
+            "name": "NYC Open Data \u2014 Solicitations",
+            "adapter": "socrata_contracts",
+            "enabled": false,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "ny_ogs",
+            "name": "New York OGS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "nyc_doe_vendor",
+            "name": "NYC DOE Vendor Portal / Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "housing_authority_nyc",
+            "name": "NYC Housing Authority Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "mta_ny_procurement",
+            "name": "MTA NY Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "NC": {
+        "known": 3,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nc_purchase",
+            "name": "North Carolina Purchase & Contract",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 14
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "charlotte_procurement",
+            "name": "City of Charlotte Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "wake_county_procurement",
+            "name": "Wake County NC Finance / Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "ND": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nd_omb",
+            "name": "North Dakota OMB Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 32
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "OH": {
+        "known": 3,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ohio_state_purchasing",
+            "name": "Ohio State University Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "oh_das",
+            "name": "Ohio DAS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 2
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "columbus_purchasing",
+            "name": "City of Columbus Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "OK": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ok_omes",
+            "name": "Oklahoma OMES Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 6
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "OR": {
+        "known": 2,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "portland_procurement",
+            "name": "City of Portland Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "or_das",
+            "name": "Oregon DAS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 41
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "PA": {
+        "known": 4,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "allegheny_county_purchasing",
+            "name": "Allegheny County PA Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "penn_state_purchasing",
+            "name": "Penn State Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "pa_dgs",
+            "name": "Pennsylvania DGS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 25
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "philadelphia_procurement",
+            "name": "City of Philadelphia Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 19
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "RI": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ri_purchasing",
+            "name": "Rhode Island Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "SC": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "sc_mmo",
+            "name": "South Carolina MMO",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 55
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "SD": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "sd_procurement",
+            "name": "South Dakota Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "TN": {
+        "known": 2,
+        "operational": 2,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 2,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "nashville_purchasing",
+            "name": "Metro Nashville Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 30
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "tn_cpo",
+            "name": "Tennessee CPO",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 87
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "TX": {
+        "known": 11,
+        "operational": 5,
+        "discovered_not_operational": 0,
+        "level_0": 6,
+        "level_1": 5,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "austin_purchasing",
+            "name": "City of Austin Purchasing Office",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "dfw_airport_procurement",
+            "name": "DFW Airport Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "university_of_texas_procurement",
+            "name": "University of Texas System Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "tx_cpa",
+            "name": "Texas Comptroller Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 9
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "omnia_partners_public",
+            "name": "OMNIA Partners Public Sector (cooperative listings)",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 1
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "san_antonio_purchasing",
+            "name": "City of San Antonio Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "houston_purchasing",
+            "name": "City of Houston Strategic Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 9
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "port_of_houston",
+            "name": "Port Houston Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "travis_county_purchasing",
+            "name": "Travis County TX Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 3
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "dallas_purchasing",
+            "name": "City of Dallas Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "harris_county_purchasing",
+            "name": "Harris County TX Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 12
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "UT": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "ut_purchasing",
+            "name": "Utah Division of Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "VT": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "vt_bgs",
+            "name": "Vermont Buildings & General Services",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 10
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "VA": {
+        "known": 2,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "fairfax_county_procurement",
+            "name": "Fairfax County VA Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 32
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "va_dgs",
+            "name": "Virginia DGS Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "WA": {
+        "known": 5,
+        "operational": 3,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 3,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "king_county_procurement",
+            "name": "King County WA Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "seattle_purchasing",
+            "name": "City of Seattle Purchasing and Contracting",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 9
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "university_of_washington_procurement",
+            "name": "University of Washington Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 10
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "sea_tac_procurement",
+            "name": "Seattle-Tacoma Airport Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 10
+            },
+            "yield_now": {}
+          },
+          {
+            "source_key": "wa_des",
+            "name": "Washington DES Contracting",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "WV": {
+        "known": 1,
+        "operational": 1,
+        "discovered_not_operational": 0,
+        "level_0": 0,
+        "level_1": 1,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "wv_purchasing",
+            "name": "West Virginia Purchasing Division",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": true,
+            "operational": true,
+            "discovered": false,
+            "capability_level": 1,
+            "dataset_purpose": null,
+            "last_yield": {
+              "accepted": 5
+            },
+            "yield_now": {}
+          }
+        ]
+      },
+      "WI": {
+        "known": 2,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 2,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "milwaukee_purchasing",
+            "name": "City of Milwaukee Purchasing",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          },
+          {
+            "source_key": "wi_doa",
+            "name": "Wisconsin State Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      },
+      "WY": {
+        "known": 1,
+        "operational": 0,
+        "discovered_not_operational": 0,
+        "level_0": 1,
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0,
+        "sources": [
+          {
+            "source_key": "wy_procurement",
+            "name": "Wyoming Procurement",
+            "adapter": "html_link_harvest",
+            "enabled": true,
+            "verified": false,
+            "operational": false,
+            "discovered": false,
+            "capability_level": 0,
+            "dataset_purpose": null,
+            "last_yield": null,
+            "yield_now": {}
+          }
+        ]
+      }
+    },
+    "states_with_any_source": 51,
+    "states_with_operational": 38,
+    "states_with_level2_plus": 4,
+    "states_with_level4": 0,
+    "level2_plus_states": [
+      "CA",
+      "DE",
+      "MD",
+      "NE"
+    ],
+    "level4_states": [],
+    "operational_sources_geotagged": 61,
+    "capability_level_counts": {
+      "0": 124,
+      "1": 102,
+      "2": 17,
+      "3": 3,
+      "4": 0
+    },
+    "zero_operational_states": [
+      "AK",
+      "AR",
+      "ID",
+      "IN",
+      "MS",
+      "MT",
+      "NH",
+      "NY",
+      "RI",
+      "SD",
+      "UT",
+      "WI",
+      "WY"
+    ],
+    "single_portal_only_states": [
+      "AL",
+      "CO",
+      "CT",
+      "DE",
+      "GA",
+      "HI",
+      "IA",
+      "KS",
+      "KY",
+      "LA",
+      "ME",
+      "MD",
+      "MI",
+      "MN",
+      "MO",
+      "NV",
+      "NJ",
+      "NC",
+      "ND",
+      "OH",
+      "OK",
+      "OR",
+      "SC",
+      "VT",
+      "VA",
+      "WV"
+    ],
+    "note": "LEVEL0=discovered; LEVEL1=verified source; LEVEL2=individual solicitations; LEVEL3=active details; LEVEL4=complete packages"
+  },
+  "spend": {
+    "paid_research_enabled": true,
+    "daily_budget_usd": 1.0,
+    "monthly_budget_usd": 30.0,
+    "per_job_budget_usd": 0.5,
+    "per_user_daily_budget_usd": 1.0,
+    "max_research_depth": 2,
+    "default_model": "gpt-4o-mini",
+    "capable_model": "gpt-5-mini",
+    "search_context_size": "low",
+    "today_spent_usd": 0.9876,
+    "month_spent_usd": 0.9876,
+    "today_remaining_usd": 0.0124,
+    "month_remaining_usd": 29.0124,
+    "cost_basis": "application_estimate_not_invoice",
+    "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+  },
+  "comparison_002g": {
+    "002g_strict_m3_fit": 0,
+    "002h_unique_m3_procurement_fit": 4,
+    "002g_broad_product": 260,
+    "002h_stage_b_product_packages": 204,
+    "002g_verified_individuals": 752,
+    "002h_verified_individuals_fresh": 752,
+    "002h_discovery_population_fresh": 18023
+  },
+  "source_yield_sample": [],
+  "gates": {
+    "DATA_INTEGRITY": "VERIFIED",
+    "NO_FABRICATED_LIVE_RECORDS": "VERIFIED",
+    "QUANTITY_EXTRACTION": "VERIFIED",
+    "PROCUREMENT_FIT_PIPELINE": "VERIFIED",
+    "SEPARATION_FROM_FINANCIAL_READINESS": "VERIFIED",
+    "PACKAGE_REPROCESS": "VERIFIED",
+    "SOURCE_ACTIVATION": "PARTIALLY VERIFIED",
+    "NATIONWIDE_COVERAGE": "PARTIALLY VERIFIED",
+    "PROGRESSIVE_ACQUISITION": "VERIFIED",
+    "OCR_FALLBACK": "PARTIALLY VERIFIED",
+    "FULL_POPULATION_PROCESSING": "PARTIALLY VERIFIED",
+    "EVIDENCE_MANIFEST": "VERIFIED",
+    "BUDGET_ENFORCEMENT": "VERIFIED",
+    "DEPLOYMENT_VERIFIED": "PENDING",
+    "FALSE_QUANTITY_REJECTION_GVWR": "VERIFIED"
+  },
+  "engineering_targets": {
+    "m3_fit_vs_100": {
+      "actual": 2,
+      "met": false
+    }
+  },
+  "owner_actions_required": [
+    {
+      "action": "optional_free_RAMP_vendor_account",
+      "benefit": "Unlock LA RAMP attachment inventories for open commodity IFBs",
+      "url": "https://www.rampla.org/"
+    },
+    {
+      "action": "optional_mesa_vendor_access",
+      "benefit": "HTML board currently HTTP 403 to automated clients",
+      "url": "https://www.mesaaz.gov/business/purchasing"
+    }
+  ],
+  "remaining_failures": {
+    "quantity_still_unknown": 459,
+    "access_restricted_packages": 231,
+    "note": "quantity_unknown after extraction = source did not publish qty in accessible text OR docs not acquired"
+  },
+  "finished": "2026-11-22T00:01:21Z",
+  "total_elapsed_s": 45.6,
+  "fresh_discovery": {
+    "discovery_population": 18023,
+    "verified_individual_solicitations": 752,
+    "verified_product": 401,
+    "stage_c_fit": null,
+    "stage_b_product": 225,
+    "quantity_extracted": 10,
+    "note": "from_first_002h_full_run_terminal_evidence",
+    "openai_portals": false
+  },
+  "unique_m3_procurement_fits_deduped": 2
+}

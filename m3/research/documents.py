@@ -26,20 +26,48 @@ def extract_html_text(html: str) -> str:
     return _clean(text)
 
 
-def extract_pdf_text(data: bytes) -> dict[str, Any]:
+def extract_pdf_text(data: bytes, *, allow_ocr: bool = True) -> dict[str, Any]:
     try:
         from pdfminer.high_level import extract_text as pdf_extract
 
         text = pdf_extract(io.BytesIO(data)) or ""
         cleaned = _clean(text)
-        if len(cleaned) < 40:
-            return {
-                "ok": False,
-                "reason": "pdf_little_or_no_extractable_text_may_be_scanned",
-                "text": cleaned,
-                "format": "pdf",
-            }
-        return {"ok": True, "text": cleaned, "format": "pdf", "reason": None}
+        if len(cleaned) >= 40:
+            return {"ok": True, "text": cleaned, "format": "pdf", "reason": None, "method": "pdfminer"}
+        # OCR fallback for scanned / image PDFs (Build 002H)
+        if allow_ocr:
+            try:
+                from m3.research.extract_fields import ocr_pdf_bytes
+
+                ocr = ocr_pdf_bytes(data, max_pages=5)
+                if ocr.get("ok") and ocr.get("text"):
+                    return {
+                        "ok": True,
+                        "text": _clean(str(ocr["text"])),
+                        "format": "pdf",
+                        "reason": None,
+                        "method": "ocr_fallback",
+                        "ocr_meta": {k: ocr.get(k) for k in ("pages_ocrd", "method")},
+                    }
+                return {
+                    "ok": False,
+                    "reason": ocr.get("reason") or "pdf_little_or_no_extractable_text_may_be_scanned",
+                    "text": cleaned,
+                    "format": "pdf",
+                }
+            except Exception as ocr_exc:
+                return {
+                    "ok": False,
+                    "reason": f"pdf_thin_ocr_error:{type(ocr_exc).__name__}",
+                    "text": cleaned,
+                    "format": "pdf",
+                }
+        return {
+            "ok": False,
+            "reason": "pdf_little_or_no_extractable_text_may_be_scanned",
+            "text": cleaned,
+            "format": "pdf",
+        }
     except Exception as exc:
         return {"ok": False, "reason": f"pdf_extract_error:{type(exc).__name__}", "text": "", "format": "pdf"}
 

@@ -1069,7 +1069,7 @@ def _acquire_solicitation_package_inner(
     else:
         pkg.extraction_status = "NOT_READY"
 
-    # Classification evidence from package
+    # Classification + quantity extraction from package (Build 002H)
     excerpts = []
     if detail_fields.get("description_excerpt"):
         excerpts.append(str(detail_fields["description_excerpt"])[:3000])
@@ -1079,6 +1079,7 @@ def _acquire_solicitation_package_inner(
     evidence_text = "\n".join(excerpts)[:12000]
     if evidence_text:
         from m3.research.classify import classify_requirement
+        from m3.research.extract_fields import extract_identity_fields, extract_quantity_fields
 
         cls = classify_requirement(
             pkg.title,
@@ -1086,12 +1087,28 @@ def _acquire_solicitation_package_inner(
             description=str(item.get("description") or "")[:2000],
             document_text=evidence_text,
         )
+        qty = extract_quantity_fields(evidence_text, title=pkg.title or "")
+        ident = extract_identity_fields(evidence_text)
         pkg.classification_hint = {
             "requirement_class": cls.get("requirement_class"),
             "include_in_product_resale": cls.get("include_in_product_resale"),
             "evidence": (cls.get("classification_evidence") or [])[:8],
             "from_package": True,
+            "quantity": qty.get("quantity"),
+            "quantity_unit": qty.get("quantity_unit"),
+            "quantity_kind": qty.get("quantity_kind"),
+            "quantity_evidence": (qty.get("quantity_evidence") or [])[:6],
+            "quantity_extracted": bool(qty.get("quantity_extracted")),
+            "line_items": (qty.get("line_items") or [])[:10],
+            "identity_fields": ident,
+            "description_excerpt": (detail_fields.get("description_excerpt") or "")[:2000],
         }
+        detail_fields = dict(detail_fields or {})
+        if qty.get("quantity_extracted"):
+            detail_fields["extracted_quantity"] = qty.get("quantity")
+            detail_fields["extracted_quantity_kind"] = qty.get("quantity_kind")
+            detail_fields["extracted_quantity_evidence"] = (qty.get("quantity_evidence") or [])[:4]
+        pkg.detail_fields = detail_fields
     pkg.last_verified_at = _now()
     db.add(pkg)
     # Persist reusable platform success pattern (avoid rediscovering with OpenAI)

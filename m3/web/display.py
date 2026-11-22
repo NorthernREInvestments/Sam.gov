@@ -151,6 +151,13 @@ def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_
         "catalog_matches": catalog_matches if catalog_matches else "None found",
         "field_status": {k: label(v) for k, v in fs.items()},
         "unavailable_reasons": out.get("unavailable_reasons") or {},
+        "procurement_stage": label(
+            (out.get("procurement_pipeline") or {}).get("stage")
+            or out.get("procurement_stage")
+            or "not_evaluated"
+        ),
+        "record_type": label(out.get("record_type") or "unresolved"),
+        "quantity_kind": label(out.get("quantity_kind") or "unknown"),
     }
     out["display_title"] = titles["display_title"]
     return out

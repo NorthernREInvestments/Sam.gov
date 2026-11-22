@@ -49,6 +49,8 @@
       <dt>Procurement type</dt><dd>{{ display.procurement_type }}</dd>
       <dt>Product category</dt><dd>{{ display.product_category }}</dd>
       <dt>Requirement class</dt><dd>{{ display.requirement_class }}</dd>
+      <dt>Record type</dt><dd>{{ display.record_type or '—' }}</dd>
+      <dt>Procurement stage</dt><dd>{{ display.procurement_stage or '—' }}</dd>
       <dt>Manufacturer</dt><dd>{{ display.manufacturer }}</dd>
       <dt>Source</dt><dd>{{ display.source_key }}</dd>
       <dt>Verified</dt><dd>{{ display.source_verified_at }}</dd>
@@ -59,7 +61,7 @@
     <h2>Requirements</h2>
     <dl class="kv">
       <dt>Product / purchase</dt><dd>{{ display.title }}</dd>
-      <dt>Quantity</dt><dd>{{ display.quantity }} <span class="muted">({{ display.field_status.quantity or '—' }})</span></dd>
+      <dt>Quantity</dt><dd>{{ display.quantity }} <span class="muted">({{ display.quantity_kind or display.field_status.quantity or '—' }})</span></dd>
       <dt>Classification evidence</dt><dd>{{ display.classification_evidence }}</dd>
     </dl>
   </section>
