@@ -1,0 +1,155 @@
+{
+  "build": "002I",
+  "build_id": "20261121-m3-2-build-002i",
+  "count": 3,
+  "note": "Independently re-checked Stage C only. 002H PER CUP/UNIT paren fits excluded.",
+  "opportunities": [
+    {
+      "solicitation_number": "PE-74600-NONST-2027-000000031",
+      "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+      "buyer_location": "Georgia",
+      "procurement_platform": "georgia_gpr",
+      "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20",
+      "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+      "bid_deadline": null,
+      "product_description": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+      "ordered_quantity": "5",
+      "unit_of_measure": "EA",
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "Five (5)",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_with_incidental_services"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ],
+      "document_inventory": [
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#pane-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#collapse-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=56228784&sourceSystemType=gpr20",
+          "name": "RFP 2026_11 Five New Custom Class A Pumper Ap.pdf",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57788090&sourceSystemType=gpr20",
+          "name": "Q_A _ RFP Class _A_ Pumpers (2026_11).pdf",
+          "status": "downloaded"
+        }
+      ]
+    },
+    {
+      "solicitation_number": "PE-61700-NONST-2027-000000082",
+      "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+      "buyer_location": "Georgia",
+      "procurement_platform": "georgia_gpr",
+      "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20",
+      "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+      "bid_deadline": null,
+      "product_description": "Pumper Fire Truck",
+      "ordered_quantity": "1",
+      "unit_of_measure": "EA",
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "furnish 1 new",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_supply"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ],
+      "document_inventory": [
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#pane-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#collapse-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57465020&sourceSystemType=gpr20",
+          "name": "Burke County Pumping Apparatus Bid Package 11.pdf",
+          "status": "downloaded"
+        }
+      ]
+    },
+    {
+      "solicitation_number": "SRS27002-ATHSUPPLY",
+      "buyer_name": "Caesar Rodney School District",
+      "buyer_location": "Delaware",
+      "procurement_platform": "delaware_mmp",
+      "official_url": "https://mmp.delaware.gov/Bids/Details/9397",
+      "active_status_evidence": "data.delaware.gov open bids + mmp.delaware.gov detail",
+      "bid_deadline": "Responses",
+      "product_description": "Athletic Equipment Uniforms and Related Services",
+      "ordered_quantity": "2",
+      "unit_of_measure": "EA",
+      "document_inventory": [
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB2.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB2.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_rfp.pdf",
+          "name": "SRS27002-ATHSUPPLY_rfp.pdf",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB1.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB1.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB3.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB3.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_ad01.pdf",
+          "name": "SRS27002-ATHSUPPLY_ad01.pdf",
+          "status": "downloaded"
+        }
+      ],
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "Quantity: 2 EA",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_with_incidental_services"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ]
+    }
+  ]
+}

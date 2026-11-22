@@ -16,6 +16,7 @@ from m3.models import ResearchCache, ResearchRun, SourceRegistry
 from m3.research.adapters import (
     discover_socrata_catalog,
     probe_supplier_page,
+    search_georgia_gpr,
     search_html_links,
     search_socrata,
 )
@@ -456,7 +457,7 @@ def run_contract_discovery(
         .filter(SourceRegistry.is_enabled.is_(True), SourceRegistry.access_cost == "free")
         .filter(
             SourceRegistry.adapter.in_(
-                ["socrata_contracts", "html_link_harvest", "socrata_catalog_discover"]
+                ["socrata_contracts", "html_link_harvest", "socrata_catalog_discover", "georgia_gpr"]
             )
         )
         .all()
@@ -563,6 +564,8 @@ def run_contract_discovery(
                     max_pages=settings.research_max_pages_per_source,
                     apply_adapter_keywords=False,
                 )
+            elif src.adapter == "georgia_gpr":
+                result = search_georgia_gpr(payload, limit=None)
             else:
                 result = search_html_links(
                     payload,

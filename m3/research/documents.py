@@ -88,20 +88,80 @@ def extract_docx_text(data: bytes) -> dict[str, Any]:
 
 
 def extract_xlsx_text(data: bytes) -> dict[str, Any]:
+    """Extract spreadsheet text preserving sheet/row structure for quantity schedules.
+
+    Also emits affirmative Quantity: N lines when a Quantity column or trailing
+    parenthetical ordered count is present in pricing / bid-response sheets.
+    """
     try:
         import openpyxl
 
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         parts: list[str] = []
-        for ws in wb.worksheets[:5]:
+        qty_lines: list[str] = []
+        for ws in wb.worksheets[:8]:
+            parts.append(f"[worksheet:{ws.title}]")
+            header_idx: dict[str, int] = {}
             for i, row in enumerate(ws.iter_rows(values_only=True)):
-                if i > 200:
+                if i > 400:
                     break
-                cells = [str(c) for c in row if c is not None]
-                if cells:
-                    parts.append(" | ".join(cells))
-        text = _clean("\n".join(parts))
-        return {"ok": bool(text), "text": text, "format": "xlsx", "reason": None if text else "empty_xlsx"}
+                cells = list(row)
+                nonempty = [str(c) for c in cells if c is not None and str(c).strip()]
+                if not nonempty:
+                    continue
+                # Header detection
+                lower_cells = [str(c or "").strip().lower() for c in cells]
+                if not header_idx and any(
+                    h in lower_cells for h in ("quantity", "qty", "item description", "item", "bid/no bid decision")
+                ):
+                    for j, h in enumerate(lower_cells):
+                        if h in {"quantity", "qty", "qty.", "estimated quantity", "order qty"}:
+                            header_idx["quantity"] = j
+                        if h in {"item description", "description", "item"}:
+                            header_idx["item"] = j
+                        if "#" == h or h in {"item #", "line", "line #"}:
+                            header_idx["line"] = j
+                line = " | ".join(nonempty)
+                parts.append(line)
+                # Explicit Quantity column
+                if "quantity" in header_idx:
+                    qcell = cells[header_idx["quantity"]] if header_idx["quantity"] < len(cells) else None
+                    if qcell is not None and re.search(r"^\s*[\d,]+(?:\.\d+)?\s*$", str(qcell)):
+                        item = ""
+                        if "item" in header_idx and header_idx["item"] < len(cells) and cells[header_idx["item"]]:
+                            item = str(cells[header_idx["item"]])[:80]
+                        qty_lines.append(f"Quantity: {str(qcell).strip()} EA" + (f" line_item:{item}" if item else ""))
+                # Pricing sheets often encode ordered counts as trailing (N) in item text
+                if re.search(r"(?i)bid/no bid|vendor responses|item description|pricing", " ".join(lower_cells[:6]) + " " + (ws.title or "")):
+                    pass
+                for cell in nonempty:
+                    m = re.search(
+                        r"(?i)^(.{8,120}?)\((\d{1,5})\)\s*$",
+                        cell.strip(),
+                    )
+                    if m and not re.search(r"(?i)\b(lb|lbs|inch|inches|mm|cm|volt|amp|watt|year|gvwr)\b", m.group(1)):
+                        # e.g. "Nike Practice Soccer Balls Size: 5 (30)"
+                        qty_lines.append(
+                            f"Quantity: {m.group(2)} EA line_item:{m.group(1).strip()[:80]}"
+                        )
+        if qty_lines:
+            # Deduplicate while preserving order
+            seen: set[str] = set()
+            uniq: list[str] = []
+            for q in qty_lines[:80]:
+                if q not in seen:
+                    seen.add(q)
+                    uniq.append(q)
+            # Prepend quantity lines so _clean truncation cannot drop them
+            parts = ["[extracted_quantity_lines]", *uniq, *parts]
+        text = _clean("\n".join(parts), limit=20000)
+        return {
+            "ok": bool(text),
+            "text": text,
+            "format": "xlsx",
+            "reason": None if text else "empty_xlsx",
+            "quantity_lines": qty_lines[:40] if qty_lines else [],
+        }
     except Exception as exc:
         return {"ok": False, "reason": f"xlsx_extract_error:{type(exc).__name__}", "text": "", "format": "xlsx"}
 

@@ -1,0 +1,253 @@
+{
+  "build": "002I",
+  "build_id": "20261121-m3-2-build-002i",
+  "sources": [
+    {
+      "source": "delaware_open_bids",
+      "platform_family": "Delaware MMP / bidcondocs",
+      "level_before": 3,
+      "level_after": 4,
+      "acquire": {
+        "attempted": 8,
+        "complete": 8,
+        "partial": 0,
+        "failed": 0,
+        "samples": [
+          {
+            "solicitation_number": "DSU-PC-26-008-B",
+            "title": "Phase 1 Bid Pack B Demolition & Site Preparation",
+            "status": "COMPLETE",
+            "downloaded": 4,
+            "identified": 4
+          },
+          {
+            "solicitation_number": "DOE27005-MEP",
+            "title": "Delaware Migrant Education Program MEP",
+            "status": "COMPLETE",
+            "downloaded": 1,
+            "identified": 1
+          },
+          {
+            "solicitation_number": "DSHA271030-UNDERWRITING",
+            "title": "Bond Issuance Underwriting Team",
+            "status": "COMPLETE",
+            "downloaded": 1,
+            "identified": 1
+          },
+          {
+            "solicitation_number": "DSU-PC-26-008",
+            "title": "Phase 1 Bid Pack A Site Electrical Reconfiguration",
+            "status": "COMPLETE",
+            "downloaded": 4,
+            "identified": 4
+          },
+          {
+            "solicitation_number": "RCCD2725-INDRACSSPT",
+            "title": "Indoor Access Point Purchase & Installation",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "identified": 3
+          },
+          {
+            "solicitation_number": "RCCD2727-UPSPRCHS",
+            "title": "UPS Purchase",
+            "status": "COMPLETE",
+            "downloaded": 1,
+            "identified": 1
+          },
+          {
+            "solicitation_number": "RCCD2726-OTDRACSSPT",
+            "title": "Outdoor Access Point Purchase & Installation",
+            "status": "COMPLETE",
+            "downloaded": 2,
+            "identified": 2
+          },
+          {
+            "solicitation_number": "DTCC2713-PRINT",
+            "title": "Collegewide Printing Services",
+            "status": "COMPLETE",
+            "downloaded": 2,
+            "identified": 2
+          }
+        ]
+      }
+    },
+    {
+      "source": "georgia_gpr_open_goods",
+      "platform_family": "Georgia GPR / JAGGAER",
+      "level_before": 0,
+      "level_after": 3,
+      "acquire": {
+        "attempted": 15,
+        "complete": 15,
+        "partial": 0,
+        "failed": 0,
+        "discovered": 15,
+        "samples": [
+          {
+            "solicitation_number": "PE-33306-NONST-2027-000000027",
+            "title": "2026-28 2027 Ford 4 x 4 F550 2dr Mini Rescue Vehicle",
+            "status": "COMPLETE",
+            "downloaded": 6,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-33306-NONST-2027-000000027&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-74600-NONST-2027-000000031",
+            "title": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+            "status": "COMPLETE",
+            "downloaded": 4,
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "5",
+            "quantity_defined": true,
+            "requirement_class": "product_with_incidental_services",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-66244-NONST-2027-000000005",
+            "title": "RFB No. FVFD-2026-01 - Fire Department SCBA, Cylinders, and Facepieces",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_with_incidental_services",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-66244-NONST-2027-000000005&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "SWC-eRFP-00028-2027",
+            "title": "Police Vehicles and Special Operations Vehicles",
+            "status": "COMPLETE",
+            "downloaded": 2,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=SWC-eRFP-00028-2027&sourceSystemType=jag",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-77648-NONST-2027-000000032",
+            "title": "RFP - Self Contained Breathing Apparatus",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-77648-NONST-2027-000000032&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-66166-NONST-2027-000000050",
+            "title": "REQUEST FOR FIBER SUPPLIES 2026",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-66166-NONST-2027-000000050&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-61700-NONST-2027-000000082",
+            "title": "Pumper Fire Truck",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "1",
+            "quantity_defined": true,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-66992-NONST-2027-000000035",
+            "title": "RFP 2026-09 Polaris Ranger 1000",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_with_incidental_services",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-66992-NONST-2027-000000035&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-75500-NONST-2026-000000058",
+            "title": "HAMM HC 100i Roller",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-75500-NONST-2026-000000058&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-77023-NONST-2026-000000831",
+            "title": "IWQ 141315 Purchase of Full-Port Glass Lined Plug Valve",
+            "status": "COMPLETE",
+            "downloaded": 5,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_supply",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-77023-NONST-2026-000000831&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-63310-NONST-2027-000000253",
+            "title": "Printer Cartridge Supplies, B27078",
+            "status": "COMPLETE",
+            "downloaded": 2,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_with_incidental_services",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-63310-NONST-2027-000000253&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          },
+          {
+            "solicitation_number": "PE-61700-NONST-2027-000000079",
+            "title": "Tractor Truck",
+            "status": "COMPLETE",
+            "downloaded": 3,
+            "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+            "quantity": null,
+            "quantity_defined": false,
+            "requirement_class": "product_with_incidental_services",
+            "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000079&sourceSystemType=gpr20",
+            "buyer": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem"
+          }
+        ]
+      },
+      "listing_limitation": "eventSearch_blocked_non_browser_400"
+    },
+    {
+      "source": "la_ramp_open_bids",
+      "platform_family": "Salesforce RAMP",
+      "level_before": 2,
+      "level_after": 2,
+      "documents": "ACCESS_RESTRICTED without vendor session"
+    }
+  ],
+  "ground_truth_recall": {
+    "accessible_denominator": 130,
+    "found": 130,
+    "missing": 0,
+    "recall": 1.0,
+    "missing_sample": [],
+    "excluded_from_denominator": {
+      "montgomery_county_opendata": "metadata-only; no individual detail URL adapter yet"
+    }
+  }
+}

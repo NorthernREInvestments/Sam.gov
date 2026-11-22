@@ -56,6 +56,14 @@ LISTING_URL_MARKERS = (
 DETAIL_URL_MARKERS = (
     "/solicitation/",
     "/opportunity/",
+    "/bids/details/",
+    "/bid/details/",
+    "/bid/detail/",
+    "/opportunity-details",
+    "opportunity-details?",
+    "/eventdetails",
+    "eventdetails?",
+    "esourcenumber=",
     "/bid/",
     "/rfp/",
     "/rfq/",
@@ -64,6 +72,7 @@ DETAIL_URL_MARKERS = (
     "noticeid=",
     "solicitationid=",
     "opportunityid=",
+    "getbiddocumentlist",
 )
 DOC_EXTS = (".pdf", ".docx", ".xlsx", ".xls", ".csv", ".txt", ".doc", ".rtf", ".zip", ".png", ".jpg", ".jpeg")
 LOGIN_MARKERS = (
@@ -167,14 +176,16 @@ def classify_url_kind(url: str) -> str:
     if any(path.endswith(ext) for ext in DOC_EXTS):
         return "document"
     low = url.lower()
-    if any(m in low for m in DETAIL_URL_MARKERS) and not any(
-        m in low for m in ("/bid-opportunities", "procuretap.com/bids/", "/current-bids")
-    ):
+    # Detail markers win over broad listing markers (e.g. /Bids/Details/N vs /bids/).
+    if any(m in low for m in DETAIL_URL_MARKERS):
         return "detail"
     # Short path with id-like segment
     parts = [p for p in path.split("/") if p]
     if len(parts) >= 2 and re.search(r"\d{4,}|[a-f0-9-]{8,}", parts[-1], re.I):
         if not any(m in low for m in LISTING_URL_MARKERS):
+            return "detail"
+        # /Bids/Details/9401 style already caught; numeric tail under /bids/ is often detail
+        if re.search(r"/bids?/details?/\d+", path):
             return "detail"
     if any(m in low for m in LISTING_URL_MARKERS):
         return "listing"
@@ -204,6 +215,8 @@ def detect_platform(url: str, source_key: str = "") -> str:
         return "sam_gov"
     if "mmp.delaware.gov" in host:
         return "delaware_mmp"
+    if "doas.state.ga.us" in host or "ssl.doas.state.ga.us" in host:
+        return "georgia_gpr"
     if host.endswith(".gov") or host.endswith(".us"):
         return "gov_html"
     if "ionwave" in host:
@@ -372,6 +385,60 @@ def extract_detail_fields(html: str, url: str) -> dict[str, Any]:
     fields["full_text_len"] = len(text)
     fields["has_substantial_detail"] = len(text) >= 400
     return fields
+
+
+def discover_delaware_mmp_documents(detail_url: str) -> list[dict[str, Any]]:
+    """Delaware MMP loads attachments via GetBidDocumentList AJAX (public).
+
+    Static detail HTML often has zero hrefs; documents live on bidcondocs.delaware.gov.
+    """
+    m = re.search(r"/Bids/Details/(\d+)", detail_url or "", flags=re.I)
+    if not m:
+        return []
+    bid_id = m.group(1)
+    list_url = f"https://mmp.delaware.gov/Bids/GetBidDocumentList?id={bid_id}&currentCount=0"
+    try:
+        status, final, html = fetch_text(list_url, timeout=15)
+    except Exception:
+        return []
+    if status >= 400 or not html:
+        return []
+    if "Request Rejected" in html[:400]:
+        return []
+    return discover_attachments_from_html(html, final or list_url)
+
+
+def discover_georgia_gpr_documents(detail_url: str, html: str = "") -> list[dict[str, Any]]:
+    """Georgia Procurement Registry public attachment links on eventDetails pages."""
+    if not html and detail_url:
+        try:
+            status, final, html = fetch_text(detail_url, timeout=15)
+            if status >= 400:
+                return []
+            detail_url = final or detail_url
+        except Exception:
+            return []
+    out: list[dict[str, Any]] = []
+    for href, label in re.findall(
+        r'<a[^>]+href=["\']([^"\']*downloadAttachment[^"\']*)["\'][^>]*>([\s\S]*?)</a>',
+        html or "",
+        flags=re.I,
+    ):
+        abs_u = urljoin(detail_url, href)
+        name = re.sub(r"<[^>]+>", " ", label or "")
+        name = re.sub(r"\s+", " ", name).strip() or unquote(urlparse(abs_u).path.split("/")[-1])
+        is_am = any(m in name.lower() for m in AMENDMENT_MARKERS)
+        out.append(
+            {
+                "source_url": abs_u,
+                "original_filename": name[:500],
+                "document_title": name[:500],
+                "document_type": "amendment" if is_am else "attachment",
+                "is_amendment": is_am,
+                "meta": {"platform": "georgia_gpr"},
+            }
+        )
+    return out
 
 
 def discover_attachments_from_html(html: str, base_url: str) -> list[dict[str, Any]]:
@@ -829,6 +896,23 @@ def _acquire_solicitation_package_inner(
                 if detail_fields.get("solicitation_number") and not pkg.solicitation_number:
                     pkg.solicitation_number = str(detail_fields["solicitation_number"]).strip()[:128]
                 discovered = discover_attachments_from_html(html, final)
+                # Delaware MMP: attachments are AJAX-loaded, not in static detail HTML
+                if (pkg.platform == "delaware_mmp" or "mmp.delaware.gov" in (final or "").lower()) and not any(
+                    (d.get("source_url") or "").lower().endswith(DOC_EXTS) for d in discovered
+                ):
+                    de_docs = discover_delaware_mmp_documents(final)
+                    if de_docs:
+                        discovered.extend(de_docs)
+                        detail_fields["delaware_mmp_document_list"] = True
+                        detail_fields["delaware_mmp_document_list_count"] = len(de_docs)
+                # Georgia GPR: downloadAttachment links on eventDetails (public PDFs)
+                if pkg.platform == "georgia_gpr" or "doas.state.ga.us" in (final or "").lower():
+                    ga_docs = discover_georgia_gpr_documents(final, html)
+                    if ga_docs:
+                        # Prefer explicit attachment endpoints over generic href harvest
+                        discovered.extend(ga_docs)
+                        detail_fields["georgia_gpr_document_list"] = True
+                        detail_fields["georgia_gpr_document_list_count"] = len(ga_docs)
                 identified_docs.extend(discovered)
                 # Inventory is only verified on solicitation detail pages (not generic listings)
                 effective_kind = classify_url_kind(final)

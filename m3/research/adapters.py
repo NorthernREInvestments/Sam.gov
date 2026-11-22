@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -490,6 +491,150 @@ def search_html_links(
         "pagination_complete": True,
         "more_available": False,
         "stats": {"accepted": len(items), "mapping_failures": 0},
+    }
+
+
+def search_georgia_gpr(
+    source: dict,
+    *,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Georgia Procurement Registry — live-verify public eventDetails (+ attachments).
+
+    Listing via DataTables `./eventSearch` returns HTTP 400 for non-browser clients.
+    Bootstrap event IDs may come from an operational snapshot; every retained row is
+    re-fetched from official eventDetails HTML (status/title/buyer/docs). Snapshot
+    IDs are never emitted without live verification.
+    """
+    from pathlib import Path
+
+    cfg = source.get("config") or {}
+    errors: list[str] = []
+    items: list[dict] = []
+    snap_path = Path(__file__).resolve().parent / "snapshots" / "georgia_gpr_open_goods_v1.json"
+    events: list[dict] = []
+    if snap_path.exists():
+        try:
+            snap = json.loads(snap_path.read_text(encoding="utf-8"))
+            events = list(snap.get("events") or [])
+        except Exception as exc:
+            errors.append(f"snapshot_read:{type(exc).__name__}")
+    # Optional config overrides (URLs only — still live-verified)
+    for u in cfg.get("bootstrap_detail_urls") or []:
+        if isinstance(u, str) and "eventDetails" in u:
+            events.append({"detail_url": u, "event_id": None, "title": None})
+
+    verified = 0
+    closed = 0
+    candidates = events[: int(limit)] if limit else list(events)
+    for ev in candidates:
+        if limit and len(items) >= limit:
+            break
+        url = ev.get("detail_url") or ""
+        if not url and ev.get("event_id"):
+            sst = ev.get("source_system_type") or "gpr20"
+            url = (
+                "https://ssl.doas.state.ga.us/gpr/eventDetails?"
+                f"eSourceNumber={ev['event_id']}&sourceSystemType={sst}"
+            )
+        if not url.startswith("http"):
+            continue
+        try:
+            status, final, html = fetch_text(url, timeout=18)
+            if status >= 400 or not html:
+                errors.append(f"{url} status={status}")
+                continue
+            text = re.sub(r"(?is)<script[^>]*>.*?</script>", " ", html)
+            text = re.sub(r"<[^>]+>", " ", text)
+            text = re.sub(r"\s+", " ", text)
+            # Status
+            if re.search(r"(?i)\b(awarded|cancelled|closed|completed)\b", text) and not re.search(
+                r"(?i)\bOpen\b", text[:3000]
+            ):
+                closed += 1
+                continue
+            title = ev.get("title") or ""
+            hm = re.search(r"(?is)<h[12][^>]*>([\s\S]*?)</h[12]>", html)
+            if hm:
+                ht = re.sub(r"<[^>]+>", " ", hm.group(1))
+                ht = re.sub(r"\s+", " ", ht).strip()
+                if ht and ht.lower() not in {"announcements", "georgia procurement registry"}:
+                    title = ht
+            if not title or len(title) < 6:
+                continue
+            eid = ev.get("event_id") or ""
+            m = re.search(r"eSourceNumber=([^&]+)", final or url, re.I)
+            if m:
+                eid = m.group(1)
+            buyer = ev.get("buyer") or "Georgia public entity"
+            bm = re.search(r"(?i)([A-Z0-9].{0,80}(?:County|City Of|Board Of|University|Department Of)[^<]{0,40})", text)
+            if bm:
+                buyer = re.sub(r"\s+", " ", bm.group(1)).strip()[:200]
+            has_docs = bool(re.search(r"downloadAttachment", html or "", re.I))
+            items.append(
+                {
+                    "external_key": _key(source["source_key"], eid or final),
+                    "title": title[:500],
+                    "solicitation_number": eid or None,
+                    "buyer_name": buyer,
+                    "geo_state": "GA",
+                    "geo_city": None,
+                    "geo_location": "GA",
+                    "deadline_at": ev.get("deadline"),
+                    "deadline_timezone": "America/New_York",
+                    "posted_at": None,
+                    "procurement_type": "unknown",
+                    "product_category": _guess_category(title) or "unknown",
+                    "set_aside": "unknown",
+                    "set_aside_verified": False,
+                    "estimated_value_min": None,
+                    "estimated_value_max": None,
+                    "estimated_value_unknown": True,
+                    "value_estimate_method": None,
+                    "value_evidence": None,
+                    "value_evidence_class": "not_yet_researched",
+                    "official_url": (final or url)[:2048],
+                    "discovery_url": "https://ssl.doas.state.ga.us/gpr/",
+                    "documents_available": "yes" if has_docs else "unknown",
+                    "quantity": None,
+                    "requirement_class": "pending_classification",
+                    "classification_evidence": ["deferred_to_central_classifier"],
+                    "solicitation_status": "open",
+                    "source_key": source["source_key"],
+                    "source_verified_at": _utc(),
+                    "source_purpose": "individual_solicitation_candidate",
+                    "discovery_stage": "unrestricted",
+                    "verified_individual_solicitation": True,
+                    "record_type": "INDIVIDUAL_SOLICITATION",
+                    "evidence": {
+                        "detail_url": final or url,
+                        "live_event_details": True,
+                        "documents_linked": has_docs,
+                        "listing_api": "eventSearch_blocked_non_browser_400",
+                    },
+                }
+            )
+            verified += 1
+        except Exception as exc:
+            errors.append(f"{url}:{type(exc).__name__}")
+
+    return {
+        "ok": bool(items),
+        "items": items,
+        "source_key": source["source_key"],
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": verified,
+        "rows_examined": len(events),
+        "pagination_complete": False,  # full eventSearch population not accessible without browser
+        "more_available": True,
+        "stats": {
+            "accepted": len(items),
+            "closed_or_inactive": closed,
+            "mapping_failures": 0,
+            "listing_api_blocked": True,
+            "bootstrap_events": len(events),
+        },
     }
 
 

@@ -99,14 +99,21 @@ def evaluate_procurement_pipeline(
     combined = "\n".join(t for t in texts if t)
     if combined.strip() or work.get("title"):
         work = enrich_item_from_text(work, combined, source="pipeline_enrichment")
-        # Also try title-only patterns
+        # Title-only patterns: only affirmative ordered semantics (002I)
         if not work.get("quantity"):
             q = extract_quantity_fields("", title=str(work.get("title") or ""))
-            if q.get("quantity_extracted"):
+            if q.get("quantity_extracted") and q.get("quantity_is_ordered"):
                 work["quantity"] = q["quantity"]
                 work["quantity_unit"] = q.get("quantity_unit")
                 work["quantity_kind"] = q.get("quantity_kind")
+                work["quantity_semantic"] = q.get("quantity_semantic")
                 work["quantity_evidence"] = q.get("quantity_evidence")
+            elif q.get("ambiguous_quantity_candidates"):
+                work["quantity_semantic"] = q.get("quantity_semantic")
+                work["ambiguous_quantity_candidates"] = q.get("ambiguous_quantity_candidates")
+                investigation_pre = list(work.get("investigation_trail") or [])
+                investigation_pre.append("title_numeric_not_affirmative_ordered_quantity")
+                work["investigation_trail"] = investigation_pre
 
     req = (work.get("requirement_class") or "unknown").lower()
     status = (work.get("solicitation_status") or "unknown").lower()
@@ -166,29 +173,73 @@ def evaluate_procurement_pipeline(
     if reasons and "it_focus_detected" in reasons and not product_opportunity:
         return _result(stage=STAGE_A if verified_active else None, excluded=True, reasons=reasons, work=work)
 
-    # Quantity handling
+    # Quantity handling — only ORDERED / LINE_ITEM / ESTIMATED semantics count (002I)
     qty = work.get("quantity")
     qty_kind = (work.get("quantity_kind") or "unknown").lower()
+    qty_sem = (work.get("quantity_semantic") or "").upper()
+    ordered_semantics = {
+        "ORDERED_QUANTITY",
+        "LINE_ITEM_QUANTITY",
+        "ESTIMATED_QUANTITY",
+        "MINIMUM_GUARANTEED_QUANTITY",
+        "MAXIMUM_AUTHORIZED_QUANTITY",
+    }
     quantity_defined = False
+    # Multi-line schedules with explicit line quantities = defined purchase obligation
+    line_items = work.get("line_items") or []
+    if not qty and line_items:
+        line_qtys = [li for li in line_items if li.get("quantity") not in (None, "")]
+        if line_qtys:
+            work["quantity"] = str(line_qtys[0].get("quantity"))
+            work["quantity_semantic"] = "LINE_ITEM_QUANTITY"
+            work["quantity_kind"] = work.get("quantity_kind") or "fixed"
+            work["quantity_evidence"] = list(work.get("quantity_evidence") or []) + [
+                f"line_item_quantities:{len(line_qtys)}"
+            ]
+            qty = work["quantity"]
+            qty_sem = "LINE_ITEM_QUANTITY"
+
     if qty not in (None, "", "unknown") and str(qty).lower() not in {"n/a", "na", "not applicable"}:
         if qty_kind == "indefinite":
             unknown_flags.append("quantity_indefinite_not_fixed_purchase")
             investigation.append("idiq_detected_not_counted_as_defined")
-        elif qty_kind == "estimated":
+        elif qty_sem and qty_sem not in ordered_semantics:
+            unknown_flags.append("quantity_semantics_not_ordered")
+            investigation.append(f"rejected_quantity_semantic:{qty_sem}")
+            # Clear non-ordered quantity so it cannot satisfy Stage C
+            work["quantity"] = None
+            qty = None
+        elif qty_kind == "estimated" or qty_sem == "ESTIMATED_QUANTITY":
             unknown_flags.append("quantity_estimated_not_guaranteed")
-            # Still allow procurement fit for estimated one-time buys with numeric qty
             quantity_defined = True
             investigation.append("estimated_numeric_quantity_accepted_with_flag")
-        else:
-            quantity_defined = True
-            if not work.get("quantity_evidence"):
-                work["quantity_evidence"] = ["quantity_field_present"]
-    else:
-        if str(qty).lower() in {"n/a", "na", "not applicable"}:
-            reasons.append("quantity_not_applicable")
+        elif qty_sem in ordered_semantics or qty_sem == "":
+            # Empty semantic + numeric field: accept only with affirmative evidence markers
+            ev = " ".join(str(x) for x in (work.get("quantity_evidence") or []))
+            if qty_sem in ordered_semantics or re.search(
+                r"(?i)quantity|furnish|purchase|line_item|affirmative_ordered", ev
+            ):
+                quantity_defined = True
+                if not work.get("quantity_evidence"):
+                    work["quantity_evidence"] = ["quantity_field_present"]
+            else:
+                unknown_flags.append("quantity_semantics_unverified")
+                investigation.append("numeric_present_without_ordered_evidence")
+                work["quantity"] = None
+                qty = None
         else:
             unknown_flags.append("quantity_unknown")
-            investigation.append("quantity_not_found_in_accessible_text")
+            investigation.append("quantity_not_affirmatively_ordered")
+    if qty in (None, "", "unknown") or str(qty).lower() in {"n/a", "na", "not applicable"}:
+        if str(work.get("quantity")).lower() in {"n/a", "na", "not applicable"}:
+            reasons.append("quantity_not_applicable")
+        elif not quantity_defined:
+            if "quantity_semantics_not_ordered" not in unknown_flags:
+                unknown_flags.append("quantity_unknown")
+            if "quantity_not_found_in_accessible_text" not in investigation:
+                investigation.append("quantity_not_found_in_accessible_text")
+            if work.get("ambiguous_quantity_candidates"):
+                investigation.append("ambiguous_numeric_requires_document_confirmation")
 
     if BOND_MARKERS.search(blob):
         unknown_flags.append("bonding_language_present_unverified")

@@ -1,6 +1,9 @@
-"""Deterministic field extraction from solicitation text/documents (Build 002H).
+"""Deterministic field extraction from solicitation text/documents (Build 002I).
 
 Never invents quantities, specs, or deadlines. Returns only evidence-backed fields.
+
+Quantity semantics (002I): distinguish ORDERED_QUANTITY from packaging, capacity,
+dimensions, weights, model numbers, and ambiguous parenthetical numbers.
 """
 
 from __future__ import annotations
@@ -8,29 +11,52 @@ from __future__ import annotations
 import re
 from typing import Any
 
-# Quantity patterns — conservative; require explicit qty language or unit+number
-QTY_PATTERNS = [
-    re.compile(
-        r"(?i)(?:quantity|qty|estimated\s+quantity|order\s+quantity|bid\s+quantity)"
-        r"\s*(?:of|:|=|-)?\s*([\d,]+(?:\.\d+)?)\s*([a-zA-Z]{0,12})?"
-    ),
-    # Title forms: "(300 UNIT)", "(250 PER CUP)", "500 EA"
-    re.compile(
-        r"(?i)\(\s*([\d,]+(?:\.\d+)?)\s*(?:per\s+)?([a-zA-Z]{1,16})\s*\)"
-    ),
-    re.compile(
-        r"(?i)([\d,]+(?:\.\d+)?)\s*(?:per\s+)?(each|ea\.?|units?|pcs?|pieces|lot|sets?|boxes|cases|"
-        r"gallons?|tons?|lbs?|cups?|drums?|pallets?|bags?|rolls?|kits?)\b"
-    ),
-    re.compile(
-        r"(?i)(?:furnish|provide|supply|purchase)\s+(?:approximately\s+)?([\d,]+)\s+"
-        r"(each|ea\.?|units?|pcs?|pieces|sets?|[a-z]{2,12})"
-    ),
-]
+# Affirmative ordered-quantity language
+ORDERED_QTY_RE = re.compile(
+    r"(?i)(?:quantity|qty|estimated\s+quantity|order\s+quantity|bid\s+quantity|"
+    r"ordered\s+quantity|line\s*item\s*quantity|purchase\s+quantity)"
+    r"\s*(?:of|:|=|-)?\s*([\d,]+(?:\.\d+)?)\s*([a-zA-Z]{0,16})?"
+)
+FURNISH_QTY_RE = re.compile(
+    r"(?i)(?:furnish|provide|supply|purchase|buy|procure)\s+"
+    r"(?:of\s+|approximately\s+|approx\.?\s+|up\s+to\s+)?"
+    r"([\d,]+)\s+"
+    r"(each|ea\.?|units?|pcs?|pieces|sets?|kits?|[a-z]{2,16})\b"
+)
+# Government titles: "Five (5) New ... Apparatus" — TITLE ONLY (not body boilerplate)
+WORD_PAREN_QTY_RE = re.compile(
+    r"(?i)\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*\(\s*(\d{1,4})\s*\)"
+)
+# Reject legal/time boilerplate near word-paren matches in body text
+WORD_PAREN_REJECT_FOLLOW = re.compile(
+    r"(?i)^\s*(?:calendar\s+)?(?:days?|years?|months?|weeks?|hours?|copies|originals?|"
+    r"duplicates?|pages?|business\s+days?|working\s+days?|sets?\s+of\s+documents)"
+)
+# Explicit "N each of <product>"
+N_EACH_OF_RE = re.compile(
+    r"(?i)\b([\d,]+)\s*(?:each|ea\.?|units?)\s+(?:of\s+)?([a-z][a-z0-9 \-/]{2,40})"
+)
 LINE_ITEM_RE = re.compile(
     r"(?i)(?:line\s*(?:item|#|no\.?)|item\s*(?:#|no\.?))\s*[:\s]*([A-Z0-9\-]+).{0,80}?"
     r"(?:qty|quantity)\s*[:\s]*([\d,]+)",
 )
+# Packaging / per-unit capacity — NOT total ordered quantity
+PACKAGE_PER_RE = re.compile(
+    r"(?i)\(\s*([\d,]+(?:\.\d+)?)\s*per\s+([a-zA-Z]{1,16})\s*\)"
+    r"|"
+    r"([\d,]+(?:\.\d+)?)\s*(?:units?|ea\.?|each|pcs?|pieces)?\s*per\s+"
+    r"(case|box|cup|bag|drum|pallet|roll|pack|carton|gallon|kit)\b"
+)
+# Ambiguous parenthetical "(300 UNIT)" / "(250 CUP)" without "per"
+PAREN_UNIT_RE = re.compile(
+    r"(?i)\(\s*([\d,]+(?:\.\d+)?)\s*([a-zA-Z]{1,16})\s*\)"
+)
+# Bare "500 EA" without quantity keyword — weak; only accept with purchase context nearby
+BARE_EA_RE = re.compile(
+    r"(?i)(?<!per\s)([\d,]+(?:\.\d+)?)\s*"
+    r"(each|ea\.?|units?|pcs?|pieces|sets?|boxes|cases|kits?)\b"
+)
+
 MPN_RE = re.compile(
     r"(?i)(?:mfr\.?\s*part|manufacturer\s*part|mpn|part\s*#|model\s*(?:#|no\.?))\s*[:\s]*([A-Z0-9][A-Z0-9\-/.]{2,})"
 )
@@ -39,10 +65,18 @@ DEADLINE_RE = re.compile(
     r"(?i)(?:bid\s*(?:due|opening|deadline)|proposals?\s*due|closing\s*date|due\s*date)"
     r"[^\n:]{0,20}[:\s]+([A-Za-z0-9,/\- ]{6,40})"
 )
-FIXED_QTY_MARKERS = re.compile(r"(?i)\b(firm\s+quantity|fixed\s+quantity|definite\s+quantity|one[\s-]time\s+purchase)\b")
-ESTIMATED_QTY_MARKERS = re.compile(r"(?i)\b(estimated\s+quantity|approx(?:imate|imately)?|up\s+to|not\s+to\s+exceed)\b")
-IDIQ_MARKERS = re.compile(r"(?i)\b(indefinite\s+quantity|idiq|requirements\s+contract|as[\s-]needed|blanket\s+purchase)\b")
-# Spec/weight units are NOT purchase quantities (e.g. "19,500 LB GVWR")
+FIXED_QTY_MARKERS = re.compile(
+    r"(?i)\b(firm\s+quantity|fixed\s+quantity|definite\s+quantity|one[\s-]time\s+purchase)\b"
+)
+ESTIMATED_QTY_MARKERS = re.compile(
+    r"(?i)\b(estimated\s+quantity|approx(?:imate|imately)?|up\s+to|not\s+to\s+exceed)\b"
+)
+IDIQ_MARKERS = re.compile(
+    r"(?i)\b(indefinite\s+quantity|idiq|requirements\s+contract|blanket\s+purchase\s+agreement|"
+    r"purchase\s+as[\s-]needed|ordered\s+as[\s-]needed|quantit(?:y|ies)\s+as[\s-]needed)\b"
+)
+
+# Spec/weight/dimension units are NOT purchase quantities
 REJECT_QTY_UNITS = {
     "lb",
     "lbs",
@@ -65,7 +99,6 @@ REJECT_QTY_UNITS = {
     "btu",
     "hp",
     "kw",
-    "mhz",
     "inch",
     "inches",
     "ft",
@@ -75,8 +108,40 @@ REJECT_QTY_UNITS = {
     "cm",
     "meter",
     "meters",
+    "year",
+    "years",
+    "yr",
+    "yrs",
+    "month",
+    "months",
+    "day",
+    "days",
+    "watt",
+    "watts",
+    "va",
+    "kva",
 }
-ACCEPT_PAREN_UNITS = {
+PACKAGE_UNITS = {
+    "case",
+    "cases",
+    "box",
+    "boxes",
+    "cup",
+    "cups",
+    "bag",
+    "bags",
+    "drum",
+    "drums",
+    "pallet",
+    "pallets",
+    "pack",
+    "packs",
+    "carton",
+    "cartons",
+    "roll",
+    "rolls",
+}
+PURCHASE_LIKE_UNITS = {
     "unit",
     "units",
     "each",
@@ -87,27 +152,22 @@ ACCEPT_PAREN_UNITS = {
     "pieces",
     "set",
     "sets",
-    "box",
-    "boxes",
-    "case",
-    "cases",
-    "lot",
-    "cup",
-    "cups",
     "kit",
     "kits",
-    "bag",
-    "bags",
-    "roll",
-    "rolls",
-    "drum",
-    "drums",
-    "pallet",
-    "pallets",
+    "lot",
     "gallon",
     "gallons",
     "ton",
     "tons",
+}
+
+# Semantics that may count as defined purchase quantity for Stage C
+ORDERED_SEMANTICS = {
+    "ORDERED_QUANTITY",
+    "LINE_ITEM_QUANTITY",
+    "ESTIMATED_QUANTITY",
+    "MINIMUM_GUARANTEED_QUANTITY",
+    "MAXIMUM_AUTHORIZED_QUANTITY",
 }
 
 
@@ -118,57 +178,94 @@ def _num(s: str) -> float | None:
         return None
 
 
+def _unit_norm(unit: str | None) -> str:
+    return ((unit or "").strip().lower().rstrip("."))
+
+
 def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
-    """Extract quantity from published text. Empty result = unknown, not invented."""
+    """Extract quantity with semantic class. Empty / non-ordered = not a Stage-C fit basis."""
     blob = f"{title}\n{text or ''}"
     evidence: list[str] = []
     qty_kind = "unknown"
-    if IDIQ_MARKERS.search(blob):
+    # Prefer title + first 4k for contract-type markers so vendor-form boilerplate
+    # ("as needed" help text) does not override affirmative line quantities.
+    marker_blob = f"{title}\n{(text or '')[:4000]}"
+    if IDIQ_MARKERS.search(marker_blob) and not ORDERED_QTY_RE.search(blob):
         qty_kind = "indefinite"
         evidence.append("idiq_or_as_needed_language")
-    elif ESTIMATED_QTY_MARKERS.search(blob):
+    elif ESTIMATED_QTY_MARKERS.search(marker_blob):
         qty_kind = "estimated"
         evidence.append("estimated_quantity_language")
-    elif FIXED_QTY_MARKERS.search(blob):
+    elif FIXED_QTY_MARKERS.search(marker_blob):
         qty_kind = "fixed"
         evidence.append("fixed_quantity_language")
 
-    quantities: list[dict[str, Any]] = []
-    for pat in QTY_PATTERNS:
-        for m in pat.finditer(blob):
-            groups = m.groups()
-            raw = groups[0]
-            unit = ((groups[1] if len(groups) > 1 else "") or "").strip()
-            unit_l = unit.lower().rstrip(".")
-            val = _num(raw)
-            if val is None or val <= 0:
-                continue
-            if val > 10_000_000:
-                continue
-            # Avoid years mistaken as qty (e.g. 2026)
-            if 1900 <= val <= 2100 and not unit:
-                continue
-            # Reject weight/spec units (GVWR, LB, PSI, etc.)
-            if unit_l in REJECT_QTY_UNITS:
-                continue
-            if re.search(r"(?i)\bgvwr\b", m.group(0)):
-                continue
-            # Parenthetical captures require a purchase-like unit word
-            if m.group(0).strip().startswith("(") and unit_l and unit_l not in ACCEPT_PAREN_UNITS:
-                continue
-            quantities.append(
-                {
-                    "value": val,
-                    "unit": unit[:32] or None,
-                    "snippet": m.group(0)[:120],
-                    "pattern": pat.pattern[:60],
-                }
-            )
-            if len(quantities) >= 8:
-                break
-        if len(quantities) >= 8:
-            break
+    candidates: list[dict[str, Any]] = []
 
+    def _add(
+        val: float,
+        unit: str | None,
+        snippet: str,
+        semantic: str,
+        *,
+        ordered: bool,
+    ) -> None:
+        unit_l = _unit_norm(unit)
+        if val is None or val <= 0 or val > 10_000_000:
+            return
+        if 1900 <= val <= 2100 and not unit_l:
+            return
+        if unit_l in REJECT_QTY_UNITS:
+            return
+        if re.search(r"(?i)\bgvwr\b", snippet):
+            return
+        candidates.append(
+            {
+                "value": val,
+                "unit": (unit or "")[:32] or None,
+                "snippet": snippet[:120],
+                "semantic": semantic,
+                "counts_as_ordered": ordered,
+            }
+        )
+
+    # 1) Packaging / per-unit — record but never treat as ordered total
+    for m in PACKAGE_PER_RE.finditer(blob):
+        raw = m.group(1) or m.group(3)
+        unit = m.group(2) or m.group(4)
+        val = _num(raw or "")
+        if val is None:
+            continue
+        _add(val, unit, m.group(0), "PACKAGE_QUANTITY", ordered=False)
+
+    # 2) Affirmative "Quantity: N"
+    for m in ORDERED_QTY_RE.finditer(blob):
+        val = _num(m.group(1))
+        unit = m.group(2)
+        if val is None:
+            continue
+        sem = "ESTIMATED_QUANTITY" if qty_kind == "estimated" else "ORDERED_QUANTITY"
+        _add(val, unit, m.group(0), sem, ordered=True)
+
+    # 3) "furnish/purchase N units" / "purchase of N ..."
+    for m in FURNISH_QTY_RE.finditer(blob):
+        val = _num(m.group(1))
+        unit = m.group(2)
+        if val is None:
+            continue
+        _add(val, unit, m.group(0), "ORDERED_QUANTITY", ordered=True)
+
+    # 3b) "Five (5) New ..." — TITLE ONLY. Body legal text ("one (1) original") is not ordered qty.
+    for m in WORD_PAREN_QTY_RE.finditer(title or ""):
+        val = _num(m.group(1))
+        if val is None:
+            continue
+        after = (title or "")[m.end() : m.end() + 48]
+        if WORD_PAREN_REJECT_FOLLOW.match(after):
+            continue
+        _add(val, "EA", m.group(0), "ORDERED_QUANTITY", ordered=True)
+
+    # 4) Line-item qty columns
     line_items: list[dict[str, Any]] = []
     for m in LINE_ITEM_RE.finditer(blob):
         val = _num(m.group(2))
@@ -179,27 +276,65 @@ def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
                 "line_ref": m.group(1),
                 "quantity": val,
                 "snippet": m.group(0)[:160],
+                "semantic": "LINE_ITEM_QUANTITY",
             }
         )
+        _add(val, None, m.group(0), "LINE_ITEM_QUANTITY", ordered=True)
         if len(line_items) >= 20:
             break
 
-    primary = quantities[0] if quantities else None
+    # 5) Ambiguous parenthetical "(300 UNIT)" — NOT ordered without more evidence
+    for m in PAREN_UNIT_RE.finditer(blob):
+        # Skip if already classified as PACKAGE via "per"
+        if re.search(r"(?i)\bper\b", m.group(0)):
+            continue
+        val = _num(m.group(1))
+        unit = m.group(2)
+        unit_l = _unit_norm(unit)
+        if val is None:
+            continue
+        if unit_l in PACKAGE_UNITS:
+            _add(val, unit, m.group(0), "PACKAGE_QUANTITY", ordered=False)
+        elif unit_l in PURCHASE_LIKE_UNITS:
+            _add(val, unit, m.group(0), "UNKNOWN_NUMERIC_VALUE", ordered=False)
+        else:
+            _add(val, unit, m.group(0), "UNKNOWN_NUMERIC_VALUE", ordered=False)
+
+    # Prefer ordered candidates
+    ordered = [c for c in candidates if c.get("counts_as_ordered")]
+    primary = ordered[0] if ordered else None
+    semantic = primary["semantic"] if primary else (
+        candidates[0]["semantic"] if candidates else None
+    )
+
     if primary and qty_kind == "unknown":
-        qty_kind = "fixed"  # numeric qty without estimated/idiq markers → treat as defined
-        evidence.append("numeric_quantity_without_estimated_markers")
+        if primary["semantic"] == "ESTIMATED_QUANTITY":
+            qty_kind = "estimated"
+        else:
+            qty_kind = "fixed"
+        evidence.append("affirmative_ordered_quantity_language")
+    elif candidates and not primary:
+        evidence.append(f"non_ordered_numeric:{candidates[0]['semantic']}")
 
     result: dict[str, Any] = {
-        "quantity": str(int(primary["value"])) if primary and primary["value"] == int(primary["value"]) else (
-            str(primary["value"]) if primary else None
+        "quantity": (
+            str(int(primary["value"]))
+            if primary and primary["value"] == int(primary["value"])
+            else (str(primary["value"]) if primary else None)
         ),
         "quantity_unit": primary.get("unit") if primary else None,
         "quantity_kind": qty_kind if primary or qty_kind != "unknown" else "unknown",
+        "quantity_semantic": semantic,
         "quantity_evidence": evidence + ([primary["snippet"]] if primary else []),
-        "quantity_candidates": quantities[:5],
+        "quantity_candidates": candidates[:8],
         "line_items": line_items[:20],
         "quantity_extracted": bool(primary),
+        "quantity_is_ordered": bool(primary),
     }
+    # Surface first non-ordered candidate for investigation (never as quantity field)
+    if not primary and candidates:
+        result["ambiguous_quantity_candidates"] = candidates[:5]
+        result["quantity_evidence"] = evidence + [candidates[0]["snippet"]]
     return result
 
 
@@ -225,20 +360,33 @@ def enrich_item_from_text(item: dict[str, Any], text: str, *, source: str = "doc
     out = dict(item)
     qty = extract_quantity_fields(text, title=str(out.get("title") or ""))
     ident = extract_identity_fields(text)
-    if qty.get("quantity_extracted") and not out.get("quantity"):
+    if qty.get("quantity_extracted") and qty.get("quantity_is_ordered") and not out.get("quantity"):
         out["quantity"] = qty["quantity"]
         out["quantity_unit"] = qty.get("quantity_unit")
         out["quantity_kind"] = qty.get("quantity_kind")
+        out["quantity_semantic"] = qty.get("quantity_semantic")
         out["quantity_evidence"] = list(qty.get("quantity_evidence") or []) + [f"source:{source}"]
         out["line_items"] = qty.get("line_items") or out.get("line_items")
-    elif qty.get("quantity_kind") in {"indefinite", "estimated"} and not out.get("quantity_kind"):
-        out["quantity_kind"] = qty["quantity_kind"]
-        out["quantity_evidence"] = qty.get("quantity_evidence")
+    else:
+        # Preserve investigation trail for packaging / ambiguous numbers — do not set quantity
+        if qty.get("ambiguous_quantity_candidates") and not out.get("quantity"):
+            out["quantity_semantic"] = qty.get("quantity_semantic") or "UNKNOWN_NUMERIC_VALUE"
+            out["quantity_kind"] = out.get("quantity_kind") or "unknown"
+            out["quantity_evidence"] = list(qty.get("quantity_evidence") or []) + [
+                f"source:{source}",
+                "rejected_non_ordered_quantity_semantics",
+            ]
+            out["ambiguous_quantity_candidates"] = qty.get("ambiguous_quantity_candidates")
+        elif qty.get("quantity_kind") in {"indefinite", "estimated"} and not out.get("quantity_kind"):
+            out["quantity_kind"] = qty["quantity_kind"]
+            out["quantity_evidence"] = qty.get("quantity_evidence")
     for k, v in ident.items():
         if v and not out.get(k):
             out[k] = v
     out["_extraction"] = {
         "quantity_extracted": bool(qty.get("quantity_extracted")),
+        "quantity_is_ordered": bool(qty.get("quantity_is_ordered")),
+        "quantity_semantic": qty.get("quantity_semantic"),
         "source": source,
         "quantity_kind": out.get("quantity_kind") or qty.get("quantity_kind"),
     }
