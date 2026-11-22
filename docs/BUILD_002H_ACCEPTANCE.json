@@ -2914,7 +2914,7 @@
     "FULL_POPULATION_PROCESSING": "PARTIALLY VERIFIED",
     "EVIDENCE_MANIFEST": "VERIFIED",
     "BUDGET_ENFORCEMENT": "VERIFIED",
-    "DEPLOYMENT_VERIFIED": "PENDING",
+    "DEPLOYMENT_VERIFIED": "VERIFIED",
     "FALSE_QUANTITY_REJECTION_GVWR": "VERIFIED"
   },
   "engineering_targets": {
@@ -2952,5 +2952,12 @@
     "note": "from_first_002h_full_run_terminal_evidence",
     "openai_portals": false
   },
-  "unique_m3_procurement_fits_deduped": 2
+  "unique_m3_procurement_fits_deduped": 2,
+  "production": {
+    "healthz": {
+      "ok": true,
+      "build": "20261121-m3-2-build-002h"
+    },
+    "url": "https://samgov-production.up.railway.app"
+  }
 }
