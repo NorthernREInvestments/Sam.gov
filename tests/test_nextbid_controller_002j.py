@@ -63,7 +63,7 @@ def test_daily_and_job_limits_with_mocks(tmp_path, monkeypatch):
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
     # Owner auth file required
-    ctrl.write_owner_authorization(authorized=True, max_additional_calls=100, note="test_only")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, max_additional_calls=100, note="test_only")
     # Seed budget state with known allowance
     state = {
         "day": str(__import__("datetime").date.today()),
@@ -126,7 +126,7 @@ def test_daily_hard_ceiling_100(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(authorized=True, note="test")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, note="test")
     ctrl.save_budget_state(
         {
             "day": str(__import__("datetime").date.today()),
@@ -150,7 +150,7 @@ def test_monthly_reserve_floor(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(authorized=True, note="test")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, note="test")
     ctrl.save_budget_state(
         {
             "day": str(__import__("datetime").date.today()),
@@ -175,7 +175,7 @@ def test_unknown_usage_stops(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(authorized=True, note="test")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, note="test")
     ctrl.save_budget_state(
         {
             "day": str(__import__("datetime").date.today()),

@@ -26,7 +26,7 @@ def isolated_ledger(tmp_path, monkeypatch):
 
 
 def test_002m_unlock_and_caps(isolated_ledger):
-    ctrl.write_owner_authorization(
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, 
         authorized=True,
         scope=ctrl.BUILD_002M_SCOPE,
         test_call_cap=300,
@@ -35,16 +35,17 @@ def test_002m_unlock_and_caps(isolated_ledger):
         reset_test_used=True,
         note="test",
     )
-    assert ctrl.acquisition_locked() is False
+    # Scope never bypasses the emergency stop; daily override is clamped to the 100 ceiling
+    assert ctrl.acquisition_locked() is True
     limits = ctrl._limits()
-    assert limits["daily"] == 300
+    assert limits["daily"] == 100
     assert limits["test"] == 300
     assert limits["job"] == 50
     assert limits["monthly_reserve"] == 1000
 
 
 def test_002m_forbids_detail_endpoint(isolated_ledger, monkeypatch):
-    ctrl.write_owner_authorization(
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, 
         authorized=True,
         scope=ctrl.BUILD_002M_SCOPE,
         test_call_cap=300,
@@ -70,7 +71,7 @@ def test_002m_forbids_detail_endpoint(isolated_ledger, monkeypatch):
 
 
 def test_002m_forbids_non_search_path(isolated_ledger):
-    ctrl.write_owner_authorization(
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, 
         authorized=True,
         scope=ctrl.BUILD_002M_SCOPE,
         test_call_cap=300,
@@ -92,8 +93,9 @@ def test_002m_forbids_non_search_path(isolated_ledger):
         )
 
 
-def test_002m_cap_blocks_301st(isolated_ledger, monkeypatch):
-    ctrl.write_owner_authorization(
+def test_002m_override_clamped_blocks_101st(isolated_ledger, monkeypatch):
+    monkeypatch.setattr(ctrl, "acquisition_locked", lambda: False)
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, 
         authorized=True,
         scope=ctrl.BUILD_002M_SCOPE,
         test_call_cap=300,
@@ -105,8 +107,8 @@ def test_002m_cap_blocks_301st(isolated_ledger, monkeypatch):
     state["account_remaining"] = 2930
     state["account_used"] = 3070
     state["account_allowance"] = 6000
-    state["test_used"] = 300
-    state["day_used"] = 300
+    state["test_used"] = 100
+    state["day_used"] = 100
     ctrl.save_budget_state(state)
     with pytest.raises(ctrl.NextBidBudgetExhausted):
         ctrl._reserve("job-x", 1)

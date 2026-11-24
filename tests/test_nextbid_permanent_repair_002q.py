@@ -1,4 +1,4 @@
-"""Build 002Q permanent NextBid repair — offline mocked tests. ZERO live metered calls."""
+﻿"""Build 002Q permanent NextBid repair â€” offline mocked tests. ZERO live metered calls."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def test_durable_persist_before_return(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(authorized=True, note="test")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, note="test")
     ctrl.save_budget_state(
         {
             "day": str(__import__("datetime").date.today()),
@@ -99,7 +99,7 @@ def test_durable_hit_skips_http(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(authorized=True, note="test")
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, authorized=True, note="test")
     ctrl.save_budget_state(
         {
             "day": str(__import__("datetime").date.today()),
@@ -136,7 +136,7 @@ def test_merge_thicker_never_downgrades():
 
 
 def test_persist_retains_history_and_full_body():
-    """002R.1 — no truncate; historical versions retained; persistence_ok."""
+    """002R.1 â€” no truncate; historical versions retained; persistence_ok."""
     big = {"nb_id": "HIST1", "description": "D" * 8000, "title": "t1"}
     r1 = persist_paid_response(
         method="GET",

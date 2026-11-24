@@ -34,7 +34,7 @@ def _unlock(monkeypatch):
 
     get_settings.cache_clear()
     clear_emergency_stop(owner_authorized=True)
-    ctrl.write_owner_authorization(
+    ctrl.write_owner_authorization(approved_allocation_calls=1000, 
         authorized=True,
         scope="build_002k_bounded_test",
         test_call_cap=100,

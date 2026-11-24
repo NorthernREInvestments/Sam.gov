@@ -16,8 +16,11 @@ Build 002M: one-time owner-authorized discovery backfill (search-only ≤300).
 from __future__ import annotations
 
 import json
+import os
 import threading
+import time
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -52,6 +55,7 @@ DETAIL_ENDPOINTS = frozenset(
 _lock = threading.RLock()
 _sem = threading.Semaphore(MAX_CONCURRENCY)
 _clients: threading.local = threading.local()
+_guard_depth: threading.local = threading.local()
 
 
 class NextBidControllerError(RuntimeError):
@@ -150,10 +154,16 @@ def write_owner_authorization(
     allowed_endpoints: list[str] | None = None,
     daily_limit_override: int | None = None,
     reset_test_used: bool = False,
+    approved_allocation_calls: int = 0,
 ) -> Path:
-    """Write explicit owner authorization. Never auto-upgrade budgets beyond documented ceilings."""
+    """Write explicit owner authorization. Never auto-upgrade budgets beyond documented ceilings.
+
+    ``approved_allocation_calls`` is the owner-approved metered total for this window; zero keeps
+    acquisition locked even when ``authorized`` is true.
+    """
     payload = {
         "authorized": bool(authorized),
+        "approved_allocation_calls": max(0, int(approved_allocation_calls)),
         "max_additional_calls": max_additional_calls,
         "scope": scope,
         "test_call_cap": test_call_cap,
@@ -164,7 +174,7 @@ def write_owner_authorization(
     }
     _auth_path().write_text(json.dumps(payload, indent=2), encoding="utf-8")
     if reset_test_used:
-        with _lock:
+        with _guard():
             state = load_budget_state()
             state["test_used"] = 0
             state["test_reserved"] = 0
@@ -177,6 +187,77 @@ def revoke_owner_authorization() -> None:
     path = _auth_path()
     if path.exists():
         path.unlink()
+
+
+@contextmanager
+def _guard():
+    """In-process lock plus a cross-process file lock around every budget read-modify-write."""
+    with _lock:
+        if getattr(_guard_depth, "n", 0):
+            _guard_depth.n += 1
+            try:
+                yield
+            finally:
+                _guard_depth.n -= 1
+            return
+        lock_path = _ledger_dir() / "budget_state.lock"
+        fh = open(lock_path, "a+b")
+        try:
+            deadline = time.monotonic() + 10.0
+            while True:
+                try:
+                    if os.name == "nt":
+                        import msvcrt
+
+                        fh.seek(0)
+                        msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        import fcntl
+
+                        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() > deadline:
+                        raise NextBidControllerError("budget_lock_timeout")
+                    time.sleep(0.02)
+            _guard_depth.n = 1
+            yield
+        finally:
+            _guard_depth.n = 0
+            try:
+                if os.name == "nt":
+                    import msvcrt
+
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+            fh.close()
+
+
+def _roll_periods(state: dict[str, Any]) -> None:
+    today = date.today()
+    if state.get("day") != str(today):
+        state["day"] = str(today)
+        state["day_used"] = 0
+        state["day_credits"] = 0
+    if state.get("month") != today.strftime("%Y-%m"):
+        state["month"] = today.strftime("%Y-%m")
+        state["month_used_local"] = 0
+
+
+def _approved_allocation(auth: dict[str, Any] | None) -> int:
+    """Owner-approved metered calls for the current authorization window. Absent means zero."""
+    if not auth:
+        return 0
+    try:
+        return max(0, int(auth.get("approved_allocation_calls") or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _limits() -> dict[str, int]:
@@ -195,10 +276,7 @@ def _limits() -> dict[str, int]:
             int(auth.get("test_call_cap") or OWNER_HARD_BUILD_002M_CEILING),
         )
         daily_override = auth.get("daily_limit_override")
-        if daily_override is None:
-            daily = test_cap
-        else:
-            daily = min(OWNER_HARD_BUILD_002M_CEILING, int(daily_override))
+        daily = min(OWNER_HARD_DAILY_CEILING, test_cap if daily_override is None else int(daily_override))
         return {
             "daily": daily,
             "job": job,
@@ -255,27 +333,18 @@ def _limits() -> dict[str, int]:
 def acquisition_locked() -> bool:
     """Fail-closed by default.
 
-    Unlock only when explicit owner authorization exists.
-    Temporary scopes that may run while emergency-stop env flags remain set:
-      - build_002k_bounded_test
-      - build_002m_discovery_backfill (search-only ≤300)
-    All other metered access requires enabled=true, emergency_stop=false,
-    killswitch clear, and authorized=true.
+    Every metered call requires all of: emergency stop clear (file flag and env), nextbid_enabled,
+    explicit owner authorization, and a positive owner-approved allocation. No scope bypasses
+    the emergency stop.
     """
     auth = owner_authorization()
-    if auth and auth.get("authorized") and auth.get("scope") in {
-        BUILD_002K_SCOPE,
-        BUILD_002M_SCOPE,
-        BUILD_002Q_SCOPE,
-    }:
-        return False
     settings = get_settings()
     kill = emergency_stop_status()
     if kill.get("engaged") or settings.nextbid_emergency_stop or not settings.nextbid_enabled:
         return True
     if auth is None or not auth.get("authorized"):
         return True
-    return False
+    return _approved_allocation(auth) <= 0
 
 
 def _endpoint_allowed(endpoint: str) -> bool:
@@ -293,7 +362,7 @@ def _endpoint_allowed(endpoint: str) -> bool:
 
 
 def controller_status() -> dict[str, Any]:
-    with _lock:
+    with _guard():
         state = load_budget_state()
         today = str(date.today())
         if state.get("day") != today:
@@ -394,7 +463,7 @@ def refresh_account_usage(*, allow_when_locked: bool = True) -> dict[str, Any]:
 
     rem = _i("x-quota-remaining") if _i("x-quota-remaining") is not None else rem
     used = _i("x-usage-used") if _i("x-usage-used") is not None else used
-    with _lock:
+    with _guard():
         state = load_budget_state()
         if rem is not None:
             state["account_remaining"] = int(rem)
@@ -431,12 +500,22 @@ def _reserve(job_id: str, units: int = 1, *, endpoint: str | None = None) -> dic
     if units < 1:
         raise NextBidControllerError("invalid_units")
     limits = _limits()
-    with _lock:
+    auth = owner_authorization()
+    allocation = _approved_allocation(auth)
+    with _guard():
         state = load_budget_state()
-        today = str(date.today())
-        if state.get("day") != today:
-            state["day"] = today
-            state["day_used"] = 0
+        _roll_periods(state)
+        alloc_key = str((auth or {}).get("written_at") or "none")
+        if state.get("allocation_key") != alloc_key:
+            state["allocation_key"] = alloc_key
+            state["allocation_used"] = 0
+            state["allocation_reserved"] = 0
+        alloc_committed = int(state.get("allocation_used") or 0) + int(state.get("allocation_reserved") or 0)
+        if alloc_committed + units > allocation:
+            raise NextBidBudgetExhausted(f"approved_allocation:{allocation}_used:{alloc_committed}")
+        # Provider credits can exceed request count; the daily ceiling binds both
+        if int(state.get("day_credits") or 0) + int(state.get("day_reserved") or 0) + units > limits["daily"]:
+            raise NextBidBudgetExhausted(f"daily_credit_limit:{limits['daily']}_credits:{state.get('day_credits')}")
         rem = state.get("account_remaining")
         used = state.get("account_used")
         allowance = state.get("account_allowance")
@@ -496,6 +575,7 @@ def _reserve(job_id: str, units: int = 1, *, endpoint: str | None = None) -> dic
             raise NextBidBudgetExhausted(f"effective_available:{effective}")
         # Reserve (counts against concurrent ceilings immediately)
         job["reserved"] = int(job.get("reserved", 0)) + units
+        state["allocation_reserved"] = int(state.get("allocation_reserved") or 0) + units
         state["pending_reservations"] = int(state.get("pending_reservations") or 0) + units
         state["day_reserved"] = day_reserved + units
         state["test_reserved"] = test_reserved + units
@@ -533,15 +613,19 @@ def _commit(reservation: dict[str, Any], *, endpoint: str, ok: bool, meta: dict 
     units = int(reservation["units"])
     job_id = reservation["job_id"]
     bucket = reservation.get("bucket")
-    with _lock:
+    credits = max(units, int((meta or {}).get("units_hdr") or units)) if ok else 0
+    with _guard():
         state = load_budget_state()
-        today = str(date.today())
-        if state.get("day") != today:
-            state["day"] = today
-            state["day_used"] = 0
+        _roll_periods(state)
         jobs = state.setdefault("jobs", {})
         job = jobs.setdefault(job_id, {"used": 0, "reserved": 0})
         job["reserved"] = max(0, int(job.get("reserved", 0)) - units)
+        state["allocation_reserved"] = max(0, int(state.get("allocation_reserved") or 0) - units)
+        if ok:
+            state["allocation_used"] = int(state.get("allocation_used") or 0) + units
+            state["day_credits"] = int(state.get("day_credits") or 0) + credits
+            if credits > units and state.get("account_remaining") is not None:
+                state["account_remaining"] = int(state["account_remaining"]) - (credits - units)
         if bucket == "listing":
             state["campaign_listing_reserved"] = max(
                 0, int(state.get("campaign_listing_reserved") or 0) - units
@@ -587,7 +671,7 @@ def _commit(reservation: dict[str, Any], *, endpoint: str, ok: bool, meta: dict 
 
 def check_provider_usage_discrepancy(*, raise_on_stop: bool = True) -> dict[str, Any]:
     """Compare local accounting to provider usage. Fail closed on unexplained burn."""
-    with _lock:
+    with _guard():
         state = load_budget_state()
         if state.get("provider_discrepancy_stop"):
             info = {
@@ -632,7 +716,7 @@ def check_provider_usage_discrepancy(*, raise_on_stop: bool = True) -> dict[str,
 
 def set_usage_reconcile_baseline(*, account_used: int, note: str = "") -> dict[str, Any]:
     """Owner/repair: lock local accounting to current provider used (no metered spend)."""
-    with _lock:
+    with _guard():
         state = load_budget_state()
         state["reconciled_provider_used"] = int(account_used)
         state["local_metered_since_reconcile"] = 0
@@ -792,7 +876,7 @@ def metered_request(
                             "attempt": attempt,
                         },
                     )
-                    with _lock:
+                    with _guard():
                         st = load_budget_state()
                         st["local_metered_since_reconcile"] = int(
                             st.get("local_metered_since_reconcile") or 0
@@ -810,7 +894,7 @@ def metered_request(
                 except ValueError:
                     return None
 
-            with _lock:
+            with _guard():
                 state = load_budget_state()
                 if _i("x-quota-remaining") is not None:
                     state["account_remaining"] = _i("x-quota-remaining")
@@ -879,7 +963,7 @@ def metered_request(
                         "charged": True,
                     },
                 )
-                with _lock:
+                with _guard():
                     st = load_budget_state()
                     st["local_metered_since_reconcile"] = int(
                         st.get("local_metered_since_reconcile") or 0
@@ -889,7 +973,7 @@ def metered_request(
                 continue
             if resp.status_code == 402:
                 _commit(reservation, endpoint=endpoint, ok=True, meta={"status": 402, "nb_id": nb_id})
-                with _lock:
+                with _guard():
                     st = load_budget_state()
                     st["local_metered_since_reconcile"] = int(
                         st.get("local_metered_since_reconcile") or 0
@@ -911,7 +995,7 @@ def metered_request(
                     "request_id": req_id,
                 },
             )
-            with _lock:
+            with _guard():
                 st = load_budget_state()
                 st["local_metered_since_reconcile"] = int(
                     st.get("local_metered_since_reconcile") or 0

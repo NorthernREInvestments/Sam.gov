@@ -16,6 +16,9 @@ from typing import Any
 from m3.config import get_settings
 from m3.research.nextbid_killswitch import emergency_stop_status
 
+SLOT_DISCOVERY_CALLS = 10
+SLOT_DETAIL_CALLS = 40
+
 _scheduler_lock = threading.Lock()
 _scheduler_started = False
 _last_run_at: float | None = None
@@ -110,7 +113,8 @@ def schedule_plan(now: datetime | None = None) -> dict[str, Any]:
         "slots_local": [f"{h:02d}:{m:02d}" for h, m in _slots()],
         "timezone": s.discovery_schedule_timezone,
         "next_slot_utc": nxt.isoformat() if nxt else None,
-        "per_run": {"max_discovery_calls": 40, "max_detail": 120, "then": "staged_inventory_rebuild_offline"},
+        "per_run": {"max_discovery_calls": SLOT_DISCOVERY_CALLS, "max_detail": SLOT_DETAIL_CALLS,
+                    "job_ceiling": 50, "daily_ceiling": 100, "then": "staged_inventory_rebuild_offline"},
         "gates": gates,
         "would_run": all(gates.values()),
     }
@@ -142,9 +146,11 @@ def run_scheduled_acquisition(*, force: bool = False) -> dict[str, Any]:
 
     from m3.research.nextbid_acquire import run_nextbid_acquisition
 
+    # Discovery + detail together stay within the controller's 50-call job ceiling;
+    # two daily slots stay within the 100-call daily ceiling
     result = run_nextbid_acquisition(
-        max_discovery_calls=40,
-        max_detail=120,
+        max_discovery_calls=SLOT_DISCOVERY_CALLS,
+        max_detail=SLOT_DETAIL_CALLS,
         detail_workers=4,
         checkpoint_name="nextbid_acquire_v1",
     )
