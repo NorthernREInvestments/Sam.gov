@@ -46,6 +46,7 @@ EXPORT_ROOT_NAME = "BUILD_002Q_FULL_INVENTORY_AUDIT"
 EXPORT_ROOT_002R = "BUILD_002R_VERIFICATION_EXPORT"
 EXPORT_ROOT_002R1 = "BUILD_002R1_VERIFICATION_EXPORT"
 EXPORT_ROOT_002R2 = "BUILD_002R2_VERIFICATION_EXPORT"
+EXPORT_ROOT_ENGINE_REPAIR = "PROCUREMENT_ENGINE_REPAIR_EXPORT"
 RECORDS_PER_ZIP = 250
 
 PRIMARY_CLASSES = (
@@ -1148,7 +1149,12 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def run_full_inventory_audit(*, export_name: str | None = None) -> dict[str, Any]:
+def run_full_inventory_audit(
+    *,
+    export_name: str | None = None,
+    prior_master_index: str | Path | None = None,
+    vault_durability_check: bool = True,
+) -> dict[str, Any]:
     t0 = time.time()
     assert acquisition_locked(), "killswitch must remain locked — audit is offline only"
     # HARD: no network usage helpers either
@@ -1183,8 +1189,10 @@ def run_full_inventory_audit(*, export_name: str | None = None) -> dict[str, Any
         prior_candidates = [EXPORT_ROOT_NAME]
     else:
         prior_candidates = []
-    for cand in prior_candidates:
-        p = audit_exports / cand / "indexes" / "MASTER_INDEX.jsonl"
+    prior_paths = [audit_exports / cand / "indexes" / "MASTER_INDEX.jsonl" for cand in prior_candidates]
+    if prior_master_index:
+        prior_paths.insert(0, Path(prior_master_index))
+    for p in prior_paths:
         if p.exists():
             prior_audit_source = str(p)
             with p.open(encoding="utf-8") as f:
@@ -1413,6 +1421,13 @@ def run_full_inventory_audit(*, export_name: str | None = None) -> dict[str, Any
                 "supporting_fields": ";".join(
                     str(x) for x in (decision.get("supporting_fields") or [])[:8]
                 ),
+                "procurement_category": decision.get("procurement_category"),
+                "classifier_requirement_class": decision.get("classifier_requirement_class"),
+                "decision_confidence": decision.get("decision_confidence"),
+                "procurement_readiness": decision.get("procurement_readiness"),
+                "readiness_blockers": ";".join(decision.get("readiness_blockers") or []),
+                "supporting_quotations": (decision.get("supporting_quotations") or [])[:3],
+                "conflicting_signals": decision.get("conflicting_signals") or [],
             }
         )
 
@@ -1684,6 +1699,9 @@ def run_full_inventory_audit(*, export_name: str | None = None) -> dict[str, Any
         "elapsed_sec": round(time.time() - t0, 2),
         "total_records_processed": 8088,
         "new_classification_counts": dict(class_counts),
+        "procurement_category_counts": dict(Counter(str(r.get("procurement_category")) for r in index_rows)),
+        "decision_confidence_counts": dict(Counter(str(r.get("decision_confidence")) for r in index_rows)),
+        "procurement_readiness_counts": dict(Counter(str(r.get("procurement_readiness")) for r in index_rows)),
         "changed_classifications": changed,
         "changed_vs_prior_audit_export": len(changed_vs_audit),
         "changed_vs_prior_audit_ids_sample": [r["nb_id"] for r in changed_vs_audit[:100]],
@@ -1864,7 +1882,10 @@ def run_full_inventory_audit(*, export_name: str | None = None) -> dict[str, Any
     )
 
     # Durability self-check (offline, no API)
-    durability = run_evidence_vault_durability_check()
+    if vault_durability_check:
+        durability = run_evidence_vault_durability_check()
+    else:
+        durability = {"skipped": True, "reason": "read-only reprocess: evidence vault not written"}
     summary["evidence_vault_durability"] = durability
     (root / "EVIDENCE_VAULT_DURABILITY.json").write_text(
         json.dumps(durability, indent=2, default=str), encoding="utf-8"

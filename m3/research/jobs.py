@@ -3552,6 +3552,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("nextbid-repair-002r")
     sub.add_parser("nextbid-repair-002r1")
     sub.add_parser("nextbid-repair-002r2")
+    p_rep = sub.add_parser("nextbid-repair-independent")
+    p_rep.add_argument("--prior-master-index", default=None)
     p_acc = sub.add_parser("acceptance-002q")
     p_acc.add_argument(
         "--reuse",
@@ -3900,6 +3902,43 @@ def main(argv: list[str] | None = None) -> int:
                             ),
                             "durability": result.get("evidence_vault_durability"),
                             "paid_recovery_plan": result.get("paid_recovery_plan"),
+                            "export_folder": result.get("export_folder"),
+                            "validation_ok": (result.get("validation") or {}).get("ok"),
+                            "api_expenditure": result.get("api_expenditure"),
+                            "elapsed_sec": result.get("elapsed_sec"),
+                            "acquisition_locked": True,
+                            "stop": "AWAIT_OWNER_REVIEW",
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "nextbid-repair-independent":
+            # Offline reprocess with the evidence-weighing classifier; never writes the evidence vault.
+            from m3.research.nextbid_full_inventory_audit import (
+                EXPORT_ROOT_ENGINE_REPAIR,
+                run_full_inventory_audit,
+            )
+            from m3.research.nextbid_controller import acquisition_locked
+
+            assert acquisition_locked(), "engine repair reprocess requires killswitch locked"
+            result = run_full_inventory_audit(
+                export_name=EXPORT_ROOT_ENGINE_REPAIR,
+                prior_master_index=args.prior_master_index,
+                vault_durability_check=False,
+            )
+            assert acquisition_locked()
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "engine_repair": {
+                            "audit_counts": result.get("new_classification_counts"),
+                            "procurement_category_counts": result.get("procurement_category_counts"),
+                            "decision_confidence_counts": result.get("decision_confidence_counts"),
+                            "procurement_readiness_counts": result.get("procurement_readiness_counts"),
+                            "prior_audit_row_level_available": result.get("prior_audit_row_level_available"),
                             "export_folder": result.get("export_folder"),
                             "validation_ok": (result.get("validation") or {}).get("ok"),
                             "api_expenditure": result.get("api_expenditure"),

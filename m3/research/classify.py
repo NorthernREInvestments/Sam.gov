@@ -233,7 +233,7 @@ _SERVICE_TERMS = (
     r"hosting|subscription|licens(?:e|es|ing)|saas|software|programming|transcription|"
     r"court\s+reporting|landscap(?:e|ing)\s+maintenance|car\s+wash|transport(?:ation)?\s+services|"
     r"rental\s+with\s+operator|on[- ]call|as[- ]needed|program(?:s)?|scaffolding|labor|"
-    r"installation|install"
+    r"installation|install|contractors?|rebuild(?:ing)?|overhauls?|refurbish\w*|reupholster\w*|processing|clearing"
 )
 _CONSTRUCTION_TERMS = (
     r"construction\s+(?:contracting\s+)?services?|design[- ](?:and[- ])?build|construction|reconstruction|improvements?|rehabilitation|rehab|"
@@ -268,7 +268,7 @@ _GOODS_TERMS = (
 _NON_PURCHASE_TERMS = (
     r"grant\s+(?:program|opportunity|award|application|round)s?|funding\s+(?:opportunity|availability)|"
     r"incentive\s+(?:program|project)s?|rebate\s+program|farm\s+lease|concessions?|concessionaire|"
-    r"(?:pouring|naming|advertising|exclusive\s+\w+)\s+rights|fixed\s+base\s+operator|grants?|funding|nofa|nofo|incentive|rebate|scholarships?|sale|auction|surplus|for\s+sale|"
+    r"(?:pouring|naming|advertising|exclusive\s+\w+)\s+rights|fixed\s+base\s+operator|grants?|funding|fund|nofa|nofo|incentive|rebate|scholarships?|sale|auction|surplus|for\s+sale|"
     r"meeting(?!\s+(?:spaces?|rooms?|halls?|centers?|facilit\w*))|agenda|minutes|public\s+hearing|reminder|newsletter|award\s+notice|notice\s+of\s+award|"
     r"intent\s+to\s+award|lease\s+of\s+(?:facility\s+)?space|lease\s+of\s+(?:city|county|state|town)?\s*"
     r"(?:property|land|space)|agricultural\s+lease|property\s+lease|ground\s+lease|"
@@ -321,6 +321,10 @@ _TRAILING_CLAUSE = re.compile(
 # Solicitation number / document-type prefix before an imperative ("C26HS1037 IFB (Non-Negotiable) Procure ...")
 _LEADING_REF = re.compile(
     r"^(?:[\w\-.#/]*\d[\w\-.#/]*\s+)?(?:(?:IFB|RFP|RFQ|ITB|RFB|IFQ|BID|RFI)\b[\s\-:#]*)?(?:\([^)]{0,40}\)\s*)?"
+)
+_INLINE_ALIAS = re.compile(r"\s*\([^()]{1,30}\)(?=\s*[A-Za-z])")
+_RELATED_ITEMS = re.compile(
+    r"(?i),?\s+(?:and|&)\s+(?:related|associated|miscellaneous|other)\s+(?:items|products|supplies|equipment|materials)\b"
 )
 _BUY_INTENT = re.compile(r"(?i)\bone[- ]time\s+(?:buy|purchase)\b|\b(?:outright|direct)\s+purchase\b")
 _GOODS_LIST_ITEM = re.compile(rf"(?i)\b(?:{_GOODS_TERMS})\b\s*(?:,|&|\band\b|\bplus\b)")
@@ -508,6 +512,9 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
             "rule": f"{source}.imperative:{verb}",
         }
 
+    # Inline aliases ("Teller Machine (ATM) Services") are not segment boundaries
+    text = _INLINE_ALIAS.sub(lambda m: " " * len(m.group(0)), text)
+    text = _RELATED_ITEMS.sub(lambda m: " " * len(m.group(0)), text)
     # Main clause: cut trailing "for/at/in ..." only if the head clause has a cue
     segments = [s for s in re.split(r"\s+[-–—|:]\s+|\s*\(\s*|\s*\)\s*", text) if s.strip()]
     best: dict[str, Any] | None = None
@@ -517,7 +524,6 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
         cues = [m for m in TITLE_CUE.finditer(main) if not _negated(main, m.start(), m.end())]
         if not cues:
             continue
-        all_cues = cues
         # A cue directly followed by another cue only modifies it ("Equipment Maintenance",
         # "Printing Materials"): the following word is the head of that compound.
         cues = [
@@ -544,17 +550,6 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
                 joint = True
         if goods_cues and _RELATED_SERVICES.search(main[goods_cues[-1].end() :]):
             joint = True
-        # "Crushed Stone and Hauling Services": a goods item listed beside a service compound
-        for a, b in zip(all_cues, all_cues[1:]):
-            gap = main[a.end() : b.start()]
-            if (
-                _cue_category(a) == "product"
-                and not _WEAK_HEAD.match(a.group(0).strip())
-                and _cue_category(b) == "service"
-                and re.search(r"(?i),|&|\band\b|\bplus\b", gap)
-                and re.fullmatch(r"(?i)(?:\s|,|&|/|\+|\band\b|\bplus\b)+", gap)
-            ):
-                joint = True
         equip_install = (
             not joint
             and cat in {"service", "construction"}
@@ -630,6 +625,10 @@ _LABOR_BOILERPLATE = re.compile(
     r"(?i)\b(?:furnish|provide|supply)(?:ing)?\s+all\s+(?:necessary\s+|required\s+)?labor\b[^.;]{0,140}?"
     r"(?:\b(?:required|necessary|needed)\s+(?=to\b|for\b)|(?=\bfor\b)|"
     r"(?=\bto\s+(?:install|perform|complete|construct|provide|repair|replace|remove)\b))"
+    # Generic procurement-category lists ("supplies, services, and/or equipment") say nothing specific
+    r"|\b(?:supplies|goods|materials|equipment|services|labor|commodities)"
+    r"(?:\s*,\s*|\s+)(?:and\s*/\s*or\s+|and\s+|or\s+)?(?:supplies|goods|materials|equipment|services|labor|commodities)"
+    r"(?:(?:\s*,\s*|\s+)(?:and\s*/\s*or\s+|and\s+|or\s+)?(?:supplies|goods|materials|equipment|services|labor|commodities|construction))*\b"
 )
 # Purpose objects end at relative/qualifying clauses
 _OBJECT_TAIL = re.compile(
@@ -799,6 +798,9 @@ def classify_requirement(
             add("category", ch["category"], 0.75, ch["rule"], ch["quote"], ch["subtype"])
 
     # --- Summary / document: purpose sentences then decisive phrases ---
+    # Retained document text often repeats the listing summary; read each passage once
+    if desc and doc and (desc[:400] in doc or doc[:400] in desc):
+        desc, doc = (doc, "") if len(doc) >= len(desc) else (desc, "")
     body = " ".join(x for x in (desc, items, doc) if x)
     # Same-length substitution keeps offsets aligned with `body` for quoting
     body_masked = _LABOR_BOILERPLATE.sub(lambda m: " " * len(m.group(0)), _mask_names(body))
@@ -811,6 +813,7 @@ def classify_requirement(
                 la["rule"], body[: len(lead)], la["subtype"])
 
     purpose_hits = 0
+    seen_objects: set[str] = set()
     for pat in _PURPOSE_PATTERNS:
         for m in pat.finditer(body_masked):
             if purpose_hits >= 2:
@@ -818,6 +821,10 @@ def classify_requirement(
             if _negated(body_masked, m.start(), m.end()):
                 continue
             obj = _OBJECT_TAIL.split(m.group("obj"), maxsplit=1)[0]
+            obj_key = re.sub(r"\W+", " ", obj.lower()).strip()
+            if obj_key in seen_objects:
+                continue
+            seen_objects.add(obj_key)
             truncated = m.end() >= len(body_masked.rstrip())
             if truncated:
                 # Retained summaries are often cut mid-word; never read a fragment as a noun
@@ -915,7 +922,15 @@ def _decide(
     (top, top_score), (second, second_score) = ranked[0], ranked[1]
 
     title_sig = next((s for s in signals if s["source"] == "title"), None)
-    joint = any(s.get("subtype") == "goods_and_services" for s in signals if s["source"] in {"title", "summary"})
+    # A summary may only establish a joint requirement when the title does not name a single deliverable
+    title_single = bool(
+        title_sig and title_sig["weight"] >= 3 and title_sig.get("subtype") != "goods_and_services"
+    )
+    joint = any(
+        s.get("subtype") == "goods_and_services"
+        for s in signals
+        if s["source"] == "title" or (s["source"] == "summary" and not title_single)
+    )
     evidence = [f"{s['rule']}={s['quote']}" for s in sorted(signals, key=lambda x: -x["weight"])]
     conflicts = [
         f"{s['source']}:{s['category']}({s['weight']})"
