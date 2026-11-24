@@ -30,6 +30,34 @@ def test_open_data_thin_row():
     assert not r["verified_individual_solicitation"]
 
 
+def test_open_data_active_with_identity_is_individual():
+    r = verify_record_identity(
+        {
+            "title": "IFB Supply of Office Furniture",
+            "solicitation_number": "IFB-2026-441",
+            "buyer_name": "City Procurement",
+            "official_url": "https://data.cityofnewyork.us/resource/dg92-zbpx.json",
+            "solicitation_status": "open",
+        }
+    )
+    assert r["record_type"] == "INDIVIDUAL_SOLICITATION"
+    assert r["verified_individual_solicitation"]
+    assert r["identity_strength"] == "open_data_row"
+
+
+def test_active_html_bid_folder_is_individual():
+    r = verify_record_identity(
+        {
+            "title": "Supply and Delivery of Cleaning Supplies",
+            "official_url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=166-2023&YEAR=2023",
+            "solicitation_status": "open",
+        }
+    )
+    assert r["record_type"] == "INDIVIDUAL_SOLICITATION"
+    assert r["verified_individual_solicitation"]
+    assert r["identity_strength"] in {"active_identity_fields", "detail_url"}
+
+
 def test_ramp_detail_is_individual():
     r = verify_record_identity(
         {

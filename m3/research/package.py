@@ -339,8 +339,39 @@ def _is_empty_or_corrupt(data: bytes, expected_fmt: str) -> str | None:
     return None
 
 
+def _sanitize_jsonable(obj: Any, *, depth: int = 0) -> Any:
+    """Strip NUL / control garbage so Postgres JSONB never sees \\u0000."""
+    if depth > 12:
+        return None
+    if obj is None or isinstance(obj, (bool, int, float)):
+        return obj
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace").replace("\x00", "")[:8000]
+    if isinstance(obj, str):
+        # Reject raw PDF / binary mistaken for text
+        if obj.startswith("%PDF") or "\x00" in obj:
+            cleaned = obj.replace("\x00", "")
+            if cleaned.lstrip().startswith("%PDF"):
+                return "[binary_pdf_omitted_from_json]"
+            return "".join(ch for ch in cleaned if ch in "\n\t" or ord(ch) >= 32)[:8000]
+        return obj.replace("\x00", "")
+    if isinstance(obj, list):
+        return [_sanitize_jsonable(x, depth=depth + 1) for x in obj[:200]]
+    if isinstance(obj, dict):
+        return {str(k): _sanitize_jsonable(v, depth=depth + 1) for k, v in list(obj.items())[:200]}
+    return str(obj)[:2000]
+
+
 def extract_detail_fields(html: str, url: str) -> dict[str, Any]:
-    text = extract_html_text(html)
+    raw = html or ""
+    if raw.lstrip().startswith("%PDF") or "\x00" in raw[:200]:
+        return {
+            "detail_url": url,
+            "description_excerpt": "",
+            "binary_payload_omitted": True,
+            "note": "url_returned_pdf_or_binary_not_html",
+        }
+    text = extract_html_text(raw)
     fields: dict[str, Any] = {"detail_url": url, "description_excerpt": text[:4000]}
 
     def _m(patterns: list[str]) -> str | None:
@@ -595,25 +626,52 @@ def _safe_extract_zip(data: bytes, dest: Path, *, max_files: int = 40, max_total
 
 
 def extract_document_bytes(data: bytes, fmt: str) -> dict[str, Any]:
-    if fmt == "pdf":
-        return extract_pdf_text(data)
-    if fmt == "docx":
-        return extract_docx_text(data)
-    if fmt == "xlsx":
-        return extract_xlsx_text(data)
-    if fmt in {"text", "csv", "txt"}:
-        return extract_csv_or_txt(data)
-    if fmt == "html":
-        text = extract_html_text(data.decode("utf-8", errors="replace"))
+    from m3.research.document_quality import classify_document_text, classify_raw_bytes
+
+    # Reject portal/login HTML before counting as a solicitation document
+    pre = classify_raw_bytes(data, fmt=fmt)
+    if pre.get("is_junk") and fmt in {"html", "unknown", ""}:
         return {
+            "ok": False,
+            "text": "",
+            "format": fmt or "html",
+            "reason": pre.get("reason") or "junk_portal_or_error_page",
+            "is_junk": True,
+        }
+
+    if fmt == "pdf":
+        result = extract_pdf_text(data)
+    elif fmt == "docx":
+        result = extract_docx_text(data)
+    elif fmt == "xlsx":
+        result = extract_xlsx_text(data)
+    elif fmt in {"text", "csv", "txt"}:
+        result = extract_csv_or_txt(data)
+    elif fmt == "html":
+        text = extract_html_text(data.decode("utf-8", errors="replace"))
+        result = {
             "ok": len(text) >= 40,
             "text": text,
             "format": "html",
             "reason": None if len(text) >= 40 else "html_too_thin",
         }
-    if fmt == "zip":
+    elif fmt == "zip":
         return {"ok": False, "reason": "zip_preserved_not_flattened", "text": "", "format": "zip"}
-    return {"ok": False, "reason": f"unsupported_extraction:{fmt}", "text": "", "format": fmt}
+    else:
+        return {"ok": False, "reason": f"unsupported_extraction:{fmt}", "text": "", "format": fmt}
+
+    if result.get("ok") and result.get("text"):
+        quality = classify_document_text(str(result.get("text") or ""), fmt=fmt)
+        if quality.get("is_junk"):
+            return {
+                "ok": False,
+                "text": "",
+                "format": fmt,
+                "reason": quality.get("reason") or "junk_portal_content",
+                "is_junk": True,
+            }
+        result["is_solicitation_body"] = quality.get("is_solicitation_body")
+    return result
 
 
 def compute_package_status(
@@ -995,6 +1053,16 @@ def _acquire_solicitation_package_inner(
                 doc.download_status = "failed"
                 doc.failure_reason = bad
                 continue
+            # Portal / employee / error HTML is not a solicitation package document
+            from m3.research.document_quality import classify_raw_bytes
+
+            raw_q = classify_raw_bytes(data, ctype=ctype or "", fmt=fmt)
+            if raw_q.get("is_junk"):
+                doc.download_status = "failed"
+                doc.failure_reason = f"junk_content:{raw_q.get('reason')}"
+                doc.file_format = fmt
+                access_issues.append("junk_portal_or_non_solicitation_page")
+                continue
             ch = _sha256(data)
             ext = fmt if fmt not in {"unknown", "html"} else (Path(urlparse(final).path).suffix.lstrip(".") or "bin")
             path = blob_path_for_hash(ch, ext)
@@ -1028,7 +1096,13 @@ def _acquire_solicitation_package_inner(
             else:
                 doc.extraction_status = "failed" if ex.get("reason") else "unsupported"
                 doc.failure_reason = (doc.failure_reason or "") + (f";extract:{ex.get('reason')}" if ex.get("reason") else "")
-                # Unsupported extraction still counts as downloaded original
+                if ex.get("is_junk"):
+                    # Do not treat junk portal HTML as a successful document acquisition
+                    doc.download_status = "failed"
+                    doc.failure_reason = f"junk_content:{ex.get('reason')}"
+                    access_issues.append("junk_portal_or_non_solicitation_page")
+                    downloaded = max(0, downloaded - 1)
+                    storage_bytes = max(0, storage_bytes - int(doc.file_size or 0))
         except Exception as exc:
             doc.download_status = "failed"
             doc.failure_reason = f"download_error:{type(exc).__name__}"
@@ -1081,13 +1155,15 @@ def _acquire_solicitation_package_inner(
     pkg.missing_count = missing
     pkg.extracted_count = extracted
     pkg.storage_bytes = storage_bytes
-    pkg.detail_fields = detail_fields
+    pkg.detail_fields = _sanitize_jsonable(detail_fields)
     pkg.access_issues = list(dict.fromkeys(access_issues))
-    pkg.amendment_summary = {
-        "amendment_urls_on_page": amendment_urls,
-        "amendment_documents": sum(1 for d in (pkg.documents or []) if d.is_amendment),
-        "note": "Supersession only when amendment language or authoritative evidence present",
-    }
+    pkg.amendment_summary = _sanitize_jsonable(
+        {
+            "amendment_urls_on_page": amendment_urls,
+            "amendment_documents": sum(1 for d in (pkg.documents or []) if d.is_amendment),
+            "note": "Supersession only when amendment language or authoritative evidence present",
+        }
+    )
     # Multi-notice PDF: record boundaries from extracted text (do not invent records)
     try:
         from m3.research.identity import split_multi_notice_text
@@ -1107,7 +1183,7 @@ def _acquire_solicitation_package_inner(
                     break
     except Exception:
         pass
-    pkg.detail_fields = detail_fields
+    pkg.detail_fields = _sanitize_jsonable(detail_fields)
 
     # Identity gate for COMPLETE (prefer item fields; fall back to URL/doc evidence)
     verified_sol = bool(item.get("verified_individual_solicitation"))
@@ -1173,26 +1249,28 @@ def _acquire_solicitation_package_inner(
         )
         qty = extract_quantity_fields(evidence_text, title=pkg.title or "")
         ident = extract_identity_fields(evidence_text)
-        pkg.classification_hint = {
-            "requirement_class": cls.get("requirement_class"),
-            "include_in_product_resale": cls.get("include_in_product_resale"),
-            "evidence": (cls.get("classification_evidence") or [])[:8],
-            "from_package": True,
-            "quantity": qty.get("quantity"),
-            "quantity_unit": qty.get("quantity_unit"),
-            "quantity_kind": qty.get("quantity_kind"),
-            "quantity_evidence": (qty.get("quantity_evidence") or [])[:6],
-            "quantity_extracted": bool(qty.get("quantity_extracted")),
-            "line_items": (qty.get("line_items") or [])[:10],
-            "identity_fields": ident,
-            "description_excerpt": (detail_fields.get("description_excerpt") or "")[:2000],
-        }
+        pkg.classification_hint = _sanitize_jsonable(
+            {
+                "requirement_class": cls.get("requirement_class"),
+                "include_in_product_resale": cls.get("include_in_product_resale"),
+                "evidence": (cls.get("classification_evidence") or [])[:8],
+                "from_package": True,
+                "quantity": qty.get("quantity"),
+                "quantity_unit": qty.get("quantity_unit"),
+                "quantity_kind": qty.get("quantity_kind"),
+                "quantity_evidence": (qty.get("quantity_evidence") or [])[:6],
+                "quantity_extracted": bool(qty.get("quantity_extracted")),
+                "line_items": (qty.get("line_items") or [])[:10],
+                "identity_fields": ident,
+                "description_excerpt": (detail_fields.get("description_excerpt") or "")[:2000],
+            }
+        )
         detail_fields = dict(detail_fields or {})
         if qty.get("quantity_extracted"):
             detail_fields["extracted_quantity"] = qty.get("quantity")
             detail_fields["extracted_quantity_kind"] = qty.get("quantity_kind")
             detail_fields["extracted_quantity_evidence"] = (qty.get("quantity_evidence") or [])[:4]
-        pkg.detail_fields = detail_fields
+        pkg.detail_fields = _sanitize_jsonable(detail_fields)
     pkg.last_verified_at = _now()
     db.add(pkg)
     # Persist reusable platform success pattern (avoid rediscovering with OpenAI)
@@ -1351,6 +1429,10 @@ def acquire_packages_for_items(
             )
             enriched.append(merged)
         except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
             stats["errors"] += 1
             stats["FAILED"] = stats.get("FAILED", 0) + 1
             merged = dict(it)

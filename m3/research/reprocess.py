@@ -66,7 +66,7 @@ def re_search_cancel(title: str) -> bool:
     )
 
 
-def collect_package_text(pkg: SolicitationPackage, *, max_chars: int = 20000) -> str:
+def collect_package_text(pkg: SolicitationPackage, *, max_chars: int = 100000) -> str:
     parts: list[str] = []
     detail = pkg.detail_fields or {}
     if detail.get("description_excerpt"):

@@ -46,6 +46,8 @@ def write_population_file(run_id: str | UUID, items: list[dict[str, Any]]) -> Pa
             if not isinstance(it, dict):
                 continue
             # Drop huge nested fields to keep freeze file manageable
+            # Preserve extracted procurement evidence (Build 002Q repair).
+            # Still omit huge raw HTML/PDF blobs.
             slim = {
                 k: it.get(k)
                 for k in (
@@ -64,6 +66,25 @@ def write_population_file(run_id: str | UUID, items: list[dict[str, Any]]) -> Pa
                     "deadline_at",
                     "geo_state",
                     "quantity",
+                    "quantity_unit",
+                    "quantity_kind",
+                    "quantity_semantic",
+                    "quantity_evidence",
+                    "quantity_defined",
+                    "line_items",
+                    "manufacturer_part_number",
+                    "nsn",
+                    "specifications",
+                    "specification_evidence",
+                    "brand_restrictions",
+                    "approved_equivalents",
+                    "delivery_location",
+                    "delivery_deadline",
+                    "submission_method",
+                    "submission_instructions",
+                    "package_status",
+                    "package_match_method",
+                    "document_text_len",
                     "description",
                     "include_in_product_resale",
                     "uncertain_resolution",
@@ -75,6 +96,11 @@ def write_population_file(run_id: str | UUID, items: list[dict[str, Any]]) -> Pa
                     "identity_strength",
                     "source_purpose",
                     "discovery_url",
+                    "procurement_stage",
+                    "bid_eligible",
+                    "bid_eligibility",
+                    "investigation_trail",
+                    "unknown_flags",
                 )
                 if k in it or it.get(k) is not None
             }

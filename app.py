@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import quote, urlencode
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
@@ -308,6 +308,21 @@ def _startup() -> None:
             db.close()
     except Exception:
         pass
+    # NextBid: engage killswitch status; NEVER auto-start under emergency stop
+    try:
+        from m3.research.nextbid_killswitch import engage_emergency_stop, emergency_stop_status
+        from m3.research.nextbid_schedule import pause_scheduler, start_nextbid_scheduler
+
+        settings = get_settings()
+        if settings.nextbid_emergency_stop or not settings.nextbid_enabled:
+            engage_emergency_stop(reason="startup_emergency_stop_or_disabled")
+            pause_scheduler(reason="startup_emergency_stop_or_disabled")
+        elif emergency_stop_status().get("metered_calls_allowed"):
+            start_nextbid_scheduler()
+        else:
+            pause_scheduler(reason="killswitch_engaged")
+    except Exception:
+        pass
 
 
 def _flash(request: Request, message: str, kind: str = "ok") -> None:
@@ -326,6 +341,51 @@ def _login_redirect() -> RedirectResponse:
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "build": BUILD_ID}
+
+
+@app.get("/api/m3/procurement/queues")
+def procurement_queues_api(user: User | None = Depends(current_user)):
+    """Owner queues for verified fits vs promising/missing/restricted (Build 002P).
+
+    Unresolved opportunities are never returned under verified_procurement_fits.
+    """
+    if user is None:
+        return JSONResponse({"ok": False, "error": "auth_required"}, status_code=401)
+    from m3.config import get_settings
+
+    root = get_settings().data_root() / "procurement_queues"
+    index_path = root / "index.json"
+    if not index_path.exists():
+        return {"ok": True, "queues": {}, "note": "queues_not_built_yet"}
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    detail: dict = {}
+    for qname in (index.get("queues") or {}):
+        qp = root / f"{qname}.json"
+        if qp.exists():
+            payload = json.loads(qp.read_text(encoding="utf-8"))
+            detail[qname] = {
+                "count": payload.get("count"),
+                "sample": (payload.get("rows") or [])[:25],
+            }
+    # Guard: never surface unresolved under verified / bid-ready keys
+    for protected in (
+        "verified_procurement_fits",
+        "qualified_commercial_evaluation",
+        "bids_ready_for_owner_approval",
+    ):
+        if protected in detail:
+            rows = detail[protected].get("sample") or []
+            detail[protected]["sample"] = [
+                r for r in rows if not r.get("unresolved") and (r.get("disposition") or protected)
+            ]
+    return {
+        "ok": True,
+        "build": BUILD_ID,
+        "index": index,
+        "queues": detail,
+        "verified_never_includes_unresolved": True,
+        "stage_c_is_not_bid_eligible": True,
+    }
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -1195,6 +1255,102 @@ def package_zip_download(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="package_{package_id}.zip"'},
     )
+
+
+@app.get("/api/m3/nextbid/status")
+def api_nextbid_status(
+    user: User | None = Depends(current_user),
+    live_usage: int = 0,
+):
+    """Controller + killswitch status. Never returns the API key. No metered calls.
+
+    Does not call NextBid on startup/health. Optional free /v1/usage when live_usage=1.
+    """
+    if not user:
+        return {"ok": False, "error": "auth_required"}
+    settings = get_settings()
+    from m3.research.nextbid_controller import controller_status, refresh_account_usage
+    from m3.research.nextbid_schedule import scheduler_status
+
+    ctrl = controller_status()
+    usage_probe = None
+    if int(live_usage or 0) == 1:
+        try:
+            usage_probe = refresh_account_usage(allow_when_locked=True)
+        except Exception as exc:
+            usage_probe = {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": True,
+        "build": BUILD_ID,
+        "enabled": bool(settings.nextbid_enabled),
+        "controller": ctrl,
+        "acquisition_locked": ctrl.get("locked"),
+        "key_configured": bool((settings.nextbid_api_key or "").strip()),
+        "scheduler": scheduler_status(),
+        "usage_free_probe": usage_probe,
+        "usage_note": "Pass live_usage=1 for free /v1/usage probe only; never metered from this endpoint.",
+        "budgets": {
+            "discovery": settings.nextbid_budget_discovery,
+            "detail": settings.nextbid_budget_detail,
+            "documents": settings.nextbid_budget_documents,
+            "reserve": settings.nextbid_budget_reserve,
+            "daily_limit": settings.nextbid_daily_call_limit,
+            "job_limit": settings.nextbid_job_call_limit,
+            "hard_stop_remaining": settings.nextbid_hard_stop_remaining,
+            "page_size": settings.nextbid_page_size,
+        },
+        "resume_requires_owner_authorization": True,
+        "do_not_begin_build_003": True,
+    }
+
+
+@app.post("/api/m3/nextbid/run")
+def api_nextbid_run(
+    user: User | None = Depends(current_user),
+    force: bool = False,
+    max_discovery: int = 40,
+    max_detail: int = 50,
+):
+    """Owner-triggered acquisition — blocked by centralized controller unless authorized."""
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.research.nextbid_controller import acquisition_locked, controller_status
+
+    if acquisition_locked():
+        return {
+            "ok": False,
+            "error": "acquisition_locked",
+            "message": "NextBid acquisition locked. Owner authorization required.",
+            "controller": controller_status(),
+        }
+    settings = get_settings()
+    if not (settings.nextbid_api_key or "").strip():
+        return {"ok": False, "error": "NEXTBID_API_KEY not configured", "requires_secure_configuration": True}
+    from m3.research.nextbid_acquire import run_nextbid_acquisition
+
+    # Hard caps: job ≤50, and discovery+detail must fit daily/test ceilings
+    result = run_nextbid_acquisition(
+        max_discovery_calls=min(max(int(max_discovery), 1), 50),
+        max_detail=min(max(int(max_detail), 1), 50),
+        detail_workers=2,
+        checkpoint_name="nextbid_acquire_v1",
+    )
+    return {
+        "ok": bool(result.get("ok")),
+        "forced": bool(force),
+        "usage_before": result.get("usage_before"),
+        "usage_after": result.get("usage_after"),
+        "discovery": result.get("discovery"),
+        "qualification": {
+            "stage_counts": (result.get("qualification") or {}).get("stage_counts"),
+            "strict_m3_procurement_fits": (result.get("qualification") or {}).get(
+                "strict_m3_procurement_fits"
+            ),
+            "fits": (result.get("qualification") or {}).get("fits") or [],
+        },
+        "budget": result.get("budget"),
+        "source_yield": result.get("source_yield"),
+    }
 
 
 @app.get("/api/m3/package-jobs/{job_id}")

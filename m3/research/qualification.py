@@ -113,6 +113,32 @@ def qualify_for_acquisition(
     skip_classes = set(criteria.get("skip_full_classes") or list(CONFIRMED_NON_PRODUCT))
     skip_statuses = set(criteria.get("skip_statuses") or list(AUTO_SKIP_STATUSES))
 
+    # Title-confirmed service / construction / irrelevant IT — screen before download
+    title = str(item.get("title") or "")
+    import re
+
+    if re.search(
+        r"(?i)\b("
+        r"janitorial\s+services?|pest\s+control\s+services?|painting\s+services?|"
+        r"professional\s+services?|consulting\s+services?|staffing\s+services?|"
+        r"construction\s+of|roadway\s+reconstruction|bridge\s+replacement|"
+        r"software\s+license|saas\s+subscription|microsoft\s+365"
+        r")\b",
+        title,
+    ) and not re.search(
+        r"(?i)\b(purchase\s+of|supply\s+of|equipment|supplies?|materials?)\b",
+        title,
+    ):
+        return {
+            "disposition": "SKIP_CONFIRMED_NON_PRODUCT",
+            "acquire_full_package": False,
+            "targeted_only": False,
+            "reason": "title_confirmed_non_product_screen",
+            "requirement_class": req,
+            "solicitation_status": status,
+            "record_type": record_type or None,
+        }
+
     if req in skip_classes:
         return {
             "disposition": "SKIP_CONFIRMED_NON_PRODUCT",
