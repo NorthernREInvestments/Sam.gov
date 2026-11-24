@@ -563,7 +563,7 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
             cat_out, sub = "mixed", "goods_and_services"
         else:
             cat_out, sub = cat, head_text.lower()
-        if cat_out == "product" and _RENTAL_GOODS.search(main[: head.start()]):
+        if cat_out == "product" and _RENTAL_GOODS.search(main):
             sub = "rental"
         cand = {
             "category": cat_out,
@@ -990,6 +990,20 @@ def _decide(
         conf = "high"
     else:
         conf = "medium"
+    # A goods purchase triggers sourcing work: a title noun alone is a lead, not a confirmation.
+    if top == "product" and conf == "high":
+        explicit_acquisition = any(
+            s["source"] == "title" and s["category"] == "product"
+            and re.search(r"action_of:(?:purchase|procurement|acquisition|supply|furnish|delivery)|"
+                          r"imperative:(?:furnish|supply|purchase|deliver|procure)$|furnish_and_install|buy_intent",
+                          s["rule"])
+            for s in signals
+        )
+        corroborated = any(
+            s["category"] == "product" and s["source"] != "title" and s["weight"] >= 1.0 for s in signals
+        )
+        if not (explicit_acquisition or corroborated):
+            conf = "medium"
 
     top_signals = [s for s in signals if s["category"] == top]
     if top == "product":
