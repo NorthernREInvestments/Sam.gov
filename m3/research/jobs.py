@@ -3554,6 +3554,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("nextbid-repair-002r2")
     p_rep = sub.add_parser("nextbid-repair-independent")
     p_rep.add_argument("--prior-master-index", default=None)
+    p_stg = sub.add_parser("staged-inventory")
+    p_stg.add_argument("--no-resume", action="store_true")
+    sub.add_parser("discovery-schedule-plan")
     p_acc = sub.add_parser("acceptance-002q")
     p_acc.add_argument(
         "--reuse",
@@ -3951,6 +3954,18 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 flush=True,
             )
+        elif args.cmd == "staged-inventory":
+            # Offline: read-only inputs, zero external calls, no database writes.
+            from m3.research.staged_inventory import run_staged_inventory
+
+            m = run_staged_inventory(resume=not args.no_resume)
+            print(json.dumps({k: m[k] for k in ("build", "elapsed_sec", "stage_counts", "queue_counts", "lifecycle_counts",
+                                                "all_records_dispositioned", "external_calls", "acquisition_locked")},
+                             default=str), flush=True)
+        elif args.cmd == "discovery-schedule-plan":
+            from m3.research.nextbid_schedule import schedule_plan
+
+            print(json.dumps(schedule_plan(), indent=2, default=str), flush=True)
         elif args.cmd == "nextbid-final-pipeline-audit":
             from m3.research.nextbid_final_pipeline_audit import run_final_pipeline_audit
 

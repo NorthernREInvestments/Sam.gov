@@ -1,0 +1,1608 @@
+{
+ "population": {
+  "retained": 1957,
+  "rejected": 1217
+ },
+ "items": [
+  {
+   "item": 1,
+   "source_record_id": "free:cc9dff89756111469b5537d2c203f91c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 2,
+   "source_record_id": "free:a97c26539ab23021570b6000eac16bae",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 3,
+   "source_record_id": "free:1a3e0583a2188b4f13a439bd0413304a",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 4,
+   "source_record_id": "free:28064cdc9e814f06b71184fd48f98c13",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 5,
+   "source_record_id": "free:76f6719bd03565a7592921220570fa99",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 6,
+   "source_record_id": "free:05e1446c503b0e7567b7769704247ba1",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 7,
+   "source_record_id": "free:0215356220da761328393c9b1340093a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 8,
+   "source_record_id": "free:8230bb6df662a68356f5057e7e456a29",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 9,
+   "source_record_id": "free:8449a0db904f23df12d4482077441ffa",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 10,
+   "source_record_id": "legacy:bbe1749b38698276",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 11,
+   "source_record_id": "free:39f645ec093a9f8bab358bff6645562d",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 12,
+   "source_record_id": "free:8c76eaafc92830251d6d1db3be23a44a",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 13,
+   "source_record_id": "nextbid:NB00371307",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 14,
+   "source_record_id": "free:d1c6d4821ad0646633e0e2bafea9653a",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 15,
+   "source_record_id": "free:30d84d2c8a11d5e31ab3f0c25f679b0f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 16,
+   "source_record_id": "free:827caeb3658238d73015b31b9500b649",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 17,
+   "source_record_id": "nextbid:NB00373145",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 18,
+   "source_record_id": "nextbid:NB00372886",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 19,
+   "source_record_id": "nextbid:NB00372292",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 20,
+   "source_record_id": "legacy:c62960fbec0008df",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 21,
+   "source_record_id": "nextbid:NB00358791",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 22,
+   "source_record_id": "free:bb326c1e8f20779b3a57e3f5ee8ade0e",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 23,
+   "source_record_id": "nextbid:NB00371302",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 24,
+   "source_record_id": "free:7eeee3b5848bd7f53bc3af2b3b1a2475",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 25,
+   "source_record_id": "free:4669d1994cd46dc0b6cf3a3850fcf570",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 26,
+   "source_record_id": "free:754d60c285013a3c5aabe8146e1deec6",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 27,
+   "source_record_id": "free:1fd9cac8a38905c19de5658bed277192",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 28,
+   "source_record_id": "free:07e6d9148177b9400c7e2e0eb0aef3e2",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 29,
+   "source_record_id": "free:b7e591a8be653cdb39f6fa15ea18ec0b",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 30,
+   "source_record_id": "nextbid:NB00372614",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 31,
+   "source_record_id": "free:b04fa1e754d2367fad6bb15270b16521",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 32,
+   "source_record_id": "free:d2a203ced63c51de75572c66722a962a",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 33,
+   "source_record_id": "free:3c0397e3ac26b90cd5994d2f1dddb3f1",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 34,
+   "source_record_id": "legacy:82e30f12dc46c041",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 35,
+   "source_record_id": "legacy:b4de1c71434da8c1",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 36,
+   "source_record_id": "free:989213fba3de93cc33cbff045e7666d3",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 37,
+   "source_record_id": "nextbid:NB00371245",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 38,
+   "source_record_id": "nextbid:NB00371206",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 39,
+   "source_record_id": "free:595df67e985cbdd9efb6f512a31b64d8",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 40,
+   "source_record_id": "free:825326473be2c3cf9b8fb3180869501c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 41,
+   "source_record_id": "nextbid:NB00372347",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 42,
+   "source_record_id": "free:96771b78641c8748d65dddab326de57b",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 43,
+   "source_record_id": "free:4d7e6bd146c7b14aceb02b786bc16d0f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 44,
+   "source_record_id": "legacy:b0b5c863fa7928b8",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 45,
+   "source_record_id": "free:81abfc310438d7d6a48cb2ee8256adac",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 46,
+   "source_record_id": "free:2c622ee3640eb950714ba2aeaae3d2c1",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 47,
+   "source_record_id": "legacy:37f270876b4acf77",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 48,
+   "source_record_id": "free:8b683f60bd27de172092990d8347c233",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 49,
+   "source_record_id": "free:367de4a2b53191da1ebe4aad4775faca",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 50,
+   "source_record_id": "legacy:578820ceabda2eb2",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 51,
+   "source_record_id": "free:fe1e2c3b196b7f491b796c9205dbaea7",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 52,
+   "source_record_id": "free:3e862e4910395af24cd96476c15dfa96",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 53,
+   "source_record_id": "free:ac812608ec678b1b93269edb45f1f13c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 54,
+   "source_record_id": "legacy:f40deebb9319ba61",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 55,
+   "source_record_id": "free:2e732f6626a47263c6f5576e585d8ebd",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 56,
+   "source_record_id": "free:d603468750028894f9ca8188ce744604",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 57,
+   "source_record_id": "nextbid:NB00372546",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 58,
+   "source_record_id": "free:012273619ce0eec5aaffad291e3e56b3",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 59,
+   "source_record_id": "free:e61207fbb3051352b730b53040ad4656",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 60,
+   "source_record_id": "free:2aeb590c46bebf17ee85320a4a7c5a3a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 61,
+   "source_record_id": "free:776e52e1276fa5a00aa817c8804da017",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 62,
+   "source_record_id": "free:a52f6c65b3dac880885a074471c34d0f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 63,
+   "source_record_id": "free:080f8b0c7d6ef01d7cbfd5de859bb296",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 64,
+   "source_record_id": "legacy:4cace439db881fdb",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 65,
+   "source_record_id": "free:5dea9a696dc99f6f973d7ddc202ded1c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 66,
+   "source_record_id": "free:a11deda7b558583e105f1beb2793bf44",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 67,
+   "source_record_id": "free:eeef6809239866a233365abe2a2356c8",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 68,
+   "source_record_id": "free:ff578c392738167d91d0003161bdea5c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 69,
+   "source_record_id": "free:bcaa87d2f3e991b8695e5030eb51dcfc",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 70,
+   "source_record_id": "free:585ace0f303b721199270a610e0c21dc",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 71,
+   "source_record_id": "legacy:77d2744a9cecf0c7",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 72,
+   "source_record_id": "nextbid:NB00371233",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 73,
+   "source_record_id": "free:8512f2cb2eb973aa32c79f842b1ae2fe",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 74,
+   "source_record_id": "free:ecc4a53b9efbb3af52bc3cdd3cd05928",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 75,
+   "source_record_id": "free:d1e6c876ef52192bf2ea2ceb42c57e08",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 76,
+   "source_record_id": "free:a6de60f3e1646855b1ba5e484179781e",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 77,
+   "source_record_id": "free:e00af5b68411783e9287ba55e7d7f871",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 78,
+   "source_record_id": "free:b1e9acbeb53a1df9e3fb5f19e93f256a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 79,
+   "source_record_id": "nextbid:NB00372289",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 80,
+   "source_record_id": "free:cd78668eba1aefe0f92e45f0fed4f26a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 81,
+   "source_record_id": "free:4559184eec52c453275de4a9ac565cdc",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 82,
+   "source_record_id": "free:9e424a65a73e9a8d2b2148afab420c22",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 83,
+   "source_record_id": "free:9b8006594f45cffaf9b0b1ee1d5d398d",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 84,
+   "source_record_id": "free:4b81089d9a98a32561c35a082aa4ee16",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 85,
+   "source_record_id": "free:ad2a61143e30abd9da1c50bc16b11368",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 86,
+   "source_record_id": "free:b8d1bdbb35f986a9453ef03550126b48",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 87,
+   "source_record_id": "free:656391fcb51d8fd9d51746a514d200ea",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 88,
+   "source_record_id": "nextbid:NB00371096",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 89,
+   "source_record_id": "free:d1dca192a9fa37c65b0dc74b3ddba6c0",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 90,
+   "source_record_id": "legacy:70305862806cdafd",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 91,
+   "source_record_id": "free:cb8fde8152dd28d5bed4cb2a20e3d934",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 92,
+   "source_record_id": "free:21d740e8fcfb57f146cf0e4445daeacb",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 93,
+   "source_record_id": "free:f6ccf53f03e629e9a195ec0f3dc42cec",
+   "stratum": "retained",
+   "engine_presence": "INSUFFICIENT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 94,
+   "source_record_id": "free:99d81044ca0116634c6b83d58aae8184",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 95,
+   "source_record_id": "legacy:4d8668307ad642d8",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 96,
+   "source_record_id": "free:fd6ca64695642954351fe49ec3217c78",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 97,
+   "source_record_id": "free:da06893854f9a7286dee99582a72045c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 98,
+   "source_record_id": "nextbid:NB00372323",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 99,
+   "source_record_id": "free:93cac72f5f6957ca07bed37c6260b3cf",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 100,
+   "source_record_id": "free:7baac4c40a93212a2f8591044f0ec3ce",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 101,
+   "source_record_id": "free:1d8907d3cc530f245772063d69e9fb80",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 102,
+   "source_record_id": "free:0f9ddcaee84bc1c5def5552672f73dcb",
+   "stratum": "retained",
+   "engine_presence": "INSUFFICIENT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 103,
+   "source_record_id": "legacy:ecdeef6ebf84f9f8",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 104,
+   "source_record_id": "free:99ad054aac8248a85734a4c732a9ff1d",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 105,
+   "source_record_id": "nextbid:NB00372314",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 106,
+   "source_record_id": "free:404bac3ee1f695e053baa45dab42ae7b",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 107,
+   "source_record_id": "free:accf85dc4812f89ac55e6c7b084addc6",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 108,
+   "source_record_id": "free:bb317363fe27bddb804362622e1c9a27",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 109,
+   "source_record_id": "free:de2d2b7fc1b2aa87e16880d18cd1082d",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 110,
+   "source_record_id": "nextbid:NB00333263",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 111,
+   "source_record_id": "free:32d948643c02d933f0f13281d5eaea27",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 112,
+   "source_record_id": "nextbid:NB00372355",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 113,
+   "source_record_id": "free:a744a55c213e982f09d9d13dee8bb0d5",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 114,
+   "source_record_id": "nextbid:NB00370915",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 115,
+   "source_record_id": "free:7925dc4e8089da3b985b7b351bc16b40",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 116,
+   "source_record_id": "free:c23ac3cdc4eaf32ead2569f00df39184",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 117,
+   "source_record_id": "free:cd04218421ebdd991d23e88660f66cef",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 118,
+   "source_record_id": "free:4bd8fe2e2216260f323668a71cfe5a2a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 119,
+   "source_record_id": "free:14da2e9965a303668d1f058a7eb81996",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 120,
+   "source_record_id": "free:dff72707de43dbc9fa90fdb5bee7b429",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 121,
+   "source_record_id": "free:8be8c03194c67c2844558db24d265623",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 122,
+   "source_record_id": "free:90400b18a92f11154efcea48d0de11f6",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 123,
+   "source_record_id": "free:dfc65e8d3aef5fac5d3a0a7cbc7135e7",
+   "stratum": "retained",
+   "engine_presence": "INSUFFICIENT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 124,
+   "source_record_id": "free:d2db5c6446580f90dcb8a03866201141",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 125,
+   "source_record_id": "legacy:2a07d0c88166ff55",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 126,
+   "source_record_id": "free:32b89d82cbb46759e55b1776e82d7851",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 127,
+   "source_record_id": "free:dc22f8d0b05ad686e07fe31cb6576f47",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 128,
+   "source_record_id": "free:30036b039832b677d1b8e01dbcf19dfb",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 129,
+   "source_record_id": "free:bb60b392e176bce6adb7eba7fece573c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 130,
+   "source_record_id": "free:cf2497442947bcbe51a47049679391c5",
+   "stratum": "retained",
+   "engine_presence": "INSUFFICIENT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 131,
+   "source_record_id": "free:633187c4c91d21a940a7abfa105bfced",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 132,
+   "source_record_id": "legacy:04ece434b46fa5ef",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 133,
+   "source_record_id": "free:10c0b3c8969cc0df65231cc770bcca5f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 134,
+   "source_record_id": "free:d900a30640636a58532682cbe13036e3",
+   "stratum": "retained",
+   "engine_presence": "INSUFFICIENT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 135,
+   "source_record_id": "free:c3ae41c262419142c9ee5d56f0182d25",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 136,
+   "source_record_id": "free:e77077624d95de04d9791ff3932a7abb",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 137,
+   "source_record_id": "free:34dd661be80aff248d7a436b687f7da2",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 138,
+   "source_record_id": "free:053f6b899e3f6e6959ff69fc36101864",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 139,
+   "source_record_id": "free:8dd739ce46be06812b64085268dbb224",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 140,
+   "source_record_id": "free:c241f9219b35a8081af3d2c9e8271742",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 141,
+   "source_record_id": "legacy:2f354e44e2d0de4c",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 142,
+   "source_record_id": "free:3074ffa9cfc3860ecf0aaa5e50e6a74a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 143,
+   "source_record_id": "nextbid:NB00371200",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 144,
+   "source_record_id": "free:c08691c191ea8d388c7ee897f2bcf388",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 145,
+   "source_record_id": "legacy:49f1fe64c13cba0f",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 146,
+   "source_record_id": "nextbid:NB00339411",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 147,
+   "source_record_id": "free:459fffa6180b4582bc18f6af759440c2",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 148,
+   "source_record_id": "free:58d48368d89d3caf82369e51f16dea64",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 149,
+   "source_record_id": "free:a410d28a63f0d5fe6f903975bd9b5bf9",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 150,
+   "source_record_id": "free:f27cc702161d32a08a78528b20a9e574",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 151,
+   "source_record_id": "nextbid:NB00371124",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 152,
+   "source_record_id": "free:2f81581d5ad851edc5b095326113b08e",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 153,
+   "source_record_id": "nextbid:NB00343714",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 154,
+   "source_record_id": "free:159840fbcf78cd67d426d220168fdea4",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 155,
+   "source_record_id": "free:c67849580808df85f4391b81640c42fc",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 156,
+   "source_record_id": "free:c8a582b34ddc36ff9b70410531d1f58f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 157,
+   "source_record_id": "free:4b0f5c1d001ee10ad5b7ec131abaad9c",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 158,
+   "source_record_id": "free:9b15174cfb9467d09480ddcdc7d85d64",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 159,
+   "source_record_id": "free:71129d4b1efca19c9f7cb36d1683dc59",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 160,
+   "source_record_id": "free:d37c65845c532068a6c07d96803a9dff",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 161,
+   "source_record_id": "free:0310201f04529317426951bc16b273ee",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 162,
+   "source_record_id": "free:9acc19250e7daf6c6922d26202f71c85",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 163,
+   "source_record_id": "free:f523bca698379e0b7e8fd00b8b63c513",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 164,
+   "source_record_id": "free:9269667d34b2de6e7714ab798b9ee776",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 165,
+   "source_record_id": "free:da47e10c171b309a31c122527008dd86",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY_SHORT"
+  },
+  {
+   "item": 166,
+   "source_record_id": "nextbid:NB00362241",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 167,
+   "source_record_id": "nextbid:NB00371101",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 168,
+   "source_record_id": "free:5da551fe8a828eb6c6999af71486a1ef",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 169,
+   "source_record_id": "nextbid:NB00370917",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 170,
+   "source_record_id": "free:e75c401c91175996228fb22a420bb3c4",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 171,
+   "source_record_id": "free:c691e35d48d4679d1037d5004744d554",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 172,
+   "source_record_id": "free:274329304faf8700cd54fbd3357ecd30",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 173,
+   "source_record_id": "free:5f12729f4453d84f9dba3a37e6b96633",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 174,
+   "source_record_id": "nextbid:NB00371251",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 175,
+   "source_record_id": "free:3ccb774855636bb765017cdaf2ed6dae",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 176,
+   "source_record_id": "free:51ead64601f913d982a80159857ba357",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 177,
+   "source_record_id": "free:877208226f7bcbcace7e39dcab3b464f",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 178,
+   "source_record_id": "free:ecd768cd9fdf1c45e0498e75d5dc1dc4",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 179,
+   "source_record_id": "free:068ae6dd36a96267ac4acc839d4cefce",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 180,
+   "source_record_id": "free:b56d758f19942b4fd0dabafec36dd4b1",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 181,
+   "source_record_id": "free:256dbfce1ed5d9f8603a96729614b3fd",
+   "stratum": "retained",
+   "engine_presence": "POSSIBLE_PRODUCT",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 182,
+   "source_record_id": "free:42939e184308b169ee80a721d7dabada",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 183,
+   "source_record_id": "legacy:8da6c0513cf3dc10",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 184,
+   "source_record_id": "free:2955136ab786e8965114f7c00bc1d216",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 185,
+   "source_record_id": "free:3abf29300cc8bb17383fc8e4a760912c",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 186,
+   "source_record_id": "legacy:a4f947378994c18a",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 187,
+   "source_record_id": "free:184d106f750acf791fd06f6024d4750c",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 188,
+   "source_record_id": "free:c71bf285425e1ff97014a62a84081191",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 189,
+   "source_record_id": "free:41634ad1d899f3d697487bb6c632ad5d",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 190,
+   "source_record_id": "legacy:bcecf517c18edfa2",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 191,
+   "source_record_id": "free:55133367c5a16a7627185507425a32a0",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 192,
+   "source_record_id": "nextbid:NB00371102",
+   "stratum": "retained",
+   "engine_presence": "EXPLICIT_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_CODES"
+  },
+  {
+   "item": 193,
+   "source_record_id": "free:3e7e77cda4903618852a1b353d2d2c04",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 194,
+   "source_record_id": "free:679533feac9478f7d5ccce36d9a247bb",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 195,
+   "source_record_id": "free:416a9c9f577bc47cf398c73acd0c76d0",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 196,
+   "source_record_id": "free:af4c623d1f60e723fb3f873944e08933",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "SUMMARY"
+  },
+  {
+   "item": 197,
+   "source_record_id": "free:fb2d6967ea8110a56258bdea51f0c2f4",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 198,
+   "source_record_id": "free:aea91d2a45ee5bb251f8d6b3dd237368",
+   "stratum": "rejected",
+   "engine_presence": "NO_PRODUCT_EVIDENCE",
+   "engine_detected": false,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 199,
+   "source_record_id": "free:53b2003fb7bc09827e0b483c9d454f6f",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  },
+  {
+   "item": 200,
+   "source_record_id": "free:d9ae3c9462c00638b768024c93bacae8",
+   "stratum": "retained",
+   "engine_presence": "LIKELY_PRODUCT",
+   "engine_detected": true,
+   "evidence": "TITLE_ONLY"
+  }
+ ]
+}

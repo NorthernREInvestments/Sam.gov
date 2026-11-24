@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     secret_key: str = ""
     database_url: str = "postgresql://localhost/m3"
     m3_data_root: str = ""
+    # Offline staged inventory (read-only inputs; output never written to production)
+    m3_staged_inventory_root: str = ""
+    m3_legacy_data_root: str = ""
+    m3_legacy_backup_root: str = ""
+    verified_open_max_age_hours: int = 72
     session_cookie: str = "m3_session"
     session_max_age_seconds: int = 60 * 60 * 12
     # Owner bootstrap (env only)
@@ -65,6 +70,10 @@ class Settings(BaseSettings):
     nextbid_budget_reserve: int = 1000
     nextbid_hard_stop_remaining: int = 1000
     nextbid_schedule_minutes: int = 180
+    # Daily discovery slots (local wall-clock times); a third gate on top of the emergency stop
+    discovery_schedule_enabled: bool = False
+    discovery_schedule_slots: str = "06:00,14:00"
+    discovery_schedule_timezone: str = "America/Chicago"
     # Hard enforceable ceilings (controller clamps daily ≤ 100)
     nextbid_daily_call_limit: int = 100
     nextbid_job_call_limit: int = 50
@@ -89,6 +98,26 @@ class Settings(BaseSettings):
         (p / "uploads").mkdir(parents=True, exist_ok=True)
         (p / "cache").mkdir(parents=True, exist_ok=True)
         return p
+
+    def staged_inventory_root(self) -> Path:
+        raw = (self.m3_staged_inventory_root or os.getenv("M3_STAGED_INVENTORY_ROOT") or "").strip()
+        p = Path(raw) if raw else self.data_root() / "staged_inventory"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def legacy_paths(self) -> dict[str, Path | None]:
+        """Retired legacy application data (read-only): canonical store + latest BidNet harvest artifacts."""
+        data = (self.m3_legacy_data_root or os.getenv("M3_LEGACY_DATA_ROOT") or "").strip()
+        backup = (self.m3_legacy_backup_root or os.getenv("M3_LEGACY_BACKUP_ROOT") or "").strip()
+        d = Path(data) if data else None
+        b = Path(backup) if backup else None
+        out = "_og_commercial_research_pipeline_out"
+        return {
+            "store": d / "l23_canonical_population_store.json" if d else None,
+            "harvest_checkpoint": d / out / "m3_bn_full_deadline_checkpoint_v1.json" if d else None,
+            "harvest_report": d / out / "m3_bn_full_deadline_report_v1.json" if d else None,
+            "prerun_store": b / "predeploy_20261012_084826" / "railway_data" / "l23_canonical_population_store.json" if b else None,
+        }
 
     def owner_bootstrap(self) -> tuple[str, str, str] | None:
         email = (self.m3_owner_email or self.app_email or "").strip().lower()

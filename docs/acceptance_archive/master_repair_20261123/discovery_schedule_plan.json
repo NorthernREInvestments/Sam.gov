@@ -1,0 +1,20 @@
+﻿{
+  "slots_local": [
+    "06:00",
+    "14:00"
+  ],
+  "timezone": "America/Chicago",
+  "next_slot_utc": "2026-11-24T12:00:00+00:00",
+  "per_run": {
+    "max_discovery_calls": 40,
+    "max_detail": 120,
+    "then": "staged_inventory_rebuild_offline"
+  },
+  "gates": {
+    "discovery_schedule_enabled": false,
+    "nextbid_enabled": false,
+    "metered_calls_allowed": false,
+    "scheduler_not_paused": true
+  },
+  "would_run": false
+}

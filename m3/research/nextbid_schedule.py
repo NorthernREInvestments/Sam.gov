@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +71,51 @@ def pause_scheduler(*, reason: str = "owner_emergency_stop") -> dict[str, Any]:
     return payload
 
 
+def _slots() -> list[tuple[int, int]]:
+    out = []
+    for part in str(get_settings().discovery_schedule_slots or "").split(","):
+        hh, _, mm = part.strip().partition(":")
+        if hh.isdigit() and (mm or "0").isdigit() and int(hh) < 24 and int(mm or 0) < 60:
+            out.append((int(hh), int(mm or 0)))
+    return sorted(set(out))
+
+
+def next_discovery_slot(now: datetime | None = None) -> datetime | None:
+    """Next configured daily slot (UTC) after ``now``; None when no valid slot is configured."""
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo(get_settings().discovery_schedule_timezone)
+    local = (now or datetime.now(timezone.utc)).astimezone(tz)
+    for day in range(2):
+        base = (local + timedelta(days=day)).date()
+        for hh, mm in _slots():
+            cand = datetime(base.year, base.month, base.day, hh, mm, tzinfo=tz)
+            if cand > local:
+                return cand.astimezone(timezone.utc)
+    return None
+
+
+def schedule_plan(now: datetime | None = None) -> dict[str, Any]:
+    """What would run and whether every gate currently permits it (it does not, until the owner unlocks)."""
+    s = get_settings()
+    kill = emergency_stop_status()
+    gates = {
+        "discovery_schedule_enabled": bool(s.discovery_schedule_enabled),
+        "nextbid_enabled": bool(s.nextbid_enabled),
+        "metered_calls_allowed": bool(kill.get("metered_calls_allowed")),
+        "scheduler_not_paused": not _stop_event.is_set(),
+    }
+    nxt = next_discovery_slot(now)
+    return {
+        "slots_local": [f"{h:02d}:{m:02d}" for h, m in _slots()],
+        "timezone": s.discovery_schedule_timezone,
+        "next_slot_utc": nxt.isoformat() if nxt else None,
+        "per_run": {"max_discovery_calls": 40, "max_detail": 120, "then": "staged_inventory_rebuild_offline"},
+        "gates": gates,
+        "would_run": all(gates.values()),
+    }
+
+
 def run_scheduled_acquisition(*, force: bool = False) -> dict[str, Any]:
     """Run a budgeted NextBid acquisition if due — blocked under emergency stop."""
     global _last_run_at, _last_result
@@ -85,6 +130,8 @@ def run_scheduled_acquisition(*, force: bool = False) -> dict[str, Any]:
         }
     if not settings.nextbid_enabled:
         return {"ok": False, "skipped": "nextbid_disabled"}
+    if not settings.discovery_schedule_enabled:
+        return {"ok": False, "skipped": "daily_schedule_disabled"}
     if not (settings.nextbid_api_key or "").strip():
         return {"ok": False, "skipped": "missing_api_key", "requires_secure_configuration": True}
 
@@ -102,6 +149,16 @@ def run_scheduled_acquisition(*, force: bool = False) -> dict[str, Any]:
         checkpoint_name="nextbid_acquire_v1",
     )
     _last_run_at = time.time()
+    staged: dict[str, Any] | None = None
+    if result.get("ok"):
+        from m3.research.staged_inventory import run_staged_inventory
+
+        try:
+            m = run_staged_inventory(resume=False, require_locked=False)
+            staged = {"queue_counts": m.get("queue_counts"), "all_records_dispositioned": m.get("all_records_dispositioned")}
+        except Exception as exc:
+            staged = {"error": type(exc).__name__}
+    result["staged_inventory"] = staged
     _last_result = {
         "ok": result.get("ok"),
         "finished_at": result.get("finished_at"),
@@ -136,6 +193,9 @@ def start_nextbid_scheduler() -> bool:
         if not settings.nextbid_enabled:
             pause_scheduler(reason="nextbid_disabled")
             return False
+        if not settings.discovery_schedule_enabled:
+            pause_scheduler(reason="daily_schedule_disabled")
+            return False
         if not (settings.nextbid_api_key or "").strip():
             _write_status(
                 {
@@ -155,8 +215,18 @@ def start_nextbid_scheduler() -> bool:
                 if not emergency_stop_status().get("metered_calls_allowed"):
                     pause_scheduler(reason="killswitch_engaged_mid_loop")
                     break
+                nxt = next_discovery_slot()
+                if nxt is None:
+                    pause_scheduler(reason="no_valid_daily_slot")
+                    break
+                while not _stop_event.is_set() and datetime.now(timezone.utc) < nxt:
+                    if not emergency_stop_status().get("metered_calls_allowed"):
+                        break
+                    time.sleep(min(60.0, max(1.0, (nxt - datetime.now(timezone.utc)).total_seconds())))
+                if _stop_event.is_set() or not emergency_stop_status().get("metered_calls_allowed"):
+                    continue
                 try:
-                    run_scheduled_acquisition(force=False)
+                    run_scheduled_acquisition(force=True)
                 except Exception as exc:
                     _write_status(
                         {
@@ -166,12 +236,6 @@ def start_nextbid_scheduler() -> bool:
                             "at": datetime.now(timezone.utc).isoformat(),
                         }
                     )
-                # Re-check stop frequently rather than sleeping full interval blindly
-                for _ in range(max(60, int(settings.nextbid_schedule_minutes) * 60)):
-                    if _stop_event.is_set() or not emergency_stop_status().get("metered_calls_allowed"):
-                        break
-                    time.sleep(1)
-
         th = threading.Thread(target=_loop, name="nextbid-scheduler", daemon=True)
         th.start()
         _scheduler_started = True

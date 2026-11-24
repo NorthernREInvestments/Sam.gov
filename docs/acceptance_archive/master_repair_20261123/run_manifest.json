@@ -1,0 +1,958 @@
+{
+  "build": "m3-master-repair-staged-inventory-v1",
+  "ran_at": "2026-11-24T05:43:51.858769+00:00",
+  "runtime_now": "2026-11-24T05:43:21.500508+00:00",
+  "elapsed_sec": 30.4,
+  "stage_counts": {
+    "loaded": 68570,
+    "duplicates_marked": 853,
+    "canonical_records": 67717,
+    "evaluated": 6145
+  },
+  "queue_counts": {
+    "archived": 65288,
+    "document_verification": 2526,
+    "status_verification": 750,
+    "blocked": 6
+  },
+  "lifecycle_counts": {
+    "DUPLICATE": 853,
+    "EXPIRED": 43125,
+    "STATUS_UNKNOWN": 11408,
+    "LIKELY_OPEN": 1612,
+    "CANCELLED": 46,
+    "VERIFIED_OPEN": 4346,
+    "AWARDED": 7180
+  },
+  "retirement_manifest_rows": 48064,
+  "pricing_intelligence_rows": 7422,
+  "all_records_dispositioned": true,
+  "source_meta": {
+    "bidnet": {
+      "available": true,
+      "store_updated_at": "2026-11-19T02:48:32.939540+00:00",
+      "checkpoint": {
+        "complete": true,
+        "pages": 1115,
+        "applied": 9791,
+        "stats": {
+          "list_requests": 1115,
+          "http_200": 1109,
+          "list_rows_with_deadline": 27725,
+          "list_applied": 9791,
+          "action_INGEST_NEW": 8488,
+          "list_page_hits": 9791,
+          "http_0": 6,
+          "list_skipped": 17934,
+          "action_PATCH_EXISTING": 1303
+        },
+        "updated_at": "2026-10-12T19:24:10.201187+00:00"
+      },
+      "prerun_dated_ids": 4933,
+      "files": {
+        "store": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\l23_canonical_population_store.json",
+        "harvest_checkpoint": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\_og_commercial_research_pipeline_out\\m3_bn_full_deadline_checkpoint_v1.json",
+        "harvest_report": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\_og_commercial_research_pipeline_out\\m3_bn_full_deadline_report_v1.json",
+        "prerun_store": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_Backups\\predeploy_20261012_084826\\railway_data\\l23_canonical_population_store.json"
+      }
+    },
+    "nextbid": {
+      "available": true
+    },
+    "free": {
+      "available": true,
+      "raw_rows": 61968,
+      "populations": [
+        "a88caabf-eefb-4526-bf9a-9ca62726b4c6.jsonl",
+        "900d8b56-1f98-4ea7-bc1a-01a6c49f8a01.jsonl",
+        "fafee300-0f7c-40c6-93cf-8e5647416457.jsonl",
+        "4bde6e5e-b5e8-41ba-9989-ace54ed33592.jsonl"
+      ]
+    }
+  },
+  "input_hashes": {
+    "bidnet.store": {
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\l23_canonical_population_store.json",
+      "sha256": "65a74ce9c39192e5e3146bebcca849fff8dc5dc4c135faeb6808ad5ca5bde476",
+      "bytes": 166434306
+    },
+    "bidnet.harvest_checkpoint": {
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\_og_commercial_research_pipeline_out\\m3_bn_full_deadline_checkpoint_v1.json",
+      "sha256": "f36bdd174f6a65914cbbebcadcd3daeb443d5772df8126b367545647352b6ccd",
+      "bytes": 3814048
+    },
+    "bidnet.harvest_report": {
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_DATA_ROOT\\data\\_og_commercial_research_pipeline_out\\m3_bn_full_deadline_report_v1.json",
+      "sha256": "11e1bf45737a6f29837d9ef67c4dead0558c07825463214c311fe75c816e759b",
+      "bytes": 22009
+    },
+    "bidnet.prerun_store": {
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Other Stuff\\M3_Backups\\predeploy_20261012_084826\\railway_data\\l23_canonical_population_store.json",
+      "sha256": "73e46e8b9e8708784571a79d118ac30c82531fbb3075809310214fc23d88aa1c",
+      "bytes": 142825971
+    }
+  },
+  "reconciliation": {
+    "bidnet_legacy": {
+      "raw": 26117,
+      "unique": 26052,
+      "retired_legacy": 16261,
+      "expired_closed_cancelled": 22990,
+      "likely_open": 294,
+      "evidence:title_only": 305,
+      "queue:archived": 212,
+      "product_detected": 52,
+      "product_retained": 95,
+      "queue:document_verification": 89,
+      "duplicates": 65,
+      "status_unknown": 11,
+      "queue:status_verification": 4
+    },
+    "bidnet_legacy:ALL": {
+      "raw": 26117,
+      "unique": 26052,
+      "retired_legacy": 16261,
+      "expired_closed_cancelled": 22990,
+      "likely_open": 294,
+      "evidence:title_only": 305,
+      "queue:archived": 212,
+      "product_detected": 52,
+      "product_retained": 95,
+      "queue:document_verification": 89,
+      "duplicates": 65,
+      "status_unknown": 11,
+      "queue:status_verification": 4
+    },
+    "free_source:ALL": {
+      "raw": 31962,
+      "unique": 31711,
+      "expired_closed_cancelled": 15583,
+      "verified_open": 455,
+      "evidence:title_only": 1475,
+      "product_detected": 641,
+      "product_retained": 941,
+      "queue:document_verification": 261,
+      "queue:archived": 853,
+      "non_solicitation_excluded": 5383,
+      "duplicates": 251,
+      "likely_open": 30,
+      "status_unknown": 1283,
+      "queue:status_verification": 654,
+      "unverified_link_excluded": 518,
+      "awarded_pricing_intelligence": 7179,
+      "evidence:summary": 279,
+      "evidence:summary_short": 14,
+      "forecast_excluded": 1280
+    },
+    "free_source:ai_17231f6c3ea025deb80c": {
+      "raw": 1,
+      "unique": 1,
+      "awarded_pricing_intelligence": 1
+    },
+    "free_source:ai_7dc58c72d6f25a77e0b5": {
+      "raw": 23,
+      "unique": 23,
+      "non_solicitation_excluded": 16,
+      "unverified_link_excluded": 5,
+      "status_unknown": 2,
+      "evidence:title_only": 2,
+      "product_detected": 2,
+      "product_retained": 2,
+      "queue:status_verification": 2
+    },
+    "free_source:ai_91ca0db4a8dfa3a2b718": {
+      "raw": 118,
+      "unique": 118,
+      "non_solicitation_excluded": 23,
+      "unverified_link_excluded": 95
+    },
+    "free_source:ai_a75c9e6888ac36238c0b": {
+      "raw": 48,
+      "unique": 48,
+      "unverified_link_excluded": 10,
+      "non_solicitation_excluded": 36,
+      "awarded_pricing_intelligence": 2
+    },
+    "free_source:ai_bf83be7b069ca9d2bf13": {
+      "raw": 1,
+      "unique": 1,
+      "unverified_link_excluded": 1
+    },
+    "free_source:ai_fbe283b8886e8306c75f": {
+      "raw": 54,
+      "unique": 54,
+      "non_solicitation_excluded": 30,
+      "unverified_link_excluded": 24
+    },
+    "free_source:al_purchasing": {
+      "raw": 18,
+      "unique": 18,
+      "non_solicitation_excluded": 16,
+      "status_unknown": 2,
+      "evidence:title_only": 1,
+      "product_detected": 1,
+      "product_retained": 2,
+      "queue:status_verification": 2,
+      "evidence:summary": 1
+    },
+    "free_source:albuquerque_purchasing": {
+      "raw": 9,
+      "unique": 9,
+      "status_unknown": 6,
+      "evidence:summary": 6,
+      "product_retained": 5,
+      "queue:status_verification": 5,
+      "non_solicitation_excluded": 3,
+      "product_detected": 2,
+      "queue:archived": 1
+    },
+    "free_source:boston_procurement": {
+      "raw": 44,
+      "unique": 44,
+      "non_solicitation_excluded": 34,
+      "unverified_link_excluded": 7,
+      "status_unknown": 2,
+      "evidence:title_only": 2,
+      "queue:archived": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1,
+      "forecast_excluded": 1
+    },
+    "free_source:cambridge_ma_bids_historical": {
+      "raw": 7058,
+      "unique": 7058,
+      "awarded_pricing_intelligence": 7058
+    },
+    "free_source:chicago_procurement": {
+      "raw": 59,
+      "unique": 59,
+      "unverified_link_excluded": 39,
+      "status_unknown": 6,
+      "evidence:title_only": 6,
+      "queue:archived": 4,
+      "product_retained": 2,
+      "queue:status_verification": 2,
+      "forecast_excluded": 1,
+      "non_solicitation_excluded": 13,
+      "product_detected": 1
+    },
+    "free_source:co_state_purchasing": {
+      "raw": 16,
+      "unique": 16,
+      "non_solicitation_excluded": 8,
+      "unverified_link_excluded": 6,
+      "awarded_pricing_intelligence": 2
+    },
+    "free_source:cook_county_buying_plan_2026": {
+      "raw": 163,
+      "unique": 163,
+      "forecast_excluded": 163
+    },
+    "free_source:ct_das": {
+      "raw": 37,
+      "unique": 37,
+      "non_solicitation_excluded": 26,
+      "status_unknown": 8,
+      "evidence:title_only": 8,
+      "product_retained": 6,
+      "queue:status_verification": 6,
+      "unverified_link_excluded": 3,
+      "product_detected": 4,
+      "queue:archived": 2
+    },
+    "free_source:cta_procurement": {
+      "raw": 39,
+      "unique": 39,
+      "non_solicitation_excluded": 37,
+      "status_unknown": 1,
+      "evidence:summary": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1,
+      "forecast_excluded": 1
+    },
+    "free_source:dc_ocp": {
+      "raw": 32,
+      "unique": 32,
+      "unverified_link_excluded": 22,
+      "non_solicitation_excluded": 7,
+      "forecast_excluded": 1,
+      "awarded_pricing_intelligence": 2
+    },
+    "free_source:delaware_open_bids": {
+      "raw": 42,
+      "duplicates": 4,
+      "unique": 38,
+      "likely_open": 29,
+      "evidence:title_only": 4,
+      "product_detected": 8,
+      "product_retained": 13,
+      "queue:document_verification": 12,
+      "expired_closed_cancelled": 9,
+      "evidence:summary": 25,
+      "queue:archived": 17
+    },
+    "free_source:detroit_purchasing": {
+      "raw": 52,
+      "unique": 52,
+      "non_solicitation_excluded": 4,
+      "unverified_link_excluded": 42,
+      "awarded_pricing_intelligence": 3,
+      "status_unknown": 3,
+      "evidence:summary": 3,
+      "product_retained": 2,
+      "queue:status_verification": 2,
+      "queue:archived": 1
+    },
+    "free_source:discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+      "raw": 432,
+      "unique": 432,
+      "status_unknown": 431,
+      "evidence:title_only": 269,
+      "product_retained": 232,
+      "queue:status_verification": 226,
+      "product_detected": 165,
+      "queue:archived": 205,
+      "evidence:summary": 162,
+      "awarded_pricing_intelligence": 1
+    },
+    "free_source:discovered_data_cityofnewyork_us_9k82-ys7w": {
+      "raw": 880,
+      "unique": 880,
+      "expired_closed_cancelled": 880
+    },
+    "free_source:discovered_data_cityofnewyork_us_bzjf-rmtp": {
+      "raw": 80,
+      "unique": 80,
+      "expired_closed_cancelled": 79,
+      "status_unknown": 1,
+      "evidence:title_only": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:discovered_data_cityofnewyork_us_dg92-zbpx": {
+      "raw": 14555,
+      "unique": 14552,
+      "expired_closed_cancelled": 14443,
+      "awarded_pricing_intelligence": 93,
+      "non_solicitation_excluded": 15,
+      "likely_open": 1,
+      "evidence:title_only": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:document_verification": 1,
+      "duplicates": 3
+    },
+    "free_source:discovered_data_cityofnewyork_us_ww83-bcks": {
+      "raw": 479,
+      "unique": 479,
+      "forecast_excluded": 479
+    },
+    "free_source:discovered_data_lacity_org_hf3r-utnq": {
+      "raw": 232,
+      "unique": 232,
+      "verified_open": 199,
+      "evidence:title_only": 224,
+      "product_detected": 80,
+      "product_retained": 110,
+      "queue:document_verification": 102,
+      "queue:archived": 121,
+      "status_unknown": 30,
+      "queue:status_verification": 6,
+      "evidence:summary_short": 5,
+      "expired_closed_cancelled": 3
+    },
+    "free_source:discovered_data_montgomerycountymd_gov_eeq6-nnwe": {
+      "raw": 17,
+      "unique": 17,
+      "non_solicitation_excluded": 17
+    },
+    "free_source:discovered_data_winnipeg_ca_rijt-92n4": {
+      "raw": 59,
+      "unique": 59,
+      "expired_closed_cancelled": 56,
+      "status_unknown": 3,
+      "evidence:title_only": 3,
+      "queue:archived": 2,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:discovered_datacatalog_cookcountyil_gov_ag43-fvd7": {
+      "raw": 522,
+      "unique": 522,
+      "forecast_excluded": 522
+    },
+    "free_source:discovered_datacatalog_cookcountyil_gov_ymau-3avu": {
+      "raw": 190,
+      "unique": 190,
+      "status_unknown": 40,
+      "evidence:title_only": 40,
+      "product_detected": 32,
+      "product_retained": 38,
+      "queue:status_verification": 38,
+      "non_solicitation_excluded": 150,
+      "queue:archived": 2
+    },
+    "free_source:discovered_datahub_usac_org_96rf-xd57": {
+      "raw": 4545,
+      "unique": 4545,
+      "status_unknown": 206,
+      "evidence:title_only": 156,
+      "product_detected": 71,
+      "product_retained": 114,
+      "queue:status_verification": 114,
+      "evidence:summary": 50,
+      "non_solicitation_excluded": 4339,
+      "queue:archived": 92
+    },
+    "free_source:discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9": {
+      "raw": 70,
+      "unique": 70,
+      "forecast_excluded": 70
+    },
+    "free_source:fairfax_county_procurement": {
+      "raw": 36,
+      "unique": 36,
+      "non_solicitation_excluded": 32,
+      "unverified_link_excluded": 4
+    },
+    "free_source:ga_doas": {
+      "raw": 27,
+      "unique": 27,
+      "non_solicitation_excluded": 10,
+      "unverified_link_excluded": 16,
+      "status_unknown": 1,
+      "evidence:title_only": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:georgia_gpr_open_goods": {
+      "raw": 31,
+      "unique": 31,
+      "expired_closed_cancelled": 1,
+      "verified_open": 30,
+      "evidence:summary": 15,
+      "product_detected": 30,
+      "product_retained": 30,
+      "queue:document_verification": 30,
+      "evidence:title_only": 15
+    },
+    "free_source:harris_county_purchasing": {
+      "raw": 12,
+      "unique": 12,
+      "unverified_link_excluded": 2,
+      "non_solicitation_excluded": 10
+    },
+    "free_source:hi_spo": {
+      "raw": 3,
+      "unique": 3,
+      "non_solicitation_excluded": 3
+    },
+    "free_source:houston_purchasing": {
+      "raw": 9,
+      "unique": 9,
+      "unverified_link_excluded": 4,
+      "non_solicitation_excluded": 5
+    },
+    "free_source:il_cms": {
+      "raw": 8,
+      "unique": 8,
+      "non_solicitation_excluded": 2,
+      "unverified_link_excluded": 5,
+      "awarded_pricing_intelligence": 1
+    },
+    "free_source:illinois_future_solicitations": {
+      "raw": 42,
+      "unique": 42,
+      "forecast_excluded": 42
+    },
+    "free_source:iowa_das": {
+      "raw": 6,
+      "unique": 6,
+      "unverified_link_excluded": 5,
+      "non_solicitation_excluded": 1
+    },
+    "free_source:jacksonville_procurement": {
+      "raw": 37,
+      "unique": 37,
+      "non_solicitation_excluded": 30,
+      "unverified_link_excluded": 6,
+      "status_unknown": 1,
+      "evidence:summary": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:kansas_purchasing": {
+      "raw": 49,
+      "unique": 49,
+      "non_solicitation_excluded": 32,
+      "unverified_link_excluded": 15,
+      "awarded_pricing_intelligence": 2
+    },
+    "free_source:ky_finance": {
+      "raw": 20,
+      "unique": 20,
+      "unverified_link_excluded": 12,
+      "status_unknown": 5,
+      "evidence:summary": 4,
+      "queue:archived": 3,
+      "non_solicitation_excluded": 3,
+      "product_retained": 2,
+      "queue:status_verification": 2,
+      "product_detected": 1,
+      "evidence:summary_short": 1
+    },
+    "free_source:la_osp": {
+      "raw": 17,
+      "unique": 17,
+      "unverified_link_excluded": 9,
+      "non_solicitation_excluded": 4,
+      "status_unknown": 4,
+      "evidence:summary": 4,
+      "product_detected": 2,
+      "product_retained": 3,
+      "queue:status_verification": 3,
+      "queue:archived": 1
+    },
+    "free_source:la_ramp_open_bids": {
+      "raw": 232,
+      "unique": 232,
+      "expired_closed_cancelled": 6,
+      "verified_open": 196,
+      "evidence:title_only": 221,
+      "product_detected": 78,
+      "product_retained": 108,
+      "queue:document_verification": 100,
+      "queue:archived": 120,
+      "status_unknown": 30,
+      "queue:status_verification": 6,
+      "evidence:summary_short": 5
+    },
+    "free_source:las_vegas_purchasing": {
+      "raw": 1,
+      "unique": 1,
+      "non_solicitation_excluded": 1
+    },
+    "free_source:me_procurement": {
+      "raw": 47,
+      "unique": 47,
+      "non_solicitation_excluded": 46,
+      "status_unknown": 1,
+      "evidence:summary_short": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:mesa_az_solicitations": {
+      "raw": 484,
+      "unique": 242,
+      "status_unknown": 242,
+      "evidence:title_only": 242,
+      "product_detected": 92,
+      "product_retained": 120,
+      "queue:status_verification": 116,
+      "queue:archived": 126,
+      "duplicates": 242
+    },
+    "free_source:miami_dade_procurement": {
+      "raw": 19,
+      "unique": 19,
+      "unverified_link_excluded": 15,
+      "non_solicitation_excluded": 4
+    },
+    "free_source:mo_oa_purchasing": {
+      "raw": 23,
+      "unique": 23,
+      "non_solicitation_excluded": 16,
+      "unverified_link_excluded": 6,
+      "awarded_pricing_intelligence": 1
+    },
+    "free_source:montgomery_md_solicitations": {
+      "raw": 17,
+      "unique": 17,
+      "expired_closed_cancelled": 2,
+      "non_solicitation_excluded": 15
+    },
+    "free_source:mwd_ca_procurement": {
+      "raw": 2,
+      "unique": 2,
+      "unverified_link_excluded": 2
+    },
+    "free_source:nashville_purchasing": {
+      "raw": 32,
+      "unique": 30,
+      "non_solicitation_excluded": 8,
+      "unverified_link_excluded": 10,
+      "awarded_pricing_intelligence": 11,
+      "duplicates": 2,
+      "expired_closed_cancelled": 1
+    },
+    "free_source:naspo_valuepoint": {
+      "raw": 4,
+      "unique": 4,
+      "non_solicitation_excluded": 3,
+      "unverified_link_excluded": 1
+    },
+    "free_source:nc_purchase": {
+      "raw": 14,
+      "unique": 14,
+      "unverified_link_excluded": 4,
+      "non_solicitation_excluded": 8,
+      "status_unknown": 2,
+      "evidence:summary_short": 1,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1,
+      "evidence:summary": 1,
+      "queue:archived": 1
+    },
+    "free_source:nd_omb": {
+      "raw": 32,
+      "unique": 32,
+      "unverified_link_excluded": 15,
+      "non_solicitation_excluded": 15,
+      "status_unknown": 2,
+      "evidence:summary_short": 1,
+      "queue:archived": 1,
+      "evidence:summary": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1
+    },
+    "free_source:ne_das_public": {
+      "raw": 2,
+      "unique": 2,
+      "non_solicitation_excluded": 2
+    },
+    "free_source:nj_purchase": {
+      "raw": 286,
+      "unique": 286,
+      "status_unknown": 234,
+      "evidence:title_only": 233,
+      "product_retained": 115,
+      "queue:status_verification": 105,
+      "product_detected": 46,
+      "queue:archived": 129,
+      "unverified_link_excluded": 38,
+      "expired_closed_cancelled": 10,
+      "non_solicitation_excluded": 4,
+      "evidence:summary": 1
+    },
+    "free_source:nm_gsd": {
+      "raw": 45,
+      "unique": 45,
+      "non_solicitation_excluded": 16,
+      "unverified_link_excluded": 29
+    },
+    "free_source:oh_das": {
+      "raw": 2,
+      "unique": 2,
+      "non_solicitation_excluded": 2
+    },
+    "free_source:ok_omes": {
+      "raw": 6,
+      "unique": 6,
+      "non_solicitation_excluded": 3,
+      "unverified_link_excluded": 2,
+      "awarded_pricing_intelligence": 1
+    },
+    "free_source:omnia_partners_public": {
+      "raw": 1,
+      "unique": 1,
+      "non_solicitation_excluded": 1
+    },
+    "free_source:or_das": {
+      "raw": 38,
+      "unique": 38,
+      "non_solicitation_excluded": 36,
+      "status_unknown": 2,
+      "evidence:summary": 2,
+      "product_retained": 2,
+      "queue:status_verification": 2
+    },
+    "free_source:pa_dgs": {
+      "raw": 25,
+      "unique": 25,
+      "unverified_link_excluded": 18,
+      "non_solicitation_excluded": 7
+    },
+    "free_source:philadelphia_procurement": {
+      "raw": 19,
+      "unique": 19,
+      "non_solicitation_excluded": 14,
+      "unverified_link_excluded": 5
+    },
+    "free_source:phoenix_procurement": {
+      "raw": 33,
+      "unique": 33,
+      "non_solicitation_excluded": 30,
+      "unverified_link_excluded": 3
+    },
+    "free_source:sacramento_procurement": {
+      "raw": 28,
+      "unique": 28,
+      "non_solicitation_excluded": 10,
+      "unverified_link_excluded": 16,
+      "status_unknown": 2,
+      "evidence:summary": 2,
+      "product_retained": 1,
+      "queue:status_verification": 1,
+      "queue:archived": 1
+    },
+    "free_source:sc_mmo": {
+      "raw": 55,
+      "unique": 55,
+      "non_solicitation_excluded": 52,
+      "awarded_pricing_intelligence": 1,
+      "unverified_link_excluded": 2
+    },
+    "free_source:sea_tac_procurement": {
+      "raw": 10,
+      "unique": 10,
+      "non_solicitation_excluded": 6,
+      "unverified_link_excluded": 4
+    },
+    "free_source:seattle_purchasing": {
+      "raw": 9,
+      "unique": 9,
+      "non_solicitation_excluded": 9
+    },
+    "free_source:sf_open_bid_opportunities": {
+      "raw": 80,
+      "unique": 80,
+      "verified_open": 30,
+      "evidence:title_only": 43,
+      "queue:archived": 21,
+      "expired_closed_cancelled": 37,
+      "product_detected": 18,
+      "product_retained": 23,
+      "queue:document_verification": 16,
+      "status_unknown": 13,
+      "queue:status_verification": 6
+    },
+    "free_source:sourcewell_contracts": {
+      "raw": 3,
+      "unique": 3,
+      "non_solicitation_excluded": 3
+    },
+    "free_source:tn_cpo": {
+      "raw": 87,
+      "unique": 87,
+      "non_solicitation_excluded": 84,
+      "unverified_link_excluded": 3
+    },
+    "free_source:travis_county_purchasing": {
+      "raw": 3,
+      "unique": 3,
+      "unverified_link_excluded": 1,
+      "non_solicitation_excluded": 2
+    },
+    "free_source:tx_cpa": {
+      "raw": 9,
+      "unique": 9,
+      "non_solicitation_excluded": 8,
+      "unverified_link_excluded": 1
+    },
+    "free_source:uc_procurement": {
+      "raw": 15,
+      "unique": 15,
+      "non_solicitation_excluded": 15
+    },
+    "free_source:university_of_florida_procurement": {
+      "raw": 43,
+      "unique": 43,
+      "non_solicitation_excluded": 43
+    },
+    "free_source:university_of_washington_procurement": {
+      "raw": 10,
+      "unique": 10,
+      "non_solicitation_excluded": 2,
+      "unverified_link_excluded": 8
+    },
+    "free_source:vt_bgs": {
+      "raw": 10,
+      "unique": 10,
+      "non_solicitation_excluded": 9,
+      "unverified_link_excluded": 1
+    },
+    "free_source:winnipeg_bid_opportunities": {
+      "raw": 59,
+      "unique": 59,
+      "status_unknown": 3,
+      "evidence:title_only": 3,
+      "queue:archived": 2,
+      "product_detected": 1,
+      "product_retained": 1,
+      "queue:status_verification": 1,
+      "expired_closed_cancelled": 56
+    },
+    "free_source:wv_purchasing": {
+      "raw": 5,
+      "unique": 5,
+      "non_solicitation_excluded": 3,
+      "unverified_link_excluded": 2
+    },
+    "legacy_other": {
+      "raw": 2403,
+      "duplicates": 509,
+      "unique": 1894,
+      "retired_legacy": 1894,
+      "expired_closed_cancelled": 611
+    },
+    "legacy_other:ALL": {
+      "raw": 2403,
+      "duplicates": 509,
+      "unique": 1894,
+      "retired_legacy": 1894,
+      "expired_closed_cancelled": 611
+    },
+    "nextbid:ALL": {
+      "raw": 8088,
+      "unique": 8060,
+      "expired_closed_cancelled": 3987,
+      "verified_open": 3859,
+      "evidence:summary_short": 442,
+      "product_detected": 1480,
+      "product_retained": 2312,
+      "queue:document_verification": 2176,
+      "evidence:summary": 1930,
+      "evidence:title_only": 909,
+      "queue:archived": 1798,
+      "evidence:title_codes": 704,
+      "duplicates": 28,
+      "likely_open": 71,
+      "status_unknown": 142,
+      "queue:status_verification": 92,
+      "evidence:document": 87,
+      "queue:blocked": 6,
+      "awarded_pricing_intelligence": 1
+    },
+    "nextbid:bonfire": {
+      "raw": 766,
+      "unique": 760,
+      "expired_closed_cancelled": 53,
+      "verified_open": 680,
+      "evidence:title_only": 707,
+      "product_detected": 165,
+      "product_retained": 297,
+      "queue:document_verification": 289,
+      "queue:archived": 417,
+      "likely_open": 26,
+      "status_unknown": 1,
+      "queue:status_verification": 1,
+      "duplicates": 6
+    },
+    "nextbid:calprocure": {
+      "raw": 358,
+      "unique": 358,
+      "expired_closed_cancelled": 17,
+      "verified_open": 340,
+      "evidence:summary": 255,
+      "queue:archived": 140,
+      "product_detected": 89,
+      "product_retained": 207,
+      "queue:document_verification": 200,
+      "evidence:summary_short": 74,
+      "evidence:title_codes": 10,
+      "evidence:title_only": 2,
+      "status_unknown": 1,
+      "queue:status_verification": 1
+    },
+    "nextbid:dibbs": {
+      "raw": 4240,
+      "unique": 4240,
+      "verified_open": 546,
+      "evidence:title_codes": 546,
+      "product_detected": 546,
+      "product_retained": 546,
+      "queue:document_verification": 546,
+      "expired_closed_cancelled": 3694
+    },
+    "nextbid:instantmarkets": {
+      "raw": 892,
+      "unique": 879,
+      "expired_closed_cancelled": 40,
+      "verified_open": 686,
+      "evidence:summary": 521,
+      "queue:archived": 434,
+      "evidence:document": 87,
+      "product_detected": 255,
+      "product_retained": 416,
+      "queue:document_verification": 314,
+      "queue:blocked": 6,
+      "evidence:title_codes": 45,
+      "awarded_pricing_intelligence": 1,
+      "evidence:title_only": 32,
+      "evidence:summary_short": 153,
+      "likely_open": 27,
+      "status_unknown": 125,
+      "queue:status_verification": 84,
+      "duplicates": 13
+    },
+    "nextbid:opengov": {
+      "raw": 904,
+      "unique": 901,
+      "expired_closed_cancelled": 72,
+      "verified_open": 812,
+      "evidence:summary_short": 76,
+      "product_detected": 276,
+      "product_retained": 490,
+      "queue:document_verification": 473,
+      "evidence:summary": 748,
+      "queue:archived": 351,
+      "evidence:title_codes": 5,
+      "duplicates": 3,
+      "status_unknown": 7,
+      "queue:status_verification": 5,
+      "likely_open": 10
+    },
+    "nextbid:planetbids": {
+      "raw": 750,
+      "unique": 745,
+      "expired_closed_cancelled": 26,
+      "verified_open": 704,
+      "evidence:summary": 373,
+      "product_detected": 127,
+      "product_retained": 320,
+      "queue:document_verification": 318,
+      "evidence:summary_short": 137,
+      "evidence:title_codes": 98,
+      "queue:archived": 400,
+      "evidence:title_only": 111,
+      "duplicates": 5,
+      "likely_open": 8,
+      "status_unknown": 7,
+      "queue:status_verification": 1
+    },
+    "nextbid:publicpurchase": {
+      "raw": 88,
+      "unique": 87,
+      "verified_open": 85,
+      "evidence:title_only": 57,
+      "product_retained": 30,
+      "queue:document_verification": 30,
+      "expired_closed_cancelled": 1,
+      "queue:archived": 56,
+      "product_detected": 16,
+      "evidence:summary": 29,
+      "duplicates": 1,
+      "status_unknown": 1
+    },
+    "nextbid:sam.gov": {
+      "raw": 90,
+      "unique": 90,
+      "expired_closed_cancelled": 84,
+      "verified_open": 6,
+      "evidence:summary": 4,
+      "product_detected": 6,
+      "product_retained": 6,
+      "queue:document_verification": 6,
+      "evidence:summary_short": 2
+    }
+  },
+  "external_calls": 0,
+  "database_writes": 0,
+  "acquisition_locked": true
+}

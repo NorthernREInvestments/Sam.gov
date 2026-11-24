@@ -1,0 +1,97 @@
+{
+ "note": "TUNED re-score: classifier fixes were informed by these labels; not an independent measurement",
+ "all_sampled": {
+  "n": 200,
+  "excluded_upstream_in_scope": 31,
+  "recall_unweighted": [
+   0.982,
+   0.904,
+   0.997
+  ],
+  "recall_confirmed_unweighted": [
+   1.0,
+   0.741,
+   1.0
+  ],
+  "retained_potential_precision": [
+   0.675,
+   0.566,
+   0.768
+  ],
+  "detected_confirmed_precision": [
+   0.18,
+   0.104,
+   0.295
+  ],
+  "detected_potential_precision": [
+   0.836,
+   0.724,
+   0.908
+  ],
+  "rejection_npv": [
+   0.992,
+   0.954,
+   0.999
+  ],
+  "counts": {
+   "retained": 80,
+   "rejected": 120,
+   "detected": 61,
+   "tp": 54,
+   "fn": 1
+  },
+  "false_negatives": [
+   [
+    161,
+    "146379 San Fernando PP AVR Replacement"
+   ]
+  ]
+ },
+ "current_solicitations_only": {
+  "n": 169,
+  "excluded_upstream_in_scope": 0,
+  "recall_unweighted": [
+   0.982,
+   0.904,
+   0.997
+  ],
+  "recall_confirmed_unweighted": [
+   1.0,
+   0.741,
+   1.0
+  ],
+  "retained_potential_precision": [
+   0.675,
+   0.566,
+   0.768
+  ],
+  "detected_confirmed_precision": [
+   0.18,
+   0.104,
+   0.295
+  ],
+  "detected_potential_precision": [
+   0.836,
+   0.724,
+   0.908
+  ],
+  "rejection_npv": [
+   0.989,
+   0.939,
+   0.998
+  ],
+  "counts": {
+   "retained": 80,
+   "rejected": 89,
+   "detected": 61,
+   "tp": 54,
+   "fn": 1
+  },
+  "false_negatives": [
+   [
+    161,
+    "146379 San Fernando PP AVR Replacement"
+   ]
+  ]
+ }
+}

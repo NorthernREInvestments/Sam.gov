@@ -326,7 +326,14 @@ _INLINE_ALIAS = re.compile(r"\s*\([^()]{1,30}\)(?=\s*[A-Za-z])")
 _RELATED_ITEMS = re.compile(
     r"(?i),?\s+(?:and|&)\s+(?:related|associated|miscellaneous|other)\s+(?:items|products|supplies|equipment|materials)\b"
 )
-_BUY_INTENT = re.compile(r"(?i)\bone[- ]time\s+(?:buy|purchase)\b|\b(?:outright|direct)\s+purchase\b")
+_BUY_INTENT = re.compile(
+    r"(?i)\bone[- ]time\s+(?:buy|purchase)\b|\b(?:outright|direct(?:ly)?(?:\s+negotiated)?)\s+purchase\b|"
+    r"\bsole[- ]source\s+purchase\b"
+)
+MATERIALS_ONLY = re.compile(
+    r"(?i)\b(?:materials?|products?|goods|equipment|supplies)[\s\-]+only\b(?:\s+(?:purchase|bid|procurement|contract))?"
+    r"|\bproduct[\s\-]+only\s+purchase\b|\bno\s+(?:installation|labor)\s+(?:is\s+)?(?:required|included)\b"
+)
 _GOODS_LIST_ITEM = re.compile(rf"(?i)\b(?:{_GOODS_TERMS})\b\s*(?:,|&|\band\b|\bplus\b)")
 # Installed equipment ("Audiovisual Systems Modernization", "Video Board Replacement"): the
 # government acquires the equipment and the installation; infrastructure systems are excluded.
@@ -605,8 +612,9 @@ _SUMMARY_DECISIVE = (
                 r"contractor'?s\s+license|class\s+[A-C]\d*\s+license|"
                 r"erosion\s+(?:and\s+sediment\s+)?(?:control|pollution))\b"),
      "construction", 1.5, "construction_contract_language"),
+    (MATERIALS_ONLY, "product", 3.0, "materials_only"),
     (re.compile(r"(?i)\b(?:scope\s+of\s+services|professional\s+services|consulting\s+(?:firms?|services)|"
-                r"qualified\s+(?:firms?|consultants?)|statements?\s+of\s+qualifications|"
+                r"qualified\s+consultants?|statements?\s+of\s+qualifications|"
                 r"hourly\s+rates?|staff(?:ing)?\s+augmentation)\b"),
      "service", 1.5, "service_contract_language"),
     (re.compile(r"(?i)\b(?:price\s+per\s+(?:unit|each|case|ton|gallon|pound)|"
@@ -629,6 +637,13 @@ _LABOR_BOILERPLATE = re.compile(
     r"|\b(?:supplies|goods|materials|equipment|services|labor|commodities)"
     r"(?:\s*,\s*|\s+)(?:and\s*/\s*or\s+|and\s+|or\s+)?(?:supplies|goods|materials|equipment|services|labor|commodities)"
     r"(?:(?:\s*,\s*|\s+)(?:and\s*/\s*or\s+|and\s+|or\s+)?(?:supplies|goods|materials|equipment|services|labor|commodities|construction))*\b"
+    # "provide services associated with Concrete Retaining Wall Block": the object follows
+    r"|\bservices?\s+(?:associated|in\s+connection)\s+with\b"
+    # Who may respond is not what is bought ("bids from qualified vendors and contractors")
+    r"|\b(?:from|with|select|to)\s+(?:a\s+|an\s+|the\s+)?(?:(?:qualified|responsible|responsive|interested|eligible)\s+)*"
+    r"(?:vendors?|contractors?|firms?|bidders?|suppliers?|companies)(?:\s+(?:and|or)\s+(?:vendors?|contractors?|firms?|suppliers?))?"
+    r"(?=\s+(?:who|that|to|for|with|capable)\b)"
+    r"|\b(?:delivery\s*/\s*)?service\s+areas?\b"
 )
 # Purpose objects end at relative/qualifying clauses
 _OBJECT_TAIL = re.compile(
@@ -964,6 +979,11 @@ def _decide(
             conf = "medium"
         return _out(cls, evidence, True, sources_used, confidence=conf, **meta)
 
+    # "MATERIALS ONLY" under a work title ("Roof Replacement"): the buyer purchases the materials
+    if any(s["rule"] == "summary.materials_only" for s in signals) and top in {"product", "service", "construction"}:
+        evidence.append("materials_only_statement_overrides_work_title")
+        return _out("product_supply", evidence, True, sources_used, confidence="medium", **meta)
+
     # Service vs construction disagreement still establishes "work, not goods"
     work_pair = {top, second} == {"service", "construction"}
     if work_pair and top_score >= DECISION_MIN_SCORE:
@@ -1204,4 +1224,477 @@ def classify_batch(items: list[dict[str, Any]]) -> dict[str, Any]:
         "items": classified,
         "classification_breakdown": breakdown,
         "status_breakdown": status_breakdown,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Recall-first product presence
+#
+# Independent of the winner-take-all primary category above: a record that is
+# "mostly a service" can still contain a procurable product, and a title-only
+# record that names a thing is a product lead rather than an exclusion. Each
+# field is decided from its own quoted evidence. Primary mechanisms are
+# structural (acquisition verb + object, quantity + unit, item identifiers,
+# taxonomy codes, noun-phrase titles); vocabulary only supports them.
+# ---------------------------------------------------------------------------
+
+PRODUCT_PRESENCE_STATES = (
+    "EXPLICIT_PRODUCT",
+    "LIKELY_PRODUCT",
+    "POSSIBLE_PRODUCT",
+    "NO_PRODUCT_EVIDENCE",
+    "INSUFFICIENT_EVIDENCE",
+)
+DISCOVERY_RETAINED_PRESENCE = frozenset(
+    {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT", "POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"}
+)
+
+_UNITS = (
+    r"tons?|tonnes?|c\.?y\.?|cubic\s+yards?|gallons?|gals?|lbs?|pounds?|each|ea|cases?|units?|pallets?|"
+    r"rolls?|boxes?|bx|dozen|doz|pairs?|sets?|bags?|drums?|totes?|liters?|litres?|kits?|pieces?|pcs?|"
+    r"reams?|cartons?|cans?|bottles?|tubes?|spools?|reels?|sheets?|lots?|loads?|truckloads?|"
+    r"linear\s+feet|lf|sq\.?\s*ft|square\s+feet|feet|ft|bushels?|cwt"
+)
+_QTY_UNIT = re.compile(
+    rf"(?i)(?<![\w$.])\d[\d,]*(?:\.\d+)?\s*(?:\(\s*more\s+or\s+less\s*\)\s*)?(?:{_UNITS})\b"
+    rf"(?:\s*\(\s*more\s+or\s+less\s*\))?(?:\s+of\s+(?P<obj>[^.;:|,()]{{3,80}}))?"
+)
+_QTY_LABEL = re.compile(r"(?i)\b(?:qty|quantity)\s*[:#=]?\s*\d[\d,]*\s*(?:ea|each|units?|cases?|boxes?)?\b")
+_NSN = re.compile(r"\b\d{4}-\d{2}-\d{3}-\d{4}\b|(?i:\bnsn\b)[:#\s]*\d{13}\b")
+_PART_NO = re.compile(
+    r"(?i)\b(?:p/n|part\s*(?:no\.?|number|#)|mfr\.?\s*(?:p/n|part(?:\s*(?:no\.?|number))?)|mpn|cage\s*code)"
+    r"\s*[:#]?\s*[A-Z0-9][\w\-./]{2,}"
+)
+# Federal item nomenclature ("MICROSWITCH,SWITCH ASSY.,CREW, | 2101836")
+_INVERTED_NOMENCLATURE = re.compile(r"^[A-Z0-9][A-Z0-9 .\-/&']{1,40},\s*[A-Z0-9 .\-/&',]*")
+_BRAND_SPECIFIC = re.compile(r"(?i)\bbrand[- ]specific\b|\bbrand\s+name\s+only\b|\bno\s+substitutes?\b|\bsole\s+brand\b")
+_MFR_MODEL = re.compile(
+    r"(?i)\b(?:brand\s+name(?:\s+or\s+equal)?|or\s+(?:approved\s+)?equal|manufactured\s+by|"
+    r"\boem\b(?:\s+parts?)?|model\s*(?:no\.?|number|#)?\s*[:#]?\s*[A-Z]*\d[\w\-]*|(?:make|brand)\s+and\s+model)"
+)
+_ACQUISITION = re.compile(
+    r"(?i)\b(?:supply(?:ing)?\s*(?:and|&)\s*deliver(?:y|ing)?(?:\s+of)?|furnish(?:ing)?\s*(?:and|&)\s*deliver(?:y|ing)?(?:\s+of)?|"
+    r"purchase\s+of|procurement\s+of|acquisition\s+of|supply\s+of|delivery\s+of|"
+    r"(?:is\s+)?request(?:s|ing)?\s+(?:sealed\s+)?(?:bids|quotes|quotations|prices)\s+for|"
+    r"(?:bids?|quotes?|quotations?)\s+(?:for|on)\s+(?:the\s+)?(?:purchase|supply)\s+of|"
+    r"to\s+(?:purchase|procure|supply|furnish)(?:\s+and\s+deliver)?|"
+    r"cooperative\s+(?:purchasing\s+)?contract\s+for|"
+    r"(?:annual|term|requirements?|blanket|price)\s+(?:supply\s+)?(?:contract|agreement|bid|purchase)\s+for|"
+    r"(?:invites?|seeking)\s+[^.;]{0,40}?\bto\s+provide)"
+    r"\s+(?P<obj>[^.;:|]{3,140})"
+)
+_REQUIREMENTS_CONTRACT = re.compile(
+    r"(?i)\b(?:requirements?\s+contract|term\s+contract|annual\s+(?:supply|contract|requirements?|bid|purchase)|"
+    r"as[- ]needed\s+basis|price\s+agreement|blanket\s+purchase|cooperative\s+contract|statewide\s+contract|"
+    r"indefinite\s+(?:delivery|quantity)|no\s+guaranteed\s+(?:usage|quantity|minimum))\b"
+)
+_PRODUCT_PREQUAL = re.compile(
+    r"(?i)\b(?:pre[- ]?qualif\w*|approved|qualified)\s+(?:of\s+)?(?:products?|materials?|brands?|equipment|manufacturers?)"
+    r"(?:\s+lists?)?\b|\b(?:products?|materials?)\s+(?:approval|pre[- ]?qualification)\b|\bqualified\s+products?\s+lists?\b"
+)
+_INSTALL = re.compile(r"(?i)\b(?:install(?:ation|ed|ing|s)?|upfit(?:ting|ted)?|set[- ]?up|mount(?:ing)?\s+systems?)\b")
+_NO_INSTALL = re.compile(r"(?i)\bno\s+(?:installation|install)\b|\b(?:materials?|products?)\s+only\b")
+_JOINT_GOODS_SERVICES = re.compile(
+    r"(?i)\b(?P<goods>[A-Za-z][\w\-]*(?:\s+[A-Za-z][\w\-]*){0,3})\s+(?:and|&|with|plus)\s+"
+    r"(?:related\s+|associated\s+)?(?:upfitting\s+|installation\s+|support\s+)?services?\b"
+)
+_LEASE_OR_PURCHASE = re.compile(r"(?i)\b(?:lease|rent(?:al)?)\s+(?:or|and/or|and)\s+purchase|purchase\s+(?:or|and/or)\s+(?:lease|rent)")
+_SITE_REFERENCE = re.compile(
+    r"(?i)\b(?:street|st\.|road|rd\.|avenue|ave\.|boulevard|blvd|highway|hwy|route|interstate|park|building|bldg|"
+    r"facility|school|campus|hall|library|courthouse|airport|terminal|garage|pool|field|intersection|bridge|"
+    r"plant|station|reservoir|dam|creek|river|lake|trail|site|corridor|phase)\b"
+)
+_NOTICE_PATTERNS = (
+    ("FORECAST", re.compile(r"(?i)\bforecast\b|\bprocurement\s+plan\b|\bbuying\s+plan\b|\bupcoming\b")),
+    ("AWARD", re.compile(r"(?i)\b(?:notice\s+of\s+award|award\s+notice|intent\s+to\s+award|contract\s+award)\b")),
+    ("SOURCES_SOUGHT", re.compile(r"(?i)\bsources?\s+sought\b|\brequest\s+for\s+information\b|\bRFI\b|\bmarket\s+research\b")),
+    ("PRESOLICITATION", re.compile(r"(?i)\bpre[- ]?solicitation\b|\bpre[- ]?bid\s+notification\b")),
+    ("SOLE_SOURCE_NOTICE", re.compile(r"(?i)\bsole[- ]source\b|\bprocurement\s+exemption\b|\bnotice\s+of\s+intent\b|\bbrand[- ]name\s+justification\b")),
+    ("PREQUALIFICATION", re.compile(r"(?i)\bpre[- ]?qualif\w*\b|\bvendor\s+registration\b|\bqualified\s+(?:vendors?|products?)\s+lists?\b")),
+    ("RFQ", re.compile(r"(?i)\bRFQ\b|\brequest\s+for\s+(?:quotes?|quotations?)\b|\bquote\b")),
+    ("IFB", re.compile(r"(?i)\b(?:IFB|ITB|RFB)\b|\binvitation\s+(?:for|to)\s+bids?\b")),
+    ("RFP", re.compile(r"(?i)\bRFP\b|\brequest\s+for\s+proposals?\b")),
+)
+_GENERIC_GOODS = re.compile(r"(?i)^(?:supplies|supply|equipment|materials?|products?|items|parts|goods|commodit(?:y|ies)|systems?|devices?)$")
+_TITLE_NOISE = re.compile(
+    r"(?i)\b(?:re[- ]?bid|bid|rfq|rfp|ifb|itb|rfb|rfi|request\s+for\s+(?:quotes?|quotations?|proposals?|bids?)|"
+    r"invitation\s+(?:for|to)\s+bids?|solicitation|notice|addendum|amendment|annual|contract|term|"
+    r"fy\s?\d{2,4}|\d{4}(?:[-/]\d{2,4})?|no\.?|number|cooperative|statewide|various|locations?|"
+    r"county|city|town|township|village|state|district|department|dept|university|college|schools?|"
+    r"authority|commission|agency|new|purchase|procurement|supply|deliver(?:y|ed)?|furnish(?:ing)?|"
+    r"more\s+or\s+less|approximately|estimated|exemption|justification|intent|sole[- ]source|"
+    rf"(?:{_UNITS})(?=\s+of\b)|"
+    r"for|of|the|and|or|to|a|an|at|in|on|by|with|from|per|via)\b|[#:|()\[\]\-–—/,&]|\b[\w.]*\d[\w.\-]*\b"
+)
+_ABSTRACT_SUFFIX = re.compile(r"(?i)(?:tion|sion|ment|ance|ence|ity|ship|ism|ology|ness|ics|ure|ing)s?$")
+_TANGIBLE_ING = re.compile(
+    r"(?i)^(?:clothing|shelving|tubing|piping|fencing|bedding|decking|siding|railings?|fittings?|bearings?|"
+    r"castings?|coatings?|flooring|roofing|lighting|furnishings?|fixtures?|moldings?|housings?|bushings?|"
+    r"couplings?|tiling|sheeting|plating|signage|furniture|machinery|hardware|aggregate|electronics|"
+    r"plastics|optics|ceramics|textiles?|cement|pavement\s+markings?|markings?)$"
+)
+_PEOPLE_WORDS = re.compile(
+    r"(?i)^(?:workers?|staff|personnel|officers?|guards?|employees?|attendants?|technicians?|crews?|teams?|"
+    r"volunteers?|instructors?|teachers?|nurses?|drivers?|contractors?|consultants?|vendors?|firms?|bidders?|"
+    r"engineers?|defenders?|attorneys?|counsel|lawyers?|auditors?|inspectors?|interpreters?|translators?|"
+    r"advisors?|architects?|surveyors?|appraisers?|actuar(?:y|ies)|planners?|managers?|coordinators?|"
+    r"facilitators?|trainers?|coaches|counselors?|therapists?|physicians?|doctors?|providers?)$"
+)
+_ABSTRACT_WORDS = re.compile(
+    r"(?i)^(?:program|plan|project|proposal|proposals|work|works|report|audit|study|event|events|festival|"
+    r"celebration|conference|membership|sponsorship|permit|permits|insurance|benefits?|coverage|claims?|fees?|"
+    r"loan|loans|banking|advertising|meeting|meetings|services?|service|assistance|support|operations?|"
+    r"needs|requirements?|opportunit(?:y|ies)|needed|related|associated|miscellaneous|general|other|"
+    r"emergency|public|safety|county|annual|various|multiple|amenities|options?|areas?|zones?|"
+    r"group|groups|lot|lots|package|packages|year|years|month|months|quote|quotes|bids?|rfq|rfp|"
+    r"this|that|these|those|closing|official|procurement|procurements|purchasing|contracts?|agreements?|"
+    r"files?|resources?|notices?|information|portal|opportunities|solicitations?|board|conflict|lease|leases|"
+    r"leasing|rental|rentals|land|property|properties|facilities|facility|tenders?|value|access|free)$"
+)
+_SOFTWARE = re.compile(r"(?i)\b(?:software|saas|subscription|licens(?:e|es|ing)|cloud[- ]based|hosted\s+solution|platform\s+as)\b")
+
+
+def _phrase_words(phrase: str) -> list[str]:
+    return [w for w in re.findall(r"[A-Za-z][A-Za-z'\-]{2,}", phrase)]
+
+
+def _word_analysis(phrase: str) -> tuple[list[str], list[str]]:
+    """Split a phrase into concrete-thing words and work/abstract head words.
+
+    A participle that modifies a following word ("Retaining Wall", "Cleaning Supplies") is a
+    modifier, not a work head; a nominalization that ends the phrase ("Fire Suppression",
+    "Tree Trimming") is the head of the phrase and marks it as work or abstraction.
+    """
+    stripped = _TITLE_NOISE.sub(" ", _mask_names(_clean_text(phrase)))
+    words = _phrase_words(stripped)
+    tangible: list[str] = []
+    work_heads: list[str] = []
+    for i, w in enumerate(words):
+        last = i == len(words) - 1
+        if re.fullmatch(rf"(?i)(?:{_SERVICE_TERMS}|{_CONSTRUCTION_TERMS}|{_NON_PURCHASE_TERMS})", w) or _PEOPLE_WORDS.match(w):
+            work_heads.append(w)
+            continue
+        if _ABSTRACT_WORDS.match(w):
+            continue
+        if _ABSTRACT_SUFFIX.search(w) and not _TANGIBLE_ING.match(w) and not re.fullmatch(rf"(?i)(?:{_GOODS_TERMS})", w):
+            if last or not re.search(r"(?i)ing$", w):
+                work_heads.append(w)
+            continue
+        tangible.append(w)
+    return tangible, work_heads
+
+
+def _tangible_words(phrase: str) -> list[str]:
+    """Words in a phrase that read as concrete things (not work, not abstractions, not admin noise)."""
+    return _word_analysis(phrase)[0]
+
+
+def _object_reads_as_goods(obj: str) -> tuple[bool, str]:
+    """Does an acquisition object name goods? Returns (goods, reason)."""
+    cut = _OBJECT_TAIL.split(obj, maxsplit=1)[0]
+    cut = _TRAILING_CLAUSE.split(cut, maxsplit=1)[0]
+    an = _analyze_phrase(cut, source="object")
+    if an and an["category"] in {"service", "construction", "non_purchase", "vendor_qualification"} and an["strength"] == "strong":
+        return False, f"object_is_{an['category']}"
+    if an and an["category"] in {"product", "mixed"}:
+        return True, "object_product_head"
+    tw = _tangible_words(cut)
+    if tw:
+        return True, "object_tangible_noun:" + " ".join(tw[:4])
+    return False, "object_unresolved"
+
+
+def _notice_type(title: str, body: str, declared: str | None) -> str:
+    d = str(declared or "").strip()
+    if d:
+        for name, pat in _NOTICE_PATTERNS:
+            if pat.search(d):
+                return name
+        if re.search(r"(?i)solicitation|bid\s+notification|posted", d):
+            return "SOLICITATION"
+    for name, pat in _NOTICE_PATTERNS:
+        if pat.search(title):
+            return name
+    for name, pat in _NOTICE_PATTERNS[:6]:
+        if pat.search(body[:600]):
+            return name
+    return "SOLICITATION" if d else "UNKNOWN"
+
+
+def assess_product_presence(
+    title: str,
+    *,
+    description: str | None = None,
+    document_text: str | None = None,
+    agency_codes: list[dict[str, Any]] | None = None,
+    procurement_kind: str | None = None,
+    notice_type: str | None = None,
+    source: str | None = None,
+    requirement: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Recall-first, multi-field assessment of whether a record contains a procurable product.
+
+    Returns independent fields; none of them is derived from another's label.
+    ``requirement`` may pass a precomputed ``classify_requirement`` result.
+    """
+    title_text = _clean_text(title)
+    desc = _clean_text(description)
+    doc = _clean_text((document_text or "")[:20000])
+    body = " ".join(x for x in (desc, doc) if x)
+    body_masked = _LABOR_BOILERPLATE.sub(lambda m: " " * len(m.group(0)), _mask_names(body))
+    req = requirement or classify_requirement(
+        title_text, description=desc, document_text=doc, agency_codes=agency_codes, procurement_kind=procurement_kind
+    )
+    rc = str(req.get("requirement_class") or "unknown_mixed")
+    conf = str(req.get("decision_confidence") or "none")
+    signals: list[dict[str, Any]] = []
+
+    def sig(level: str, rule: str, quote: str, where: str) -> None:
+        signals.append({"level": level, "rule": rule, "source": where, "quote": (quote or "").strip()[:200]})
+
+    # --- Item identifiers / federal nomenclature ---
+    for where, text in (("title", title_text), ("body", body)):
+        m = _NSN.search(text)
+        if m:
+            sig("explicit", "nsn", text[max(0, m.start() - 40): m.end() + 20], where)
+        m = _PART_NO.search(text)
+        if m:
+            sig("explicit", "part_number", text[max(0, m.start() - 30): m.end() + 20], where)
+    head = title_text.split("|")[0].strip()
+    # "SPRING,EXTENSION,DRIVER SEAT" names an item; "PARKING LOT PATCHING, SEALCOATING, AND
+    # RESTRIPING AT ..." lists work, so participles, conjunction lists and site phrases are excluded
+    if (_INVERTED_NOMENCLATURE.match(head) and head.upper() == head and "," in head
+            and not re.search(r"[A-Z]{3,}ING\b|,\s*AND\b|\bAT\s+[A-Z]", head) and len(head) <= 60):
+        sig("explicit", "item_nomenclature_title", title_text, "title")
+    m = _BRAND_SPECIFIC.search(title_text) or _BRAND_SPECIFIC.search(body)
+    if m:
+        sig("explicit", "brand_specific_item", (title_text if _BRAND_SPECIFIC.search(title_text) else body)[max(0, m.start() - 60): m.end() + 20],
+            "title" if _BRAND_SPECIFIC.search(title_text) else "body")
+    if str(source or "").lower() == "dibbs":
+        sig("explicit", "dla_supply_rfq_source", f"source={source}", "source")
+
+    # --- Explicit materials-only / acquisition of a goods object ---
+    for where, text in (("title", title_text), ("body", body_masked)):
+        m = MATERIALS_ONLY.search(text)
+        if m and not _negated(text, m.start(), m.end()):
+            sig("explicit", "materials_only", text[max(0, m.start() - 20): m.end() + 60], where)
+        for m in list(_ACQUISITION.finditer(text))[:3]:
+            if _negated(text, m.start(), m.end()):
+                continue
+            goods, why = _object_reads_as_goods(m.group("obj"))
+            if goods:
+                sig("explicit" if why == "object_product_head" or where == "title" else "likely",
+                    f"acquisition_of_goods:{why}", text[m.start(): m.end()], where)
+    m = _BUY_INTENT.search(body_masked) or _BUY_INTENT.search(title_text)
+    if m:
+        sig("explicit", "buy_intent", m.group(0), "body")
+
+    # --- Quantity with unit of measure ---
+    for where, text in (("title", title_text), ("body", body_masked)):
+        for m in list(_QTY_UNIT.finditer(text))[:3]:
+            obj = m.group("obj") or ""
+            if obj:
+                goods, why = _object_reads_as_goods(obj)
+                if goods:
+                    sig("explicit", f"quantity_of_goods:{why}", m.group(0), where)
+                    break
+            elif where == "body":
+                sig("possible", "quantity_with_unit", text[max(0, m.start() - 40): m.end() + 20], where)
+        m = _QTY_LABEL.search(text)
+        if m:
+            sig("likely", "quantity_label", m.group(0), where)
+
+    # --- Manufacturer / brand / model language ---
+    m = _MFR_MODEL.search(body_masked) or _MFR_MODEL.search(title_text)
+    if m:
+        sig("likely", "manufacturer_brand_model", m.group(0), "body")
+
+    # --- Agency / portal goods codes ---
+    cs = _codes_signal(agency_codes)
+    if cs:
+        split = cs.get("split") or {}
+        if split.get("product"):
+            lvl = "likely" if cs.get("category") == "product" else "possible"
+            sig(lvl, "goods_taxonomy_code", cs.get("quote") or "", "codes")
+
+    # --- Primary-category classifier output (independent evidence, not the decision) ---
+    if rc in PRODUCT_CLASSES:
+        sig("explicit" if conf == "high" else "likely", f"classifier:{rc}:{conf}", rc, "classifier")
+    elif rc == "mixed_product_service":
+        sig("likely", "classifier:mixed_product_service", rc, "classifier")
+    elif rc == "unknown_mixed" and req.get("leaning") == "product":
+        sig("possible", "classifier_leaning_product", rc, "classifier")
+
+    # --- Title structure ---
+    title_core = _LEADING_REF.sub("", title_text, count=1)
+    th = _analyze_phrase(title_core, source="title") if title_core else None
+    tw, work_heads = _word_analysis(title_core.split("|")[0])
+    site = bool(_SITE_REFERENCE.search(title_core))
+    if th and th.get("subtype") == "equipment_with_installation":
+        sig("likely", "equipment_with_installation_title", th["quote"], "title")
+    mj = _JOINT_GOODS_SERVICES.search(title_core)
+    if mj:
+        g_tw, g_work = _word_analysis(mj.group("goods"))
+        goods, why = _object_reads_as_goods(mj.group("goods"))
+        if goods and not g_work and (g_tw or why == "object_product_head"):
+            sig("likely", f"coordinated_goods_and_services_title:{why}", mj.group(0), "title")
+        else:
+            mj = None
+    if th and th["category"] == "product":
+        clean_thing = (th["strength"] == "strong" or tw) and not site and not work_heads
+        sig("likely" if clean_thing else "possible", f"title_goods_head:{th['rule']}", th["quote"], "title")
+    elif th is None and tw and not (
+        work_heads and _phrase_words(title_core)[-1:] == work_heads[-1:]
+        and not any(re.fullmatch(rf"(?i)(?:{_GOODS_TERMS})", w) for w in tw)
+    ):
+        # A title that is only a noun phrase naming a thing ("TRAPROCK", "Traffic Signs"). When a work
+        # nominalization is the head ("Tree Trimming") and nothing names goods, the phrase is work.
+        sig("possible" if site or work_heads else "likely", "noun_phrase_title:" + " ".join(tw[:4]), title_core[:160], "title")
+    elif th and th["category"] in {"service", "construction"} and re.search(rf"(?i)\b(?:{_GOODS_TERMS})\b", title_core):
+        gm = re.search(rf"(?i)\b(?:{_GOODS_TERMS})\b", title_core)
+        sig("possible", f"goods_term_in_work_title:{gm.group(0).lower()}", title_core[:160], "title")
+    if _REQUIREMENTS_CONTRACT.search(title_text + " " + body_masked[:1500]) and (tw or (th and th["category"] == "product")):
+        m = _REQUIREMENTS_CONTRACT.search(title_text + " " + body_masked[:1500])
+        sig("possible", "requirements_contract_for_named_items", m.group(0), "title+body")
+    m = _PRODUCT_PREQUAL.search(title_text + " " + body_masked[:2000])
+    if m:
+        sig("likely", "product_prequalification", m.group(0), "title+body")
+
+    # --- Summary purpose naming goods while the record is mostly work ---
+    for s in req.get("evidence_signals") or []:
+        if s.get("category") == "product" and s.get("source") in {"summary", "codes"} and s.get("weight", 0) >= 1.25:
+            sig("possible", f"summary_goods_evidence:{s.get('rule')}", s.get("quote") or "", "summary")
+            break
+
+    seen_rules: set[tuple[str, str]] = set()
+    signals = [s for s in signals if not ((s["rule"], s["level"]) in seen_rules or seen_rules.add((s["rule"], s["level"])))]
+    levels = {s["level"] for s in signals}
+    explicit_rules = [s for s in signals if s["level"] == "explicit"]
+    work_class = rc in {"services", "professional_services", "maintenance_repair_services", "construction",
+                        "software_only", "not_applicable_non_solicitation", "vendor_qualification"}
+    if "explicit" in levels:
+        presence = "EXPLICIT_PRODUCT"
+    elif "likely" in levels:
+        presence = "LIKELY_PRODUCT"
+    elif "possible" in levels:
+        presence = "POSSIBLE_PRODUCT"
+    elif work_class and conf in {"high", "medium"}:
+        presence = "NO_PRODUCT_EVIDENCE"
+    elif work_heads and _phrase_words(title_core)[-1:] == work_heads[-1:]:
+        # The title's head noun is work or people ("Tree Trimming", "Poll Workers") and no goods signal fired
+        presence = "NO_PRODUCT_EVIDENCE"
+    else:
+        presence = "INSUFFICIENT_EVIDENCE"
+
+    # --- Identity confidence ---
+    if any(s["rule"] in {"nsn", "part_number", "item_nomenclature_title"} for s in signals) or (
+        any(s["rule"] == "manufacturer_brand_model" for s in signals) and presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}
+    ):
+        identity = "HIGH"
+    elif presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and [w for w in tw if not _GENERIC_GOODS.match(w)]:
+        identity = "MEDIUM"
+    elif presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT", "POSSIBLE_PRODUCT"}:
+        identity = "LOW"
+    else:
+        identity = "NONE"
+
+    # --- Service / installation / construction / rental / software / prequalification ---
+    svc_signals = [s for s in req.get("evidence_signals") or [] if s.get("category") == "service"]
+    install_title = bool(_INSTALL.search(title_text))
+    install_body = bool(_INSTALL.search(body_masked)) and not _NO_INSTALL.search(body_masked + " " + title_text)
+    if _NO_INSTALL.search(body_masked + " " + title_text):
+        installation = "NONE_STATED"
+    elif install_title or (th and th.get("subtype") in {"equipment_with_installation", "significant_installation"}):
+        installation = "REQUIRED"
+    elif install_body:
+        installation = "MENTIONED"
+    else:
+        installation = "NOT_STATED"
+    if rc in {"services", "professional_services", "maintenance_repair_services"} and presence in {"NO_PRODUCT_EVIDENCE", "INSUFFICIENT_EVIDENCE", "POSSIBLE_PRODUCT"}:
+        service = "PRIMARY"
+    elif mj or rc == "mixed_product_service" or installation == "REQUIRED" or (svc_signals and presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and any(s.get("source") == "title" for s in svc_signals)):
+        service = "SIGNIFICANT"
+    elif rc == "product_with_incidental_services" or INCIDENTAL_SERVICE.search(body_masked[:2000]):
+        service = "INCIDENTAL"
+    elif svc_signals:
+        service = "MENTIONED"
+    else:
+        service = "NONE_STATED"
+    materials_only = any(s["rule"] == "materials_only" for s in signals)
+    if materials_only:
+        construction = "MATERIALS_FOR_CONSTRUCTION" if (th and th["category"] == "construction") or rc == "construction" or re.search(
+            rf"(?i)\b(?:{_CONSTRUCTION_TERMS})\b", title_text) else "NONE_STATED"
+    elif rc == "construction" or (th and th["category"] == "construction" and th["strength"] == "strong"):
+        construction = "CONSTRUCTION_WORK"
+    elif presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and re.search(
+            r"(?i)\b(?:aggregates?|asphalt|concrete|gravel|stone|rock|sand|lumber|rebar|guardrails?|roofing|pipe|culverts?|blocks?)\b",
+            title_text):
+        construction = "MATERIALS_FOR_CONSTRUCTION"
+    else:
+        construction = "NONE_STATED"
+    rental_title = bool(_RENTAL_GOODS.search(title_text))
+    if _LEASE_OR_PURCHASE.search(title_text + " " + body_masked[:1500]):
+        rental = "LEASE_OR_PURCHASE"
+    elif rental_title or rc == "product_rental_leasing":
+        rental = "RENTAL"
+    else:
+        rental = "NONE"
+    software = "SOFTWARE" if (rc == "software_only" or (_SOFTWARE.search(title_text) and not tw)) else (
+        "SOFTWARE_COMPONENT" if _SOFTWARE.search(title_text) else "NONE")
+    prequal = "NONE"
+    if _VQ_ANYWHERE.search(title_text + " " + body_masked[:2000]) or rc == "vendor_qualification":
+        prequal = "PRODUCT_PREQUALIFICATION" if (any(s["rule"] == "product_prequalification" for s in signals)
+                                                  or presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}) else "VENDOR_PREQUALIFICATION"
+
+    if doc and len(doc) >= 1000:
+        completeness = "DOCUMENT"
+    elif len(desc) >= 200:
+        completeness = "SUMMARY"
+    elif desc:
+        completeness = "SUMMARY_SHORT"
+    elif agency_codes:
+        completeness = "TITLE_CODES"
+    else:
+        completeness = "TITLE_ONLY"
+
+    if presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and materials_only:
+        category = "product"
+    elif rc in PRODUCT_CLASSES or rc == "mixed_product_service":
+        category = "product" if rc != "mixed_product_service" else "product_and_service"
+    elif rc == "unknown_mixed":
+        category = "product" if presence == "EXPLICIT_PRODUCT" else "unresolved"
+    elif rc == "software_only":
+        category = "software"
+    elif rc == "vendor_qualification":
+        category = "vendor_qualification"
+    elif rc == "not_applicable_non_solicitation":
+        category = "non_purchase"
+    elif rc == "construction":
+        category = "construction"
+    else:
+        category = "service"
+    if category in {"service", "construction", "unresolved"} and presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}:
+        category = "product_and_service" if service == "SIGNIFICANT" else ("product" if category == "unresolved" else category)
+    if rental == "RENTAL" and category in {"product", "unresolved"}:
+        category = "rental"
+
+    return {
+        "product_presence": presence,
+        "discovery_retained": presence in DISCOVERY_RETAINED_PRESENCE,
+        # Rentals and software are categorized, never counted as products to resell
+        "product_detected": presence in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and category not in {"rental", "software"},
+        "procurement_category": category,
+        "product_identity_confidence": identity,
+        "service_presence": service,
+        "installation_requirement": installation,
+        "construction_requirement": construction,
+        "rental": rental,
+        "software": software,
+        "prequalification": prequal,
+        "notice_type": _notice_type(title_text, body, notice_type),
+        "evidence_completeness": completeness,
+        "requirement_class": rc,
+        "decision_confidence": conf,
+        "presence_signals": signals,
+        "explicit_rule_count": len(explicit_rules),
     }

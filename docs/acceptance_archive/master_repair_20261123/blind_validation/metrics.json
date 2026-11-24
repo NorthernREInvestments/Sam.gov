@@ -1,0 +1,103 @@
+{
+ "provisional": "AI blind annotators (2), not human ground truth",
+ "population": {
+  "retained": 1957,
+  "rejected": 1217
+ },
+ "results": {
+  "either": {
+   "1_discovery_recall_product_any": {
+    "estimate": 0.965,
+    "ci95": [
+     0.908,
+     0.988
+    ]
+   },
+   "2_discovery_recall_confirmed_only": 0.879,
+   "3_retained_potential_precision": [
+    0.52,
+    0.423,
+    0.615
+   ],
+   "4_detected_confirmed_precision": [
+    0.118,
+    0.064,
+    0.21
+   ],
+   "5_detected_potential_precision": [
+    0.671,
+    0.559,
+    0.766
+   ],
+   "6_rejection_npv": [
+    0.97,
+    0.915,
+    0.99
+   ],
+   "7_f1_retained": 0.676,
+   "8_inter_annotator_kappa": 1.0,
+   "counts_sample": {
+    "retained": 100,
+    "rejected": 100,
+    "detected": 76,
+    "tp": 52,
+    "fp": 48,
+    "fn": 3,
+    "tn": 97
+   },
+   "counts_population_weighted": {
+    "TP": 1018,
+    "FP": 939,
+    "FN": 37,
+    "TN": 1180
+   }
+  },
+  "both": {
+   "1_discovery_recall_product_any": {
+    "estimate": 0.965,
+    "ci95": [
+     0.908,
+     0.988
+    ]
+   },
+   "2_discovery_recall_confirmed_only": 0.849,
+   "3_retained_potential_precision": [
+    0.52,
+    0.423,
+    0.615
+   ],
+   "4_detected_confirmed_precision": [
+    0.092,
+    0.045,
+    0.178
+   ],
+   "5_detected_potential_precision": [
+    0.671,
+    0.559,
+    0.766
+   ],
+   "6_rejection_npv": [
+    0.97,
+    0.915,
+    0.99
+   ],
+   "7_f1_retained": 0.676,
+   "8_inter_annotator_kappa": 1.0,
+   "counts_sample": {
+    "retained": 100,
+    "rejected": 100,
+    "detected": 76,
+    "tp": 52,
+    "fp": 48,
+    "fn": 3,
+    "tn": 97
+   },
+   "counts_population_weighted": {
+    "TP": 1018,
+    "FP": 939,
+    "FN": 37,
+    "TN": 1180
+   }
+  }
+ }
+}
