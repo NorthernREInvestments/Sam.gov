@@ -817,7 +817,7 @@ def independent_classify(
         rejection_reason = None  # unknown is NOT rejection-as-service
 
     # Prefer explicit vendor qualification primary label in export taxonomy
-    if product_type == "vendor_qualification":
+    if product_type == "vendor_qualification" and primary == "OTHER_INCOMPATIBLE":
         primary = "VENDOR_QUALIFICATION"
 
     further = primary in {
