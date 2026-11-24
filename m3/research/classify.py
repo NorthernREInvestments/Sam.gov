@@ -242,7 +242,7 @@ _CONSTRUCTION_TERMS = (
     r"sidewalks?|curbs?|culverts?|bridges?|roadway|pipeline|water\s+mains?|sewer|reservoir|"
     r"job\s+order\s+contracts?|\bJOC\b|capital\s+improvement|\bCIP\b|projects?|upgrades?|"
     r"replacements?|phase\s+[\w\d]+|site\s+work|earthwork|grading|"
-    r"erosion|sediment|seawall|levee|dam|trail|park\s+improvements?|restroom\s+building|abatement|remediation|restoration"
+    r"(?:re)?lining|erosion|sediment|seawall|levee|dam|trail|park\s+improvements?|restroom\s+building|abatement|remediation|restoration"
 )
 _GOODS_TERMS = (
     r"parts|supplies|suplies|supply|equipment|equip|materials?|items|tanks?|consumables|lime|signage|"
@@ -252,7 +252,7 @@ _GOODS_TERMS = (
     r"purchase\s+(?:contract|agreement|order)s?|"
     r"vans?|buses|trailers?|furniture|furnishings|fixtures?|uniforms|clothing|apparel|footwear|boots|"
     r"gloves|ppe|food|foods|milk|dairy|bread|produce|meats?|groceries|beverages|fuels?|gasoline|"
-    r"propane|oils?|lubricants?|chemicals?|chlorine|hypochlorite|bisulfite|salt|sand|gravel|aggregates?|"
+    r"propane|oils?|lubricants?|chemicals?|chlorine|hypochlorite|bisulfite|salt|sand|gravel|aggregates?|(?:crushed\s+)?stone|rip[- ]?rap|"
     r"asphalt\s+mix|ready[- ]mix|lumber|pipes?|fittings?|conductors?|wires?|cables?|poles?|luminaires?|"
     r"lamps?|bulbs?|computers?|laptops?|tablets?|servers?|printers?|copiers?|toner|hardware|monitors?|"
     r"phones?|radios?|cameras?|batteries|tires?|generators?|pumps?|motors?|valves?|transformers?|"
@@ -269,7 +269,7 @@ _NON_PURCHASE_TERMS = (
     r"grant\s+(?:program|opportunity|award|application|round)s?|funding\s+(?:opportunity|availability)|"
     r"incentive\s+(?:program|project)s?|rebate\s+program|farm\s+lease|concessions?|concessionaire|"
     r"(?:pouring|naming|advertising|exclusive\s+\w+)\s+rights|fixed\s+base\s+operator|grants?|funding|nofa|nofo|incentive|rebate|scholarships?|sale|auction|surplus|for\s+sale|"
-    r"meeting|agenda|minutes|public\s+hearing|reminder|newsletter|award\s+notice|notice\s+of\s+award|"
+    r"meeting(?!\s+(?:spaces?|rooms?|halls?|centers?|facilit\w*))|agenda|minutes|public\s+hearing|reminder|newsletter|award\s+notice|notice\s+of\s+award|"
     r"intent\s+to\s+award|lease\s+of\s+(?:facility\s+)?space|lease\s+of\s+(?:city|county|state|town)?\s*"
     r"(?:property|land|space)|agricultural\s+lease|property\s+lease|ground\s+lease|"
     r"purchase\s+(?:city|county|town|state|district)\s+property|real\s+estate|affordable\s+housing|"
@@ -318,6 +318,25 @@ _TRAILING_CLAUSE = re.compile(
     r"with\s+(?!related|associated|incidental|operators?|installation|services?|support|maintenance))"
 )
 
+# Solicitation number / document-type prefix before an imperative ("C26HS1037 IFB (Non-Negotiable) Procure ...")
+_LEADING_REF = re.compile(
+    r"^(?:[\w\-.#/]*\d[\w\-.#/]*\s+)?(?:(?:IFB|RFP|RFQ|ITB|RFB|IFQ|BID|RFI)\b[\s\-:#]*)?(?:\([^)]{0,40}\)\s*)?"
+)
+_BUY_INTENT = re.compile(r"(?i)\bone[- ]time\s+(?:buy|purchase)\b|\b(?:outright|direct)\s+purchase\b")
+_GOODS_LIST_ITEM = re.compile(rf"(?i)\b(?:{_GOODS_TERMS})\b\s*(?:,|&|\band\b|\bplus\b)")
+# Installed equipment ("Audiovisual Systems Modernization", "Video Board Replacement"): the
+# government acquires the equipment and the installation; infrastructure systems are excluded.
+_INSTALL_HEAD = re.compile(r"(?i)install(?:ation)?|replacements?|upgrades?|modernization|retrofit")
+_EQUIPMENT_OBJECT = re.compile(
+    r"(?i)\b(?:equipment|systems?|generators?|pumps?|motors?|transformers?|meters?|metering|cameras?|"
+    r"radios?|phones?|servers?|computers?|chillers?|boilers?|silos?|(?:video|score|message|display)\s*boards?|"
+    r"scoreboards?|displays?|kiosks?|audio[- ]?visual)\b"
+)
+_INFRASTRUCTURE_SYSTEM = re.compile(
+    r"(?i)\b(?:water|wastewater|sewer|sanitary|storm\w*|drain\w*|irrigation|roof\w*|distribution|collection|"
+    r"septic|piping|duct\w*|plumbing|transit|rail|road\w*|trail|parking|electrical\s+distribution)\s+systems?\b"
+)
+
 _SUBTYPE_MAINT = re.compile(r"(?i)\b(?:maint\w*|repairs?|servicing|calibrat\w*)\b")
 _SUBTYPE_PROF = re.compile(
     r"(?i)\b(?:consult\w*|advis\w*|audit\w*|apprais\w*|legal|attorneys?|counsel|design|engineering|"
@@ -341,12 +360,16 @@ _PROPER_ORG_MASK = re.compile(
     r"\b(?:Department|Dept\.?|Division|Bureau|Agency|Board|Office|Commission|Authority|Council)\s+of\s+"
     r"(?:the\s+)?(?:[A-Z][\w'\-]*(?:\s+|$)(?:(?:and|&|of|for)\s+)?){1,6}"
 )
+_PLACE_MASK = re.compile(
+    r"\b(?:(?!(?:For|Of|And|The|To|In|At|On)\b)[A-Z][a-z][\w'\-]*\s+){1,3}"
+    r"(?:City|County|Township|Village|Way|Street|Road|Avenue|Boulevard|Lane|Parkway|Highway)\b"
+)
 _PRICING_MASK = re.compile(r"(?i)\btime[- ]and[- ]materials?\b|\bT\s*&\s*M\b")
 
 
 def _mask_names(text: str) -> str:
     blank = lambda m: " " * len(m.group(0))  # noqa: E731
-    return _PRICING_MASK.sub(blank, _PROPER_ORG_MASK.sub(blank, _NAME_MASK.sub(blank, text)))
+    return _PRICING_MASK.sub(blank, _PLACE_MASK.sub(blank, _PROPER_ORG_MASK.sub(blank, _NAME_MASK.sub(blank, text))))
 
 
 def _negated(text: str, start: int, end: int) -> bool:
@@ -446,10 +469,29 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
             "rule": f"{source}.action_of:{act}",
         }
 
-    m_imp = _IMPERATIVE_START.search(text)
+    m_buy = _BUY_INTENT.search(text)
+    if m_buy and not _negated(text, m_buy.start(), m_buy.end()):
+        return {
+            "category": "product",
+            "subtype": "supply",
+            "strength": "strong",
+            "quote": raw[:160],
+            "rule": f"{source}.buy_intent",
+        }
+
+    imp_text = _LEADING_REF.sub(lambda m: " " * len(m.group(0)), text, count=1)
+    m_imp = _IMPERATIVE_START.search(imp_text.lstrip())
     if m_imp:
+        imp_text = imp_text.lstrip()
         verb = m_imp.group("verb").lower()
         if verb in {"furnish", "supply", "purchase", "deliver", "procure"}:
+            obj = imp_text[m_imp.end() :]
+            inner = _analyze_phrase(obj, source=source + ".object") if obj.strip() else None
+            if inner and inner["category"] == "service" and inner["strength"] == "strong" and _GOODS_LIST_ITEM.search(obj):
+                return {**inner, "category": "mixed", "subtype": "goods_and_services",
+                        "rule": f"{source}.imperative:{verb}_goods_and_services", "quote": raw[:160]}
+            if inner and inner["category"] in {"service", "construction"} and inner["strength"] == "strong":
+                return {**inner, "rule": f"{source}.imperative:{verb}_{inner['category']}"}
             cat = "product"
         elif verb in {"construct", "excavate", "widen", "pave", "rehabilitate", "renovate", "upgrade", "demolish", "replace"}:
             cat = "construction"
@@ -475,6 +517,7 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
         cues = [m for m in TITLE_CUE.finditer(main) if not _negated(main, m.start(), m.end())]
         if not cues:
             continue
+        all_cues = cues
         # A cue directly followed by another cue only modifies it ("Equipment Maintenance",
         # "Printing Materials"): the following word is the head of that compound.
         cues = [
@@ -501,7 +544,27 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
                 joint = True
         if goods_cues and _RELATED_SERVICES.search(main[goods_cues[-1].end() :]):
             joint = True
-        if joint:
+        # "Crushed Stone and Hauling Services": a goods item listed beside a service compound
+        for a, b in zip(all_cues, all_cues[1:]):
+            gap = main[a.end() : b.start()]
+            if (
+                _cue_category(a) == "product"
+                and not _WEAK_HEAD.match(a.group(0).strip())
+                and _cue_category(b) == "service"
+                and re.search(r"(?i),|&|\band\b|\bplus\b", gap)
+                and re.fullmatch(r"(?i)(?:\s|,|&|/|\+|\band\b|\bplus\b)+", gap)
+            ):
+                joint = True
+        equip_install = (
+            not joint
+            and cat in {"service", "construction"}
+            and _INSTALL_HEAD.fullmatch(head_text.strip())
+            and _EQUIPMENT_OBJECT.search(main[: head.start()])
+            and not _INFRASTRUCTURE_SYSTEM.search(main[: head.start()])
+        )
+        if equip_install:
+            cat_out, sub = "mixed", "equipment_with_installation"
+        elif joint:
             cat_out, sub = "mixed", "goods_and_services"
         else:
             cat_out, sub = cat, head_text.lower()
@@ -718,7 +781,10 @@ def classify_requirement(
     th = _analyze_phrase(title_text, source="title")
     if th:
         w = 3.0 if th["strength"] == "strong" else 1.5
-        if th["category"] == "mixed":
+        if th["subtype"] == "equipment_with_installation":
+            add("title", "product", 2.5, th["rule"] + ":equipment_install", th["quote"], "significant_installation")
+            add("title", "service", 2.5, th["rule"] + ":equipment_install", th["quote"], "goods_and_services")
+        elif th["category"] == "mixed":
             add("title", "product", 2.5, th["rule"], th["quote"], "goods_and_services")
             add("title", "service", 2.5, th["rule"], th["quote"], "goods_and_services")
         else:
@@ -878,6 +944,9 @@ def _decide(
         if any(s.get("subtype") == "significant_installation" for s in signals):
             cls = "product_with_significant_installation"
         conf = "high" if len(by_source.get("product", set()) | by_source.get("service", set())) >= 2 else "medium"
+        # Equipment named only in an installation/replacement title is a lead, not a confirmed purchase
+        if any(s["rule"].endswith(":equipment_install") for s in signals) and not (by_source.get("product", set()) - {"title"}):
+            conf = "medium"
         return _out(cls, evidence, True, sources_used, confidence=conf, **meta)
 
     # Service vs construction disagreement still establishes "work, not goods"
