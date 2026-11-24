@@ -224,7 +224,7 @@ _SERVICE_TERMS = (
     r"appraisals?|legal|attorneys?|counsel|staffing|nursing|catering|janitorial|custodial|mowing|"
     r"towing|hauling|removal|disposal|collection|recycling|shuttle|charter\s+bus(?:es)?|courier|"
     r"printing|mailing|translation|interpret(?:ation|ing|ers?)|training|coaching|administration|"
-    r"administrator|management|support|implementation|integration|design(?![- ]build)|engineering|planning|"
+    r"administrator|management|support|implementation|integration|design(?![- ](?:and[- ])?build)|redesign|engineering|planning|"
     r"plan\s+(?:update|development|preparation)|studies|study|analysis|assessments?|evaluations?|"
     r"surveys?|surveying|monitoring|investigations?|security\s+guards?|guard\s+services|patrol|"
     r"pest\s+control|extermination|laundry|food\s+service|clinic|wellness|therapy|counseling|"
@@ -236,16 +236,18 @@ _SERVICE_TERMS = (
     r"installation|install"
 )
 _CONSTRUCTION_TERMS = (
-    r"construction\s+services?|design[- ]build|construction|reconstruction|improvements?|rehabilitation|rehab|"
+    r"construction\s+(?:contracting\s+)?services?|design[- ](?:and[- ])?build|construction|reconstruction|improvements?|rehabilitation|rehab|"
     r"renovations?|remodel(?:ing)?|painting|roofing|re-?roofing|flooring\s+replacement|"
     r"modernization|retrofit|expansion|demolition|paving|repaving|resurfacing|overlay|striping|"
     r"sidewalks?|curbs?|culverts?|bridges?|roadway|pipeline|water\s+mains?|sewer|reservoir|"
     r"job\s+order\s+contracts?|\bJOC\b|capital\s+improvement|\bCIP\b|projects?|upgrades?|"
     r"replacements?|phase\s+[\w\d]+|site\s+work|earthwork|grading|"
-    r"erosion|sediment|seawall|levee|dam|trail|park\s+improvements?|restroom\s+building|abatement|remediation"
+    r"erosion|sediment|seawall|levee|dam|trail|park\s+improvements?|restroom\s+building|abatement|remediation|restoration"
 )
 _GOODS_TERMS = (
-    r"parts|supplies|supply|equipment|equip|materials?|commodit(?:y|ies)|vehicles?|trucks?|cars?|sedans?|suvs?|"
+    r"parts|supplies|suplies|supply|equipment|equip|materials?|items|tanks?|consumables|lime|signage|"
+    r"wheels?|wheel\s+sets|assemblies|catalysts?|trophies|plaques|promotional\s+items|first\s+aid|kiosks?|"
+    r"seedlings|trees\s+for\s+planting|commodit(?:y|ies)|vehicles?|trucks?|cars?|sedans?|suvs?|"
     r"(?:office|janitorial|custodial|cleaning|medical|safety|school|art|maintenance|industrial)\s+suppl(?:y|ies)|"
     r"purchase\s+(?:contract|agreement|order)s?|"
     r"vans?|buses|trailers?|furniture|furnishings|fixtures?|uniforms|clothing|apparel|footwear|boots|"
@@ -265,7 +267,8 @@ _GOODS_TERMS = (
 )
 _NON_PURCHASE_TERMS = (
     r"grant\s+(?:program|opportunity|award|application|round)s?|funding\s+(?:opportunity|availability)|"
-    r"incentive\s+(?:program|project)s?|rebate\s+program|grants?|funding|nofa|nofo|incentive|rebate|scholarships?|sale|auction|surplus|for\s+sale|"
+    r"incentive\s+(?:program|project)s?|rebate\s+program|farm\s+lease|concessions?|concessionaire|"
+    r"(?:pouring|naming|advertising|exclusive\s+\w+)\s+rights|fixed\s+base\s+operator|grants?|funding|nofa|nofo|incentive|rebate|scholarships?|sale|auction|surplus|for\s+sale|"
     r"meeting|agenda|minutes|public\s+hearing|reminder|newsletter|award\s+notice|notice\s+of\s+award|"
     r"intent\s+to\s+award|lease\s+of\s+(?:facility\s+)?space|lease\s+of\s+(?:city|county|state|town)?\s*"
     r"(?:property|land|space)|agricultural\s+lease|property\s+lease|ground\s+lease|"
@@ -294,13 +297,13 @@ _ACTION_OF = re.compile(
     r"purchase\s+and\s+install(?:ation)?|furnish(?:ing)?\s+and\s+install(?:ation|ing)?|"
     r"supply\s+and\s+install(?:ation)?|replacement|repairs?|rehabilitation|renovation|installation|"
     r"construction|reconstruction|maintenance|inspection|cleaning|removal|relocation|demolition|"
-    r"design|abatement|restoration|resurfacing|painting|paving|upgrades?|improvements?|"
+    r"design|redesign|abatement|restoration|resurfacing|painting|paving|upgrades?|improvements?|"
     r"modernization|retrofit|expansion|operation|management|administration|disposal|hauling|"
     r"collection|testing|calibration|servicing|monitoring|assessment|evaluation|analysis|study|"
     r"preparation|development|implementation|rental|lease|leasing|sale)\s+(?:and\s+\w+\s+)?of\b"
 )
 _IMPERATIVE_START = re.compile(
-    r"(?i)^(?P<verb>replace|repair|install|construct|remove|maintain|clean|inspect|paint|pave|"
+    r"(?i)^(?P<verb>replace|repair|install|construct|excavate|widen|remove|maintain|clean|inspect|paint|pave|"
     r"rehabilitate|renovate|upgrade|demolish|furnish|supply|purchase|provide|deliver|procure)\b"
 )
 _RELATED_SERVICES = re.compile(
@@ -311,7 +314,8 @@ _GOODS_OBJECT_NONPURCHASE = re.compile(
     r"(?i)\b(?:property|properties|land|real\s+estate|housing|building\s+site|parcels?)\b"
 )
 _TRAILING_CLAUSE = re.compile(
-    r"(?i)\s+(?:for\s+(?:the\s+)?|at\s+|in\s+|throughout\s+|along\s+|located\s+|within\s+|on\s+behalf\s+of\s+)"
+    r"(?i)\s+(?:for\s+(?:the\s+)?|at\s+|in\s+|throughout\s+|along\s+|located\s+|within\s+|on\s+behalf\s+of\s+|"
+    r"with\s+(?!related|associated|incidental|operators?|installation|services?|support|maintenance))"
 )
 
 _SUBTYPE_MAINT = re.compile(r"(?i)\b(?:maint\w*|repairs?|servicing|calibrat\w*)\b")
@@ -392,7 +396,9 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
 
     # Purchase-and-install / furnish-and-install → product with significant installation
     m_inst = re.search(
-        r"(?i)\b(?:furnish(?:ing)?|supply|supplying|purchase|procure)\s+(?:and|&)\s+install(?:ation|ing)?\b",
+        r"(?i)\b(?:furnish(?:ing)?|supply|supplying|purchase|procure)(?:[,\s]+(?:and\s+|&\s+)?"
+        r"(?:deliver(?:y|ing)?|install(?:ation|ing)?|planting|caring|set[- ]?up|maintenance|maintain(?:ing)?))*"
+        r"[,\s]+(?:and\s+|&\s+)?(?:install(?:ation|ing)?|planting|caring(?:\s+for)?|set[- ]?up|maintenance|maintain(?:ing)?)\b",
         text,
     )
     if m_inst and not _negated(text, m_inst.start(), m_inst.end()):
@@ -445,7 +451,7 @@ def _analyze_phrase(phrase: str, *, source: str) -> dict[str, Any] | None:
         verb = m_imp.group("verb").lower()
         if verb in {"furnish", "supply", "purchase", "deliver", "procure"}:
             cat = "product"
-        elif verb in {"construct", "pave", "rehabilitate", "renovate", "upgrade", "demolish", "replace"}:
+        elif verb in {"construct", "excavate", "widen", "pave", "rehabilitate", "renovate", "upgrade", "demolish", "replace"}:
             cat = "construction"
         elif verb == "provide":
             inner = _analyze_phrase(text[m_imp.end() :], source=source + ".object")
@@ -570,6 +576,11 @@ _OBJECT_TAIL = re.compile(
     r"on\s+an?\s+as[- ]needed)\b"
 )
 
+
+_QTY_LED_TITLE = re.compile(
+    r"(?i)^(?:[\w\-#.]+\s+[-–]\s+)?(?:one|two|three|four|five|six|seven|eight|nine|ten|twelve|\d{1,3})\s*"
+    r"\(\s*\d{1,4}\s*\)\s+(?!years?|months?|days?|hours?|phases?|contracts?|awards?)"
+)
 
 _WORK_VERBS = {
     "perform": "service", "conduct": "service", "install": "service", "repair": "service",
@@ -712,6 +723,9 @@ def classify_requirement(
             add("title", "service", 2.5, th["rule"], th["quote"], "goods_and_services")
         else:
             add("title", th["category"], w, th["rule"], th["quote"], th["subtype"])
+    m_qty = _QTY_LED_TITLE.search(title_text)
+    if m_qty and not (th and th["category"] in {"service", "construction", "non_purchase"} and th["strength"] == "strong"):
+        add("title", "product", 1.5, "title.quantity_of_items", title_text[:160], "quantity_led")
     # Category label on the record (portal "category" text) — weak
     if category_raw and not re.fullmatch(r"(?i)\s*(goods|services?|mixed|unknown|none)\s*", category_raw):
         ch = _analyze_phrase(category_raw, source="category")
