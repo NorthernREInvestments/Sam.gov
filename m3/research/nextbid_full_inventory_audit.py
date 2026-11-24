@@ -26,6 +26,7 @@ from m3.research.classify import (
     SERVICE_ONLY,
     SIGNIFICANT_INSTALL,
     SOFTWARE_ONLY,
+    agency_codes_from_record,
     classify_requirement,
 )
 from m3.research.extract_fields import extract_quantity_fields
@@ -57,6 +58,7 @@ PRIMARY_CLASSES = (
     "MIXED_PRODUCT_SERVICE",
     "CONFIRMED_SERVICE",
     "CONFIRMED_CONSTRUCTION",
+    "PROBABLE_NON_PRODUCT",
     "VENDOR_QUALIFICATION",
     "OTHER_INCOMPATIBLE",
     "INSUFFICIENT_EVIDENCE",
@@ -479,198 +481,99 @@ def independent_classify(
         notice_status = "unknown_future_deadline"
         evidence_fields.append("future_deadline_without_affirmative_status")
 
-    # --- Product type (independent of federal/closed) ---
+    # --- Procurement category (independent of federal/closed) ---
     clf = classify_requirement(
         title,
-        category_raw=original.get("procurement_kind") or original.get("product_category"),
-        procurement_type=original.get("procurement_kind") or original.get("notice_type"),
+        category_raw=original.get("product_category"),
+        procurement_type=original.get("notice_type"),
         description=desc or None,
         document_text=doc or None,
+        agency_codes=agency_codes_from_record(original),
+        procurement_kind=original.get("procurement_kind"),
     )
     req = str(clf.get("requirement_class") or "unknown_mixed")
     clf_evidence = list(clf.get("classification_evidence") or [])
+    decision_confidence = str(clf.get("decision_confidence") or "low")
+    signals = [s for s in (clf.get("evidence_signals") or []) if isinstance(s, dict)]
 
-    def _quote_from_evidence(patterns: list[Any], blob: str) -> str | None:
-        for pat in patterns:
-            if pat is None:
-                continue
-            m = pat.search(blob) if hasattr(pat, "search") else None
-            if m:
-                return m.group(0)[:240]
-        return None
-
-    def _quotes_from_clf_evidence(ev_list: list[Any], blob: str) -> list[str]:
-        """Keep only classifier evidence that quotes actual source text, not rule names."""
-        out: list[str] = []
-        for e in ev_list:
-            s = str(e or "").strip()
-            if not s:
-                continue
-            # Rule-name / category-only tokens are not source evidence
-            if re.match(
-                r"^(rule|classify|skipped_identity|category|keyword|insufficient_evidence|"
-                r"source_category_only_insufficient)",
-                s,
-                re.I,
-            ):
-                continue
-            if "source_category_only_insufficient" in s:
-                continue
-            # Prefer the quoted portion after key=
-            if "=" in s and not s.startswith("http"):
-                quoted = s.split("=", 1)[1].strip()
-                # Drop trailing ;category=... provenance tags from the quote body
-                quoted = re.split(r";\s*category=", quoted, maxsplit=1)[0].strip()
-                if len(quoted) >= 4:
-                    out.append(quoted[:240])
-                    continue
-            if len(s) < 12:
-                continue
-            needle = s[:80]
-            if needle.lower() in blob.lower() or len(s) >= 24:
-                out.append(s[:240])
-        return out[:6]
-
-    # Pull source quotations from classifier evidence first
-    quotations.extend(_quotes_from_clf_evidence(clf_evidence, examined_blob))
+    decided_side = {
+        "product_supply": "product",
+        "product_with_significant_installation": "product",
+        "product_with_incidental_services": "product",
+        "mixed_product_service": "product",
+        "services": "service",
+        "professional_services": "service",
+        "maintenance_repair_services": "service",
+        "software_only": "service",
+        "product_rental_leasing": "product",
+        "construction": "construction",
+        "vendor_qualification": "vendor_qualification",
+        "not_applicable_non_solicitation": "non_purchase",
+    }.get(req)
+    field_for_source = {
+        "title": "title",
+        "summary": "summary/description",
+        "codes": "classification.source_codes",
+        "provider_kind": "procurement_kind",
+        "category": "product_category",
+    }
+    evidence_refs = [
+        {
+            "source": s.get("source"),
+            "field": field_for_source.get(str(s.get("source")), s.get("source")),
+            "supports": s.get("category"),
+            "weight": s.get("weight"),
+            "rule": s.get("rule"),
+            "quote": s.get("quote"),
+        }
+        for s in signals
+    ]
+    supporting = [r for r in evidence_refs if r["supports"] == decided_side] if decided_side else []
+    if req == "mixed_product_service":
+        supporting = [r for r in evidence_refs if r["supports"] in {"product", "service"}]
+    quotations = [str(r["quote"]) for r in supporting if r.get("quote")]
+    text_supported = any(r["source"] in {"title", "summary"} for r in supporting)
 
     product_type = "insufficient_evidence"
     product_confidence = "low"
-    if req in {"product_supply"}:
-        product_type = "confirmed_product"
-        product_confidence = "high"
-        q = _quote_from_evidence(
-            [PRODUCT_HINTS, PURCHASE_OF_GOODS], examined_blob
-        ) or (title[:160] if title else None)
-        if q:
-            quotations.append(q)
-        evidence_fields.append(f"classify_requirement:{req}")
-    elif req in {"product_with_incidental_services"}:
-        product_type = "mixed_product_service"
-        product_confidence = "high"
-        q = _quote_from_evidence(
-            [PRODUCT_HINTS, PURCHASE_OF_GOODS, SIGNIFICANT_INSTALL], examined_blob
-        )
-        if q:
-            quotations.append(q)
-        evidence_fields.append(f"classify_requirement:{req}")
-    elif req in {"mixed_product_service"}:
-        product_type = "mixed_product_service"
-        product_confidence = "medium"
-        q = _quote_from_evidence([PRODUCT_HINTS, SERVICE_ONLY], examined_blob)
-        if q:
-            quotations.append(q)
-        evidence_fields.append(f"classify_requirement:{req}")
-    elif req in {"unknown", "unknown_mixed", "pending_classification"}:
-        # Ambiguous: purchase language or product hints → potential; else insufficient
-        if PRODUCT_HINTS.search(examined_blob) or PURCHASE_OF_GOODS.search(examined_blob):
-            product_type = "potential_product"
-            product_confidence = "medium"
-            m = PRODUCT_HINTS.search(examined_blob) or PURCHASE_OF_GOODS.search(examined_blob)
-            if m:
-                quotations.append(m.group(0)[:240])
-                evidence_fields.append("product_hint_or_purchase_phrase")
+    if decided_side == "product" and req == "product_rental_leasing":
+        product_type, product_confidence = "other_incompatible", decision_confidence
+        evidence_fields.append("rental_lease_of_goods")
+    elif decided_side == "product":
+        mixed = req in {"product_with_significant_installation", "product_with_incidental_services", "mixed_product_service"}
+        if decision_confidence == "high" and text_supported:
+            product_type = "mixed_product_service" if mixed else "confirmed_product"
+            product_confidence = "high"
         else:
-            product_type = "insufficient_evidence"
-            product_confidence = "low"
-    elif req in {"services", "professional_services", "maintenance_repair_services", "software_only"}:
-        # Only confirm service when evidence proves — classifier already required signals
-        product_type = "confirmed_service"
-        product_confidence = "high"
-        q = _quote_from_evidence([SOFTWARE_ONLY, SERVICE_ONLY], examined_blob)
-        if q:
-            quotations.append(q)
-        evidence_fields.append(f"classify_requirement:{req}")
-    elif req == "construction":
-        product_type = "confirmed_construction"
-        product_confidence = "high"
-        q = _quote_from_evidence([CONSTRUCTION_ONLY], examined_blob)
-        if q:
-            quotations.append(q)
-        evidence_fields.append("classify_requirement:construction")
-    elif req == "vendor_qualification":
-        product_type = "vendor_qualification"
-        product_confidence = "high"
-        if title:
-            quotations.append(title[:240])
+            product_type, product_confidence = "potential_product", "medium"
+        evidence_fields.append(f"classify_requirement:{req}:{decision_confidence}")
+    elif decided_side in {"service", "construction"}:
+        if decision_confidence == "high" and text_supported:
+            product_type = "confirmed_service" if decided_side == "service" else "confirmed_construction"
+            product_confidence = "high"
+        else:
+            product_type, product_confidence = "probable_non_product", "medium"
+        evidence_fields.append(f"classify_requirement:{req}:{decision_confidence}")
+    elif decided_side == "vendor_qualification":
+        product_type, product_confidence = "vendor_qualification", decision_confidence
         evidence_fields.append("vendor_qualification")
-    elif req == "product_rental_leasing":
-        product_type = "other_incompatible"
-        product_confidence = "high"
-        q = _quote_from_evidence([RENTAL_LEASE], examined_blob)
-        if q:
-            quotations.append(q)
-        evidence_fields.append("rental_lease")
-    elif req == "not_applicable_non_solicitation":
-        product_type = "other_incompatible"
-        product_confidence = "medium"
-        if title:
-            quotations.append(title[:240])
-        evidence_fields.append("non_solicitation")
+    elif decided_side == "non_purchase":
+        product_type, product_confidence = "other_incompatible", decision_confidence
+        evidence_fields.append("non_purchase_notice")
     else:
-        product_type = "insufficient_evidence"
-        product_confidence = "low"
+        leaning = clf.get("leaning")
+        if leaning:
+            evidence_fields.append(f"unresolved_leaning:{leaning}")
+        for c in clf.get("conflicting_signals") or []:
+            evidence_fields.append(f"conflict:{c}")
 
-    # Significant install with product → mixed
-    if product_type == "confirmed_product" and SIGNIFICANT_INSTALL.search(examined_blob):
-        product_type = "mixed_product_service"
-        quotations.append(SIGNIFICANT_INSTALL.search(examined_blob).group(0)[:240])
-        evidence_fields.append("significant_installation")
-
-    # High confidence cannot substitute for supporting source text.
-    # Rule names / category labels alone are not proof — demote when no quotation.
-    quotations = [q for q in quotations if q and str(q).strip()]
-    # Deduplicate quotations while preserving order
-    seen_q: set[str] = set()
-    uniq_q: list[str] = []
-    for q in quotations:
-        key = re.sub(r"\s+", " ", q.lower()).strip()
-        if key in seen_q:
-            continue
-        seen_q.add(key)
-        uniq_q.append(q)
-    quotations = uniq_q
-
-    confirmed_labels = {
-        "confirmed_product",
-        "confirmed_service",
-        "confirmed_construction",
-        "mixed_product_service",
-        "other_incompatible",
-        "vendor_qualification",
-    }
-    if product_type in confirmed_labels and not quotations:
-        # Cannot establish from retained evidence — remain unresolved
+    # A category is only established from quoted source text, never from rule names alone
+    if product_type in {
+        "confirmed_product", "confirmed_service", "confirmed_construction", "mixed_product_service",
+        "other_incompatible", "vendor_qualification", "probable_non_product", "potential_product",
+    } and not quotations:
         evidence_fields.append("demoted_no_source_quotation")
-        if product_type in {"confirmed_product", "mixed_product_service"}:
-            product_type = "potential_product" if PRODUCT_HINTS.search(examined_blob) else "insufficient_evidence"
-            product_confidence = "low"
-        elif product_type in {"confirmed_service", "confirmed_construction"}:
-            product_type = "insufficient_evidence"
-            product_confidence = "low"
-            evidence_fields.append("rejection_without_source_text_blocked")
-        else:
-            product_type = "insufficient_evidence"
-            product_confidence = "low"
-
-    # Listing/title-only: never claim confirmed product/service without rich body
-    if evidence.get("listing_summary_only") and product_type in {
-        "confirmed_product",
-        "confirmed_service",
-        "confirmed_construction",
-        "mixed_product_service",
-    }:
-        evidence_fields.append("listing_summary_cannot_prove_complete_requirements")
-        if product_type == "confirmed_product":
-            product_type = "potential_product"
-            product_confidence = "medium" if quotations else "low"
-        elif product_type == "mixed_product_service":
-            product_type = "potential_product"
-            product_confidence = "low"
-        else:
-            # Service/construction from title alone → unresolved, not confirmed rejection
-            product_type = "insufficient_evidence"
-            product_confidence = "low"
+        product_type, product_confidence = "insufficient_evidence", "low"
 
     # Quantity extraction (does NOT demote product classification)
     qty_info = (
@@ -745,6 +648,7 @@ def independent_classify(
     if product_type in {
         "confirmed_service",
         "confirmed_construction",
+        "probable_non_product",
         "vendor_qualification",
         "other_incompatible",
     }:
@@ -892,6 +796,9 @@ def independent_classify(
             primary = "INSUFFICIENT_EVIDENCE"
             product_type = "insufficient_evidence"
             evidence_fields.append("construction_rejection_blocked_no_quotation")
+    elif product_type == "probable_non_product":
+        primary = "PROBABLE_NON_PRODUCT"
+        rejection_reason = "evidence_leans_non_product_not_confirmed"
     elif product_type == "vendor_qualification":
         primary = "OTHER_INCOMPATIBLE"
         rejection_reason = "vendor_qualification_not_immediate_product_purchase"
@@ -918,6 +825,36 @@ def independent_classify(
         "INSUFFICIENT_EVIDENCE",
         "CONFIRMED_PRODUCT",
     } and bool(missing)
+
+    # Readiness is derived only from verifiable retained evidence; category alone is never readiness.
+    submission_available = bool(
+        submission.get("submission_method")
+        or submission.get("submission_instructions")
+        or dims.get("submission_requirements_available")
+    )
+    readiness_blockers: list[str] = list(missing)
+    if notice_status not in {"open", "amended"}:
+        readiness_blockers.append(f"notice_status_not_confirmed_open:{notice_status}")
+    if primary in {"DUPLICATE", "CANCELLED", "CLOSED_EXPIRED", "FEDERAL_PARKED"}:
+        readiness = "NOT_ACTIONABLE_STATUS"
+    elif product_type in {
+        "confirmed_service", "confirmed_construction", "probable_non_product",
+        "vendor_qualification", "other_incompatible",
+    }:
+        readiness = "NOT_APPLICABLE_NON_PRODUCT"
+        readiness_blockers = []
+    elif product_type in {"confirmed_product", "mixed_product_service"}:
+        ready = (
+            quantity_verified
+            and submission_available
+            and bool(dims.get("original_solicitation_document_content_retained"))
+            and notice_status in {"open", "amended"}
+        )
+        readiness = "READY_FOR_SOURCING_REVIEW" if ready else "PRODUCT_CONFIRMED_NEEDS_SOLICITATION_DETAIL"
+    elif product_type == "potential_product":
+        readiness = "PRODUCT_CATEGORY_UNVERIFIED"
+    else:
+        readiness = "UNRESOLVED_INSUFFICIENT_EVIDENCE"
 
     dist = evidence.get("distinctions") or {}
     what_proves = (
@@ -947,6 +884,13 @@ def independent_classify(
         "supporting_quotations": quotations[:8],
         "supporting_fields": evidence_fields + [f"classify:{e}" for e in clf_evidence[:12]],
         "classifier_requirement_class": req,
+        "procurement_category": decided_side or "unresolved",
+        "decision_confidence": decision_confidence,
+        "evidence_references": evidence_refs,
+        "category_scores": clf.get("category_scores") or {},
+        "conflicting_signals": clf.get("conflicting_signals") or [],
+        "procurement_readiness": readiness,
+        "readiness_blockers": readiness_blockers,
         "products_requested": products_requested,
         "quantity": qty,
         "quantity_semantic": qty_sem,
@@ -994,7 +938,7 @@ def independent_classify(
                 else qty_status
                 or ("NOT_FOUND_IN_RETAINED_EVIDENCE" if not qty else "UNVERIFIED")
             ),
-            "bid_readiness": "not_evaluated_as_classification",
+            "bid_readiness": readiness,
             "submission_requirements_available": bool(
                 dims.get("submission_requirements_available")
             ),
