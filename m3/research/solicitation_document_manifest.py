@@ -185,26 +185,29 @@ def _document_entry_from_source(nb_id: str, d: dict[str, Any], *, acquired_at: s
         "local_pdf_path": local["path"],
         "local_extracted_text_present": False,
         "local_extracted_text_chars": 0,
-        "local_extracted_text_ref": None,
+        "local_extracted_text_ref": (
+            {"evidence_vault_sha256": sha} if local["present"] and sha else None
+        ),
         "m3_retrieval_status": "local_bytes" if local["present"] else (
             "metadata_only_provider_stored" if d.get("stored") else "metadata_only_unstored"
         ),
         "retrieval_method_if_missing": {
-            "endpoint": "download_document",
+            "endpoint": "get_document_download",
             "method": "GET",
             "path": api_path or None,
             "parameters": {"nb_id": nb_id, "document_sha256": sha},
-            "expected_content_type": "application/pdf OR signed-url redirect",
-            "returns": "UNVERIFIED — provider note says download link issued per request",
+            "expected_content_type": "application/json link then application/pdf from object store",
+            "returns": "time-limited download URL; PDF bytes from object store",
             "intermediate_metadata_required": False,
             "list_documents_already_retained": True,
-            "max_credit_cost": "UNVERIFIED (likely 1 if metered; confirm before spend)",
-            "proven_from": "retained list_documents.source_documents[].download",
+            "max_credit_cost": 1,
+            "proven_from": "retained list_documents.source_documents[].download + MCP get_document_download",
         } if not local["present"] else None,
         "metadata_acquired_at": acquired_at,
         "version": None,
         "is_addendum": False,
         "missing": not local["present"],
+        "duplicate_purchase_blocked": bool(local["present"]),
     }
 
 
