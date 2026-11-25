@@ -372,6 +372,8 @@ def procurement_queues_api(user: User | None = Depends(current_user)):
         "verified_procurement_fits",
         "qualified_commercial_evaluation",
         "bids_ready_for_owner_approval",
+        "verified_bid_opportunities",
+        "awaiting_supplier_quotations",
     ):
         if protected in detail:
             rows = detail[protected].get("sample") or []
@@ -386,6 +388,51 @@ def procurement_queues_api(user: User | None = Depends(current_user)):
         "verified_never_includes_unresolved": True,
         "stage_c_is_not_bid_eligible": True,
     }
+
+
+@app.post("/api/m3/procurement/queues/publish")
+async def procurement_queues_publish(
+    request: Request,
+    user: User | None = Depends(current_user),
+):
+    """Owner publish of supplier-pricing / needs-one-more queue rows (no metered calls)."""
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid_json"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"ok": False, "error": "expected_object"}, status_code=400)
+    from m3.research.owner_queues import QUEUE_KEYS, empty_queues, queues_root, write_queues
+
+    merged = empty_queues()
+    root = queues_root()
+    for qname in QUEUE_KEYS:
+        qp = root / f"{qname}.json"
+        if qp.exists():
+            try:
+                prior = json.loads(qp.read_text(encoding="utf-8"))
+                merged[qname] = list(prior.get("rows") or [])
+            except Exception:
+                merged[qname] = []
+    for qname, rows in (body.get("queues") or {}).items():
+        if qname not in QUEUE_KEYS or not isinstance(rows, list):
+            continue
+        by_id = {
+            str(r.get("nb_id") or r.get("source_record_id") or i): r
+            for i, r in enumerate(merged.get(qname) or [])
+            if isinstance(r, dict)
+        }
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            key = str(r.get("nb_id") or "")
+            if key:
+                by_id[key] = r
+        merged[qname] = list(by_id.values())
+    summary = write_queues(merged, build=str(body.get("build") or "live_pilot_publish"))
+    return {"ok": True, "build": BUILD_ID, "queues": summary}
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -1301,6 +1348,36 @@ def api_nextbid_status(
         },
         "resume_requires_owner_authorization": True,
         "do_not_begin_build_003": True,
+    }
+
+
+@app.post("/api/m3/nextbid/live-pilot-10")
+def api_nextbid_live_pilot_10(user: User | None = Depends(current_user)):
+    """Owner single-use 10-credit live pilot (Lane A≤6, Lane B≤4). Always restores killswitch.
+
+    Does not enable recurring schedules. Authorization is consumed inside the pilot runner.
+    """
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.research.nextbid_controller import acquisition_locked
+    from m3.research.nextbid_live_pilot import run_live_pilot
+
+    result = run_live_pilot()
+    return {
+        "ok": bool(result.get("ok")),
+        "build": BUILD_ID,
+        "credits_consumed_account": result.get("credits_consumed_account"),
+        "lane_a_credits": result.get("lane_a_credits"),
+        "lane_b_credits": result.get("lane_b_credits"),
+        "usage_before": result.get("usage_before"),
+        "usage_after": result.get("usage_after"),
+        "best_opportunities": result.get("best_opportunities"),
+        "queue_summary": result.get("queue_summary"),
+        "acquisition_locked": acquisition_locked(),
+        "scheduler_not_activated": True,
+        "reserve_intact": result.get("reserve_intact"),
+        "error": result.get("error"),
+        "stop": "AWAIT_OWNER_REVIEW",
     }
 
 

@@ -40,6 +40,18 @@ OWNER_HARD_BUILD_002M_CEILING = 300  # One-time discovery backfill only
 BUILD_002M_SCOPE = "build_002m_discovery_backfill"
 BUILD_002K_SCOPE = "build_002k_bounded_test"
 BUILD_002Q_SCOPE = "build_002q_controlled_production"
+LIVE_PILOT_SCOPE = "live_pilot_10_credit_single_use"
+LIVE_PILOT_CREDIT_CAP = 10
+LIVE_PILOT_ALLOWED_ENDPOINTS = frozenset(
+    {
+        "search",
+        "get_opportunity",
+        "list_documents",
+        "list_files",
+        "read_file",
+        "get_document_download",
+    }
+)
 BUILD_002M_ALLOWED_ENDPOINTS = frozenset({"search"})
 BUILD_002Q_ALLOWED_ENDPOINTS = frozenset(
     {"search", "get_opportunity", "list_documents", "list_files", "read_file"}
@@ -295,6 +307,25 @@ def _limits() -> dict[str, int]:
             "allowed_endpoints": sorted(BUILD_002M_ALLOWED_ENDPOINTS),
         }
 
+    # Single-use live pilot: hard cap 10 credits for day/job/test/allocation — never expands.
+    if auth and auth.get("authorized") and auth.get("scope") == LIVE_PILOT_SCOPE:
+        cap = min(
+            LIVE_PILOT_CREDIT_CAP,
+            int(auth.get("test_call_cap") or LIVE_PILOT_CREDIT_CAP),
+            int(auth.get("approved_allocation_calls") or LIVE_PILOT_CREDIT_CAP),
+        )
+        return {
+            "daily": cap,
+            "job": cap,
+            "monthly_reserve": reserve,
+            "test": cap,
+            "owner_hard_daily_ceiling": OWNER_HARD_DAILY_CEILING,
+            "owner_hard_test_ceiling": OWNER_HARD_TEST_CEILING,
+            "scope": LIVE_PILOT_SCOPE,
+            "allowed_endpoints": sorted(LIVE_PILOT_ALLOWED_ENDPOINTS),
+            "single_use": True,
+        }
+
     # Build 002Q controlled production: campaign ≤1646 but daily≤100 and job≤50 still bind
     if auth and auth.get("authorized") and auth.get("scope") == BUILD_002Q_SCOPE:
         campaign = min(
@@ -363,6 +394,9 @@ def _endpoint_allowed(endpoint: str) -> bool:
         return endpoint in allowed
     if scope == BUILD_002Q_SCOPE:
         allowed = set(auth.get("allowed_endpoints") or BUILD_002Q_ALLOWED_ENDPOINTS)
+        return endpoint in allowed
+    if scope == LIVE_PILOT_SCOPE:
+        allowed = set(auth.get("allowed_endpoints") or LIVE_PILOT_ALLOWED_ENDPOINTS)
         return endpoint in allowed
     return True
 

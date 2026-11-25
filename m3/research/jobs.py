@@ -3555,6 +3555,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("nextbid-repair-002r2")
     p_rep = sub.add_parser("nextbid-repair-independent")
     p_rep.add_argument("--prior-master-index", default=None)
+    sub.add_parser(
+        "nextbid-live-pilot-10",
+        help="Owner single-use 10-credit live pilot (Lane A≤6, Lane B≤4); always relocks",
+    )
     p_stg = sub.add_parser("staged-inventory")
     p_stg.add_argument("--no-resume", action="store_true")
     sub.add_parser("discovery-schedule-plan")
@@ -3927,6 +3931,37 @@ def main(argv: list[str] | None = None) -> int:
                             "api_expenditure": result.get("api_expenditure"),
                             "elapsed_sec": result.get("elapsed_sec"),
                             "acquisition_locked": True,
+                            "stop": "AWAIT_OWNER_REVIEW",
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "nextbid-live-pilot-10":
+            from m3.research.nextbid_controller import acquisition_locked
+            from m3.research.nextbid_live_pilot import run_live_pilot
+
+            # Pilot unlocks internally under single-use auth, then ALWAYS relocks.
+            result = run_live_pilot()
+            assert acquisition_locked(), "live pilot must restore killswitch"
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(result.get("ok")),
+                        "live_pilot": {
+                            "credits_consumed_account": result.get("credits_consumed_account"),
+                            "lane_a_credits": result.get("lane_a_credits"),
+                            "lane_b_credits": result.get("lane_b_credits"),
+                            "usage_before": result.get("usage_before"),
+                            "usage_after": result.get("usage_after"),
+                            "best_opportunities": result.get("best_opportunities"),
+                            "queue_summary": result.get("queue_summary"),
+                            "acquisition_locked": True,
+                            "scheduler_not_activated": True,
+                            "reserve_intact": result.get("reserve_intact"),
+                            "error": result.get("error"),
+                            "report": "TEMP/LIVE_PILOT_10/PILOT_REPORT.md",
                             "stop": "AWAIT_OWNER_REVIEW",
                         },
                     },
