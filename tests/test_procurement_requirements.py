@@ -111,6 +111,15 @@ def test_no_text_is_not_quote_ready():
     assert req["line_items"] == []
 
 
+def test_partial_item_schedule_is_never_quote_ready():
+    text = "Item Information 1-5 of 62 Item # 1: SALT, ROCK Qty 100 TON Item # 2: SALT Qty 50 TON"
+    req = extract_requirements("Rock Salt", description=text)
+    assert req["schedule_advertised_total"] == 62 and req["line_item_count"] == 2
+    assert any(b.startswith("schedule_pages_incomplete") for b in req["quote_ready_blockers"])
+    assert assess_sourcing_readiness(title="Rock Salt", requirements=req, eligibility_state="ELIGIBLE")[
+        "sourcing_state"] != "SUPPLIER_RESEARCH_READY"
+
+
 def test_title_stated_quantity_and_nsn_identity_from_retained_listing():
     """BidNet/NextBid titles often carry the only retained evidence — extract without guessing."""
     cat = extract_requirements(

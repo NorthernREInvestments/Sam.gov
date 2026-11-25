@@ -12,7 +12,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+import re
 
 from sqlalchemy.orm import Session
 
@@ -257,6 +258,43 @@ def _fetch_attachment(url: str, *, timeout: float = 15.0) -> dict[str, Any]:
 EXCLUDED_HOST_FRAGMENTS = ("sam.gov", "dibbs", "dla.mil", "nextbid", "api.", "bidnetdirect.com")
 DOC_EXTS = (".pdf", ".docx", ".xlsx", ".xls", ".csv", ".txt", ".doc")
 STAGED_UA = "M3ProcurementResearch/1.0 (+supplier bid research; respects robots.txt)"
+_ITEM_RANGE = re.compile(r"(?i)(?:Item\s+Information\s+)?(?P<a>\d+)\s*-\s*(?P<b>\d+)\s+of\s+(?P<n>\d+)")
+_VIEW_ITEM_PAGE = re.compile(r"(?i)viewItemPage\((\d+)\)")
+
+
+def item_schedule_range(text: str) -> dict[str, Any] | None:
+    matches = list(_ITEM_RANGE.finditer(text or ""))
+    if not matches:
+        return None
+    m = matches[-1]
+    return {"from": int(m.group("a")), "to": int(m.group("b")), "total": int(m.group("n")), "evidence": m.group(0)}
+
+
+def periscope_item_page_urls(base_url: str, html: str, *, max_pages: int = 40) -> list[str]:
+    """Build `currentPage=N` URLs for remaining Periscope/BidBuy item-table pages.
+
+    Always derive the full page count from ``1-5 of N`` — the pager HTML often omits later
+    page links behind an ellipsis, so relying only on ``viewItemPage`` anchors under-fetches.
+    """
+    plain = extract_html_text(html) if "<" in (html or "")[:200] else (html or "")
+    matches = list(_ITEM_RANGE.finditer(plain))
+    if not matches:
+        return []
+    m = matches[0]  # first-page pager mark
+    shown_from, shown_to, total = int(m.group("a")), int(m.group("b")), int(m.group("n"))
+    if shown_to >= total:
+        return []
+    page_size = max(1, shown_to - shown_from + 1)
+    need = (total + page_size - 1) // page_size
+    pages = list(range(2, min(need, max_pages) + 1))
+    out = []
+    parsed = urlparse(base_url)
+    q = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for p in pages:
+        q2 = dict(q)
+        q2["currentPage"] = str(p)
+        out.append(urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, urlencode(q2), "")))
+    return out
 
 
 class _Robots:
@@ -483,13 +521,45 @@ def recover_staged_documents(
                                              "format": ex.get("format"), "text": text[:200_000], "at": _utc()}) + "\n")
                         stats["attachments_extracted"] += 1
                 body = str(page.get("text") or "")
+                schedule_pages = 0
+                schedule_meta = item_schedule_range(body) or {}
+                # Periscope/BidBuy item tables paginate (e.g. "1-5 of 62"); fetch remaining free pages
+                for iurl in periscope_item_page_urls(page.get("final_url") or url, page.get("html") or ""):
+                    if not robots.allowed(iurl):
+                        break
+                    _pace(iurl)
+                    ipage = _fetch_page_with(ft, iurl)
+                    if not ipage.get("ok"):
+                        stats["schedule_page_failed"] += 1
+                        break
+                    itext = str(ipage.get("text") or "")
+                    if itext:
+                        body = (body + "\n\n" + itext).strip()
+                        fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
+                                             "kind": "page_item_schedule", "url": ipage.get("final_url") or iurl,
+                                             "text": itext[:100_000], "at": _utc(),
+                                             "schedule": item_schedule_range(itext)}) + "\n")
+                        schedule_pages += 1
+                        stats["schedule_pages_fetched"] += 1
+                    if ipage.get("html"):
+                        evidence_vault.put(vsrc, vid, f"solicitation_page_items_{schedule_pages}",
+                                           ipage["html"], url=ipage.get("final_url") or iurl,
+                                           status=200, content_type="text/html", root=vault,
+                                           meta={"staged_id": sid, "schedule_page": schedule_pages})
                 if body:
                     fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
                                          "kind": "page", "url": page.get("final_url") or url,
-                                         "text": body[:100_000], "at": _utc()}) + "\n")
+                                         "text": body[:500_000], "at": _utc(),
+                                         "schedule": item_schedule_range(body)}) + "\n")
                 extracted = sum(1 for d in docs if d["status"] == "extracted")
+                final_sched = item_schedule_range(body) or schedule_meta
                 done[sid] = {"status": "documents" if extracted else "page_only", "page_chars": len(body),
-                             "attachments_found": len(atts), "documents": docs, "at": _utc()}
+                             "attachments_found": len(atts), "documents": docs, "at": _utc(),
+                             "schedule_pages_fetched": schedule_pages,
+                             "schedule_advertised_total": (final_sched or {}).get("total"),
+                             "schedule_complete": bool(
+                                 final_sched and re.search(rf"(?i)Item\s*#\s*{final_sched['total']}\b", body))
+                                 if final_sched else None}
                 stats["with_documents" if extracted else "page_only"] += 1
             if n % 20 == 0:
                 fh.flush()
@@ -516,6 +586,135 @@ def _fetch_page_with(ft: Any, url: str) -> dict[str, Any]:
         if not find_attachment_urls(text or "", final):
             return {"ok": False, "restricted": True, "reason": "restricted_login_wall"}
     return {"ok": True, "final_url": final, "html": text, "text": plain}
+
+
+def complete_partial_item_schedules(
+    rows: list[dict[str, Any]],
+    *,
+    out_root: Path,
+    vault: Path | None = None,
+    host_delay_sec: float = 2.0,
+    max_records: int = 50,
+    sleep: Any = time.sleep,
+) -> dict[str, Any]:
+    """Re-fetch remaining Periscope item pages for records whose retained text is '1-5 of N'.
+
+    Free public HTTPS only. Skips robots-disallowed / restricted hosts. Zero metered calls.
+    """
+    import httpx
+    from m3.research import evidence_vault
+
+    client = httpx.Client(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True,
+                          headers={"User-Agent": STAGED_UA})
+
+    def _ft(u: str) -> tuple[int, str, str]:
+        r = client.get(validate_public_https_url(u))
+        validate_public_https_url(str(r.url))
+        return r.status_code, str(r.url), r.text[:3_000_000]
+
+    robots = _Robots(_ft)
+    last_host: dict[str, float] = {}
+    stats: dict[str, int] = defaultdict(int)
+    out_root.mkdir(parents=True, exist_ok=True)
+    ck_p = out_root / "doc_checkpoint.json"
+    ck = json.loads(ck_p.read_text(encoding="utf-8")) if ck_p.exists() else {"done": {}}
+
+    # Index longest retained page text per staged_id
+    by_sid: dict[str, str] = {}
+    tp = out_root / "doc_text.jsonl"
+    if tp.exists():
+        for line in tp.open(encoding="utf-8"):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if (row.get("kind") or "page") not in {"page", "page_item_schedule"}:
+                continue
+            sid = str(row.get("staged_id") or "")
+            text = str(row.get("text") or "")
+            if len(text) > len(by_sid.get(sid) or ""):
+                by_sid[sid] = text
+
+    targets = []
+    for r in rows:
+        sid = str(r.get("staged_id") or "")
+        text = by_sid.get(sid) or ""
+        rng = item_schedule_range(text)
+        item_ns = {int(x) for x in re.findall(r"(?i)Item\s*#\s*(\d+)", text)}
+        # Incomplete if pager says more remain, or captured item numbers are short of the advertised total
+        if not rng:
+            continue
+        if rng["to"] >= rng["total"] and len(item_ns) >= rng["total"]:
+            continue
+        url = str(r.get("official_url") or "")
+        if not url.startswith("http"):
+            continue
+        host = (urlparse(url).hostname or "").lower()
+        if any(x in host for x in EXCLUDED_HOST_FRAGMENTS + SKIP_HOST_FRAGMENTS):
+            continue
+        targets.append(r)
+        if len(targets) >= max_records:
+            break
+
+    with tp.open("a", encoding="utf-8") as fh:
+        for rec in targets:
+            sid = str(rec.get("staged_id"))
+            url = str(rec.get("official_url"))
+            if not robots.allowed(url):
+                stats["robots_disallow"] += 1
+                continue
+            h = (urlparse(url).hostname or "").lower()
+            wait = host_delay_sec - (time.monotonic() - last_host.get(h, -1e9))
+            if wait > 0:
+                sleep(wait)
+            last_host[h] = time.monotonic()
+            page = _fetch_page_with(_ft, url)
+            if not page.get("ok"):
+                stats["failed"] += 1
+                continue
+            body = str(page.get("text") or "")
+            vsrc, vid = str(rec.get("source") or "unknown"), str(rec.get("source_record_id") or sid)
+            pages_got = 0
+            for iurl in periscope_item_page_urls(page.get("final_url") or url, page.get("html") or ""):
+                if not robots.allowed(iurl):
+                    break
+                wait = host_delay_sec - (time.monotonic() - last_host.get(h, -1e9))
+                if wait > 0:
+                    sleep(wait)
+                last_host[h] = time.monotonic()
+                ipage = _fetch_page_with(_ft, iurl)
+                if not ipage.get("ok"):
+                    break
+                itext = str(ipage.get("text") or "")
+                if itext:
+                    body = (body + "\n\n" + itext).strip()
+                    fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
+                                         "kind": "page_item_schedule", "url": ipage.get("final_url") or iurl,
+                                         "text": itext[:100_000], "at": _utc(),
+                                         "schedule": item_schedule_range(itext)}) + "\n")
+                    pages_got += 1
+                    if ipage.get("html"):
+                        evidence_vault.put(vsrc, vid, f"solicitation_page_items_{pages_got}",
+                                           ipage["html"], url=ipage.get("final_url") or iurl,
+                                           status=200, content_type="text/html", root=vault,
+                                           meta={"staged_id": sid})
+            fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
+                                 "kind": "page", "url": page.get("final_url") or url,
+                                 "text": body[:500_000], "at": _utc(),
+                                 "schedule": item_schedule_range(body)}) + "\n")
+            final = item_schedule_range(body) or {}
+            prev = ck["done"].get(sid) or {}
+            prev.update({"schedule_pages_fetched": pages_got,
+                         "schedule_advertised_total": final.get("total"),
+                         "schedule_complete": bool(final and re.search(rf"(?i)Item\s*#\s*{final['total']}\b", body)),
+                         "page_chars": len(body), "schedule_completed_at": _utc()})
+            ck["done"][sid] = prev
+            stats["completed"] += 1
+            stats["schedule_pages_fetched"] += pages_got
+            _log(f"schedule complete {sid} pages={pages_got} items={final}")
+
+    ck_p.write_text(json.dumps(ck, default=str), encoding="utf-8")
+    client.close()
+    return {"targets": len(targets), "stats": dict(stats), "metered_calls": 0}
 
 
 def recover_free_documents(

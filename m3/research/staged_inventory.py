@@ -194,14 +194,24 @@ _PAGE_DEADLINE_RES = (
     re.compile(r"(?:Submission|Proposals?|Bids?|Responses?|Offers?)\s+(?:are\s+)?(?:Due|Deadline)(?:\s+Date)?(?:\s*(?:/|and)\s*Time)?:?\s*"
                r"(?:by\s+|on\s+)?(?P<v>" + _PAGE_DATE + _PAGE_TIME + ")", re.I),
 )
+# Periscope/BidBuy often prints only "Bid Opening Date" as the sealed-bid due/open instant (not contract Begin/End)
+_PAGE_BID_OPENING = re.compile(
+    r"(?i)\bBid\s+Opening\s+Date:?\s*(?P<v>\d{1,2}/\d{1,2}/\d{2,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp][Mm])?)")
+_PAGE_NON_SUBMISSION = re.compile(
+    r"(?i)\b(?:Available\s+Date|Begin\s+Date|End\s+Date|Inquiry\s+Deadline|Questions?\s+Deadline|"
+    r"Pre[- ]?Bid|Publication\s+Date)\b")
 
 
 def page_stated_deadline(text: str) -> str | None:
-    """Closing date/time as printed on an official solicitation page, or None. Question deadlines never match."""
+    """Bid submission deadline as printed on an official page. Never uses Available/Begin/End/performance dates."""
     t = re.sub(r"\s+", " ", html.unescape(text or ""))
     for rx in _PAGE_DEADLINE_RES:
         m = rx.search(t)
         if not m:
+            continue
+        # Reject matches that are clearly non-submission labels immediately before the value
+        pre = t[max(0, m.start() - 24): m.start()]
+        if _PAGE_NON_SUBMISSION.search(pre):
             continue
         if "d" in m.groupdict() and m.group("d"):
             d = m.group("d")
@@ -211,6 +221,11 @@ def page_stated_deadline(text: str) -> str | None:
             v = re.sub(r"^[A-Z][a-z]{2},?\s+(?=[A-Z])", "", m.group("v").strip())
         if _parse_us_datetime(v):
             return v
+    # Only when no Closing/Due label exists: Periscope Bid Opening is the operative sealed-bid deadline
+    if not re.search(r"(?i)\b(?:Closing|Due)\s+Date\b|\bSubmission\s+Deadline\b", t):
+        m = _PAGE_BID_OPENING.search(t)
+        if m and _parse_us_datetime(m.group("v")):
+            return m.group("v")
     return None
 
 
@@ -442,9 +457,12 @@ def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str,
     for row in _read_jsonl(tp):
         srcs = [row["source_record_id"]] if row.get("source_record_id") else idmap.get(str(row.get("staged_id")), [])
         for s in srcs:
-            slot = by_src.setdefault(s, {"attachment": [], "page": [], "urls": []})
-            slot[row.get("kind") or "page"].append(html.unescape(str(row.get("text") or "")))
-            if row.get("kind") == "attachment":
+            slot = by_src.setdefault(s, {"attachment": [], "page": [], "page_item_schedule": [], "urls": []})
+            kind = row.get("kind") or "page"
+            if kind not in slot:
+                slot[kind] = []
+            slot[kind].append(html.unescape(str(row.get("text") or "")))
+            if kind == "attachment":
                 slot["urls"].append(row.get("url"))
     hit = att = unrelated = revised = 0
     for r in records:
@@ -468,9 +486,18 @@ def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str,
             r["document_text"] = "\n\n".join([r.get("document_text") or "", *kept]).strip()[:400_000]
         if listed:
             r["attachments"] = [*(r.get("attachments") or []), *listed[:10]]
-        if slot["page"]:
-            r["description"] = (str(r.get("description") or "") + "\n\n" + slot["page"][0][:20_000]).strip()
-            stated = page_stated_deadline(slot["page"][0])
+        # Prefer the longest retained page (complete schedule rewrite) and append any extra item pages
+        page_texts = list(slot.get("page") or [])
+        sched_texts = list(slot.get("page_item_schedule") or [])
+        if page_texts or sched_texts:
+            best = max(page_texts, key=len) if page_texts else ""
+            extras = [t for t in sched_texts if t and t not in best]
+            combined = best
+            for t in extras:
+                combined = (combined + "\n\n" + t).strip()
+            # Cap raised so multi-page commodity schedules (e.g. 62 rock-salt lines) are not truncated away
+            r["description"] = (str(r.get("description") or "") + "\n\n" + combined[:400_000]).strip()
+            stated = page_stated_deadline(combined)
             if stated:
                 # The official page outranks an aggregator feed; the feed value is kept as history
                 feed = parse_deadline(r.get("deadline_raw"), tz_name=r.get("deadline_tz_hint"), state=r.get("state"))
@@ -891,9 +918,12 @@ def _slim(rec: dict[str, Any], ev: dict[str, Any] | None) -> dict[str, Any]:
             "prequalification", "notice_type", "evidence_completeness", "requirement_class", "decision_confidence")}
         keep["classification"]["signals"] = [{k: s[k] for k in ("level", "rule", "quote")} for s in p["presence_signals"][:8]]
         r = ev["requirements"]
-        keep["requirements"] = {k: r[k] for k in ("requirements_state", "line_item_count", "complete_line_items", "quote_ready",
-                                                   "quote_ready_blockers", "solicitation_requirements")}
-        keep["requirements"]["line_items"] = r["line_items"][:25]
+        keep["requirements"] = {k: r[k] for k in (
+            "requirements_state", "line_item_count", "complete_line_items", "quote_ready", "quote_ready_blockers",
+            "solicitation_requirements", "schedule_advertised_total", "schedule_shown_from", "schedule_shown_to",
+            "schedule_complete")}
+        # Keep the full captured schedule — truncating to 25 hid incomplete multi-page extractions from the owner
+        keep["requirements"]["line_items"] = r["line_items"]
         keep["eligibility"] = {k: ev["eligibility"][k] for k in ("eligibility_state", "eligibility_reasons", "eligibility_findings", "registration_required")}
         keep["execution"] = {k: ev["execution"][k] for k in ("execution_state", "execution_blockers", "execution_supports")}
         keep["economics"] = {k: ev["economics"][k] for k in ("profit_class", "missing_inputs", "evidence_quality", "quantity_total",

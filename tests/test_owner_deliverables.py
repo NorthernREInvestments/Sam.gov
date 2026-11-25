@@ -72,10 +72,9 @@ def test_deliverables_written_and_registration_grouped(tmp_path):
     (docs / "staged_id_map.json").write_text(json.dumps({"OLD-2": ["src:STG-2"]}), encoding="utf-8")
     res = od.build_owner_deliverables(tmp_path, rows, NOW)
     assert res["supplier_research_tasks"] == 2 and res["registration_portals"] >= 1
-    assert res["owner_buckets"]["pricing_now"] >= 1 and res["owner_buckets"]["access_required"] >= 1
-    pricing = [json.loads(l) for l in (tmp_path / "owner" / "pricing_now.jsonl").read_text(encoding="utf-8").splitlines() if l]
-    assert pricing[0]["staged_id"] == "STG-4" and pricing[0]["quantity_and_units"] == ["1.0 EA"]
-    assert "revenue" not in pricing[0] and pricing[0].get("next_action")
+    assert res["owner_buckets"]["access_required"] >= 1
+    assert (tmp_path / "owner" / "all_active_products.jsonl").exists()
+    assert (tmp_path / "owner" / "ready_to_bid.jsonl").read_text(encoding="utf-8") == ""
     access = [json.loads(l) for l in (tmp_path / "owner" / "access_required.jsonl").read_text(encoding="utf-8").splitlines() if l]
     assert access[0]["staged_id"] == "STG-5" and "Manual portal access" in access[0]["next_action"]
     reg = json.loads((tmp_path / "owner" / "registration_queue.json").read_text(encoding="utf-8"))

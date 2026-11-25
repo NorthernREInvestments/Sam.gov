@@ -76,6 +76,20 @@ def _clean(text: str | None) -> str:
     return re.sub(r"\s+", " ", str(text or "")).strip()
 
 
+_ITEM_SCHEDULE_RANGE = re.compile(
+    r"(?i)(?:Item\s+Information\s+)?(?P<a>\d+)\s*-\s*(?P<b>\d+)\s+of\s+(?P<n>\d+)")
+
+
+def parse_item_schedule_range(text: str) -> dict[str, Any]:
+    """Periscope/BidBuy '1-5 of 62' schedule pager. Uses the last pager mark (after multi-page fetch)."""
+    matches = list(_ITEM_SCHEDULE_RANGE.finditer(text or ""))
+    if not matches:
+        return {"advertised_total": None, "shown_from": None, "shown_to": None, "evidence": None}
+    m = matches[-1]  # last page wins once remaining item pages have been appended
+    a, b, n = int(m.group("a")), int(m.group("b")), int(m.group("n"))
+    return {"advertised_total": n, "shown_from": a, "shown_to": b, "evidence": m.group(0)}
+
+
 def _num(v: str | None) -> float | None:
     try:
         return float(str(v).replace(",", ""))
@@ -165,8 +179,9 @@ def extract_requirements(
             sources = [("title", _clean(title))]
         else:
             return {"requirements_state": "NO_TEXT", "line_items": [], "line_item_count": 0, "complete_line_items": 0,
-                    "solicitation_requirements": {}, "quote_ready": False, "quote_ready_blockers": ["no_solicitation_text_retained"],
-                    "title": _clean(title)}
+                    "schedule_advertised_total": None, "schedule_shown_from": None, "schedule_shown_to": None,
+                    "schedule_complete": None, "solicitation_requirements": {}, "quote_ready": False,
+                    "quote_ready_blockers": ["no_solicitation_text_retained"], "title": _clean(title)}
 
     lines_by_key: dict[str, dict[str, Any]] = {}
     for src, text in sources:
@@ -205,11 +220,15 @@ def extract_requirements(
 
     lines = list(lines_by_key.values())
     complete = [li for li in lines if li.get("complete")]
+    schedule = parse_item_schedule_range(full)
     blockers: list[str] = []
     if not lines:
         blockers.append("no_line_items_or_firm_quantity_in_retained_text")
     elif len(complete) < len(lines):
         blockers.append(f"incomplete_line_items:{len(lines) - len(complete)}_of_{len(lines)}")
+    if schedule.get("advertised_total") and len(lines) < int(schedule["advertised_total"]):
+        blockers.append(
+            f"schedule_pages_incomplete:{len(lines)}_of_{schedule['advertised_total']}")
     if not any(li.get("manufacturer") or li.get("mpn") or li.get("nsn") or li.get("model") for li in lines) and not req.get("specifications"):
         blockers.append("product_identity_not_specified")
     if "delivery" not in req:
@@ -220,6 +239,12 @@ def extract_requirements(
         "line_items": lines,
         "line_item_count": len(lines),
         "complete_line_items": len(complete),
+        "schedule_advertised_total": schedule.get("advertised_total"),
+        "schedule_shown_from": schedule.get("shown_from"),
+        "schedule_shown_to": schedule.get("shown_to"),
+        "schedule_complete": bool(
+            schedule.get("advertised_total") and len(lines) >= int(schedule["advertised_total"]))
+            if schedule.get("advertised_total") else (None if not lines else True),
         "solicitation_requirements": req,
         "amendments_applied": [s for s, _ in sources if s.startswith("amendment:")],
         "quote_ready": state == "COMPLETE",
@@ -293,6 +318,9 @@ def assess_sourcing_readiness(*, title: str, requirements: dict[str, Any], eligi
         missing.append("product_identity_too_vague_for_quote")
     if not lines or len(qty_lines) < len(lines):
         missing.append("quantity_not_stated")
+    adv = requirements.get("schedule_advertised_total")
+    if adv and len(lines) < int(adv):
+        missing.append(f"schedule_pages_incomplete:{len(lines)}_of_{adv}")
     # Retained schedule text that is only services must not enter pricing research
     _svc_only = re.compile(
         r"(?i)\b(?:screening\s+services?|remediation\s+services?|site\s+examinations?|consulting\s+services?|"

@@ -20,8 +20,12 @@ from urllib.parse import urlparse
 
 RESEARCH_QUEUES = ("actionable", "supplier_research_ready", "commercial_research_ready", "financing_verification", "easy_registration")
 PRODUCT_PRESENCE = {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}
-# Owner-facing buckets (directive §7). READY_TO_BID is never asserted from solicitation info alone.
-OWNER_ACTION_BUCKETS = ("pricing_now", "submission_verified", "access_required", "needs_investigation", "incompatible_closed")
+# Owner-facing buckets. READY_TO_BID is never asserted from solicitation info alone.
+OWNER_ACTION_BUCKETS = (
+    "pricing_now", "submission_verified", "access_required", "requirements_incomplete",
+    "potential_products", "needs_investigation", "incompatible_closed",
+)
+ACTIVE_OPEN = frozenset({"VERIFIED_OPEN", "LIKELY_OPEN"})
 
 # Always asked: M3 operates with zero owner cash, no personal guarantee and no personal credit.
 _BASE_QUESTIONS = (
@@ -323,12 +327,17 @@ def actionable_card(row: dict[str, Any], now: datetime, *, bucket: str) -> dict[
         missing.append(m)
     if bucket == "access_required":
         missing.append(str(row.get("queue_reason") or row.get("retrieval_status") or "official_page_inaccessible"))
+    if req.get("schedule_advertised_total") and req.get("line_item_count", 0) < int(req["schedule_advertised_total"]):
+        missing.append(f"schedule_pages_incomplete:{req.get('line_item_count')}_of_{req['schedule_advertised_total']}")
     next_action = {
         "pricing_now": "Request supplier quotes for the listed products/quantities; confirm lead time and drop-ship terms.",
         "submission_verified": "Submission path verified — complete pricing and mandatory forms before marking ready to bid.",
         "access_required": "Manual portal access required: register or open the official link, then capture the solicitation page/docs.",
-        "needs_investigation": "Obtain missing solicitation details (quantity, specs, or submission method) from retained or accessible sources.",
+        "requirements_incomplete": "Product procurement retained — obtain the missing schedule/quantity/spec/submission details listed.",
+        "potential_products": "Plausible goods purchase — confirm deliverable from accessible source content before pricing.",
+        "needs_investigation": "Obtain missing solicitation details from retained or accessible sources.",
         "incompatible_closed": "Audit only — not in the actionable queue.",
+        "all_active_products": "Confirmed active product procurement — see readiness bucket for next step.",
     }.get(bucket, "Review retained evidence.")
     return {
         "owner_bucket": bucket,
@@ -339,19 +348,27 @@ def actionable_card(row: dict[str, Any], now: datetime, *, bucket: str) -> dict[
         "state": row.get("state"),
         "source": row.get("source"),
         "official_url": row.get("official_url"),
+        "lifecycle_status": row.get("lifecycle_status"),
         "deadline_at": row.get("deadline_at"),
+        "deadline_basis": row.get("deadline_basis"),
+        "deadline_source": row.get("deadline_source"),
         "days_left": _days_left(row.get("deadline_at"), now),
+        "product_presence": (row.get("classification") or {}).get("product_presence"),
         "products": [
             {k: li.get(k) for k in ("description", "quantity", "unit_of_measure", "manufacturer", "model", "mpn", "nsn",
                                     "brand_name_or_equal", "brand_name_only")}
-            for li in lines[:25]
+            for li in lines
         ] or ([{"description": src.get("identity_evidence") or row.get("title"), "quantity": None, "unit_of_measure": None}]
               if src.get("identity_level") in {"EXACT", "SPECIFIED"} else []),
+        "line_item_count": req.get("line_item_count") or len(lines),
+        "schedule_advertised_total": req.get("schedule_advertised_total"),
+        "schedule_complete": req.get("schedule_complete"),
         "quantity_and_units": [
             f"{li.get('quantity')} {li.get('unit_of_measure') or ''}".strip()
             for li in lines if li.get("quantity") is not None
-        ][:25],
+        ],
         "specifications": (sreq.get("specifications") or [])[:3] or None,
+        "brand_or_equal": sreq.get("brand_name_or_equal"),
         "reseller_restrictions": elig.get("eligibility_reasons") or elig.get("eligibility_findings") or None,
         "eligibility_state": elig.get("eligibility_state"),
         "submission_method": (sreq.get("submission") or [None])[0],
@@ -360,26 +377,43 @@ def actionable_card(row: dict[str, Any], now: datetime, *, bucket: str) -> dict[
         "missing_information": missing or None,
         "next_action": next_action,
         "queue_reason": row.get("queue_reason"),
+        "owner_queue": row.get("owner_queue"),
         "retrieval_status": row.get("retrieval_status"),
+        "federal_policy_hold": row.get("federal_policy_hold"),
     }
 
 
 def classify_owner_bucket(row: dict[str, Any]) -> str:
+    """Readiness bucket. Missing qty/pricing/access changes the next action — it does not erase the opportunity."""
     q = row.get("owner_queue")
+    cl = row.get("classification") or {}
+    pp = cl.get("product_presence")
+    req = row.get("requirements") or {}
+    src = row.get("sourcing") or {}
     cond = (row.get("qualification") or {}).get("conditions") or {}
     if q in {"archived", "blocked"}:
         return "incompatible_closed"
     if q == "access_required":
         return "access_required"
+    incomplete = bool(src.get("sourcing_missing")) or (
+        req.get("schedule_advertised_total") and (req.get("line_item_count") or 0) < int(req["schedule_advertised_total"]))
     if q in {"actionable", "supplier_research_ready", "easy_registration", "financing_verification"}:
+        if incomplete:
+            return "requirements_incomplete"
         return "submission_verified" if cond.get("SUBMISSION_VERIFIED") else "pricing_now"
-    if q in {"commercial_research_ready", "document_verification", "status_verification"}:
+    if pp in PRODUCT_PRESENCE and q in {"commercial_research_ready", "document_verification"}:
+        return "requirements_incomplete"
+    if pp in {"POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"}:
+        return "potential_products"
+    if q in {"status_verification"}:
         return "needs_investigation"
+    if pp in PRODUCT_PRESENCE:
+        return "requirements_incomplete"
     return "needs_investigation"
 
 
 def build_owner_deliverables(root: Path, rows: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
-    """Write ``root/owner/*``; returns counts. ``rows`` are slim inventory rows with queues assigned."""
+    """Write ``root/owner/*``; returns counts. Complete product inventory — no arbitrary top-N cutoff."""
     out = root / "owner"
     out.mkdir(parents=True, exist_ok=True)
     rows_by_id = {r["staged_id"]: r for r in rows if r.get("staged_id") and not r.get("duplicate_of")}
@@ -406,28 +440,58 @@ def build_owner_deliverables(root: Path, rows: list[dict[str, Any]], now: dateti
             w.writerows(work)
 
     buckets: dict[str, list[dict[str, Any]]] = {b: [] for b in OWNER_ACTION_BUCKETS}
+    all_active: list[dict[str, Any]] = []
+    recon = Counter()
     for r in rows_by_id.values():
-        if (r.get("classification") or {}).get("product_presence") not in PRODUCT_PRESENCE and r.get("owner_queue") not in {
-                "access_required", "supplier_research_ready", "commercial_research_ready", "actionable"}:
-            if r.get("owner_queue") in {"archived", "blocked"}:
-                continue
-            if r.get("owner_queue") not in {"document_verification", "status_verification"}:
-                continue
+        cl = r.get("classification") or {}
+        pp = cl.get("product_presence")
+        life = r.get("lifecycle_status")
+        fed = bool(r.get("federal_policy_hold"))
+        recon[f"lifecycle:{life}"] += 1
+        if fed:
+            recon["federal_parked"] += 1
+        if r.get("owner_queue") == "archived":
+            recon["archived"] += 1
+        if r.get("owner_queue") == "blocked":
+            recon["blocked"] += 1
+        if pp:
+            recon[f"presence:{pp}"] += 1
+        # Complete active product inventory (confirmed), regardless of remaining research gates
+        if (life in ACTIVE_OPEN and not fed and pp in PRODUCT_PRESENCE
+                and r.get("owner_queue") not in {"archived", "blocked"}):
+            card = actionable_card(r, now, bucket="all_active_products")
+            all_active.append(card)
+            recon["confirmed_active_product"] += 1
         bucket = classify_owner_bucket(r)
-        if bucket == "incompatible_closed" and r.get("owner_queue") not in {"blocked"}:
-            continue  # closed/archived stay in audit manifests, not the default owner file
+        if bucket == "incompatible_closed" and r.get("owner_queue") not in {"blocked", "archived"}:
+            continue
+        if bucket == "incompatible_closed" and r.get("owner_queue") == "archived":
+            continue  # audit via retirement_manifest / inventory filters
         buckets[bucket].append(actionable_card(r, now, bucket=bucket))
+        recon[f"bucket:{bucket}"] += 1
+
     for b in OWNER_ACTION_BUCKETS:
-        buckets[b].sort(key=lambda c: (c.get("days_left") is None, c.get("days_left") if c.get("days_left") is not None else 9999,
+        buckets[b].sort(key=lambda c: (c.get("days_left") is None,
+                                       c.get("days_left") if c.get("days_left") is not None else 9999,
                                        str(c.get("deadline_at") or "9999")))
         with (out / f"{b}.jsonl").open("w", encoding="utf-8") as f:
             for card in buckets[b]:
                 f.write(json.dumps(card, ensure_ascii=False, default=str) + "\n")
-    # Default owner view: pricing first, then access actions, then investigation — never ready-to-bid placeholders
-    default = buckets["pricing_now"] + buckets["submission_verified"] + buckets["access_required"][:50] + buckets["needs_investigation"][:100]
-    with (out / "actionable_opportunities.jsonl").open("w", encoding="utf-8") as f:
-        for card in default:
+    all_active.sort(key=lambda c: (c.get("days_left") is None,
+                                   c.get("days_left") if c.get("days_left") is not None else 9999,
+                                   str(c.get("deadline_at") or "9999")))
+    with (out / "all_active_products.jsonl").open("w", encoding="utf-8") as f:
+        for card in all_active:
             f.write(json.dumps(card, ensure_ascii=False, default=str) + "\n")
+    # Default owner view: FULL confirmed active product inventory (not a shortlist)
+    with (out / "actionable_opportunities.jsonl").open("w", encoding="utf-8") as f:
+        for card in all_active:
+            f.write(json.dumps(card, ensure_ascii=False, default=str) + "\n")
+    (out / "ready_to_bid.jsonl").write_text("", encoding="utf-8")  # never asserted from solicitation info alone
+    (out / "reconciliation.json").write_text(
+        json.dumps({"counts": dict(recon), "all_active_products": len(all_active),
+                    "owner_buckets": {b: len(buckets[b]) for b in OWNER_ACTION_BUCKETS},
+                    "ready_to_bid": 0}, indent=1, default=str), encoding="utf-8")
 
     by_queue: dict[str, int] = defaultdict(int)
     for t in tasks:
@@ -437,4 +501,5 @@ def build_owner_deliverables(root: Path, rows: list[dict[str, Any]], now: dateti
             "indicative_bands": dict(Counter(t["indicative_economics"]["band"] for t in tasks)),
             "document_retrieval_worklist": len(work), "opportunity_table_rows": len(table),
             "owner_buckets": {b: len(buckets[b]) for b in OWNER_ACTION_BUCKETS},
-            "actionable_opportunities": len(default)}
+            "all_active_products": len(all_active), "actionable_opportunities": len(all_active),
+            "ready_to_bid": 0, "reconciliation": dict(recon)}

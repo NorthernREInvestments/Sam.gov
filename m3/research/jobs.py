@@ -3572,6 +3572,8 @@ def main(argv: list[str] | None = None) -> int:
     p_sd = sub.add_parser("staged-documents")
     p_sd.add_argument("--max-records", type=int, default=2000)
     p_sd.add_argument("--only-untried", action="store_true", help="bound the run to records never attempted before")
+    p_sd.add_argument("--complete-schedules", action="store_true",
+                      help="re-fetch remaining Periscope/BidBuy item-table pages for partial '1-N of M' schedules")
     p_acc = sub.add_parser("acceptance-002q")
     p_acc.add_argument(
         "--reuse",
@@ -4016,17 +4018,27 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(res, indent=2, default=str), flush=True)
         elif args.cmd == "staged-documents":
             # Free direct official-URL documents for staged product targets; zero metered calls.
-            from m3.research.nextbid_free_doc_recovery import recover_staged_documents, select_staged_document_targets
+            from m3.research.nextbid_free_doc_recovery import (
+                complete_partial_item_schedules,
+                recover_staged_documents,
+                select_staged_document_targets,
+            )
 
             root = get_settings().staged_inventory_root()
             rows = [json.loads(l) for l in (root / "inventory.jsonl").open(encoding="utf-8")]
-            targets = select_staged_document_targets(rows, now=datetime.now(timezone.utc))
-            if args.only_untried:
-                ck_p = root / "documents" / "doc_checkpoint.json"
-                tried = set((json.loads(ck_p.read_text(encoding="utf-8")).get("done") or {}) if ck_p.exists() else ())
-                targets = [t for t in targets if str(t.get("staged_id")) not in tried]
-            del rows
-            res = recover_staged_documents(targets, out_root=root / "documents", max_records=args.max_records)
+            if args.complete_schedules:
+                res = complete_partial_item_schedules(
+                    rows, out_root=root / "documents",
+                    vault=get_settings().evidence_vault_root(),
+                    max_records=args.max_records)
+            else:
+                targets = select_staged_document_targets(rows, now=datetime.now(timezone.utc))
+                if args.only_untried:
+                    ck_p = root / "documents" / "doc_checkpoint.json"
+                    tried = set((json.loads(ck_p.read_text(encoding="utf-8")).get("done") or {}) if ck_p.exists() else ())
+                    targets = [t for t in targets if str(t.get("staged_id")) not in tried]
+                del rows
+                res = recover_staged_documents(targets, out_root=root / "documents", max_records=args.max_records)
             print(json.dumps(res, default=str), flush=True)
         elif args.cmd == "nextbid-final-pipeline-audit":
             from m3.research.nextbid_final_pipeline_audit import run_final_pipeline_audit
