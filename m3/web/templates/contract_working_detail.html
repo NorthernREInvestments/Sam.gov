@@ -19,8 +19,10 @@
   {% if item.what_blocks_bid %}
   <p><strong>Blocks bid:</strong> {{ item.what_blocks_bid|join('; ') }}</p>
   {% endif %}
-  {% if item.quote_ready_blockers %}
+  {% if item.quote_ready_blockers and not item.supplier_quote_ready %}
   <p><strong>Blocks quote:</strong> {{ item.quote_ready_blockers|join('; ') }}</p>
+  {% elif item.quote_ready_blockers and item.supplier_quote_ready %}
+  <p class="muted"><strong>Residual gaps (quote still usable):</strong> {{ item.quote_ready_blockers|join('; ') }}</p>
   {% endif %}
   <p><strong>Next action:</strong> {{ item.next_action or 'UNKNOWN' }}</p>
 </section>
