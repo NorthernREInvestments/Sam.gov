@@ -89,9 +89,17 @@ def _load_campaign_state() -> dict[str, Any]:
 
 def _save_campaign_state(state: dict[str, Any]) -> None:
     path = _campaign_state_path()
+    payload = json.dumps(state, indent=2, default=str)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=2, default=str), encoding="utf-8")
-    tmp.replace(path)
+    tmp.write_text(payload, encoding="utf-8")
+    for attempt in range(8):
+        try:
+            tmp.replace(path)
+            return
+        except (PermissionError, OSError):
+            time.sleep(0.05 * (attempt + 1))
+    path.write_text(payload, encoding="utf-8")
+    tmp.unlink(missing_ok=True)
 
 
 def _acquire_worker_lock() -> Path:
@@ -112,7 +120,7 @@ def _release_worker_lock(lock: Path | None) -> None:
 
 def authorize_and_unlock_campaign() -> dict[str, Any]:
     prior = _load_campaign_state()
-    if prior.get("status") == "completed" and prior.get("campaign_id") == CAMPAIGN_ID:
+    if prior.get("status") == "completed" and prior.get("campaign_id") == CAMPAIGN_ID and int(prior.get("credits_spent") or 0) > 0:
         raise RuntimeError("campaign_250_already_completed_single_use")
     if prior.get("status") == "running":
         raise RuntimeError("campaign_250_already_running")
@@ -121,39 +129,47 @@ def authorize_and_unlock_campaign() -> dict[str, Any]:
     day_used = int(state.get("day_used") or 0)
     # Scoped daily exception: prior same-day pilot burn must not shrink the 250 allowance.
     daily_override = day_used + CAMPAIGN_250_CREDIT_CAP
-    write_owner_authorization(
-        authorized=True,
-        approved_allocation_calls=CAMPAIGN_250_CREDIT_CAP,
-        max_additional_calls=CAMPAIGN_250_CREDIT_CAP,
-        note=CAMPAIGN_NOTE,
-        scope=CAMPAIGN_250_SCOPE,
-        test_call_cap=CAMPAIGN_250_CREDIT_CAP,
-        allowed_endpoints=sorted(CAMPAIGN_250_ALLOWED_ENDPOINTS),
-        daily_limit_override=daily_override,
-        reset_test_used=True,
-    )
-    os.environ["NEXTBID_ENABLED"] = "true"
-    os.environ["NEXTBID_EMERGENCY_STOP"] = "false"
-    get_settings.cache_clear()
-    clear_emergency_stop(owner_authorized=True)
-    assert acquisition_locked() is False, "campaign unlock failed"
-    _save_campaign_state(
-        {
-            "campaign_id": CAMPAIGN_ID,
-            "status": "running",
-            "started_at": _utc(),
-            "credits_spent": 0,
-            "lane_a_spent": 0,
-            "lane_b_spent": 0,
-            "checkpoints_hit": [],
-            "stop_reason": None,
-            "daily_limit_override": daily_override,
-            "day_used_at_start": day_used,
-            "max_credits": CAMPAIGN_250_CREDIT_CAP,
-            "reserve_floor": RESERVED_FLOOR,
-        }
-    )
-    return controller_status()
+    try:
+        write_owner_authorization(
+            authorized=True,
+            approved_allocation_calls=CAMPAIGN_250_CREDIT_CAP,
+            max_additional_calls=CAMPAIGN_250_CREDIT_CAP,
+            note=CAMPAIGN_NOTE,
+            scope=CAMPAIGN_250_SCOPE,
+            test_call_cap=CAMPAIGN_250_CREDIT_CAP,
+            allowed_endpoints=sorted(CAMPAIGN_250_ALLOWED_ENDPOINTS),
+            daily_limit_override=daily_override,
+            reset_test_used=True,
+        )
+        os.environ["NEXTBID_ENABLED"] = "true"
+        os.environ["NEXTBID_EMERGENCY_STOP"] = "false"
+        get_settings.cache_clear()
+        clear_emergency_stop(owner_authorized=True)
+        assert acquisition_locked() is False, "campaign unlock failed"
+        _save_campaign_state(
+            {
+                "campaign_id": CAMPAIGN_ID,
+                "status": "running",
+                "started_at": _utc(),
+                "credits_spent": 0,
+                "lane_a_spent": 0,
+                "lane_b_spent": 0,
+                "checkpoints_hit": [],
+                "stop_reason": None,
+                "daily_limit_override": daily_override,
+                "day_used_at_start": day_used,
+                "max_credits": CAMPAIGN_250_CREDIT_CAP,
+                "reserve_floor": RESERVED_FLOOR,
+            }
+        )
+        return controller_status()
+    except Exception:
+        revoke_owner_authorization()
+        os.environ["NEXTBID_ENABLED"] = "false"
+        os.environ["NEXTBID_EMERGENCY_STOP"] = "true"
+        get_settings.cache_clear()
+        engage_emergency_stop(reason="campaign_250_authorize_failed")
+        raise
 
 
 def relock_campaign(*, reason: str) -> None:

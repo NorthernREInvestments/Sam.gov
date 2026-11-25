@@ -149,9 +149,28 @@ def load_budget_state() -> dict[str, Any]:
 
 def save_budget_state(state: dict[str, Any]) -> None:
     state["updated_at"] = _utc()
-    tmp = _state_path().with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=2, default=str), encoding="utf-8")
-    tmp.replace(_state_path())
+    path = _state_path()
+    payload = json.dumps(state, indent=2, default=str)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    # OneDrive / Windows locks can deny atomic replace; retry then fall back to direct write.
+    last_err: Exception | None = None
+    for attempt in range(8):
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError as exc:
+            last_err = exc
+            time.sleep(0.05 * (attempt + 1))
+        except OSError as exc:
+            last_err = exc
+            time.sleep(0.05 * (attempt + 1))
+    try:
+        path.write_text(payload, encoding="utf-8")
+        tmp.unlink(missing_ok=True)
+        return
+    except Exception as exc:
+        raise NextBidControllerError(f"budget_state_write_failed:{type(exc).__name__}:{exc}") from (last_err or exc)
 
 
 def append_ledger(entry: dict[str, Any]) -> None:
