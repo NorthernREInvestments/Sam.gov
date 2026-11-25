@@ -1,0 +1,28 @@
+{
+  "title": "PRICING NOW 14 verification",
+  "api_expenditure": 0,
+  "acquisition_locked": true,
+  "ledger": {"account_used": 3454, "account_remaining": 2546, "monthly_reserve": 1000},
+  "final_counts": {
+    "originally_labeled_pricing_ready": 14,
+    "unique_solicitations": 13,
+    "verified_supplier_quote_ready_YES": 2,
+    "partially_quote_ready_PARTIAL": 10,
+    "missing_requirements_NO": 2,
+    "expired_or_closed": 0,
+    "product_classification_incorrect": 1,
+    "open_status_unverified": 14
+  },
+  "yes_ids": ["STG-440dc864c2911950", "STG-837408a1f2c0298a"],
+  "no_ids": ["STG-add9d2ff694e1761", "STG-7ef0704ace9e8bdd"],
+  "deleted_dump_preservation": {
+    "deleted": 7954,
+    "proven_redundant": 7954,
+    "unique_content_lost": 0,
+    "unverified": 0,
+    "broken_references": 0,
+    "status": "PROVEN_REDUNDANT"
+  },
+  "parser_defect_documented": "Unication UOM extracted as brand token from '53 Unication G5' — no rule change applied",
+  "report": "docs/acceptance_archive/PRICING_NOW_14_VERIFICATION/REPORT.md"
+}
