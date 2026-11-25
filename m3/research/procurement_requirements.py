@@ -313,8 +313,10 @@ def qualification(*, presence: dict[str, Any], requirements: dict[str, Any], sou
         decision, why = "PROCEED", f"{pp.lower()}:" + ",".join(s["rule"] for s in signals[:3])
     elif pp == "NO_PRODUCT_EVIDENCE":
         decision = "SKIP"
-        why = (f"principal_deliverable:{presence.get('procurement_category')}"
-               f"|class:{presence.get('requirement_class')}:{presence.get('decision_confidence')}")
+        cat = presence.get("procurement_category")
+        why = (f"principal_deliverable:{cat}" if cat not in {None, "unresolved"}
+               else f"no_goods_signal_in_retained_{str(presence.get('evidence_completeness')).lower()}")
+        why += f"|class:{presence.get('requirement_class')}:{presence.get('decision_confidence')}"
     else:
         decision, why = "INVESTIGATE", f"{pp.lower()}|evidence:{presence.get('evidence_completeness')}"
     conds = {
