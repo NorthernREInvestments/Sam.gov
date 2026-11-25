@@ -203,7 +203,8 @@ def gather_original_evidence(
     original: dict[str, Any] = {}
     cache_refs: list[str] = []
 
-    # Paid durable detail if present
+    # Paid durable detail if present (legacy single-file layout; usually absent —
+    # full bodies live under by_request and are recovered offline).
     paid_path = paid_by_nb / f"{nb_id}.json"
     paid_blob = None
     if paid_path.exists():
@@ -218,6 +219,15 @@ def gather_original_evidence(
                 original.update({k: v for k, v in paid_blob.items() if k not in {"headers"}})
         except Exception:
             paid_blob = None
+
+    # Offline recovery package (by_request walk + raw_text + source_documents)
+    try:
+        from m3.research.nextbid_offline_recovery import load_recovery_package
+
+        if load_recovery_package(nb_id):
+            paid_blob = paid_blob or {"offline_recovery": True}
+    except Exception:
+        pass
 
     if provider:
         sources_used.append("nextbid_http_cache_or_checkpoint")
@@ -259,6 +269,35 @@ def gather_original_evidence(
         sources_used.append("solicitation_full_text_store")
         cache_refs.append(doc_meta["path"])
 
+    # Apply offline recovery: thicker description/document_text + source_documents
+    try:
+        from m3.research.nextbid_offline_recovery import apply_recovery_to_evidence
+
+        original, doc_text = apply_recovery_to_evidence(
+            nb_id,
+            original=original,
+            doc_text=doc_text,
+            sources_used=sources_used,
+            cache_refs=cache_refs,
+        )
+        if "nextbid_offline_recovery" in sources_used and doc_text and (
+            not doc_meta or len(doc_text) > int(doc_meta.get("full_text_chars") or 0)
+        ):
+            doc_meta = {
+                "source": "nextbid_offline_recovery_raw_text",
+                "full_text_chars": len(doc_text),
+                "is_listing_preview_only": False,
+                "updated_at": None,
+                "path": str(
+                    get_settings().data_root()
+                    / "nextbid_offline_recovery"
+                    / "by_nb_id"
+                    / f"{nb_id}.json"
+                ),
+            }
+    except Exception:
+        pass
+
     # Verifiable evidence dimensions — never equate a short listing preview with a
     # complete solicitation package. Filename / prior flag is not proof of content.
     has_provider_row = bool(provider) or bool(paid_blob)
@@ -273,11 +312,13 @@ def gather_original_evidence(
         or (doc_len == 0 and desc_len <= 500)
         or (doc_len > 0 and doc_len <= 500 and desc_len <= 500 and not paid_blob)
     )
-    # Attachment metadata present?
+    # Attachment metadata present? (include source_documents — NextBid's primary list)
     attachments = (
         original.get("attachments")
         or original.get("documents")
         or original.get("document_list")
+        or original.get("source_documents")
+        or original.get("nextbid_documents")
         or []
     )
     has_attachment_metadata = bool(attachments) and attachments not in ([], {}, "")

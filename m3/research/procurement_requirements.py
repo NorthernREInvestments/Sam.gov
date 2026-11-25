@@ -303,20 +303,49 @@ def assess_product_identity(title: str, requirements: dict[str, Any]) -> dict[st
     return {"identity_level": "GENERIC", "identity_basis": None, "identity_evidence": None}
 
 
+_PRICING_BASIS = re.compile(
+    r"(?i)\b(?:unit\s+pric(?:e|ing)|price\s+list|catalog(?:ue)?\s+(?:price|contract)|as[- ]needed|"
+    r"indefinite\s+(?:delivery[,/ ]\s*)?quantity|\bIDIQ\b|requirements\s+contract|"
+    r"estimated\s+(?:annual\s+)?quantit(?:y|ies)|quantity\s+(?:to\s+be\s+)?determined|"
+    r"no\s+guaranteed\s+(?:minimum|quantity)|pricing\s+schedule)\b"
+)
+
+
+def detect_pricing_basis(title: str, requirements: dict[str, Any]) -> dict[str, Any] | None:
+    """Legitimate unit-pricing / catalog / IDIQ basis when no firm ordered quantity is stated."""
+    blob = " ".join(
+        x for x in (
+            title,
+            " ".join(str(li.get("description") or "") for li in (requirements.get("line_items") or [])),
+            " ".join(
+                " ".join(v) if isinstance(v, list) else str(v)
+                for k, v in ((requirements.get("solicitation_requirements") or {}).items())
+                if k in {"special_conditions", "specifications"}
+            ),
+        ) if x
+    )
+    m = _PRICING_BASIS.search(blob)
+    if not m:
+        return None
+    return {"pricing_basis": "unit_or_catalog", "pricing_basis_evidence": _span(blob, m)}
+
+
 def assess_sourcing_readiness(*, title: str, requirements: dict[str, Any], eligibility_state: str) -> dict[str, Any]:
     """Can Sam start supplier research? Needs a quotable identity and a stated quantity per line.
 
     Supplier pricing, delivery terms and financing are what the research acquires, so they are never gates here.
     Bid eligibility and submission terms belong to SUBMISSION_VERIFIED (``submission_gaps``); only a
     BLOCKED eligibility stops research, because pricing an item M3 cannot bid wastes Sam's time.
+    A catalog / IDIQ / unit-price contract may be researchable without a firm ordered quantity.
     """
     ident = assess_product_identity(title, requirements)
     lines = requirements.get("line_items") or []
     qty_lines = [li for li in lines if li.get("quantity") is not None]
+    pricing_basis = detect_pricing_basis(title, requirements)
     missing: list[str] = []
     if ident["identity_level"] == "GENERIC":
         missing.append("product_identity_too_vague_for_quote")
-    if not lines or len(qty_lines) < len(lines):
+    if (not lines or len(qty_lines) < len(lines)) and not pricing_basis:
         missing.append("quantity_not_stated")
     adv = requirements.get("schedule_advertised_total")
     if adv and len(lines) < int(adv):
@@ -338,8 +367,129 @@ def assess_sourcing_readiness(*, title: str, requirements: dict[str, Any], eligi
         state = "COMMERCIAL_RESEARCH_READY"
     else:
         state = "DOCUMENT_REQUIRED"
-    return {"sourcing_state": state, "sourcing_missing": missing, "submission_gaps": submission_gaps, **ident,
-            "quantity_lines": len(qty_lines), "line_items": len(lines)}
+    out = {"sourcing_state": state, "sourcing_missing": missing, "submission_gaps": submission_gaps, **ident,
+           "quantity_lines": len(qty_lines), "line_items": len(lines)}
+    if pricing_basis:
+        out.update(pricing_basis)
+    return out
+
+
+# Owner blocker taxonomy (phase 8). Codes name the gap; solvability separates extract-miss vs never-accessible.
+OWNER_BLOCKER_CODES = (
+    "MISSING_PRODUCT_IDENTITY", "MISSING_QUANTITY_OR_PRICING_BASIS", "INCOMPLETE_LINE_ITEM_SCHEDULE",
+    "MISSING_SPECIFICATIONS", "DEADLINE_UNVERIFIED", "SOURCE_LOGIN_REQUIRED", "SOURCE_ACCESS_BLOCKED",
+    "MISSING_SPECIFIC_DOCUMENT", "DEALER_AUTHORIZATION_REQUIRED", "ELIGIBILITY_UNVERIFIED",
+    "SUBMISSION_REQUIREMENTS_UNKNOWN", "PRODUCT_CLASSIFICATION_UNCERTAIN", "SOURCE_RESPONSE_INCOMPLETE",
+    "EXTRACTION_INCOMPLETE", "OTHER_DOCUMENTED_BLOCKER",
+)
+
+
+def classify_evidence_gap(
+    *,
+    description: str | None,
+    document_text: str | None,
+    requirements: dict[str, Any],
+    sourcing: dict[str, Any],
+    access_block: str | None = None,
+    retrieval_status: str | None = None,
+) -> dict[str, Any]:
+    """Distinguish software extraction failure from information that was never accessible."""
+    text_chars = len(description or "") + len(document_text or "")
+    missing = sourcing.get("sourcing_missing") or []
+    if not missing and sourcing.get("sourcing_state") == "SUPPLIER_RESEARCH_READY":
+        return {"evidence_gap_kind": "NONE", "evidence_gap_detail": None, "text_chars_retained": text_chars}
+    if access_block or retrieval_status in {"robots_disallow", "restricted"}:
+        return {
+            "evidence_gap_kind": "SOURCE_ACCESS_BLOCKED",
+            "evidence_gap_detail": access_block or f"retrieval:{retrieval_status}",
+            "text_chars_retained": text_chars,
+        }
+    if text_chars >= 80:
+        return {
+            "evidence_gap_kind": "EXTRACTION_INCOMPLETE",
+            "evidence_gap_detail": "retained_text_present_but_requirements_incomplete:" + ",".join(missing[:4]),
+            "text_chars_retained": text_chars,
+        }
+    if text_chars > 0:
+        return {
+            "evidence_gap_kind": "SOURCE_RESPONSE_INCOMPLETE",
+            "evidence_gap_detail": f"only_{text_chars}_chars_retained",
+            "text_chars_retained": text_chars,
+        }
+    return {
+        "evidence_gap_kind": "NEVER_ACQUIRED",
+        "evidence_gap_detail": "listing_or_title_only_no_body_retained",
+        "text_chars_retained": 0,
+    }
+
+
+def owner_blocker_codes(
+    *,
+    title: str,
+    requirements: dict[str, Any],
+    sourcing: dict[str, Any],
+    presence: dict[str, Any],
+    eligibility: dict[str, Any],
+    evidence_gap: dict[str, Any],
+    deadline_at: str | None = None,
+    access_block: str | None = None,
+) -> list[dict[str, str]]:
+    """Specific actionable blockers with solvability: A offline, B free page, C vendor login, D paid, E unavailable."""
+    blocks: list[dict[str, str]] = []
+    missing = sourcing.get("sourcing_missing") or []
+    gap = evidence_gap.get("evidence_gap_kind") or "NONE"
+    text_n = int(evidence_gap.get("text_chars_retained") or 0)
+
+    def add(code: str, evidence: str, next_action: str, solvability: str) -> None:
+        blocks.append({"code": code, "evidence": evidence[:240], "next_action": next_action[:240],
+                       "solvability": solvability})
+
+    if gap == "SOURCE_ACCESS_BLOCKED" or access_block:
+        add("SOURCE_ACCESS_BLOCKED", str(access_block or evidence_gap.get("evidence_gap_detail")),
+            "Do not re-probe; use retained listing evidence or owner portal login", "E")
+    elif gap == "NEVER_ACQUIRED":
+        add("SOURCE_RESPONSE_INCOMPLETE", "no_body_retained",
+            "Fetch public page only if host is not access-blocked; else owner login", "B")
+    elif gap == "EXTRACTION_INCOMPLETE":
+        add("EXTRACTION_INCOMPLETE", str(evidence_gap.get("evidence_gap_detail")),
+            "Re-run extraction on retained text; fix parser if fields are present", "A")
+    elif gap == "SOURCE_RESPONSE_INCOMPLETE":
+        add("SOURCE_RESPONSE_INCOMPLETE", str(evidence_gap.get("evidence_gap_detail")),
+            "Recover fuller official page or document text", "B")
+
+    if "product_identity_too_vague_for_quote" in missing:
+        add("MISSING_PRODUCT_IDENTITY", f"identity={sourcing.get('identity_level')}|text_chars={text_n}",
+            "Recover model/NSN/specs from retained or accessible content",
+            "A" if text_n >= 80 else "B")
+    if "quantity_not_stated" in missing:
+        add("MISSING_QUANTITY_OR_PRICING_BASIS",
+            "quantity_not_stated" + (f"|basis_checked={bool(sourcing.get('pricing_basis'))}"),
+            "Extract firm quantity or confirm unit/catalog pricing basis",
+            "A" if text_n >= 80 else "B")
+    if any(m.startswith("schedule_pages_incomplete") for m in missing):
+        add("INCOMPLETE_LINE_ITEM_SCHEDULE", ",".join(m for m in missing if "schedule" in m),
+            "Fetch remaining schedule pages via approved free adapter", "B")
+    if presence.get("product_presence") in {"LIKELY_PRODUCT", "POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"}:
+        add("PRODUCT_CLASSIFICATION_UNCERTAIN",
+            f"presence={presence.get('product_presence')}|evidence={presence.get('evidence_completeness')}",
+            "Confirm tangible-goods deliverable from retained evidence", "A" if text_n else "B")
+    if not deadline_at:
+        add("DEADLINE_UNVERIFIED", "deadline_at missing", "Recover deadline from listing or official page", "B")
+    if any("submission" in g for g in (sourcing.get("submission_gaps") or [])):
+        add("SUBMISSION_REQUIREMENTS_UNKNOWN", str((sourcing.get("submission_gaps") or [])[:3]),
+            "Extract submission method from accessible content", "A" if text_n >= 80 else "B")
+    elig = eligibility.get("eligibility_state")
+    if elig in {"UNKNOWN", "ELIGIBILITY_UNKNOWN", "EASY_REGISTRATION_REQUIRED"}:
+        add("ELIGIBILITY_UNVERIFIED", f"eligibility_state={elig}",
+            "Confirm eligibility from retained text", "A" if text_n >= 80 else "B")
+    reasons = " ".join(str(x) for x in (eligibility.get("eligibility_reasons") or []))
+    if re.search(r"(?i)authorized\s+dealer|oem\s+only|manufacturer\s+authorization", reasons):
+        add("DEALER_AUTHORIZATION_REQUIRED", reasons[:200], "Obtain dealer authorization", "C")
+    if gap == "SOURCE_ACCESS_BLOCKED" and "login" in str(access_block or "").lower():
+        add("SOURCE_LOGIN_REQUIRED", str(access_block), "Owner vendor registration on source portal", "C")
+    if not blocks and missing:
+        add("OTHER_DOCUMENTED_BLOCKER", ",".join(missing[:4]), "Manual review of retained evidence", "A")
+    return blocks
 
 
 QUALIFICATION_STATES = ("DISCOVERED", "PRODUCT_CANDIDATE", "PRODUCT_CONFIRMED", "REQUIREMENTS_COMPLETE",
@@ -383,7 +533,8 @@ def qualification(*, presence: dict[str, Any], requirements: dict[str, Any], sou
         "PRODUCT_CONFIRMED": decision == "PROCEED" and pp == "EXPLICIT_PRODUCT" and bool(hard)
                              and not presence.get("presence_capped_by"),
         "REQUIREMENTS_COMPLETE": decision == "PROCEED" and sourcing.get("identity_level") in {"EXACT", "SPECIFIED"}
-                                 and "quantity_not_stated" not in (sourcing.get("sourcing_missing") or []),
+                                 and ("quantity_not_stated" not in (sourcing.get("sourcing_missing") or [])
+                                      or bool(sourcing.get("pricing_basis"))),
         "SUPPLIER_RESEARCH_READY": decision == "PROCEED" and sourcing.get("sourcing_state") == "SUPPLIER_RESEARCH_READY",
         "SUBMISSION_VERIFIED": decision == "PROCEED" and not (sourcing.get("submission_gaps") or ["unknown"]),
         "READY_TO_SUBMIT": False,

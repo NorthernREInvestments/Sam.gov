@@ -1,0 +1,634 @@
+{
+  "title": "M3 NextBid Offline Recovery \u2014 FULL RETAINED INVENTORY",
+  "ran_at": "2026-11-25T04:55:23.795876+00:00",
+  "git_commit_id": "8db85397900eb9e6388211749d35dc131575c7f5",
+  "api_expenditure": 0,
+  "external_calls": 0,
+  "runtime_recovery_sec": 15.78,
+  "runtime_note": "staged inventory rebuild separate; see run_manifest.json",
+  "before": {
+    "captured_at": "2026-11-25T04:49:21.707704+00:00",
+    "source": "pre_offline_recovery",
+    "file_counts": {
+      "all_active_products": 6758,
+      "potential_products": 5715,
+      "requirements_incomplete": 174,
+      "access_required": 6574,
+      "pricing_now": 14,
+      "needs_investigation": 2339,
+      "submission_verified": 0
+    },
+    "nextbid_in_files": {
+      "all_active_products": 0,
+      "potential_products": 0,
+      "requirements_incomplete": 0,
+      "access_required": 0,
+      "pricing_now": 0,
+      "needs_investigation": 0,
+      "submission_verified": 0
+    },
+    "offline_disposition_summary": {
+      "unique_records_dispositioned": 14829,
+      "file_counts": {
+        "all_active_products.jsonl": 6758,
+        "potential_products.jsonl": 5715,
+        "requirements_incomplete.jsonl": 6715,
+        "access_required.jsonl": 40,
+        "pricing_now.jsonl": 7,
+        "needs_investigation.jsonl": 2339,
+        "queues/access_required.jsonl": 40,
+        "queues/blocked.jsonl": 10,
+        "queues/commercial_research_ready.jsonl": 48,
+        "queues/document_verification.jsonl": 12800,
+        "queues/status_verification.jsonl": 1924,
+        "queues/supplier_research_ready.jsonl": 7
+      },
+      "disposition_counts": {
+        "REQUIREMENTS_INCOMPLETE": 8990,
+        "POTENTIAL_PRODUCT": 5087,
+        "ACCESS_REQUIRED": 743,
+        "PRICING_NOW": 9
+      },
+      "blocker_counts": {
+        "SUBMISSION_REQUIREMENTS_UNKNOWN": 14759,
+        "MISSING_QUANTITY_OR_PRICING_BASIS": 14710,
+        "SOURCE_RESPONSE_INCOMPLETE": 12594,
+        "PRODUCT_CLASSIFICATION_UNCERTAIN": 11143,
+        "MISSING_PRODUCT_IDENTITY": 7654,
+        "DEADLINE_UNVERIFIED": 1361,
+        "MISSING_SPECIFICATIONS": 1195,
+        "SOURCE_ACCESS_BLOCKED": 743,
+        "MISSING_SPECIFIC_DOCUMENT": 487
+      },
+      "solvability_counts_A_to_E": {
+        "B": 39682,
+        "C": 18956,
+        "A": 5265,
+        "E": 743
+      },
+      "source_disposition_top": [
+        {
+          "source": "bidnet",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 7681
+        },
+        {
+          "source": "bidnet",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 4699
+        },
+        {
+          "source": "instantmarkets",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 221
+        },
+        {
+          "source": "opengov",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 216
+        },
+        {
+          "source": "opengov",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 196
+        },
+        {
+          "source": "planetbids",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 185
+        },
+        {
+          "source": "bonfire",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 159
+        },
+        {
+          "source": "bonfire",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 142
+        },
+        {
+          "source": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 142
+        },
+        {
+          "source": "discovered_datahub_usac_org_96rf-xd57",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 122
+        },
+        {
+          "source": "planetbids",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 110
+        },
+        {
+          "source": "calprocure",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 96
+        },
+        {
+          "source": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 89
+        },
+        {
+          "source": "mesa_az_solicitations",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 79
+        },
+        {
+          "source": "calprocure",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 78
+        },
+        {
+          "source": "instantmarkets",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 75
+        },
+        {
+          "source": "nj_purchase",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 66
+        },
+        {
+          "source": "instantmarkets",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 65
+        },
+        {
+          "source": "mesa_az_solicitations",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 56
+        },
+        {
+          "source": "nj_purchase",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 39
+        },
+        {
+          "source": "la_ramp_open_bids",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 38
+        },
+        {
+          "source": "bidnet",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 28
+        },
+        {
+          "source": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 27
+        },
+        {
+          "source": "georgia_gpr_open_goods",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 24
+        },
+        {
+          "source": "la_ramp_open_bids",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 22
+        },
+        {
+          "source": "publicpurchase",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 22
+        },
+        {
+          "source": "sf_open_bid_opportunities",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 15
+        },
+        {
+          "source": "discovered_data_lacity_org_hf3r-utnq",
+          "disposition": "ACCESS_REQUIRED",
+          "n": 14
+        },
+        {
+          "source": "opengov",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 12
+        },
+        {
+          "source": "discovered_data_lacity_org_hf3r-utnq",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 11
+        },
+        {
+          "source": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 11
+        },
+        {
+          "source": "publicpurchase",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 7
+        },
+        {
+          "source": "ct_das",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 7
+        },
+        {
+          "source": "instantmarkets",
+          "disposition": "PRICING_NOW",
+          "n": 5
+        },
+        {
+          "source": "la_ramp_open_bids",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 4
+        },
+        {
+          "source": "georgia_gpr_open_goods",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 4
+        },
+        {
+          "source": "planetbids",
+          "disposition": "POTENTIAL_PRODUCT",
+          "n": 4
+        },
+        {
+          "source": "bidnet",
+          "disposition": "PRICING_NOW",
+          "n": 4
+        },
+        {
+          "source": "sf_open_bid_opportunities",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 4
+        },
+        {
+          "source": "sam.gov",
+          "disposition": "REQUIREMENTS_INCOMPLETE",
+          "n": 4
+        }
+      ],
+      "written": "C:\\Users\\M_gra\\m3-worktrees\\repair_data\\staged_inventory\\owner\\offline_dispositions.jsonl"
+    }
+  },
+  "after": {
+    "file_counts": {
+      "all_active_products": 6757,
+      "potential_products": 5715,
+      "requirements_incomplete": 173,
+      "access_required": 6574,
+      "pricing_now": 14,
+      "needs_investigation": 2339,
+      "submission_verified": 0
+    },
+    "nextbid_touched": {},
+    "captured_at": "2026-11-25T04:55:22.019242+00:00"
+  },
+  "after_disposition_summary": {
+    "file_counts": {
+      "all_active_products.jsonl": 6758,
+      "potential_products.jsonl": 5715,
+      "requirements_incomplete.jsonl": 6715,
+      "access_required.jsonl": 40,
+      "pricing_now.jsonl": 7,
+      "needs_investigation.jsonl": 2339,
+      "queues/access_required.jsonl": 40,
+      "queues/blocked.jsonl": 10,
+      "queues/commercial_research_ready.jsonl": 48,
+      "queues/document_verification.jsonl": 12800,
+      "queues/status_verification.jsonl": 1924,
+      "queues/supplier_research_ready.jsonl": 7
+    },
+    "disposition_counts": {
+      "REQUIREMENTS_INCOMPLETE": 8990,
+      "POTENTIAL_PRODUCT": 5087,
+      "ACCESS_REQUIRED": 743,
+      "PRICING_NOW": 9
+    },
+    "blocker_counts": {
+      "SUBMISSION_REQUIREMENTS_UNKNOWN": 14759,
+      "MISSING_QUANTITY_OR_PRICING_BASIS": 14710,
+      "SOURCE_RESPONSE_INCOMPLETE": 12594,
+      "PRODUCT_CLASSIFICATION_UNCERTAIN": 11143,
+      "MISSING_PRODUCT_IDENTITY": 7654,
+      "DEADLINE_UNVERIFIED": 1361,
+      "MISSING_SPECIFICATIONS": 1195,
+      "SOURCE_ACCESS_BLOCKED": 743,
+      "MISSING_SPECIFIC_DOCUMENT": 487
+    }
+  },
+  "before_after_deltas": {
+    "access_required": {
+      "before": 6574,
+      "after": 6574,
+      "delta": 0
+    },
+    "all_active_products": {
+      "before": 6758,
+      "after": 6757,
+      "delta": -1
+    },
+    "needs_investigation": {
+      "before": 2339,
+      "after": 2339,
+      "delta": 0
+    },
+    "potential_products": {
+      "before": 5715,
+      "after": 5715,
+      "delta": 0
+    },
+    "pricing_now": {
+      "before": 14,
+      "after": 14,
+      "delta": 0
+    },
+    "requirements_incomplete": {
+      "before": 174,
+      "after": 173,
+      "delta": -1
+    },
+    "submission_verified": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    }
+  },
+  "recovery_metrics": {
+    "1_retained_nextbid_responses_inspected": 450,
+    "2_previously_ignored_markdown_bodies_recovered": 5,
+    "3_total_source_characters_recovered": 1032770,
+    "3a_markdown_chars": 26579,
+    "3b_description_chars_merged": 979617,
+    "3c_document_text_chars": 26574,
+    "4_attachment_references_recovered": 52,
+    "4a_source_documents_refs": 38,
+    "5_original_document_bodies_available_locally": 5,
+    "5a_clarification": "local text bodies = recovered read_file markdown/text only; stored=true PDFs are metadata-only and NOT counted as read",
+    "6_product_descriptions_recovered_rich_nbs": 11,
+    "7_nbs_with_quantity_language": 0,
+    "8_nbs_with_specification_language": 1,
+    "9_nbs_with_line_item_language": 0,
+    "10_nbs_with_submission_language": 2,
+    "11_pricing_now_after": 14,
+    "11a_pricing_now_before": 14,
+    "11b_pricing_now_delta": 0,
+    "12_requirements_incomplete_after": 173,
+    "13_still_requiring_paid_retrieval_category_C": 2,
+    "unique_nb_packages": 7954,
+    "endpoint_counts": {
+      "search": 416,
+      "read_file": 11,
+      "list_files": 7,
+      "list_documents": 7,
+      "get_opportunity": 9
+    },
+    "full_text_store_updated": 5,
+    "7_verified_ordered_quantities": 0,
+    "8_verified_specifications": 0,
+    "9_complete_line_schedules": 0,
+    "10_submission_instructions": 3,
+    "11_pricing_now_delta": 0
+  },
+  "validation": {
+    "read_file_rows_inspected": 11,
+    "ignored_raw_text_still_unrecoverable": 0,
+    "raw_text_chars_in_store": 26579,
+    "markdown_fidelity_checks": [
+      {
+        "nb_id": "NB00339409",
+        "original_chars": 6045,
+        "recovered_chars": 6044,
+        "no_truncation": false,
+        "title": "Fitness Equipment & Repairs"
+      },
+      {
+        "nb_id": "NB00360977",
+        "original_chars": 4635,
+        "recovered_chars": 4634,
+        "no_truncation": false,
+        "title": "Outright Purchase of Dewalt Fans and Accessories"
+      },
+      {
+        "nb_id": "NB00372858",
+        "original_chars": 3016,
+        "recovered_chars": 3015,
+        "no_truncation": false,
+        "title": "Plotter Paper and Ink Supplies for Wide Format Printers for City of Norwalk RFQ 27-5101-001"
+      },
+      {
+        "nb_id": "NB00353007",
+        "original_chars": 5233,
+        "recovered_chars": 5232,
+        "no_truncation": false,
+        "title": "Purchase and Delivery of Bulk Lubricants RFQ P26221F"
+      },
+      {
+        "nb_id": "NB00350518",
+        "original_chars": 7650,
+        "recovered_chars": 7649,
+        "no_truncation": false,
+        "title": "Purchase Agreement for Creative Production Equipment and Supplies FE-26-04-RFB"
+      }
+    ],
+    "all_markdown_no_truncation": true,
+    "zero_external_requests": true,
+    "markdown_fidelity_note": "original==recovered after strip trailing newline"
+  },
+  "rich_recovered_nb_ids": [
+    "NB00273548",
+    "NB00273914",
+    "NB00276552",
+    "NB00282203",
+    "NB00321439",
+    "NB00339409",
+    "NB00350518",
+    "NB00353007",
+    "NB00360977",
+    "NB00372858",
+    "NB00375309",
+    "NB00375450"
+  ],
+  "recommended_one_call_test": {
+    "nb_id": "NB00321439",
+    "title": "Oliver Hill New Courtroom Furniture",
+    "source_url": "https://procurement.opengov.com/portal/rva/projects/307828",
+    "gap_category": "C",
+    "description_chars": 370,
+    "document_text_chars": 0,
+    "source_documents_count": 18,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 18,
+    "documents_justifying_spend": [
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture.pdf",
+        "sha256": "21b103ab3973c374165f341068bae45fe42c95eb5442df66b49d760dbabc25c4",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "SIGNATURE_SHEET.docx",
+        "sha256": "05fe32d39d9c2e5742a2098ea48a1dc3163bf9c22cc15efbe923dc2d4db6544e",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "STATEMENT_OF_NO_OFFER.docx",
+        "sha256": "99ffaa81e487c64c214a11e5465ff54e01cec34980d10d28cc637e4583ef1252",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "STATE_CORPORATION_COMMISSION_FORM.docx",
+        "sha256": "c0b93ef3a12a3cc7251a24e1eb93332112d280b39a463edcbc21de403b7d8382",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "CONSENT_TO_ACCEPT_ELECTRONIC_SIGNATURES.docx",
+        "sha256": "fd8e61b3ff5332351f51ffc1ab6f5caec41d23408dc41746b30d6cca27d624a9",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "GOODS___SERVICES_CONTRACT_-_EXAMPLE.pdf",
+        "sha256": "a3f3b3aa7e1be3c9f2b223ee9532264dbe2c88f68f2e0bee6b67034f5ff57d82",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Minority_Business_Development_Cover_Letter.docx",
+        "sha256": "666bd631fc701a9d3982d369afeba3ff4c540c2848dc4b1a10eb6b9a3be6d0f3",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "MBE-ESP_-_1_PARTICIPATION_COMMITMENT_FOR_RFQ_FORM_.pdf",
+        "sha256": "a1258bc63cd707fc196b32b8bce86dff3dc9c0da63437410e1432b72b3034cb1",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "MBE-ESP_-_1_PARTICIPATION_COMMITMENT_FORM.pdf",
+        "sha256": "ffcb5c58624463e5f2a6117e1d9fa467d721773c7052f275a5170093509780a1",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "myCOI_Sample_Certificate.pdf",
+        "sha256": "0ffb9456e6420ac6eea44fe6b2c1751ca7f9b25eab6193f80b096bbe8b6a2c17",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Electrical_Plan_25145_-_ELEC_review__Oliver_Hill_.pdf",
+        "sha256": "dcb316bc70ca395e14c8f6fcb705728ead07377879559fc95a4e7ae3a2dbaa63",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Construction_Documents_for_Oliver_Hill_Courtrooms_-_20251124_OLIVERHILL_CDset.pdf",
+        "sha256": "f4ff629385f900ce0e7978a68ec1872f33e99814d586dfab130e2424f8f6282b",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courthouse_Current_Furniture_Pictures.pdf",
+        "sha256": "f8aea92067024174157186c692178d90d5c31634b42172c715a3a3143c3abcec",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courthouse_Floor_Plans.pdf",
+        "sha256": "bf00e473538a66206319f9a54818f40699bfd147206532544409b4631682dc35",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__1_Revision_.pdf",
+        "sha256": "c41e21d30246b31fcfac405f136d53f4f2e80442dbc4bcaa44f61114fc01cedd",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__2_Revision_.pdf",
+        "sha256": "2679972cd6cbd21d757b07131137aa75f720d902a22faaad37c6c2e3db34aac3",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__3_Revision_.pdf",
+        "sha256": "1050ac2c20bf0ab173bd772b8b40363eafdda802eace092d4e908ee4b2fe157c",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courtroom_Furniture_Plans_UPDATED_17NOV26.pdf",
+        "sha256": "804ec352b098da5bbbc28ff2468edd032086b437d49c60940966060efa708531",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "NB00321439.document0.md",
+        "path": "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md",
+        "endpoint": "read_file",
+        "expected_credit_cost": 1,
+        "bytes_locally_available": false
+      }
+    ],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "search"
+    ]
+  },
+  "owner_pricing_now_count": 14,
+  "owner_incomplete_count": 173,
+  "owner_potential_count": 5715,
+  "owner_access_required_count": 6574,
+  "evidence_preservation": {
+    "paid_by_request_unchanged": true,
+    "recovery_packages_written": true,
+    "recovery_root": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_offline_recovery",
+    "note": "Original by_request bodies were not modified; recovery packages are additive."
+  },
+  "honest_extraction": {
+    "opportunities_gaining_verified_ordered_quantities": 0,
+    "opportunities_gaining_specifications_from_retained_text": 0,
+    "opportunities_gaining_complete_line_item_schedules": 0,
+    "opportunities_gaining_submission_instructions": 3,
+    "promoted_into_pricing_now": 0,
+    "fresh_evaluations_this_rebuild": 7,
+    "note": "Parser recognized markdown; retained document0 notice text still lacks firm qty/spec schedules for these product NBs. Success = full inventory reprocessed + accurate gap map, not inflated pricing-ready counts."
+  },
+  "ledger": {
+    "account_used": 3454,
+    "account_remaining": 2546,
+    "monthly_reserve": 1000,
+    "unchanged": true
+  }
+}

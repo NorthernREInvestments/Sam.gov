@@ -551,7 +551,19 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
     except NextBidQuotaError:
         item["nextbid_docs_error"] = "quota"
         return item
-    item["nextbid_document_list"] = docs.get("documents") or docs.get("results") or docs
+    # NextBid list_documents returns several lists; do not keep only the often-empty ``documents`` key.
+    item["nextbid_document_list"] = (
+        docs.get("documents") or docs.get("results") or docs.get("filed") or docs.get("attachment_index") or []
+    )
+    item["nextbid_source_documents"] = docs.get("source_documents") or []
+    item["nextbid_documents_artifacts"] = docs.get("nextbid_documents") or []
+    item["nextbid_documents_meta"] = {
+        "source_documents_count": docs.get("source_documents_count"),
+        "originals_stored": docs.get("originals_stored"),
+        "originals_available": docs.get("originals_available"),
+        "pipeline_artifacts": docs.get("pipeline_artifacts"),
+        "downloads": docs.get("downloads"),
+    }
     # Prefer reading document0 markdown artifact when available via files
     if not client.budget.can_spend("documents", 1):
         return item
@@ -562,15 +574,22 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
         return item
     file_rows = files.get("files") or files.get("results") or []
     item["nextbid_files"] = file_rows if isinstance(file_rows, list) else []
-    # Pick document0 / requirements
+    # Also surface artifact paths returned on the documents call
+    for art in item["nextbid_documents_artifacts"]:
+        if isinstance(art, dict) and art.get("path") and art not in item["nextbid_files"]:
+            item["nextbid_files"].append(art)
+    # Pick document0 / requirements (prefer .md over .json sidecars)
     targets = []
     for f in item["nextbid_files"]:
         if not isinstance(f, dict):
             continue
-        kind = str(f.get("kind") or "")
+        kind = str(f.get("kind") or f.get("class") or "")
         path = str(f.get("path") or "")
-        if kind in {"document0", "requirements", "normalized", "case"} or "document0" in path:
+        if kind in {"document0", "requirements", "normalized", "case", "evidence"} or any(
+            tok in path.lower() for tok in ("document0", "requirements", "normalized", "/case/", "/evidence/")
+        ):
             targets.append(path)
+    targets.sort(key=lambda p: (0 if str(p).endswith(".md") else 1, str(p)))
     for path in targets[:2]:
         if not path or not client.budget.can_spend("documents", 1):
             break
@@ -578,16 +597,32 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
             content = client.read_file(nb_id, path)
         except NextBidQuotaError:
             break
-        text = ""
-        if isinstance(content, dict):
-            text = content.get("text") or content.get("content") or ""
-            if not text and isinstance(content.get("data"), str):
-                text = content["data"]
+        text = nextbid_file_text(content)
         if text and len(text) > 80:
             item["document_text"] = ((item.get("document_text") or "") + "\n" + text)[:120000]
             item = enrich_item_from_text(item, text, source=f"nextbid_file:{path}")
             item.setdefault("nextbid_files_read", []).append(path)
     return item
+
+
+def nextbid_file_text(content: Any) -> str:
+    """Extract readable text from a retained or live ``read_file`` body.
+
+    Markdown artifacts are often persisted as ``{\"ok\": false, \"error\": \"non_json\", \"raw_text\": ...}``
+    because the HTTP body is not JSON. Older code looked only for ``text``/``content`` and dropped
+    the actual solicitation notice text.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, dict):
+        return str(content)
+    for key in ("text", "content", "markdown", "data", "raw_text"):
+        val = content.get(key)
+        if isinstance(val, str) and val.strip():
+            return val
+    return ""
 
 
 def classify_and_qualify(items: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -1,0 +1,107 @@
+{
+  "note": "Independent re-evaluation of rich recovered NextBid packages after offline recovery. Quantities must be ORDERED product quantities, not equipment counts in narrative.",
+  "markdown_recovered_nbs": [
+    {
+      "nb_id": "NB00350518",
+      "title": "Purchase Agreement for Creative Production Equipment and Supplies FE-26-04-RFB",
+      "document_text_chars": 7649,
+      "product_presence": "EXPLICIT_PRODUCT",
+      "qualification_state": "PRODUCT_CANDIDATE",
+      "line_items": 0,
+      "verified_ordered_quantity": false,
+      "specifications_recovered": false,
+      "submission_instructions_present": true,
+      "gap": "EXTRACTION_INCOMPLETE — notice body recovered; firm line items/qty not in document0.md",
+      "solvability": "A/C — re-check retained text; original PDF may be NextBid-stored"
+    },
+    {
+      "nb_id": "NB00339409",
+      "title": "Fitness Equipment & Repairs",
+      "document_text_chars": 6044,
+      "product_presence": "EXPLICIT_PRODUCT",
+      "qualification_state": "PRODUCT_CONFIRMED",
+      "line_items": 0,
+      "verified_ordered_quantity": false,
+      "specifications_recovered": false,
+      "source_documents_metadata": 6,
+      "submission_instructions_present": true,
+      "gap": "SOURCE_ACCESS_BLOCKED opengov + incomplete requirements in notice",
+      "solvability": "C/E — stored originals metadata present; portal login for buyer site"
+    },
+    {
+      "nb_id": "NB00353007",
+      "title": "Purchase and Delivery of Bulk Lubricants RFQ P26221F",
+      "document_text_chars": 5232,
+      "product_presence": "EXPLICIT_PRODUCT",
+      "qualification_state": "PRODUCT_CONFIRMED",
+      "line_items": 0,
+      "verified_ordered_quantity": false,
+      "specifications_recovered": false,
+      "source_documents_metadata": 2,
+      "gap": "EXTRACTION_INCOMPLETE — lubricants confirmed; qty/specs not in notice markdown"
+    },
+    {
+      "nb_id": "NB00360977",
+      "title": "Outright Purchase of Dewalt Fans and Accessories",
+      "document_text_chars": 4634,
+      "product_presence": "EXPLICIT_PRODUCT",
+      "qualification_state": "PRODUCT_CONFIRMED",
+      "line_items": 0,
+      "verified_ordered_quantity": false,
+      "specifications_recovered": false,
+      "deadline_in_recovered_text": "2026-11-25T15:00:00.000Z (Please Respond By)",
+      "submission_instructions_present": true,
+      "explicit_gap_in_source": "Sections 2+ not exposed by public API; full structured spec inside Outright_Purchase_of_Dewalt_Fans_and_Accessories.pdf",
+      "source_documents_metadata": 2,
+      "gap": "Notice recovered; pricing requirements live in stored PDF not retrieved as bytes"
+    },
+    {
+      "nb_id": "NB00372858",
+      "title": "Plotter Paper and Ink Supplies for Wide Format Printers for City of Norwalk RFQ 27-5101-001",
+      "document_text_chars": 3015,
+      "product_presence": "EXPLICIT_PRODUCT",
+      "qualification_state": "PRODUCT_CANDIDATE",
+      "parser_line_items": 1,
+      "parser_quantity_candidate": "2.0 EA",
+      "verified_ordered_quantity": false,
+      "quantity_rejection_reason": "Narrative 'two (2) wide-format printers' is equipment count, not order quantity for paper/ink supplies — do not treat as verified product quantity",
+      "specifications_recovered": false
+    }
+  ],
+  "metadata_only_high_value": [
+    {
+      "nb_id": "NB00321439",
+      "title": "Oliver Hill New Courtroom Furniture",
+      "source_documents_metadata": 18,
+      "local_document_bodies": 0,
+      "document0_md_retrieved": false,
+      "recommended_first_paid_call": {
+        "endpoint": "read_file",
+        "path": "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md",
+        "expected_credit_cost": 1
+      }
+    },
+    {
+      "nb_id": "NB00375309",
+      "title": "Bulk Propane Fuel Supply",
+      "source_documents_metadata": 10,
+      "local_document_bodies": 0,
+      "document0_md_retrieved": false,
+      "only_json_sidecar_retained": true,
+      "recommended_first_paid_call": {
+        "endpoint": "read_file",
+        "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+        "expected_credit_cost": 1
+      }
+    }
+  ],
+  "aggregate_honest_counts": {
+    "opportunities_gaining_verified_ordered_quantities": 0,
+    "opportunities_gaining_specifications_from_retained_text": 0,
+    "opportunities_gaining_complete_line_item_schedules": 0,
+    "opportunities_gaining_submission_instructions": 3,
+    "promoted_into_pricing_now": 0,
+    "fresh_evaluations_this_rebuild": 7,
+    "note": "Parser recognized markdown; retained document0 notice text still lacks firm qty/spec schedules for these product NBs. Success = full inventory reprocessed + accurate gap map, not inflated pricing-ready counts."
+  }
+}

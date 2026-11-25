@@ -29,6 +29,8 @@ from m3.research.procurement_requirements import (
     assess_execution_feasibility,
     assess_reseller_eligibility,
     assess_sourcing_readiness,
+    classify_evidence_gap,
+    owner_blocker_codes,
     qualification,
     title_only_unresolved,
     extract_requirements,
@@ -43,11 +45,23 @@ OWNER_QUEUES = (
     "actionable", "easy_registration", "supplier_research_ready", "commercial_research_ready", "access_required",
     "document_verification", "financing_verification", "status_verification", "blocked", "archived",
 )
-# Hosts already confirmed inaccessible for free automated retrieval — never re-probed here
+# Hosts already confirmed inaccessible for free automated retrieval — never re-probed here.
+# BidNet: robots.txt HTTP 403 + solicitation pages return auth-wall HTML for anonymous clients.
 _ACCESS_BLOCKED_HOSTS = (
     "procurement.opengov.com", "ssl.doas.state.ga.us", "doas.state.ga.us",
+    "bidnetdirect.com", "www.bidnetdirect.com",
 )
 _ACCESS_BLOCKED_STATUSES = frozenset({"restricted", "robots_disallow"})
+# Durable one-shot failure record — written once; subsequent runs never re-probe these hosts
+_BIDNET_ACCESS_BLOCK = {
+    "host": "bidnetdirect.com",
+    "status": "robots_disallow",
+    "http_status": 403,
+    "detail": "robots.txt HTTP 403 Forbidden; retained solicitation_page bodies are auth-walled "
+              "(Registered members only / abstractRegisterNow). Listing snapshot titles/deadlines remain valid evidence.",
+    "do_not_retry": True,
+    "inventory_policy": "process_retained_listings_offline; do_not_mark_closed_for_access_block",
+}
 FEDERAL_SOURCES = frozenset({"sam.gov", "dibbs"})
 # Latest complete BidNet acquisition (statewide open-bids list walk, 1,115 pages): run end time
 BIDNET_LATEST_RUN_END = "2026-10-12T19:24:27+00:00"
@@ -405,22 +419,66 @@ def load_legacy_bidnet(paths: dict[str, Path | None]) -> dict[str, Any]:
             "prerun_dated_ids": len(pre_dated), "files": {k: str(v) for k, v in paths.items() if v}}
 
 
+def _bidnet_vault_abstracts() -> dict[str, dict[str, Any]]:
+    """Offline: re-parse any retained BidNet solicitation_page bodies from the evidence vault."""
+    try:
+        from m3.research import evidence_vault
+        from m3.research.bidnet_parse import parse_bidnet_abstract
+    except Exception:
+        return {}
+    vault = get_settings().evidence_vault_root()
+    root = vault / "records" / "bidnet"
+    if not root.exists():
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for mp in root.rglob("*.json"):
+        try:
+            man = json.loads(mp.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        rid = str(man.get("record_id") or "")
+        if not rid.startswith("bidnet:"):
+            continue
+        pid = rid.split(":", 1)[-1]
+        vers = (man.get("kinds") or {}).get("solicitation_page") or []
+        if not vers:
+            continue
+        body = evidence_vault.get_body(vers[-1]["sha256"], root=vault)
+        if not body:
+            continue
+        html = body.decode("utf-8", "replace") if isinstance(body, (bytes, bytearray)) else str(body)
+        ab = parse_bidnet_abstract(html, detail_url=vers[-1].get("url"))
+        ab["provider_record_id"] = pid
+        ab["from_vault"] = True
+        out[pid] = ab
+    return out
+
+
 def load_bidnet_snapshot(root: Path | None) -> dict[str, Any]:
-    """Fresh public BidNet open-bids snapshot (``bidnet_acquire``), merged with any public abstracts."""
+    """Fresh public BidNet open-bids snapshot (``bidnet_acquire``), merged with any public abstracts.
+
+    Every listing card is kept and evaluated from retained title/deadline evidence even when further
+    BidNet page access is blocked. Vault solicitation pages are re-parsed offline when present.
+    """
     snap = root / "snapshot.jsonl" if root else None
     if not snap or not snap.exists():
         return {"available": False, "reason": f"bidnet snapshot not found: {snap}", "records": [], "complete": False}
     cov_p = root / "coverage.json"
     cov = json.loads(cov_p.read_text(encoding="utf-8")) if cov_p.exists() else {}
-    abstracts: dict[str, dict[str, Any]] = {}
+    abstracts: dict[str, dict[str, Any]] = dict(_bidnet_vault_abstracts())
     ab_p = root / "abstracts" / "abstracts.jsonl"
     if ab_p.exists():
         for row in _read_jsonl(ab_p):
-            abstracts[str(row.get("provider_record_id"))] = row
+            pid = str(row.get("provider_record_id"))
+            # Prefer the stored abstract file when both exist (explicit fetch)
+            abstracts[pid] = row
     out: list[dict[str, Any]] = []
+    vault_hits = 0
     for r in _read_jsonl(snap):
         pid = str(r.get("provider_record_id") or "")
         ab = abstracts.get(pid) or {}
+        if ab.get("from_vault"):
+            vault_hits += 1
         docs = [{"name": d.get("document_name"), "url": d.get("document_url"), "status": d.get("retrieval_status")}
                 for d in (ab.get("documents") or [])][:10]
         out.append(_staged(
@@ -432,14 +490,16 @@ def load_bidnet_snapshot(root: Path | None) -> dict[str, Any]:
             deadline_raw=ab.get("deadline_raw") or r.get("deadline_raw"),
             deadline_tz_hint=ab.get("deadline_timezone") if ab.get("deadline_raw") else r.get("deadline_timezone"),
             first_seen_at=r.get("retrieved_at"), last_seen_at=ab.get("retrieved_at") or r.get("retrieved_at"),
-            declared_status="open", description=str(ab.get("description") or ""), attachments=docs,
+            declared_status="open", description=str(ab.get("description") or ab.get("overview") or ""), attachments=docs,
             acquisition_membership="CURRENT_PUBLIC_SNAPSHOT",
             provenance={"file": str(snap), "result_page": r.get("result_page"), "member_agency": r.get("member_agency"),
-                        "abstract_locked_fields": ab.get("locked_fields"), "abstract_auth_wall": ab.get("auth_wall")},
+                        "abstract_locked_fields": ab.get("locked_fields"), "abstract_auth_wall": ab.get("auth_wall"),
+                        "abstract_from_vault": bool(ab.get("from_vault"))},
         ))
     # Re-checked here so a coverage.json written by an older finalizer cannot retire legacy rows
     complete = bool(cov.get("enumeration_complete")) and (cov.get("coverage_ratio") or 0) >= 0.99
-    return {"available": True, "records": out, "complete": complete, "coverage": cov}
+    return {"available": True, "records": out, "complete": complete, "coverage": cov,
+            "vault_abstracts_merged": vault_hits, "abstracts_available": len(abstracts)}
 
 
 def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str, Any]:
@@ -555,12 +615,32 @@ def load_nextbid(data_root: Path) -> dict[str, Any]:
             agency_codes=agency_codes_from_record(o),
             description=str(o.get("description") or o.get("summary") or ""),
             document_text=str(ev.get("document_text") or ""),
-            attachments=[a for a in (o.get("attachments") or o.get("documents") or []) if isinstance(a, dict)][:20],
+            attachments=_nextbid_attachments(o),
             provenance={"inventory": str(data_root / "nextbid_inventory" / "opportunities.jsonl"),
                         "evidence_sources": ev.get("sources_used"), "cache_refs": (ev.get("cache_refs") or [])[:3],
-                        "provider_open_filter": row.get("provider_open_filter")},
+                        "provider_open_filter": row.get("provider_open_filter"),
+                        "offline_recovery": o.get("offline_recovery")},
         ))
     return {"available": True, "records": out}
+
+
+def _nextbid_attachments(o: dict[str, Any]) -> list[dict[str, Any]]:
+    """Union documents[] + source_documents + nextbid_documents (thicker metadata wins)."""
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for key in ("attachments", "documents", "source_documents", "nextbid_documents", "document_list"):
+        for a in o.get(key) or []:
+            if not isinstance(a, dict):
+                continue
+            k = str(
+                a.get("sha256") or a.get("path") or a.get("document_url") or a.get("url")
+                or a.get("name") or a.get("filename") or json.dumps(a, sort_keys=True, default=str)[:120]
+            )
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(a)
+    return out[:50]
 
 
 def load_free_sources(data_root: Path) -> dict[str, Any]:
@@ -797,8 +877,17 @@ def evaluate_record(rec: dict[str, Any], now: datetime | None = None) -> dict[st
     econ = assess_economics(line_items=reqs["line_items"], execution_state=execu["execution_state"])
     sourcing = assess_sourcing_readiness(title=title, requirements=reqs, eligibility_state=elig["eligibility_state"])
     qual = qualification(presence=presence, requirements=reqs, sourcing=sourcing)
+    access = _access_block_reason(rec)
+    gap = classify_evidence_gap(
+        description=desc, document_text=doc, requirements=reqs, sourcing=sourcing,
+        access_block=access, retrieval_status=rec.get("retrieval_status"),
+    )
+    blockers = owner_blocker_codes(
+        title=title, requirements=reqs, sourcing=sourcing, presence=presence, eligibility=elig,
+        evidence_gap=gap, deadline_at=str(rec.get("deadline_at") or "") or None, access_block=access,
+    )
     return {"presence": presence, "requirements": reqs, "eligibility": elig, "execution": execu, "economics": econ,
-            "sourcing": sourcing, "qualification": qual}
+            "sourcing": sourcing, "qualification": qual, "evidence_gap": gap, "owner_blockers": blockers}
 
 
 def _access_block_reason(rec: dict[str, Any]) -> str | None:
@@ -811,9 +900,61 @@ def _access_block_reason(rec: dict[str, Any]) -> str | None:
     except Exception:
         host = ""
     for blocked in _ACCESS_BLOCKED_HOSTS:
-        if blocked in host:
+        if blocked in host or host.endswith(blocked.lstrip("www.")):
             return f"host_access_blocked:{blocked}"
+    if str(rec.get("source") or "").lower() == "bidnet":
+        return f"host_access_blocked:{_BIDNET_ACCESS_BLOCK['host']}"
     return None
+
+
+def record_source_access_blocks(root: Path) -> dict[str, Any]:
+    """Persist confirmed free-access failures once. Never retries hosts listed here."""
+    path = root / "source_access_blocks.json"
+    existing: dict[str, Any] = {}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            existing = {}
+    blocks = dict(existing.get("blocks") or {})
+    changed = False
+    key = _BIDNET_ACCESS_BLOCK["host"]
+    if key not in blocks:
+        blocks[key] = {**_BIDNET_ACCESS_BLOCK, "recorded_at": _utc()}
+        changed = True
+    for host in ("procurement.opengov.com", "ssl.doas.state.ga.us", "doas.state.ga.us"):
+        if host not in blocks:
+            blocks[host] = {
+                "host": host, "status": "restricted", "detail": "previously confirmed free-access block",
+                "do_not_retry": True, "recorded_at": _utc(),
+            }
+            changed = True
+    payload = {"updated_at": _utc() if changed else existing.get("updated_at"), "blocks": blocks}
+    if changed or not path.exists():
+        _write_json(path, payload)
+    return payload
+
+
+def apply_known_access_blocks(records: list[dict[str, Any]], blocks: dict[str, Any]) -> dict[str, Any]:
+    """Stamp known host blocks onto records that lack a prior retrieval outcome. No network."""
+    host_blocks = blocks.get("blocks") or {}
+    stamped = 0
+    for r in records:
+        if r.get("retrieval_status") in _ACCESS_BLOCKED_STATUSES:
+            continue
+        reason = _access_block_reason(r)
+        if not reason or not reason.startswith("host_access_blocked:"):
+            continue
+        host = reason.split(":", 1)[-1]
+        meta = host_blocks.get(host) or host_blocks.get(host.removeprefix("www.")) or {}
+        # Listing-only BidNet rows keep their titles; mark further page fetch blocked once
+        if not r.get("retrieval_status"):
+            r["retrieval_status"] = meta.get("status") or "robots_disallow"
+            r["retrieval_detail"] = meta.get("detail") or reason
+            stamped += 1
+        elif not r.get("retrieval_detail") and meta.get("detail"):
+            r["retrieval_detail"] = meta["detail"]
+    return {"stamped": stamped, "known_hosts": sorted(host_blocks)}
 
 
 def attach_retrieval_status(records: list[dict[str, Any]], doc_root: Path) -> dict[str, Any]:
@@ -864,13 +1005,19 @@ def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[
         return "blocked", "execution:" + ",".join(b["factor"] for b in ev["execution"]["execution_blockers"][:3])
     src = ev["sourcing"]
     access = _access_block_reason(rec)
-    # Promising product opportunities whose official pages are already known inaccessible
-    if access and p["product_presence"] in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}:
-        if src["sourcing_state"] in {"SUPPLIER_RESEARCH_READY", "COMMERCIAL_RESEARCH_READY"} or access.startswith("host_"):
-            return "access_required", access
+    gap = (ev.get("evidence_gap") or {}).get("evidence_gap_kind")
+    # Access blocks never close or archive an opportunity.
+    # If retained listing/title evidence already makes the record research-ready, keep that queue
+    # even when further portal pages are blocked (BidNet robots 403 / auth-wall).
+    # Only incomplete products that need more official content go to access_required.
+    if (access and p["product_presence"] in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}
+            and src["sourcing_state"] == "DOCUMENT_REQUIRED"):
+        return "access_required", access
     if p["product_presence"] in {"POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"} or src["sourcing_state"] == "DOCUMENT_REQUIRED":
+        # Retained text the software failed to extract stays here for offline rework (gap=EXTRACTION_INCOMPLETE)
         return "document_verification", (
-            f"presence:{p['product_presence']}|requirements:{ev['requirements']['requirements_state']}|evidence:{p['evidence_completeness']}")
+            f"presence:{p['product_presence']}|requirements:{ev['requirements']['requirements_state']}|"
+            f"evidence:{p['evidence_completeness']}|gap:{gap or 'n/a'}")
     if src["sourcing_state"] == "COMMERCIAL_RESEARCH_READY":
         return "commercial_research_ready", "pending:" + ",".join(src["sourcing_missing"][:3])
     econ = ev["economics"]
@@ -930,6 +1077,8 @@ def _slim(rec: dict[str, Any], ev: dict[str, Any] | None) -> dict[str, Any]:
                                                               "revenue", "net_profit", "margin", "risks")}
         keep["sourcing"] = dict(ev["sourcing"])
         keep["qualification"] = dict(ev["qualification"])
+        keep["evidence_gap"] = dict(ev.get("evidence_gap") or {})
+        keep["owner_blockers"] = list(ev.get("owner_blockers") or [])
         keep["classification"]["presence_capped_by"] = p.get("presence_capped_by")
     return keep
 
@@ -976,6 +1125,7 @@ def run_staged_inventory(
         _log(f"loaded {name}: {len(res.get('records') or [])} records in {time.time() - t:.1f}s")
     stage_counts["loaded"] = len(records)
     meta["documents"] = attach_documents(records, root / "documents")
+    meta["source_access_blocks"] = record_source_access_blocks(root)
     # A complete fresh BidNet enumeration is the current open universe; legacy BidNet rows are history
     fresh_bidnet_complete = bool((meta.get("bidnet_snapshot") or {}).get("complete"))
 
@@ -1008,7 +1158,9 @@ def run_staged_inventory(
             dup_n += 1
     stage_counts["duplicates_marked"] = dup_n
     stage_counts["canonical_records"] = len(records) - dup_n
+    # After staged_id assignment so doc_checkpoint lookups by staged_id resolve
     meta["retrieval_status"] = attach_retrieval_status(records, root / "documents")
+    meta["known_access_applied"] = apply_known_access_blocks(records, meta["source_access_blocks"])
 
     to_eval = [i for i, r in enumerate(records)
                if not r.get("duplicate_of") and not r.get("retirement_reason")

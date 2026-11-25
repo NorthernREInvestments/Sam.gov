@@ -278,13 +278,24 @@ def opportunity_table(tasks: list[dict[str, Any]], rows_by_id: dict[str, dict[st
 
 
 def document_retrieval_worklist(rows: list[dict[str, Any]], doc_status: dict[str, dict[str, Any]], now: datetime,
-                                min_days: float = 3.0, limit: int = 200) -> list[dict[str, Any]]:
+                                min_days: float = 3.0, limit: int | None = None) -> list[dict[str, Any]]:
+    """Full free-retrieval worklist for product records. No arbitrary top-N cutoff.
+
+    Hosts already recorded as access-blocked (BidNet/OpenGov/Georgia) are omitted — do not re-probe.
+    """
+    blocked_hosts = ("bidnetdirect.com", "procurement.opengov.com", "doas.state.ga.us")
     out = []
     for r in rows:
-        if r.get("owner_queue") not in {"document_verification", "commercial_research_ready"}:
+        if r.get("owner_queue") not in {"document_verification", "commercial_research_ready", "access_required"}:
             continue
         cl = r.get("classification") or {}
         if cl.get("product_presence") not in PRODUCT_PRESENCE or r.get("federal_policy_hold"):
+            continue
+        gap = (r.get("evidence_gap") or {}).get("evidence_gap_kind")
+        if gap == "SOURCE_ACCESS_BLOCKED" or (r.get("retrieval_status") in {"robots_disallow", "restricted"}):
+            continue
+        host = (urlparse(str(r.get("official_url") or "")).netloc or "").lower()
+        if any(b in host for b in blocked_hosts) or str(r.get("source") or "").lower() == "bidnet":
             continue
         dl = _days_left(r.get("deadline_at"), now)
         if dl is None or dl < min_days:
@@ -292,11 +303,12 @@ def document_retrieval_worklist(rows: list[dict[str, Any]], doc_status: dict[str
         st = doc_status.get(str(r.get("source_record_id"))) or {}
         out.append({"staged_id": r.get("staged_id"), "title": r.get("title"), "agency": r.get("buyer"), "source": r.get("source"),
                     "days_left": dl, "presence": cl.get("product_presence"), "evidence": cl.get("evidence_completeness"),
-                    "automated_retrieval": st.get("status") or "not_attempted", "retrieval_detail": st.get("reason"),
+                    "evidence_gap": gap, "automated_retrieval": st.get("status") or "not_attempted",
+                    "retrieval_detail": st.get("reason"),
                     "portal": _portal_root(r.get("official_url")), "official_url": r.get("official_url"), "queue": r.get("owner_queue")})
-    rank = {"commercial_research_ready": 0, "document_verification": 1}
-    out.sort(key=lambda x: (rank[x["queue"]], 0 if x["presence"] == "EXPLICIT_PRODUCT" else 1, x["days_left"]))
-    return out[:limit]
+    rank = {"commercial_research_ready": 0, "document_verification": 1, "access_required": 2}
+    out.sort(key=lambda x: (rank.get(x["queue"], 9), 0 if x["presence"] == "EXPLICIT_PRODUCT" else 1, x["days_left"]))
+    return out if limit is None else out[:limit]
 
 
 def load_document_status(doc_root: Path) -> dict[str, dict[str, Any]]:
@@ -375,6 +387,11 @@ def actionable_card(row: dict[str, Any], now: datetime, *, bucket: str) -> dict[
         "submission_status": "VERIFIED" if (qual.get("conditions") or {}).get("SUBMISSION_VERIFIED") else "UNVERIFIED",
         "qualification_state": qual.get("qualification_state"),
         "missing_information": missing or None,
+        "owner_blockers": row.get("owner_blockers") or None,
+        "evidence_gap": row.get("evidence_gap") or None,
+        "evidence_completeness": (row.get("classification") or {}).get("evidence_completeness"),
+        "identity_level": src.get("identity_level"),
+        "pricing_basis": src.get("pricing_basis"),
         "next_action": next_action,
         "queue_reason": row.get("queue_reason"),
         "owner_queue": row.get("owner_queue"),

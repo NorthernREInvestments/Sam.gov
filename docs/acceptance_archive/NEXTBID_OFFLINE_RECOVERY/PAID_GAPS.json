@@ -1,0 +1,492 @@
+[
+  {
+    "nb_id": "NB00273548",
+    "title": "MPA 550 Generator Installation, Maintenance, and Repairs",
+    "source_url": "https://webprocure.proactiscloud.com/wp-web-public/en/#/bidboard/bid/136180?customerid=46",
+    "gap_category": "A",
+    "description_chars": 418,
+    "document_text_chars": 0,
+    "source_documents_count": 0,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00273914",
+    "title": "Emergency Generator Services",
+    "source_url": "https://www.bidnetdirect.com/maryland/solicitations/open-bids/Emergency-Generator-Services/0000428706?purchasingGroupId=182876351&origin=2",
+    "gap_category": "A",
+    "description_chars": 674,
+    "document_text_chars": 0,
+    "source_documents_count": 0,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": true,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00276552",
+    "title": "1412066050 (RFP) Brandy Branch Generating Station Ammonia Injection Lance Upgrade and Ammonia Sampling Grid",
+    "source_url": "https://www.jea.com/About/Procurement/Formal_Procurement_Opportunities/",
+    "gap_category": "A",
+    "description_chars": 639,
+    "document_text_chars": 0,
+    "source_documents_count": 0,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00282203",
+    "title": "1412080446 (RFP) Brandy Branch Generating Station B52-B53 SCR Catalyst Replacement",
+    "source_url": "https://www.jea.com/About/Procurement/Formal_Procurement_Opportunities/",
+    "gap_category": "A",
+    "description_chars": 638,
+    "document_text_chars": 0,
+    "source_documents_count": 0,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00321439",
+    "title": "Oliver Hill New Courtroom Furniture",
+    "source_url": "https://procurement.opengov.com/portal/rva/projects/307828",
+    "gap_category": "C",
+    "description_chars": 370,
+    "document_text_chars": 0,
+    "source_documents_count": 18,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 18,
+    "documents_justifying_spend": [
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture.pdf",
+        "sha256": "21b103ab3973c374165f341068bae45fe42c95eb5442df66b49d760dbabc25c4",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "SIGNATURE_SHEET.docx",
+        "sha256": "05fe32d39d9c2e5742a2098ea48a1dc3163bf9c22cc15efbe923dc2d4db6544e",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "STATEMENT_OF_NO_OFFER.docx",
+        "sha256": "99ffaa81e487c64c214a11e5465ff54e01cec34980d10d28cc637e4583ef1252",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "STATE_CORPORATION_COMMISSION_FORM.docx",
+        "sha256": "c0b93ef3a12a3cc7251a24e1eb93332112d280b39a463edcbc21de403b7d8382",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "CONSENT_TO_ACCEPT_ELECTRONIC_SIGNATURES.docx",
+        "sha256": "fd8e61b3ff5332351f51ffc1ab6f5caec41d23408dc41746b30d6cca27d624a9",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "GOODS___SERVICES_CONTRACT_-_EXAMPLE.pdf",
+        "sha256": "a3f3b3aa7e1be3c9f2b223ee9532264dbe2c88f68f2e0bee6b67034f5ff57d82",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Minority_Business_Development_Cover_Letter.docx",
+        "sha256": "666bd631fc701a9d3982d369afeba3ff4c540c2848dc4b1a10eb6b9a3be6d0f3",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "MBE-ESP_-_1_PARTICIPATION_COMMITMENT_FOR_RFQ_FORM_.pdf",
+        "sha256": "a1258bc63cd707fc196b32b8bce86dff3dc9c0da63437410e1432b72b3034cb1",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "MBE-ESP_-_1_PARTICIPATION_COMMITMENT_FORM.pdf",
+        "sha256": "ffcb5c58624463e5f2a6117e1d9fa467d721773c7052f275a5170093509780a1",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "myCOI_Sample_Certificate.pdf",
+        "sha256": "0ffb9456e6420ac6eea44fe6b2c1751ca7f9b25eab6193f80b096bbe8b6a2c17",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Electrical_Plan_25145_-_ELEC_review__Oliver_Hill_.pdf",
+        "sha256": "dcb316bc70ca395e14c8f6fcb705728ead07377879559fc95a4e7ae3a2dbaa63",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Construction_Documents_for_Oliver_Hill_Courtrooms_-_20251124_OLIVERHILL_CDset.pdf",
+        "sha256": "f4ff629385f900ce0e7978a68ec1872f33e99814d586dfab130e2424f8f6282b",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courthouse_Current_Furniture_Pictures.pdf",
+        "sha256": "f8aea92067024174157186c692178d90d5c31634b42172c715a3a3143c3abcec",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courthouse_Floor_Plans.pdf",
+        "sha256": "bf00e473538a66206319f9a54818f40699bfd147206532544409b4631682dc35",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__1_Revision_.pdf",
+        "sha256": "c41e21d30246b31fcfac405f136d53f4f2e80442dbc4bcaa44f61114fc01cedd",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__2_Revision_.pdf",
+        "sha256": "2679972cd6cbd21d757b07131137aa75f720d902a22faaad37c6c2e3db34aac3",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_New_Courtroom_Furniture__Addendum__3_Revision_.pdf",
+        "sha256": "1050ac2c20bf0ab173bd772b8b40363eafdda802eace092d4e908ee4b2fe157c",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Oliver_Hill_Courtroom_Furniture_Plans_UPDATED_17NOV26.pdf",
+        "sha256": "804ec352b098da5bbbc28ff2468edd032086b437d49c60940966060efa708531",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "NB00321439.document0.md",
+        "path": "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md",
+        "endpoint": "read_file",
+        "expected_credit_cost": 1,
+        "bytes_locally_available": false
+      }
+    ],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00339409",
+    "title": "Fitness Equipment & Repairs",
+    "source_url": "https://procurement.opengov.com/portal/pittsburghpa/projects/310070",
+    "gap_category": "B",
+    "description_chars": 206,
+    "document_text_chars": 6044,
+    "source_documents_count": 6,
+    "local_text_bodies": 1,
+    "stored_original_metadata_only": 6,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": true
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00350518",
+    "title": "Purchase Agreement for Creative Production Equipment and Supplies FE-26-04-RFB",
+    "source_url": "https://vendors.planetbids.com/portal/21372/bo/bo-detail/147588",
+    "gap_category": "B",
+    "description_chars": 198,
+    "document_text_chars": 7649,
+    "source_documents_count": 0,
+    "local_text_bodies": 1,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": true
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00353007",
+    "title": "Purchase and Delivery of Bulk Lubricants RFQ P26221F",
+    "source_url": "https://vendors.planetbids.com/portal/55483/bo/bo-detail/148082",
+    "gap_category": "B",
+    "description_chars": 283,
+    "document_text_chars": 5232,
+    "source_documents_count": 2,
+    "local_text_bodies": 1,
+    "stored_original_metadata_only": 2,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00360977",
+    "title": "Outright Purchase of Dewalt Fans and Accessories",
+    "source_url": "https://procurement.opengov.com/portal/indy/projects/324155",
+    "gap_category": "B",
+    "description_chars": 290,
+    "document_text_chars": 4634,
+    "source_documents_count": 2,
+    "local_text_bodies": 1,
+    "stored_original_metadata_only": 2,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00372858",
+    "title": "Plotter Paper and Ink Supplies for Wide Format Printers for City of Norwalk RFQ 27-5101-001",
+    "source_url": "https://vendors.planetbids.com/portal/54783/bo/bo-detail/148352",
+    "gap_category": "B",
+    "description_chars": 334,
+    "document_text_chars": 3015,
+    "source_documents_count": 0,
+    "local_text_bodies": 1,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00375309",
+    "title": "Bulk Propane Fuel Supply",
+    "source_url": "https://procurement.opengov.com/portal/pembrokepines/projects/321591",
+    "gap_category": "C",
+    "description_chars": 279,
+    "document_text_chars": 0,
+    "source_documents_count": 10,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 10,
+    "documents_justifying_spend": [
+      {
+        "name": "Bulk_Propane_Fuel_Supply.pdf",
+        "sha256": "996c49135176d8e5583103be087aaf6ee4ed0d072423b7b2399d41e48326bb4c",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "5K_Propane_Tank_and_Dispenser_Plans.pdf",
+        "sha256": "c2c56677bad776177b4dd293c1b5a738144e7921fb75343590fa219c550bfc98",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Purchase_Order_Terms_and_Conditions__Rev._2026-06-30_.pdf",
+        "sha256": "39788b2b064d1ad166c24f526e7499cf98db7b301a32ee4abd59d5a555f520c5",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Sample_Insurance_Certificate.pdf",
+        "sha256": "ff9af3226aeb10dadac6a43925331a12f6e3a4efff6243c24bf32665384616f6",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "HUD_Section_3_Implementation_Plan_and_Forms_1-6.pdf",
+        "sha256": "2bf3a1da3df3aa17f3bd8cd19347a3ad842cd2b11004d863b855ff1ec06bcca4",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Specimen_Contract_-_Professional_Services__CCNA_Non-Continuing_Services_.pdf",
+        "sha256": "0838792408cc60f00ba1b5a2abc66a174748b3d77b5b8e73c81460355fee34ae",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "HUD_s_Davis-Bacon_and_Labor_Standards_Contractor_Guide_Addendum.pdf",
+        "sha256": "68d607e6d3cf5c8fef491835725f3568c6b94c394042759f983e890ae4ed4fd2",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Standard_Release_of_Lien.pdf",
+        "sha256": "26f92bac3220d9a600e3baee95f2ea1cfd28e215d9d176f2174e00be3e041825",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Specimen_Contract_-_Contractual_Services_Agreement.pdf",
+        "sha256": "a159a97519827299ecd1b9dc346de2f7926014de774dc621aaa78702c2a0bd09",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "Specimen_Contract_-_Construction_Agreement.pdf",
+        "sha256": "b38c8b5cd3ee4788f4741cc0f42b21094e02eeac82dc93c72d9ff901ffbb50cd",
+        "path": null,
+        "stored": true,
+        "bytes_locally_available": false
+      },
+      {
+        "name": "NB00375309.document0.md",
+        "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+        "endpoint": "read_file",
+        "expected_credit_cost": 1,
+        "bytes_locally_available": false
+      }
+    ],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ]
+  },
+  {
+    "nb_id": "NB00375450",
+    "title": "Purchase of Fair Park Grounds Nursery Supplies*222688",
+    "source_url": "https://dallascityhall.bonfirehub.com/opportunities/263585",
+    "gap_category": "D",
+    "description_chars": 0,
+    "document_text_chars": 0,
+    "source_documents_count": 0,
+    "local_text_bodies": 0,
+    "stored_original_metadata_only": 0,
+    "documents_justifying_spend": [],
+    "signals": {
+      "has_quantity_language": false,
+      "has_specification_language": false,
+      "has_line_item_language": false,
+      "has_submission_language": false
+    },
+    "endpoints_present": [
+      "get_opportunity",
+      "search"
+    ]
+  }
+]
