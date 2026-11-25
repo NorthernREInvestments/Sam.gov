@@ -1,0 +1,100 @@
+{
+  "ran_at": "2026-11-25T05:01:45.044082+00:00",
+  "elapsed_sec": 3.84,
+  "external_calls": 0,
+  "api_expenditure": 0,
+  "acquisition_locked": true,
+  "ledger": {
+    "account_used": 3454,
+    "account_remaining": 2546,
+    "account_allowance": 6000,
+    "monthly_reserve_limits": 1000,
+    "unchanged": true,
+    "verified_via": "controller_status()/load_budget_state"
+  },
+  "endpoint_counts": {
+    "search": 416,
+    "read_file": 11,
+    "list_files": 7,
+    "list_documents": 7,
+    "get_opportunity": 9
+  },
+  "stats": {
+    "paid_request_files_inspected": 450,
+    "unique_nb_ids_seen": 7954,
+    "rows_without_nb_id": 0,
+    "test_nb_skipped": 3,
+    "nbs_processed": 7951,
+    "markdown_bodies_recovered": 5,
+    "markdown_chars_recovered": 26579,
+    "attachment_refs_recovered": 52,
+    "source_documents_refs": 38,
+    "local_text_bodies": 5,
+    "description_chars_total": 973617,
+    "document_text_chars_total": 26574,
+    "search_only_skipped_from_enrichment": 7939,
+    "nbs_with_description": 2556,
+    "nbs_with_submission_language": 316,
+    "enrichment_rows": 12,
+    "nbs_with_stored_original_metadata": 5,
+    "nbs_with_document_text": 5,
+    "evidence_vault_puts": 5,
+    "full_text_store_kept_thicker": 5,
+    "legacy_per_nb_files_removed": 7954
+  },
+  "enrichment_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_offline_recovery\\enrichment.jsonl",
+  "category_c_paid_gaps": [
+    {
+      "nb_id": "NB00321439",
+      "title": "Oliver Hill New Courtroom Furniture",
+      "source_documents_count": 18,
+      "stored_original_refs_metadata_only": 18,
+      "document0_md_paths": [
+        "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md"
+      ],
+      "recommended_endpoint": "read_file",
+      "expected_credit_cost": 1
+    },
+    {
+      "nb_id": "NB00375309",
+      "title": "Bulk Propane Fuel Supply",
+      "source_documents_count": 10,
+      "stored_original_refs_metadata_only": 10,
+      "document0_md_paths": [
+        "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md"
+      ],
+      "recommended_endpoint": "read_file",
+      "expected_credit_cost": 1
+    }
+  ],
+  "recommended_one_call_test": {
+    "nb_id": "NB00321439",
+    "title": "Oliver Hill New Courtroom Furniture",
+    "source_documents_count": 18,
+    "stored_original_refs_metadata_only": 18,
+    "document0_md_paths": [
+      "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md"
+    ],
+    "recommended_endpoint": "read_file",
+    "expected_credit_cost": 1
+  },
+  "notes": [
+    "Search-only NBs are not duplicated into enrichment; inventory/search index already holds them.",
+    "stored=true on source_documents means NextBid metadata only — not local PDF bytes.",
+    "No per-solicitation audit files written."
+  ],
+  "owner_inventory_after": {
+    "all_active_products": 6578,
+    "potential_products": 5639,
+    "requirements_incomplete": 161,
+    "access_required": 6407,
+    "pricing_now": 14,
+    "needs_investigation": 2301,
+    "submission_verified": 0
+  },
+  "staged_rebuild": {
+    "elapsed_sec": 54.2,
+    "external_calls": 0,
+    "evaluated_fresh": 2
+  }
+}

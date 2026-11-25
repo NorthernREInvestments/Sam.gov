@@ -26,5 +26,7 @@ artifacts/
 *.log
 # Per-record audit export packages (nextbid_full_inventory_audit); large, regenerated
 audit_exports/
+# Disposable offline diagnostics / prior audit copies
+TEMP/
 # Original-evidence vault if pointed inside the tree (keep it on a local non-synced disk)
 evidence_vault/
