@@ -11,6 +11,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
+from m3.research.bid_schedule import parse_bid_schedule_tables, preserve_layout
 from m3.research.extract_fields import (
     extract_identity_fields,
     extract_quantity_fields,
@@ -42,7 +43,8 @@ OWNER_EXECUTION_POLICY = {
 _UOM = (
     r"EA|EACH|BX|BOX(?:ES)?|CS|CASES?|PK|PKG|PACK(?:S|AGES?)?|DZ|DOZ(?:EN)?|PR|PAIRS?|SET|SETS|RL|ROLLS?|"
     r"GAL|GALLONS?|LB|LBS|POUNDS?|TON|TONS|CY|YD|YDS|FT|LF|SF|SQ\s?FT|KIT|KITS|LOT|LOTS|UNITS?|HR|HRS|"
-    r"DRUMS?|BAGS?|PALLETS?|CTN|CARTONS?|RM|REAMS?|TUBES?|BOTTLES?|CANS?|SH|SHEETS?"
+    r"DRUMS?|BAGS?|PALLETS?|CTN|CARTONS?|RM|REAMS?|TUBES?|BOTTLES?|CANS?|SH|SHEETS?|"
+    r"ANNUAL|LS|LUMP\s*SUM|PER\s+DELIVERY|PER\s+REPLACEMENT|PER\s+OCCURRENCE|MO|MONTHS?|WK|WEEKS?|DAY|DAYS?"
 )
 _LINE_START = re.compile(
     r"(?im)(?:^|\s)(?P<label>(?:CLIN|SLIN|Line(?:\s+Item)?|Item(?:\s+No\.?)?|Lot)\s*#?\s*(?P<num>\d{1,5}[A-Z]?))\b[\s:.\-–)]*"
@@ -172,16 +174,24 @@ def extract_requirements(
     ``amendments`` (newest last, each ``{"id", "text"}``) take precedence over the base text:
     a line restated in a later amendment replaces the earlier one.
     """
-    base = _clean(" ".join(x for x in (description, document_text) if x))
+    # Layout-preserving body for bid tables; collapsed text for CLIN-style / solicitation regexes.
+    layout_parts = [preserve_layout(x) for x in (description, document_text) if x]
+    layout_base = "\n\n".join(p for p in layout_parts if p)
+    base = _clean(layout_base)
     sources: list[tuple[str, str]] = [("base", base)] if base else []
+    layout_sources: list[tuple[str, str]] = [("base", layout_base)] if layout_base else []
     for a in amendments or []:
-        if _clean(a.get("text")):
-            sources.append((f"amendment:{a.get('id') or len(sources)}", _clean(a.get("text"))))
-    if not sources:
+        raw_a = a.get("text")
+        if preserve_layout(raw_a):
+            layout_sources.append((f"amendment:{a.get('id') or len(layout_sources)}", preserve_layout(raw_a)))
+        if _clean(raw_a):
+            sources.append((f"amendment:{a.get('id') or len(sources)}", _clean(raw_a)))
+    if not sources and not layout_sources:
         # Title-only: keep bare category titles as NO_TEXT; use the title when it states a firm ordered quantity
         q_title = extract_quantity_fields("", title=_clean(title))
         if q_title.get("quantity_extracted") and q_title.get("quantity_is_ordered"):
             sources = [("title", _clean(title))]
+            layout_sources = [("title", _clean(title))]
         else:
             return {"requirements_state": "NO_TEXT", "line_items": [], "line_item_count": 0, "complete_line_items": 0,
                     "schedule_advertised_total": None, "schedule_shown_from": None, "schedule_shown_to": None,
@@ -189,30 +199,78 @@ def extract_requirements(
                     "quote_ready_blockers": ["no_solicitation_text_retained"], "title": _clean(title)}
 
     lines_by_key: dict[str, dict[str, Any]] = {}
-    for src, text in sources:
-        for block in _segment_line_items(text):
-            li = _parse_line(block)
-            li["source"] = src
-            lines_by_key[block["label"].upper()] = li
+    # 1) Numbered bid/pricing tables (multi-page, wrapped cells) — highest fidelity for schedules
+    for src, layout in layout_sources:
+        for row in parse_bid_schedule_tables(layout):
+            li = {
+                "clin": row.get("clin"),
+                "description": row.get("description"),
+                "quantity": row.get("quantity"),
+                "unit_of_measure": row.get("unit_of_measure"),
+                "pack_size": None,
+                "manufacturer": None,
+                "model": None,
+                "mpn": None,
+                "nsn": None,
+                "brand_name_or_equal": bool(_OR_EQUAL.search(row.get("description") or "")),
+                "brand_name_only": bool(_BRAND_ONLY.search(row.get("description") or "")),
+                "complete": bool(row.get("complete")),
+                "evidence": row.get("evidence") or {},
+                "source": src,
+                "line_kind": row.get("line_kind"),
+                "quantity_semantic": row.get("quantity_semantic"),
+                "page": row.get("page"),
+            }
+            key = str(row.get("clin") or row.get("line_ref") or len(lines_by_key)).upper()
+            lines_by_key[key] = li
+
+    # 2) CLIN / "Line Item N" / "Item # N" prose segments (collapsed whitespace OK)
+    if not lines_by_key:
+        for src, text in sources:
+            for block in _segment_line_items(text):
+                li = _parse_line(block)
+                li["source"] = src
+                lines_by_key[block["label"].upper()] = li
 
     if not lines_by_key:
         # Single-item solicitations: a firm quantity from the existing extractor (never defaulted)
-        joined = " ".join(t for _, t in sources)
+        joined = " ".join(t for _, t in sources) if sources else " ".join(t for _, t in layout_sources)
         q = extract_quantity_fields(joined, title=_clean(title))
-        if q.get("quantity_extracted") and q.get("quantity_is_ordered"):
-            ident = extract_identity_fields(joined)
-            lines_by_key["SINGLE"] = {
-                "clin": None, "description": _clean(title)[:200], "quantity": _num(q.get("quantity")),
-                "unit_of_measure": (q.get("quantity_unit") or None), "pack_size": None,
-                "manufacturer": None, "model": None, "mpn": ident.get("manufacturer_part_number"),
-                "nsn": ident.get("nsn"), "brand_name_or_equal": bool(_OR_EQUAL.search(joined)),
-                "brand_name_only": bool(_BRAND_ONLY.search(joined)),
-                "complete": bool(q.get("quantity") and q.get("quantity_unit")),
-                "evidence": {"quantity": "; ".join(str(x) for x in (q.get("quantity_evidence") or [])[:2])},
-                "source": "single_item_text", "quantity_semantic": q.get("quantity_semantic"),
-            }
+        if q.get("quantity_extracted") and (
+            q.get("quantity_is_ordered") or q.get("quantity_semantic") == "MULTI_LINE_ITEM"
+        ):
+            if q.get("quantity_semantic") == "MULTI_LINE_ITEM" and q.get("verified_line_items"):
+                for idx, v in enumerate(q["verified_line_items"]):
+                    key = str(v.get("line_ref") or f"LINE{idx+1}").upper()
+                    lines_by_key[key] = {
+                        "clin": f"Line Item {v.get('line_ref')}" if v.get("line_ref") else None,
+                        "description": (v.get("product_description") or "")[:200] or _clean(title)[:200],
+                        "quantity": _num(v.get("quantity")),
+                        "unit_of_measure": v.get("unit") or v.get("quantity_unit"),
+                        "pack_size": None, "manufacturer": None, "model": None, "mpn": None, "nsn": None,
+                        "brand_name_or_equal": False, "brand_name_only": False,
+                        "complete": bool(
+                            v.get("product_description") and v.get("quantity") is not None and v.get("unit")
+                        ),
+                        "evidence": {"quantity": v.get("snippet")},
+                        "source": "bid_schedule_via_quantity",
+                        "line_kind": v.get("line_kind"),
+                        "quantity_semantic": v.get("semantic"),
+                    }
+            elif q.get("quantity_is_ordered"):
+                ident = extract_identity_fields(joined)
+                lines_by_key["SINGLE"] = {
+                    "clin": None, "description": _clean(title)[:200], "quantity": _num(q.get("quantity")),
+                    "unit_of_measure": (q.get("quantity_unit") or None), "pack_size": None,
+                    "manufacturer": None, "model": None, "mpn": ident.get("manufacturer_part_number"),
+                    "nsn": ident.get("nsn"), "brand_name_or_equal": bool(_OR_EQUAL.search(joined)),
+                    "brand_name_only": bool(_BRAND_ONLY.search(joined)),
+                    "complete": bool(q.get("quantity") and q.get("quantity_unit")),
+                    "evidence": {"quantity": "; ".join(str(x) for x in (q.get("quantity_evidence") or [])[:2])},
+                    "source": "single_item_text", "quantity_semantic": q.get("quantity_semantic"),
+                }
 
-    full = " ".join(t for _, t in sources)
+    full = " ".join(t for _, t in sources) if sources else " ".join(t for _, t in layout_sources)
     req: dict[str, Any] = {}
     for name, pat in (("specifications", _SPEC), ("delivery", _DELIVERY), ("packaging", _PACKAGING),
                       ("certifications", _CERT), ("inspection", _INSPECTION), ("installation", _INSTALLATION),

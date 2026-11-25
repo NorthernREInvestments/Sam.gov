@@ -614,7 +614,7 @@ def build_one_call_approval_package() -> dict[str, Any]:
 
 
 def reconcile_quote_ready_counts() -> dict[str, Any]:
-    """Explain 2 (14-audit) vs 10 (population accounting) without changing classifications."""
+    """Explain 2 (14-audit) vs 10 (population / offline replay) without inflating readiness."""
     return {
         "fourteen_audit_YES": 2,
         "fourteen_audit_commit": "c565006",
@@ -630,11 +630,17 @@ def reconcile_quote_ready_counts() -> dict[str, Any]:
             "has_qty + (has_spec or >=5 complete lines) + text_chars>=200. Broader than the "
             "14-card manual bar; not independently source-audited line-by-line."
         ),
+        "offline_replay_strict_definition": (
+            "SUPPLIER_RESEARCH_READY + >=1 complete evidence-backed line + EXACT/SPECIFIED "
+            "identity + eligibility not BLOCKED + retained text>=200 + CONFIRMED_PRODUCT/MIXED. "
+            "Does not imply live-verified open submission status."
+        ),
         "reconciliation": (
             "Not a contradiction: different universes and bars. The 2 YES are the "
-            "owner-trustworthy quote-ready set from the pricing_now audit. The 10 YES are "
-            "automated candidates from the full inventory pass and still require per-opportunity "
-            "evidence review before outreach."
+            "owner-trustworthy quote-ready set from the pricing_now audit (rock-salt schedule "
+            "NOT RUN offline — body absent). The 10 YES are automated candidates under the "
+            "single strict offline definition; review before outreach. Propane extracts 5 lines "
+            "but is PARTIAL (eligibility blocked)."
         ),
         "do_not_inflate": True,
     }

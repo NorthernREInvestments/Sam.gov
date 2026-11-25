@@ -3947,6 +3947,7 @@ def main(argv: list[str] | None = None) -> int:
                 export_name=EXPORT_ROOT_ENGINE_REPAIR,
                 prior_master_index=args.prior_master_index,
                 vault_durability_check=False,
+                lean=True,
             )
             assert acquisition_locked()
             print(

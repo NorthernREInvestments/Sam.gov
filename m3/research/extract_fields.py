@@ -235,6 +235,10 @@ KNOWN_PURCHASE_UOMS = PURCHASE_LIKE_UNITS | PACKAGE_UNITS | {
     "vehicle", "vehicles", "truck", "trucks", "trailer", "trailers", "pager", "pagers",
     "pump", "pumps", "generator", "generators", "lift", "lifts", "meter", "meters", "battery", "batteries",
     "compactor", "compactors", "boat", "boats", "van", "vans",
+    # Service / fee schedule UOMs common on municipal bid tables
+    "annual", "annually", "year", "years", "yr", "ls", "lump sum", "lumpsum",
+    "per delivery", "per replacement", "per occurrence", "per call", "per trip", "per event",
+    "month", "months", "mo", "week", "weeks", "day", "days",
 }
 
 # Brand / proper-name tokens that ORDERED_QTY_RE may capture after a number — never UOMs.
@@ -277,10 +281,21 @@ def normalize_quantity_unit(unit: str | None) -> str | None:
         "kit": "KIT", "kits": "KIT", "lot": "LOT", "lots": "LOT", "set": "SET", "sets": "SET",
         "pagers": "EA", "pager": "EA", "vehicles": "EA", "vehicle": "EA", "trucks": "EA", "truck": "EA",
         "trailers": "EA", "trailer": "EA", "vans": "EA", "van": "EA",
+        "annual": "ANNUAL", "annually": "ANNUAL", "year": "YR", "years": "YR", "yr": "YR",
+        "ls": "LS", "lump sum": "LS", "lumpsum": "LS",
+        "per delivery": "PER DELIVERY", "per replacement": "PER REPLACEMENT",
+        "per occurrence": "PER OCCURRENCE", "per call": "PER CALL",
+        "per trip": "PER TRIP", "per event": "PER EVENT",
+        "month": "MO", "months": "MO", "mo": "MO", "week": "WK", "weeks": "WK",
+        "day": "DAY", "days": "DAY", "hour": "HR", "hours": "HR", "hr": "HR", "hrs": "HR",
     }
     if u in canon:
         return canon[u]
-    return raw.upper()[:16]
+    # Joined multi-word UOMs ("Per Replacement") already lowercased via _unit_norm
+    compact = re.sub(r"\s+", " ", u).strip()
+    if compact in canon:
+        return canon[compact]
+    return raw.upper()[:24]
 
 # Semantics that may count as defined purchase quantity for Stage C
 ORDERED_SEMANTICS = {
@@ -327,6 +342,90 @@ def _parse_spelled_number(words: str) -> float | None:
 
 def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
     """Extract quantity with semantic class. Empty / non-ordered = not a Stage-C fit basis."""
+    # Prefer numbered bid/pricing tables (newline-preserving) before scalar heuristics.
+    # Lazy import avoids circular dependency with bid_schedule → normalize_quantity_unit.
+    try:
+        from m3.research.bid_schedule import parse_bid_schedule_tables
+
+        bid_rows = parse_bid_schedule_tables(text)
+    except Exception:
+        bid_rows = []
+    if len(bid_rows) >= 1:
+        verified = []
+        for row in bid_rows:
+            verified.append(
+                {
+                    "quantity": (
+                        str(int(row["quantity"]))
+                        if isinstance(row.get("quantity"), (int, float))
+                        and float(row["quantity"]) == int(row["quantity"])
+                        else str(row.get("quantity"))
+                    ),
+                    "unit": row.get("unit_of_measure") or row.get("unit"),
+                    "product_description": row.get("product_description") or row.get("description"),
+                    "snippet": row.get("snippet") or row.get("source_passage"),
+                    "source_passage": row.get("source_passage") or row.get("snippet"),
+                    "semantic": row.get("quantity_semantic") or "LINE_ITEM_QUANTITY",
+                    "line_ref": row.get("line_ref"),
+                    "line_kind": row.get("line_kind"),
+                    "page": row.get("page"),
+                    "counts_as_ordered": bool(row.get("counts_as_ordered")),
+                    "complete": bool(row.get("complete")),
+                }
+            )
+        if len(verified) >= 2:
+            return {
+                "quantity": None,
+                "quantity_unit": None,
+                "quantity_kind": "fixed",
+                "quantity_semantic": "MULTI_LINE_ITEM",
+                "quantity_status": "MULTI_LINE_ITEM",
+                "quantity_evidence": [
+                    "numbered_bid_schedule_table",
+                    *[str(v.get("snippet")) for v in verified[:8]],
+                ],
+                "quantity_candidates": [],
+                "line_items": [
+                    {
+                        "line_ref": v.get("line_ref"),
+                        "quantity": v.get("quantity"),
+                        "product_description": v.get("product_description"),
+                        "snippet": v.get("snippet"),
+                        "semantic": "LINE_ITEM_QUANTITY",
+                    }
+                    for v in verified
+                ],
+                "quantity_extracted": True,
+                "quantity_is_ordered": any(v.get("counts_as_ordered") for v in verified),
+                "quantity_line_count": len(verified),
+                "verified_line_items": verified,
+                "bid_schedule_rows": bid_rows,
+            }
+        only = verified[0]
+        return {
+            "quantity": only.get("quantity"),
+            "quantity_unit": only.get("unit"),
+            "quantity_kind": "fixed",
+            "quantity_semantic": only.get("semantic") or "LINE_ITEM_QUANTITY",
+            "quantity_status": "VERIFIED",
+            "quantity_evidence": ["numbered_bid_schedule_table", only.get("snippet")],
+            "quantity_candidates": [],
+            "line_items": [
+                {
+                    "line_ref": only.get("line_ref"),
+                    "quantity": only.get("quantity"),
+                    "product_description": only.get("product_description"),
+                    "snippet": only.get("snippet"),
+                    "semantic": only.get("semantic"),
+                }
+            ],
+            "quantity_extracted": True,
+            "quantity_is_ordered": bool(only.get("counts_as_ordered")),
+            "quantity_line_count": 1,
+            "verified_line_items": verified,
+            "bid_schedule_rows": bid_rows,
+        }
+
     blob = f"{title}\n{text or ''}"
     evidence: list[str] = []
     qty_kind = "unknown"
@@ -363,9 +462,19 @@ def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
         # Drop brand/model tokens captured as false UOMs; keep the quantity if otherwise valid.
         grounded_unit = normalize_quantity_unit(unit)
         if unit_l and grounded_unit is None and unit_l not in {"", "of"}:
-            # Brand-adjacent capture (e.g. "53 Unication") — quantity may stand; UOM unknown.
+            # Brand-adjacent capture (e.g. "53 Unication G5 ... Pagers") — recover countable noun UOM.
             unit = None
             unit_l = ""
+            noun = re.search(
+                r"(?i)\b(pagers?|vehicles?|trucks?|trailers?|pumps?|generators?|lifts?|"
+                r"meters?|batteries|compactors?|boats?|vans?|units?|each|ea)\b",
+                snippet or "",
+            )
+            if noun:
+                grounded_unit = normalize_quantity_unit(noun.group(1))
+                if grounded_unit:
+                    unit = grounded_unit
+                    unit_l = _unit_norm(unit)
         else:
             unit = grounded_unit
             unit_l = _unit_norm(unit)
@@ -407,7 +516,8 @@ def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
         if val is None:
             continue
         sem = "ESTIMATED_QUANTITY" if qty_kind == "estimated" else "ORDERED_QUANTITY"
-        _add(val, unit, m.group(0), sem, ordered=True)
+        # Include following product noun so brand-as-UOM rejection can recover "… Pagers" → EA
+        _add(val, unit, blob[m.start() : m.end() + 80], sem, ordered=True)
 
     # 3) "furnish/purchase N units" / "purchase of N ..."
     for m in FURNISH_QTY_RE.finditer(blob):

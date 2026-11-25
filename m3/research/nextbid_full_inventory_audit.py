@@ -1195,12 +1195,26 @@ def run_full_inventory_audit(
     export_name: str | None = None,
     prior_master_index: str | Path | None = None,
     vault_durability_check: bool = True,
+    write_record_packages: bool = True,
+    write_zips: bool = True,
+    lean: bool = False,
 ) -> dict[str, Any]:
+    """Offline reprocess of the NextBid inventory.
+
+    ``lean=True`` skips per-record A/B/C/D dumps and ZIP archives (keeps indexes +
+    summary metrics only). Prefer lean for production repair replays.
+    """
     t0 = time.time()
     assert acquisition_locked(), "killswitch must remain locked — audit is offline only"
     # HARD: no network usage helpers either
+    if lean:
+        write_record_packages = False
+        write_zips = False
     export_label = export_name or EXPORT_ROOT_NAME
-    _log(f"START offline full inventory audit — ZERO API calls export={export_label}")
+    _log(
+        f"START offline full inventory audit — ZERO API calls export={export_label} "
+        f"lean={lean} packages={write_record_packages} zips={write_zips}"
+    )
 
     inv = load_inventory()
     assert len(inv) == 8088, f"expected 8088, got {len(inv)}"
@@ -1279,9 +1293,11 @@ def run_full_inventory_audit(
             export_label = f"{export_label}_FRESH"
             root = export_root(export_label)
             _log(f"redirected export to {root}")
-    (root / "by_classification").mkdir(exist_ok=True)
+    if write_record_packages:
+        (root / "by_classification").mkdir(exist_ok=True)
     (root / "indexes").mkdir(exist_ok=True)
-    (root / "zips").mkdir(exist_ok=True)
+    if write_zips:
+        (root / "zips").mkdir(exist_ok=True)
     (root / "manifests").mkdir(exist_ok=True)
 
     now = datetime.now(timezone.utc)
@@ -1325,14 +1341,24 @@ def run_full_inventory_audit(
             now=now,
         )
         prev = prior.get(nb)
-        paths = write_record_package(
-            root,
-            nb_id=nb,
-            evidence=evidence,
-            decision=decision,
-            prior=prev,
-            archive_id=archive_of[nb],
-        )
+        if write_record_packages:
+            paths = write_record_package(
+                root,
+                nb_id=nb,
+                evidence=evidence,
+                decision=decision,
+                prior=prev,
+                archive_id=archive_of[nb],
+            )
+        else:
+            primary_tmp = decision["primary_classification"]
+            paths = {
+                "dir": f"indexes/lean/{primary_tmp}/{nb}",
+                "original": "",
+                "human": "",
+                "decision": "",
+                "trace": "",
+            }
         primary = decision["primary_classification"]
         class_counts[primary] += 1
         completeness_counts[str(evidence.get("evidence_completeness"))] += 1
@@ -1540,57 +1566,63 @@ def run_full_inventory_audit(
         encoding="utf-8",
     )
 
-    # ZIP archives
-    _log("building ZIP archives")
-    by_archive_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in index_rows:
-        by_archive_rows[row["archive_id"]].append(row)
-
-    zip_manifest = []
-    zips_dir = root / "zips"
-    for arch_id in sorted(by_archive_rows.keys()):
-        zpath = zips_dir / f"{export_label}_{arch_id}.zip"
-        part_rows = by_archive_rows[arch_id]
-        ids = [r["nb_id"] for r in part_rows]
-        with zipfile.ZipFile(zpath, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(
-                f"{arch_id}/PART_INDEX.jsonl",
-                "\n".join(json.dumps(r, default=str) for r in part_rows) + "\n",
-            )
-            for row in part_rows:
-                rel_dir = row["audit_dir"]
-                for fname in (
-                    "A_original_evidence.json",
-                    "B_human_readable.md",
-                    "C_software_decision.json",
-                    "D_audit_trace.json",
-                ):
-                    fpath = root / rel_dir / fname
-                    if fpath.exists():
-                        zf.write(fpath, arcname=f"{arch_id}/{rel_dir}/{fname}")
-        zip_manifest.append(
-            {
-                "archive_id": arch_id,
-                "filename": zpath.name,
-                "path": str(zpath),
-                "records": len(ids),
-                "bytes": zpath.stat().st_size,
-                "sha256": sha256_file(zpath),
-                "nb_ids": ids,
-            }
-        )
-        _log(f"zip {arch_id} records={len(ids)} bytes={zpath.stat().st_size}")
-
-    # Master manifest: every ID → exactly one archive
+    # ZIP archives (optional — lean repair replays skip these)
+    zip_manifest: list[dict[str, Any]] = []
     id_to_archive = {nb: archive_of[nb] for nb in ordered_ids}
+    if write_zips and write_record_packages:
+        _log("building ZIP archives")
+        by_archive_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in index_rows:
+            by_archive_rows[row["archive_id"]].append(row)
+
+        zips_dir = root / "zips"
+        for arch_id in sorted(by_archive_rows.keys()):
+            zpath = zips_dir / f"{export_label}_{arch_id}.zip"
+            part_rows = by_archive_rows[arch_id]
+            ids = [r["nb_id"] for r in part_rows]
+            with zipfile.ZipFile(zpath, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr(
+                    f"{arch_id}/PART_INDEX.jsonl",
+                    "\n".join(json.dumps(r, default=str) for r in part_rows) + "\n",
+                )
+                for row in part_rows:
+                    rel_dir = row["audit_dir"]
+                    for fname in (
+                        "A_original_evidence.json",
+                        "B_human_readable.md",
+                        "C_software_decision.json",
+                        "D_audit_trace.json",
+                    ):
+                        fpath = root / rel_dir / fname
+                        if fpath.exists():
+                            zf.write(fpath, arcname=f"{arch_id}/{rel_dir}/{fname}")
+            zip_manifest.append(
+                {
+                    "archive_id": arch_id,
+                    "filename": zpath.name,
+                    "path": str(zpath),
+                    "records": len(ids),
+                    "bytes": zpath.stat().st_size,
+                    "sha256": sha256_file(zpath),
+                    "nb_ids": ids,
+                }
+            )
+            _log(f"zip {arch_id} records={len(ids)} bytes={zpath.stat().st_size}")
+    else:
+        _log("skipping ZIP archives (lean mode)")
+
+    # Master manifest
     manifest = {
         "build": "002Q",
-        "export": EXPORT_ROOT_NAME,
+        "export": export_label,
         "generated_at": _utc(),
         "total_records": len(ordered_ids),
-        "records_per_zip_target": RECORDS_PER_ZIP,
+        "lean": bool(lean),
+        "write_record_packages": bool(write_record_packages),
+        "write_zips": bool(write_zips),
+        "records_per_zip_target": RECORDS_PER_ZIP if write_zips else 0,
         "zip_count": len(zip_manifest),
-        "id_to_archive": id_to_archive,
+        "id_to_archive": id_to_archive if write_zips else {},
         "archives": [
             {k: v for k, v in a.items() if k != "nb_ids"} | {"nb_id_count": len(a["nb_ids"])}
             for a in zip_manifest
@@ -1606,6 +1638,7 @@ def run_full_inventory_audit(
         "master_index_jsonl_sha256": sha256_file(jsonl_path),
         "master_index_csv_sha256": sha256_file(csv_path),
         "zips": [{k: a[k] for k in ("archive_id", "filename", "sha256", "bytes", "records")} for a in zip_manifest],
+        "lean": bool(lean),
     }
     (root / "manifests" / "CHECKSUMS.json").write_text(
         json.dumps(checksums, indent=2), encoding="utf-8"
@@ -1616,19 +1649,25 @@ def run_full_inventory_audit(
         "inventory_total": len(inv),
         "index_rows": len(index_rows),
         "class_sum": sum(class_counts.values()),
-        "every_id_in_exactly_one_archive": len(id_to_archive) == 8088
-        and len(set(id_to_archive.values())) == len(zip_manifest),
-        "zip_record_sum": sum(a["records"] for a in zip_manifest),
+        "every_id_in_exactly_one_archive": (
+            (not write_zips)
+            or (
+                len(id_to_archive) == 8088
+                and len(set(id_to_archive.values())) == len(zip_manifest)
+            )
+        ),
+        "zip_record_sum": sum(a["records"] for a in zip_manifest) if write_zips else len(index_rows),
         "missing_packages": 0,
         "prior_incompatible_count": len(prior_incompat),
         "prior_incompatible_reconsidered": len(incompat_reconsider),
         "api_calls": 0,
         "acquisition_locked": acquisition_locked(),
+        "lean": bool(lean),
         "ok": True,
         "errors": [],
     }
-    for row in index_rows:
-        for key in ("dir",):
+    if write_record_packages:
+        for row in index_rows:
             p = root / row["audit_dir"]
             if not p.exists():
                 validation["missing_packages"] += 1
@@ -1649,7 +1688,7 @@ def run_full_inventory_audit(
     if validation["class_sum"] != 8088:
         validation["ok"] = False
         validation["errors"].append("class_sum_ne_8088")
-    if validation["zip_record_sum"] != 8088:
+    if write_zips and validation["zip_record_sum"] != 8088:
         validation["ok"] = False
         validation["errors"].append("zip_record_sum_ne_8088")
     if validation["missing_packages"]:
