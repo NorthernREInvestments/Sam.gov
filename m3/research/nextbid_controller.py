@@ -49,7 +49,13 @@ OWNER_HARD_BUILD_002Q_LISTING = 400
 OWNER_HARD_BUILD_002Q_DETAIL = 1246
 LISTING_ENDPOINTS = frozenset({"search"})
 DETAIL_ENDPOINTS = frozenset(
-    {"get_opportunity", "list_documents", "list_files", "read_file"}
+    {
+        "get_opportunity",
+        "list_documents",
+        "list_files",
+        "read_file",
+        "get_document_download",
+    }
 )
 
 _lock = threading.RLock()
@@ -750,11 +756,16 @@ def metered_request(
     nb_id: str | None = None,
     max_retries: int = 0,
     use_cache: bool = True,
+    follow_redirects: bool | None = None,
 ) -> dict[str, Any]:
     """ONLY entrypoint for metered NextBid calls. Retries count against budget.
 
     Order: lock → durable-store hit → HTTP cache hit → reserve → transmit →
     persist raw body BEFORE parse → commit. Uncertain outcomes count as consumed.
+
+    ``follow_redirects`` defaults True; set False for ``get_document_download`` so the
+    billable response is the link/redirect metadata — object-store PDF bytes are fetched
+    separately and are not a second NextBid API credit.
     """
     if acquisition_locked():
         raise NextBidUnauthorized("acquisition_locked")
@@ -862,7 +873,17 @@ def metered_request(
             reservation = _reserve(job_id, 1, endpoint=endpoint)
             with _sem:
                 try:
-                    resp = _http().request(method, path, params=params)
+                    # Document-download: do not auto-follow to object store (keeps PDF off the
+                    # metered client path; caller fetches the returned URL separately).
+                    fr = follow_redirects
+                    if fr is None:
+                        fr = endpoint != "get_document_download"
+                    if fr is False:
+                        resp = _http().request(
+                            method, path, params=params, follow_redirects=False
+                        )
+                    else:
+                        resp = _http().request(method, path, params=params)
                 except httpx.HTTPError as exc:
                     # Uncertain outcome: treat as potentially consumed (fail closed)
                     _commit(
@@ -922,6 +943,23 @@ def metered_request(
                         "raw_text": raw_text or "",
                         "content_type": (resp.headers.get("content-type") or None),
                     }
+                # Document-download redirects: retain Location as the issued link.
+                if resp.status_code in {301, 302, 303, 307, 308}:
+                    loc = resp.headers.get("location") or resp.headers.get("Location")
+                    if isinstance(body_for_store, dict):
+                        body_for_store = dict(body_for_store)
+                        body_for_store.setdefault("ok", True)
+                        body_for_store["status_code"] = resp.status_code
+                        if loc:
+                            body_for_store["download_url"] = loc
+                            body_for_store["location"] = loc
+                    else:
+                        body_for_store = {
+                            "ok": True,
+                            "status_code": resp.status_code,
+                            "download_url": loc,
+                            "location": loc,
+                        }
                 persist_paid_response(
                     method=method,
                     path=path,

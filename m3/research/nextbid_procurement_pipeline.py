@@ -190,22 +190,66 @@ def plan_cheapest_retrieval(nb_id: str) -> dict[str, Any]:
         ),
     )
 
+    from m3.research.solicitation_document_manifest import document_download_retention
+
+    retained_pdf_shas: list[str] = []
+    missing_pdf_meta: list[dict[str, Any]] = []
+    for d in pkg.get("source_documents") or []:
+        if not isinstance(d, dict):
+            continue
+        sha = str(d.get("sha256") or "").strip().lower()
+        if len(sha) != 64:
+            continue
+        dr = document_download_retention(nb_id, sha)
+        if dr.get("already_retained"):
+            retained_pdf_shas.append(sha)
+        else:
+            missing_pdf_meta.append(
+                {
+                    "name": d.get("name") or d.get("filename"),
+                    "sha256": sha,
+                    "declared_bytes": d.get("bytes"),
+                }
+            )
+    check(
+        "6_source_pdf_local_status",
+        True,
+        f"retained_pdfs={len(retained_pdf_shas)} missing_pdfs={len(missing_pdf_meta)}",
+    )
+
     proposed = None
     stop_reason = None
     if md_already and path:
         stop_reason = "artifact_already_retained_locally"
         steps_checked.append(
             {
-                "step": "6_duplicate_purchase_guard",
+                "step": "7_duplicate_purchase_guard",
                 "present": True,
                 "detail": (
                     f"Blocked re-buy of {path}: durable_store="
                     f"{retention.get('durable_response_present')} "
                     f"persistence_ok={retention.get('persistence_ok')} "
-                    f"full_text_chars={len(local_doc)}"
+                    f"full_text_chars={len(local_doc)}; "
+                    f"retained_attachment_pdfs={len(retained_pdf_shas)}"
                 ),
             }
         )
+        # Never auto-propose get_document_download here — owner-gated only.
+        # If canonical propane PDF is already local, record that explicitly.
+        for d in pkg.get("source_documents") or []:
+            if not isinstance(d, dict):
+                continue
+            if str(d.get("name") or "") != "Bulk_Propane_Fuel_Supply.pdf":
+                continue
+            sha = str(d.get("sha256") or "").lower()
+            if sha in retained_pdf_shas:
+                steps_checked.append(
+                    {
+                        "step": "8_pdf_duplicate_purchase_guard",
+                        "present": True,
+                        "detail": f"Blocked re-buy of Bulk_Propane_Fuel_Supply.pdf sha={sha}",
+                    }
+                )
     elif md_paths and path and not md_already:
         proposed = {
             "endpoint": "read_file",
@@ -251,6 +295,8 @@ def plan_cheapest_retrieval(nb_id: str) -> dict[str, Any]:
             "retained": md_already,
             "retention": retention if path else None,
         },
+        "retained_attachment_pdf_shas": retained_pdf_shas,
+        "missing_attachment_pdfs": missing_pdf_meta,
         "killswitch_locked": acquisition_locked(),
         "ledger": (controller_status().get("budget_state") or {}),
     }

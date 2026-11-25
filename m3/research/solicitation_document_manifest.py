@@ -91,6 +91,25 @@ def local_pdf_bytes_by_sha(sha256: str | None) -> dict[str, Any]:
     return {"present": False, "path": None, "bytes": None}
 
 
+def document_download_retention(nb_id: str, sha256: str) -> dict[str, Any]:
+    """Whether a provider original (by sha256) is already retained locally — block re-buy."""
+    sha = (sha256 or "").strip().lower()
+    local = local_pdf_bytes_by_sha(sha)
+    http_path = f"/opportunities/{nb_id}/documents/{sha}/download"
+    row = load_by_request_id(request_identity("GET", http_path, None, nb_id=nb_id))
+    return {
+        "nb_id": nb_id,
+        "sha256": sha,
+        "http_path": http_path,
+        "local_pdf_bytes_present": bool(local.get("present")),
+        "local_path": local.get("path"),
+        "local_bytes": local.get("bytes"),
+        "download_link_response_retained": row is not None,
+        "already_retained": bool(local.get("present")),
+        "duplicate_purchase_blocked": bool(local.get("present")),
+    }
+
+
 def file_artifact_retention(nb_id: str, relative_path: str) -> dict[str, Any]:
     """Whether a NextBid ``files/<path>`` artifact is already durably retained locally."""
     http_path = f"/opportunities/{nb_id}/files/{relative_path}"

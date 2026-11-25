@@ -32,7 +32,8 @@ def extract_pdf_text(data: bytes, *, allow_ocr: bool = True) -> dict[str, Any]:
         from pdfminer.high_level import extract_text as pdf_extract
 
         text = pdf_extract(io.BytesIO(data)) or ""
-        cleaned = _clean(text)
+        # Keep full solicitation PDF text (default _clean 12k truncates multi-section RFQs).
+        cleaned = _clean(text, limit=500_000)
         if len(cleaned) >= 40:
             return {"ok": True, "text": cleaned, "format": "pdf", "reason": None, "method": "pdfminer"}
         # OCR fallback for scanned / image PDFs (Build 002H)

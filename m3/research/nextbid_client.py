@@ -167,6 +167,27 @@ class NextBidClient:
         self.budget.record("documents", "read_file", 1)
         return data
 
+    def get_document_download(self, nb_id: str, sha256: str) -> dict[str, Any]:
+        """Issue a time-limited object-store download link (1 metered credit).
+
+        Equivalent to MCP ``get_document_download``. Does not return PDF bytes — those
+        are fetched from the returned URL outside the NextBid meter.
+        """
+        sha = (sha256 or "").strip().lower()
+        if len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
+            raise NextBidControllerError("invalid_document_sha256")
+        data = metered_request(
+            "GET",
+            f"/opportunities/{nb_id}/documents/{sha}/download",
+            job_id=self.job_id,
+            endpoint="get_document_download",
+            nb_id=nb_id,
+            max_retries=0,
+            follow_redirects=False,
+        )
+        self.budget.record("documents", "get_document_download", 1)
+        return data
+
 
 def checkpoint_path(name: str = "nextbid_acquire_v1") -> Path:
     root = get_settings().data_root() / "nextbid_checkpoints"

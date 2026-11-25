@@ -46,7 +46,7 @@ def test_planner_blocks_duplicate_document0_read():
     assert plan["stop_without_call"] == "artifact_already_retained_locally"
     assert plan["already_retained_artifact"]["retained"] is True
     assert plan["already_retained_artifact"]["path"].endswith(".document0.md")
-    assert any(s["step"] == "6_duplicate_purchase_guard" for s in plan["steps_checked"])
+    assert any(s["step"] == "7_duplicate_purchase_guard" for s in plan["steps_checked"])
 
 
 def test_file_artifact_retention_and_planner_propose_when_absent(tmp_path, monkeypatch):
