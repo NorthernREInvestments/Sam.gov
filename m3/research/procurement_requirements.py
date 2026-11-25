@@ -300,6 +300,13 @@ _HARD_ITEM_RULES = ("nsn", "part_number", "item_nomenclature_title", "brand_spec
                     "materials_only", "buy_intent", "quantity_of_goods", "acquisition_of_goods")
 
 
+def title_only_unresolved(presence: dict[str, Any]) -> bool:
+    """Rejected only for lacking product words in a bare title: the deliverable is unknown, not incompatible."""
+    return (presence.get("product_presence") == "NO_PRODUCT_EVIDENCE"
+            and presence.get("procurement_category") in {None, "unresolved"}
+            and presence.get("evidence_completeness") in {"TITLE_ONLY", "TITLE_CODES"})
+
+
 def qualification(*, presence: dict[str, Any], requirements: dict[str, Any], sourcing: dict[str, Any]) -> dict[str, Any]:
     """Intake decision (PROCEED / INVESTIGATE / SKIP) and the separate qualification conditions.
 
@@ -311,6 +318,9 @@ def qualification(*, presence: dict[str, Any], requirements: dict[str, Any], sou
     hard = [s["rule"] for s in signals if s["level"] == "explicit" and s["rule"].split(":")[0] in _HARD_ITEM_RULES]
     if pp in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"} and presence.get("procurement_category") not in {"rental", "software"}:
         decision, why = "PROCEED", f"{pp.lower()}:" + ",".join(s["rule"] for s in signals[:3])
+    elif pp == "NO_PRODUCT_EVIDENCE" and title_only_unresolved(presence):
+        # A bare title with no recognised deliverable is not evidence of incompatibility
+        decision, why = "INVESTIGATE", "title_only_deliverable_unresolved|needs_solicitation_page"
     elif pp == "NO_PRODUCT_EVIDENCE":
         decision = "SKIP"
         cat = presence.get("procurement_category")

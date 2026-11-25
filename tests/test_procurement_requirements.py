@@ -33,6 +33,10 @@ def test_qualification_states_are_separate_and_never_overclaim():
     no_qty = _qual("Bid 2026 Road Salt")
     assert no_qty["intake_decision"] in {"PROCEED", "INVESTIGATE"}
     assert no_qty["qualification_state"] in {"DISCOVERED", "PRODUCT_CANDIDATE"}
+    for bare in ("Mendota JR HS-Modular Building", "Wood Working Industry", "MXO Office-wide Innovative Solutions Opening"):
+        q = _qual(bare)
+        assert q["intake_decision"] != "SKIP", (bare, q)
+        assert q["qualification_state"] in {"DISCOVERED", "PRODUCT_CANDIDATE"}
     skip = _qual("Janitorial Services for City Hall", "Contractor shall provide custodial services.")
     assert skip["intake_decision"] == "SKIP" and skip["intake_reason"].startswith("principal_deliverable:")
 

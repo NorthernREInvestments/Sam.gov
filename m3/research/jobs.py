@@ -3571,6 +3571,7 @@ def main(argv: list[str] | None = None) -> int:
             p_la.add_argument("--root", default=None)
     p_sd = sub.add_parser("staged-documents")
     p_sd.add_argument("--max-records", type=int, default=2000)
+    p_sd.add_argument("--only-untried", action="store_true", help="bound the run to records never attempted before")
     p_acc = sub.add_parser("acceptance-002q")
     p_acc.add_argument(
         "--reuse",
@@ -4020,6 +4021,10 @@ def main(argv: list[str] | None = None) -> int:
             root = get_settings().staged_inventory_root()
             rows = [json.loads(l) for l in (root / "inventory.jsonl").open(encoding="utf-8")]
             targets = select_staged_document_targets(rows, now=datetime.now(timezone.utc))
+            if args.only_untried:
+                ck_p = root / "documents" / "doc_checkpoint.json"
+                tried = set((json.loads(ck_p.read_text(encoding="utf-8")).get("done") or {}) if ck_p.exists() else ())
+                targets = [t for t in targets if str(t.get("staged_id")) not in tried]
             del rows
             res = recover_staged_documents(targets, out_root=root / "documents", max_records=args.max_records)
             print(json.dumps(res, default=str), flush=True)

@@ -43,6 +43,25 @@ def test_partial_bidnet_snapshot_never_counts_as_complete(tmp_path):
         assert si.load_bidnet_snapshot(tmp_path)["complete"] is complete
 
 
+def test_official_page_deadline_and_feed_placeholders():
+    pages = {  # text as retained from the official pages
+        "Bid Status:&nbsp; Open Bid Closing Date:&nbsp; Wed Dec 23, 2026 3:30:00 PM (CST) Question Deadline:&nbsp; Tue Dec 15, 2026":
+            ("MN", "2026-12-23T21:30:00+00:00"),
+        "Solicitation Start Date: 10/15/26 Solicitation Due Date: 12/17/26 Solicitation Due Time: 1:30 PM Solicitation Opening":
+            ("PA", "2026-12-17T18:30:00+00:00"),
+        "Release Date September 23, 2026 Submission Deadline January 19, 2027, 11:59 pm Questions Deadline November 20, 2026, 5:00 pm":
+            ("CA", "2027-01-20T07:59:00+00:00"),
+    }
+    for text, (state, want) in pages.items():
+        raw = si.page_stated_deadline(text)
+        assert si.parse_deadline(raw, tz_name=None, state=state)["deadline_at"].isoformat() == want, (text, raw)
+    assert si.page_stated_deadline("Questions Deadline November 20, 2026, 5:00 pm") is None
+    feed = si.parse_deadline("2026-12-03T12:00:00+00:00", tz_name=None, state="MN")
+    assert feed["deadline_basis"].endswith("_end_of_day") and feed["deadline_at"].isoformat() == "2026-12-04T05:59:59+00:00"
+    assert si.parse_deadline("2026-12-03T12:00:00Z", tz_name="UTC", state="CA")["deadline_at"].isoformat() == "2026-12-04T07:59:59+00:00"
+    assert si.parse_deadline("2026-12-03T17:00:00+00:00", tz_name=None, state="MN")["deadline_basis"] == "explicit_offset"
+
+
 def test_bidnet_abstract_deadline_overrides_listing_date(tmp_path):
     row = {"provider_record_id": "2723951867", "title": "39--FAIRLEAD,ROLLER", "location": "Pennsylvania",
            "official_url": "https://www.bidnetdirect.com/pennsylvania/x/2723951867", "deadline_raw": "11/26/2026",

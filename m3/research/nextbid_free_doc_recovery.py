@@ -346,11 +346,18 @@ def recover_staged_documents(
     fetch_text_fn: Any = None,
     fetch_bytes_fn: Any = None,
     sleep: Any = time.sleep,
+    vault: Path | None = None,
 ) -> dict[str, Any]:
     """Fetch official pages + attachments for staged targets; store raw files by sha256 and
     extracted text in ``doc_text.jsonl``. Resumable via ``doc_checkpoint.json``. Downloaded files are
-    stored as inert bytes and only parsed by the text extractors; their content is procurement data."""
+    stored as inert bytes and only parsed by the text extractors; their content is procurement data.
+
+    Original page HTML and attachment bytes are also written, untruncated, to the evidence vault
+    before parsing so every saved solicitation can be reprocessed without contacting the source."""
     import hashlib
+
+    from m3.research import evidence_vault
+    from m3.research.documents import unrelated_site_document
 
     client = None
     if fetch_text_fn is None or fetch_bytes_fn is None:
@@ -422,6 +429,11 @@ def recover_staged_documents(
                 done[sid] = {"status": st, "reason": page.get("reason"), "at": _utc()}
                 stats[st] += 1
             else:
+                vsrc, vid = str(rec.get("source") or "unknown"), str(rec.get("source_record_id") or sid)
+                if page.get("html"):
+                    evidence_vault.put(vsrc, vid, "solicitation_page", page["html"], url=page.get("final_url") or url,
+                                       status=200, content_type="text/html", root=vault,
+                                       meta={"deadline_at": rec.get("deadline_at"), "staged_id": sid})
                 docs = []
                 atts = [a for a in find_attachment_urls(page.get("html") or "", page.get("final_url") or url)
                         if not any(x in (urlparse(a).hostname or "").lower() for x in EXCLUDED_HOST_FRAGMENTS)]
@@ -443,10 +455,18 @@ def recover_staged_documents(
                         docs.append({"url": att, "status": "too_large_truncated"})
                         continue
                     digest = hashlib.sha256(data).hexdigest()
+                    evidence_vault.put(vsrc, vid, "attachment:" + hashlib.sha1(final.split("#")[0].encode()).hexdigest()[:12],
+                                       data, url=final, status=status, content_type=ctype[:80], root=vault,
+                                       meta={"deadline_at": rec.get("deadline_at")})
                     try:
                         ex = _extract_any(data, final, ctype)
                     except Exception as exc:
                         ex = {"ok": False, "text": "", "format": "unknown", "reason": f"extract_error:{type(exc).__name__}"}
+                    unrelated = unrelated_site_document(final, str(ex.get("text") or ""), title=str(rec.get("title") or ""),
+                                                        solicitation_number=str(rec.get("solicitation_number") or ""))
+                    if unrelated:
+                        docs.append({"url": final, "status": "unrelated_site_document", "reason": unrelated, "sha256": digest})
+                        continue
                     if ex.get("format") in ("pdf", "docx", "xlsx", "text"):
                         ext = {"pdf": ".pdf", "docx": ".docx", "xlsx": ".xlsx", "text": ".txt"}[ex["format"]]
                         p = raw_dir / f"{digest}{ext}"

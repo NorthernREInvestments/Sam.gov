@@ -9,6 +9,7 @@ Lifecycle status is computed against the runtime clock in the solicitation's own
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import time
@@ -28,6 +29,7 @@ from m3.research.procurement_requirements import (
     assess_reseller_eligibility,
     assess_sourcing_readiness,
     qualification,
+    title_only_unresolved,
     extract_requirements,
 )
 
@@ -158,7 +160,7 @@ def _parse_us_datetime(s: str) -> datetime | None:
         mo, d, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
         hh, mi, ap = m.group(4), m.group(5), m.group(6)
     else:
-        m = re.search(r"\b([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})(?:\s*,?\s*(?:at\s+)?(\d{1,2}):(\d{2})\s*([AP]\.?M\.?)?)?", s, re.I)
+        m = re.search(r"\b([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})(?:\s*,?\s*(?:at\s+)?(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]\.?M\.?)?)?", s, re.I)
         if not m or m.group(1)[:3].lower() not in _MONTHS:
             return None
         mo, d, y = _MONTHS[m.group(1)[:3].lower()], int(m.group(2)), int(m.group(3))
@@ -173,6 +175,37 @@ def _parse_us_datetime(s: str) -> datetime | None:
         return datetime(y, mo, d, h, int(mi) if mi else 0)
     except ValueError:
         return None
+
+
+_UTC_NAMES = {"UTC", "ETC/UTC", "GMT", "Z", "+00:00"}
+_PAGE_DATE = r"(?:[A-Z][a-z]{2},?\s+)?(?:\d{1,2}/\d{1,2}/\d{2,4}|[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})"
+_PAGE_TIME = r"(?:,?\s*(?:at\s+)?\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp]\.?[Mm]\.?)?(?:\s*\(?(?:[ECMP][SD]T|AK[SD]T|HST)\)?)?"
+_PAGE_DEADLINE_RES = (
+    # "Solicitation Due Date: 12/17/26 Solicitation Due Time: 1:30 PM"
+    re.compile(r"(?i)\bDue\s+Date:?\s*(?P<d>\d{1,2}/\d{1,2}/\d{2,4})\s+(?:\w+\s+){0,2}Due\s+Time:?\s*(?P<t>\d{1,2}:\d{2}\s*[AP]M)"),
+    re.compile(r"(?:Bid\s+|Solicitation\s+|Proposal\s+|Response\s+)?(?:Closing|Close)\s+Date(?:\s*(?:/|and)\s*Time)?:?\s*(?P<v>"
+               + _PAGE_DATE + _PAGE_TIME + ")", re.I),
+    re.compile(r"(?:Submission|Proposals?|Bids?|Responses?|Offers?)\s+(?:are\s+)?(?:Due|Deadline)(?:\s+Date)?(?:\s*(?:/|and)\s*Time)?:?\s*"
+               r"(?:by\s+|on\s+)?(?P<v>" + _PAGE_DATE + _PAGE_TIME + ")", re.I),
+)
+
+
+def page_stated_deadline(text: str) -> str | None:
+    """Closing date/time as printed on an official solicitation page, or None. Question deadlines never match."""
+    t = re.sub(r"\s+", " ", html.unescape(text or ""))
+    for rx in _PAGE_DEADLINE_RES:
+        m = rx.search(t)
+        if not m:
+            continue
+        if "d" in m.groupdict() and m.group("d"):
+            d = m.group("d")
+            mo, dd, yy = d.split("/")
+            v = f"{mo}/{dd}/{yy if len(yy) == 4 else '20' + yy} {m.group('t')}"
+        else:
+            v = re.sub(r"^[A-Z][a-z]{2},?\s+(?=[A-Z])", "", m.group("v").strip())
+        if _parse_us_datetime(v):
+            return v
+    return None
 
 
 def parse_deadline(raw: Any, *, tz_name: str | None, state: str | None) -> dict[str, Any]:
@@ -193,8 +226,15 @@ def parse_deadline(raw: Any, *, tz_name: str | None, state: str | None) -> dict[
             return {"deadline_at": None, "deadline_basis": "unparseable", "deadline_raw": s[:60]}
     if dt.year >= 2090 or dt.year < 2000:
         return {"deadline_at": None, "deadline_basis": "sentinel_or_invalid", "deadline_raw": s[:60]}
-    if dt.tzinfo is not None:
+    placeholder = dt.tzinfo is not None and dt.utcoffset() == timedelta(0) and dt.time() in (dtime(0, 0), dtime(12, 0))
+    if dt.tzinfo is not None and not placeholder:
         return {"deadline_at": dt.astimezone(timezone.utc), "deadline_basis": "explicit_offset"}
+    if placeholder:
+        # Aggregator feeds encode a bare date as 00:00Z / 12:00Z; the real closing time is unknown
+        dt = dt.replace(tzinfo=None)
+        s = s[:10]
+        if str(tz_name or "").upper() in _UTC_NAMES:
+            tz_name = None
     ab = _TZ_ABBREV_RE.search(s)
     if ab:
         return {"deadline_at": dt.replace(tzinfo=timezone(timedelta(hours=_TZ_ABBREV[ab.group(1).upper()]))).astimezone(timezone.utc),
@@ -397,10 +437,10 @@ def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str,
         srcs = [row["source_record_id"]] if row.get("source_record_id") else idmap.get(str(row.get("staged_id")), [])
         for s in srcs:
             slot = by_src.setdefault(s, {"attachment": [], "page": [], "urls": []})
-            slot[row.get("kind") or "page"].append(str(row.get("text") or ""))
+            slot[row.get("kind") or "page"].append(html.unescape(str(row.get("text") or "")))
             if row.get("kind") == "attachment":
                 slot["urls"].append(row.get("url"))
-    hit = att = unrelated = 0
+    hit = att = unrelated = revised = 0
     for r in records:
         slot = by_src.get(r.get("source_record_id"))
         if not slot:
@@ -424,8 +464,22 @@ def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str,
             r["attachments"] = [*(r.get("attachments") or []), *listed[:10]]
         if slot["page"]:
             r["description"] = (str(r.get("description") or "") + "\n\n" + slot["page"][0][:20_000]).strip()
+            stated = page_stated_deadline(slot["page"][0])
+            if stated:
+                # The official page outranks an aggregator feed; the feed value is kept as history
+                feed = parse_deadline(r.get("deadline_raw"), tz_name=r.get("deadline_tz_hint"), state=r.get("state"))
+                r["deadline_feed_raw"], r["deadline_feed_tz"] = r.get("deadline_raw"), r.get("deadline_tz_hint")
+                r["deadline_raw"], r["deadline_source"] = stated, "official_page"
+                # A feed's UTC zone describes its own encoding, not the buyer's local clock printed on the page
+                if str(r.get("deadline_tz_hint") or "").upper() in _UTC_NAMES:
+                    r["deadline_tz_hint"] = None
+                page = parse_deadline(stated, tz_name=r.get("deadline_tz_hint"), state=r.get("state"))
+                if feed.get("deadline_at") and page.get("deadline_at") and abs(
+                        (page["deadline_at"] - feed["deadline_at"]).total_seconds()) > 3600:
+                    revised += 1
+                    r["deadline_revision"] = {"feed": feed["deadline_at"].isoformat(), "official_page": page["deadline_at"].isoformat()}
     return {"available": True, "records_with_documents": att, "records_enriched": hit,
-            "unrelated_site_documents_excluded": unrelated}
+            "unrelated_site_documents_excluded": unrelated, "deadlines_revised_from_official_page": revised}
 
 
 def _location_states(loc: Any) -> list[Any]:
@@ -729,7 +783,9 @@ def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[
     p = ev["presence"]
     if p["notice_type"] in {"AWARD", "FORECAST", "ASSET_SALE"}:
         return "archived", f"notice_type:{p['notice_type']}"
-    if p["product_presence"] == "NO_PRODUCT_EVIDENCE":
+    if title_only_unresolved(p) and life != "STATUS_UNKNOWN":
+        return "document_verification", "title_only_deliverable_unresolved|needs_solicitation_page"
+    if p["product_presence"] == "NO_PRODUCT_EVIDENCE" and not title_only_unresolved(p):
         return "archived", f"no_product_evidence:{p['procurement_category']}"
     if p["procurement_category"] == "rental":
         return "archived", "rental_excluded_from_resale"
@@ -779,7 +835,7 @@ def _slim(rec: dict[str, Any], ev: dict[str, Any] | None) -> dict[str, Any]:
         "staged_id", "source_record_id", "source", "source_family", "provider_record_id", "solicitation_number", "title",
         "buyer", "state", "official_url", "posted_at", "deadline_at", "deadline_basis", "deadline_timezone",
         "first_seen_at", "last_seen_at", "observation_age_hours", "lifecycle_status", "lifecycle_basis", "record_kind",
-        "acquisition_membership", "duplicate_of", "duplicate_members", "retirement_reason", "owner_queue", "queue_reason",
+        "acquisition_membership", "absence_note", "deadline_source", "deadline_feed_raw", "deadline_revision", "duplicate_of", "duplicate_members", "retirement_reason", "owner_queue", "queue_reason",
         "federal_policy_hold", "identity_keys", "attachments", "provenance")}
     keep["description_chars"] = len(rec.get("description") or "")
     keep["document_text_chars"] = len(rec.get("document_text") or "")
@@ -857,8 +913,10 @@ def run_staged_inventory(
             r["retirement_reason"] = "legacy_store_non_bidnet_record"
         elif fresh_bidnet_complete and r.get("source_family") == "bidnet_legacy":
             r["retirement_reason"] = "bidnet_legacy_superseded_by_fresh_snapshot"
-        elif r.get("acquisition_membership") == "LEGACY_NOT_IN_LATEST":
-            r["retirement_reason"] = "bidnet_legacy_not_in_latest_acquisition"
+        # Absence from an earlier, incomplete harvest is not closure evidence: such records keep their
+        # own deadline-based lifecycle (expired, unknown or open) and are flagged for re-checking only.
+        if r.get("acquisition_membership") == "LEGACY_NOT_IN_LATEST" and not r.get("retirement_reason"):
+            r["absence_note"] = "absent_from_latest_legacy_acquisition_not_closure_evidence"
         r["federal_policy_hold"] = "FEDERAL_PARKED" if str(r.get("source") or "").lower() in FEDERAL_SOURCES else None
 
     clusters = cluster_duplicates(records)
@@ -938,8 +996,7 @@ def run_staged_inventory(
          "title": r.get("title"), "lifecycle_status": r["lifecycle_status"], "reason": r["queue_reason"],
          "deadline_at": r.get("deadline_at"), "last_seen_at": r.get("last_seen_at"),
          "location": r.get("provenance"), "recheck_candidate": bool(
-             r.get("retirement_reason") == "bidnet_legacy_not_in_latest_acquisition"
-             and r.get("deadline_at") and r["deadline_at"] >= now.isoformat()),
+             r.get("absence_note") and r.get("deadline_at") and r["deadline_at"] >= now.isoformat()),
          "action": "RETIRE_FROM_ACTIVE_OPERATIONS_PRESERVE_RECORD"}
         for r in records if r["owner_queue"] == "archived" and r["lifecycle_status"] not in {"AWARDED"}
         and (r.get("retirement_reason") or r["lifecycle_status"] in {"EXPIRED", "CLOSED", "CANCELLED", "DUPLICATE"})

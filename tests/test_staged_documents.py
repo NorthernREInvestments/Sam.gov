@@ -61,8 +61,16 @@ def test_recover_extracts_docx_respects_robots_and_resumes(tmp_path):
             return 200, u, _docx_bytes(spec), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         return 404, u, b"", ""
 
-    targets = [_rec("s1", "https://city.gov/bid/1"), _rec("s2", "https://other.gov/p/9")]
-    res = fd.recover_staged_documents(targets, out_root=tmp_path, fetch_text_fn=ft, fetch_bytes_fn=fb, sleep=lambda s: None)
+    targets = [_rec("s1", "https://city.gov/bid/1", source="city", source_record_id="rec:s1", title="Fire Hose"),
+               _rec("s2", "https://other.gov/p/9")]
+    vault = tmp_path / "vault"
+    res = fd.recover_staged_documents(targets, out_root=tmp_path, fetch_text_fn=ft, fetch_bytes_fn=fb, sleep=lambda s: None,
+                                      vault=vault)
+    from m3.research import evidence_vault as ev
+    man = ev.load_manifest("city", "rec:s1", root=vault)
+    assert ev.latest("city", "rec:s1", "solicitation_page", root=vault)["body"].decode() == pages["https://city.gov/bid/1"][1]
+    att_kinds = [k for k in man["kinds"] if k.startswith("attachment:")]
+    assert len(att_kinds) == 1 and ev.latest("city", "rec:s1", att_kinds[0], root=vault)["body"] == _docx_bytes(spec)
     ck = json.loads((tmp_path / "doc_checkpoint.json").read_text())
     assert res["stats"].get("with_documents") == 1 and res["stats"].get("restricted") == 1, ck
     docs = ck["done"]["s1"]["documents"]
@@ -72,7 +80,8 @@ def test_recover_extracts_docx_respects_robots_and_resumes(tmp_path):
     assert any(t["kind"] == "attachment" and "Fire hose" in t["text"] for t in texts)
     assert list((tmp_path / "raw").glob("*.docx"))
     n = len(calls)
-    res2 = fd.recover_staged_documents(targets, out_root=tmp_path, fetch_text_fn=ft, fetch_bytes_fn=fb, sleep=lambda s: None)
+    res2 = fd.recover_staged_documents(targets, out_root=tmp_path, fetch_text_fn=ft, fetch_bytes_fn=fb, sleep=lambda s: None,
+                                       vault=vault)
     assert res2["stats"]["skipped_checkpoint"] == 2 and len(calls) == n
 
 
@@ -87,5 +96,6 @@ def test_excluded_hosts_never_fetched_as_attachments(tmp_path):
         return s, u, t
 
     fd.recover_staged_documents([_rec("s1", "https://city.gov/bid/1")], out_root=tmp_path, fetch_text_fn=ft,
-                                fetch_bytes_fn=lambda u: calls.append(u) or (404, u, b"", ""), sleep=lambda s: None)
+                                fetch_bytes_fn=lambda u: calls.append(u) or (404, u, b"", ""), sleep=lambda s: None,
+                                vault=tmp_path / "vault")
     assert not any("sam.gov" in c for c in calls)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html as html_lib
 import io
 import re
 from typing import Any
@@ -23,7 +24,7 @@ def extract_html_text(html: str) -> str:
     text = re.sub(r"(?is)<style[^>]*>.*?</style>", " ", text)
     text = re.sub(r"(?is)<noscript[^>]*>.*?</noscript>", " ", text)
     text = re.sub(r"<[^>]+>", " ", text)
-    return _clean(text)
+    return _clean(html_lib.unescape(text))
 
 
 def extract_pdf_text(data: bytes, *, allow_ocr: bool = True) -> dict[str, Any]:
