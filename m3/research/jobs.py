@@ -30,6 +30,7 @@ import argparse
 import json
 import time
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Any
 
@@ -3557,6 +3558,19 @@ def main(argv: list[str] | None = None) -> int:
     p_stg = sub.add_parser("staged-inventory")
     p_stg.add_argument("--no-resume", action="store_true")
     sub.add_parser("discovery-schedule-plan")
+    p_bn = sub.add_parser("bidnet-enumerate")
+    p_bn.add_argument("--max-pages", type=int, default=None)
+    p_bn.add_argument("--no-resume", action="store_true")
+    p_bn.add_argument("--by-state", action="store_true", help="walk per-state listings (national listing caps at ~10,000)")
+    p_bn.add_argument("--incremental", action="store_true", help="newest-first walk that stops once pages hold no new records")
+    for name in ("legacy-archive", "legacy-archive-verify", "legacy-archive-restore"):
+        p_la = sub.add_parser(name)
+        p_la.add_argument("--archive", required=True)
+        if name == "legacy-archive-restore":
+            p_la.add_argument("--dest", required=True)
+            p_la.add_argument("--root", default=None)
+    p_sd = sub.add_parser("staged-documents")
+    p_sd.add_argument("--max-records", type=int, default=2000)
     p_acc = sub.add_parser("acceptance-002q")
     p_acc.add_argument(
         "--reuse",
@@ -3963,9 +3977,52 @@ def main(argv: list[str] | None = None) -> int:
                                                 "all_records_dispositioned", "external_calls", "acquisition_locked")},
                              default=str), flush=True)
         elif args.cmd == "discovery-schedule-plan":
-            from m3.research.nextbid_schedule import schedule_plan
+            from m3.research.nextbid_schedule import daily_pipeline_plan, schedule_plan
 
-            print(json.dumps(schedule_plan(), indent=2, default=str), flush=True)
+            print(json.dumps({"nextbid": schedule_plan(), "daily_pipeline": daily_pipeline_plan()}, indent=2, default=str), flush=True)
+        elif args.cmd == "bidnet-enumerate":
+            # Public open-bids pages only (robots-permitted, Crawl-delay paced); never /private/.
+            from m3.research.bidnet_acquire import (
+                finalize_bidnet_snapshot,
+                run_bidnet_public_enumeration,
+                run_bidnet_state_enumeration,
+            )
+
+            if args.by_state:
+                res = run_bidnet_state_enumeration(max_pages_per_state=args.max_pages, resume=not args.no_resume)
+            else:
+                res = run_bidnet_public_enumeration(max_pages=args.max_pages, resume=not args.no_resume,
+                                                    incremental=args.incremental)
+            print(json.dumps(res, default=str), flush=True)
+            # Partial walks still finalize: coverage.json records exactly what is missing
+            print(json.dumps(finalize_bidnet_snapshot(), default=str), flush=True)
+        elif args.cmd in ("legacy-archive", "legacy-archive-verify", "legacy-archive-restore"):
+            # Archive/verify/restore only; never deletes source data.
+            from m3.research import legacy_archive as la
+
+            if args.cmd == "legacy-archive":
+                s = get_settings()
+                data = Path(os.getenv("M3_LEGACY_DATA_ROOT") or "")
+                roots = {"legacy_data": data, "legacy_data_pre_relocate": data.parent / "data_pre_relocate_20261117T043802Z",
+                         "legacy_backups": Path(os.getenv("M3_LEGACY_BACKUP_ROOT") or "")}
+                roots = {k: v for k, v in roots.items() if str(v) not in ("", ".") and v.exists()}
+                res = la.build_legacy_archive(roots, archive_path=Path(args.archive),
+                                              keep_active=[p for p in s.legacy_paths().values() if p])
+            elif args.cmd == "legacy-archive-verify":
+                res = la.verify_legacy_archive(Path(args.archive))
+            else:
+                res = la.restore_legacy_archive(Path(args.archive), Path(args.dest), root=args.root)
+            print(json.dumps(res, indent=2, default=str), flush=True)
+        elif args.cmd == "staged-documents":
+            # Free direct official-URL documents for staged product targets; zero metered calls.
+            from m3.research.nextbid_free_doc_recovery import recover_staged_documents, select_staged_document_targets
+
+            root = get_settings().staged_inventory_root()
+            rows = [json.loads(l) for l in (root / "inventory.jsonl").open(encoding="utf-8")]
+            targets = select_staged_document_targets(rows, now=datetime.now(timezone.utc))
+            del rows
+            res = recover_staged_documents(targets, out_root=root / "documents", max_records=args.max_records)
+            print(json.dumps(res, default=str), flush=True)
         elif args.cmd == "nextbid-final-pipeline-audit":
             from m3.research.nextbid_final_pipeline_audit import run_final_pipeline_audit
 

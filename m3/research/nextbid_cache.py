@@ -46,6 +46,16 @@ def cache_put(kind: str, payload: dict[str, Any], *parts: str) -> Path:
         "parts": list(parts),
         "payload": payload,
     }
+    if path.exists():
+        # A paid response is evidence: a different payload for the same request keeps the earlier one
+        try:
+            prev = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            prev = None
+        if prev is not None and prev.get("payload") != payload:
+            stamp = str(prev.get("cached_at") or _utc()).replace(":", "").replace("+", "_")
+            (d / "versions").mkdir(exist_ok=True)
+            path.replace(d / "versions" / f"{path.stem}.{stamp}.json")
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(wrapper, indent=2, default=str), encoding="utf-8")
     tmp.replace(path)

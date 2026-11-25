@@ -120,6 +120,60 @@ def schedule_plan(now: datetime | None = None) -> dict[str, Any]:
     }
 
 
+def daily_pipeline_plan(now: datetime | None = None) -> dict[str, Any]:
+    """Twice-daily controlled discovery pipeline, stage by stage, for owner approval. Never starts anything.
+
+    Each stage names its own gate, limits and incremental rule; a stage would run only if the schedule
+    is enabled and its own gate is open. All gates are closed until the owner authorizes them.
+    """
+    from m3.research.nextbid_controller import acquisition_locked
+    from m3.research.sam_budget import sam_status
+
+    s = get_settings()
+    schedule_on = bool(s.discovery_schedule_enabled)
+    nb_locked = acquisition_locked()
+    sam_locked = bool(sam_status().get("locked", True))
+    stages = [
+        {"stage": "bidnet_public_enumeration", "gate": "bidnet_public_enabled", "open": bool(s.bidnet_public_enabled),
+         "limits": "robots.txt honoured, crawl-delay >= 5 s, 1 request at a time, stop on challenge/403/429/login redirect",
+         "incremental": "national listing is newest-first: walk until 3 consecutive pages hold no new id (~50 pages/day); "
+                        "per-state listings refreshed daily; national deep paging stops at ~10,000 rows",
+         "metered": False},
+        {"stage": "intake_decision_and_page_inspection", "gate": "bidnet_public_enabled (BidNet) / free adapters", "open": False,
+         "limits": "only PROCEED and relevant INVESTIGATE records; login screens recorded as access restrictions, never content",
+         "incremental": "evidence_vault.needs_retrieval: unchanged listing + retained page = no request", "metered": False},
+        {"stage": "free_source_incremental", "gate": "existing verified free-source adapters", "open": False,
+         "limits": "per-source adapter limits; failing sources isolated", "incremental": "content fingerprints; unchanged records skipped",
+         "metered": False},
+        {"stage": "free_document_acquisition", "gate": "owner approval of schedule", "open": False,
+         "limits": "robots.txt per host, 2 s host delay, 25 MB cap, 4 attachments/record, records >= 2 days out",
+         "incremental": "checkpoint by record; robots-disallowed/restricted records not retried until access state changes",
+         "metered": False},
+        {"stage": "nextbid_metered_documents", "gate": "owner-approved allocation (nextbid_controller)", "open": not nb_locked,
+         "limits": "50 calls/job, 100/day, 1,000 reserve, approved allocation only", "incremental": "only records without documents",
+         "metered": True},
+        {"stage": "sam_gov", "gate": "sam_live_enabled + SAM authorization", "open": not sam_locked,
+         "limits": "10 calls/day", "incremental": "n/a (disabled)", "metered": True},
+        {"stage": "status_reconciliation", "gate": "offline", "open": True,
+         "limits": "no network; lifecycle from deadlines/last-seen", "incremental": "all active records (cheap)", "metered": False},
+        {"stage": "classification_requirements_eligibility", "gate": "offline", "open": True,
+         "limits": "no network", "incremental": "per-record cache keyed by content hash + engine version + date",
+         "metered": False},
+        {"stage": "owner_queues_and_research_tasks", "gate": "offline", "open": True,
+         "limits": "no supplier contact", "incremental": "rebuilt from cached evaluations", "metered": False},
+        {"stage": "closure_retention_cleanup", "gate": "owner approval (apply_retention enabled=True)", "open": False,
+         "limits": "verified closure + 72 h; extended deadlines, protected bids/quotes/awards/reviews and active queues kept; "
+                   "manifests and shared blobs never deleted", "incremental": "dry-run plan each run", "metered": False},
+    ]
+    for st in stages:
+        st["would_run"] = schedule_on and st["open"]
+    nxt = next_discovery_slot(now)
+    return {"slots_local": [f"{h:02d}:{m:02d}" for h, m in _slots()], "timezone": s.discovery_schedule_timezone,
+            "next_slot_utc": nxt.isoformat() if nxt else None, "schedule_enabled": schedule_on,
+            "production_scheduler_active": _scheduler_started, "stages": stages,
+            "activation_requires": "owner authorization per stage; discovery_schedule_enabled stays false in this build"}
+
+
 def run_scheduled_acquisition(*, force: bool = False) -> dict[str, Any]:
     """Run a budgeted NextBid acquisition if due — blocked under emergency stop."""
     global _last_run_at, _last_result

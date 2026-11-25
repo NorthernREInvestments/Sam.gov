@@ -22,6 +22,14 @@ def test_plan_reports_all_gates_closed_by_default():
     assert plan["would_run"] is False
 
 
+def test_daily_pipeline_plan_prepared_but_nothing_would_run():
+    plan = ns.daily_pipeline_plan(datetime(2026, 11, 23, 11, 0, tzinfo=timezone.utc))
+    assert plan["schedule_enabled"] is False and plan["production_scheduler_active"] is False
+    assert all(st["would_run"] is False for st in plan["stages"])
+    metered = {st["stage"]: st for st in plan["stages"] if st["metered"]}
+    assert set(metered) == {"nextbid_metered_documents", "sam_gov"} and not any(st["open"] for st in metered.values())
+
+
 def test_scheduled_run_refuses_while_locked():
     r = ns.run_scheduled_acquisition(force=True)
     assert r["ok"] is False and r["skipped"] in {"emergency_stop", "nextbid_disabled", "daily_schedule_disabled"}

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Feature kills — SAM/BidNet/Euna stay parked; OpenAI authorized when enabled
     sam_live_enabled: bool = False
     bidnet_enabled: bool = False
+    # Public (unauthenticated) BidNet listing/detail pages only; robots.txt and Crawl-delay honoured
+    bidnet_public_enabled: bool = False
+    m3_bidnet_snapshot_root: str = ""
+    m3_evidence_vault_root: str = ""
     euna_enabled: bool = False
     paid_research_enabled: bool = False
     openai_enabled: bool = False
@@ -102,6 +106,20 @@ class Settings(BaseSettings):
     def staged_inventory_root(self) -> Path:
         raw = (self.m3_staged_inventory_root or os.getenv("M3_STAGED_INVENTORY_ROOT") or "").strip()
         p = Path(raw) if raw else self.data_root() / "staged_inventory"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def bidnet_snapshot_root(self) -> Path:
+        raw = (self.m3_bidnet_snapshot_root or os.getenv("M3_BIDNET_SNAPSHOT_ROOT") or "").strip()
+        p = Path(raw) if raw else self.data_root() / "bidnet_snapshot"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def evidence_vault_root(self) -> Path:
+        """Original-evidence vault. Set M3_EVIDENCE_VAULT_ROOT to a local, non-synced, non-Git disk path:
+        OneDrive/Dropbox sync clients hold file locks that break atomic replace."""
+        raw = (self.m3_evidence_vault_root or os.getenv("M3_EVIDENCE_VAULT_ROOT") or "").strip()
+        p = Path(raw) if raw else self.data_root() / "evidence_vault"
         p.mkdir(parents=True, exist_ok=True)
         return p
 

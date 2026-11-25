@@ -1,0 +1,397 @@
+{
+ "provisional": "Two blind AI annotators (same model family); not human ground truth",
+ "n_items": 120,
+ "population_by_stratum": {
+  "blind_sl2_scored:S1_explicit": 99,
+  "blind_sl2_scored:S2_likely": 415,
+  "blind_sl2_scored:S3_retained_other": 728,
+  "blind_sl2_scored:S4_rejected": 1363
+ },
+ "sample_by_stratum": {
+  "blind_sl2_scored:S2_likely": 25,
+  "blind_sl2_scored:S1_explicit": 30,
+  "blind_sl2_scored:S4_rejected": 40,
+  "blind_sl2_scored:S3_retained_other": 25
+ },
+ "inter_annotator": {
+  "product_vs_not": [
+   1.0,
+   1.0
+  ],
+  "acquisition_type": [
+   0.966,
+   0.975
+  ],
+  "product_evidence": [
+   0.937,
+   0.967
+  ],
+  "identity_level": [
+   0.911,
+   0.95
+  ],
+  "quantity_stated": [
+   1.0,
+   1.0
+  ]
+ },
+ "consensus_both": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 1.0,
+   "weighted_tp": 534,
+   "weighted_positives": 534,
+   "ci95_bootstrap": [
+    1.0,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.782,
+   "weighted_tp": 418,
+   "weighted_positives": 534,
+   "ci95_bootstrap": [
+    0.6401,
+    0.9389
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 26,
+   "n": 30,
+   "p": 0.8667,
+   "ci95": [
+    0.7032,
+    0.9469
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 26,
+   "n": 30,
+   "p": 0.8667,
+   "ci95": [
+    0.7032,
+    0.9469
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.4302,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 26,
+     "n": 30,
+     "p": 0.8667,
+     "ci95": [
+      0.7032,
+      0.9469
+     ]
+    },
+    "S2_likely": {
+     "k": 20,
+     "n": 25,
+     "p": 0.8,
+     "ci95": [
+      0.6087,
+      0.9114
+     ]
+    },
+    "S3_retained_other": {
+     "k": 4,
+     "n": 25,
+     "p": 0.16,
+     "ci95": [
+      0.064,
+      0.3465
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 40,
+   "n": 40,
+   "p": 1.0,
+   "ci95": [
+    0.9124,
+    1.0
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "retained|product": 534,
+   "rejected|not_product": 1363,
+   "retained|not_product": 708
+  },
+  "confusion_matrix_sample": {
+   "retained|product": 50,
+   "rejected|not_product": 40,
+   "retained|not_product": 30
+  }
+ },
+ "consensus_either": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 1.0,
+   "weighted_tp": 534,
+   "weighted_positives": 534,
+   "ci95_bootstrap": [
+    1.0,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.782,
+   "weighted_tp": 418,
+   "weighted_positives": 534,
+   "ci95_bootstrap": [
+    0.6401,
+    0.9389
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 26,
+   "n": 30,
+   "p": 0.8667,
+   "ci95": [
+    0.7032,
+    0.9469
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 26,
+   "n": 30,
+   "p": 0.8667,
+   "ci95": [
+    0.7032,
+    0.9469
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.4302,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 26,
+     "n": 30,
+     "p": 0.8667,
+     "ci95": [
+      0.7032,
+      0.9469
+     ]
+    },
+    "S2_likely": {
+     "k": 20,
+     "n": 25,
+     "p": 0.8,
+     "ci95": [
+      0.6087,
+      0.9114
+     ]
+    },
+    "S3_retained_other": {
+     "k": 4,
+     "n": 25,
+     "p": 0.16,
+     "ci95": [
+      0.064,
+      0.3465
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 40,
+   "n": 40,
+   "p": 1.0,
+   "ci95": [
+    0.9124,
+    1.0
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "retained|product": 534,
+   "rejected|not_product": 1363,
+   "retained|not_product": 708
+  },
+  "confusion_matrix_sample": {
+   "retained|product": 50,
+   "rejected|not_product": 40,
+   "retained|not_product": 30
+  }
+ },
+ "engine_presence_x_agreed_type": {
+  "EXPLICIT_PRODUCT|NON_PURCHASE": 1,
+  "EXPLICIT_PRODUCT|PRODUCT_PURCHASE": 23,
+  "EXPLICIT_PRODUCT|PRODUCT_WITH_SERVICE": 2,
+  "EXPLICIT_PRODUCT|SERVICE_ONLY": 1,
+  "EXPLICIT_PRODUCT|SOFTWARE": 1,
+  "INSUFFICIENT_EVIDENCE|CONSTRUCTION": 1,
+  "INSUFFICIENT_EVIDENCE|SERVICE_ONLY": 1,
+  "INSUFFICIENT_EVIDENCE|UNCLEAR": 1,
+  "LIKELY_PRODUCT|NON_PURCHASE": 1,
+  "LIKELY_PRODUCT|PRODUCT_PURCHASE": 20,
+  "LIKELY_PRODUCT|SERVICE_ONLY": 2,
+  "LIKELY_PRODUCT|UNCLEAR": 2,
+  "NO_PRODUCT_EVIDENCE|CONSTRUCTION": 7,
+  "NO_PRODUCT_EVIDENCE|NON_PURCHASE": 5,
+  "NO_PRODUCT_EVIDENCE|SERVICE_ONLY": 27,
+  "POSSIBLE_PRODUCT|CONSTRUCTION": 4,
+  "POSSIBLE_PRODUCT|NON_PURCHASE": 1,
+  "POSSIBLE_PRODUCT|PRODUCT_PURCHASE": 1,
+  "POSSIBLE_PRODUCT|PRODUCT_WITH_SERVICE": 3,
+  "POSSIBLE_PRODUCT|RENTAL_LEASE": 1,
+  "POSSIBLE_PRODUCT|SERVICE_ONLY": 6,
+  "POSSIBLE_PRODUCT|SOFTWARE": 1,
+  "POSSIBLE_PRODUCT|UNCLEAR": 5
+ },
+ "by_source": {
+  "discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+   "n": 16,
+   "explicit_confirmed_precision": {
+    "k": 1,
+    "n": 1,
+    "p": 1.0,
+    "ci95": [
+     0.2065,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 9,
+    "n": 9,
+    "p": 1.0,
+    "ci95": [
+     0.7008,
+     1.0
+    ]
+   }
+  },
+  "instantmarkets": {
+   "n": 15,
+   "explicit_confirmed_precision": {
+    "k": 6,
+    "n": 8,
+    "p": 0.75,
+    "ci95": [
+     0.4093,
+     0.9285
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 6,
+    "n": 6,
+    "p": 1.0,
+    "ci95": [
+     0.6097,
+     1.0
+    ]
+   }
+  },
+  "opengov": {
+   "n": 18,
+   "explicit_confirmed_precision": {
+    "k": 6,
+    "n": 6,
+    "p": 1.0,
+    "ci95": [
+     0.6097,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 7,
+    "n": 7,
+    "p": 1.0,
+    "ci95": [
+     0.6457,
+     1.0
+    ]
+   }
+  }
+ },
+ "by_evidence": {
+  "SUMMARY": {
+   "n": 47,
+   "explicit_confirmed_precision": {
+    "k": 9,
+    "n": 12,
+    "p": 0.75,
+    "ci95": [
+     0.4677,
+     0.9111
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 13,
+    "n": 13,
+    "p": 1.0,
+    "ci95": [
+     0.7719,
+     1.0
+    ]
+   }
+  },
+  "TITLE_ONLY": {
+   "n": 63,
+   "explicit_confirmed_precision": {
+    "k": 13,
+    "n": 14,
+    "p": 0.9286,
+    "ci95": [
+     0.6853,
+     0.9873
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 32,
+    "n": 32,
+    "p": 1.0,
+    "ci95": [
+     0.8928,
+     1.0
+    ]
+   }
+  }
+ },
+ "by_engine_category": {
+  "product": {
+   "n": 48,
+   "explicit_confirmed_precision": {
+    "k": 23,
+    "n": 24,
+    "p": 0.9583,
+    "ci95": [
+     0.7976,
+     0.9926
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 43,
+    "n": 43,
+    "p": 1.0,
+    "ci95": [
+     0.918,
+     1.0
+    ]
+   }
+  },
+  "service": {
+   "n": 35,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": {
+    "k": 2,
+    "n": 2,
+    "p": 1.0,
+    "ci95": [
+     0.3424,
+     1.0
+    ]
+   }
+  }
+ },
+ "identity_engine_x_annotator": {
+  "EXACT|quotable": 1,
+  "GENERIC|not": 71,
+  "GENERIC|quotable": 8
+ }
+}

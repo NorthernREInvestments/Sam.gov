@@ -20,10 +20,14 @@ from zoneinfo import ZoneInfo
 
 from m3.config import get_settings
 from m3.research.classify import agency_codes_from_record, assess_product_presence
+from m3.research.documents import unrelated_site_document
+from m3.research.owner_deliverables import build_owner_deliverables
 from m3.research.procurement_requirements import (
     assess_economics,
     assess_execution_feasibility,
     assess_reseller_eligibility,
+    assess_sourcing_readiness,
+    qualification,
     extract_requirements,
 )
 
@@ -33,7 +37,7 @@ LIFECYCLE_STATES = (
 )
 ACTIVE_LIFECYCLE = frozenset({"VERIFIED_OPEN", "LIKELY_OPEN", "STATUS_UNKNOWN"})
 OWNER_QUEUES = (
-    "actionable", "easy_registration", "supplier_research", "pricing_research", "document_verification",
+    "actionable", "easy_registration", "supplier_research_ready", "commercial_research_ready", "document_verification",
     "financing_verification", "status_verification", "blocked", "archived",
 )
 FEDERAL_SOURCES = frozenset({"sam.gov", "dibbs"})
@@ -218,14 +222,20 @@ def _norm_text(s: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip()
 
 
+_URL_NOISE_PARAMS = re.compile(r"^(?:utm_\w+|parenturl|external|ref|referrer|source|fbclid|gclid|lang|locale|sort|page|skip|top)$")
+
+
 def _norm_url(u: Any) -> str:
     s = str(u or "").strip().lower()
     if not s:
         return ""
     s = re.sub(r"^https?://(www\.)?", "", s)
-    s = re.sub(r"[?#].*$", "", s)
-    s = re.sub(r"/(abstract|view|details?)/?$", "", s)
-    return s.rstrip("/")
+    s = re.sub(r"#.*$", "", s)
+    path, _, query = s.partition("?")
+    path = re.sub(r"/(abstract|view|details?)/?$", "", path).rstrip("/")
+    # Record ids often live in the query (rampla ?id=, commbuys ?docId=); tracking params do not identify
+    params = sorted(p for p in query.split("&") if "=" in p and not _URL_NOISE_PARAMS.match(p.split("=", 1)[0]))
+    return path + ("?" + "&".join(params) if params else "")
 
 
 def _norm_sol(s: Any) -> str:
@@ -332,6 +342,90 @@ def load_legacy_bidnet(paths: dict[str, Path | None]) -> dict[str, Any]:
         ))
     return {"available": True, "records": out, "store_updated_at": store.get("updated_at"), "checkpoint": ck_meta,
             "prerun_dated_ids": len(pre_dated), "files": {k: str(v) for k, v in paths.items() if v}}
+
+
+def load_bidnet_snapshot(root: Path | None) -> dict[str, Any]:
+    """Fresh public BidNet open-bids snapshot (``bidnet_acquire``), merged with any public abstracts."""
+    snap = root / "snapshot.jsonl" if root else None
+    if not snap or not snap.exists():
+        return {"available": False, "reason": f"bidnet snapshot not found: {snap}", "records": [], "complete": False}
+    cov_p = root / "coverage.json"
+    cov = json.loads(cov_p.read_text(encoding="utf-8")) if cov_p.exists() else {}
+    abstracts: dict[str, dict[str, Any]] = {}
+    ab_p = root / "abstracts" / "abstracts.jsonl"
+    if ab_p.exists():
+        for row in _read_jsonl(ab_p):
+            abstracts[str(row.get("provider_record_id"))] = row
+    out: list[dict[str, Any]] = []
+    for r in _read_jsonl(snap):
+        pid = str(r.get("provider_record_id") or "")
+        ab = abstracts.get(pid) or {}
+        docs = [{"name": d.get("document_name"), "url": d.get("document_url"), "status": d.get("retrieval_status")}
+                for d in (ab.get("documents") or [])][:10]
+        out.append(_staged(
+            source_record_id=f"bidnet:{pid or r.get('official_url')}", source="bidnet", source_family="bidnet",
+            provider_record_id=pid or None, solicitation_number=ab.get("solicitation_number"),
+            title=r.get("title"), buyer=ab.get("buyer") or r.get("purchasing_group"),
+            state=state_code(r.get("location")), official_url=r.get("official_url"), posted_at=r.get("posted_raw"),
+            # The solicitation page states the closing time; the listing often shows only the date
+            deadline_raw=ab.get("deadline_raw") or r.get("deadline_raw"),
+            deadline_tz_hint=ab.get("deadline_timezone") if ab.get("deadline_raw") else r.get("deadline_timezone"),
+            first_seen_at=r.get("retrieved_at"), last_seen_at=ab.get("retrieved_at") or r.get("retrieved_at"),
+            declared_status="open", description=str(ab.get("description") or ""), attachments=docs,
+            acquisition_membership="CURRENT_PUBLIC_SNAPSHOT",
+            provenance={"file": str(snap), "result_page": r.get("result_page"), "member_agency": r.get("member_agency"),
+                        "abstract_locked_fields": ab.get("locked_fields"), "abstract_auth_wall": ab.get("auth_wall")},
+        ))
+    # Re-checked here so a coverage.json written by an older finalizer cannot retire legacy rows
+    complete = bool(cov.get("enumeration_complete")) and (cov.get("coverage_ratio") or 0) >= 0.99
+    return {"available": True, "records": out, "complete": complete, "coverage": cov}
+
+
+def attach_documents(records: list[dict[str, Any]], doc_root: Path) -> dict[str, Any]:
+    """Merge free-acquired documents (``doc_text.jsonl``) onto records by source_record_id.
+
+    Attachment text becomes ``document_text`` (document evidence); official-page text only extends
+    ``description`` so portal chrome alone never counts as a solicitation document.
+    """
+    tp = doc_root / "doc_text.jsonl"
+    if not tp.exists():
+        return {"available": False}
+    idmap_p = doc_root / "staged_id_map.json"
+    idmap = json.loads(idmap_p.read_text(encoding="utf-8")) if idmap_p.exists() else {}
+    by_src: dict[str, dict[str, list[str]]] = {}
+    for row in _read_jsonl(tp):
+        srcs = [row["source_record_id"]] if row.get("source_record_id") else idmap.get(str(row.get("staged_id")), [])
+        for s in srcs:
+            slot = by_src.setdefault(s, {"attachment": [], "page": [], "urls": []})
+            slot[row.get("kind") or "page"].append(str(row.get("text") or ""))
+            if row.get("kind") == "attachment":
+                slot["urls"].append(row.get("url"))
+    hit = att = unrelated = 0
+    for r in records:
+        slot = by_src.get(r.get("source_record_id"))
+        if not slot:
+            continue
+        hit += 1
+        kept: list[str] = []
+        listed: list[dict[str, Any]] = []
+        for text, url in zip(slot["attachment"], slot["urls"]):
+            why = unrelated_site_document(url or "", text, title=str(r.get("title") or ""),
+                                          solicitation_number=str(r.get("solicitation_number") or ""))
+            if why:
+                unrelated += 1
+                listed.append({"url": url, "status": "UNRELATED_SITE_DOCUMENT", "reason": why})
+            else:
+                kept.append(text)
+                listed.append({"url": url, "status": "EXTRACTED_FREE"})
+        if kept:
+            att += 1
+            r["document_text"] = "\n\n".join([r.get("document_text") or "", *kept]).strip()[:400_000]
+        if listed:
+            r["attachments"] = [*(r.get("attachments") or []), *listed[:10]]
+        if slot["page"]:
+            r["description"] = (str(r.get("description") or "") + "\n\n" + slot["page"][0][:20_000]).strip()
+    return {"available": True, "records_with_documents": att, "records_enriched": hit,
+            "unrelated_site_documents_excluded": unrelated}
 
 
 def _location_states(loc: Any) -> list[Any]:
@@ -483,10 +577,10 @@ def determine_lifecycle(rec: dict[str, Any], now: datetime, *, max_age_hours: in
 # --- Dedup -------------------------------------------------------------------------------
 
 _LIFE_RANK = {s: i for i, s in enumerate(LIFECYCLE_STATES)}
-_FAMILY_RANK = {"free_source": 0, "nextbid": 1, "bidnet_legacy": 2, "legacy_other": 3}
+_FAMILY_RANK = {"bidnet": 0, "free_source": 0, "nextbid": 1, "bidnet_legacy": 2, "legacy_other": 3}
 
 
-_PROVIDER_ID_FAMILIES = frozenset({"bidnet_legacy", "nextbid"})
+_PROVIDER_ID_FAMILIES = frozenset({"bidnet", "bidnet_legacy", "nextbid"})
 
 
 def _distinct_provider_events(a: dict[str, Any], b: dict[str, Any]) -> bool:
@@ -579,7 +673,26 @@ def _primary_rank(r: dict[str, Any]) -> tuple:
 
 # --- Per-record procurement evaluation ---------------------------------------------------
 
-def evaluate_record(rec: dict[str, Any]) -> dict[str, Any]:
+def _engine_version() -> str:
+    """Changes whenever classification / requirement rules change, invalidating cached evaluations."""
+    import m3.research.classify as classify_mod
+    import m3.research.procurement_requirements as req_mod
+
+    h = hashlib.sha256()
+    for mod in (classify_mod, req_mod):
+        h.update(Path(mod.__file__).read_bytes())
+    return h.hexdigest()[:16]
+
+
+def _eval_key(rec: dict[str, Any], now: datetime, version: str) -> str:
+    # The date is part of the key: eligibility depends on it (a mandatory meeting can pass overnight)
+    blob = json.dumps([version, now.date().isoformat(), rec.get("title"), rec.get("description"), rec.get("document_text"),
+                       rec.get("source"), rec.get("agency_codes"), rec.get("procurement_kind"), rec.get("notice_type_declared")],
+                      default=str, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
+
+
+def evaluate_record(rec: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
     title = str(rec.get("title") or "")
     desc = rec.get("description") or ""
     doc = rec.get("document_text") or ""
@@ -591,11 +704,14 @@ def evaluate_record(rec: dict[str, Any]) -> dict[str, Any]:
     text = f"{desc} {doc}"
     elig = assess_reseller_eligibility(title=title, text=text, source=rec.get("source"),
                                        evidence_completeness=presence["evidence_completeness"],
-                                       product_presence=presence["product_presence"])
+                                       product_presence=presence["product_presence"], now=now)
     execu = assess_execution_feasibility(text=text, source=rec.get("source"),
                                          evidence_completeness=presence["evidence_completeness"])
     econ = assess_economics(line_items=reqs["line_items"], execution_state=execu["execution_state"])
-    return {"presence": presence, "requirements": reqs, "eligibility": elig, "execution": execu, "economics": econ}
+    sourcing = assess_sourcing_readiness(title=title, requirements=reqs, eligibility_state=elig["eligibility_state"])
+    qual = qualification(presence=presence, requirements=reqs, sourcing=sourcing)
+    return {"presence": presence, "requirements": reqs, "eligibility": elig, "execution": execu, "economics": econ,
+            "sourcing": sourcing, "qualification": qual}
 
 
 def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[str, str]:
@@ -611,7 +727,7 @@ def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[
         return "archived", f"record_kind:{rec.get('record_kind')}"
     assert ev is not None
     p = ev["presence"]
-    if p["notice_type"] in {"AWARD", "FORECAST"}:
+    if p["notice_type"] in {"AWARD", "FORECAST", "ASSET_SALE"}:
         return "archived", f"notice_type:{p['notice_type']}"
     if p["product_presence"] == "NO_PRODUCT_EVIDENCE":
         return "archived", f"no_product_evidence:{p['procurement_category']}"
@@ -625,21 +741,24 @@ def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[
         return "blocked", "eligibility:" + ",".join(ev["eligibility"]["eligibility_reasons"][:3])
     if ev["execution"]["execution_state"] == "EXECUTION_BLOCKED":
         return "blocked", "execution:" + ",".join(b["factor"] for b in ev["execution"]["execution_blockers"][:3])
-    if p["product_presence"] in {"POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"} or ev["requirements"]["requirements_state"] != "COMPLETE":
+    src = ev["sourcing"]
+    if p["product_presence"] in {"POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"} or src["sourcing_state"] == "DOCUMENT_REQUIRED":
         return "document_verification", (
             f"presence:{p['product_presence']}|requirements:{ev['requirements']['requirements_state']}|evidence:{p['evidence_completeness']}")
-    if ev["eligibility"]["eligibility_state"] == "ELIGIBILITY_UNKNOWN":
-        return "document_verification", "eligibility_terms_unverified:" + ",".join(ev["eligibility"]["eligibility_reasons"][:3])
+    if src["sourcing_state"] == "COMMERCIAL_RESEARCH_READY":
+        return "commercial_research_ready", "pending:" + ",".join(src["sourcing_missing"][:3])
     econ = ev["economics"]
     if "supplier_unit_cost" in econ["missing_inputs"]:
-        return "supplier_research", "no_verified_supplier_cost"
+        return "supplier_research_ready", "no_verified_supplier_cost"
     if "government_unit_price" in econ["missing_inputs"]:
-        return "pricing_research", "no_verified_government_price"
-    if econ["profit_class"] in {"PROVEN", "LIKELY"} and ev["execution"]["execution_state"] != "FEASIBLE":
+        return "commercial_research_ready", "no_verified_government_price"
+    if not ev["requirements"]["quote_ready"]:
+        return "supplier_research_ready", "quote_requirements_incomplete:" + ",".join(ev["requirements"]["quote_ready_blockers"][:3])
+    if econ["profit_class"] in {"PROVEN", "LIKELY"} and ev["execution"]["execution_state"] != "EXECUTION_VERIFIED":
         return "financing_verification", ev["execution"]["execution_state"]
     if ev["eligibility"]["eligibility_state"] == "EASY_REGISTRATION_REQUIRED":
         return "easy_registration", "registration_required_before_bid"
-    if econ["profit_class"] in {"PROVEN", "LIKELY"} and ev["execution"]["execution_state"] == "FEASIBLE":
+    if econ["profit_class"] in {"PROVEN", "LIKELY"}:
         return "actionable", f"profit:{econ['profit_class']}"
     return "archived", f"unprofitable_or_unproven:{econ['profit_class']}"
 
@@ -680,6 +799,9 @@ def _slim(rec: dict[str, Any], ev: dict[str, Any] | None) -> dict[str, Any]:
         keep["execution"] = {k: ev["execution"][k] for k in ("execution_state", "execution_blockers", "execution_supports")}
         keep["economics"] = {k: ev["economics"][k] for k in ("profit_class", "missing_inputs", "evidence_quality", "quantity_total",
                                                               "revenue", "net_profit", "margin", "risks")}
+        keep["sourcing"] = dict(ev["sourcing"])
+        keep["qualification"] = dict(ev["qualification"])
+        keep["classification"]["presence_capped_by"] = p.get("presence_capped_by")
     return keep
 
 
@@ -709,6 +831,7 @@ def run_staged_inventory(
     root.mkdir(parents=True, exist_ok=True)
     data_root = s.data_root()
     loaders = loaders or {
+        "bidnet_snapshot": lambda: load_bidnet_snapshot(s.bidnet_snapshot_root()),
         "bidnet": lambda: load_legacy_bidnet(s.legacy_paths()),
         "nextbid": lambda: load_nextbid(data_root),
         "free": lambda: load_free_sources(data_root),
@@ -723,12 +846,17 @@ def run_staged_inventory(
         records.extend(res.get("records") or [])
         _log(f"loaded {name}: {len(res.get('records') or [])} records in {time.time() - t:.1f}s")
     stage_counts["loaded"] = len(records)
+    meta["documents"] = attach_documents(records, root / "documents")
+    # A complete fresh BidNet enumeration is the current open universe; legacy BidNet rows are history
+    fresh_bidnet_complete = bool((meta.get("bidnet_snapshot") or {}).get("complete"))
 
     for r in records:
         r.update(determine_lifecycle(r, now, max_age_hours=s.verified_open_max_age_hours))
         r["identity_keys"] = identity_keys(r) if r.get("record_kind") != "NON_SOLICITATION" else []
         if r.get("source_family") == "legacy_other":
             r["retirement_reason"] = "legacy_store_non_bidnet_record"
+        elif fresh_bidnet_complete and r.get("source_family") == "bidnet_legacy":
+            r["retirement_reason"] = "bidnet_legacy_superseded_by_fresh_snapshot"
         elif r.get("acquisition_membership") == "LEGACY_NOT_IN_LATEST":
             r["retirement_reason"] = "bidnet_legacy_not_in_latest_acquisition"
         r["federal_policy_hold"] = "FEDERAL_PARKED" if str(r.get("source") or "").lower() in FEDERAL_SOURCES else None
@@ -766,6 +894,11 @@ def run_staged_inventory(
             done_chunks = set(ck.get("done_chunks") or [])
             _log(f"resuming: {len(done_chunks)} chunks already evaluated")
     evals: dict[int, dict[str, Any]] = {}
+    ver = _engine_version()
+    cache_p = root / "eval_cache.jsonl"
+    cache = {row["k"]: row["ev"] for row in _read_jsonl(cache_p)} if cache_p.exists() else {}
+    keys = {i: _eval_key(records[i], now, ver) for i in to_eval}
+    cache_hits = 0
     for ci in range(0, len(to_eval), CHUNK):
         cno = ci // CHUNK
         part = parts_dir / f"eval_{cno:03d}.jsonl"
@@ -776,13 +909,20 @@ def run_staged_inventory(
             continue
         rows = []
         for i in idxs:
-            ev = evaluate_record(records[i])
+            ev = cache.get(keys[i])
+            if ev is None:
+                ev = evaluate_record(records[i], now)
+            else:
+                cache_hits += 1
             evals[i] = ev
             rows.append({"i": i, "ev": ev})
         _write_jsonl(part, rows)
         done_chunks.add(cno)
         _write_json(ck_path, {"fingerprint": fp, "done_chunks": sorted(done_chunks), "updated_at": _utc(), "build": BUILD})
         _log(f"evaluated chunk {cno} ({min(ci + CHUNK, len(to_eval))}/{len(to_eval)})")
+    # Only this run's entries are kept, so records that left the active set fall out of the cache
+    _write_jsonl(cache_p, [{"k": keys[i], "ev": evals[i]} for i in to_eval])
+    stage_counts["evaluation_cache"] = {"engine_version": ver, "hits": cache_hits, "evaluated_fresh": len(to_eval) - cache_hits}
 
     queue_rows: dict[str, list[dict[str, Any]]] = {q: [] for q in OWNER_QUEUES}
     slim_all: list[dict[str, Any]] = []
@@ -817,6 +957,7 @@ def run_staged_inventory(
             _write_jsonl(root / "queues" / f"{q}.jsonl", rows)
     _write_jsonl(root / "retirement_manifest.jsonl", retirement)
     _write_jsonl(root / "pricing_intelligence.jsonl", pricing)
+    owner = build_owner_deliverables(root, slim_all, now)
 
     recon = reconcile(records, evals)
     input_hashes = {}
@@ -829,7 +970,7 @@ def run_staged_inventory(
     manifest = {
         "build": BUILD, "ran_at": _utc(), "runtime_now": now.isoformat(), "elapsed_sec": round(time.time() - t0, 1),
         "stage_counts": stage_counts, "queue_counts": dict(disp), "lifecycle_counts": dict(Counter(r["lifecycle_status"] for r in records)),
-        "retirement_manifest_rows": len(retirement), "pricing_intelligence_rows": len(pricing),
+        "retirement_manifest_rows": len(retirement), "pricing_intelligence_rows": len(pricing), "owner_deliverables": owner,
         "all_records_dispositioned": sum(disp.values()) == len(records),
         "source_meta": meta, "input_hashes": input_hashes, "reconciliation": recon,
         "external_calls": 0, "database_writes": 0, "acquisition_locked": acquisition_locked(),

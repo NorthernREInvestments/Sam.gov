@@ -45,8 +45,9 @@ def _deadline(raw: str | None, location: str | None) -> dict[str, Any]:
 
 
 def reported_total_from_html(html: str) -> int | None:
-    m = re.search(r'class="simpleSolResultsNumResults"[^>]*>\s*([\d,]+)\s+results', html or "", re.I) or re.search(
-        r"([\d,]+)\s+results", html or "", re.I)
+    m = (re.search(r'class="simpleSolResultsNumResults"[^>]*>\s*([\d,]+)\s+results', html or "", re.I)
+         or re.search(r"([\d,]+)\s+results", html or "", re.I)
+         or re.search(r"\b([\d,]+)\s+Open\s+Solicitations\b", html or "", re.I))
     return int(m.group(1).replace(",", "")) if m else None
 
 
@@ -57,8 +58,11 @@ def detect_category_restriction(html: str) -> bool:
         r"|filtered\s+by\s+your\s+(?:naics|categories)", html or "", re.I))
 
 
-def _row_field(row: str, cls: str) -> str | None:
+def _row_field(row: str, cls: str, alt_cls: str | None = None) -> str | None:
     m = re.search(rf'class="{cls}[^"]*"[^>]*>[\s\S]*?class="dateValue">\s*([^<]+?)\s*</span>', row, re.I)
+    if not m and alt_cls:
+        # State listing layout: <span class="sol-closing-date open"> … <span class="date-value">12/16/2026</span>
+        m = re.search(rf'class="{alt_cls}[^"]*"[^>]*>[\s\S]*?class="date-value">\s*([^<]+?)\s*</span>', row, re.I)
     return m.group(1).strip() if m else None
 
 
@@ -76,17 +80,18 @@ def parse_search_results_html(html: str, *, list_url: str, page_number: int = 1)
         if not href or href == "#" or any(x in href.lower() for x in ("javascript:", "logout", "login")):
             continue
         tm = re.search(r'class="rowTitle">\s*([^<]+?)\s*</span>', row, re.I) or re.search(
-            r'class="[^"]*solicitation-link[^"]*"[^>]*>([^<]{5,300})</a>', row, re.I)
+            r'class="[^"]*solicitation-link[^"]*"[^>]*>\s*([^<]{2,300}?)\s*</a>', row, re.I)
         title = _clean(tm.group(1)) if tm else None
         if not title or title.lower() in {"open solicitations", "closed solicitations"}:
             continue
-        loc = re.search(r'class="location">\s*([^<]+?)\s*</span>', row, re.I)
+        loc = re.search(r'class="location">\s*([^<]+?)\s*</span>', row, re.I) or re.search(
+            r'class="sol-region-item">\s*([^<]+?)\s*</span>', row, re.I)
         location = _clean(loc.group(1)) if loc else None
-        closing = _row_field(row, "closingDate")
-        published = _row_field(row, "publicationDate")
+        closing = _row_field(row, "closingDate", "sol-closing-date")
+        published = _row_field(row, "publicationDate", "sol-publication-date")
         hid = re.search(r'class="accessibility-hidden">\s*(\d{5,})\s*<', row, re.I) or re.search(
             r"searchResultSol_solicitation_(\d+)", row, re.I)
-        pid = re.search(r"/(\d{7,})(?:\?|$)", href)
+        pid = re.search(r"/(\d{7,})(?:/abstract)?(?:[?/]|$)", href)
         event_id = (hid.group(1) if hid else None) or (pid.group(1) if pid else None)
         pg = re.search(r'data-mets-tooltip="([^"]+)"', row, re.I)
         out.append({

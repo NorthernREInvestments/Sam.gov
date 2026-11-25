@@ -1,0 +1,606 @@
+{
+ "provisional": "Two blind AI annotators (same model family); not human ground truth",
+ "n_items": 350,
+ "population_by_stratum": {
+  "blind_v3:S1_explicit": 621,
+  "blind_v3:S2_likely": 660,
+  "blind_v3:S3_retained_other": 668,
+  "blind_v3:S4_rejected": 1590
+ },
+ "sample_by_stratum": {
+  "blind_v3:S4_rejected": 120,
+  "blind_v3:S2_likely": 60,
+  "blind_v3:S3_retained_other": 50,
+  "blind_v3:S1_explicit": 120
+ },
+ "inter_annotator": {
+  "product_vs_not": [
+   0.988,
+   0.994
+  ],
+  "acquisition_type": [
+   0.957,
+   0.969
+  ],
+  "product_evidence": [
+   0.983,
+   0.991
+  ],
+  "identity_level": [
+   0.967,
+   0.983
+  ],
+  "quantity_stated": [
+   1.0,
+   1.0
+  ]
+ },
+ "consensus_both": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 0.9873,
+   "weighted_tp": 1033,
+   "weighted_positives": 1046,
+   "ci95_bootstrap": [
+    0.9608,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.9107,
+   "weighted_tp": 953,
+   "weighted_positives": 1046,
+   "ci95_bootstrap": [
+    0.854,
+    0.9627
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 114,
+   "n": 120,
+   "p": 0.95,
+   "ci95": [
+    0.8952,
+    0.9769
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 114,
+   "n": 120,
+   "p": 0.95,
+   "ci95": [
+    0.8952,
+    0.9769
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.5357,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 114,
+     "n": 120,
+     "p": 0.95,
+     "ci95": [
+      0.8952,
+      0.9769
+     ]
+    },
+    "S2_likely": {
+     "k": 34,
+     "n": 60,
+     "p": 0.5667,
+     "ci95": [
+      0.441,
+      0.6843
+     ]
+    },
+    "S3_retained_other": {
+     "k": 6,
+     "n": 50,
+     "p": 0.12,
+     "ci95": [
+      0.0562,
+      0.2381
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 119,
+   "n": 120,
+   "p": 0.9917,
+   "ci95": [
+    0.9543,
+    0.9985
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "rejected|not_product": 1577,
+   "retained|product": 1033,
+   "retained|not_product": 916,
+   "rejected|product": 13
+  },
+  "confusion_matrix_sample": {
+   "rejected|not_product": 119,
+   "retained|product": 153,
+   "retained|not_product": 77,
+   "rejected|product": 1
+  }
+ },
+ "consensus_either": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 0.9752,
+   "weighted_tp": 1044,
+   "weighted_positives": 1071,
+   "ci95_bootstrap": [
+    0.9381,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.9004,
+   "weighted_tp": 964,
+   "weighted_positives": 1071,
+   "ci95_bootstrap": [
+    0.8385,
+    0.9597
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 114,
+   "n": 120,
+   "p": 0.95,
+   "ci95": [
+    0.8952,
+    0.9769
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 114,
+   "n": 120,
+   "p": 0.95,
+   "ci95": [
+    0.8952,
+    0.9769
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.5357,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 114,
+     "n": 120,
+     "p": 0.95,
+     "ci95": [
+      0.8952,
+      0.9769
+     ]
+    },
+    "S2_likely": {
+     "k": 34,
+     "n": 60,
+     "p": 0.5667,
+     "ci95": [
+      0.441,
+      0.6843
+     ]
+    },
+    "S3_retained_other": {
+     "k": 6,
+     "n": 50,
+     "p": 0.12,
+     "ci95": [
+      0.0562,
+      0.2381
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 118,
+   "n": 120,
+   "p": 0.9833,
+   "ci95": [
+    0.9413,
+    0.9954
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "rejected|not_product": 1564,
+   "retained|product": 1044,
+   "retained|not_product": 905,
+   "rejected|product": 26
+  },
+  "confusion_matrix_sample": {
+   "rejected|not_product": 118,
+   "retained|product": 154,
+   "retained|not_product": 76,
+   "rejected|product": 2
+  }
+ },
+ "engine_presence_x_agreed_type": {
+  "EXPLICIT_PRODUCT|CONSTRUCTION": 1,
+  "EXPLICIT_PRODUCT|NON_PURCHASE": 3,
+  "EXPLICIT_PRODUCT|PRODUCT_PURCHASE": 108,
+  "EXPLICIT_PRODUCT|PRODUCT_WITH_SERVICE": 6,
+  "EXPLICIT_PRODUCT|SERVICE_ONLY": 2,
+  "INSUFFICIENT_EVIDENCE|SERVICE_ONLY": 1,
+  "INSUFFICIENT_EVIDENCE|SOFTWARE": 1,
+  "INSUFFICIENT_EVIDENCE|UNCLEAR": 1,
+  "LIKELY_PRODUCT|CONSTRUCTION": 3,
+  "LIKELY_PRODUCT|NON_PURCHASE": 3,
+  "LIKELY_PRODUCT|PRODUCT_PURCHASE": 28,
+  "LIKELY_PRODUCT|PRODUCT_WITH_SERVICE": 4,
+  "LIKELY_PRODUCT|SERVICE_ONLY": 11,
+  "LIKELY_PRODUCT|SOFTWARE": 2,
+  "LIKELY_PRODUCT|UNCLEAR": 3,
+  "NO_PRODUCT_EVIDENCE|CONSTRUCTION": 27,
+  "NO_PRODUCT_EVIDENCE|NON_PURCHASE": 13,
+  "NO_PRODUCT_EVIDENCE|PRODUCT_WITH_SERVICE": 1,
+  "NO_PRODUCT_EVIDENCE|RENTAL_LEASE": 1,
+  "NO_PRODUCT_EVIDENCE|SERVICE_ONLY": 67,
+  "NO_PRODUCT_EVIDENCE|SOFTWARE": 2,
+  "NO_PRODUCT_EVIDENCE|UNCLEAR": 4,
+  "POSSIBLE_PRODUCT|CONSTRUCTION": 9,
+  "POSSIBLE_PRODUCT|NON_PURCHASE": 2,
+  "POSSIBLE_PRODUCT|PRODUCT_PURCHASE": 4,
+  "POSSIBLE_PRODUCT|PRODUCT_WITH_SERVICE": 2,
+  "POSSIBLE_PRODUCT|SERVICE_ONLY": 21,
+  "POSSIBLE_PRODUCT|SOFTWARE": 6,
+  "POSSIBLE_PRODUCT|UNCLEAR": 3
+ },
+ "by_source": {
+  "bonfire": {
+   "n": 42,
+   "explicit_confirmed_precision": {
+    "k": 2,
+    "n": 2,
+    "p": 1.0,
+    "ci95": [
+     0.3424,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 5,
+    "n": 5,
+    "p": 1.0,
+    "ci95": [
+     0.5655,
+     1.0
+    ]
+   }
+  },
+  "dibbs": {
+   "n": 91,
+   "explicit_confirmed_precision": {
+    "k": 91,
+    "n": 91,
+    "p": 1.0,
+    "ci95": [
+     0.9595,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 91,
+    "n": 91,
+    "p": 1.0,
+    "ci95": [
+     0.9595,
+     1.0
+    ]
+   }
+  },
+  "discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+   "n": 24,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": {
+    "k": 9,
+    "n": 10,
+    "p": 0.9,
+    "ci95": [
+     0.5958,
+     0.9821
+    ]
+   }
+  },
+  "discovered_datahub_usac_org_96rf-xd57": {
+   "n": 15,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": null
+  },
+  "instantmarkets": {
+   "n": 33,
+   "explicit_confirmed_precision": {
+    "k": 3,
+    "n": 5,
+    "p": 0.6,
+    "ci95": [
+     0.2307,
+     0.8824
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 4,
+    "n": 4,
+    "p": 1.0,
+    "ci95": [
+     0.5101,
+     1.0
+    ]
+   }
+  },
+  "la_ramp_open_bids": {
+   "n": 15,
+   "explicit_confirmed_precision": {
+    "k": 3,
+    "n": 3,
+    "p": 1.0,
+    "ci95": [
+     0.4385,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 6,
+    "n": 6,
+    "p": 1.0,
+    "ci95": [
+     0.6097,
+     1.0
+    ]
+   }
+  },
+  "mesa_az_solicitations": {
+   "n": 19,
+   "explicit_confirmed_precision": {
+    "k": 1,
+    "n": 1,
+    "p": 1.0,
+    "ci95": [
+     0.2065,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 9,
+    "n": 9,
+    "p": 1.0,
+    "ci95": [
+     0.7008,
+     1.0
+    ]
+   }
+  },
+  "opengov": {
+   "n": 30,
+   "explicit_confirmed_precision": {
+    "k": 5,
+    "n": 8,
+    "p": 0.625,
+    "ci95": [
+     0.3057,
+     0.8632
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 7,
+    "n": 7,
+    "p": 1.0,
+    "ci95": [
+     0.6457,
+     1.0
+    ]
+   }
+  },
+  "planetbids": {
+   "n": 28,
+   "explicit_confirmed_precision": {
+    "k": 1,
+    "n": 2,
+    "p": 0.5,
+    "ci95": [
+     0.0945,
+     0.9055
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 2,
+    "n": 2,
+    "p": 1.0,
+    "ci95": [
+     0.3424,
+     1.0
+    ]
+   }
+  }
+ },
+ "by_evidence": {
+  "SUMMARY": {
+   "n": 97,
+   "explicit_confirmed_precision": {
+    "k": 10,
+    "n": 15,
+    "p": 0.6667,
+    "ci95": [
+     0.4171,
+     0.8482
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 18,
+    "n": 19,
+    "p": 0.9474,
+    "ci95": [
+     0.7536,
+     0.9906
+    ]
+   }
+  },
+  "SUMMARY_SHORT": {
+   "n": 17,
+   "explicit_confirmed_precision": {
+    "k": 4,
+    "n": 5,
+    "p": 0.8,
+    "ci95": [
+     0.3755,
+     0.9638
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 5,
+    "n": 5,
+    "p": 1.0,
+    "ci95": [
+     0.5655,
+     1.0
+    ]
+   }
+  },
+  "TITLE_CODES": {
+   "n": 97,
+   "explicit_confirmed_precision": {
+    "k": 91,
+    "n": 91,
+    "p": 1.0,
+    "ci95": [
+     0.9595,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 91,
+    "n": 91,
+    "p": 1.0,
+    "ci95": [
+     0.9595,
+     1.0
+    ]
+   }
+  },
+  "TITLE_ONLY": {
+   "n": 139,
+   "explicit_confirmed_precision": {
+    "k": 9,
+    "n": 9,
+    "p": 1.0,
+    "ci95": [
+     0.7008,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 39,
+    "n": 39,
+    "p": 1.0,
+    "ci95": [
+     0.9103,
+     1.0
+    ]
+   }
+  }
+ },
+ "by_engine_category": {
+  "construction": {
+   "n": 29,
+   "explicit_confirmed_precision": {
+    "k": 0,
+    "n": 1,
+    "p": 0.0,
+    "ci95": [
+     0.0,
+     0.7935
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 1,
+    "n": 1,
+    "p": 1.0,
+    "ci95": [
+     0.2065,
+     1.0
+    ]
+   }
+  },
+  "product": {
+   "n": 159,
+   "explicit_confirmed_precision": {
+    "k": 108,
+    "n": 111,
+    "p": 0.973,
+    "ci95": [
+     0.9235,
+     0.9908
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 137,
+    "n": 137,
+    "p": 1.0,
+    "ci95": [
+     0.9727,
+     1.0
+    ]
+   }
+  },
+  "product_and_service": {
+   "n": 16,
+   "explicit_confirmed_precision": {
+    "k": 5,
+    "n": 7,
+    "p": 0.7143,
+    "ci95": [
+     0.3589,
+     0.9178
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 9,
+    "n": 9,
+    "p": 1.0,
+    "ci95": [
+     0.7008,
+     1.0
+    ]
+   }
+  },
+  "service": {
+   "n": 111,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": {
+    "k": 1,
+    "n": 2,
+    "p": 0.5,
+    "ci95": [
+     0.0945,
+     0.9055
+    ]
+   }
+  },
+  "unresolved": {
+   "n": 23,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": {
+    "k": 4,
+    "n": 4,
+    "p": 1.0,
+    "ci95": [
+     0.5101,
+     1.0
+    ]
+   }
+  }
+ },
+ "identity_engine_x_annotator": {
+  "EXACT|quotable": 1,
+  "GENERIC|not": 219,
+  "GENERIC|quotable": 10
+ }
+}

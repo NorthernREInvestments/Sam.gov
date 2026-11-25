@@ -46,7 +46,7 @@ Decision: **redesign the classification core** (not patch the cascade), keep the
 
 Readiness: 0 READY_FOR_SOURCING_REVIEW (no record has retained full solicitation documents with verified quantities and submission instructions); 404 product records `PRODUCT_CONFIRMED_NEEDS_SOLICITATION_DETAIL`; 165 `PRODUCT_CATEGORY_UNVERIFIED`; 578 unresolved.
 
-Export: `audit_exports/PROCUREMENT_ENGINE_REPAIR_EXPORT/` (per-record A original evidence, B human-readable, C decision with quotes, D trace; validation ok). Row index archived as `docs/acceptance_archive/PROCUREMENT_ENGINE_REPAIR_EXPORT_MASTER_INDEX.jsonl` (21 MB, not committed).
+Export: `audit_exports/PROCUREMENT_ENGINE_REPAIR_EXPORT/` (per-record A original evidence, B human-readable, C decision with quotes, D trace; validation ok). Row index archived at `m3-worktrees/repair_data/export_indexes/PROCUREMENT_ENGINE_REPAIR_EXPORT_MASTER_INDEX.jsonl` (21 MB, outside Git).
 
 ## Measured accuracy (blind labels; annotators never saw engine output)
 

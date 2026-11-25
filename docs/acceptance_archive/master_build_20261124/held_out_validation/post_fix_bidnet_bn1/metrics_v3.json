@@ -1,0 +1,328 @@
+{
+ "provisional": "Two blind AI annotators (same model family); not human ground truth",
+ "n_items": 100,
+ "population_by_stratum": {
+  "blind_bn1_scored:S1_explicit": 2247,
+  "blind_bn1_scored:S2_likely": 5106,
+  "blind_bn1_scored:S3_retained_other": 3605,
+  "blind_bn1_scored:S4_rejected": 11043
+ },
+ "sample_by_stratum": {
+  "blind_bn1_scored:S3_retained_other": 20,
+  "blind_bn1_scored:S2_likely": 20,
+  "blind_bn1_scored:S4_rejected": 30,
+  "blind_bn1_scored:S1_explicit": 30
+ },
+ "inter_annotator": {
+  "product_vs_not": [
+   0.94,
+   0.97
+  ],
+  "acquisition_type": [
+   0.945,
+   0.96
+  ],
+  "product_evidence": [
+   0.929,
+   0.96
+  ],
+  "identity_level": [
+   0.945,
+   0.97
+  ],
+  "quantity_stated": [
+   null,
+   1.0
+  ]
+ },
+ "consensus_both": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 0.9475,
+   "weighted_tp": 6648,
+   "weighted_positives": 7016,
+   "ci95_bootstrap": [
+    0.8466,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.8234,
+   "weighted_tp": 5777,
+   "weighted_positives": 7016,
+   "ci95_bootstrap": [
+    0.6964,
+    0.9446
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 27,
+   "n": 30,
+   "p": 0.9,
+   "ci95": [
+    0.7438,
+    0.9654
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 27,
+   "n": 30,
+   "p": 0.9,
+   "ci95": [
+    0.7438,
+    0.9654
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.6231,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 27,
+     "n": 30,
+     "p": 0.9,
+     "ci95": [
+      0.7438,
+      0.9654
+     ]
+    },
+    "S2_likely": {
+     "k": 16,
+     "n": 20,
+     "p": 0.8,
+     "ci95": [
+      0.584,
+      0.9193
+     ]
+    },
+    "S3_retained_other": {
+     "k": 4,
+     "n": 20,
+     "p": 0.2,
+     "ci95": [
+      0.0807,
+      0.416
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 29,
+   "n": 30,
+   "p": 0.9667,
+   "ci95": [
+    0.8333,
+    0.9941
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "retained|not_product": 4310,
+   "retained|product": 6648,
+   "rejected|not_product": 10675,
+   "rejected|product": 368
+  },
+  "confusion_matrix_sample": {
+   "retained|not_product": 24,
+   "retained|product": 46,
+   "rejected|not_product": 29,
+   "rejected|product": 1
+  }
+ },
+ "consensus_either": {
+  "broad_discovery_recall(retention)": {
+   "estimate": 0.9059,
+   "weighted_tp": 7083,
+   "weighted_positives": 7820,
+   "ci95_bootstrap": [
+    0.7927,
+    1.0
+   ],
+   "target": 0.98
+  },
+  "product_detection_recall": {
+   "estimate": 0.7388,
+   "weighted_tp": 5777,
+   "weighted_positives": 7820,
+   "ci95_bootstrap": [
+    0.5992,
+    0.8772
+   ]
+  },
+  "confirmed_precision(EXPLICIT->explicit product)": {
+   "k": 27,
+   "n": 30,
+   "p": 0.9,
+   "ci95": [
+    0.7438,
+    0.9654
+   ],
+   "target": 0.95
+  },
+  "explicit_is_product_precision(EXPLICIT->any product)": {
+   "k": 27,
+   "n": 30,
+   "p": 0.9,
+   "ci95": [
+    0.7438,
+    0.9654
+   ]
+  },
+  "potential_precision(retained->potential product)": {
+   "estimate": 0.6464,
+   "target": 0.8,
+   "by_stratum": {
+    "S1_explicit": {
+     "k": 27,
+     "n": 30,
+     "p": 0.9,
+     "ci95": [
+      0.7438,
+      0.9654
+     ]
+    },
+    "S2_likely": {
+     "k": 17,
+     "n": 20,
+     "p": 0.85,
+     "ci95": [
+      0.6396,
+      0.9476
+     ]
+    },
+    "S3_retained_other": {
+     "k": 4,
+     "n": 20,
+     "p": 0.2,
+     "ci95": [
+      0.0807,
+      0.416
+     ]
+    }
+   }
+  },
+  "rejection_npv": {
+   "k": 28,
+   "n": 30,
+   "p": 0.9333,
+   "ci95": [
+    0.7868,
+    0.9815
+   ]
+  },
+  "confusion_matrix_weighted": {
+   "retained|not_product": 3875,
+   "retained|product": 7083,
+   "rejected|not_product": 10307,
+   "rejected|product": 736
+  },
+  "confusion_matrix_sample": {
+   "retained|not_product": 22,
+   "retained|product": 48,
+   "rejected|not_product": 28,
+   "rejected|product": 2
+  }
+ },
+ "engine_presence_x_agreed_type": {
+  "EXPLICIT_PRODUCT|CONSTRUCTION": 1,
+  "EXPLICIT_PRODUCT|PRODUCT_PURCHASE": 25,
+  "EXPLICIT_PRODUCT|PRODUCT_WITH_SERVICE": 1,
+  "EXPLICIT_PRODUCT|SERVICE_ONLY": 2,
+  "INSUFFICIENT_EVIDENCE|CONSTRUCTION": 1,
+  "INSUFFICIENT_EVIDENCE|PRODUCT_PURCHASE": 1,
+  "LIKELY_PRODUCT|PRODUCT_PURCHASE": 14,
+  "LIKELY_PRODUCT|PRODUCT_WITH_SERVICE": 1,
+  "LIKELY_PRODUCT|SERVICE_ONLY": 1,
+  "LIKELY_PRODUCT|UNCLEAR": 1,
+  "NO_PRODUCT_EVIDENCE|CONSTRUCTION": 10,
+  "NO_PRODUCT_EVIDENCE|NON_PURCHASE": 4,
+  "NO_PRODUCT_EVIDENCE|PRODUCT_PURCHASE": 1,
+  "NO_PRODUCT_EVIDENCE|SERVICE_ONLY": 13,
+  "NO_PRODUCT_EVIDENCE|UNCLEAR": 1,
+  "POSSIBLE_PRODUCT|CONSTRUCTION": 5,
+  "POSSIBLE_PRODUCT|NON_PURCHASE": 1,
+  "POSSIBLE_PRODUCT|PRODUCT_PURCHASE": 2,
+  "POSSIBLE_PRODUCT|PRODUCT_WITH_SERVICE": 2,
+  "POSSIBLE_PRODUCT|SERVICE_ONLY": 5,
+  "POSSIBLE_PRODUCT|SOFTWARE": 3,
+  "POSSIBLE_PRODUCT|UNCLEAR": 1
+ },
+ "by_source": {
+  "bidnet": {
+   "n": 100,
+   "explicit_confirmed_precision": {
+    "k": 27,
+    "n": 30,
+    "p": 0.9,
+    "ci95": [
+     0.7438,
+     0.9654
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 46,
+    "n": 47,
+    "p": 0.9787,
+    "ci95": [
+     0.8889,
+     0.9962
+    ]
+   }
+  }
+ },
+ "by_evidence": {
+  "TITLE_ONLY": {
+   "n": 100,
+   "explicit_confirmed_precision": {
+    "k": 27,
+    "n": 30,
+    "p": 0.9,
+    "ci95": [
+     0.7438,
+     0.9654
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 46,
+    "n": 47,
+    "p": 0.9787,
+    "ci95": [
+     0.8889,
+     0.9962
+    ]
+   }
+  }
+ },
+ "by_engine_category": {
+  "product": {
+   "n": 46,
+   "explicit_confirmed_precision": {
+    "k": 27,
+    "n": 27,
+    "p": 1.0,
+    "ci95": [
+     0.8754,
+     1.0
+    ]
+   },
+   "sample_recall_unweighted": {
+    "k": 42,
+    "n": 42,
+    "p": 1.0,
+    "ci95": [
+     0.9162,
+     1.0
+    ]
+   }
+  },
+  "service": {
+   "n": 21,
+   "explicit_confirmed_precision": null,
+   "sample_recall_unweighted": null
+  }
+ },
+ "identity_engine_x_annotator": {
+  "GENERIC|not": 66,
+  "GENERIC|quotable": 4
+ }
+}

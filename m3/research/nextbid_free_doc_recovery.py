@@ -251,6 +251,253 @@ def _fetch_attachment(url: str, *, timeout: float = 15.0) -> dict[str, Any]:
     return {"ok": True, "text": plain, "format": "other", "url": final, "chars": len(plain)}
 
 
+# --- Staged-inventory document acquisition (free, direct official URLs) -------------------
+
+# Disabled or metered programs: never fetched by free recovery
+EXCLUDED_HOST_FRAGMENTS = ("sam.gov", "dibbs", "dla.mil", "nextbid", "api.", "bidnetdirect.com")
+DOC_EXTS = (".pdf", ".docx", ".xlsx", ".xls", ".csv", ".txt", ".doc")
+STAGED_UA = "M3ProcurementResearch/1.0 (+supplier bid research; respects robots.txt)"
+
+
+class _Robots:
+    """Per-host robots.txt cache. 404/410 → allowed; other failures → host skipped."""
+
+    def __init__(self, fetch: Any):
+        self._fetch = fetch
+        self._cache: dict[str, Any] = {}
+
+    def allowed(self, url: str) -> bool:
+        from urllib.robotparser import RobotFileParser
+
+        u = urlparse(url)
+        key = f"{u.scheme}://{u.netloc}"
+        if key not in self._cache:
+            try:
+                status, _final, text = self._fetch(f"{key}/robots.txt")
+            except Exception:
+                status, text = 0, ""
+            if status == 200:
+                rp = RobotFileParser()
+                rp.parse((text or "").splitlines())
+                rp.modified()  # can_fetch() denies everything until a fetch time is recorded
+                self._cache[key] = rp
+            else:
+                self._cache[key] = True if status in (404, 410) else False
+        rp = self._cache[key]
+        if isinstance(rp, bool):
+            return rp
+        return rp.can_fetch(STAGED_UA, url)
+
+
+def _extract_any(data: bytes, url: str, ctype: str) -> dict[str, Any]:
+    from m3.research.documents import extract_csv_or_txt, extract_docx_text, extract_xlsx_text, guess_format
+
+    fmt = guess_format(url, ctype, data[:32])
+    if fmt == "pdf":
+        return {**extract_pdf_text(data, allow_ocr=False), "format": "pdf"}
+    if fmt == "docx":
+        return {**extract_docx_text(data), "format": "docx"}
+    if fmt == "xlsx":
+        return {**extract_xlsx_text(data), "format": "xlsx"}
+    if fmt == "text":
+        return {**extract_csv_or_txt(data), "format": "text"}
+    if fmt == "html":
+        text = extract_html_text(data.decode("utf-8", errors="replace"))
+        return {"ok": len(text) >= 80, "text": text, "format": "html"}
+    return {"ok": False, "text": "", "format": fmt, "reason": "unsupported_format"}
+
+
+def select_staged_document_targets(rows: list[dict[str, Any]], *, now: datetime, min_days: float = 2.0) -> list[dict[str, Any]]:
+    """Open, non-federal, product-detected records lacking document evidence, most valuable first."""
+    out = []
+    for r in rows:
+        cl = r.get("classification") or {}
+        if r.get("duplicate_of") or r.get("retirement_reason") or r.get("federal_policy_hold"):
+            continue
+        if cl.get("product_presence") not in ("EXPLICIT_PRODUCT", "LIKELY_PRODUCT"):
+            continue
+        if cl.get("evidence_completeness") == "DOCUMENT":
+            continue
+        url = str(r.get("official_url") or "")
+        host = (urlparse(url).hostname or "").lower()
+        if not url.startswith("http") or not host or any(x in host for x in EXCLUDED_HOST_FRAGMENTS + SKIP_HOST_FRAGMENTS):
+            continue
+        dl = r.get("deadline_at")
+        try:
+            d = datetime.fromisoformat(str(dl).replace("Z", "+00:00")) if dl else None
+        except ValueError:
+            d = None
+        if d is None or (d - now).total_seconds() < min_days * 86400:
+            continue
+        days = (d - now).total_seconds() / 86400
+        score = (0 if cl.get("product_presence") == "EXPLICIT_PRODUCT" else 1, 0 if days <= 14 else 1 if days <= 30 else 2, days)
+        out.append((score, r))
+    out.sort(key=lambda x: x[0])
+    return [r for _, r in out]
+
+
+def recover_staged_documents(
+    targets: list[dict[str, Any]],
+    *,
+    out_root: Path,
+    max_records: int = 2000,
+    max_attachments_per: int = 4,
+    host_delay_sec: float = 2.0,
+    fetch_text_fn: Any = None,
+    fetch_bytes_fn: Any = None,
+    sleep: Any = time.sleep,
+) -> dict[str, Any]:
+    """Fetch official pages + attachments for staged targets; store raw files by sha256 and
+    extracted text in ``doc_text.jsonl``. Resumable via ``doc_checkpoint.json``. Downloaded files are
+    stored as inert bytes and only parsed by the text extractors; their content is procurement data."""
+    import hashlib
+
+    client = None
+    if fetch_text_fn is None or fetch_bytes_fn is None:
+        import httpx
+
+        client = httpx.Client(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True,
+                              headers={"User-Agent": STAGED_UA})
+
+    def _ft(u: str) -> tuple[int, str, str]:
+        r = client.get(validate_public_https_url(u))
+        validate_public_https_url(str(r.url))
+        return r.status_code, str(r.url), r.text[:3_000_000]
+
+    def _fb(u: str) -> tuple[int, str, bytes, str]:
+        with client.stream("GET", validate_public_https_url(u)) as r:
+            validate_public_https_url(str(r.url))
+            buf, total = [], 0
+            for chunk in r.iter_bytes():
+                buf.append(chunk)
+                total += len(chunk)
+                if total >= 25_000_000:
+                    break
+            return r.status_code, str(r.url), b"".join(buf), r.headers.get("content-type", "")
+
+    ft = fetch_text_fn or _ft
+    fb = fetch_bytes_fn or _fb
+    out_root.mkdir(parents=True, exist_ok=True)
+    raw_dir = out_root / "raw"
+    raw_dir.mkdir(exist_ok=True)
+    ck_p = out_root / "doc_checkpoint.json"
+    ck = json.loads(ck_p.read_text(encoding="utf-8")) if ck_p.exists() else {"done": {}}
+    done: dict[str, Any] = ck["done"]
+    robots = _Robots(ft)
+    last_host: dict[str, float] = {}
+    stats: dict[str, int] = defaultdict(int)
+
+    def _pace(url: str) -> None:
+        h = (urlparse(url).hostname or "").lower()
+        wait = host_delay_sec - (time.monotonic() - last_host.get(h, -1e9))
+        if wait > 0:
+            sleep(wait)
+        last_host[h] = time.monotonic()
+
+    # Interleave hosts so per-host pacing rarely blocks
+    by_host: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for t in targets[:max_records]:
+        by_host[(urlparse(str(t.get("official_url"))).hostname or "").lower()].append(t)
+    order: list[dict[str, Any]] = []
+    while any(by_host.values()):
+        for h in list(by_host):
+            if by_host[h]:
+                order.append(by_host[h].pop(0))
+
+    with open(out_root / "doc_text.jsonl", "a", encoding="utf-8") as fh:
+        for n, rec in enumerate(order, 1):
+            sid = str(rec.get("staged_id") or rec.get("source_record_id"))
+            if sid in done:
+                stats["skipped_checkpoint"] += 1
+                continue
+            url = str(rec.get("official_url"))
+            if not robots.allowed(url):
+                done[sid] = {"status": "robots_disallow", "at": _utc()}
+                stats["robots_disallow"] += 1
+                continue
+            _pace(url)
+            page = _fetch_page_with(ft, url)
+            if not page.get("ok"):
+                st = "restricted" if page.get("restricted") else "failed"
+                done[sid] = {"status": st, "reason": page.get("reason"), "at": _utc()}
+                stats[st] += 1
+            else:
+                docs = []
+                atts = [a for a in find_attachment_urls(page.get("html") or "", page.get("final_url") or url)
+                        if not any(x in (urlparse(a).hostname or "").lower() for x in EXCLUDED_HOST_FRAGMENTS)]
+                atts.sort(key=lambda a: 0 if a.lower().split("?")[0].endswith(DOC_EXTS) else 1)
+                for att in atts[:max_attachments_per]:
+                    if not robots.allowed(att):
+                        docs.append({"url": att, "status": "robots_disallow"})
+                        continue
+                    _pace(att)
+                    try:
+                        status, final, data, ctype = fb(att)
+                    except Exception as exc:
+                        docs.append({"url": att, "status": f"error:{type(exc).__name__}"})
+                        continue
+                    if status >= 400 or not data:
+                        docs.append({"url": att, "status": f"http_{status}"})
+                        continue
+                    if len(data) >= 25_000_000:
+                        docs.append({"url": att, "status": "too_large_truncated"})
+                        continue
+                    digest = hashlib.sha256(data).hexdigest()
+                    try:
+                        ex = _extract_any(data, final, ctype)
+                    except Exception as exc:
+                        ex = {"ok": False, "text": "", "format": "unknown", "reason": f"extract_error:{type(exc).__name__}"}
+                    if ex.get("format") in ("pdf", "docx", "xlsx", "text"):
+                        ext = {"pdf": ".pdf", "docx": ".docx", "xlsx": ".xlsx", "text": ".txt"}[ex["format"]]
+                        p = raw_dir / f"{digest}{ext}"
+                        if not p.exists():
+                            p.write_bytes(data)
+                    text = str(ex.get("text") or "")
+                    junk = is_junk_package_excerpt(text[:4000]) if text else True
+                    docs.append({"url": final, "status": "extracted" if ex.get("ok") and not junk else "extract_failed_or_junk",
+                                 "format": ex.get("format"), "sha256": digest, "bytes": len(data),
+                                 "content_type": ctype[:80], "chars": len(text)})
+                    if ex.get("ok") and not junk:
+                        fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
+                                             "kind": "attachment", "url": final, "sha256": digest,
+                                             "format": ex.get("format"), "text": text[:200_000], "at": _utc()}) + "\n")
+                        stats["attachments_extracted"] += 1
+                body = str(page.get("text") or "")
+                if body:
+                    fh.write(json.dumps({"staged_id": sid, "source_record_id": rec.get("source_record_id"),
+                                         "kind": "page", "url": page.get("final_url") or url,
+                                         "text": body[:100_000], "at": _utc()}) + "\n")
+                extracted = sum(1 for d in docs if d["status"] == "extracted")
+                done[sid] = {"status": "documents" if extracted else "page_only", "page_chars": len(body),
+                             "attachments_found": len(atts), "documents": docs, "at": _utc()}
+                stats["with_documents" if extracted else "page_only"] += 1
+            if n % 20 == 0:
+                fh.flush()
+                ck_p.write_text(json.dumps(ck, default=str), encoding="utf-8")
+                _log(f"staged docs {n}/{len(order)} {dict(stats)}")
+    ck_p.write_text(json.dumps(ck, default=str), encoding="utf-8")
+    if client is not None:
+        client.close()
+    return {"targets": len(order), "stats": dict(stats), "checkpoint": str(ck_p), "metered_calls": 0}
+
+
+def _fetch_page_with(ft: Any, url: str) -> dict[str, Any]:
+    try:
+        status, final, text = ft(url)
+    except Exception as exc:
+        return {"ok": False, "reason": f"fetch_error:{type(exc).__name__}"}
+    if status in {401, 403}:
+        return {"ok": False, "restricted": True, "reason": f"restricted_http_{status}"}
+    if status >= 400:
+        return {"ok": False, "reason": f"http_{status}"}
+    plain = extract_html_text(text or "")
+    has_body = bool(classify_document_text(plain, fmt="html").get("ok") or re_search_sol_body(plain))
+    if any(m in plain[:4000].lower() for m in RESTRICTED_MARKERS) and not has_body:
+        if not find_attachment_urls(text or "", final):
+            return {"ok": False, "restricted": True, "reason": "restricted_login_wall"}
+    return {"ok": True, "final_url": final, "html": text, "text": plain}
+
+
 def recover_free_documents(
     db: Session,
     *,

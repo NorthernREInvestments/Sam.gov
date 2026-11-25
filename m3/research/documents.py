@@ -273,8 +273,46 @@ def fetch_and_extract(url: str, *, timeout: float = 18.0) -> dict[str, Any]:
         }
 
 
+_SOLICITATION_FILE_WORD = re.compile(
+    r"(?i)(?:^|[^a-z])(?:bid|bids|rfp|rfq|ifb|itb|rfi|rfb|cfa|solicitation|specs?|specifications?|addend(?:um|a)|"
+    r"proposal|quote|quotation|scope|sow|pricing|price|schedule|attachment|exhibit|appendix|drawings?|plans|"
+    r"notice|invitation|call[-_ ]for|bidder|vendor|forms?[-_ ]package|item|items|line)(?:[^a-z]|$)"
+)
+_SITE_FORM_FILE = re.compile(
+    r"(?i)(?:application|permit|handout|brochure|newsletter|agenda|minutes|records?[-_ ]request|request[-_ ]to[-_ ]obtain|"
+    r"release[-_ ]of[-_ ]information|police|report[-_ ]request|faq|calendar|annual[-_ ]report|employment|job[-_ ]posting|"
+    r"guide(?:lines)?|requirements[-_ ]handout|fee[-_ ]schedule|utility|water[-_ ]quality|ordinance|resolution)"
+)
+
+
+def _file_label(url: str) -> str:
+    path = urlparse(url).path
+    return re.sub(r"[%+]20|[-_]+", " ", path.rsplit("/", 1)[-1] or path)
+
+
+def unrelated_site_document(url: str, text_head: str = "", *, title: str = "", solicitation_number: str = "") -> str | None:
+    """Reason a linked document is site-wide municipal material rather than this solicitation's, else None.
+
+    Portal pages link permit forms, records requests and handouts next to every bid. Those are only
+    rejected when the file name reads as a site form AND neither the file name nor its opening text
+    names the solicitation (number or two distinctive title words).
+    """
+    label = _file_label(url)
+    if not _SITE_FORM_FILE.search(label) or _SOLICITATION_FILE_WORD.search(label):
+        return None
+    hay = f"{label} {text_head[:1500]}".lower()
+    num = re.sub(r"\W+", "", solicitation_number or "").lower()
+    if num and len(num) >= 4 and num in re.sub(r"\W+", "", hay):
+        return None
+    words = {w for w in re.findall(r"[a-z]{5,}", (title or "").lower())
+             if w not in {"purchase", "supply", "supplies", "services", "service", "project", "county", "public", "request"}}
+    if sum(1 for w in words if w in hay) >= 2:
+        return None
+    return f"site_form_not_naming_solicitation:{label[:80]}"
+
+
 def find_attachment_urls(html: str, base_url: str) -> list[str]:
-    """Pull likely solicitation attachment links from a detail HTML page."""
+    """Pull likely solicitation attachment links from a detail HTML page (site-wide forms excluded)."""
     from urllib.parse import urljoin
 
     hrefs = re.findall(r'href=["\']([^"\']+)["\']', html or "", flags=re.I)
@@ -283,6 +321,8 @@ def find_attachment_urls(html: str, base_url: str) -> list[str]:
     for h in hrefs:
         abs_u = urljoin(base_url, h)
         low = abs_u.lower()
+        if unrelated_site_document(abs_u):
+            continue
         if any(low.split("?")[0].endswith(ext) for ext in (".pdf", ".docx", ".xlsx", ".xls", ".csv", ".txt", ".doc")):
             if abs_u not in seen:
                 seen.add(abs_u)

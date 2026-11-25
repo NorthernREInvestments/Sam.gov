@@ -23,6 +23,41 @@ def _life(**kw):
     return si.determine_lifecycle(r, NOW, max_age_hours=72)["lifecycle_status"]
 
 
+def test_url_identity_keeps_record_id_query_and_drops_tracking():
+    a = si._norm_url("https://www.rampla.org/s/opportunity-details?id=006Ql00000ooOyRIAU")
+    b = si._norm_url("https://rampla.org/s/opportunity-details?id=006Ql00000ooOyRIAU&utm_source=x")
+    assert a == b and "id=006ql00000ooOyriau".lower() in a
+    assert a != si._norm_url("https://www.rampla.org/s/opportunity-details?id=OTHER")
+    assert si._norm_url("https://www.commbuys.com/bso/external/bidDetail.sda?docId=S1&external=true&parentUrl=close") == \
+        "commbuys.com/bso/external/biddetail.sda?docid=s1"
+
+
+def test_partial_bidnet_snapshot_never_counts_as_complete(tmp_path):
+    row = {"provider_record_id": "444000000001", "title": "Fuel", "official_url": "https://www.bidnetdirect.com/x/444000000001",
+           "deadline_raw": "12/16/2026", "retrieved_at": "2026-11-24T14:00:00+00:00"}
+    (tmp_path / "snapshot.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    for cov, complete in (({"enumeration_complete": True, "coverage_ratio": 0.8397}, False),
+                          ({"enumeration_complete": True, "coverage_ratio": 0.995}, True),
+                          ({"enumeration_complete": False, "coverage_ratio": 1.0}, False)):
+        (tmp_path / "coverage.json").write_text(json.dumps(cov), encoding="utf-8")
+        assert si.load_bidnet_snapshot(tmp_path)["complete"] is complete
+
+
+def test_bidnet_abstract_deadline_overrides_listing_date(tmp_path):
+    row = {"provider_record_id": "2723951867", "title": "39--FAIRLEAD,ROLLER", "location": "Pennsylvania",
+           "official_url": "https://www.bidnetdirect.com/pennsylvania/x/2723951867", "deadline_raw": "11/26/2026",
+           "retrieved_at": "2026-11-24T14:00:00+00:00"}
+    (tmp_path / "snapshot.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    (tmp_path / "abstracts").mkdir()
+    (tmp_path / "abstracts" / "abstracts.jsonl").write_text(json.dumps(
+        {"provider_record_id": "2723951867", "deadline_raw": "11/25/2026 07:00 PM EST", "deadline_timezone": "EST",
+         "retrieved_at": "2026-11-25T01:06:50+00:00"}) + "\n", encoding="utf-8")
+    rec = si.load_bidnet_snapshot(tmp_path)["records"][0]
+    assert rec["deadline_raw"] == "11/25/2026 07:00 PM EST"
+    d = si.parse_deadline(rec["deadline_raw"], tz_name=rec.get("deadline_tz_hint"), state="PA")["deadline_at"]
+    assert d.isoformat().startswith("2026-11-26T00:00:00")
+
+
 def test_lifecycle_states():
     assert _life(deadline_raw="2026-12-10T17:00:00-05:00", declared_status="open") == "VERIFIED_OPEN"
     assert _life(deadline_raw="2026-12-10T17:00:00-05:00", declared_status="open",
@@ -108,6 +143,14 @@ def test_offline_run_dispositions_every_record(tmp_path, monkeypatch):
     inv = [json.loads(line) for line in (tmp_path / "inventory.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(inv) == 5 and all(r["owner_queue"] in si.OWNER_QUEUES for r in inv)
     assert next(r for r in inv if r["source_record_id"] == "free:e")["owner_queue"] == "status_verification"
+    fresh = m["stage_counts"]["evaluation_cache"]
+    assert fresh["hits"] == 0 and fresh["evaluated_fresh"] == m["stage_counts"]["evaluated"]
+    again = si.run_staged_inventory(out_root=tmp_path, now=NOW, loaders={"t": lambda: {"available": True, "records": rows}}, resume=False)
+    assert again["stage_counts"]["evaluation_cache"]["hits"] == m["stage_counts"]["evaluated"]
+    assert again["queue_counts"] == m["queue_counts"]
+    nextday = si.run_staged_inventory(out_root=tmp_path, now=NOW.replace(day=24), resume=False,
+                                      loaders={"t": lambda: {"available": True, "records": rows}})
+    assert nextday["stage_counts"]["evaluation_cache"]["hits"] == 0
 
 
 def test_run_refuses_when_acquisition_unlocked(tmp_path, monkeypatch):
