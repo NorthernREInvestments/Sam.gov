@@ -475,7 +475,7 @@ def run_lane_b(*, client: NextBidClient, credit_cap: int) -> dict[str, Any]:
     }
 
 
-def publish_owner_queues(cards: list[dict[str, Any]]) -> dict[str, int]:
+def publish_owner_queues(cards: list[dict[str, Any]], *, build: str = "live_pilot_10") -> dict[str, int]:
     pricing = [c for c in cards if c.get("supplier_quote_ready")]
     needs = [c for c in cards if not c.get("supplier_quote_ready")]
     # Merge prior offline ready set that still qualifies under same bar
@@ -503,13 +503,20 @@ def publish_owner_queues(cards: list[dict[str, Any]]) -> dict[str, int]:
             "nb_id": c.get("nb_id"),
             "title": c.get("title"),
             "agency": c.get("agency"),
+            "state": c.get("state"),
             "solicitation_number": c.get("solicitation_number"),
             "official_url": c.get("official_url"),
             "deadline_at": c.get("deadline_at"),
             "open_status": c.get("open_status") or "OPEN STATUS UNVERIFIED",
+            "product_confirmed": bool(lines),
+            "requirements_completeness": c.get("requirements_state") or "UNKNOWN",
+            "supplier_quote_ready": bool(c.get("supplier_quote_ready")),
+            "submission_ready": False,
             "line_items": lines,
             "complete_line_items": c.get("complete_line_items"),
             "eligibility_state": c.get("eligibility_state"),
+            "quote_ready_blockers": c.get("quote_ready_blockers"),
+            "what_blocks_bid": c.get("quote_ready_blockers") or c.get("eligibility_reasons"),
             "sourcing_state": c.get("sourcing_state"),
             "next_action": c.get("next_action"),
             "lane": c.get("lane"),
@@ -554,7 +561,7 @@ def publish_owner_queues(cards: list[dict[str, Any]]) -> dict[str, int]:
     _upsert("verified_product_information_needed", [_row(c) for c in needs[:50]])
     _upsert("missing_document", [_row(c) for c in needs[:50]])
     _upsert("promising_awaiting_verification", [_row(c) for c in needs[:50]])
-    summary = write_queues(merged, build="live_pilot_10")
+    summary = write_queues(merged, build=build)
     out = get_settings().staged_inventory_root() / "owner"
     out.mkdir(parents=True, exist_ok=True)
     (out / "supplier_pricing_live.jsonl").write_text(

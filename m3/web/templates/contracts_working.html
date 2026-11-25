@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Working contracts · M3{% endblock %}
+{% block content %}
+<h1>Working contracts</h1>
+<p class="lead">Physical-product solicitations for supplier pricing and follow-up. Unknown fields stay UNKNOWN. Supplier-quote-ready is not bid-ready.</p>
+
+<nav class="subnav" aria-label="Working queues">
+  <a href="/contracts?tab=pricing" class="{% if tab=='pricing' %}active{% endif %}">Supplier Pricing Ready <span class="count">{{ pricing|length }}</span></a>
+  <a href="/contracts?tab=needs" class="{% if tab=='needs' %}active{% endif %}">Needs More Information <span class="count">{{ needs|length }}</span></a>
+  <a href="/contracts?tab=deadlines" class="{% if tab=='deadlines' %}active{% endif %}">Deadlines / Actions <span class="count">{{ actions|length }}</span></a>
+</nav>
+
+{% if tab == 'pricing' %}
+<section class="dash-section dash-wide">
+  <h2>Supplier pricing ready</h2>
+  <p class="muted">Verified product lines exist for meaningful supplier quotes. Submission/open status may still be UNVERIFIED.</p>
+  {% for c in pricing %}
+  <article class="opp-card panel">
+    <h3>{{ c.title or 'UNKNOWN title' }}</h3>
+    <div class="meta">
+      {{ c.agency or 'UNKNOWN agency' }}
+      · {{ c.solicitation_number or c.nb_id or 'UNKNOWN solicitation' }}
+      · {{ c.state or 'UNKNOWN state' }}
+      {% if c.nb_id %}· {{ c.nb_id }}{% endif %}
+    </div>
+    <div class="meta">
+      Deadline: {{ c.deadline_at or 'UNKNOWN' }}
+      · Status: {{ c.open_status or 'OPEN STATUS UNVERIFIED' }}
+      · Eligibility: {{ c.eligibility_state or 'UNKNOWN' }}
+      · Quote: YES
+    </div>
+    {% if c.line_items %}
+    <table class="compact">
+      <thead><tr><th>Qty</th><th>UOM</th><th>Product</th></tr></thead>
+      <tbody>
+      {% for li in c.line_items[:8] %}
+        <tr>
+          <td>{{ li.quantity if li.quantity is not none else 'UNKNOWN' }}</td>
+          <td>{{ li.unit_of_measure or 'UNKNOWN' }}</td>
+          <td>{{ (li.description or 'UNKNOWN')[:140] }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Line items: UNKNOWN</p>
+    {% endif %}
+    <p><strong>Next:</strong> {{ c.next_action or 'Request supplier quotes; confirm lead time and drop-ship.' }}</p>
+    <div class="actions">
+      {% if c.official_url %}<a class="btn secondary small" href="{{ c.official_url }}" target="_blank" rel="noopener">Official source</a>{% endif %}
+      {% if c.nb_id %}<a class="btn secondary small" href="/contracts/{{ c.nb_id }}">Working detail</a>{% endif %}
+    </div>
+  </article>
+  {% else %}
+  <div class="empty">No supplier-quote-ready contracts in the working queue yet.</div>
+  {% endfor %}
+</section>
+
+{% elif tab == 'needs' %}
+<section class="dash-section dash-wide">
+  <h2>Needs more information</h2>
+  <p class="muted">Promising product solicitations with a specific missing requirement.</p>
+  {% for c in needs %}
+  <article class="opp-card panel">
+    <h3>{{ c.title or 'UNKNOWN title' }}</h3>
+    <div class="meta">
+      {{ c.agency or 'UNKNOWN agency' }}
+      · {{ c.nb_id or 'UNKNOWN' }}
+      · Deadline: {{ c.deadline_at or 'UNKNOWN' }}
+      · {{ c.open_status or 'OPEN STATUS UNVERIFIED' }}
+    </div>
+    <p><strong>Missing / blockers:</strong>
+      {% if c.what_blocks_bid %}{{ c.what_blocks_bid|join('; ') }}
+      {% elif c.quote_ready_blockers %}{{ c.quote_ready_blockers|join('; ') }}
+      {% else %}UNKNOWN specific gap{% endif %}
+    </p>
+    <p><strong>Next:</strong> {{ c.next_action or 'Obtain the missing document or fact before quoting.' }}</p>
+    <div class="actions">
+      {% if c.official_url %}<a class="btn secondary small" href="{{ c.official_url }}" target="_blank" rel="noopener">Official source</a>{% endif %}
+      {% if c.nb_id %}<a class="btn secondary small" href="/contracts/{{ c.nb_id }}">Working detail</a>{% endif %}
+    </div>
+  </article>
+  {% else %}
+  <div class="empty">No partial product contracts queued.</div>
+  {% endfor %}
+</section>
+
+{% else %}
+<section class="dash-section dash-wide">
+  <h2>Deadlines / owner actions</h2>
+  {% for c in actions %}
+  <div class="dash-row">
+    <div>
+      <a href="/contracts/{{ c.nb_id }}">{{ c.title or c.nb_id }}</a>
+      <div class="meta">{{ c.deadline_at or 'UNKNOWN deadline' }} · {{ c.open_status or 'OPEN STATUS UNVERIFIED' }} · {{ c.eligibility_state or 'ELIGIBILITY UNKNOWN' }}</div>
+    </div>
+    <span class="muted">{{ 'Quote ready' if c.supplier_quote_ready else 'Needs info' }}</span>
+  </div>
+  {% else %}
+  <div class="empty">No deadline actions queued.</div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

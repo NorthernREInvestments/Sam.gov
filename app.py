@@ -663,6 +663,118 @@ def home(request: Request, db: Session = Depends(get_db), user: User | None = De
 
 
 # ---- Opportunities ----
+def _load_working_contract_queues() -> dict[str, list]:
+    """Owner working queues from durable procurement_queues + live JSONL overlays."""
+    from m3.config import get_settings
+
+    pricing: list[dict] = []
+    needs: list[dict] = []
+    root = get_settings().data_root() / "procurement_queues"
+    for qname, dest in (
+        ("awaiting_supplier_quotations", pricing),
+        ("verified_bid_opportunities", pricing),
+        ("verified_product_information_needed", needs),
+        ("missing_document", needs),
+        ("promising_awaiting_verification", needs),
+    ):
+        qp = root / f"{qname}.json"
+        if not qp.exists():
+            continue
+        try:
+            rows = json.loads(qp.read_text(encoding="utf-8")).get("rows") or []
+        except Exception:
+            continue
+        for r in rows:
+            if not isinstance(r, dict) or not r.get("nb_id"):
+                continue
+            if dest is pricing and r.get("unresolved"):
+                continue
+            dest.append(r)
+    owner = get_settings().staged_inventory_root() / "owner"
+    for name, dest, ready in (
+        ("supplier_pricing_live.jsonl", pricing, True),
+        ("needs_one_more_live.jsonl", needs, False),
+    ):
+        path = owner / name
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("nb_id"):
+                row.setdefault("supplier_quote_ready", ready)
+                dest.append(row)
+
+    def _dedupe(rows: list[dict]) -> list[dict]:
+        by: dict[str, dict] = {}
+        for r in rows:
+            by[str(r.get("nb_id"))] = r
+        return list(by.values())
+
+    pricing = _dedupe(pricing)
+    needs = _dedupe([r for r in needs if str(r.get("nb_id")) not in {str(p.get("nb_id")) for p in pricing}])
+
+    def _deadline_key(r: dict) -> str:
+        return str(r.get("deadline_at") or "9999")
+
+    pricing.sort(key=_deadline_key)
+    needs.sort(key=_deadline_key)
+    actions = sorted(pricing + needs, key=_deadline_key)
+    return {"pricing": pricing, "needs": needs, "actions": actions}
+
+
+@app.get("/contracts", response_class=HTMLResponse)
+def contracts_working(request: Request, user: User | None = Depends(current_user)):
+    if not user:
+        return _login_redirect()
+    if not has_perm(user.role, user.extra_permissions, "opportunities.read"):
+        return RedirectResponse("/", status_code=303)
+    tab = (request.query_params.get("tab") or "pricing").lower()
+    if tab not in {"pricing", "needs", "deadlines"}:
+        tab = "pricing"
+    queues = _load_working_contract_queues()
+    return TEMPLATES.TemplateResponse(
+        "contracts_working.html",
+        _ctx(
+            request,
+            user,
+            "contracts",
+            tab=tab,
+            pricing=queues["pricing"],
+            needs=queues["needs"],
+            actions=queues["actions"],
+        ),
+    )
+
+
+@app.get("/contracts/{nb_id}", response_class=HTMLResponse)
+def contract_working_detail(nb_id: str, request: Request, user: User | None = Depends(current_user)):
+    if not user:
+        return _login_redirect()
+    if not has_perm(user.role, user.extra_permissions, "opportunities.read"):
+        return RedirectResponse("/", status_code=303)
+    queues = _load_working_contract_queues()
+    item = None
+    for r in queues["pricing"] + queues["needs"]:
+        if str(r.get("nb_id")) == str(nb_id):
+            item = r
+            break
+    if item is None:
+        item = {
+            "nb_id": nb_id,
+            "title": "UNKNOWN title",
+            "open_status": "OPEN STATUS UNVERIFIED",
+            "requirements_completeness": "UNKNOWN",
+            "next_action": "Locate retained evidence or acquire missing requirements.",
+        }
+    return TEMPLATES.TemplateResponse(
+        "contract_working_detail.html",
+        _ctx(request, user, "contracts", item=item),
+    )
+
+
 @app.get("/opportunities", response_class=HTMLResponse)
 def opportunities_list(request: Request, db: Session = Depends(get_db), user: User | None = Depends(current_user)):
     if not user:
@@ -1374,6 +1486,41 @@ def api_nextbid_live_pilot_10(user: User | None = Depends(current_user)):
         "best_opportunities": result.get("best_opportunities"),
         "queue_summary": result.get("queue_summary"),
         "acquisition_locked": acquisition_locked(),
+        "scheduler_not_activated": True,
+        "reserve_intact": result.get("reserve_intact"),
+        "error": result.get("error"),
+        "stop": "AWAIT_OWNER_REVIEW",
+    }
+
+
+@app.post("/api/m3/nextbid/campaign-250")
+def api_nextbid_campaign_250(user: User | None = Depends(current_user)):
+    """Owner single-use max-250 NextBid product campaign. Always restores killswitch.
+
+    Not permission for recurring daily acquisition. Authorization auto-revokes on finish/stop.
+    """
+    if not user or not has_perm(user.role, user.extra_permissions, "opportunities.write"):
+        return {"ok": False, "error": "forbidden"}
+    from m3.research.nextbid_campaign_250 import run_campaign_250
+    from m3.research.nextbid_controller import acquisition_locked
+
+    result = run_campaign_250()
+    return {
+        "ok": bool(result.get("ok")),
+        "build": BUILD_ID,
+        "campaign_id": result.get("campaign_id"),
+        "credits_consumed_account": result.get("credits_consumed_account"),
+        "lane_a_credits": result.get("lane_a_credits"),
+        "lane_b_credits": result.get("lane_b_credits"),
+        "checkpoints_hit": result.get("checkpoints_hit"),
+        "stop_reason": result.get("stop_reason"),
+        "newly_quote_ready": result.get("newly_quote_ready"),
+        "shortlist": result.get("shortlist"),
+        "queue_summary": result.get("queue_summary"),
+        "usage_before": result.get("usage_before"),
+        "usage_after": result.get("usage_after"),
+        "acquisition_locked": acquisition_locked(),
+        "authorization_revoked": True,
         "scheduler_not_activated": True,
         "reserve_intact": result.get("reserve_intact"),
         "error": result.get("error"),

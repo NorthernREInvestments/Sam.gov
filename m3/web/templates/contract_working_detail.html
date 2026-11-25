@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ item.nb_id or 'Contract' }} · Working · M3{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/contracts">Working contracts</a> / {{ item.nb_id or 'UNKNOWN' }}</p>
+<h1>{{ item.title or 'UNKNOWN title' }}</h1>
+<p class="lead">{{ item.agency or 'UNKNOWN agency' }} · {{ item.solicitation_number or item.nb_id or 'UNKNOWN solicitation' }} · {{ item.state or 'UNKNOWN state' }}</p>
+
+<section class="dash-section">
+  <h2>Status</h2>
+  <dl class="kv">
+    <dt>Product confirmed</dt><dd>{{ 'YES' if item.product_confirmed else 'NO' }}</dd>
+    <dt>Requirements</dt><dd>{{ item.requirements_completeness or 'UNKNOWN' }}</dd>
+    <dt>Supplier quote</dt><dd>{% if item.supplier_quote_ready %}READY{% elif item.quote_ready_blockers %}PARTIAL / BLOCKED{% else %}NO{% endif %}</dd>
+    <dt>Bid / open status</dt><dd>{{ item.open_status or 'OPEN STATUS UNVERIFIED' }}</dd>
+    <dt>Eligibility</dt><dd>{{ item.eligibility_state or 'ELIGIBILITY UNVERIFIED' }}</dd>
+    <dt>Submission ready</dt><dd>{{ 'YES' if item.submission_ready else 'NOT READY' }}</dd>
+    <dt>Deadline</dt><dd>{{ item.deadline_at or 'UNKNOWN' }}</dd>
+  </dl>
+  {% if item.what_blocks_bid %}
+  <p><strong>Blocks bid:</strong> {{ item.what_blocks_bid|join('; ') }}</p>
+  {% endif %}
+  {% if item.quote_ready_blockers %}
+  <p><strong>Blocks quote:</strong> {{ item.quote_ready_blockers|join('; ') }}</p>
+  {% endif %}
+  <p><strong>Next action:</strong> {{ item.next_action or 'UNKNOWN' }}</p>
+</section>
+
+<section class="dash-section dash-wide">
+  <h2>Products / line items</h2>
+  {% if item.line_items %}
+  <table class="compact">
+    <thead>
+      <tr><th>#</th><th>Qty</th><th>UOM</th><th>Manufacturer / model</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+    {% for li in item.line_items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ li.quantity if li.quantity is not none else 'UNKNOWN' }}</td>
+        <td>{{ li.unit_of_measure or 'UNKNOWN' }}</td>
+        <td>
+          {{ li.manufacturer or 'UNKNOWN' }}
+          {% if li.model %}/ {{ li.model }}{% endif %}
+          {% if li.mpn %}· MPN {{ li.mpn }}{% endif %}
+          {% if li.nsn %}· NSN {{ li.nsn }}{% endif %}
+        </td>
+        <td>{{ li.description or 'UNKNOWN' }}{% if li.brand_or_equal %} · brand-or-equal OK{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Line items: UNKNOWN</p>
+  {% endif %}
+</section>
+
+<section class="dash-section">
+  <h2>Delivery & obligations</h2>
+  <dl class="kv">
+    <dt>Delivery location</dt><dd>{{ item.delivery_location or 'UNKNOWN' }}</dd>
+    <dt>Delivery timing</dt><dd>{{ item.delivery_timing or 'UNKNOWN' }}</dd>
+    <dt>Warranty / packaging</dt><dd>{{ item.warranty_packaging or 'UNKNOWN' }}</dd>
+    <dt>Submission method</dt><dd>{{ item.submission_method or 'UNKNOWN' }}</dd>
+    <dt>Mandatory meetings</dt><dd>{{ item.mandatory_meetings or 'UNKNOWN / none stated' }}</dd>
+    <dt>Registration / set-aside</dt><dd>{{ item.eligibility_notes or item.set_aside or 'UNKNOWN' }}</dd>
+  </dl>
+</section>
+
+<section class="dash-section">
+  <h2>Documents</h2>
+  {% if item.documents %}
+  <ul>
+  {% for d in item.documents %}
+    <li>{{ d.name or d.doc_id or 'UNKNOWN document' }}{% if d.sha256 %} · {{ d.sha256[:12] }}…{% endif %}</li>
+  {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Document associations: UNKNOWN / none listed in queue snapshot</p>
+  {% endif %}
+  {% if item.official_url %}
+  <p><a class="btn secondary" href="{{ item.official_url }}" target="_blank" rel="noopener">Open official source</a></p>
+  {% endif %}
+</section>
+{% endblock %}

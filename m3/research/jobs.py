@@ -3559,6 +3559,10 @@ def main(argv: list[str] | None = None) -> int:
         "nextbid-live-pilot-10",
         help="Owner single-use 10-credit live pilot (Lane A≤6, Lane B≤4); always relocks",
     )
+    sub.add_parser(
+        "nextbid-campaign-250",
+        help="Owner single-use max-250 product acquisition campaign; always relocks",
+    )
     p_stg = sub.add_parser("staged-inventory")
     p_stg.add_argument("--no-resume", action="store_true")
     sub.add_parser("discovery-schedule-plan")
@@ -3962,6 +3966,41 @@ def main(argv: list[str] | None = None) -> int:
                             "reserve_intact": result.get("reserve_intact"),
                             "error": result.get("error"),
                             "report": "TEMP/LIVE_PILOT_10/PILOT_REPORT.md",
+                            "stop": "AWAIT_OWNER_REVIEW",
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "nextbid-campaign-250":
+            from m3.research.nextbid_campaign_250 import run_campaign_250
+            from m3.research.nextbid_controller import acquisition_locked
+
+            result = run_campaign_250()
+            assert acquisition_locked(), "campaign 250 must restore killswitch"
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(result.get("ok")),
+                        "campaign_250": {
+                            "campaign_id": result.get("campaign_id"),
+                            "credits_consumed_account": result.get("credits_consumed_account"),
+                            "lane_a_credits": result.get("lane_a_credits"),
+                            "lane_b_credits": result.get("lane_b_credits"),
+                            "checkpoints_hit": result.get("checkpoints_hit"),
+                            "stop_reason": result.get("stop_reason"),
+                            "newly_quote_ready": result.get("newly_quote_ready"),
+                            "shortlist": result.get("shortlist"),
+                            "queue_summary": result.get("queue_summary"),
+                            "usage_before": result.get("usage_before"),
+                            "usage_after": result.get("usage_after"),
+                            "acquisition_locked": True,
+                            "authorization_revoked": True,
+                            "scheduler_not_activated": True,
+                            "reserve_intact": result.get("reserve_intact"),
+                            "error": result.get("error"),
+                            "report": "TEMP/CAMPAIGN_250/CAMPAIGN_REPORT.md",
                             "stop": "AWAIT_OWNER_REVIEW",
                         },
                     },

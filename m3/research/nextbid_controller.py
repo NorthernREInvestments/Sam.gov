@@ -52,6 +52,18 @@ LIVE_PILOT_ALLOWED_ENDPOINTS = frozenset(
         "get_document_download",
     }
 )
+CAMPAIGN_250_SCOPE = "campaign_250_product_acquisition_single_use"
+CAMPAIGN_250_CREDIT_CAP = 250
+CAMPAIGN_250_ALLOWED_ENDPOINTS = frozenset(
+    {
+        "search",
+        "get_opportunity",
+        "list_documents",
+        "list_files",
+        "read_file",
+        "get_document_download",
+    }
+)
 BUILD_002M_ALLOWED_ENDPOINTS = frozenset({"search"})
 BUILD_002Q_ALLOWED_ENDPOINTS = frozenset(
     {"search", "get_opportunity", "list_documents", "list_files", "read_file"}
@@ -326,6 +338,31 @@ def _limits() -> dict[str, int]:
             "single_use": True,
         }
 
+    # Single-use 250-credit product campaign: scoped exception to 10/day and 50/job only for this window.
+    # Never expands past CAMPAIGN_250_CREDIT_CAP. Normal ceilings resume when auth is revoked.
+    if auth and auth.get("authorized") and auth.get("scope") == CAMPAIGN_250_SCOPE:
+        cap = min(
+            CAMPAIGN_250_CREDIT_CAP,
+            int(auth.get("test_call_cap") or CAMPAIGN_250_CREDIT_CAP),
+            int(auth.get("approved_allocation_calls") or CAMPAIGN_250_CREDIT_CAP),
+        )
+        daily_override = auth.get("daily_limit_override")
+        # Allow prior same-day usage (e.g. live pilot) without shrinking the 250 campaign room.
+        daily = int(daily_override) if daily_override is not None else cap
+        daily = min(daily, CAMPAIGN_250_CREDIT_CAP + OWNER_HARD_DAILY_CEILING)
+        return {
+            "daily": daily,
+            "job": cap,
+            "monthly_reserve": reserve,
+            "test": cap,
+            "owner_hard_daily_ceiling": OWNER_HARD_DAILY_CEILING,
+            "owner_hard_test_ceiling": OWNER_HARD_TEST_CEILING,
+            "scope": CAMPAIGN_250_SCOPE,
+            "allowed_endpoints": sorted(CAMPAIGN_250_ALLOWED_ENDPOINTS),
+            "single_use": True,
+            "campaign_cap": CAMPAIGN_250_CREDIT_CAP,
+        }
+
     # Build 002Q controlled production: campaign ≤1646 but daily≤100 and job≤50 still bind
     if auth and auth.get("authorized") and auth.get("scope") == BUILD_002Q_SCOPE:
         campaign = min(
@@ -397,6 +434,9 @@ def _endpoint_allowed(endpoint: str) -> bool:
         return endpoint in allowed
     if scope == LIVE_PILOT_SCOPE:
         allowed = set(auth.get("allowed_endpoints") or LIVE_PILOT_ALLOWED_ENDPOINTS)
+        return endpoint in allowed
+    if scope == CAMPAIGN_250_SCOPE:
+        allowed = set(auth.get("allowed_endpoints") or CAMPAIGN_250_ALLOWED_ENDPOINTS)
         return endpoint in allowed
     return True
 

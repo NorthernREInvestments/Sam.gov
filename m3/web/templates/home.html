@@ -38,6 +38,15 @@
 
 {% if tab == 'overview' %}
 <section class="dash-section dash-wide">
+  <h2>Working contracts</h2>
+  <p class="muted">Supplier-pricing ready and needs-more-information queues for physical-product solicitations.</p>
+  <div class="actions">
+    <a class="btn" href="/contracts?tab=pricing">Supplier Pricing Ready</a>
+    <a class="btn secondary" href="/contracts?tab=needs">Needs More Information</a>
+    <a class="btn secondary" href="/contracts?tab=deadlines">Deadlines / Actions</a>
+  </div>
+</section>
+<section class="dash-section dash-wide">
   <h2>Saved opportunities <span class="count">{{ recent_opps|length }}</span></h2>
   {% for o in recent_opps %}
   <div class="dash-row">
