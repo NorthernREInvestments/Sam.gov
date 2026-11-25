@@ -26,13 +26,17 @@ def test_propane_manifest_lists_all_ten_attachments_and_notice():
     names = {d["original_filename"] for d in attachments}
     assert "Bulk_Propane_Fuel_Supply.pdf" in names
     assert any(d.get("original_filename", "").endswith(".document0.md") for d in notices)
-    # Provider stored ≠ local PDF
+    # Provider stored + (after owner download) local PDF bytes for the propane spec
     propane = next(d for d in attachments if d["original_filename"] == "Bulk_Propane_Fuel_Supply.pdf")
     assert propane["provider_stored"] is True
-    assert propane["local_pdf_bytes_present"] is False
-    assert propane["m3_retrieval_status"] == "metadata_only_provider_stored"
     assert "/documents/" in str(propane.get("provider_api_path") or "")
     assert propane["provider_document_id"] == "996c49135176d8e5583103be087aaf6ee4ed0d072423b7b2399d41e48326bb4c"
+    # Local presence reflects evidence vault — True after authorized download
+    if propane.get("local_pdf_bytes_present"):
+        assert propane["m3_retrieval_status"] == "local_bytes"
+        assert propane.get("duplicate_purchase_blocked") is True
+    else:
+        assert propane["m3_retrieval_status"] == "metadata_only_provider_stored"
     # Notice already retrieved locally
     md = next(d for d in notices if str(d.get("original_filename") or "").endswith(".document0.md"))
     assert md["local_extracted_text_present"] is True
