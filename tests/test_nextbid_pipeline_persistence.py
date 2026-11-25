@@ -164,9 +164,12 @@ def test_offline_process_and_ingest_fixture_replay(tmp_path, monkeypatch):
 def test_one_call_package_does_not_spend():
     pkg = build_one_call_approval_package()
     assert pkg["killswitch_locked"] is True
-    assert pkg["max_credit_cost"] == 1
-    assert pkg["execution_gate"] == "OWNER_EXPLICIT_AUTHORIZATION_REQUIRED"
     assert pkg["opportunity_id"] == PIPELINE_TEST_NB_ID
+    # document0 already retained locally — package must not invite a duplicate purchase
+    assert pkg["existing_source_evidence"]["document0_md_retrieved"] is True
+    assert pkg["proposed_call"] is None
+    assert pkg["max_credit_cost"] == 0
+    assert pkg["execution_gate"] == "NO_CALL_ARTIFACT_ALREADY_RETAINED"
 
 
 def test_reconcile_2_vs_10():

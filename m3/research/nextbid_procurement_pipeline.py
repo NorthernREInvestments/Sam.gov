@@ -43,9 +43,13 @@ def _utc() -> str:
 
 def select_test_opportunity() -> dict[str, Any]:
     """Document why NB00375309 is the pipeline test case (and why furniture was not)."""
+    from m3.research.solicitation_document_manifest import file_artifact_retention
+
     inv = load_inventory().get(PIPELINE_TEST_NB_ID) or {}
     pkg = load_recovery_package(PIPELINE_TEST_NB_ID) or {}
     ft = load_full_text(PIPELINE_TEST_NB_ID) or {}
+    retention = file_artifact_retention(PIPELINE_TEST_NB_ID, PIPELINE_TEST_ARTIFACT)
+    doc0_local = bool(retention.get("already_retained"))
     rejected = {
         "nb_id": "NB00321439",
         "title": "Oliver Hill New Courtroom Furniture",
@@ -57,7 +61,6 @@ def select_test_opportunity() -> dict[str, Any]:
         "artifact_was_available": "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md",
     }
     missing = [
-        "full_notice_body_document0_md_not_retrieved",
         "firm_ordered_or_estimated_propane_quantity_UNKNOWN",
         "unit_price_basis_UNKNOWN",
         "delivery_schedule_terms_beyond_listing_UNKNOWN",
@@ -66,6 +69,8 @@ def select_test_opportunity() -> dict[str, Any]:
         "eligibility_set_aside_UNKNOWN",
         "live_open_status_UNVERIFIED",
     ]
+    if not doc0_local:
+        missing.insert(0, "full_notice_body_document0_md_not_retrieved")
     return {
         "nb_id": PIPELINE_TEST_NB_ID,
         "title": pkg.get("title") or inv.get("title"),
@@ -87,8 +92,10 @@ def select_test_opportunity() -> dict[str, Any]:
             "path": PIPELINE_TEST_ARTIFACT,
             "bytes_declared": 8364,
             "kind": "document0",
-            "already_retrieved_locally": False,
-            "max_credit_cost": 1,
+            "already_retrieved_locally": doc0_local,
+            "durable_response_present": retention.get("durable_response_present"),
+            "original_bytes_sha256": retention.get("original_bytes_sha256"),
+            "max_credit_cost": 0 if doc0_local else 1,
         },
         "already_paid_endpoints": pkg.get("endpoints_present") or [],
         "source_documents_metadata_count": pkg.get("source_documents_count") or len(pkg.get("source_documents") or []),
@@ -515,21 +522,27 @@ def build_one_call_approval_package() -> dict[str, Any]:
     offline = process_offline_opportunity(PIPELINE_TEST_NB_ID)
     plan = offline["retrieval_plan"]
     st = controller_status()
+    doc0_local = bool((selected.get("known_artifact") or {}).get("already_retrieved_locally"))
+    proposed = plan.get("proposed_metered_call")
     return {
-        "title": "ONE-CALL APPROVAL PACKAGE — DO NOT EXECUTE WITHOUT OWNER AUTHORIZATION",
+        "title": (
+            "RETRIEVAL STATUS — document0 already retained; no re-buy"
+            if doc0_local and proposed is None
+            else "ONE-CALL APPROVAL PACKAGE — DO NOT EXECUTE WITHOUT OWNER AUTHORIZATION"
+        ),
         "killswitch_locked": True,
         "opportunity_id": PIPELINE_TEST_NB_ID,
-        "endpoint": "read_file",
+        "endpoint": (proposed or {}).get("endpoint") or ("none_duplicate_blocked" if doc0_local else "read_file"),
         "artifact_path": PIPELINE_TEST_ARTIFACT,
         "http_path": f"/opportunities/{PIPELINE_TEST_NB_ID}/files/{PIPELINE_TEST_ARTIFACT}",
         "existing_source_evidence": {
             "listing_description_chars": selected["listing_description_chars"],
             "already_paid_endpoints": selected["already_paid_endpoints"],
             "source_documents_metadata": selected["source_documents_metadata_count"],
-            "document0_md_retrieved": False,
+            "document0_md_retrieved": doc0_local,
         },
         "expected_missing_information": selected["missing_fields"],
-        "max_credit_cost": 1,
+        "max_credit_cost": 0 if doc0_local and proposed is None else int((proposed or {}).get("max_credit_cost") or 1),
         "ledger": st.get("budget_state"),
         "limits": st.get("limits"),
         "spendable_before_reserve": max(
@@ -543,8 +556,13 @@ def build_one_call_approval_package() -> dict[str, Any]:
             "offline_pipeline_ran": True,
             "offline_owner_card": offline.get("owner_card"),
         },
-        "proposed_call": plan.get("proposed_metered_call"),
-        "execution_gate": "OWNER_EXPLICIT_AUTHORIZATION_REQUIRED",
+        "proposed_call": proposed,
+        "stop_without_call": plan.get("stop_without_call"),
+        "execution_gate": (
+            "NO_CALL_ARTIFACT_ALREADY_RETAINED"
+            if doc0_local and proposed is None
+            else "OWNER_EXPLICIT_AUTHORIZATION_REQUIRED"
+        ),
         "prepared_at": _utc(),
     }
 
