@@ -1,0 +1,140 @@
+{
+  "ran_at": "2026-11-25T05:18:14.338602+00:00",
+  "elapsed_sec": 31.24,
+  "api_expenditure": 0,
+  "external_calls": 0,
+  "acquisition_locked": true,
+  "ledger": {
+    "account_used": 3454,
+    "account_remaining": 2546,
+    "monthly_reserve": 1000,
+    "verified_via": "controller_status()"
+  },
+  "population": {
+    "nextbid_inventory_records": 8088,
+    "offline_recovery_nbs_processed": 7951,
+    "enrichment_rows_available": 12,
+    "note": "Production inventory is the accounting universe. 7,951 was the offline-recovery processed NB count (excluding test IDs); inventory may differ if listings were added/removed independently."
+  },
+  "primary_classification_mutually_exclusive": {
+    "mixed": 61,
+    "service": 1735,
+    "product": 1547,
+    "unknown": 4119,
+    "construction": 626
+  },
+  "product_evidence_strength": {
+    "confirmed_product_evidence": 462,
+    "not_product_or_unknown": 2922,
+    "title_or_category_inference": 4704
+  },
+  "requirements_completeness_mutually_exclusive": {
+    "missing": 1723,
+    "unverified_no_retained_body": 6169,
+    "partial": 196
+  },
+  "quantity_status": {
+    "no_verified_quantity": 7946,
+    "verified_qty_and_uom": 74,
+    "qty_without_grounded_uom": 68
+  },
+  "open_status_retained_only": {
+    "retained_open_claim_unverified_live": 7897,
+    "status_unknown_unverified": 55,
+    "future_deadline_status_unverified": 80,
+    "expired_or_closed_in_retained_data": 56
+  },
+  "eligibility": {
+    "unknown": 3676,
+    "submission_language_present": 82,
+    "federal_policy_hold": 4330
+  },
+  "supplier_quote_readiness_mutually_exclusive": {
+    "PARTIAL": 327,
+    "NO_NOT_PRODUCT": 6480,
+    "PARTIAL_TITLE_ONLY": 1210,
+    "NO": 20,
+    "YES": 10,
+    "EXPIRED_CLOSED": 41
+  },
+  "submission_readiness": {
+    "submission_not_verified": 8006,
+    "submission_instructions_in_retained_text": 82
+  },
+  "held_back": {
+    "missing_source_data": 1237,
+    "extraction_errors": 0,
+    "eligibility_or_federal": 4330,
+    "closure_expired_retained": 56,
+    "detail": {
+      "missing_source_body_blocks_product": 1237,
+      "closure_or_expired_retained": 56,
+      "eligibility_federal_hold": 4330
+    }
+  },
+  "verified_counts": {
+    "confirmed_product_solicitations": 462,
+    "potential_product_title_inference": 4704,
+    "with_verified_quantities": 142,
+    "with_specification_or_model_cue": 27,
+    "supplier_quote_ready_YES": 10,
+    "supplier_quote_PARTIAL_all": 1537,
+    "submission_ready": 82,
+    "legitimate_products_held_only_by_missing_acquired_requirements": 1237
+  },
+  "source_top": [
+    [
+      "dibbs",
+      4240
+    ],
+    [
+      "opengov",
+      904
+    ],
+    [
+      "instantmarkets",
+      892
+    ],
+    [
+      "bonfire",
+      766
+    ],
+    [
+      "planetbids",
+      750
+    ],
+    [
+      "calprocure",
+      358
+    ],
+    [
+      "sam.gov",
+      90
+    ],
+    [
+      "publicpurchase",
+      88
+    ]
+  ],
+  "uom_fix": {
+    "defect": "Brand token captured as UOM (e.g. Unication)",
+    "fix": "normalize_quantity_unit whitelist + brand reject in extract_fields",
+    "brand_uom_remaining_in_this_pass": 0,
+    "unication_regression": {
+      "quantity": 53,
+      "quantity_unit": null,
+      "semantic": "ESTIMATED_QUANTITY"
+    }
+  },
+  "highest_value_next_acquisition": {
+    "recommendation": "Do not broad-spend NextBid credits on the title-only majority. Highest value: (1) pursue supplier quotes for the independently verified YES items (Weg motor 27-P-00107; IL rock salt schedule) using retained requirements; (2) if one paid test is authorized later, prefer a single read_file of a category-C document0.md already indexed in enrichment (e.g. NB00375309), not a new search campaign. Offline evidence does not establish live open status.",
+    "do_not_spend_to_reconfirm_title_only_population": true
+  },
+  "reconcile_check": {
+    "primary_sum": 8088,
+    "req_sum": 8088,
+    "quote_sum": 8088,
+    "equals_population": true
+  },
+  "prior_14_audit_commit": "c565006"
+}

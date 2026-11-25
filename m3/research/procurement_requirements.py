@@ -11,7 +11,11 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from m3.research.extract_fields import extract_identity_fields, extract_quantity_fields
+from m3.research.extract_fields import (
+    extract_identity_fields,
+    extract_quantity_fields,
+    normalize_quantity_unit,
+)
 
 REQUIREMENT_STATES = ("COMPLETE", "PARTIAL", "NOT_FOUND", "NO_TEXT")
 ELIGIBILITY_STATES = ("ELIGIBLE", "EASY_REGISTRATION_REQUIRED", "ELIGIBILITY_UNKNOWN", "BLOCKED")
@@ -125,7 +129,8 @@ def _parse_line(block: dict[str, Any]) -> dict[str, Any]:
     t = block["text"]
     qm = _QTY_LABELLED.search(t) or _QTY_UOM.search(t)
     qty = _num(qm.group("qty")) if qm else None
-    uom = ((qm.group("uom") or "").upper() or None) if qm else None
+    uom_raw = (qm.group("uom") if qm else None) or None
+    uom = normalize_quantity_unit(uom_raw)  # None when brand/non-unit token
     desc = re.split(rf"(?i)\b(?:qty|quantity)\b|\s\d[\d,]*\s*(?:{_UOM})\b", t, maxsplit=1)[0].strip(" ,;:-")
     mfr, mfr_ev = _first(_MFR, t)
     model, model_ev = _first(_MODEL, t)

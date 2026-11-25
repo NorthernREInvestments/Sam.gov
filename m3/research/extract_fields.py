@@ -223,6 +223,65 @@ PURCHASE_LIKE_UNITS = {
     "tons",
 }
 
+# Source-grounded purchase UOMs only. Adjacent brand/model tokens (e.g. "53 Unication G5")
+# must never become quantity_unit.
+KNOWN_PURCHASE_UOMS = PURCHASE_LIKE_UNITS | PACKAGE_UNITS | {
+    "ea", "each", "bx", "box", "boxes", "cs", "case", "cases", "pk", "pkg", "pack", "packs", "package", "packages",
+    "dz", "doz", "dozen", "pr", "pair", "pairs", "rl", "roll", "rolls", "gal", "gallon", "gallons",
+    "lb", "lbs", "pound", "pounds", "ton", "tons", "cy", "yd", "yds", "yard", "yards", "ft", "lf", "sf",
+    "sqft", "sq ft", "kit", "kits", "lot", "lots", "unit", "units", "hr", "hrs", "hour", "hours",
+    "drum", "drums", "bag", "bags", "pallet", "pallets", "ctn", "carton", "cartons", "rm", "ream", "reams",
+    "tube", "tubes", "bottle", "bottles", "can", "cans", "sheet", "sheets", "sh",
+    "vehicle", "vehicles", "truck", "trucks", "trailer", "trailers", "pager", "pagers",
+    "pump", "pumps", "generator", "generators", "lift", "lifts", "meter", "meters", "battery", "batteries",
+    "compactor", "compactors", "boat", "boats", "van", "vans",
+}
+
+# Brand / proper-name tokens that ORDERED_QTY_RE may capture after a number — never UOMs.
+_BRAND_UOM_REJECT = {
+    "unication", "motorola", "kenwood", "harris", "axon", "ford", "chevy", "chevrolet", "gmc", "dodge",
+    "ram", "toyota", "honda", "nissan", "jeep", "caterpillar", "polaris", "weg", "wanco", "interstate",
+    "dewalt", "milwaukee", "generac", "cummins", "kohler", "dell", "hp", "lenovo", "apple", "cisco",
+    "trane", "carrier", "daikin", "lennox", "john", "deere", "kubota", "bobcat", "komatsu", "volvo",
+}
+
+
+def normalize_quantity_unit(unit: str | None) -> str | None:
+    """Return a canonical purchase UOM, or None when the token is not a grounded unit.
+
+    Rejects brand names and other non-unit tokens that sit beside a quantity in notice text
+    (``estimated quantity of 53 Unication G5`` must not yield UOM=Unication).
+    """
+    if unit is None:
+        return None
+    raw = str(unit).strip()
+    if not raw:
+        return None
+    u = _unit_norm(raw)
+    if not u:
+        return None
+    if u in _BRAND_UOM_REJECT:
+        return None
+    if u in REJECT_QTY_UNITS:
+        return None
+    # Compact "sq ft"
+    if u.replace(" ", "") in {"sqft", "sqfeet"}:
+        return "SF"
+    if u not in KNOWN_PURCHASE_UOMS and u.replace(" ", "") not in {x.replace(" ", "") for x in KNOWN_PURCHASE_UOMS}:
+        return None
+    # Prefer short canonical forms
+    canon = {
+        "each": "EA", "ea": "EA", "unit": "EA", "units": "EA", "pc": "EA", "pcs": "EA",
+        "piece": "EA", "pieces": "EA", "ton": "TON", "tons": "TON", "gallon": "GAL", "gallons": "GAL",
+        "gal": "GAL", "box": "BX", "boxes": "BX", "bx": "BX", "case": "CS", "cases": "CS", "cs": "CS",
+        "kit": "KIT", "kits": "KIT", "lot": "LOT", "lots": "LOT", "set": "SET", "sets": "SET",
+        "pagers": "EA", "pager": "EA", "vehicles": "EA", "vehicle": "EA", "trucks": "EA", "truck": "EA",
+        "trailers": "EA", "trailer": "EA", "vans": "EA", "van": "EA",
+    }
+    if u in canon:
+        return canon[u]
+    return raw.upper()[:16]
+
 # Semantics that may count as defined purchase quantity for Stage C
 ORDERED_SEMANTICS = {
     "ORDERED_QUANTITY",
@@ -301,6 +360,15 @@ def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
             return
         if unit_l in REJECT_QTY_UNITS:
             return
+        # Drop brand/model tokens captured as false UOMs; keep the quantity if otherwise valid.
+        grounded_unit = normalize_quantity_unit(unit)
+        if unit_l and grounded_unit is None and unit_l not in {"", "of"}:
+            # Brand-adjacent capture (e.g. "53 Unication") — quantity may stand; UOM unknown.
+            unit = None
+            unit_l = ""
+        else:
+            unit = grounded_unit
+            unit_l = _unit_norm(unit)
         # Money / fund language is never an ordered product quantity
         if re.search(r"(?i)\b(million|billion|\$|usd|fund|grant)\b", snippet or ""):
             return
@@ -316,7 +384,7 @@ def extract_quantity_fields(text: str, *, title: str = "") -> dict[str, Any]:
         candidates.append(
             {
                 "value": val,
-                "unit": (unit or "")[:32] or None,
+                "unit": (unit[:32] if unit else None),
                 "snippet": snippet[:120],
                 "semantic": semantic,
                 "counts_as_ordered": ordered,
