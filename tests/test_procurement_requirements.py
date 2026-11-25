@@ -111,6 +111,26 @@ def test_no_text_is_not_quote_ready():
     assert req["line_items"] == []
 
 
+def test_title_stated_quantity_and_nsn_identity_from_retained_listing():
+    """BidNet/NextBid titles often carry the only retained evidence — extract without guessing."""
+    cat = extract_requirements(
+        "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade-in")
+    assert cat["line_item_count"] == 1 and cat["line_items"][0]["quantity"] == 1.0
+    assert assess_product_identity(cat["title"], cat)["identity_level"] == "EXACT"
+    ready = assess_sourcing_readiness(title=cat["title"], requirements=cat, eligibility_state="ELIGIBLE")
+    assert ready["sourcing_state"] == "SUPPLIER_RESEARCH_READY"
+    nsn = assess_product_identity("NSN 5995-01-644-7566 - CABLE ASSEMBLY, RADIO FREQUENCY, BRANCH",
+                                  {"line_items": [], "solicitation_requirements": {}})
+    assert nsn["identity_level"] == "EXACT" and nsn["identity_basis"] == "nsn"
+    salt = assess_product_identity(
+        "EMERGENCY NOTICE: JPMC Rock Salt IDOT Emergency",
+        {"line_items": [{"description": "( 775 - 45 ) SALT, ROCK, BULK - Cook County, District # 1",
+                         "quantity": 6400.0, "unit_of_measure": "TON", "complete": True,
+                         "nsn": None, "mpn": None, "model": None, "manufacturer": None, "source": "base"}],
+         "solicitation_requirements": {}})
+    assert salt["identity_level"] == "SPECIFIED" and salt["identity_basis"] == "line_item_description"
+
+
 def test_amendment_replaces_line():
     req = extract_requirements("Gloves", document_text=DOC,
                                amendments=[{"id": "A0001", "text": "CLIN 0001 Nitrile exam gloves, size large. Quantity: 650 BX."}])

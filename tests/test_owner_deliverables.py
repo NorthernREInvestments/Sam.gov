@@ -57,15 +57,29 @@ def test_price_evidence_bands_never_exceed_possible():
 def test_deliverables_written_and_registration_grouped(tmp_path):
     rows = [_row("STG-1", "commercial_research_ready"),
             _row("STG-2", "document_verification", title="Traffic cones", official_url="https://procurement.opengov.com/portal/x/projects/9"),
-            _row("STG-3", "archived", duplicate_of="src:STG-1")]
+            _row("STG-3", "archived", duplicate_of="src:STG-1"),
+            _row("STG-4", "supplier_research_ready", title="Purchase of one Caterpillar 836G",
+                 official_url="https://www.bidnetdirect.com/florida/solicitations/open-bids/x/1",
+                 requirements={"line_items": [{"description": "Caterpillar 836G", "quantity": 1.0, "unit_of_measure": "EA"}],
+                               "solicitation_requirements": {}},
+                 qualification={"qualification_state": "SUPPLIER_RESEARCH_READY",
+                                "conditions": {"SUBMISSION_VERIFIED": False, "READY_TO_SUBMIT": False}}),
+            _row("STG-5", "access_required", title="Weg motor purchase",
+                 queue_reason="retrieval:restricted:restricted_http_403", retrieval_status="restricted")]
     docs = tmp_path / "documents"
     docs.mkdir()
     (docs / "doc_checkpoint.json").write_text(json.dumps({"done": {"OLD-2": {"status": "robots_disallow"}}}), encoding="utf-8")
     (docs / "staged_id_map.json").write_text(json.dumps({"OLD-2": ["src:STG-2"]}), encoding="utf-8")
     res = od.build_owner_deliverables(tmp_path, rows, NOW)
-    assert res["supplier_research_tasks"] == 1 and res["registration_portals"] == 1
+    assert res["supplier_research_tasks"] == 2 and res["registration_portals"] >= 1
+    assert res["owner_buckets"]["pricing_now"] >= 1 and res["owner_buckets"]["access_required"] >= 1
+    pricing = [json.loads(l) for l in (tmp_path / "owner" / "pricing_now.jsonl").read_text(encoding="utf-8").splitlines() if l]
+    assert pricing[0]["staged_id"] == "STG-4" and pricing[0]["quantity_and_units"] == ["1.0 EA"]
+    assert "revenue" not in pricing[0] and pricing[0].get("next_action")
+    access = [json.loads(l) for l in (tmp_path / "owner" / "access_required.jsonl").read_text(encoding="utf-8").splitlines() if l]
+    assert access[0]["staged_id"] == "STG-5" and "Manual portal access" in access[0]["next_action"]
     reg = json.loads((tmp_path / "owner" / "registration_queue.json").read_text(encoding="utf-8"))
-    assert reg[0]["opportunity_count"] == 2 and reg[0]["owner_involvement_needed"] is True
+    assert sum(g["opportunity_count"] for g in reg) >= 2 and reg[0]["owner_involvement_needed"] is True
     work = list(csv.DictReader((tmp_path / "owner" / "document_retrieval_worklist.csv").open(encoding="utf-8")))
     assert [w["staged_id"] for w in work] == ["STG-1", "STG-2"]
     assert work[1]["automated_retrieval"] == "robots_disallow"

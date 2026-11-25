@@ -20,6 +20,8 @@ from urllib.parse import urlparse
 
 RESEARCH_QUEUES = ("actionable", "supplier_research_ready", "commercial_research_ready", "financing_verification", "easy_registration")
 PRODUCT_PRESENCE = {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}
+# Owner-facing buckets (directive §7). READY_TO_BID is never asserted from solicitation info alone.
+OWNER_ACTION_BUCKETS = ("pricing_now", "submission_verified", "access_required", "needs_investigation", "incompatible_closed")
 
 # Always asked: M3 operates with zero owner cash, no personal guarantee and no personal credit.
 _BASE_QUESTIONS = (
@@ -306,6 +308,76 @@ def load_document_status(doc_root: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
+def actionable_card(row: dict[str, Any], now: datetime, *, bucket: str) -> dict[str, Any]:
+    """Owner-facing opportunity card. Never invents revenue, supplier prices, or profitability."""
+    req = row.get("requirements") or {}
+    sreq = req.get("solicitation_requirements") or {}
+    lines = req.get("line_items") or []
+    src = row.get("sourcing") or {}
+    elig = row.get("eligibility") or {}
+    qual = row.get("qualification") or {}
+    missing: list[str] = []
+    for m in (src.get("sourcing_missing") or []):
+        missing.append(m)
+    for m in (src.get("submission_gaps") or []):
+        missing.append(m)
+    if bucket == "access_required":
+        missing.append(str(row.get("queue_reason") or row.get("retrieval_status") or "official_page_inaccessible"))
+    next_action = {
+        "pricing_now": "Request supplier quotes for the listed products/quantities; confirm lead time and drop-ship terms.",
+        "submission_verified": "Submission path verified — complete pricing and mandatory forms before marking ready to bid.",
+        "access_required": "Manual portal access required: register or open the official link, then capture the solicitation page/docs.",
+        "needs_investigation": "Obtain missing solicitation details (quantity, specs, or submission method) from retained or accessible sources.",
+        "incompatible_closed": "Audit only — not in the actionable queue.",
+    }.get(bucket, "Review retained evidence.")
+    return {
+        "owner_bucket": bucket,
+        "staged_id": row.get("staged_id"),
+        "solicitation_id": row.get("solicitation_number") or row.get("provider_record_id") or row.get("staged_id"),
+        "title": row.get("title"),
+        "buyer": row.get("buyer"),
+        "state": row.get("state"),
+        "source": row.get("source"),
+        "official_url": row.get("official_url"),
+        "deadline_at": row.get("deadline_at"),
+        "days_left": _days_left(row.get("deadline_at"), now),
+        "products": [
+            {k: li.get(k) for k in ("description", "quantity", "unit_of_measure", "manufacturer", "model", "mpn", "nsn",
+                                    "brand_name_or_equal", "brand_name_only")}
+            for li in lines[:25]
+        ] or ([{"description": src.get("identity_evidence") or row.get("title"), "quantity": None, "unit_of_measure": None}]
+              if src.get("identity_level") in {"EXACT", "SPECIFIED"} else []),
+        "quantity_and_units": [
+            f"{li.get('quantity')} {li.get('unit_of_measure') or ''}".strip()
+            for li in lines if li.get("quantity") is not None
+        ][:25],
+        "specifications": (sreq.get("specifications") or [])[:3] or None,
+        "reseller_restrictions": elig.get("eligibility_reasons") or elig.get("eligibility_findings") or None,
+        "eligibility_state": elig.get("eligibility_state"),
+        "submission_method": (sreq.get("submission") or [None])[0],
+        "submission_status": "VERIFIED" if (qual.get("conditions") or {}).get("SUBMISSION_VERIFIED") else "UNVERIFIED",
+        "qualification_state": qual.get("qualification_state"),
+        "missing_information": missing or None,
+        "next_action": next_action,
+        "queue_reason": row.get("queue_reason"),
+        "retrieval_status": row.get("retrieval_status"),
+    }
+
+
+def classify_owner_bucket(row: dict[str, Any]) -> str:
+    q = row.get("owner_queue")
+    cond = (row.get("qualification") or {}).get("conditions") or {}
+    if q in {"archived", "blocked"}:
+        return "incompatible_closed"
+    if q == "access_required":
+        return "access_required"
+    if q in {"actionable", "supplier_research_ready", "easy_registration", "financing_verification"}:
+        return "submission_verified" if cond.get("SUBMISSION_VERIFIED") else "pricing_now"
+    if q in {"commercial_research_ready", "document_verification", "status_verification"}:
+        return "needs_investigation"
+    return "needs_investigation"
+
+
 def build_owner_deliverables(root: Path, rows: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
     """Write ``root/owner/*``; returns counts. ``rows`` are slim inventory rows with queues assigned."""
     out = root / "owner"
@@ -332,10 +404,37 @@ def build_owner_deliverables(root: Path, rows: list[dict[str, Any]], now: dateti
             w = csv.DictWriter(f, fieldnames=list(work[0].keys()))
             w.writeheader()
             w.writerows(work)
+
+    buckets: dict[str, list[dict[str, Any]]] = {b: [] for b in OWNER_ACTION_BUCKETS}
+    for r in rows_by_id.values():
+        if (r.get("classification") or {}).get("product_presence") not in PRODUCT_PRESENCE and r.get("owner_queue") not in {
+                "access_required", "supplier_research_ready", "commercial_research_ready", "actionable"}:
+            if r.get("owner_queue") in {"archived", "blocked"}:
+                continue
+            if r.get("owner_queue") not in {"document_verification", "status_verification"}:
+                continue
+        bucket = classify_owner_bucket(r)
+        if bucket == "incompatible_closed" and r.get("owner_queue") not in {"blocked"}:
+            continue  # closed/archived stay in audit manifests, not the default owner file
+        buckets[bucket].append(actionable_card(r, now, bucket=bucket))
+    for b in OWNER_ACTION_BUCKETS:
+        buckets[b].sort(key=lambda c: (c.get("days_left") is None, c.get("days_left") if c.get("days_left") is not None else 9999,
+                                       str(c.get("deadline_at") or "9999")))
+        with (out / f"{b}.jsonl").open("w", encoding="utf-8") as f:
+            for card in buckets[b]:
+                f.write(json.dumps(card, ensure_ascii=False, default=str) + "\n")
+    # Default owner view: pricing first, then access actions, then investigation — never ready-to-bid placeholders
+    default = buckets["pricing_now"] + buckets["submission_verified"] + buckets["access_required"][:50] + buckets["needs_investigation"][:100]
+    with (out / "actionable_opportunities.jsonl").open("w", encoding="utf-8") as f:
+        for card in default:
+            f.write(json.dumps(card, ensure_ascii=False, default=str) + "\n")
+
     by_queue: dict[str, int] = defaultdict(int)
     for t in tasks:
         by_queue[t["owner_queue"]] += 1
     return {"supplier_research_tasks": len(tasks), "tasks_by_queue": dict(by_queue), "registration_portals": len(reg),
             "price_evidence_records": len(prices), "tasks_with_price_evidence": sum(1 for t in tasks if t["price_evidence"]),
             "indicative_bands": dict(Counter(t["indicative_economics"]["band"] for t in tasks)),
-            "document_retrieval_worklist": len(work), "opportunity_table_rows": len(table)}
+            "document_retrieval_worklist": len(work), "opportunity_table_rows": len(table),
+            "owner_buckets": {b: len(buckets[b]) for b in OWNER_ACTION_BUCKETS},
+            "actionable_opportunities": len(default)}

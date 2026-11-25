@@ -17,6 +17,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, time as dtime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from m3.config import get_settings
@@ -39,9 +40,14 @@ LIFECYCLE_STATES = (
 )
 ACTIVE_LIFECYCLE = frozenset({"VERIFIED_OPEN", "LIKELY_OPEN", "STATUS_UNKNOWN"})
 OWNER_QUEUES = (
-    "actionable", "easy_registration", "supplier_research_ready", "commercial_research_ready", "document_verification",
-    "financing_verification", "status_verification", "blocked", "archived",
+    "actionable", "easy_registration", "supplier_research_ready", "commercial_research_ready", "access_required",
+    "document_verification", "financing_verification", "status_verification", "blocked", "archived",
 )
+# Hosts already confirmed inaccessible for free automated retrieval — never re-probed here
+_ACCESS_BLOCKED_HOSTS = (
+    "procurement.opengov.com", "ssl.doas.state.ga.us", "doas.state.ga.us",
+)
+_ACCESS_BLOCKED_STATUSES = frozenset({"restricted", "robots_disallow"})
 FEDERAL_SOURCES = frozenset({"sam.gov", "dibbs"})
 # Latest complete BidNet acquisition (statewide open-bids list walk, 1,115 pages): run end time
 BIDNET_LATEST_RUN_END = "2026-10-12T19:24:27+00:00"
@@ -768,6 +774,38 @@ def evaluate_record(rec: dict[str, Any], now: datetime | None = None) -> dict[st
             "sourcing": sourcing, "qualification": qual}
 
 
+def _access_block_reason(rec: dict[str, Any]) -> str | None:
+    """Return a stable reason when free retrieval is already known blocked — never re-probes the host."""
+    st = str(rec.get("retrieval_status") or "")
+    if st in _ACCESS_BLOCKED_STATUSES:
+        return f"retrieval:{st}:{rec.get('retrieval_detail') or 'known'}"
+    try:
+        host = (urlparse(str(rec.get("official_url") or "")).netloc or "").lower()
+    except Exception:
+        host = ""
+    for blocked in _ACCESS_BLOCKED_HOSTS:
+        if blocked in host:
+            return f"host_access_blocked:{blocked}"
+    return None
+
+
+def attach_retrieval_status(records: list[dict[str, Any]], doc_root: Path) -> dict[str, Any]:
+    """Copy prior free-retrieval outcomes onto records (offline). Does not fetch."""
+    ck_p = doc_root / "doc_checkpoint.json"
+    if not ck_p.exists():
+        return {"available": False}
+    done = json.loads(ck_p.read_text(encoding="utf-8")).get("done") or {}
+    n = 0
+    for r in records:
+        st = done.get(str(r.get("staged_id") or "")) or done.get(str(r.get("source_record_id") or ""))
+        if not st:
+            continue
+        r["retrieval_status"] = st.get("status")
+        r["retrieval_detail"] = st.get("reason")
+        n += 1
+    return {"available": True, "records_with_status": n}
+
+
 def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[str, str]:
     """(queue, reason). Rejects are archived with a reason, never shown as opportunities."""
     life = rec["lifecycle_status"]
@@ -798,6 +836,11 @@ def assign_owner_queue(rec: dict[str, Any], ev: dict[str, Any] | None) -> tuple[
     if ev["execution"]["execution_state"] == "EXECUTION_BLOCKED":
         return "blocked", "execution:" + ",".join(b["factor"] for b in ev["execution"]["execution_blockers"][:3])
     src = ev["sourcing"]
+    access = _access_block_reason(rec)
+    # Promising product opportunities whose official pages are already known inaccessible
+    if access and p["product_presence"] in {"EXPLICIT_PRODUCT", "LIKELY_PRODUCT"}:
+        if src["sourcing_state"] in {"SUPPLIER_RESEARCH_READY", "COMMERCIAL_RESEARCH_READY"} or access.startswith("host_"):
+            return "access_required", access
     if p["product_presence"] in {"POSSIBLE_PRODUCT", "INSUFFICIENT_EVIDENCE"} or src["sourcing_state"] == "DOCUMENT_REQUIRED":
         return "document_verification", (
             f"presence:{p['product_presence']}|requirements:{ev['requirements']['requirements_state']}|evidence:{p['evidence_completeness']}")
@@ -836,7 +879,7 @@ def _slim(rec: dict[str, Any], ev: dict[str, Any] | None) -> dict[str, Any]:
         "buyer", "state", "official_url", "posted_at", "deadline_at", "deadline_basis", "deadline_timezone",
         "first_seen_at", "last_seen_at", "observation_age_hours", "lifecycle_status", "lifecycle_basis", "record_kind",
         "acquisition_membership", "absence_note", "deadline_source", "deadline_feed_raw", "deadline_revision", "duplicate_of", "duplicate_members", "retirement_reason", "owner_queue", "queue_reason",
-        "federal_policy_hold", "identity_keys", "attachments", "provenance")}
+        "retrieval_status", "retrieval_detail", "federal_policy_hold", "identity_keys", "attachments", "provenance")}
     keep["description_chars"] = len(rec.get("description") or "")
     keep["document_text_chars"] = len(rec.get("document_text") or "")
     keep["text_sha256"] = hashlib.sha256(((rec.get("description") or "") + (rec.get("document_text") or "")).encode("utf-8")).hexdigest()[:16]
@@ -935,6 +978,7 @@ def run_staged_inventory(
             dup_n += 1
     stage_counts["duplicates_marked"] = dup_n
     stage_counts["canonical_records"] = len(records) - dup_n
+    meta["retrieval_status"] = attach_retrieval_status(records, root / "documents")
 
     to_eval = [i for i, r in enumerate(records)
                if not r.get("duplicate_of") and not r.get("retirement_reason")

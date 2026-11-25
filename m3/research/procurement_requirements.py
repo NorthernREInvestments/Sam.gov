@@ -159,9 +159,14 @@ def extract_requirements(
         if _clean(a.get("text")):
             sources.append((f"amendment:{a.get('id') or len(sources)}", _clean(a.get("text"))))
     if not sources:
-        return {"requirements_state": "NO_TEXT", "line_items": [], "line_item_count": 0, "complete_line_items": 0,
-                "solicitation_requirements": {}, "quote_ready": False, "quote_ready_blockers": ["no_solicitation_text_retained"],
-                "title": _clean(title)}
+        # Title-only: keep bare category titles as NO_TEXT; use the title when it states a firm ordered quantity
+        q_title = extract_quantity_fields("", title=_clean(title))
+        if q_title.get("quantity_extracted") and q_title.get("quantity_is_ordered"):
+            sources = [("title", _clean(title))]
+        else:
+            return {"requirements_state": "NO_TEXT", "line_items": [], "line_item_count": 0, "complete_line_items": 0,
+                    "solicitation_requirements": {}, "quote_ready": False, "quote_ready_blockers": ["no_solicitation_text_retained"],
+                    "title": _clean(title)}
 
     lines_by_key: dict[str, dict[str, Any]] = {}
     for src, text in sources:
@@ -251,6 +256,9 @@ def assess_product_identity(title: str, requirements: dict[str, Any]) -> dict[st
             if li.get(k):
                 return {"identity_level": "EXACT", "identity_basis": k, "identity_evidence": str(li[k])[:120]}
     t = _clean(title)
+    nm = _NSN.search(t)
+    if nm:
+        return {"identity_level": "EXACT", "identity_basis": "nsn", "identity_evidence": str(nm.group("v") or nm.group("v2"))}
     for m in _TITLE_MODEL.finditer(t):
         if re.fullmatch(r"(?:19|20)\d\d", m.group("model")):
             continue
@@ -261,6 +269,12 @@ def assess_product_identity(title: str, requirements: dict[str, Any]) -> dict[st
         return {"identity_level": "SPECIFIED", "identity_basis": "specifications", "identity_evidence": req["specifications"][0][:120]}
     if req.get("brand_name_or_equal") and lines:
         return {"identity_level": "SPECIFIED", "identity_basis": "brand_name_or_equal", "identity_evidence": "brand name or equal"}
+    # Complete retained page/doc line schedules (not title-only echoes) are quotable commodity specs
+    schedule = [li for li in lines if li.get("source") not in {None, "single_item_text", "title"}
+                and li.get("complete") and len(str(li.get("description") or "")) >= 24]
+    if schedule and all(li.get("complete") for li in lines):
+        ev = str(schedule[0]["description"])[:120]
+        return {"identity_level": "SPECIFIED", "identity_basis": "line_item_description", "identity_evidence": ev}
     return {"identity_level": "GENERIC", "identity_basis": None, "identity_evidence": None}
 
 
@@ -279,6 +293,12 @@ def assess_sourcing_readiness(*, title: str, requirements: dict[str, Any], eligi
         missing.append("product_identity_too_vague_for_quote")
     if not lines or len(qty_lines) < len(lines):
         missing.append("quantity_not_stated")
+    # Retained schedule text that is only services must not enter pricing research
+    _svc_only = re.compile(
+        r"(?i)\b(?:screening\s+services?|remediation\s+services?|site\s+examinations?|consulting\s+services?|"
+        r"environmental\s+(?:services?|examinations?)|professional\s+services?)\b")
+    if lines and all(_svc_only.search(str(li.get("description") or "")) for li in lines):
+        missing.append("line_items_appear_to_be_services_not_goods")
     if eligibility_state == "BLOCKED":
         missing.append("eligibility:blocked")
     submission_gaps = [] if eligibility_state == "ELIGIBLE" else [f"eligibility:{eligibility_state.lower()}"]
