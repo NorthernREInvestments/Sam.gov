@@ -328,6 +328,7 @@ def upsert_record(payload: dict[str, Any], *, actor: str = "build_002l") -> dict
             "package_status",
             "lifecycle_status",
             "exclusion_reason",
+            "document_manifest",
         ):
             new_v = payload.get(field) if field != "procurement_stage" else (
                 payload.get("procurement_stage") or payload.get("stage")

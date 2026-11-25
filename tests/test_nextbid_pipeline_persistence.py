@@ -115,15 +115,13 @@ def test_pipeline_selects_propane_not_furniture():
     assert "document0.md" in sel["known_artifact"]["path"]
 
 
-def test_cheapest_plan_is_single_read_file():
+def test_cheapest_plan_blocks_already_retrieved_document0():
+    """After owner-authorized read_file, planner must not propose the same artifact again."""
     plan = plan_cheapest_retrieval(PIPELINE_TEST_NB_ID)
     assert plan["killswitch_locked"] is True
-    prop = plan["proposed_metered_call"]
-    assert prop is not None
-    assert prop["endpoint"] == "read_file"
-    assert prop["max_credit_cost"] == 1
-    assert "get_opportunity" in prop["skips"]
-    assert prop["path"].endswith(".document0.md")
+    assert plan["proposed_metered_call"] is None
+    assert plan["stop_without_call"] == "artifact_already_retained_locally"
+    assert plan["already_retained_artifact"]["path"].endswith(".document0.md")
 
 
 def test_offline_process_and_ingest_fixture_replay(tmp_path, monkeypatch):

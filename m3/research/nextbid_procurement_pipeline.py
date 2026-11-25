@@ -102,8 +102,22 @@ def select_test_opportunity() -> dict[str, Any]:
     }
 
 
+def _prefer_document0_path(paths: list[str]) -> str | None:
+    if not paths:
+        return None
+    for p in paths:
+        if p.endswith(".document0.md"):
+            return p
+    return paths[0]
+
+
 def plan_cheapest_retrieval(nb_id: str) -> dict[str, Any]:
-    """Decision order: local evidence → listing → detail → indexes → known text artifact."""
+    """Decision order: local evidence → durable paid store → indexes → known artifact.
+
+    Never proposes re-purchase of an unchanged artifact already retained locally.
+    """
+    from m3.research.solicitation_document_manifest import file_artifact_retention
+
     pkg = load_recovery_package(nb_id) or {}
     ft = load_full_text(nb_id) or {}
     inv = load_inventory().get(nb_id) or {}
@@ -113,46 +127,98 @@ def plan_cheapest_retrieval(nb_id: str) -> dict[str, Any]:
         steps_checked.append({"step": name, "present": present, "detail": detail})
 
     local_doc = str(ft.get("full_text") or "")
-    check("1_local_full_text", len(local_doc) >= 800 and not ft.get("is_listing_preview_only"),
-          f"chars={len(local_doc)} preview_flag={ft.get('is_listing_preview_only')}")
+    check(
+        "1_local_full_text",
+        len(local_doc) >= 800 and not ft.get("is_listing_preview_only"),
+        f"chars={len(local_doc)} preview_flag={ft.get('is_listing_preview_only')} source={ft.get('source')}",
+    )
     listing = str(pkg.get("description") or inv.get("title") or "")
     check("2_listing_description", len(listing) >= 200, f"chars={len(listing)}")
     eps = set(pkg.get("endpoints_present") or [])
     check("3_retained_get_opportunity", "get_opportunity" in eps, f"endpoints={sorted(eps)}")
-    check("4_retained_document_index", "list_documents" in eps or bool(pkg.get("source_documents")),
-          f"source_documents={pkg.get('source_documents_count')}")
+    check(
+        "4_retained_document_index",
+        "list_documents" in eps or bool(pkg.get("source_documents")),
+        f"source_documents={pkg.get('source_documents_count')}",
+    )
     md_paths = [
         str(a.get("path"))
         for a in (pkg.get("nextbid_documents") or [])
         if str(a.get("path") or "").endswith(".md")
     ]
-    md_already = any(
-        str(t.get("path") or "").endswith(".md") for t in (pkg.get("recovered_file_texts") or [])
-    ) or (len(local_doc) >= 800 and str(ft.get("source") or "").endswith("raw_text"))
-    check("5_known_document0_md", bool(md_paths), f"paths={md_paths[:2]} already_local={md_already}")
+    # Also accept file_index / PIPELINE default path
+    if not md_paths and PIPELINE_TEST_NB_ID == nb_id:
+        md_paths = [PIPELINE_TEST_ARTIFACT]
+    path = _prefer_document0_path(md_paths)
+    retention = file_artifact_retention(nb_id, path) if path else {
+        "already_retained": False,
+        "durable_response_present": False,
+        "durable_text_chars": 0,
+        "persistence_ok": False,
+        "http_path": None,
+        "content_hash": None,
+        "original_bytes_sha256": None,
+    }
+    recovered_md = any(
+        ".md" in str(t.get("path") or "") for t in (pkg.get("recovered_file_texts") or [])
+    )
+    md_already = bool(
+        retention.get("already_retained")
+        or recovered_md
+        or (
+            len(local_doc) >= 800
+            and not ft.get("is_listing_preview_only")
+            and path
+            and path.endswith(".md")
+        )
+    )
+    check(
+        "5_known_document0_md",
+        bool(md_paths),
+        (
+            f"paths={md_paths[:2]} already_local={md_already} "
+            f"durable={retention.get('durable_response_present')} "
+            f"durable_chars={retention.get('durable_text_chars')} "
+            f"sha={retention.get('original_bytes_sha256')}"
+        ),
+    )
 
     proposed = None
     stop_reason = None
-    if len(local_doc) >= 800 and not ft.get("is_listing_preview_only") and md_already:
-        stop_reason = "sufficient_local_document_text"
-    elif md_paths and not md_already:
-        path = md_paths[0]
-        # Prefer path matching PIPELINE artifact when present
-        for p in md_paths:
-            if p.endswith(".document0.md"):
-                path = p
-                break
+    if md_already and path:
+        stop_reason = "artifact_already_retained_locally"
+        steps_checked.append(
+            {
+                "step": "6_duplicate_purchase_guard",
+                "present": True,
+                "detail": (
+                    f"Blocked re-buy of {path}: durable_store="
+                    f"{retention.get('durable_response_present')} "
+                    f"persistence_ok={retention.get('persistence_ok')} "
+                    f"full_text_chars={len(local_doc)}"
+                ),
+            }
+        )
+    elif md_paths and path and not md_already:
         proposed = {
             "endpoint": "read_file",
             "nb_id": nb_id,
             "path": path,
             "http_path": f"/opportunities/{nb_id}/files/{path}",
-            "reason": "Known document0 markdown artifact indexed by prior list_documents/list_files; never retrieved as text.",
+            "reason": (
+                "Known document0 markdown artifact indexed by prior list_documents/list_files; "
+                "not present in durable paid-response store or full_text."
+            ),
             "missing_requirement_targeted": "notice_body_quantities_specs_submission",
             "max_credit_cost": 1,
             "skips": ["get_opportunity", "list_documents", "list_files"],
             "skip_rationale": "Indexes already retained; re-listing would re-spend without new discovery.",
             "stopping_condition": "After this single read_file, stop. Do not auto-fetch PDFs.",
+            "preflight_checks": {
+                "exact_artifact_path": path,
+                "durable_response_present": retention.get("durable_response_present"),
+                "content_hash": retention.get("content_hash"),
+            },
         }
     elif "get_opportunity" not in eps:
         proposed = {
@@ -173,6 +239,11 @@ def plan_cheapest_retrieval(nb_id: str) -> dict[str, Any]:
         "steps_checked": steps_checked,
         "proposed_metered_call": proposed,
         "stop_without_call": stop_reason,
+        "already_retained_artifact": {
+            "path": path,
+            "retained": md_already,
+            "retention": retention if path else None,
+        },
         "killswitch_locked": acquisition_locked(),
         "ledger": (controller_status().get("budget_state") or {}),
     }
