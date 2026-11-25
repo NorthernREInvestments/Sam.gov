@@ -1,0 +1,333 @@
+{
+  "title": "M3 NextBid Procurement Pipeline \u2014 Preflight Acceptance",
+  "git_commit_pre": "76315c7bc7a951de0791eb115dbdfc92dd95a12e",
+  "api_expenditure": 0,
+  "live_provider_call": false,
+  "killswitch_locked": true,
+  "ledger": {
+    "day": "2026-11-24",
+    "day_used": 1,
+    "test_used": 1,
+    "month_used_local": 1,
+    "account_remaining": 2546,
+    "account_used": 3454,
+    "account_allowance": 6000,
+    "effective_available": 50
+  },
+  "selected_opportunity": {
+    "nb_id": "NB00375309",
+    "title": "Bulk Propane Fuel Supply",
+    "agency": "pembrokepines",
+    "solicitation_number": "CS-2026-QQ-02",
+    "source": "opengov",
+    "jurisdiction": "state_local",
+    "official_url": "https://procurement.opengov.com/portal/pembrokepines/projects/321591",
+    "deadline_retained": "2026-11-30T17:00:00.000Z",
+    "lifecycle_retained": "open",
+    "listing_description": "The City of Pembroke Pines is seeking quotes from qualified firms, to provide on-demand delivery of bulk liquid propane (LP) to the City\u2019s existing 5,000-gallon stationary storage tank , in accordance with the terms, conditions, and specifications contained in this solicitation.",
+    "listing_description_chars": 279,
+    "product_rationale": "City of Pembroke Pines seeking quotes for on-demand delivery of bulk liquid propane to an existing 5,000-gallon stationary tank \u2014 tangible goods (LP fuel) purchase.",
+    "known_artifact": {
+      "endpoint": "read_file",
+      "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+      "bytes_declared": 8364,
+      "kind": "document0",
+      "already_retrieved_locally": false,
+      "max_credit_cost": 1
+    },
+    "already_paid_endpoints": [
+      "get_opportunity",
+      "list_documents",
+      "list_files",
+      "read_file",
+      "search"
+    ],
+    "source_documents_metadata_count": 10,
+    "source_documents_sample": [
+      {
+        "name": "Bulk_Propane_Fuel_Supply.pdf",
+        "stored": true,
+        "sha256": "996c49135176d8e5583103be087aaf6ee4ed0d072423b7b2399d41e48326bb4c"
+      },
+      {
+        "name": "5K_Propane_Tank_and_Dispenser_Plans.pdf",
+        "stored": true,
+        "sha256": "c2c56677bad776177b4dd293c1b5a738144e7921fb75343590fa219c550bfc98"
+      },
+      {
+        "name": "Purchase_Order_Terms_and_Conditions__Rev._2026-06-30_.pdf",
+        "stored": true,
+        "sha256": "39788b2b064d1ad166c24f526e7499cf98db7b301a32ee4abd59d5a555f520c5"
+      },
+      {
+        "name": "Sample_Insurance_Certificate.pdf",
+        "stored": true,
+        "sha256": "ff9af3226aeb10dadac6a43925331a12f6e3a4efff6243c24bf32665384616f6"
+      },
+      {
+        "name": "HUD_Section_3_Implementation_Plan_and_Forms_1-6.pdf",
+        "stored": true,
+        "sha256": "2bf3a1da3df3aa17f3bd8cd19347a3ad842cd2b11004d863b855ff1ec06bcca4"
+      }
+    ],
+    "missing_fields": [
+      "full_notice_body_document0_md_not_retrieved",
+      "firm_ordered_or_estimated_propane_quantity_UNKNOWN",
+      "unit_price_basis_UNKNOWN",
+      "delivery_schedule_terms_beyond_listing_UNKNOWN",
+      "technical_specs_from_Bulk_Propane_Fuel_Supply.pdf_not_retrieved_as_bytes",
+      "submission_method_detail_UNKNOWN",
+      "eligibility_set_aside_UNKNOWN",
+      "live_open_status_UNVERIFIED"
+    ],
+    "rejected_alternative": {
+      "nb_id": "NB00321439",
+      "title": "Oliver Hill New Courtroom Furniture",
+      "rejected_because": "Retained listing describes disassembly, building and installation of courtroom furniture across 5 courtrooms \u2014 primarily construction/install, not a simple physical-product purchase.",
+      "artifact_was_available": "nb2/published/opengov/document0/NB00321439/NB00321439.document0.md"
+    },
+    "selected_at": "2026-11-25T05:27:50.891982+00:00"
+  },
+  "offline_processing": {
+    "description_chars": 279,
+    "document_text_chars": 279,
+    "owner_card": {
+      "nb_id": "NB00375309",
+      "product_status": "PRODUCT CONFIRMED",
+      "requirements_status": "REQUIREMENTS MISSING",
+      "source_status": "SOURCE RETAINED",
+      "supplier_quote": "SUPPLIER QUOTE PARTIAL",
+      "bid_status": "BID STATUS UNVERIFIED",
+      "exact_missing_information": [
+        "no_line_items_extracted",
+        "delivery_UNKNOWN",
+        "specifications_UNKNOWN",
+        "submission_UNKNOWN",
+        "live_open_status_UNVERIFIED"
+      ],
+      "minimum_next_retrieval_action": {
+        "endpoint": "read_file",
+        "nb_id": "NB00375309",
+        "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+        "http_path": "/opportunities/NB00375309/files/nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+        "reason": "Known document0 markdown artifact indexed by prior list_documents/list_files; never retrieved as text.",
+        "missing_requirement_targeted": "notice_body_quantities_specs_submission",
+        "max_credit_cost": 1,
+        "skips": [
+          "get_opportunity",
+          "list_documents",
+          "list_files"
+        ],
+        "skip_rationale": "Indexes already retained; re-listing would re-spend without new discovery.",
+        "stopping_condition": "After this single read_file, stop. Do not auto-fetch PDFs."
+      },
+      "known_retrieval_credit_cost": 1,
+      "line_item_count": 0,
+      "note": "Supplier-quote readiness is independent of live open-status verification."
+    },
+    "unknowns": [
+      "no_line_items_extracted",
+      "delivery_UNKNOWN",
+      "specifications_UNKNOWN",
+      "submission_UNKNOWN",
+      "live_open_status_UNVERIFIED"
+    ],
+    "classification": {
+      "requirement_class": "product_supply",
+      "product_presence": "EXPLICIT_PRODUCT",
+      "evidence_completeness": "SUMMARY"
+    },
+    "quantity_extract": {
+      "quantity": null,
+      "quantity_unit": null,
+      "quantity_semantic": null,
+      "quantity_kind": "unknown"
+    },
+    "requirements_state": "NOT_FOUND",
+    "line_item_count": 0
+  },
+  "retrieval_plan": {
+    "nb_id": "NB00375309",
+    "steps_checked": [
+      {
+        "step": "1_local_full_text",
+        "present": false,
+        "detail": "chars=279 preview_flag=None"
+      },
+      {
+        "step": "2_listing_description",
+        "present": true,
+        "detail": "chars=279"
+      },
+      {
+        "step": "3_retained_get_opportunity",
+        "present": true,
+        "detail": "endpoints=['get_opportunity', 'list_documents', 'list_files', 'read_file', 'search']"
+      },
+      {
+        "step": "4_retained_document_index",
+        "present": true,
+        "detail": "source_documents=10"
+      },
+      {
+        "step": "5_known_document0_md",
+        "present": true,
+        "detail": "paths=['nb2/published/opengov/document0/NB00375309/NB00375309.document0.md'] already_local=False"
+      }
+    ],
+    "proposed_metered_call": {
+      "endpoint": "read_file",
+      "nb_id": "NB00375309",
+      "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+      "http_path": "/opportunities/NB00375309/files/nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+      "reason": "Known document0 markdown artifact indexed by prior list_documents/list_files; never retrieved as text.",
+      "missing_requirement_targeted": "notice_body_quantities_specs_submission",
+      "max_credit_cost": 1,
+      "skips": [
+        "get_opportunity",
+        "list_documents",
+        "list_files"
+      ],
+      "skip_rationale": "Indexes already retained; re-listing would re-spend without new discovery.",
+      "stopping_condition": "After this single read_file, stop. Do not auto-fetch PDFs."
+    },
+    "stop_without_call": null,
+    "killswitch_locked": true,
+    "ledger": {
+      "day": "2026-11-24",
+      "day_used": 1,
+      "test_used": 1,
+      "month_used_local": 1,
+      "account_remaining": 2546,
+      "account_used": 3454,
+      "account_allowance": 6000,
+      "effective_available": 50
+    }
+  },
+  "one_call_approval": {
+    "title": "ONE-CALL APPROVAL PACKAGE \u2014 DO NOT EXECUTE WITHOUT OWNER AUTHORIZATION",
+    "killswitch_locked": true,
+    "opportunity_id": "NB00375309",
+    "endpoint": "read_file",
+    "artifact_path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+    "http_path": "/opportunities/NB00375309/files/nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+    "existing_source_evidence": {
+      "listing_description_chars": 279,
+      "already_paid_endpoints": [
+        "get_opportunity",
+        "list_documents",
+        "list_files",
+        "read_file",
+        "search"
+      ],
+      "source_documents_metadata": 10,
+      "document0_md_retrieved": false
+    },
+    "expected_missing_information": [
+      "full_notice_body_document0_md_not_retrieved",
+      "firm_ordered_or_estimated_propane_quantity_UNKNOWN",
+      "unit_price_basis_UNKNOWN",
+      "delivery_schedule_terms_beyond_listing_UNKNOWN",
+      "technical_specs_from_Bulk_Propane_Fuel_Supply.pdf_not_retrieved_as_bytes",
+      "submission_method_detail_UNKNOWN",
+      "eligibility_set_aside_UNKNOWN",
+      "live_open_status_UNVERIFIED"
+    ],
+    "max_credit_cost": 1,
+    "ledger": {
+      "day": "2026-11-24",
+      "day_used": 1,
+      "test_used": 1,
+      "month_used_local": 1,
+      "account_remaining": 2546,
+      "account_used": 3454,
+      "account_allowance": 6000,
+      "effective_available": 50
+    },
+    "limits": {
+      "daily": 100,
+      "job": 50,
+      "monthly_reserve": 1000,
+      "test": 100,
+      "owner_hard_daily_ceiling": 100,
+      "owner_hard_test_ceiling": 100,
+      "scope": null,
+      "allowed_endpoints": null
+    },
+    "spendable_before_reserve": 1546,
+    "preflight": {
+      "persistence_tests": "see tests/test_nextbid_pipeline_persistence.py",
+      "uom_brand_regression": "tests/test_uom_not_brand.py",
+      "offline_pipeline_ran": true,
+      "offline_owner_card": {
+        "nb_id": "NB00375309",
+        "product_status": "PRODUCT CONFIRMED",
+        "requirements_status": "REQUIREMENTS MISSING",
+        "source_status": "SOURCE RETAINED",
+        "supplier_quote": "SUPPLIER QUOTE PARTIAL",
+        "bid_status": "BID STATUS UNVERIFIED",
+        "exact_missing_information": [
+          "no_line_items_extracted",
+          "delivery_UNKNOWN",
+          "specifications_UNKNOWN",
+          "submission_UNKNOWN",
+          "live_open_status_UNVERIFIED"
+        ],
+        "minimum_next_retrieval_action": {
+          "endpoint": "read_file",
+          "nb_id": "NB00375309",
+          "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+          "http_path": "/opportunities/NB00375309/files/nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+          "reason": "Known document0 markdown artifact indexed by prior list_documents/list_files; never retrieved as text.",
+          "missing_requirement_targeted": "notice_body_quantities_specs_submission",
+          "max_credit_cost": 1,
+          "skips": [
+            "get_opportunity",
+            "list_documents",
+            "list_files"
+          ],
+          "skip_rationale": "Indexes already retained; re-listing would re-spend without new discovery.",
+          "stopping_condition": "After this single read_file, stop. Do not auto-fetch PDFs."
+        },
+        "known_retrieval_credit_cost": 1,
+        "line_item_count": 0,
+        "note": "Supplier-quote readiness is independent of live open-status verification."
+      }
+    },
+    "proposed_call": {
+      "endpoint": "read_file",
+      "nb_id": "NB00375309",
+      "path": "nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+      "http_path": "/opportunities/NB00375309/files/nb2/published/opengov/document0/NB00375309/NB00375309.document0.md",
+      "reason": "Known document0 markdown artifact indexed by prior list_documents/list_files; never retrieved as text.",
+      "missing_requirement_targeted": "notice_body_quantities_specs_submission",
+      "max_credit_cost": 1,
+      "skips": [
+        "get_opportunity",
+        "list_documents",
+        "list_files"
+      ],
+      "skip_rationale": "Indexes already retained; re-listing would re-spend without new discovery.",
+      "stopping_condition": "After this single read_file, stop. Do not auto-fetch PDFs."
+    },
+    "execution_gate": "OWNER_EXPLICIT_AUTHORIZATION_REQUIRED",
+    "prepared_at": "2026-11-25T05:27:52.019916+00:00"
+  },
+  "quote_ready_reconciliation": {
+    "fourteen_audit_YES": 2,
+    "fourteen_audit_commit": "c565006",
+    "fourteen_audit_scope": "Strict manual verification of owner/pricing_now.jsonl only (14 cards). YES required clear product identity + grounded qty in retained full_text/requirements with supplier-outreach sufficiency (Weg motor model+qty; rock salt 62-line TON schedule).",
+    "population_accounting_YES": 10,
+    "population_accounting_commit": "76315c7",
+    "population_accounting_scope": "Automated thresholds across all 8,088 NextBid inventory rows: product/mixed + has_qty + (has_spec or >=5 complete lines) + text_chars>=200. Broader than the 14-card manual bar; not independently source-audited line-by-line.",
+    "reconciliation": "Not a contradiction: different universes and bars. The 2 YES are the owner-trustworthy quote-ready set from the pricing_now audit. The 10 YES are automated candidates from the full inventory pass and still require per-opportunity evidence review before outreach.",
+    "do_not_inflate": true
+  },
+  "persistence_preflight": "tests/test_nextbid_pipeline_persistence.py PASSED (reload/hash/no-truncation/thicker-wins)",
+  "uom_preflight": "tests/test_uom_not_brand.py PASSED",
+  "distinction": {
+    "offline_fixture_success": true,
+    "actual_provider_call_success": false,
+    "note": "No live NextBid call was executed. One-call package awaits owner authorization."
+  }
+}

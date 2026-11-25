@@ -914,11 +914,13 @@ def metered_request(
                 try:
                     body_for_store: Any = resp.json()
                 except Exception:
+                    # Never truncate Markdown/plaintext originals — full body required for replay.
                     body_for_store = {
                         "ok": False,
                         "error": "non_json",
                         "status_code": resp.status_code,
-                        "raw_text": (raw_text or "")[:50000],
+                        "raw_text": raw_text or "",
+                        "content_type": (resp.headers.get("content-type") or None),
                     }
                 persist_paid_response(
                     method=method,
@@ -930,6 +932,8 @@ def metered_request(
                     body=body_for_store,
                     job_id=job_id,
                     raw_text=raw_text,
+                    content_type=resp.headers.get("content-type"),
+                    original_bytes=(raw_text.encode("utf-8", errors="replace") if raw_text is not None else None),
                 )
             except Exception as persist_exc:
                 append_ledger(

@@ -147,15 +147,25 @@ def persist_paid_response(
     body: Any,
     job_id: str | None = None,
     raw_text: str | None = None,
+    content_type: str | None = None,
+    original_bytes: bytes | None = None,
 ) -> dict[str, Any]:
     """Write durable record BEFORE callers parse/classify. Never raises away the body.
 
     Persistence failure is fatal to acquisition callers — they must stop rather than
     continue without a retained original. This function itself never drops the body
     from the returned handle; it raises only after a local fallback write also fails.
+
+    ``original_bytes`` (when provided) are hashed for byte-level integrity proofs; the
+    body/raw_text fields remain the replay source. Never truncate stored originals.
     """
     rid = request_identity(method, path, params, nb_id=nb_id)
     ch = content_hash(body)
+    orig_sha = (
+        hashlib.sha256(original_bytes).hexdigest()
+        if original_bytes is not None
+        else (hashlib.sha256((raw_text or "").encode("utf-8", errors="replace")).hexdigest() if raw_text else None)
+    )
     # Never truncate the stored body — raw_text_preview is display-only.
     row = {
         "request_id": rid,
@@ -168,6 +178,11 @@ def persist_paid_response(
         "status_code": status_code,
         "retrieved_at": _utc(),
         "content_hash": ch,
+        "original_bytes_sha256": orig_sha,
+        "original_bytes_len": len(original_bytes) if original_bytes is not None else (
+            len((raw_text or "").encode("utf-8", errors="replace")) if raw_text else None
+        ),
+        "content_type": content_type,
         "processing_status": "stored_unprocessed",
         "body": body,
         "raw_text_chars": len(raw_text or "") if raw_text else None,
@@ -244,8 +259,51 @@ def persist_paid_response(
     return {
         "request_id": rid,
         "content_hash": ch,
+        "original_bytes_sha256": orig_sha,
         "path": str(written),
         "persistence_ok": True,
+    }
+
+
+def verify_persisted_response(req_id: str, *, expected_content_hash: str | None = None) -> dict[str, Any]:
+    """Reload a stored response and verify integrity (post-restart proof)."""
+    row = load_by_request_id(req_id)
+    if not row:
+        return {"ok": False, "error": "not_found", "request_id": req_id}
+    body = row.get("body")
+    recomputed = content_hash(body)
+    ok = True
+    errors: list[str] = []
+    if expected_content_hash and recomputed != expected_content_hash:
+        ok = False
+        errors.append("content_hash_mismatch_vs_expected")
+    if row.get("content_hash") and recomputed != row.get("content_hash"):
+        # Historical: body may have been merge-thickened; recompute is source of truth
+        if recomputed != row.get("content_hash"):
+            errors.append("stored_hash_stale_vs_body")
+    if body is None:
+        ok = False
+        errors.append("body_missing")
+    # raw_text must not be truncated artifact of old 50k cap when present as non_json
+    if isinstance(body, dict) and body.get("error") == "non_json":
+        raw = str(body.get("raw_text") or "")
+        if row.get("raw_text_chars") is not None and int(row["raw_text_chars"]) != len(raw):
+            ok = False
+            errors.append("raw_text_chars_mismatch")
+    return {
+        "ok": ok and not any(e.startswith("content_hash_mismatch") or e == "body_missing" for e in errors),
+        "request_id": req_id,
+        "nb_id": row.get("nb_id"),
+        "endpoint": row.get("endpoint"),
+        "content_hash": recomputed,
+        "original_bytes_sha256": row.get("original_bytes_sha256"),
+        "content_type": row.get("content_type"),
+        "body_type": type(body).__name__,
+        "raw_text_chars": (
+            len(str(body.get("raw_text") or "")) if isinstance(body, dict) else None
+        ),
+        "errors": errors,
+        "persistence_reload_ok": True,
     }
 
 
