@@ -93,17 +93,25 @@ def estimate_response_cost(
     web_search_calls: int = 0,
     search_content_tokens: int | None = None,
 ) -> Decimal:
+    """Application cost estimate from token/tool usage (not an OpenAI invoice).
+
+    Build 002O: when the API already reports input_tokens that include tool/search
+    content, do NOT add another assumed 8k search-content block (prior double-count).
+    """
     rates = MODEL_RATES.get(model) or MODEL_RATES["gpt-4o-mini"]
     in_rate, out_rate = rates
-    # Prefer measured search-content tokens; for mini models assume fixed block if searches ran
     sc = search_content_tokens
     if sc is None and web_search_calls > 0 and model in {"gpt-4o-mini", "gpt-4.1-mini"}:
-        sc = MINI_SEARCH_CONTENT_TOKENS * web_search_calls
+        # Assume fixed search-content block only when measured input is too small
+        # to have already included it (pre-flight reserves still pass explicit sc).
+        if int(input_tokens or 0) < MINI_SEARCH_CONTENT_TOKENS:
+            sc = MINI_SEARCH_CONTENT_TOKENS * web_search_calls
+        else:
+            sc = 0
     sc = sc or 0
     token_cost = (Decimal(input_tokens + sc) / Decimal(1_000_000)) * in_rate
     token_cost += (Decimal(output_tokens) / Decimal(1_000_000)) * out_rate
     tool_cost = Decimal(web_search_calls) * WEB_SEARCH_CALL_USD
-    # Small buffer so concurrent reservations stay under ceilings
     return (token_cost + tool_cost).quantize(Decimal("0.0001"))
 
 
