@@ -1,0 +1,115 @@
+{
+  "build": "002Q",
+  "job": "pipeline-repair",
+  "finished_at": "2026-11-23T01:17:50.834107+00:00",
+  "elapsed_sec": 27.4,
+  "metered_nextbid_calls": 0,
+  "openai_spent_usd": 0,
+  "sam_calls": 0,
+  "dibbs_calls": 0,
+  "new_sources_activated": 0,
+  "defects_corrected": [
+    "listing_prefilter no longer hard-rejects IT/construction/maintenance title words",
+    "unknown_mixed treated as potential product investigation, not reject",
+    "INITIAL_EXCLUDE no longer includes significant_installation or rental at product stage",
+    "goods title overrides mis-tagged service/construction class for investigation",
+    "IT hardware recognized as tangible goods; software-only still separated",
+    "supplies/materials beat bare service/construction title words in classify",
+    "rental vs purchase disambiguated; mandatory install requires explicit phrase",
+    "primary dispositions separate procurement fit from commercial/financing",
+    "missing qty/docs/submission \u2192 information-needed queues, not confirmed DQ"
+  ],
+  "package_recovery": {
+    "packages_total": 476,
+    "items_linked": 445,
+    "items_usable_text": 341,
+    "richer_text_preferred": 7,
+    "full_text_store_hits": 273
+  },
+  "listing_prefilter": {
+    "investigate": 7566,
+    "promote": 482,
+    "exclude": 40
+  },
+  "stage_counts": {
+    "VERIFIED_ACTIVE_SOLICITATION": 481,
+    "VERIFIED_PRODUCT_OPPORTUNITY": 7261,
+    "VERIFIED_M3_PROCUREMENT_FIT": 67,
+    "excluded": 279
+  },
+  "before": {
+    "unique_solicitations": 2255,
+    "reported_product_opportunities": 714,
+    "confirmed_tangible_audit": 660,
+    "mixed_audit": 117,
+    "it_product_audit": 34,
+    "potential_audit": 1063,
+    "warranting_investigation_audit": 1874,
+    "excluded_for_uncertainty": 1043
+  },
+  "after": {
+    "unique_solicitations": 8088,
+    "verified_active_open_amended": 2121,
+    "confirmed_tangible_product_purchases": 2268,
+    "potential_tangible_product_purchases": 5041,
+    "verified_quantities": 78,
+    "complete_product_specifications": 0,
+    "verified_procurement_eligibility": 1,
+    "easy_vendor_registration": 0,
+    "opportunities_ready_for_supplier_pricing": 78,
+    "opportunities_ready_for_bidding": 1,
+    "remaining_information_recovery": 7308,
+    "confirmed_disqualifications": 777,
+    "closed_or_non_solicitation": 2,
+    "primary_dispositions": {
+      "verified_bid_opportunities": 1,
+      "verified_product_information_needed": 2275,
+      "potential_product_classification_needed": 5033,
+      "easy_vendor_registration": 0,
+      "confirmed_disqualification": 777,
+      "closed_expired_non_solicitation": 2
+    },
+    "previously_excluded_potential_accounted": 5033
+  },
+  "minimal_blocker_counts": {
+    "missing_quantity": 7231,
+    "missing_submission_instructions": 7308,
+    "eligibility_gate:tangible_products": 7242,
+    "eligibility_gate:defined_quantities": 7242,
+    "eligibility_gate:submission_instructions": 7106,
+    "eligibility_gate:active_solicitation": 5677,
+    "eligibility_gate:reseller_eligibility": 5100,
+    "eligibility_gate:no_blocking_install_insurance_bond_license": 5128,
+    "eligibility_gate:sufficient_documents": 5295,
+    "classification_insufficient": 5052,
+    "missing_or_restricted_documents": 4930
+  },
+  "queue_summary": {
+    "verified_bid_opportunities": 1,
+    "verified_product_information_needed": 2275,
+    "potential_product_classification_needed": 5033,
+    "easy_vendor_registration": 0,
+    "confirmed_disqualification": 777,
+    "closed_expired_non_solicitation": 2,
+    "qualified_commercial_evaluation": 1,
+    "awaiting_supplier_quotations": 0,
+    "awaiting_financial_evaluation": 0,
+    "bids_ready_for_owner_approval": 1,
+    "promising_awaiting_verification": 7308,
+    "missing_document": 2198,
+    "restricted_document": 0,
+    "future_recurring_purchase": 0,
+    "estimated_quantity": 0,
+    "archived_or_closed": 2,
+    "verified_procurement_fits": 1
+  },
+  "population_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance\\nextbid_pipeline_repair_population.jsonl",
+  "all_ids_reconciled": true,
+  "id_count": 8088,
+  "remaining_data_limitations": {
+    "note": "Low verified-bid counts reflect missing/restricted NextBid document payloads in stored packages (many ACCESS_RESTRICTED), not live API refusal. M3 cannot invent quantities from thin listings.",
+    "packages_linked": 445,
+    "usable_package_text": 341
+  },
+  "disposition_rows_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance\\nextbid_pipeline_repair_dispositions.jsonl"
+}

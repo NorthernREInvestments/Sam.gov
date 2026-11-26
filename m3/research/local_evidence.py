@@ -111,13 +111,72 @@ def _load_paid_texts(nb_id: str) -> list[dict[str, Any]]:
         text = ""
         endpoint = str(row.get("endpoint") or "")
         if isinstance(body, dict):
+            # list_documents / list_files → inventory metadata ONLY (never as solicitation body)
+            if endpoint in {"list_documents", "list_files"}:
+                from m3.research.document_inventory import extract_document_entries
+
+                entries = extract_document_entries(body)
+                out.append(
+                    {
+                        "doc_id": f"paid_inventory:{endpoint}:{rid[:12]}",
+                        "kind": "attachment_metadata",
+                        "source_path": str(store_root() / "by_request" / f"{rid}.json"),
+                        "text": json.dumps(
+                            {
+                                "endpoint": endpoint,
+                                "source_documents_count": len(
+                                    [e for e in entries if e.get("_list_key") == "source_documents"]
+                                ),
+                                "nextbid_documents_count": len(
+                                    [e for e in entries if e.get("_list_key") == "nextbid_documents"]
+                                ),
+                                "entries": [
+                                    {
+                                        "name": e.get("name") or e.get("filename"),
+                                        "sha256": e.get("sha256") or e.get("hash"),
+                                        "bytes": e.get("bytes"),
+                                        "list_key": e.get("_list_key"),
+                                        "has_source_url": bool(e.get("source_url")),
+                                        "has_download": bool(e.get("download")),
+                                    }
+                                    for e in entries[:40]
+                                ],
+                                "note": "document_inventory_metadata_not_contents",
+                            },
+                            default=str,
+                        )[:8000],
+                        "is_metadata_only": True,
+                        "endpoint": endpoint,
+                        "document_entries": entries,
+                    }
+                )
+                continue
             if endpoint in {"read_file", "get_file"} or body.get("raw_text"):
                 text = str(body.get("raw_text") or body.get("text") or "")
             opp = body.get("opportunity") if isinstance(body.get("opportunity"), dict) else body
-            if not text and isinstance(opp, dict):
+            if not text and isinstance(opp, dict) and endpoint in {"get_opportunity", ""}:
                 text = str(opp.get("description") or opp.get("summary") or opp.get("ai_summary") or "")
-            # attachment metadata only
-            atts = opp.get("attachments") or opp.get("documents") or body.get("files") if isinstance(opp, dict) else None
+            # attachment metadata on opportunity detail
+            atts = None
+            if isinstance(opp, dict):
+                atts = opp.get("attachments") or opp.get("documents") or body.get("files")
+            # Also surface source_documents if somehow present on opportunity body
+            if isinstance(body, dict) and body.get("source_documents") and endpoint == "get_opportunity":
+                from m3.research.document_inventory import extract_document_entries
+
+                entries = extract_document_entries(body)
+                if entries:
+                    out.append(
+                        {
+                            "doc_id": f"paid_meta:source_documents:{rid[:12]}",
+                            "kind": "attachment_metadata",
+                            "source_path": str(store_root() / "by_request" / f"{rid}.json"),
+                            "text": json.dumps({"source_documents": entries[:40]}, default=str)[:4000],
+                            "is_metadata_only": True,
+                            "endpoint": endpoint,
+                            "document_entries": entries,
+                        }
+                    )
             if atts and not text:
                 out.append(
                     {
@@ -371,11 +430,17 @@ def assemble_local_evidence_package(
     *,
     db: Session | None = None,
     title: str | None = None,
+    include_http_cache: bool = True,
+    include_package_db: bool = True,
 ) -> dict[str, Any]:
     """Build one assembled evidence package from every relevant local store.
 
     Does not claim complete solicitation review unless substantive non-preview
     document content is present. Distinguishes metadata-only attachment listings.
+
+    include_http_cache: when False, skips the O(cache) HTTP JSON walk (safe for
+    bulk inventory / analysis — paid bodies, full_text, packages, checkpoints remain).
+    include_package_db: when False, skips DB package/PDF re-extract (fast inventory).
     """
     nb_id = str(nb_id or "").strip()
     documents: list[dict[str, Any]] = []
@@ -440,26 +505,32 @@ def assemble_local_evidence_package(
             is_metadata_only=bool(row.get("is_metadata_only")),
         )
 
-    for row in _load_package_docs(db, nb_id):
-        sources_inspected.append("db_solicitation_packages")
-        _add_doc(
-            documents,
-            doc_id=str(row["doc_id"]),
-            kind=str(row.get("kind") or "package"),
-            source_path=str(row.get("source_path") or ""),
-            text=str(row.get("text") or ""),
-            is_metadata_only=bool(row.get("is_metadata_only")),
-        )
+    if include_package_db:
+        for row in _load_package_docs(db, nb_id):
+            sources_inspected.append("db_solicitation_packages")
+            _add_doc(
+                documents,
+                doc_id=str(row["doc_id"]),
+                kind=str(row.get("kind") or "package"),
+                source_path=str(row.get("source_path") or ""),
+                text=str(row.get("text") or ""),
+                is_metadata_only=bool(row.get("is_metadata_only")),
+            )
+    else:
+        sources_inspected.append("db_solicitation_packages_skipped_fast_inventory")
 
-    for row in _load_http_cache_snippets(nb_id):
-        sources_inspected.append("nextbid_http_cache")
-        _add_doc(
-            documents,
-            doc_id=str(row["doc_id"]),
-            kind=str(row.get("kind") or "http_cache"),
-            source_path=str(row.get("source_path") or ""),
-            text=str(row.get("text") or ""),
-        )
+    if include_http_cache:
+        for row in _load_http_cache_snippets(nb_id):
+            sources_inspected.append("nextbid_http_cache")
+            _add_doc(
+                documents,
+                doc_id=str(row["doc_id"]),
+                kind=str(row.get("kind") or "http_cache"),
+                source_path=str(row.get("source_path") or ""),
+                text=str(row.get("text") or ""),
+            )
+    else:
+        sources_inspected.append("nextbid_http_cache_skipped_bulk")
 
     # Inventory metadata (never treated as solicitation body)
     inv_path = get_settings().data_root() / "nextbid_inventory" / "opportunities.jsonl"
@@ -505,7 +576,57 @@ def assemble_local_evidence_package(
     assembled_text = "\n\n".join(assembled_parts)
     total_content_chars = sum(int(d.get("chars") or 0) for d in content_docs)
 
+    # Substantive body ≠ complete package. Text length never proves package completeness.
     complete_enough = total_content_chars >= 800 and bool(content_docs)
+
+    from m3.research.document_inventory import (
+        load_inventory,
+        package_completeness,
+        reprocess_stored_manifests,
+    )
+    from m3.research.nextbid_response_store import load_by_request_id, store_root as _paid_root
+
+    # Ensure stored list_documents manifests are inventoried (offline, idempotent)
+    try:
+        reprocess_stored_manifests(nb_id)
+    except Exception:
+        pass
+    doc_inv = load_inventory(nb_id)
+
+    # Pull document_count from latest get_opportunity body
+    reported_doc_count = None
+    idx = _paid_root() / "by_nb_id" / f"{nb_id}.jsonl"
+    if idx.exists():
+        for line in reversed(idx.read_text(encoding="utf-8").splitlines()):
+            if not line.strip():
+                continue
+            try:
+                meta = json.loads(line)
+            except Exception:
+                continue
+            if meta.get("endpoint") != "get_opportunity":
+                continue
+            body = (load_by_request_id(str(meta.get("request_id") or "")) or {}).get("body")
+            if isinstance(body, dict):
+                opp = body.get("opportunity") if isinstance(body.get("opportunity"), dict) else body
+                if isinstance(opp, dict):
+                    reported_doc_count = opp.get("document_count")
+                    if reported_doc_count is None:
+                        reported_doc_count = opp.get("attachment_count")
+            break
+
+    pkg_comp = package_completeness(
+        opportunity_document_count=int(reported_doc_count) if reported_doc_count is not None else None,
+        inventory=doc_inv,
+        evidence_package={
+            "coverage": {
+                "has_substantive_document_content": complete_enough,
+                "listing_preview_count": len(listing_only_docs),
+            }
+        },
+        required_docs_reviewed=False,
+    )
+
     coverage = {
         "has_substantive_document_content": complete_enough,
         "substantive_doc_count": len(content_docs),
@@ -513,9 +634,18 @@ def assemble_local_evidence_package(
         "metadata_only_count": len(meta_only),
         "total_content_chars": total_content_chars,
         "primary_source": (primary or {}).get("doc_id"),
-        "complete_solicitation_reviewed_claim_allowed": False,  # never claim unless caller verifies required docs
+        "opportunity_document_count": reported_doc_count,
+        "document_inventory": {
+            "inventoried": pkg_comp.get("inventoried"),
+            "downloaded": pkg_comp.get("downloaded"),
+            "download_pending": pkg_comp.get("download_pending"),
+        },
+        "package_completeness": pkg_comp.get("package_completeness"),
+        "package_completeness_reasons": pkg_comp.get("reasons"),
+        "complete_solicitation_reviewed_claim_allowed": bool(pkg_comp.get("complete_solicitation_reviewed")),
+        "text_length_not_proof_of_completeness": True,
         "note": (
-            "Substantive local content assembled"
+            f"Substantive local content assembled; package_completeness={pkg_comp.get('package_completeness')}"
             if complete_enough
             else "Insufficient non-preview document content; listing/metadata only — not a complete solicitation review"
         ),
@@ -542,15 +672,17 @@ def assemble_local_evidence_package(
         },
         "sources_inspected": sorted(set(sources_inspected)),
         "documents": [
-            {k: v for k, v in d.items() if k != "text"}
+            {k: v for k, v in d.items() if k not in {"text", "document_entries"}}
             | {"text_preview": (d.get("text") or "")[:240], "has_text": bool((d.get("text") or "").strip())}
             for d in documents
         ],
         "document_texts": documents,  # full texts for analysis (caller responsibility)
+        "document_inventory": doc_inv,
         "assembled_text": assembled_text,
         "assembled_chars": len(assembled_text),
         "source_refs": source_refs,
         "coverage": coverage,
+        "package_completeness": pkg_comp,
         "network_used": False,
         "api_calls": 0,
     }

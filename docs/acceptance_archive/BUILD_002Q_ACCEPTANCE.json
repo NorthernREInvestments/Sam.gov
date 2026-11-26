@@ -1,0 +1,3639 @@
+{
+  "build": "002Q",
+  "status": "AWAITING_OWNER_ACCEPTANCE",
+  "build_id": "20261122-m3-2-build-002q",
+  "constraints": {
+    "nextbid_locked": true,
+    "controller": {
+      "locked": true,
+      "killswitch": {
+        "engaged": true,
+        "nextbid_enabled": false,
+        "env_emergency_stop": true,
+        "file_flag": {
+          "engaged": true,
+          "reason": "BUILD_002N_START_LOCK",
+          "engaged_at": "2026-11-22T04:10:37.129680+00:00",
+          "metered_calls_forbidden": true,
+          "scheduler_forbidden": true,
+          "retries_forbidden": true,
+          "resume_requires_owner_authorization": true
+        },
+        "metered_calls_allowed": false,
+        "resume_requires_owner_authorization": true
+      },
+      "owner_authorization": null,
+      "limits": {
+        "daily": 100,
+        "job": 50,
+        "monthly_reserve": 1000,
+        "test": 100,
+        "owner_hard_daily_ceiling": 100,
+        "owner_hard_test_ceiling": 100,
+        "scope": null,
+        "allowed_endpoints": null
+      },
+      "budget_state": {
+        "day": "2026-11-22",
+        "day_used": 0,
+        "test_used": 284,
+        "month_used_local": 300,
+        "account_remaining": 2646,
+        "account_used": 3354,
+        "account_allowance": 6000,
+        "effective_available": 0
+      },
+      "resume_requires_owner_authorization": true
+    },
+    "openai_daily": 1.0,
+    "openai_per_job": 0.5,
+    "spend": {
+      "paid_research_enabled": true,
+      "daily_budget_usd": 1.0,
+      "monthly_budget_usd": 30.0,
+      "per_job_budget_usd": 0.5,
+      "per_user_daily_budget_usd": 1.0,
+      "max_research_depth": 2,
+      "default_model": "gpt-4o-mini",
+      "capable_model": "gpt-5-mini",
+      "search_context_size": "low",
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668,
+      "today_remaining_usd": 1.0,
+      "month_remaining_usd": 28.9332,
+      "cost_basis": "application_estimate_not_invoice",
+      "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+    },
+    "build_id": "20261122-m3-2-build-002q"
+  },
+  "coverage": {
+    "build": "002Q",
+    "verified_sources": 40,
+    "unverified_sources": 107,
+    "states_touched": [
+      "AL",
+      "CA",
+      "DC",
+      "DE",
+      "FL",
+      "GA",
+      "IL",
+      "KS",
+      "LA",
+      "MA",
+      "MD",
+      "ME",
+      "MI",
+      "MO",
+      "NA",
+      "ND",
+      "NJ",
+      "NM",
+      "OR",
+      "PA",
+      "TX",
+      "VA",
+      "WA"
+    ],
+    "purchasing_authorities_verified": [
+      "Alabama Purchasing Division",
+      "Bid Tabulations (Historical) (data.cityofnewyork.us)",
+      "Business Services - Purchasing - Solicitations (citydata.mesaaz.gov)",
+      "Cambridge MA \u2014 Bid List (Historical)",
+      "City Record Online (data.cityofnewyork.us)",
+      "City of Boston Procurement",
+      "City of Chicago Procurement Services",
+      "City of Detroit Office of Contracting & Procurement",
+      "City of Jacksonville Procurement",
+      "City of Los Angeles RAMP \u2014 Open Bid Opportunities",
+      "City of Sacramento Procurement",
+      "City of San Francisco \u2014 Open Bid Opportunities",
+      "City of Seattle Purchasing and Contracting",
+      "Cook County IL \u2014 Procurement Buying Plan FY2026",
+      "Current RFP (data.cityofnewyork.us)",
+      "Delaware \u2014 Open Bids (MMP)",
+      "District of Columbia OCP",
+      "Fairfax County VA Procurement",
+      "Georgia DOAS State Purchasing",
+      "Georgia Procurement Registry \u2014 Open Goods",
+      "GovBidFit",
+      "Harris County TX Purchasing",
+      "Illinois CMS BidBuy / Procurement",
+      "Illinois \u2014 Future Solicitations (forecast)",
+      "Kansas Office of Procurement and Contracts",
+      "Louisiana OSP",
+      "M/WBE Upcoming Procurements (data.cityofnewyork.us)",
+      "Maine Division of Procurement",
+      "Missouri OA Purchasing",
+      "Montgomery County MD \u2014 Solicitations",
+      "New Jersey Purchase Bureau",
+      "New Mexico GSD Purchasing",
+      "North Dakota OMB Procurement",
+      "Oregon DAS Procurement",
+      "Pennsylvania DGS Procurement",
+      "Procurement - Buying Plan - Fiscal Year 2018 (datacatalog.cookcountyil.gov)",
+      "Procurement - Intent to Execute (datacatalog.cookcountyil.gov)",
+      "Procurement Forecast (internal-sandiegocounty.data.socrata.com)",
+      "RAMP Open Bid Opportunities (data.lacity.org)",
+      "Solicitations (data.montgomerycountymd.gov)"
+    ],
+    "source_index_path": "data/source_registries/index.json"
+  },
+  "reconciliation": {
+    "build": "002Q",
+    "acquire_full": {
+      "mode": "full",
+      "run_id": "4bde6e5e-b5e8-41ba-9989-ace54ed33592",
+      "discovery_population": 23091,
+      "all_matching_count": 23091,
+      "unique_items": 23091,
+      "verified_individual_solicitations": 750,
+      "verified_product": 1042,
+      "source_yield": [
+        {
+          "source_key": "lincoln_ne_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "omaha_ne_finance",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ne_das_public",
+          "pages": 3,
+          "rows_examined": 2,
+          "accepted": 2,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 2,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "university_of_nebraska_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+          "pages": 25,
+          "rows_examined": 12140,
+          "accepted": 59,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 12081,
+            "accepted": 59,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+          "pages": 116,
+          "rows_examined": 57704,
+          "accepted": 57704,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 57704,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+          "pages": 4,
+          "rows_examined": 1602,
+          "accepted": 432,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 1170,
+            "accepted": 432,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "cambridge_ma_bids_historical",
+          "pages": 15,
+          "rows_examined": 7082,
+          "accepted": 7080,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 2,
+            "closed_excluded": 0,
+            "accepted": 7080,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+          "pages": 200,
+          "rows_examined": 100000,
+          "accepted": 99989,
+          "pagination_complete": false,
+          "more_available": true,
+          "stats": {
+            "mapping_failures": 11,
+            "closed_excluded": 0,
+            "accepted": 99989,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "la_ramp_open_bids",
+          "pages": 1,
+          "rows_examined": 231,
+          "accepted": 231,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 231,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "mesa_az_solicitations",
+          "pages": 4,
+          "rows_examined": 1602,
+          "accepted": 242,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 1360,
+            "accepted": 242,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "sf_open_bid_opportunities",
+          "pages": 1,
+          "rows_examined": 80,
+          "accepted": 80,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 80,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "winnipeg_bid_opportunities",
+          "pages": 25,
+          "rows_examined": 12140,
+          "accepted": 59,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 12081,
+            "accepted": 59,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "cook_county_buying_plan_2026",
+          "pages": 1,
+          "rows_examined": 164,
+          "accepted": 164,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 164,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+          "pages": 1,
+          "rows_examined": 111,
+          "accepted": 111,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 111,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "delaware_open_bids",
+          "pages": 1,
+          "rows_examined": 42,
+          "accepted": 42,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 42,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "illinois_future_solicitations",
+          "pages": 1,
+          "rows_examined": 43,
+          "accepted": 43,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 43,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+          "pages": 2,
+          "rows_examined": 940,
+          "accepted": 940,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 940,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "montgomery_md_solicitations",
+          "pages": 3,
+          "rows_examined": 1264,
+          "accepted": 17,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 1247,
+            "accepted": 17,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+          "pages": 1,
+          "rows_examined": 194,
+          "accepted": 194,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 194,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+          "pages": 2,
+          "rows_examined": 564,
+          "accepted": 564,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 564,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+          "pages": 1,
+          "rows_examined": 95,
+          "accepted": 95,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 95,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_lacity_org_hf3r-utnq",
+          "pages": 1,
+          "rows_examined": 231,
+          "accepted": 231,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 0,
+            "accepted": 231,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+          "pages": 3,
+          "rows_examined": 1264,
+          "accepted": 17,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "mapping_failures": 0,
+            "closed_excluded": 1247,
+            "accepted": 17,
+            "product_gates_removed": true
+          }
+        },
+        {
+          "source_key": "al_purchasing",
+          "pages": 1,
+          "rows_examined": 18,
+          "accepted": 18,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 18,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ak_doa",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "allegheny_county_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "az_spo",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ar_dfa",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "housing_authority_chicago",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "chicago_public_schools_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "cta_procurement",
+          "pages": 1,
+          "rows_examined": 39,
+          "accepted": 39,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 39,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "albuquerque_purchasing",
+          "pages": 1,
+          "rows_examined": 9,
+          "accepted": 9,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 9,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "atlanta_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "austin_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "baltimore_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "boston_procurement",
+          "pages": 1,
+          "rows_examined": 44,
+          "accepted": 44,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 44,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "charlotte_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "chicago_procurement",
+          "pages": 1,
+          "rows_examined": 59,
+          "accepted": 59,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 59,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "columbus_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "dallas_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "denver_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "detroit_purchasing",
+          "pages": 1,
+          "rows_examined": 36,
+          "accepted": 36,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 36,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "fresno_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "houston_purchasing",
+          "pages": 1,
+          "rows_examined": 9,
+          "accepted": 9,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 9,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "indianapolis_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "jacksonville_procurement",
+          "pages": 1,
+          "rows_examined": 37,
+          "accepted": 37,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 37,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "las_vegas_purchasing",
+          "pages": 1,
+          "rows_examined": 1,
+          "accepted": 1,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 1,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "milwaukee_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "philadelphia_procurement",
+          "pages": 1,
+          "rows_examined": 19,
+          "accepted": 19,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 19,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "phoenix_procurement",
+          "pages": 1,
+          "rows_examined": 33,
+          "accepted": 33,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 33,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "portland_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sacramento_procurement",
+          "pages": 1,
+          "rows_examined": 28,
+          "accepted": 28,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 28,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "san_antonio_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "san_diego_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "seattle_purchasing",
+          "pages": 1,
+          "rows_examined": 9,
+          "accepted": 9,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 9,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "tucson_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "co_state_purchasing",
+          "pages": 1,
+          "rows_examined": 16,
+          "accepted": 16,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 16,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ct_das",
+          "pages": 1,
+          "rows_examined": 29,
+          "accepted": 29,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 29,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "dfw_airport_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "dc_ocp",
+          "pages": 1,
+          "rows_examined": 32,
+          "accepted": 32,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 32,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "fairfax_county_procurement",
+          "pages": 1,
+          "rows_examined": 32,
+          "accepted": 32,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 32,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "fl_dms",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ga_doas",
+          "pages": 1,
+          "rows_examined": 25,
+          "accepted": 25,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 25,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "georgia_gpr_open_goods",
+          "pages": 31,
+          "rows_examined": 31,
+          "accepted": 31,
+          "pagination_complete": false,
+          "more_available": true,
+          "stats": {
+            "accepted": 31,
+            "closed_or_inactive": 0,
+            "mapping_failures": 0,
+            "listing_api_blocked": true,
+            "bootstrap_events": 31
+          }
+        },
+        {
+          "source_key": "ai_fbe283b8886e8306c75f",
+          "pages": 1,
+          "rows_examined": 54,
+          "accepted": 54,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 54,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "harris_county_purchasing",
+          "pages": 1,
+          "rows_examined": 12,
+          "accepted": 12,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 12,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "las_vegas_airport",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "atlanta_airport_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "hi_spo",
+          "pages": 1,
+          "rows_examined": 3,
+          "accepted": 3,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 3,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "hennepin_county_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "id_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "il_cms",
+          "pages": 1,
+          "rows_examined": 8,
+          "accepted": 8,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 8,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "iowa_das",
+          "pages": 1,
+          "rows_examined": 6,
+          "accepted": 6,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 6,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "kansas_city_mo_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "kansas_purchasing",
+          "pages": 1,
+          "rows_examined": 49,
+          "accepted": 49,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 49,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ky_finance",
+          "pages": 1,
+          "rows_examined": 20,
+          "accepted": 20,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 20,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "king_county_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "los_angeles_county_isd",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "la_usd_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "la_osp",
+          "pages": 1,
+          "rows_examined": 17,
+          "accepted": 17,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 17,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "louisville_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mta_ny_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "me_procurement",
+          "pages": 1,
+          "rows_examined": 47,
+          "accepted": 47,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 47,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "maricopa_county_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "md_dgs",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ma_osd",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mwra_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nashville_purchasing",
+          "pages": 1,
+          "rows_examined": 30,
+          "accepted": 30,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 30,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "metro_transit_mn",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mwd_ca_procurement",
+          "pages": 1,
+          "rows_examined": 2,
+          "accepted": 2,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 2,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "miami_dade_procurement",
+          "pages": 1,
+          "rows_examined": 19,
+          "accepted": 19,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 19,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mn_admin",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ms_dfa",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mo_oa_purchasing",
+          "pages": 1,
+          "rows_examined": 23,
+          "accepted": 23,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 23,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "mt_general",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "naspo_valuepoint",
+          "pages": 1,
+          "rows_examined": 4,
+          "accepted": 4,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 4,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nyc_doe_vendor",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "housing_authority_nyc",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nv_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nh_purchase",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nj_purchase",
+          "pages": 1,
+          "rows_examined": 286,
+          "accepted": 286,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 286,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nm_gsd",
+          "pages": 1,
+          "rows_examined": 45,
+          "accepted": 45,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 45,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ny_ogs",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nc_purchase",
+          "pages": 1,
+          "rows_examined": 14,
+          "accepted": 14,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 14,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "nd_omb",
+          "pages": 1,
+          "rows_examined": 32,
+          "accepted": 32,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 32,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "omnia_partners_public",
+          "pages": 1,
+          "rows_examined": 1,
+          "accepted": 1,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 1,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "oh_das",
+          "pages": 1,
+          "rows_examined": 2,
+          "accepted": 2,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 2,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ohio_state_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ok_omes",
+          "pages": 1,
+          "rows_examined": 6,
+          "accepted": 6,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 6,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "or_das",
+          "pages": 1,
+          "rows_examined": 41,
+          "accepted": 41,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 41,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "penn_state_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "pa_dgs",
+          "pages": 1,
+          "rows_examined": 25,
+          "accepted": 25,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 25,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "port_of_houston",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "port_of_la",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ri_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sfo_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sea_tac_procurement",
+          "pages": 1,
+          "rows_examined": 10,
+          "accepted": 10,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 10,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sourcewell_contracts",
+          "pages": 1,
+          "rows_examined": 3,
+          "accepted": 3,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 3,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sc_mmo",
+          "pages": 1,
+          "rows_examined": 55,
+          "accepted": 55,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 55,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "sd_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "tampa_bay_water",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "tn_cpo",
+          "pages": 1,
+          "rows_examined": 87,
+          "accepted": 87,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 87,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "tx_cpa",
+          "pages": 1,
+          "rows_examined": 9,
+          "accepted": 9,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 9,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "travis_county_purchasing",
+          "pages": 1,
+          "rows_examined": 3,
+          "accepted": 3,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 3,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "uc_procurement",
+          "pages": 1,
+          "rows_examined": 15,
+          "accepted": 15,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 15,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "university_of_florida_procurement",
+          "pages": 1,
+          "rows_examined": 43,
+          "accepted": 43,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 43,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "university_of_michigan_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "university_of_texas_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "university_of_washington_procurement",
+          "pages": 1,
+          "rows_examined": 10,
+          "accepted": 10,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 10,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "ut_purchasing",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "vt_bgs",
+          "pages": 1,
+          "rows_examined": 10,
+          "accepted": 10,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 10,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "va_dgs",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wmata_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wake_county_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wa_des",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wv_purchasing",
+          "pages": 1,
+          "rows_examined": 5,
+          "accepted": 5,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 5,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wi_doa",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        },
+        {
+          "source_key": "wy_procurement",
+          "pages": 1,
+          "rows_examined": 0,
+          "accepted": 0,
+          "pagination_complete": true,
+          "more_available": false,
+          "stats": {
+            "accepted": 0,
+            "mapping_failures": 0
+          }
+        }
+      ],
+      "sources_succeeded": [
+        "ne_das_public",
+        "discovered_data_winnipeg_ca_rijt-92n4",
+        "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "cambridge_ma_bids_historical",
+        "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "la_ramp_open_bids",
+        "mesa_az_solicitations",
+        "sf_open_bid_opportunities",
+        "winnipeg_bid_opportunities",
+        "cook_county_buying_plan_2026",
+        "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "delaware_open_bids",
+        "illinois_future_solicitations",
+        "discovered_data_cityofnewyork_us_ww83-bcks",
+        "montgomery_md_solicitations",
+        "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "discovered_data_lacity_org_hf3r-utnq",
+        "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "al_purchasing",
+        "cta_procurement",
+        "albuquerque_purchasing",
+        "boston_procurement",
+        "chicago_procurement",
+        "detroit_purchasing",
+        "houston_purchasing",
+        "jacksonville_procurement",
+        "las_vegas_purchasing",
+        "philadelphia_procurement",
+        "phoenix_procurement",
+        "sacramento_procurement",
+        "seattle_purchasing",
+        "co_state_purchasing",
+        "ct_das",
+        "dc_ocp",
+        "fairfax_county_procurement",
+        "ga_doas",
+        "georgia_gpr_open_goods",
+        "ai_fbe283b8886e8306c75f",
+        "harris_county_purchasing",
+        "hi_spo",
+        "il_cms",
+        "iowa_das",
+        "kansas_purchasing",
+        "ky_finance",
+        "la_osp",
+        "me_procurement",
+        "nashville_purchasing",
+        "mwd_ca_procurement",
+        "miami_dade_procurement",
+        "mo_oa_purchasing",
+        "naspo_valuepoint",
+        "nj_purchase",
+        "nm_gsd",
+        "nc_purchase",
+        "nd_omb",
+        "omnia_partners_public",
+        "oh_das",
+        "ok_omes",
+        "or_das",
+        "pa_dgs",
+        "sea_tac_procurement",
+        "socrata_catalog_discovery",
+        "sourcewell_contracts",
+        "sc_mmo",
+        "tn_cpo",
+        "tx_cpa",
+        "travis_county_purchasing",
+        "uc_procurement",
+        "university_of_florida_procurement",
+        "university_of_washington_procurement",
+        "vt_bgs",
+        "wv_purchasing"
+      ],
+      "sources_unavailable": [
+        "lincoln_ne_purchasing",
+        "omaha_ne_finance",
+        "university_of_nebraska_procurement",
+        "ak_doa",
+        "allegheny_county_purchasing",
+        "az_spo",
+        "ar_dfa",
+        "housing_authority_chicago",
+        "chicago_public_schools_procurement",
+        "atlanta_procurement",
+        "austin_purchasing",
+        "baltimore_procurement",
+        "charlotte_procurement",
+        "columbus_purchasing",
+        "dallas_purchasing",
+        "denver_purchasing",
+        "fresno_purchasing",
+        "indianapolis_purchasing",
+        "milwaukee_purchasing",
+        "portland_procurement",
+        "san_antonio_purchasing",
+        "san_diego_purchasing",
+        "tucson_procurement",
+        "dfw_airport_procurement",
+        "fl_dms",
+        "las_vegas_airport",
+        "atlanta_airport_procurement",
+        "hennepin_county_purchasing",
+        "id_purchasing",
+        "kansas_city_mo_procurement",
+        "king_county_procurement",
+        "los_angeles_county_isd",
+        "la_usd_procurement",
+        "louisville_procurement",
+        "mta_ny_procurement",
+        "maricopa_county_procurement",
+        "md_dgs",
+        "ma_osd",
+        "mwra_procurement",
+        "metro_transit_mn",
+        "mn_admin",
+        "ms_dfa",
+        "mt_general",
+        "nyc_doe_vendor",
+        "housing_authority_nyc",
+        "nv_purchasing",
+        "nh_purchase",
+        "ny_ogs",
+        "ohio_state_purchasing",
+        "penn_state_purchasing",
+        "port_of_houston",
+        "port_of_la",
+        "ri_purchasing",
+        "sfo_procurement",
+        "sd_procurement",
+        "tampa_bay_water",
+        "university_of_michigan_procurement",
+        "university_of_texas_procurement",
+        "ut_purchasing",
+        "va_dgs",
+        "wmata_procurement",
+        "wake_county_procurement",
+        "wa_des",
+        "wi_doa",
+        "wy_procurement"
+      ],
+      "sources_incomplete": [
+        "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "georgia_gpr_open_goods"
+      ],
+      "limitations": [
+        "lincoln_ne_purchasing: https://www.lincoln.ne.gov/City/Departments/Finance/Purchasing status=403",
+        "omaha_ne_finance: https://finance.cityofomaha.org/purchasing status=403",
+        "university_of_nebraska_procurement: https://nebraska.edu/offices-policies/business-finance/procurement status=404",
+        "ak_doa: https://doa.alaska.gov/dgs/ status=403",
+        "allegheny_county_purchasing: https://www.alleghenycounty.us/purchasing/index.aspx status=403",
+        "az_spo: https://spo.az.gov/ status=403",
+        "ar_dfa: https://www.transform.ar.gov/procurement/ status=403",
+        "housing_authority_chicago: https://www.thecha.org/doing-business status=403",
+        "chicago_public_schools_procurement: https://www.cps.edu/about/departments/procurement/ status=404",
+        "atlanta_procurement: https://www.atlantaga.gov/government/departments/finance/office-of-contract-compliance status=403",
+        "austin_purchasing: https://www.austintexas.gov/department/purchasing status=404",
+        "baltimore_procurement: https://generalservices.baltimorecity.gov/procurement status=404",
+        "charlotte_procurement: https://www.charlottenc.gov/City-Government/Departments/Finance/Procurement status=403",
+        "columbus_purchasing: https://www.columbus.gov/procurement/ status=403",
+        "dallas_purchasing: https://dallascityhall.com/departments/procurementservices/Pages/default.aspx status=404",
+        "denver_purchasing: https://www.denvergov.org/Government/Agencies-Departments-Offices/Agencies-Departments-Offices-Directory/Department-of-Finance/Our-Divisions/Purchasing status=404",
+        "fresno_purchasing: https://www.fresno.gov/finance/purchasing/ status=403",
+        "indianapolis_purchasing: no_items",
+        "milwaukee_purchasing: https://city.milwaukee.gov/Purchasing status=403",
+        "portland_procurement: https://www.portland.gov/omf/brfs/procurement status=403",
+        "san_antonio_purchasing: https://www.sa.gov/Directory/Departments/Finance/Purchasing status=403",
+        "san_diego_purchasing: https://www.sandiego.gov/purchasing status=403",
+        "tucson_procurement: https://www.tucsonaz.gov/Departments/Finance/Procurement status=403",
+        "dfw_airport_procurement: https://www.dfwairport.com/business/procurement/ status=404",
+        "fl_dms: no_items",
+        "las_vegas_airport: https://www.harryreidairport.com/Business/Procurement status=404",
+        "atlanta_airport_procurement: https://www.atl.com/business-opportunities/ status=403",
+        "hennepin_county_purchasing: https://www.hennepin.us/business/work-with-hennepin/purchasing status=404",
+        "id_purchasing: no_items",
+        "kansas_city_mo_procurement: https://www.kcmo.gov/city-hall/departments/finance/procurement-services status=403",
+        "king_county_procurement: https://kingcounty.gov/en/dept/executive-services/about-king-county/procurement status=404",
+        "los_angeles_county_isd: https://lacounty.gov/business/doing-business-with-the-county/ status=404",
+        "la_usd_procurement: https://www.lausd.org/Page/269 status=403",
+        "louisville_procurement: https://louisvilleky.gov/government/procurement status=403",
+        "mta_ny_procurement: https://new.mta.info/doing-business-with-us status=403",
+        "maricopa_county_procurement: https://www.maricopa.gov/3974/Procurement-Services status=404",
+        "md_dgs: https://dgs.maryland.gov/Pages/Procurement/index.aspx status=404",
+        "ma_osd: https://www.mass.gov/orgs/operational-services-division status=403",
+        "mwra_procurement: https://www.mwra.com/procurements.html status=404",
+        "metro_transit_mn: https://www.metrotransit.org/doing-business status=404"
+      ],
+      "more_available": true,
+      "population_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance_populations\\4bde6e5e-b5e8-41ba-9989-ace54ed33592.jsonl",
+      "notices_examined": 198997,
+      "duplicates_excluded": 146707,
+      "openai_spent": 0.0,
+      "metered_nextbid": 0,
+      "finished_at": "2026-11-22T14:13:01.169066+00:00",
+      "registry_persist": {
+        "total_records": 26082,
+        "ingested": 23091,
+        "created_or_touched": 23091,
+        "created": 23091,
+        "updated": 0,
+        "duplicate_links_detected": 6120,
+        "record_ids_sample": [
+          "pr_e90614c1c18a5b1e03fccd4f",
+          "pr_0f1a4b9c6f37a2869f22c2d9",
+          "pr_cc57c04ae6c232f3151f2ed5",
+          "pr_5286c50035b3e4b1bb387678",
+          "pr_8e558c9fd9a0f0ec5e862fdb",
+          "pr_0bf58fdaaf0f5d219fdf38c1",
+          "pr_7f13745c9b4d7732e5f4d2a2",
+          "pr_736473cffba4a0eb7955d17c",
+          "pr_fb07cb95259251c637afe85d",
+          "pr_62763f8abe0a790e10a153b8",
+          "pr_edaee939ca84e7c9f0c7c146",
+          "pr_434d1863bd80e9917a072602",
+          "pr_1e9ff7fa9c90e73751b8fe05",
+          "pr_35e357defac4285857bcaded",
+          "pr_992e497159611aca645d1686",
+          "pr_99582c2ecfba4bdb512937a3",
+          "pr_e160e8194394e97c8f8b72b1",
+          "pr_f8a84ffa5e1749e08b8f6cac",
+          "pr_4ee446bbb14a75e60d936951",
+          "pr_6b7f9df1db5e7e69d7469602"
+        ],
+        "metered_calls": 0
+      }
+    },
+    "acquire_incremental": {
+      "mode": "incremental",
+      "sources_polled": 15,
+      "source_stats": [
+        {
+          "source_key": "delaware_open_bids",
+          "ok": true,
+          "fetched": 42,
+          "new": 0,
+          "changed": 42,
+          "unchanged": 0
+        },
+        {
+          "source_key": "georgia_gpr_open_goods",
+          "ok": true,
+          "fetched": 31,
+          "new": 0,
+          "changed": 31,
+          "unchanged": 0
+        },
+        {
+          "source_key": "sf_open_bid_opportunities",
+          "ok": true,
+          "fetched": 80,
+          "new": 0,
+          "changed": 80,
+          "unchanged": 0
+        },
+        {
+          "source_key": "la_ramp_open_bids",
+          "ok": true,
+          "fetched": 231,
+          "new": 0,
+          "changed": 231,
+          "unchanged": 0
+        },
+        {
+          "source_key": "montgomery_md_solicitations",
+          "ok": true,
+          "fetched": 17,
+          "new": 0,
+          "changed": 17,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+          "ok": true,
+          "fetched": 426,
+          "new": 0,
+          "changed": 426,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_datahub_usac_org_96rf-xd57",
+          "ok": true,
+          "fetched": 999,
+          "new": 0,
+          "changed": 999,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+          "ok": true,
+          "fetched": 3,
+          "new": 0,
+          "changed": 3,
+          "unchanged": 0
+        },
+        {
+          "source_key": "winnipeg_bid_opportunities",
+          "ok": true,
+          "fetched": 3,
+          "new": 0,
+          "changed": 3,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_lacity_org_hf3r-utnq",
+          "ok": true,
+          "fetched": 231,
+          "new": 0,
+          "changed": 231,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+          "ok": true,
+          "fetched": 17,
+          "new": 0,
+          "changed": 17,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+          "ok": true,
+          "fetched": 194,
+          "new": 0,
+          "changed": 194,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+          "ok": true,
+          "fetched": 1000,
+          "new": 0,
+          "changed": 1000,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+          "ok": true,
+          "fetched": 111,
+          "new": 0,
+          "changed": 111,
+          "unchanged": 0
+        },
+        {
+          "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+          "ok": true,
+          "fetched": 1000,
+          "new": 0,
+          "changed": 1000,
+          "unchanged": 0
+        }
+      ],
+      "new_items": 0,
+      "changed_items": 4385,
+      "unchanged_skipped": 0,
+      "unique_items": 4385,
+      "registry_persist": {
+        "total_records": 61803,
+        "ingested": 4385,
+        "created_or_touched": 4385,
+        "created": 0,
+        "updated": 4385,
+        "duplicate_links_detected": 3471,
+        "record_ids_sample": [
+          "pr_6825896122f8ad249b5eec88",
+          "pr_292b314457fbe61cf9e1e9e0",
+          "pr_3ba1d45eb7acaf1c789b724f",
+          "pr_862ea51530d1c45da6c68a0d",
+          "pr_47e57f4954e0d1c2d5f68830",
+          "pr_c1f509a43456258bf1938c99",
+          "pr_5238ed074ba777dd5c809526",
+          "pr_8ed49fc7dbfb20b9c78ec610",
+          "pr_b45a4bb5cac043dba2c853a1",
+          "pr_04780d9f448bbfa9e030932a",
+          "pr_4872e92389f65b9f9e149bfc",
+          "pr_8c64cba273658e851b18280c",
+          "pr_7d43981b50923415e0adbc29",
+          "pr_34c9bcde68342a6b9f8b84f6",
+          "pr_eea97161fc2aae6e2460dd22",
+          "pr_d20b175f80405c31e54973b0",
+          "pr_8d605e50272ac218064cda46",
+          "pr_277336364c7cacf7213bbd77",
+          "pr_6bafc66e14757e245e2a360a",
+          "pr_b2369e275b779e9ce98a41d5"
+        ],
+        "metered_calls": 0
+      },
+      "openai_spent": 0,
+      "metered_nextbid": 0,
+      "finished_at": "2026-11-22T15:23:59.674748+00:00"
+    },
+    "opportunities_db": 59,
+    "packages_db": 7090,
+    "documents_db": 4948,
+    "note": "Coverage % only where source publishes countable open totals"
+  },
+  "qualification": {
+    "build": "002Q",
+    "qualify": {
+      "counts": {
+        "discovered": 61803,
+        "potential_product": 2130,
+        "product_quantity_verified": 74,
+        "complete_package": 12,
+        "commercially_qualified": 0,
+        "bid_eligible": 0,
+        "ready_to_submit": 0,
+        "excluded": 20098
+      },
+      "stage_c_evidence_sample": [
+        {
+          "nb_id": "NB00348901",
+          "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Twelve (12)",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00321554",
+          "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "ONE (1)",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00345848",
+          "title": "Two (2) Animal Transport Vehicles",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00370595",
+          "title": "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade-in of one County-owned Caterpillar 826K landfill compactor.",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/santarosafl/projects/324631",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00339475",
+          "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "quantity_field_present"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00338603",
+          "title": "Furnish one hundred sixty (160) Chemical Flow Meters for the Metropolitan Water District Skinner Plant RFB-DV-481494",
+          "quantity": "160",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "one hundred sixty (160)",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16151/bo/bo-detail/147393",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00278207",
+          "title": "Purchase of Three (3) 10-Ton and Two (2) 20-Ton Telescopic Cranes Trucks",
+          "quantity": "3",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "quantity_field_present"
+          ],
+          "official_url": "https://www.njtransit.com/procurement/notice-of-awards",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00261760",
+          "title": "BL081-24 Purchase of a Swift Water Rescue Boat",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of a Swift Water Rescue Boat",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-77023-NONST-2024-000000182&sourceSystemType=gpr20",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00326707",
+          "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "quantity_field_present"
+          ],
+          "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00379502",
+          "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+          "quantity": "2027",
+          "quantity_semantic": null,
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of 2027 Ford",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00362602",
+          "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+          "quantity": "8",
+          "quantity_semantic": null,
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "purchase 8 new",
+            "source:pipeline_enrichment"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00350443",
+          "title": "NOTICE OF INTENT TO SINGLE SOURCE IXOM WATERCARE INC",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Description of Intended Products or Services Provided: The Service Program is for two (2) SolarBee SB10000 v20 solar powered circulation machines.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/collier-county-fl/projects/322785",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00320237",
+          "title": "Chemical Controller Purchase",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "for the purchase of Twelve (12) chemical controllers",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/clevelandoh/projects/299298",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00370595",
+          "title": "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade-in of one County-owned Caterpillar 826K landfill compactor.",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/santarosafl/projects/324631",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00375309",
+          "title": "Bulk Propane Fuel Supply",
+          "quantity": "5,000",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "5,000-gallon stationary storage tank",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pembrokepines/projects/321591",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00321439",
+          "title": "Oliver Hill New Courtroom Furniture",
+          "quantity": "5",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "There are 5 courtrooms that will receive new furniture.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/rva/projects/307828",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00370639",
+          "title": "PS, Fire- Training Academy Passenger Van",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "furnishing and delivery of one (1) Ford T350HD Passenger Van",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pittsburghpa/projects/324476",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00345318",
+          "title": "RFQ 902824 Dodge Vehicle Purchase",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "the County intends to award a one (1)-year contract",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/acgov/projects/322124",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00350283",
+          "title": "Bus Manufacturing Inspection",
+          "quantity": "25",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "the RTA will have (25) twenty-five 35\u2019 Gillig Diesel buses being",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/greaterdaytonrta/projects/322648",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00376134",
+          "title": "PS, Fire Supply Delivery Van",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "furnishing and delivery of one (1) Ford Transit T350HD Cargo Van",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pittsburghpa/projects/324479",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00376135",
+          "title": "PS, Fire,  2026/2027 Ford F-350 Supply Pickup Truck",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "The Equipment Leasing Authority of the City of Pittsburgh...is soliciting bids for the furnishing and delivery of one (1) Ford F-350.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pittsburghpa/projects/307200",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00365477",
+          "title": "Police Department Off Highway Vehicles (OHV)",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "two vehicles",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pasadena/projects/321558",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00338603",
+          "title": "Furnish one hundred sixty (160) Chemical Flow Meters for the Metropolitan Water District Skinner Plant RFB-DV-481494",
+          "quantity": "160",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "one hundred sixty (160)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16151/bo/bo-detail/147393",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00269089",
+          "title": "12-IND-7515-Flag Material",
+          "quantity": "3",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Order changed from \"0\" to \"3\".",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-19-1025-DOCIF-FISCI-36813&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00260314",
+          "title": "Towable Air Start Unit",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "one (1)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://bangormaine.gov/bids.aspx?bidID=117",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00279554",
+          "title": "Various sale of Property at online auction 2026 and 2027",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-16-1292-MPW01-MPW01-127615&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00261760",
+          "title": "BL081-24 Purchase of a Swift Water Rescue Boat",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of a Swift Water Rescue Boat",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-77023-NONST-2024-000000182&sourceSystemType=gpr20",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00260636",
+          "title": "RFR 251633 Metabolic Food and Formulas",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-24-1031-BFHN0-BFH01-98918&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00260545",
+          "title": "Purchase of Publicly-Assisted Affordable Housing",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-20-1076-OCDDE-OCD01-48615&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00372651",
+          "title": "New AC Units for DAFT Building and Secondary Building at WRF",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "install new 1-ton rooftop air-conditioning units at each building (Daft and Secondary Buildings)",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/pueblo/projects/320193",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00326568",
+          "title": "Inmate Communications",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "12",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://purchasing.wycokck.org/eProcurement/Bid_Download.aspx",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00339509",
+          "title": "IFB 133896 Fire Alarm System Replacement",
+          "quantity": "4",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "one complete replacement system for each building (618, 738, 854, 872)",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/event/8940/0000040724",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00263724",
+          "title": "SP22-TRAILER-Q66 Trailers, trailer parts and services",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-22-1084-POLGH-GHQ-76772&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00367536",
+          "title": "Phase 2 - Transit Electrification",
+          "quantity": "5",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "5 ABB 391kW triple port chargers",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/20314/bo/bo-detail/148156",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00350445",
+          "title": "Consolidated Food Service Exhaust Fan Replacements",
+          "quantity": "6",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "This project involves replacement of six existing roof-mounted exhaust fans.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/countyofdane/projects/317100",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00362628",
+          "title": "1PA5A008833.02 HUU Diesel Generator Set",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "2 (two) Diesel Prime Power Duty Rated Generator Sets",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/event/3540/0000040898",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00375344",
+          "title": "RFQ for Generator PM & On Call Services for COTA Facilities",
+          "quantity": "7",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "seven industrial diesel generators",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/cota/projects/325189",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00320183",
+          "title": "London Foggers Truck-Mounted Generators",
+          "quantity": "4",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "requests quotes for the purchase of four (4) London Foggers 18-20 truck-mounted Ultra-Low Volume",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/volusia/projects/315942",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00375282",
+          "title": "IFPQ Replace Chiller Coils - San Joaquin County",
+          "quantity": "3",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Contractor shall furnish all labor, tools, materials, parts, supplies, equipment, vehicles, travel, and incidentals necessary to remove and legally dispose of three (3) chiller coils and install three (3) new chiller coils.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/event/2660/10A2969",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00362840",
+          "title": "20017 - Stormwater Pump Station #6",
+          "quantity": "2,000",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "A bypass pumping system capable of handling a minimum of 2,000 GPM.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/norfolk/projects/290161",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00375434",
+          "title": "East Penn Manufacturing Company Station Batteries (7 units) RFB-LB-481905",
+          "quantity": "7",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "seven (7)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16151/bo/bo-detail/148410",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00350374",
+          "title": "Robert A. Skinner Water Treatment Plant Fire Alarm Control Panels Replacement 2129A",
+          "quantity": "10",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "replacing ten existing Fire Alarm Control Panels",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16151/bo/bo-detail/147957",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00367851",
+          "title": "2026 Cafeteria Tables",
+          "quantity": "75",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "The Scranton School District will be soliciting bids for the purchase and delivery of 75 cafeteria tables.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/ssdedu/projects/324554",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00372789",
+          "title": "Purchase and Delivery of Intelligent Auto-Flusher",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "one (1)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/clermontfl/projects/321378",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00370618",
+          "title": "Lester R. Dingle Filter Media Replacement",
+          "quantity": "5",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "replace the existing filter media in (5) Pressure Vessel Filters at the water treatment plant",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/cityoffrederickmd/projects/306599",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00352766",
+          "title": "Performing Arts Community Center (PACC) Industrial Roll Up Door Replacement PW 27-37",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "removal and replacement of two (2) existing industrial roll-up stage doors",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/69575/bo/bo-detail/147996",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00320329",
+          "title": "IFB #R006316 Narrow-Aisle Reach Truck, Sit-Down Rider Truck, and Rider Pallet Truck Forklifts with Lithium-Ion Battery Chargers",
+          "quantity": "2, 1, 1, 4",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "two (2) Narrow-Aisle Reach Trucks, one (1) Sit-Down Rider Truck, and one (1) Rider Pallet Truck Forklifts and (4) compatible Lithium-Ion Battery Chargers",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/event/0850/0000040733",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00221043",
+          "title": "Zero-Emission Truck Purchasing Incentive Project",
+          "quantity": "10",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Selected LMCs shall be required to enter into a grant agreement with the Harbor Department and comply with applicable terms set forth in...",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.publicpurchase.com/gems/syndication/bidView?syndicatedBidId=8076835",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00361043",
+          "title": "SMALL BUSINESS OPTION - SA000006-26 - Relocation of Hewlett Packard Enterprise Company Equipment",
+          "quantity": "8",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "HPE ProLiant Gen10 Plus Servers (8 units)",
+            "HPE Alletra Storage Array (1 unit)",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/event/0950/0000040901",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00367495",
+          "title": "Teams Phones",
+          "quantity": "1250",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "The Maryland Department of Human Services (DHS) is procuring 1,250 Poly CCX350 Business Media Phones.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/marylanddhs/projects/305282",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00331581",
+          "title": "ARMORED RESCUE VEHICLE PD-102326",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "to provide one new Armored Rescue Vehicle",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/14590/bo/bo-detail/147648",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00286264",
+          "title": "Modular Floating Platforms",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "inviting proposals for two modular floating work platforms",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/14272/bo/bo-detail/146493",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00275531",
+          "title": "Textile Machinery, parts, Supplies and Service",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=S127034-vCurrent&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00280391",
+          "title": "DCR 004 Portable Toilet Services",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-27-1020-DCRCU-DC250-133900&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00280426",
+          "title": "Tipping Machinery Equipment and Service",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 &nbsp; EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=S123953-vCurrent&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00282078",
+          "title": "Hudson Fire Station 1 - GARAGE DOOR REPLACEMENT",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "remove and replace two (2) existing apparatus bay garage doors",
+            "furnish and install two (2) commercial insulated garage doors",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.townofhudson.org/bids.aspx?bidID=5",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00286337",
+          "title": "Port of Los Angeles Clean Ports Program \u2013 Zero-Emission Truck Purchase Incentive Project",
+          "quantity": "10",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "to purchase at least ten (10) zero emissions (ZE) battery electric drayage trucks into service in the Port of Los Angeles.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/83809/bo/bo-detail/143552",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00279235",
+          "title": "Zero-Emission Truck Purchasing Incentive Project",
+          "quantity": "10",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "to purchase at least ten (10) zero emissions (ZE) battery electric drayage trucks into service in the Port of Los Angeles.",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000h6NqnIAE",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00315688",
+          "title": "ITB_EQ-2039A - BLOUNT ISLAND MARINE TERMINAL HANJUNG CRANE #8841 REFURBISHMENT",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "refurbish one (1) Hanjung Cranes identified as 8841",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/jaxportfl/projects/314577",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00328110",
+          "title": "AMR, N Liberty S, Multi Cnty",
+          "quantity": "1",
+          "quantity_semantic": "LINE_ITEM_QUANTITY",
+          "quantity_evidence": [
+            "source:openai_quantity_extraction",
+            "confidence:low",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "http://www.emarketplace.state.pa.us/Solicitations.aspx?SID=OSM%2010,43(2910,4508)101.1",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00380092",
+          "title": "Weg motor purchase",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "to purchase one (1) WEG W40 Series 150 HP General Purpose Electric Motor",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/cityoftampa/projects/327535",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00376250",
+          "title": "P2699011 - WINDOW REPLACEMENT",
+          "quantity": "70",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "replace seventy (70) retrofit windows",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://caleprocure.ca.gov/pages/Events-BS3/event-details.aspx?Page=AUC_RESP_INQ_DTL&Action=U&AUC_ID=0000040984&AUC_ROUND=1&BIDDER_ID=BID0000001&BIDDER_LOC=1&BIDDER_SETID=STATE&BIDDER_TYPE=B&BUSINESS_UNIT=3600",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00294331",
+          "title": "Gorge Powerhouse Crane Replacement",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "replacement of two overhead bridge cranes, rated at 150T each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/seattle/projects/310945",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00302278",
+          "title": "27-IND-7000-Wood",
+          "quantity": "1.0",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "Qty Unit Cost UOM Total Discount Amt. Total Cost 1.0 EA - Each",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-27-1025-DOCIF-7500-134334&external=true&parentUrl=close",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00350199",
+          "title": "Traffic Signal Preemption Equipment (ADOT/federal-funded)",
+          "quantity": "19",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "...priority for emergency vehicles at 19 signalized intersections...",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://procurement.opengov.com/portal/sierravistaaz/projects/319222",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00348901",
+          "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Twelve (12)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00321554",
+          "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "ONE (1)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00345848",
+          "title": "Two (2) Animal Transport Vehicles",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00339475",
+          "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00326707",
+          "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer",
+            "source:openai_quantity_extraction",
+            "confidence:high",
+            "affirmative_ordered_quantity_language"
+          ],
+          "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "PE-74600-NONST-2027-000000031",
+          "title": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+          "quantity": "5",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Five (5)",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "PE-61700-NONST-2027-000000082",
+          "title": "Pumper Fire Truck",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "furnish 1 new",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "SRS27002-ATHSUPPLY",
+          "title": "Athletic Equipment Uniforms and Related Services",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Quantity: 2 EA",
+            "source:build002o_post_free"
+          ],
+          "official_url": "https://mmp.delaware.gov/Bids/Details/9397",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        },
+        {
+          "nb_id": "NB00362602",
+          "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+          "quantity": "8",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "purchase 8 new",
+            "source:build002n_correction"
+          ],
+          "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "bid_eligible": false,
+          "note": "Stage C is not bid-ready without commercial + submission evidence"
+        }
+      ],
+      "stage_c_total": 74,
+      "bid_eligible_total": 0,
+      "ready_to_submit_total": 0,
+      "metered_nextbid": 0,
+      "finished_at": "2026-11-22T15:24:20.247677+00:00"
+    },
+    "recover": {
+      "packages_scanned": 6780,
+      "quantities_defined": 15,
+      "stage_c": 10,
+      "queues": {
+        "qualified_commercial_evaluation": 10,
+        "awaiting_supplier_quotations": 0,
+        "awaiting_financial_evaluation": 0,
+        "bids_ready_for_owner_approval": 0,
+        "promising_awaiting_verification": 5463,
+        "missing_document": 607,
+        "restricted_document": 675,
+        "future_recurring_purchase": 0,
+        "estimated_quantity": 0,
+        "confirmed_disqualification": 25,
+        "archived_or_closed": 0,
+        "verified_procurement_fits": 10
+      },
+      "prior_queue_index": {
+        "verified_procurement_fits": 73,
+        "promising_awaiting_verification": 200,
+        "missing_document": 50,
+        "restricted_document": 405,
+        "estimated_quantity": 6,
+        "confirmed_disqualification": 0,
+        "confirmed_indefinite": 0,
+        "archived_or_closed": 0,
+        "budget_denied_unresolved": 0
+      },
+      "metered_nextbid": 0,
+      "openai_spent": 0,
+      "finished_at": "2026-11-22T12:57:54.929905+00:00"
+    },
+    "truth": {
+      "stage_c_is_not_bid_eligible": true,
+      "bid_eligible_requires": [
+        "active_solicitation",
+        "tangible_products",
+        "defined_quantities",
+        "reseller_eligibility",
+        "no_blocking_install_insurance_bond_license",
+        "submission_instructions",
+        "sufficient_documents"
+      ]
+    }
+  },
+  "performance": {
+    "build": "002Q",
+    "elapsed_sec": 2.9,
+    "openai_spent_usd": 0.0,
+    "metered_nextbid_calls": 0,
+    "acquire_full_unique": 23091,
+    "acquire_incremental_unique": 4385,
+    "stage_c_total": 74,
+    "bid_eligible_total": 0,
+    "ready_to_submit_total": 0,
+    "constraints": {
+      "nextbid_locked": true,
+      "controller": {
+        "locked": true,
+        "killswitch": {
+          "engaged": true,
+          "nextbid_enabled": false,
+          "env_emergency_stop": true,
+          "file_flag": {
+            "engaged": true,
+            "reason": "BUILD_002N_START_LOCK",
+            "engaged_at": "2026-11-22T04:10:37.129680+00:00",
+            "metered_calls_forbidden": true,
+            "scheduler_forbidden": true,
+            "retries_forbidden": true,
+            "resume_requires_owner_authorization": true
+          },
+          "metered_calls_allowed": false,
+          "resume_requires_owner_authorization": true
+        },
+        "owner_authorization": null,
+        "limits": {
+          "daily": 100,
+          "job": 50,
+          "monthly_reserve": 1000,
+          "test": 100,
+          "owner_hard_daily_ceiling": 100,
+          "owner_hard_test_ceiling": 100,
+          "scope": null,
+          "allowed_endpoints": null
+        },
+        "budget_state": {
+          "day": "2026-11-22",
+          "day_used": 0,
+          "test_used": 284,
+          "month_used_local": 300,
+          "account_remaining": 2646,
+          "account_used": 3354,
+          "account_allowance": 6000,
+          "effective_available": 0
+        },
+        "resume_requires_owner_authorization": true
+      },
+      "openai_daily": 1.0,
+      "openai_per_job": 0.5,
+      "spend": {
+        "paid_research_enabled": true,
+        "daily_budget_usd": 1.0,
+        "monthly_budget_usd": 30.0,
+        "per_job_budget_usd": 0.5,
+        "per_user_daily_budget_usd": 1.0,
+        "max_research_depth": 2,
+        "default_model": "gpt-4o-mini",
+        "capable_model": "gpt-5-mini",
+        "search_context_size": "low",
+        "today_spent_usd": 0.0,
+        "month_spent_usd": 1.0668,
+        "today_remaining_usd": 1.0,
+        "month_remaining_usd": 28.9332,
+        "cost_basis": "application_estimate_not_invoice",
+        "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+      },
+      "build_id": "20261122-m3-2-build-002q"
+    }
+  },
+  "hygiene": {
+    "temporary_files_removed": [
+      "scripts/_tmp_*",
+      "docs/_tmp_*",
+      "data/acceptance/_tmp_*",
+      "scripts/_tmp_build002q_*.py"
+    ],
+    "historical_build_reports_archived_to": "docs/acceptance_archive/",
+    "obsolete_build_runners_archived_to": "scripts/archive/build_runners/",
+    "canonical_runner": "python -m m3.research.jobs",
+    "components_consolidated": [
+      "m3/research/jobs.py",
+      "m3/research/source_verification.py",
+      "m3/research/owner_queues.py",
+      "m3/research/catalog_probe.py"
+    ],
+    "production_verified_after_cleanup": {
+      "app_import_ok": true,
+      "queues_api": true,
+      "nextbid_locked": true,
+      "openai_daily": 1.0
+    }
+  },
+  "railway_deployed": false,
+  "build_003_started": false,
+  "finished_at": "2026-11-22T15:24:24.096498+00:00",
+  "provenance_audit": {
+    "completed_at": "2026-11-22T15:27:26.304187+00:00",
+    "notices_examined": 198997,
+    "unique_records": 23091,
+    "sum_source_rows_examined": 198997,
+    "sum_adapter_accepted": 169798,
+    "duplicates_excluded": 146707,
+    "population_file_rows": 23091,
+    "sources_audited": 140,
+    "bid_eligible": 0,
+    "fixture_hits": 22,
+    "synthetic_flags": [],
+    "discrepancy_count": 0,
+    "coverage_artifact": "docs/acceptance_archive/BUILD_002Q_SOURCE_COVERAGE.json",
+    "fixture_note": "22 title heuristic hits are product-word fixture/placeholder in gov titles, not M3 test fixtures; synthetic_flags empty",
+    "funnel_identity": {
+      "rows_examined": 198997,
+      "adapter_accepted": 169798,
+      "duplicates_excluded": 146707,
+      "unique": 23091,
+      "delta_accepted_vs_unique_plus_dupes": 0
+    },
+    "duplicate_connector_pairs": [
+      "winnipeg_bid_opportunities + discovered_data_winnipeg_ca_rijt-92n4",
+      "mesa_az_solicitations + discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "montgomery_md_solicitations + discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+      "la_ramp_open_bids + discovered_data_lacity_org_hf3r-utnq"
+    ]
+  },
+  "qualification_funnel_audit": {
+    "completed_at": "2026-11-22T17:14:59.512714+00:00",
+    "population_n": 23091,
+    "genuinely_active_open_amended": 1203,
+    "verified_individual": 750,
+    "product_opportunities": 252,
+    "stage_c": 0,
+    "bid_eligible": 0,
+    "primary_product_blockers": {
+      "missing_quantity_extraction": 252
+    },
+    "root_cause_zero_bid_eligible": "STAGE_D\u2013G unimplemented; cmd_qualify hardcodes bid_eligible=False",
+    "artifact": "docs/acceptance_archive/BUILD_002Q_QUALIFICATION_RESULTS.json",
+    "product_class_rows": 1019,
+    "product_class_first_blockers": {
+      "not_individual_listing_unresolved_supporting": 748,
+      "missing_quantity_extraction": 252,
+      "hard_dq_it_focus_detected": 14,
+      "hard_dq_services_title_confirmed": 5,
+      "stage_c_from_freeze": 0
+    },
+    "stage_c_on_population_freeze": 0,
+    "population_freeze_drops_quantity": true,
+    "prior_002p_still_stage_c": 65,
+    "prior_002p_lost": 8
+  }
+}

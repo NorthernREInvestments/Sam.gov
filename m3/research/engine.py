@@ -20,6 +20,7 @@ from m3.research.adapters import (
     search_html_links,
     search_socrata,
 )
+from m3.research.nextbid_acquire import search_nextbid_adapter
 from m3.research.classify import PRODUCT_CLASSES, classify_batch
 from m3.research.filters import apply_contract_filters
 from m3.research.schema_map import validate_socrata_source
@@ -79,24 +80,35 @@ def _register_validated_socrata(
             )
         return {"registered": True, "operational": False, "validation": validation}
 
+    from m3.research.source_allowlist import (
+        can_execute_live_acquisition,
+        discovery_auto_activation_allowed,
+    )
+
     inferred = validation.get("inferred") or {}
+    # Build 002Q: discovered ≠ approved. Never auto-enable unless owner allowlist + policy.
+    auto_ok = discovery_auto_activation_allowed() and can_execute_live_acquisition(source_key)
     cfg = {
         "dataset_url": dataset_url,
         "official_listing_url": official_listing_url or dataset_url,
         "discovered": True,
         "schema_validated": True,
-        "operational": True,
+        "operational": bool(auto_ok),
         "geo_state": geo_state,
         "is_forecast": bool((validation.get("decision") or {}).get("is_forecast")),
+        "awaiting_owner_approval": not auto_ok,
         **{k: v for k, v in inferred.items() if isinstance(v, str)},
         **meta,
     }
+    if not auto_ok:
+        cfg["quarantine_reason"] = "discovered_awaiting_owner_allowlist_approval"
     if existing:
         existing.config = {**(existing.config or {}), **cfg}
-        existing.is_enabled = True
+        existing.is_enabled = bool(auto_ok)
         existing.name = name[:255]
         existing.information_available = (
             f"Validated solicitation dataset ({(validation.get('decision') or {}).get('kind')})"
+            + ("" if auto_ok else " — disabled pending owner allowlist approval")
         )
         db.add(existing)
     else:
@@ -108,16 +120,22 @@ def _register_validated_socrata(
                 source_kind="socrata",
                 information_available=(
                     f"Validated solicitation dataset ({(validation.get('decision') or {}).get('kind')})"
+                    + ("" if auto_ok else " — disabled pending owner allowlist approval")
                 ),
                 adapter="socrata_contracts",
                 config=cfg,
                 access_cost="free",
                 documented_ok=True,
                 experimentally_verified=False,
-                is_enabled=True,
+                is_enabled=bool(auto_ok),
             )
         )
-    return {"registered": True, "operational": True, "validation": validation}
+    return {
+        "registered": True,
+        "operational": bool(auto_ok),
+        "awaiting_owner_approval": not auto_ok,
+        "validation": validation,
+    }
 
 
 def repair_discovered_sources(db: Session, *, limit: int = 80) -> dict[str, Any]:
@@ -193,7 +211,10 @@ def ensure_source_registry(db: Session) -> int:
                 and json.dumps(existing.config or {}, sort_keys=True, default=str)
                 == json.dumps(new_cfg, sort_keys=True, default=str)
             )
-            if same and existing.is_enabled:
+            from m3.research.source_allowlist import can_execute_live_acquisition
+
+            want_enabled = can_execute_live_acquisition(seed["source_key"])
+            if same and bool(existing.is_enabled) == want_enabled:
                 continue
             existing.name = seed["name"]
             existing.base_url = seed["base_url"]
@@ -213,11 +234,14 @@ def ensure_source_registry(db: Session) -> int:
                 if k in (existing.config or {}) and k not in merged:
                     merged[k] = existing.config[k]
             existing.config = merged
-            existing.access_cost = "free"
-            existing.is_enabled = True
+            existing.access_cost = seed.get("access_cost") or existing.access_cost or "free"
+            # Build 002Q: seeds may exist in registry but must not auto-enable unless allowlisted
+            existing.is_enabled = want_enabled
             db.add(existing)
             updated += 1
             continue
+        from m3.research.source_allowlist import can_execute_live_acquisition
+
         db.add(
             SourceRegistry(
                 source_key=seed["source_key"],
@@ -228,9 +252,10 @@ def ensure_source_registry(db: Session) -> int:
                 search_capabilities=seed.get("search_capabilities") or {},
                 adapter=seed.get("adapter") or "http_listing",
                 config=seed.get("config") or {},
-                access_cost="free",
+                access_cost=seed.get("access_cost") or "free",
                 documented_ok=True,
                 experimentally_verified=False,
+                is_enabled=can_execute_live_acquisition(seed["source_key"]),
             )
         )
         created += 1
@@ -462,6 +487,19 @@ def run_contract_discovery(
         )
         .all()
     )
+    # Active opportunity acquisition only — historical/forecast/tabulation are pricing research
+    from m3.research.source_allowlist import (
+        filter_sources_for_acquisition,
+        openai_source_discovery_allowed,
+        socrata_catalog_discover_allowed,
+    )
+    from m3.research.source_quality import is_active_opportunity_source
+
+    sources = [s for s in sources if is_active_opportunity_source(s)]
+    # Build 002Q: owner allowlist only — discovered/unapproved never execute
+    sources = filter_sources_for_acquisition(sources)
+    if not socrata_catalog_discover_allowed():
+        sources = [s for s in sources if (s.adapter or "") != "socrata_catalog_discover"]
     sources = sorted(
         sources,
         key=lambda s: (
@@ -566,6 +604,21 @@ def run_contract_discovery(
                 )
             elif src.adapter == "georgia_gpr":
                 result = search_georgia_gpr(payload, limit=None)
+            elif src.adapter == "nextbid":
+                from m3.research.nextbid_killswitch import emergency_stop_status
+
+                kill = emergency_stop_status()
+                if not kill.get("metered_calls_allowed"):
+                    limitations.append(f"{src.source_key}: nextbid_emergency_stop")
+                    sources_unavailable.append(src.source_key)
+                    _mark_source(db, src.source_key, ok=False, error="emergency_stop")
+                    continue
+                if not settings.nextbid_enabled or not (settings.nextbid_api_key or "").strip():
+                    limitations.append(f"{src.source_key}: NEXTBID_API_KEY not configured")
+                    sources_unavailable.append(src.source_key)
+                    _mark_source(db, src.source_key, ok=False, error="missing_nextbid_api_key")
+                    continue
+                result = search_nextbid_adapter(payload, limit=None)
             else:
                 result = search_html_links(
                     payload,
@@ -657,8 +710,12 @@ def run_contract_discovery(
         db.add(run)
         db.commit()
 
-    # OpenAI source discovery — available in production workflow; budget-gated
-    if enable_openai_sources and not run.cancel_requested:
+    # OpenAI source discovery — disabled under controlled allowlist unless owner enables
+    if (
+        enable_openai_sources
+        and openai_source_discovery_allowed()
+        and not run.cancel_requested
+    ):
         try:
             from m3.research.openai_client import web_research
 
@@ -711,7 +768,9 @@ def run_contract_discovery(
                         dkey = "ai_" + hashlib.sha256(url.encode()).hexdigest()[:20]
                         if db.query(SourceRegistry).filter_by(source_key=dkey).one_or_none():
                             continue
-                        # HTML portals: enable but mark pending experimental verification
+                        # Discovered ≠ approved: register disabled pending owner allowlist
+                        from m3.research.source_allowlist import can_execute_live_acquisition
+
                         db.add(
                             SourceRegistry(
                                 source_key=dkey,
@@ -725,6 +784,8 @@ def run_contract_discovery(
                                     "geo_state": (s.get("state") or "")[:2].upper() or None,
                                     "discovered": True,
                                     "discovery_method": "openai_web_search",
+                                    "awaiting_owner_approval": True,
+                                    "operational": False,
                                     "award_archive_url": s.get("award_archive_url"),
                                     "citations": ai.get("citations") or [],
                                     "link_hints": [
@@ -739,7 +800,7 @@ def run_contract_discovery(
                                 access_cost="free",
                                 documented_ok=True,
                                 experimentally_verified=False,
-                                is_enabled=True,
+                                is_enabled=can_execute_live_acquisition(dkey),
                             )
                         )
                         new_operational_sources += 1

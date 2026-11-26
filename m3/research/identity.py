@@ -80,16 +80,29 @@ LISTING_MARKERS = (
 DETAIL_MARKERS = (
     "/solicitation/",
     "/opportunity/",
+    "/opportunities/",
     "/bid/",
     "/rfp/",
     "/rfq/",
     "/ifb/",
     "/project/",
+    "/projects/",
     "noticeid=",
     "solicitationid=",
     "opportunityid=",
     "opportunity-details",
     "/bids/details/",
+    "biddetail",
+    "bidview",
+    "bidid=",
+    "docid=",
+    "syndicatedbid",
+    "folder_name=",
+    "bo-detail",
+    "eventdetails",
+    "esourcenumber=",
+    "/event/",
+    "event-details",
 )
 DOC_EXTS = (".pdf", ".docx", ".xlsx", ".xls", ".doc", ".rtf", ".zip")
 FORECAST_MARKERS = re.compile(
@@ -138,6 +151,22 @@ def _looks_like_detail(url: str) -> bool:
 def _looks_like_listing(url: str) -> bool:
     low = (url or "").lower()
     path = _path(url)
+    # Query-param detail pages are not board listings
+    if any(
+        m in low
+        for m in (
+            "bidid=",
+            "docid=",
+            "noticeid=",
+            "solicitationid=",
+            "opportunityid=",
+            "syndicatedbid",
+            "biddetail",
+            "bidview",
+            "folder_name=",
+        )
+    ):
+        return False
     if any(m in low for m in LISTING_MARKERS):
         return True
     parts = [p for p in path.split("/") if p]
@@ -152,12 +181,29 @@ def _has_solicitation_identity(item: dict[str, Any]) -> bool:
         return True
     title = str(item.get("title") or "").strip()
     buyer = str(item.get("buyer_name") or item.get("buyer") or "").strip()
+    if title and JUNK_TITLE_RE.match(title):
+        return False
+    # Strong procurement phrasing is identity evidence even without a buyer field
+    if title and len(title) >= 16 and re.search(
+        r"(?i)\b("
+        r"supply\s+and\s+delivery|purchase\s+of|procurement\s+of|"
+        r"invitation\s+to\s+bid|request\s+for\s+(?:proposal|quote|bid|tender)|"
+        r"sealed\s+bid|notice\s+to\s+bidders"
+        r")\b",
+        title,
+    ):
+        return True
     # Title alone is weak; require title + buyer + non-junk
-    if title and len(title) >= 12 and buyer and len(buyer) >= 3 and not JUNK_TITLE_RE.match(title):
+    if title and len(title) >= 12 and buyer and len(buyer) >= 3:
         # Prefer titles that look like procurements
         if re.search(r"(?i)\b(rfp|rfq|ifb|itb|rfb|bid|solicitation|invitation|quote)\b", title):
             return True
         if re.search(r"(?i)\b(supply|supplies|equipment|materials|furniture|commodity)\b", title):
+            return True
+    # Folder / bid-board detail URLs often encode the solicitation id
+    url = str(item.get("official_url") or "")
+    if re.search(r"(?i)(folder_name=|bidid=|solicitation[=/]|opportunity[=/]|bids?/details?/)", url):
+        if title and len(title) >= 12:
             return True
     return False
 
@@ -246,10 +292,19 @@ def verify_record_identity(item: dict[str, Any], *, source_config: dict[str, Any
     # Open-data resource URLs without detail mapping
     if "resource/" in url or host.endswith(".socrata.com") or host in OPEN_DATA_HOSTS:
         evidence.append("open_data_resource_url")
-        # If row carries a separate detail URL field already used as official_url elsewhere,
-        # adapters should have set official_url to that detail. Landing here means thin row.
-        if _has_solicitation_identity(item) and status in {"open", "amended"}:
-            evidence.append("open_data_row_with_id_needs_detail_resolution")
+        # Build 002Q: open/amended rows with solicitation identity are individual
+        # solicitations evidenced by the official open-data record itself.
+        # Detail-URL enrichment remains desirable but absence is missing docs, not non-identity.
+        if _has_solicitation_identity(item) and status in {"open", "amended", "upcoming"}:
+            evidence.append("open_data_row_with_solicitation_identity_and_active_status")
+            return _result(
+                "INDIVIDUAL_SOLICITATION",
+                evidence,
+                True,
+                identity_strength="open_data_row",
+            )
+        if _has_solicitation_identity(item) and status == "unknown":
+            evidence.append("open_data_row_with_id_status_unknown")
             return _result("UNRESOLVED_RECORD", evidence, False)
         if status == "forecast" or cfg.get("is_forecast"):
             return _result("PROCUREMENT_FORECAST", evidence, False)
@@ -271,6 +326,25 @@ def verify_record_identity(item: dict[str, Any], *, source_config: dict[str, Any
         return _result("UNRESOLVED_RECORD", evidence, False)
 
     if _has_solicitation_identity(item):
+        # Active solicitations with identity fields + an official URL are individual
+        # solicitations evidenced by the source row (Build 002Q). Missing richer detail
+        # pages is a document gap, not proof the row is non-individual.
+        if status in {"open", "amended", "upcoming"} and url.startswith("http"):
+            evidence.append("identity_fields_present_active_status_official_url")
+            return _result(
+                "INDIVIDUAL_SOLICITATION",
+                evidence,
+                True,
+                identity_strength="active_identity_fields",
+            )
+        if status == "unknown" and url.startswith("http") and _looks_like_detail(url):
+            evidence.append("identity_fields_detail_url_status_unknown")
+            return _result(
+                "INDIVIDUAL_SOLICITATION",
+                evidence,
+                True,
+                identity_strength="detail_url",
+            )
         evidence.append("identity_fields_present_url_ambiguous")
         return _result("UNRESOLVED_RECORD", evidence, False)
 

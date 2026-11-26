@@ -1,0 +1,1157 @@
+{
+  "build": "002Q",
+  "job": "controlled-source-reset",
+  "finished_at": "2026-11-22T23:35:55.964670+00:00",
+  "elapsed_sec": 53.3,
+  "constraints": {
+    "nextbid_locked": true,
+    "controller": {
+      "locked": true,
+      "killswitch": {
+        "engaged": true,
+        "nextbid_enabled": false,
+        "env_emergency_stop": true,
+        "file_flag": {
+          "engaged": true,
+          "reason": "BUILD_002N_START_LOCK",
+          "engaged_at": "2026-11-22T04:10:37.129680+00:00",
+          "metered_calls_forbidden": true,
+          "scheduler_forbidden": true,
+          "retries_forbidden": true,
+          "resume_requires_owner_authorization": true
+        },
+        "metered_calls_allowed": false,
+        "resume_requires_owner_authorization": true
+      },
+      "owner_authorization": null,
+      "limits": {
+        "daily": 100,
+        "job": 50,
+        "monthly_reserve": 1000,
+        "test": 100,
+        "owner_hard_daily_ceiling": 100,
+        "owner_hard_test_ceiling": 100,
+        "scope": null,
+        "allowed_endpoints": null
+      },
+      "budget_state": {
+        "day": "2026-11-22",
+        "day_used": 0,
+        "test_used": 284,
+        "month_used_local": 300,
+        "account_remaining": 2646,
+        "account_used": 3354,
+        "account_allowance": 6000,
+        "effective_available": 0
+      },
+      "resume_requires_owner_authorization": true
+    },
+    "openai_daily": 1.0,
+    "openai_per_job": 0.5,
+    "spend": {
+      "paid_research_enabled": true,
+      "daily_budget_usd": 1.0,
+      "monthly_budget_usd": 30.0,
+      "per_job_budget_usd": 0.5,
+      "per_user_daily_budget_usd": 1.0,
+      "max_research_depth": 2,
+      "default_model": "gpt-4o-mini",
+      "capable_model": "gpt-5-mini",
+      "search_context_size": "low",
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668,
+      "today_remaining_usd": 1.0,
+      "month_remaining_usd": 28.9332,
+      "cost_basis": "application_estimate_not_invoice",
+      "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+    },
+    "build_id": "20261122-m3-2-build-002q"
+  },
+  "api_usage_before": {
+    "nextbid": {
+      "locked": true,
+      "day_used": 0,
+      "month_used_local": 300,
+      "account_remaining": 2646,
+      "metered_calls_allowed": false
+    },
+    "openai": {
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668
+    }
+  },
+  "api_usage_after": {
+    "nextbid": {
+      "locked": true,
+      "day_used": 0,
+      "month_used_local": 300,
+      "account_remaining": 2646,
+      "metered_calls_this_job": 0
+    },
+    "openai": {
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668,
+      "spent_this_job": 0
+    }
+  },
+  "metered_nextbid_calls": 0,
+  "openai_spent_usd": 0,
+  "source_access_control": {
+    "allowlist_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\config\\owner_source_allowlist.json",
+    "approved_keys": [
+      "nextbid_state_local"
+    ],
+    "live_acquisition_keys": [],
+    "disabled_count": 127,
+    "disabled_samples": [
+      {
+        "source_key": "nextbid_state_local",
+        "reason": "approved_offline_inventory_only"
+      }
+    ],
+    "enabled_after": [],
+    "enabled_count": 0,
+    "discovery_auto_activation": false,
+    "openai_source_discovery": false,
+    "socrata_catalog_discover": false,
+    "allowlist": {
+      "discovery_auto_activation": false,
+      "openai_source_discovery": false,
+      "socrata_catalog_discover": false,
+      "approved_sources": {
+        "nextbid_state_local": {
+          "approved": true,
+          "live_acquisition": false,
+          "role": "paid_baseline_inventory",
+          "purchasing_authority": "NextBid aggregated state/local (paid)",
+          "acquisition_url": "https://api.nextbid.us/v1",
+          "acquisition_method": "paid_api_offline_inventory_reuse",
+          "document_access": "stored_packages_and_checkpoint",
+          "pagination": "api_search_when_owner_unlocks",
+          "access_cost": "paid_nextbid",
+          "restrictions": "NEXTBID_ENABLED=false; emergency stop; zero metered calls until owner unlock",
+          "approved_by": "owner_directive_002q_controlled_reset",
+          "approved_at": "2026-11-22"
+        }
+      }
+    },
+    "unapproved_cannot_acquire": {
+      "ok": true,
+      "enabled_count": 0,
+      "violations": [],
+      "live_allowed": []
+    },
+    "acquisition_gate": {
+      "live_sources_enabled": 0,
+      "unapproved_blocked": true,
+      "violations": []
+    },
+    "disabled_count_initial_pass": 127
+  },
+  "data_preservation": {
+    "source_registry_rows": 250,
+    "solicitation_packages": 7142,
+    "package_documents": 5021,
+    "opportunities": 59,
+    "destructive_reset": false
+  },
+  "nextbid_inventory_audit": {
+    "audited_at": "2026-11-22T23:35:52.452961+00:00",
+    "metered_nextbid_calls": 0,
+    "openai_calls": 0,
+    "openai_spent_usd": 0.0,
+    "population": {
+      "unique_solicitations": 2255,
+      "enriched_checkpoint": 604,
+      "listings_checkpoint": 2255,
+      "seen_nb_ids": 2255,
+      "inventory_rows": 2255,
+      "restore_002i_fit_evidence": {
+        "restored_semantic_count": 0,
+        "fit_evidence_rows": 0
+      }
+    },
+    "packages": {
+      "packages_total": 476,
+      "complete_packages": 7,
+      "partial_packages": 195,
+      "package_status_counts": {
+        "FAILED": 37,
+        "VERIFICATION_REQUIRED": 191,
+        "COMPLETE": 7,
+        "PARTIAL": 4,
+        "ACCESS_RESTRICTED": 237
+      },
+      "items_linked_to_package": 479,
+      "items_with_usable_package_text": 70,
+      "downloaded_count_gt0": 17
+    },
+    "screening": {
+      "exclude_incompatible": 169,
+      "retain": 2085,
+      "exclude_inactive": 1
+    },
+    "currently_active_estimate": 2085,
+    "active_status_open_amended": 1377,
+    "tangible_product_opportunities": 714,
+    "complete_solicitation_packages": 7,
+    "partial_solicitation_packages": 195,
+    "missing_quantities_among_products": 702,
+    "missing_submission_among_products": 714,
+    "stage_counts": {
+      "VERIFIED_PRODUCT_OPPORTUNITY": 691,
+      "VERIFIED_ACTIVE_SOLICITATION": 1299,
+      "VERIFIED_M3_PROCUREMENT_FIT": 12,
+      "none": 83
+    },
+    "stage_c": 12,
+    "bid_eligible": 0,
+    "bid_eligible_samples": [],
+    "provider_gap_counts": {
+      "missing_or_restricted_solicitation_documents": 467,
+      "quantity_not_in_accessible_provider_payload": 405,
+      "submission_instructions_not_in_accessible_payload": 414,
+      "active_status_unverified_thin_payload": 180
+    },
+    "m3_gap_counts": {
+      "quantity_not_extracted_from_available_text": 293,
+      "submission_instructions_not_extracted": 300,
+      "active_status_not_confirmed_from_text": 81
+    },
+    "product_blockers_sample": [
+      {
+        "nb_id": "NB00339409",
+        "title": "Fitness Equipment & Repairs",
+        "solicitation_number": "2026-IFB-223",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 206,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00375272",
+        "title": "Traffic Engineering Division FY27 Uniforms - Field Workers & Management",
+        "solicitation_number": "TES1118260800",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00372835",
+        "title": "*222816 Purchase of - Police Equipment and Supplies",
+        "solicitation_number": "IFS  - AVI B21000010",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00348901",
+        "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+        "solicitation_number": "C26RI103317777R",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": "12",
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00370580",
+        "title": "Sole Source Notice: Purchase of Sensus Meters and Registers from Core & Main LP",
+        "solicitation_number": "SS-2026-096",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00370581",
+        "title": "Sole Source Notice: Purchase of Polymer Nalco Nalclear 7764 From Nalco Company",
+        "solicitation_number": "SS-2026-095",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00370582",
+        "title": "Sole Source Notice: Purchase of AMR Products from the Avanti Company",
+        "solicitation_number": "SS-2026-094",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00321554",
+        "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+        "solicitation_number": null,
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": "1",
+        "blockers": [
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "submission_instructions_not_in_accessible_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00353007",
+        "title": "Purchase and Delivery of Bulk Lubricants RFQ P26221F",
+        "solicitation_number": "RFQ P26221F",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 283,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00372858",
+        "title": "Plotter Paper and Ink Supplies for Wide Format Printers for City of Norwalk RFQ 27-5101-001",
+        "solicitation_number": "RFQ 27-5101-001",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 334,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00324628",
+        "title": "Microgrid Feasibility Study-Lester Water Treatment Plant and Chase Booster Station RFP 27-013MB",
+        "solicitation_number": "RFP 27-013MB",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00338304",
+        "title": "Purchase of  FPVC C900  DR18 Water Pipe",
+        "solicitation_number": "004-2027",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00308743",
+        "title": "Automotive Glass and Repair",
+        "solicitation_number": "27-B-05LB",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00317405",
+        "title": "Invitation to Bid for Purchase of County Owned Surplus Property",
+        "solicitation_number": "26-070 - ITB",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00345848",
+        "title": "Two (2) Animal Transport Vehicles",
+        "solicitation_number": "ITB 27-20001-SR",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": "2",
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00372709",
+        "title": "Intent to Single Source for Parts and Repair Services for Heil, Stahl, Stellar, Auto Crane, Galbreath and RAVO Heavy Equipment",
+        "solicitation_number": "27-X-00226",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00350518",
+        "title": "Purchase Agreement for Creative Production Equipment and Supplies FE-26-04-RFB",
+        "solicitation_number": "FE-26-04-RFB",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 198,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00367583",
+        "title": "Sole Source-Firearms accessory",
+        "solicitation_number": "20270056",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00372688",
+        "title": "NOTICE AND REQUEST FOR EXEMPTION - TITLE GUARANTY ESCROW SERVICES",
+        "solicitation_number": "27-0094",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00360977",
+        "title": "Outright Purchase of Dewalt Fans and Accessories",
+        "solicitation_number": "RFQ-15IFD-616",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 290,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00353004",
+        "title": "iPad Accessories RO2809",
+        "solicitation_number": "RO2809",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 499,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00291449",
+        "title": "Elevator Services (Bid Discount)",
+        "solicitation_number": "26-P-00475",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00375161",
+        "title": "Intent to Single Source Parts and Repairs Services for Kenworth Heavy-Duty Vehicles",
+        "solicitation_number": null,
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00375450",
+        "title": "Purchase of Fair Park Grounds Nursery Supplies*222688",
+        "solicitation_number": "IFS-PKR-B11000049",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00375129",
+        "title": "Sole Source Notice: Purchase of Neptune Registers from Ferguson US Holdings, Inc.",
+        "solicitation_number": "SS-2026-098",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00380775",
+        "title": "Purchase of SURVEILLANCE AND COUNTERSURVEILLANCE EQUIPMENT AND SUPPLIES *222447",
+        "solicitation_number": "IFS AVI B700016",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00380776",
+        "title": "Purchase of WATER SUPPLY, GROUNDWATER, SEWAGE TREATMENT, AND RELATED EQUIPMENT *222600",
+        "solicitation_number": "IFS DWU B700015",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00380777",
+        "title": "Purchase of BEARINGS *222544",
+        "solicitation_number": "IFS DWU B700014",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00380778",
+        "title": "Purchase of PAINTS, PRIMERS, SEALERS, ETC. (FOR INSULATION) *222511",
+        "solicitation_number": "IFS DFD B700013",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      },
+      {
+        "nb_id": "NB00341371",
+        "title": "Purchase of Signal Monitoring Solutions",
+        "solicitation_number": "IFB-060-3160803-SC",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00343639",
+        "title": "Purchase and Delivery of Custom Food Trays",
+        "solicitation_number": "060-3135104-CC",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00350443",
+        "title": "NOTICE OF INTENT TO SINGLE SOURCE IXOM WATERCARE INC",
+        "solicitation_number": "PUR 22560",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00367657",
+        "title": "Gasoline and Diesel Fuel",
+        "solicitation_number": "2027-IFB-034",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 179,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00380117",
+        "title": "Sole Source Notice: Purchase of Laboratory Supplies from Idexx Distribution, Inc.",
+        "solicitation_number": "SS-2026-101",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00320237",
+        "title": "Chemical Controller Purchase",
+        "solicitation_number": "2025-RFP-151",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00380093",
+        "title": "NOTICE AND REQUEST FOR EXEMPTION - ZOLL MEDICAL CORP.",
+        "solicitation_number": "27-0112",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00370595",
+        "title": "Purchase of one Rebuilt Caterpillar 836G landfill compactor utilizing a trade-in of one County-owned Caterpillar 826K landfill compactor.",
+        "solicitation_number": "27-002",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 500,
+        "quantity": "1",
+        "blockers": [
+          "submission_instructions:unknown:submission_instructions_not_found"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "submission_instructions_not_extracted"
+      },
+      {
+        "nb_id": "NB00375309",
+        "title": "Bulk Propane Fuel Supply",
+        "solicitation_number": "CS-2026-QQ-02",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 279,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00321439",
+        "title": "Oliver Hill New Courtroom Furniture",
+        "solicitation_number": "270006470",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 370,
+        "quantity": null,
+        "blockers": [
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:description_only_package_incomplete"
+        ],
+        "provider_data_gaps": [],
+        "m3_extraction_or_classification_gaps": [
+          "quantity_not_extracted_from_available_text",
+          "submission_instructions_not_extracted"
+        ],
+        "primary_blocker": "quantity_not_extracted_from_available_text"
+      },
+      {
+        "nb_id": "NB00367649",
+        "title": "Pest Control Services for Transit Vehicles",
+        "solicitation_number": "TRN2133129B1",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "bid_eligible": false,
+        "package_status": null,
+        "document_text_len": 0,
+        "quantity": null,
+        "blockers": [
+          "active_solicitation:fail:status:unknown_not_verified_active",
+          "tangible_products:fail:product_not_stage_c:VERIFIED_PRODUCT_OPPORTUNITY",
+          "defined_quantities:fail:quantity_not_firm_ordered",
+          "reseller_eligibility:unknown:insufficient_text_to_verify_reseller_terms",
+          "no_blocking_install_insurance_bond_license:unknown:insufficient_text_to_verify_bond_insurance_install",
+          "submission_instructions:unknown:submission_instructions_not_found",
+          "sufficient_documents:unknown:documents_insufficient_or_missing"
+        ],
+        "provider_data_gaps": [
+          "missing_or_restricted_solicitation_documents",
+          "quantity_not_in_accessible_provider_payload",
+          "submission_instructions_not_in_accessible_payload",
+          "active_status_unverified_thin_payload"
+        ],
+        "m3_extraction_or_classification_gaps": [],
+        "primary_blocker": "missing_or_restricted_solicitation_documents"
+      }
+    ],
+    "primary_blocker_counts": {
+      "missing_or_restricted_solicitation_documents": 467,
+      "quantity_not_extracted_from_available_text": 240,
+      "submission_instructions_not_extracted": 7
+    }
+  },
+  "safety_tests": {
+    "ran": true,
+    "returncode": 0,
+    "ok": true,
+    "stdout_tail": "..............                                                           [100%]\n14 passed in 2.51s\n",
+    "stderr_tail": ""
+  },
+  "remaining_blockers": {
+    "primary_blocker_counts": {
+      "missing_or_restricted_solicitation_documents": 467,
+      "quantity_not_extracted_from_available_text": 240,
+      "submission_instructions_not_extracted": 7
+    },
+    "provider_gap_counts": {
+      "missing_or_restricted_solicitation_documents": 467,
+      "quantity_not_in_accessible_provider_payload": 405,
+      "submission_instructions_not_in_accessible_payload": 414,
+      "active_status_unverified_thin_payload": 180
+    },
+    "m3_gap_counts": {
+      "quantity_not_extracted_from_available_text": 293,
+      "submission_instructions_not_extracted": 300,
+      "active_status_not_confirmed_from_text": 81
+    },
+    "note": "Baseline is offline NextBid inventory only. Free sources are disabled until owner provides verified acquisition details and sets live_acquisition=true on the allowlist. No procurement expansion in this build."
+  }
+}

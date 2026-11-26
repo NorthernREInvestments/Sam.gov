@@ -1,0 +1,595 @@
+{
+  "build": "002J",
+  "build_id": "20261122-m3-2-build-002j",
+  "started_at": "2026-11-22T02:27:49.148690+00:00",
+  "emergency_stop": {
+    "engaged": true,
+    "nextbid_enabled": false,
+    "env_emergency_stop": true,
+    "file_flag": {
+      "engaged": true,
+      "reason": "BUILD_002J_AUDIT_RECOVERY",
+      "engaged_at": "2026-11-22T02:27:47.759992+00:00",
+      "metered_calls_forbidden": true,
+      "scheduler_forbidden": true,
+      "retries_forbidden": true,
+      "resume_requires_owner_authorization": true
+    },
+    "metered_calls_allowed": false,
+    "resume_requires_owner_authorization": true
+  },
+  "controller": {
+    "locked": true,
+    "killswitch": {
+      "engaged": true,
+      "nextbid_enabled": false,
+      "env_emergency_stop": true,
+      "file_flag": {
+        "engaged": true,
+        "reason": "BUILD_002J_AUDIT_RECOVERY",
+        "engaged_at": "2026-11-22T02:27:47.759992+00:00",
+        "metered_calls_forbidden": true,
+        "scheduler_forbidden": true,
+        "retries_forbidden": true,
+        "resume_requires_owner_authorization": true
+      },
+      "metered_calls_allowed": false,
+      "resume_requires_owner_authorization": true
+    },
+    "owner_authorization": null,
+    "limits": {
+      "daily": 100,
+      "job": 50,
+      "monthly_reserve": 1000,
+      "owner_hard_daily_ceiling": 100
+    },
+    "budget_state": {
+      "day": "2026-11-21",
+      "day_used": 0,
+      "month_used_local": 0,
+      "account_remaining": 2946,
+      "account_used": 3054,
+      "account_allowance": 6000
+    },
+    "resume_requires_owner_authorization": true
+  },
+  "acquisition_locked": true,
+  "metered_nextbid_calls_by_002j": 0,
+  "usage_before_free_probe": {
+    "ok": true,
+    "remaining": 2946,
+    "used": 3054,
+    "allowance": 6000,
+    "raw_ok": true
+  },
+  "usage_after_free_probe": {
+    "ok": true,
+    "remaining": 2946,
+    "used": 3054,
+    "allowance": 6000,
+    "raw_ok": true
+  },
+  "metered_used_delta_during_002j": 0,
+  "forensic_audit": {
+    "source_files": [
+      "docs/BUILD_002I_NEXTBID_ACCEPTANCE.json",
+      "data/nextbid_checkpoints/nextbid_acquire_v1.json"
+    ],
+    "jobs": [
+      {
+        "job_id": "002i_acceptance_run",
+        "script": "scripts/acceptance_build002i_nextbid.py",
+        "started_at": "2026-11-22T01:42:51.390584+00:00",
+        "finished_at": "2026-11-22T01:46:22.610700+00:00",
+        "remaining_before": 5999,
+        "remaining_after": 4301,
+        "reported_used_delta": 1698,
+        "endpoints": {
+          "search": 61,
+          "get_opportunity": 661,
+          "list_documents": 270,
+          "list_files": 237,
+          "read_file": 404
+        },
+        "note": "Primary Build 002I acceptance acquisition. Reported ACCEPTANCE before doc pass."
+      },
+      {
+        "job_id": "002i_doc_pass",
+        "script": "scripts/_tmp_nb_requalify_and_docs.py",
+        "started_at": null,
+        "finished_at": null,
+        "remaining_before": 4301,
+        "remaining_after": 3655,
+        "reported_used_delta": 646,
+        "endpoints": {
+          "list_documents": 160,
+          "list_files": 161,
+          "read_file": 320,
+          "get_opportunity": 6
+        },
+        "note": "SECOND metered job AFTER acceptance printed. This is the primary reason usage rose after 'completion'."
+      }
+    ],
+    "local_metered_sum_from_remaining_deltas": 2344,
+    "first_job_endpoint_sum": 1633,
+    "first_job_endpoints": {
+      "search": 61,
+      "get_opportunity": 661,
+      "list_documents": 270,
+      "list_files": 237,
+      "read_file": 404
+    },
+    "acceptance_summary_used_delta": 2344,
+    "acceptance_remaining_after": 3655,
+    "checkpoint": {
+      "seen_nb_ids": 675,
+      "listings": 675,
+      "enriched": 600,
+      "completed_queries": [
+        "q:HVAC equipment",
+        "q:appliances",
+        "q:automotive supplies",
+        "q:commodities",
+        "q:electrical supplies",
+        "q:furniture",
+        "q:golf cart",
+        "q:grounds maintenance equipment",
+        "q:industrial supplies",
+        "q:janitorial equipment",
+        "q:janitorial supplies",
+        "q:material handling",
+        "q:medical supplies",
+        "q:plumbing supplies",
+        "q:safety equipment PPE",
+        "q:signs",
+        "q:tools equipment",
+        "q:traffic control",
+        "q:trailer",
+        "tradeline:commodities:calprocure,publicpurchase,instantmarkets",
+        "tradeline:commodities:opengov,bonfire,planetbids"
+      ]
+    },
+    "avoidable": {
+      "detail_for_non_product_or_unknown_without_listing_gate": {
+        "estimate_basis": "600 detail candidates enriched; only 6 Stage C; 304 Stage B after",
+        "get_opportunity_calls": 661,
+        "note": "Listing titles often sufficient to exclude construction/services before detail."
+      },
+      "document_endpoints_before_gov_source_exhaustion": {
+        "list_documents": 270,
+        "list_files": 237,
+        "read_file": 404,
+        "note": "Doc pass added ~646 more calls with ZERO additional Stage C fits."
+      },
+      "post_completion_doc_pass": {
+        "calls": 646,
+        "additional_fits": 0,
+        "note": "Should never have run after acceptance reported completion without owner auth."
+      },
+      "retries": {
+        "status": "NOT_SEPARATELY_LEDGERED_IN_002I",
+        "note": "002I client could retry 429/5xx and counted retries against budget, but no per-retry ledger existed."
+      }
+    },
+    "root_causes": [
+      "No hard per-job / per-day ceiling in executable code (prompt-only budgets).",
+      "Automatic enrichment of hundreds of candidates with detail+docs before listing-level exclusion.",
+      "Document pass executed after acceptance completion (~646 additional metered calls, 0 new fits).",
+      "Production scheduler could start on deploy (15s delay) \u2014 fixed in 002J fail-closed lock.",
+      "Retries counted but not ledgered per opportunity in 002I."
+    ]
+  },
+  "provider_reconcile_free": {
+    "metered_calls_made_by_this_function": false,
+    "usage": {
+      "ok": true,
+      "remaining": 2946,
+      "used": 3054,
+      "allowance": 6000,
+      "raw_ok": true
+    },
+    "activity": {
+      "rows_returned": 0,
+      "operations": {},
+      "metered_units_in_sample": {},
+      "sample_limit": 100,
+      "note": "Activity sample is newest-first capped; not a full period ledger unless provider returns all."
+    }
+  },
+  "recovery": {
+    "recovered_fit_count": 3,
+    "stage_counts": {
+      "VERIFIED_PRODUCT_OPPORTUNITY": 307,
+      "VERIFIED_ACTIVE_SOLICITATION": 276,
+      "VERIFIED_M3_PROCUREMENT_FIT": 3,
+      "none": 14
+    },
+    "verified_product_opportunities_stage_b": 307,
+    "quantity_defined_count": 4,
+    "prior_free_source_fits": 3,
+    "inventory_upsert": {
+      "total": 600,
+      "new": 0,
+      "updated": 0,
+      "unchanged": 600,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_inventory\\opportunities.jsonl"
+    },
+    "metered_calls": 0
+  },
+  "strict_m3_fit_evidence": [
+    {
+      "nb_id": "NB00375339",
+      "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+      "solicitation_number": "155840",
+      "agency": "stmaryscountymd",
+      "source": "opengov",
+      "official_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+      "deadline_at": "2026-11-30T20:00:00.000Z",
+      "quantity": "53",
+      "quantity_unit": null,
+      "quantity_semantic": "ESTIMATED_QUANTITY",
+      "quantity_evidence": null,
+      "requirement_class": "product_supply",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+      "evidence": {
+        "nextbid_nb_id": "NB00375339",
+        "source_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_reprocess_no_metered_calls"
+      }
+    },
+    {
+      "nb_id": "NB00339475",
+      "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+      "solicitation_number": "414449FC",
+      "agency": "San Diego International Airport",
+      "source": "planetbids",
+      "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+      "deadline_at": "2026-11-30T21:00:00.000Z",
+      "quantity": "2",
+      "quantity_unit": null,
+      "quantity_semantic": "ORDERED_QUANTITY",
+      "quantity_evidence": [
+        "quantity_field_present"
+      ],
+      "requirement_class": "product_with_incidental_services",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+      "evidence": {
+        "nextbid_nb_id": "NB00339475",
+        "source_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "quantity_field_present"
+        ],
+        "recovery": "offline_reprocess_no_metered_calls"
+      }
+    },
+    {
+      "nb_id": "NB00326707",
+      "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+      "solicitation_number": "2140049",
+      "agency": "Parks Recreation & Historic Preservation, NYS Office of",
+      "source": "instantmarkets",
+      "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+      "deadline_at": "2026-12-04T12:00:00.000Z",
+      "quantity": "1",
+      "quantity_unit": null,
+      "quantity_semantic": "ORDERED_QUANTITY",
+      "quantity_evidence": null,
+      "requirement_class": "product_supply",
+      "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+      "evidence": {
+        "nextbid_nb_id": "NB00326707",
+        "source_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_reprocess_no_metered_calls"
+      }
+    }
+  ],
+  "prior_free_source_evidence": [
+    {
+      "solicitation_number": "PE-74600-NONST-2027-000000031",
+      "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+      "buyer_location": "Georgia",
+      "procurement_platform": "georgia_gpr",
+      "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20",
+      "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+      "bid_deadline": null,
+      "product_description": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+      "ordered_quantity": "5",
+      "unit_of_measure": "EA",
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "Five (5)",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_with_incidental_services"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ],
+      "document_inventory": [
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#pane-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#collapse-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=56228784&sourceSystemType=gpr20",
+          "name": "RFP 2026_11 Five New Custom Class A Pumper Ap.pdf",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57788090&sourceSystemType=gpr20",
+          "name": "Q_A _ RFP Class _A_ Pumpers (2026_11).pdf",
+          "status": "downloaded"
+        }
+      ]
+    },
+    {
+      "solicitation_number": "PE-61700-NONST-2027-000000082",
+      "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+      "buyer_location": "Georgia",
+      "procurement_platform": "georgia_gpr",
+      "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20",
+      "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+      "bid_deadline": null,
+      "product_description": "Pumper Fire Truck",
+      "ordered_quantity": "1",
+      "unit_of_measure": "EA",
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "furnish 1 new",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_supply"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ],
+      "document_inventory": [
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#pane-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#collapse-documents",
+          "name": "eventDetails",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57465020&sourceSystemType=gpr20",
+          "name": "Burke County Pumping Apparatus Bid Package 11.pdf",
+          "status": "downloaded"
+        }
+      ]
+    },
+    {
+      "solicitation_number": "SRS27002-ATHSUPPLY",
+      "buyer_name": "Caesar Rodney School District",
+      "buyer_location": "Delaware",
+      "procurement_platform": "delaware_mmp",
+      "official_url": "https://mmp.delaware.gov/Bids/Details/9397",
+      "active_status_evidence": "data.delaware.gov open bids + mmp.delaware.gov detail",
+      "bid_deadline": "Responses",
+      "product_description": "Athletic Equipment Uniforms and Related Services",
+      "ordered_quantity": "2",
+      "unit_of_measure": "EA",
+      "document_inventory": [
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB2.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB2.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_rfp.pdf",
+          "name": "SRS27002-ATHSUPPLY_rfp.pdf",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB1.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB1.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB3.xlsx",
+          "name": "SRS27002-ATHSUPPLY_appB3.xlsx",
+          "status": "downloaded"
+        },
+        {
+          "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_ad01.pdf",
+          "name": "SRS27002-ATHSUPPLY_ad01.pdf",
+          "status": "downloaded"
+        }
+      ],
+      "package_completeness": "COMPLETE",
+      "quantity_evidence_location": [
+        "affirmative_ordered_quantity_language",
+        "Quantity: 2 EA",
+        "source:pipeline_enrichment"
+      ],
+      "qualification_evidence": {
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "requirement_class": "product_with_incidental_services"
+      },
+      "outstanding_commercial_requirements": [
+        "supplier_quote",
+        "financing_verification",
+        "owner_bid_approval"
+      ]
+    }
+  ],
+  "coverage": {
+    "status": "UNVERIFIED",
+    "benchmark_portal_open_approx": 3899,
+    "nextbid_discovered_unique": 675,
+    "enriched": 600,
+    "sources_targeted": [
+      "opengov",
+      "bonfire",
+      "planetbids",
+      "calprocure",
+      "publicpurchase",
+      "instantmarkets"
+    ],
+    "sources_excluded": [
+      "sam.gov",
+      "dibbs"
+    ],
+    "queries_completed": [
+      "q:HVAC equipment",
+      "q:appliances",
+      "q:automotive supplies",
+      "q:commodities",
+      "q:electrical supplies",
+      "q:furniture",
+      "q:golf cart",
+      "q:grounds maintenance equipment",
+      "q:industrial supplies",
+      "q:janitorial equipment",
+      "q:janitorial supplies",
+      "q:material handling",
+      "q:medical supplies",
+      "q:plumbing supplies",
+      "q:safety equipment PPE",
+      "q:signs",
+      "q:tools equipment",
+      "q:traffic control",
+      "q:trailer",
+      "tradeline:commodities:calprocure,publicpurchase,instantmarkets",
+      "tradeline:commodities:opengov,bonfire,planetbids"
+    ],
+    "query_count": 21,
+    "gaps": [
+      "Public Purchase low/absent in enriched yield \u2014 coverage incomplete.",
+      "Pagination capped (tradeline \u22648 pages, keyword \u22643) \u2014 pages not fully retrieved.",
+      "Commodities tradeline open count (~14k) far exceeds pages fetched \u2014 NOT comprehensive.",
+      "No proof all product categories exhausted without additional metered search.",
+      "917 discovered \u2260 market completeness."
+    ],
+    "note": "Complete coverage cannot be established without additional metered calls. Reported UNVERIFIED. Do not spend calls without owner authorization."
+  },
+  "proposed_acquisition_plan": {
+    "status": "PROPOSED_NOT_EXECUTED",
+    "requires_owner_authorization": true,
+    "modes": {
+      "A_initial_backfill": {
+        "purpose": "One-time relevant market coverage",
+        "max_projected_metered_calls": 100,
+        "hard_ceiling_note": "Owner hard rule: never >100 credits without new explicit authorization raising the ceiling.",
+        "breakdown": {
+          "search_pagination": 40,
+          "listing_filtered_detail": 40,
+          "targeted_docs_only_after_relevance": 20
+        },
+        "expected_candidates": "unknown until search totals reviewed under authorized budget",
+        "execute": false
+      },
+      "B_incremental": {
+        "purpose": "New/changed only vs inventory hashes",
+        "max_projected_metered_calls_per_day": 50,
+        "job_limit": 50,
+        "daily_limit": 100,
+        "monthly_reserve": 1000,
+        "execute": false
+      }
+    }
+  },
+  "do_not_resume_paid_acquisition": true,
+  "do_not_begin_build_003": true,
+  "await_owner_acceptance": true,
+  "duration_seconds": 1.4,
+  "finished_at": "2026-11-22T02:27:49.161648+00:00",
+  "consumption_reconciliation": {
+    "reported_in_002i_acceptance_delta": 2344,
+    "local_job_deltas_sum": 2344,
+    "owner_observed_total": 3054,
+    "provider_used_now": 3054,
+    "provider_remaining_now": 2946,
+    "gap_explanation": [
+      "002I acceptance '2344' = initial run (~1698) + doc pass (~646).",
+      "Owner observed 3054 \u2014 higher than local job sum; remaining gap may be production scheduler post-deploy and/or retries/unlogged probes.",
+      "Full period activity may exceed the free activity sample of 100 rows \u2014 marked where incomplete."
+    ],
+    "unverified_without_full_activity_export": true,
+    "gap_vs_local_2344": 710
+  },
+  "protection_tests": {
+    "file": "tests/test_nextbid_controller_002j.py",
+    "passed": 9,
+    "failed": 0,
+    "metered_calls": 0,
+    "coverage": [
+      "lock_default",
+      "metered_blocked",
+      "scheduler_skip",
+      "job_limit_50",
+      "daily_ceiling_100",
+      "monthly_reserve",
+      "unknown_usage_stop",
+      "inventory_dedup",
+      "acquisition_blocked"
+    ]
+  },
+  "production": {
+    "build_id": "20261122-m3-2-build-002j",
+    "healthz": "https://samgov-production.up.railway.app/healthz",
+    "acquisition_locked": true,
+    "NEXTBID_ENABLED": false,
+    "NEXTBID_EMERGENCY_STOP": true
+  },
+  "activity_sample_free": {
+    "rows": 0,
+    "operations": {},
+    "metered_units": {},
+    "unit_sum": 0
+  },
+  "final_lock_verify": {
+    "acquisition_locked": true,
+    "killswitch": {
+      "engaged": true,
+      "nextbid_enabled": false,
+      "env_emergency_stop": true,
+      "file_flag": {
+        "engaged": true,
+        "reason": "BUILD_002J_COMPLETE_LOCKED",
+        "engaged_at": "2026-11-22T02:29:13.225438+00:00",
+        "metered_calls_forbidden": true,
+        "scheduler_forbidden": true,
+        "retries_forbidden": true,
+        "resume_requires_owner_authorization": true
+      },
+      "metered_calls_allowed": false,
+      "resume_requires_owner_authorization": true
+    },
+    "controller_locked": true,
+    "provider_used": 3054,
+    "provider_remaining": 2946,
+    "metered_calls_by_002j": 0,
+    "activity_api": "unavailable_no_such_route"
+  }
+}

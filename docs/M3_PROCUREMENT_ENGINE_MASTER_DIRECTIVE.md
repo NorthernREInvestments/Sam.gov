@@ -41,6 +41,16 @@ There is no arbitrary maximum number of opportunities to discover. Never manufac
 
 Stage C (verified product + firm quantity) alone is **not** proof an opportunity is fully bidable.
 
+## Permanent solicitation processing SOP (executable)
+
+Canonical enforcement module: `m3/research/solicitation_sop.py`.
+
+- Ordered durable stages: SOURCE_REGISTERED → … → OWNER_QUEUE_UPDATED.
+- No paid NextBid call without `plan_acquisition_decision` + `set_acquisition_decision` (wired into `nextbid_controller._reserve`).
+- OpenAI path remains `local_evidence` → `ai_document_analysis` → `ai_output_verify` → commercial gates; AI confidence alone never promotes.
+- Preview-only packages terminate as incomplete; never treated as full evaluation.
+- Job: `python -m m3.research.jobs solicitation-sop` (zero spend validation / fresh inventory).
+
 ## Permanent ordered solicitation analysis (all sources)
 
 Canonical owner operating rule. Applies to BidNet, NextBid, free portals, and every future source. Do not invent parallel pipelines.

@@ -1,0 +1,582 @@
+{
+  "build": "002Q",
+  "job": "nextbid-data-loss-investigation",
+  "finished_at": "2026-11-23T00:29:04.635910+00:00",
+  "elapsed_sec": 74.5,
+  "metered_nextbid_delta": 0,
+  "openai_spent_usd": 0,
+  "locked": true,
+  "api_usage": {
+    "before_used": 3354,
+    "after_used": 3354,
+    "remaining": 2646,
+    "allowance": 6000
+  },
+  "owner_dashboard": {
+    "search": 459,
+    "get_opportunity": 958,
+    "read_file": 958,
+    "list_documents": 498,
+    "list_files": 482,
+    "http_success_rate": 1.0,
+    "used": 3354,
+    "remaining": 2646,
+    "sum_named_ops": 3355,
+    "note": "Owner dashboard counts; local ledger/cache do not fully reproduce call-level history"
+  },
+  "local_ledger": {
+    "exists": true,
+    "lines": 650,
+    "metered_flagged_rows": 0,
+    "free_rows": 650,
+    "ops": {
+      "usage": 29,
+      "free": 21,
+      "reserve": 300,
+      "commit": 300
+    },
+    "paths": {
+      "search": 296,
+      "/usage": 12,
+      "/account/activity": 6,
+      "get_opportunity": 4,
+      "/account": 1,
+      "/activity": 1,
+      "/tradelines": 1
+    },
+    "note": "Local ledger under-counts pre-controller / remote (Railway) spend"
+  },
+  "http_cache": {
+    "cache_files": {
+      "total": 300,
+      "by_kind": {
+        "http": 300
+      },
+      "root": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_cache"
+    },
+    "cached_by_endpoint_class": {
+      "search": 296,
+      "get_opportunity": 4
+    },
+    "unique_nb_ids_in_search_cache": 6359,
+    "cached_opportunity_detail_ids": [
+      "NB00273914",
+      "NB00273548",
+      "NB00276552",
+      "NB00282203"
+    ],
+    "cached_read_file_responses": 0,
+    "cached_list_documents": 0,
+    "cached_list_files": 0
+  },
+  "activity_api": {
+    "attempted": true,
+    "ok": false,
+    "rows": 0,
+    "note": "free /account/activity returned ok=false / no usable rows; cannot attribute dashboard calls to IDs"
+  },
+  "checkpoint": {
+    "seen_nb_ids": 2255,
+    "listings": 2255,
+    "enriched": 604,
+    "detail_fetched_markers": 601,
+    "enriched_with_document_text_field": 0,
+    "listings_with_summary_or_description": 1863
+  },
+  "inventory_unique": 2255,
+  "population_unique": 2255,
+  "full_text_store_before": {
+    "files": 623,
+    "usable_non_junk": 577,
+    "in_inventory": 622,
+    "sources": {
+      "build002p": 622,
+      "build002o_post_free": 1
+    },
+    "chars_min": 13,
+    "chars_median": 500,
+    "chars_max": 100436
+  },
+  "full_text_store_after": {
+    "files": 1826,
+    "usable_non_junk": 1777,
+    "in_inventory": 1825,
+    "sources": {
+      "build002p": 622,
+      "offline_listing_or_enriched_description": 1203,
+      "build002o_post_free": 1
+    },
+    "chars_min": 13,
+    "chars_median": 500,
+    "chars_max": 100436
+  },
+  "packages_before": {
+    "packages": 476,
+    "status_counts": {
+      "FAILED": 37,
+      "VERIFICATION_REQUIRED": 191,
+      "COMPLETE": 7,
+      "PARTIAL": 4,
+      "ACCESS_RESTRICTED": 237
+    },
+    "blob_magic": {
+      "html": 33,
+      "office": 35,
+      "pdf": 22,
+      "other": 9
+    },
+    "usable_via_collect_package_text": 71,
+    "likely_wrong_portal_html_blobs": 33,
+    "pdf_or_office_blobs": 57
+  },
+  "packages_after": {
+    "packages": 476,
+    "status_counts": {
+      "FAILED": 37,
+      "PARTIAL": 6,
+      "ACCESS_RESTRICTED": 240,
+      "COMPLETE": 7,
+      "VERIFICATION_REQUIRED": 186
+    },
+    "blob_magic": {
+      "html": 33,
+      "office": 35,
+      "pdf": 22,
+      "other": 9
+    },
+    "usable_via_collect_package_text": 71,
+    "likely_wrong_portal_html_blobs": 33,
+    "pdf_or_office_blobs": 57
+  },
+  "offline_recovery": {
+    "inventory_ids": 2255,
+    "recovered_from_full_text_store": 581,
+    "listing_descriptions_written": 1203,
+    "pdf_office_reextracted": 10,
+    "upgraded_store_entries": 1203,
+    "portal_packages_demoted": 3,
+    "category_counts": {
+      "A_retained_full_text_store": 581,
+      "B_recovered_listing_description_into_store": 1203,
+      "A_reextracted_pdf_office_blob": 10,
+      "F_wrong_portal_document_selected": 3
+    }
+  },
+  "responsibility_buckets": {
+    "counts": {
+      "A_nextbid_or_gov_text_retained": 1777,
+      "B_provider_info_discarded_or_not_persisted": 96,
+      "H_historical_response_unavailable": 8,
+      "D_incomplete_listing_only_no_detail_in_checkpoint": 309,
+      "B_listing_summary_not_promoted_to_full_text": 65
+    },
+    "samples": {
+      "A_nextbid_or_gov_text_retained": [
+        {
+          "nb_id": "NB00320253",
+          "title": "RFP Architectural and Engineering Services Administration Building Renovations Advanced Water Treatm",
+          "full_text_chars": 327,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00339409",
+          "title": "Fitness Equipment & Repairs",
+          "full_text_chars": 206,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00331580",
+          "title": "NELAC Certified Analytical Services 27-P-873",
+          "full_text_chars": 481,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00339593",
+          "title": "Parking Facilities Management Services",
+          "full_text_chars": 127,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00370580",
+          "title": "Sole Source Notice: Purchase of Sensus Meters and Registers from Core & Main LP",
+          "full_text_chars": 500,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00370581",
+          "title": "Sole Source Notice: Purchase of Polymer Nalco Nalclear 7764 From Nalco Company",
+          "full_text_chars": 500,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00370582",
+          "title": "Sole Source Notice: Purchase of AMR Products from the Avanti Company",
+          "full_text_chars": 500,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00339399",
+          "title": "On-Call Crane Repair Services 2026-80",
+          "full_text_chars": 466,
+          "detail_fetched": true,
+          "package_status": null
+        }
+      ],
+      "B_provider_info_discarded_or_not_persisted": [
+        {
+          "nb_id": "NB00375272",
+          "title": "Traffic Engineering Division FY27 Uniforms - Field Workers & Management",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00372835",
+          "title": "*222816 Purchase of - Police Equipment and Supplies",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00348901",
+          "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Mi",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00332817",
+          "title": "Fleet and Ancillary Inspections - IFB L1718.0-27",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00321554",
+          "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00350263",
+          "title": "Supply and Delivery of Work Boots",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00317405",
+          "title": "Invitation to Bid for Purchase of County Owned Surplus Property",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00345848",
+          "title": "Two (2) Animal Transport Vehicles",
+          "full_text_chars": 0,
+          "detail_fetched": true,
+          "package_status": null
+        }
+      ],
+      "H_historical_response_unavailable": [
+        {
+          "nb_id": "NB00330550",
+          "title": "SAP - Purchase of strontium 89 and iodine 131 solu",
+          "full_text_chars": 4580,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00281953",
+          "title": "Food Products and Distribution for School Food Authorities with Related Supplies, Technology, and Se",
+          "full_text_chars": 13626,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00286348",
+          "title": "Silcon Carbide Cladding Lead Test Rod Development-Phase 1",
+          "full_text_chars": 4580,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00326568",
+          "title": "Inmate Communications",
+          "full_text_chars": 22380,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00273914",
+          "title": "Emergency Generator Services",
+          "full_text_chars": 36482,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00302296",
+          "title": "Prickett Building Generator Replacement",
+          "full_text_chars": 24551,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00263977",
+          "title": "Morris Community Correction Center Generator & ATS Replacement",
+          "full_text_chars": 27544,
+          "detail_fetched": true,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00258437",
+          "title": "Computer Hardware, Software, Services, Consulting, and Support -Cycle 4",
+          "full_text_chars": 1792,
+          "detail_fetched": true,
+          "package_status": null
+        }
+      ],
+      "D_incomplete_listing_only_no_detail_in_checkpoint": [
+        {
+          "nb_id": "NB00275872",
+          "title": "RFA - National School Lunch Program (NSLP) Equipment Assistance Grant - FY 2026",
+          "full_text_chars": 1730,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00223393",
+          "title": "Construct/Expand Fuel Farm - Hanford Municipal Airport",
+          "full_text_chars": 0,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00277585",
+          "title": "GFO-26-502 \u2013 Integrated Point-Source Carbon Capture and Advanced Combustion at Industrial Facilities",
+          "full_text_chars": 83834,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00268814",
+          "title": "GFO-26-401 - Equitable Building Decarbonization Tribal Direct Install Program: Application for Tribe",
+          "full_text_chars": 100436,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00261805",
+          "title": "RFR DCR 798 Wood Furnace, Stoves Sales, Service and Fuel Supply",
+          "full_text_chars": 0,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00280631",
+          "title": "Dealership Fleet Vehicles",
+          "full_text_chars": 14149,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00258834",
+          "title": "PRE QUALIFICATION OF VENDORS FOR FOOD, FRESH FROZEN, CANNED",
+          "full_text_chars": 13,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00258520",
+          "title": "Athletic, Physical Education, and Co-Curricular Supplies, Uniforms, And related Equipment Services",
+          "full_text_chars": 14221,
+          "detail_fetched": false,
+          "package_status": null
+        }
+      ],
+      "B_listing_summary_not_promoted_to_full_text": [
+        {
+          "nb_id": "NB00278375",
+          "title": "FOOD SERVICE DISPOSABLES & SUPPLIES",
+          "full_text_chars": 0,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00273250",
+          "title": "PRE-QUAL FOR WORK UNIFORMS, CLOTHING & ACCESSORIES, TC",
+          "full_text_chars": 68,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00274779",
+          "title": "FOOD SERVICE EQUIPMENT-LARGE WARES",
+          "full_text_chars": 0,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00268024",
+          "title": "PRE-QUAL FOR FURNITURE INSTALLATION SERVICES",
+          "full_text_chars": 58,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00275434",
+          "title": "REPAIR OF FUEL SYSTEMS EQUIPMENT, PRE-QUAL OF VENDORS",
+          "full_text_chars": 67,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00271661",
+          "title": "OUTDOOR FURNITURE AND SUN SHADES",
+          "full_text_chars": 0,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00270921",
+          "title": "HDPE PIPE AND FITTINGS, PURCHASE AND DELIVERY OF, RPQ",
+          "full_text_chars": 67,
+          "detail_fetched": false,
+          "package_status": null
+        },
+        {
+          "nb_id": "NB00276411",
+          "title": "PIPE & FITTINGS, DUCTILE IRON, PURCHASE OF, PRE-QUAL, CTYWD",
+          "full_text_chars": 73,
+          "detail_fetched": false,
+          "package_status": null
+        }
+      ]
+    }
+  },
+  "pipeline_reprocess": {
+    "after": {
+      "unique_solicitations": 2255,
+      "verified_active_open_amended": 1494,
+      "confirmed_tangible_product_purchases": 791,
+      "potential_tangible_product_purchases": 1071,
+      "verified_quantities": 22,
+      "complete_product_specifications": 0,
+      "verified_procurement_eligibility": 0,
+      "easy_vendor_registration": 0,
+      "opportunities_ready_for_supplier_pricing": 22,
+      "opportunities_ready_for_bidding": 0,
+      "remaining_information_recovery": 1862,
+      "confirmed_disqualifications": 392,
+      "closed_or_non_solicitation": 1,
+      "primary_dispositions": {
+        "verified_bid_opportunities": 0,
+        "verified_product_information_needed": 797,
+        "potential_product_classification_needed": 1065,
+        "easy_vendor_registration": 0,
+        "confirmed_disqualification": 392,
+        "closed_expired_non_solicitation": 1
+      },
+      "previously_excluded_potential_accounted": 1065
+    },
+    "blockers": {
+      "missing_quantity": 1840,
+      "missing_submission_instructions": 1862,
+      "missing_or_restricted_documents": 1675,
+      "eligibility_gate:tangible_products": 1849,
+      "eligibility_gate:defined_quantities": 1849,
+      "eligibility_gate:submission_instructions": 1713,
+      "eligibility_gate:sufficient_documents": 1415,
+      "eligibility_gate:active_solicitation": 661,
+      "eligibility_gate:reseller_eligibility": 296,
+      "eligibility_gate:no_blocking_install_insurance_bond_license": 321,
+      "classification_insufficient": 1080
+    },
+    "dispositions": {
+      "verified_bid_opportunities": 0,
+      "verified_product_information_needed": 797,
+      "potential_product_classification_needed": 1065,
+      "easy_vendor_registration": 0,
+      "confirmed_disqualification": 392,
+      "closed_expired_non_solicitation": 1
+    }
+  },
+  "acceptance_counts": {
+    "historical_metered_requests_reconciled_local_ledger": 0,
+    "provider_used_credits": 3354,
+    "unique_opportunities_in_search_cache": 6359,
+    "unique_opportunities_durably_retained_inventory": 2255,
+    "previously_purchased_responses_recovered_full_text": 1777,
+    "missing_historical_detail_document_cache_responses": {
+      "get_opportunity_dashboard_minus_cache": 954,
+      "read_file_dashboard_minus_cache": 958
+    },
+    "duplicate_paid_search_cache_files": 296,
+    "incorrectly_requested_or_stored_portal_files": 33,
+    "usable_packages_before": 71,
+    "usable_packages_after_collect": 71,
+    "usable_full_text_before": 577,
+    "usable_full_text_after": 1777,
+    "verified_quantities_after": 22,
+    "ready_for_supplier_pricing": 22,
+    "ready_for_bidding": 0
+  },
+  "root_causes": [
+    {
+      "cause": "Paid detail/document/file responses not retained in local HTTP cache",
+      "evidence": "Dashboard get_opportunity=958 read_file=958 but cache has detail=4 read_file=0",
+      "category": "B/H",
+      "impact": "Cannot offline-replay most paid document bodies from cache"
+    },
+    {
+      "cause": "Checkpoint slim persistence dropped document_text; recovery ignored solicitation_full_text",
+      "evidence": "full_text_store had 623 files / 577 usable but pipeline usable packages reported as ~67 from package excerpts only",
+      "category": "B",
+      "impact": "Paid/extracted text existed on disk but was not loaded into qualification"
+    },
+    {
+      "cause": "Free government URL fetch stored portal HTML/CSS as package documents",
+      "evidence": "blob_magic={'html': 33, 'office': 35, 'pdf': 22, 'other': 9}; ACCESS_RESTRICTED=237",
+      "category": "F/E",
+      "impact": "Wrong files indexed; packages marked restricted/unusable"
+    },
+    {
+      "cause": "Listing summaries provider-capped (~500 chars) used as description",
+      "evidence": "enriched descriptions max ~500; 1863 listings have summary/description only",
+      "category": "D",
+      "impact": "Thin text insufficient for quantity extraction without documents"
+    },
+    {
+      "cause": "Local controller ledger only records ~300 metered commits vs provider used 3354",
+      "evidence": "ledger={'exists': True, 'lines': 650, 'metered_flagged_rows': 0, 'free_rows': 650, 'ops': {'usage': 29, 'free': 21, 'reserve': 300, 'commit': 300}, 'paths': {'search': 296, '/usage': 12, '/account/activity': 6, 'get_opportunity': 4, '/account': 1, '/activity': 1, '/tradelines': 1}, 'note': 'Local ledger under-counts pre-controller / remote (Railway) spend'}; usage used=3354",
+      "category": "H",
+      "impact": "Cannot fully reconcile every historical request to a local artifact"
+    },
+    {
+      "cause": "Duplicate search pages in cache (296 search responses, 6359 unique IDs seen in cache)",
+      "evidence": "search cache files=296; unique=6359",
+      "category": "G",
+      "impact": "Discovery spend duplicated across overlapping queries/pages"
+    }
+  ],
+  "defects_fixed": [
+    "Offline recovery now loads solicitation_full_text into reprocessing path",
+    "Listing/enriched descriptions promoted into full_text_store when richer",
+    "PDF/DOCX package blobs re-extracted; portal HTML packages demoted from success",
+    "Pipeline repair re-run over all 2255 after recovery"
+  ],
+  "cannot_establish": [
+    "Per-request attribution of all 3354 provider credits to opportunity IDs (activity API empty)",
+    "Body content of most paid read_file/get_opportunity responses (not in local HTTP cache)",
+    "Whether Railway/production workers retained separate response archives outside this data_root"
+  ]
+}

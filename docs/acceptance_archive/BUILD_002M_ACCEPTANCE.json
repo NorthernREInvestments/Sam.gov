@@ -1,0 +1,2372 @@
+{
+  "build": "002M",
+  "build_id": "20261122-m3-2-build-002m",
+  "started_at": "2026-11-22T03:38:49.975831+00:00",
+  "duration_seconds": 108.7,
+  "baseline": {
+    "inventory": 849,
+    "registry": 853,
+    "checkpoint_listings": 698,
+    "checkpoint_seen": 698,
+    "provider_used": 3070,
+    "provider_remaining": 2930
+  },
+  "usage_before": {
+    "ok": true,
+    "remaining": 2930,
+    "used": 3070,
+    "allowance": 6000,
+    "raw_ok": true
+  },
+  "usage_after": {
+    "ok": true,
+    "remaining": 2646,
+    "used": 3354,
+    "allowance": 6000,
+    "raw_ok": true
+  },
+  "provider_used_delta": 284,
+  "local_search_calls": 284,
+  "local_detail_calls": 0,
+  "local_document_calls": 0,
+  "within_300": true,
+  "discovery": {
+    "ok": true,
+    "started_at": "2026-11-22T03:38:08.481685+00:00",
+    "finished_at": "2026-11-22T03:38:38.610081+00:00",
+    "elapsed_seconds": 30.1,
+    "search_calls": 284,
+    "max_calls": 300,
+    "within_300": true,
+    "rows_returned": 495,
+    "unique_new": 101,
+    "duplicates": 394,
+    "baseline_unique": 698,
+    "final_unique": 2255,
+    "final_seen": 799,
+    "jobs": [
+      "002m-discovery-20261122033808-36425b22"
+    ],
+    "stopped_reason": "effective_available_0",
+    "searches": {
+      "opengov|tradelines=commodities|open=true": {
+        "source": "opengov",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "opengov",
+          "open": "true"
+        },
+        "provider_total": 192,
+        "provider_total_pages": 8,
+        "pages_requested": 8,
+        "records_returned": 192,
+        "unique_records": 63,
+        "duplicate_records": 129,
+        "last_successful_page": 8,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "bonfire|tradelines=commodities|open=true": {
+        "source": "bonfire",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "bonfire",
+          "open": "true"
+        },
+        "provider_total": 45,
+        "provider_total_pages": 2,
+        "pages_requested": 2,
+        "records_returned": 45,
+        "unique_records": 8,
+        "duplicate_records": 37,
+        "last_successful_page": 2,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "planetbids|tradelines=commodities|open=true": {
+        "source": "planetbids",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "planetbids",
+          "open": "true"
+        },
+        "provider_total": 85,
+        "provider_total_pages": 4,
+        "pages_requested": 4,
+        "records_returned": 85,
+        "unique_records": 30,
+        "duplicate_records": 55,
+        "last_successful_page": 4,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "calprocure|tradelines=commodities|open=true": {
+        "source": "calprocure",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "calprocure",
+          "open": "true"
+        },
+        "provider_total": 31,
+        "provider_total_pages": 2,
+        "pages_requested": 2,
+        "records_returned": 31,
+        "unique_records": 0,
+        "duplicate_records": 31,
+        "last_successful_page": 2,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "publicpurchase|tradelines=commodities|open=true": {
+        "source": "publicpurchase",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "publicpurchase",
+          "open": "true"
+        },
+        "provider_total": 1,
+        "provider_total_pages": 1,
+        "pages_requested": 1,
+        "records_returned": 1,
+        "unique_records": 0,
+        "duplicate_records": 1,
+        "last_successful_page": 1,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "instantmarkets|tradelines=commodities|open=true": {
+        "source": "instantmarkets",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "instantmarkets",
+          "open": "true"
+        },
+        "provider_total": 141,
+        "provider_total_pages": 6,
+        "pages_requested": 6,
+        "records_returned": 141,
+        "unique_records": 0,
+        "duplicate_records": 141,
+        "last_successful_page": 6,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "all_priority_commodities|tradelines=commodities|open=true": {
+        "source": "all_priority_commodities",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "sources": "opengov,bonfire,planetbids,calprocure,publicpurchase,instantmarkets",
+          "open": "true"
+        },
+        "provider_total": 495,
+        "provider_total_pages": 20,
+        "pages_requested": 20,
+        "records_returned": 495,
+        "unique_records": 0,
+        "duplicate_records": 495,
+        "last_successful_page": 20,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "nationwide_commodities|tradelines=commodities|open=true": {
+        "source": "nationwide_commodities",
+        "query_parameters": {
+          "tradelines": "commodities",
+          "open": "true"
+        },
+        "provider_total": 14768,
+        "provider_total_pages": 591,
+        "pages_requested": 174,
+        "records_returned": 4350,
+        "unique_records": 0,
+        "duplicate_records": 20,
+        "last_successful_page": 174,
+        "remaining_unvisited_pages": 417,
+        "completion_status": "aborted_excluded_source_flood",
+        "errors": [],
+        "note": "Stopped: pages dominated by DIBBS (excluded). Do not resume without sources= whitelist."
+      },
+      "opengov_open|tradelines=None|open=true": {
+        "source": "opengov_open",
+        "query_parameters": {
+          "sources": "opengov",
+          "open": "true"
+        },
+        "provider_total": 1484,
+        "provider_total_pages": 60,
+        "pages_requested": 15,
+        "records_returned": 375,
+        "unique_records": 283,
+        "duplicate_records": 92,
+        "last_successful_page": 15,
+        "remaining_unvisited_pages": 45,
+        "completion_status": "budget_exhausted_partial",
+        "errors": []
+      },
+      "bonfire_open|tradelines=None|open=true": {
+        "source": "bonfire_open",
+        "query_parameters": {
+          "sources": "bonfire",
+          "open": "true"
+        },
+        "provider_total": 1210,
+        "provider_total_pages": 49,
+        "pages_requested": 3,
+        "records_returned": 75,
+        "unique_records": 68,
+        "duplicate_records": 7,
+        "last_successful_page": 3,
+        "remaining_unvisited_pages": 46,
+        "completion_status": "error_stop",
+        "errors": [
+          "PermissionError"
+        ]
+      },
+      "planetbids_open|tradelines=None|open=true": {
+        "source": "planetbids_open",
+        "query_parameters": {
+          "sources": "planetbids",
+          "open": "true"
+        },
+        "provider_total": 758,
+        "provider_total_pages": 31,
+        "pages_requested": 15,
+        "records_returned": 375,
+        "unique_records": 296,
+        "duplicate_records": 79,
+        "last_successful_page": 15,
+        "remaining_unvisited_pages": 16,
+        "completion_status": "budget_exhausted_partial",
+        "errors": []
+      },
+      "calprocure_open|tradelines=None|open=true": {
+        "source": "calprocure_open",
+        "query_parameters": {
+          "sources": "calprocure",
+          "open": "true"
+        },
+        "provider_total": 358,
+        "provider_total_pages": 15,
+        "pages_requested": 15,
+        "records_returned": 358,
+        "unique_records": 253,
+        "duplicate_records": 105,
+        "last_successful_page": 15,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "publicpurchase_open|tradelines=None|open=true": {
+        "source": "publicpurchase_open",
+        "query_parameters": {
+          "sources": "publicpurchase",
+          "open": "true"
+        },
+        "provider_total": 88,
+        "provider_total_pages": 4,
+        "pages_requested": 4,
+        "records_returned": 88,
+        "unique_records": 87,
+        "duplicate_records": 1,
+        "last_successful_page": 4,
+        "remaining_unvisited_pages": 0,
+        "completion_status": "complete",
+        "errors": []
+      },
+      "instantmarkets_open|tradelines=None|open=true": {
+        "source": "instantmarkets_open",
+        "query_parameters": {
+          "sources": "instantmarkets",
+          "open": "true"
+        },
+        "provider_total": 2507,
+        "provider_total_pages": 101,
+        "pages_requested": 15,
+        "records_returned": 375,
+        "unique_records": 327,
+        "duplicate_records": 48,
+        "last_successful_page": 15,
+        "remaining_unvisited_pages": 86,
+        "completion_status": "budget_exhausted_partial",
+        "errors": []
+      }
+    },
+    "inventory": {
+      "total": 941,
+      "new": 0,
+      "updated": 0,
+      "unchanged": 799,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_inventory\\opportunities.jsonl"
+    },
+    "registry": {
+      "total_records": 945,
+      "ingested": 799,
+      "created_or_touched": 799,
+      "created": 92,
+      "updated": 707,
+      "duplicate_links_detected": 10,
+      "record_ids_sample": [
+        "pr_b7a1d55a01d604e5200f3a6b",
+        "pr_50b076cb822751444cfd46f8",
+        "pr_78d08a5cd154fb5ca696c489",
+        "pr_91766049e33e1c1f89768d06",
+        "pr_3e2ab8f9413d3c595c728d1a",
+        "pr_94bb2a00c302861f8e8ce06b",
+        "pr_ef3f34361ed22079430b4641",
+        "pr_18416eed380c81d58b1e30a9",
+        "pr_daa2356a67b920783a330843",
+        "pr_56aa758bf76dfdf9932d46f3",
+        "pr_839ba19397d256e16af3fc6a",
+        "pr_57b7a3eb6ec1e4e4efab0bf4",
+        "pr_a674efd9e321b3e066e3a26f",
+        "pr_dcf5dc94491a45e7410218a8",
+        "pr_41aa199b4e7e61e05f39da48",
+        "pr_1aa4510489dc607190b93f1b",
+        "pr_2d2ff68bfb40e95ceb8e8c0d",
+        "pr_06c55a739aa7d2495257b6d6",
+        "pr_12d18b2076d17d3f94c1fe64",
+        "pr_dcf9ab23b31b8368206f483d"
+      ],
+      "metered_calls": 0
+    },
+    "errors": [],
+    "scope": "build_002m_discovery_backfill",
+    "detail_calls": 0,
+    "document_calls": 0,
+    "wave2": {
+      "ok": true,
+      "started_at": "2026-11-22T03:40:45.593231+00:00",
+      "finished_at": "2026-11-22T03:44:59.993942+00:00",
+      "elapsed_seconds": 254.4,
+      "search_calls": 194,
+      "search_calls_build_total": 217,
+      "prior_calls": 23,
+      "max_calls": 277,
+      "within_300": true,
+      "rows_returned": 4845,
+      "unique_new": 0,
+      "duplicates": 515,
+      "baseline_unique": 941,
+      "final_unique": 941,
+      "final_seen": 941,
+      "jobs": [
+        "002m-discovery-20261122034045-50aeeae4",
+        "002m-discovery-20261122034201-eec2b570",
+        "002m-discovery-20261122034257-b9f75513",
+        "002m-discovery-20261122034359-0afaa812"
+      ],
+      "stopped_reason": "effective_available_0",
+      "searches": {
+        "opengov|tradelines=commodities|open=true": {
+          "source": "opengov",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "opengov",
+            "open": "true"
+          },
+          "provider_total": 192,
+          "provider_total_pages": 8,
+          "pages_requested": 8,
+          "records_returned": 192,
+          "unique_records": 63,
+          "duplicate_records": 129,
+          "last_successful_page": 8,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "bonfire|tradelines=commodities|open=true": {
+          "source": "bonfire",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "bonfire",
+            "open": "true"
+          },
+          "provider_total": 45,
+          "provider_total_pages": 2,
+          "pages_requested": 2,
+          "records_returned": 45,
+          "unique_records": 8,
+          "duplicate_records": 37,
+          "last_successful_page": 2,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "planetbids|tradelines=commodities|open=true": {
+          "source": "planetbids",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "planetbids",
+            "open": "true"
+          },
+          "provider_total": 85,
+          "provider_total_pages": 4,
+          "pages_requested": 4,
+          "records_returned": 85,
+          "unique_records": 30,
+          "duplicate_records": 55,
+          "last_successful_page": 4,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "calprocure|tradelines=commodities|open=true": {
+          "source": "calprocure",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "calprocure",
+            "open": "true"
+          },
+          "provider_total": 31,
+          "provider_total_pages": 2,
+          "pages_requested": 2,
+          "records_returned": 31,
+          "unique_records": 0,
+          "duplicate_records": 31,
+          "last_successful_page": 2,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "publicpurchase|tradelines=commodities|open=true": {
+          "source": "publicpurchase",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "publicpurchase",
+            "open": "true"
+          },
+          "provider_total": 1,
+          "provider_total_pages": 1,
+          "pages_requested": 1,
+          "records_returned": 1,
+          "unique_records": 0,
+          "duplicate_records": 1,
+          "last_successful_page": 1,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "instantmarkets|tradelines=commodities|open=true": {
+          "source": "instantmarkets",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "instantmarkets",
+            "open": "true"
+          },
+          "provider_total": 141,
+          "provider_total_pages": 6,
+          "pages_requested": 6,
+          "records_returned": 141,
+          "unique_records": 0,
+          "duplicate_records": 141,
+          "last_successful_page": 6,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "all_priority_commodities|tradelines=commodities|open=true": {
+          "source": "all_priority_commodities",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "opengov,bonfire,planetbids,calprocure,publicpurchase,instantmarkets",
+            "open": "true"
+          },
+          "provider_total": 495,
+          "provider_total_pages": 20,
+          "pages_requested": 20,
+          "records_returned": 495,
+          "unique_records": 0,
+          "duplicate_records": 495,
+          "last_successful_page": 20,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "nationwide_commodities|tradelines=commodities|open=true": {
+          "source": "nationwide_commodities",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "open": "true"
+          },
+          "provider_total": 14768,
+          "provider_total_pages": 591,
+          "pages_requested": 174,
+          "records_returned": 4350,
+          "unique_records": 0,
+          "duplicate_records": 20,
+          "last_successful_page": 174,
+          "remaining_unvisited_pages": 417,
+          "completion_status": "budget_exhausted_partial",
+          "errors": []
+        }
+      },
+      "inventory": {
+        "total": 941,
+        "new": 0,
+        "updated": 0,
+        "unchanged": 941,
+        "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_inventory\\opportunities.jsonl"
+      },
+      "registry": {
+        "total_records": 945,
+        "ingested": 941,
+        "created_or_touched": 941,
+        "created": 0,
+        "updated": 941,
+        "duplicate_links_detected": 14,
+        "record_ids_sample": [
+          "pr_b7a1d55a01d604e5200f3a6b",
+          "pr_50b076cb822751444cfd46f8",
+          "pr_78d08a5cd154fb5ca696c489",
+          "pr_91766049e33e1c1f89768d06",
+          "pr_3e2ab8f9413d3c595c728d1a",
+          "pr_94bb2a00c302861f8e8ce06b",
+          "pr_ef3f34361ed22079430b4641",
+          "pr_18416eed380c81d58b1e30a9",
+          "pr_daa2356a67b920783a330843",
+          "pr_56aa758bf76dfdf9932d46f3",
+          "pr_839ba19397d256e16af3fc6a",
+          "pr_57b7a3eb6ec1e4e4efab0bf4",
+          "pr_a674efd9e321b3e066e3a26f",
+          "pr_dcf5dc94491a45e7410218a8",
+          "pr_41aa199b4e7e61e05f39da48",
+          "pr_1aa4510489dc607190b93f1b",
+          "pr_2d2ff68bfb40e95ceb8e8c0d",
+          "pr_06c55a739aa7d2495257b6d6",
+          "pr_12d18b2076d17d3f94c1fe64",
+          "pr_dcf9ab23b31b8368206f483d"
+        ],
+        "metered_calls": 0
+      },
+      "errors": [],
+      "scope": "build_002m_discovery_backfill",
+      "detail_calls": 0,
+      "document_calls": 0
+    },
+    "search_calls_build_total": 217,
+    "unique_new_wave2": 0,
+    "elapsed_seconds_wave2": 254.4,
+    "wave3": {
+      "ok": true,
+      "started_at": "2026-11-22T03:45:54.224458+00:00",
+      "finished_at": "2026-11-22T03:47:27.629495+00:00",
+      "elapsed_seconds": 93.4,
+      "search_calls": 67,
+      "search_calls_build_total": 284,
+      "prior_calls": 217,
+      "max_calls": 83,
+      "within_300": true,
+      "rows_returned": 1646,
+      "unique_new": 1314,
+      "duplicates": 332,
+      "baseline_unique": 941,
+      "final_unique": 2255,
+      "final_seen": 2255,
+      "jobs": [
+        "002m-discovery-20261122034554-c88066db",
+        "002m-discovery-20261122034704-cbac6a37"
+      ],
+      "stopped_reason": "effective_available_0",
+      "searches": {
+        "opengov|tradelines=commodities|open=true": {
+          "source": "opengov",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "opengov",
+            "open": "true"
+          },
+          "provider_total": 192,
+          "provider_total_pages": 8,
+          "pages_requested": 8,
+          "records_returned": 192,
+          "unique_records": 63,
+          "duplicate_records": 129,
+          "last_successful_page": 8,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "bonfire|tradelines=commodities|open=true": {
+          "source": "bonfire",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "bonfire",
+            "open": "true"
+          },
+          "provider_total": 45,
+          "provider_total_pages": 2,
+          "pages_requested": 2,
+          "records_returned": 45,
+          "unique_records": 8,
+          "duplicate_records": 37,
+          "last_successful_page": 2,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "planetbids|tradelines=commodities|open=true": {
+          "source": "planetbids",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "planetbids",
+            "open": "true"
+          },
+          "provider_total": 85,
+          "provider_total_pages": 4,
+          "pages_requested": 4,
+          "records_returned": 85,
+          "unique_records": 30,
+          "duplicate_records": 55,
+          "last_successful_page": 4,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "calprocure|tradelines=commodities|open=true": {
+          "source": "calprocure",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "calprocure",
+            "open": "true"
+          },
+          "provider_total": 31,
+          "provider_total_pages": 2,
+          "pages_requested": 2,
+          "records_returned": 31,
+          "unique_records": 0,
+          "duplicate_records": 31,
+          "last_successful_page": 2,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "publicpurchase|tradelines=commodities|open=true": {
+          "source": "publicpurchase",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "publicpurchase",
+            "open": "true"
+          },
+          "provider_total": 1,
+          "provider_total_pages": 1,
+          "pages_requested": 1,
+          "records_returned": 1,
+          "unique_records": 0,
+          "duplicate_records": 1,
+          "last_successful_page": 1,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "instantmarkets|tradelines=commodities|open=true": {
+          "source": "instantmarkets",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "instantmarkets",
+            "open": "true"
+          },
+          "provider_total": 141,
+          "provider_total_pages": 6,
+          "pages_requested": 6,
+          "records_returned": 141,
+          "unique_records": 0,
+          "duplicate_records": 141,
+          "last_successful_page": 6,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "all_priority_commodities|tradelines=commodities|open=true": {
+          "source": "all_priority_commodities",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "sources": "opengov,bonfire,planetbids,calprocure,publicpurchase,instantmarkets",
+            "open": "true"
+          },
+          "provider_total": 495,
+          "provider_total_pages": 20,
+          "pages_requested": 20,
+          "records_returned": 495,
+          "unique_records": 0,
+          "duplicate_records": 495,
+          "last_successful_page": 20,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "nationwide_commodities|tradelines=commodities|open=true": {
+          "source": "nationwide_commodities",
+          "query_parameters": {
+            "tradelines": "commodities",
+            "open": "true"
+          },
+          "provider_total": 14768,
+          "provider_total_pages": 591,
+          "pages_requested": 174,
+          "records_returned": 4350,
+          "unique_records": 0,
+          "duplicate_records": 20,
+          "last_successful_page": 174,
+          "remaining_unvisited_pages": 417,
+          "completion_status": "aborted_excluded_source_flood",
+          "errors": [],
+          "note": "Stopped: pages dominated by DIBBS (excluded). Do not resume without sources= whitelist."
+        },
+        "opengov_open|tradelines=None|open=true": {
+          "source": "opengov_open",
+          "query_parameters": {
+            "sources": "opengov",
+            "open": "true"
+          },
+          "provider_total": 1484,
+          "provider_total_pages": 60,
+          "pages_requested": 15,
+          "records_returned": 375,
+          "unique_records": 283,
+          "duplicate_records": 92,
+          "last_successful_page": 15,
+          "remaining_unvisited_pages": 45,
+          "completion_status": "budget_exhausted_partial",
+          "errors": []
+        },
+        "bonfire_open|tradelines=None|open=true": {
+          "source": "bonfire_open",
+          "query_parameters": {
+            "sources": "bonfire",
+            "open": "true"
+          },
+          "provider_total": 1210,
+          "provider_total_pages": 49,
+          "pages_requested": 3,
+          "records_returned": 75,
+          "unique_records": 68,
+          "duplicate_records": 7,
+          "last_successful_page": 3,
+          "remaining_unvisited_pages": 46,
+          "completion_status": "error_stop",
+          "errors": [
+            "PermissionError"
+          ]
+        },
+        "planetbids_open|tradelines=None|open=true": {
+          "source": "planetbids_open",
+          "query_parameters": {
+            "sources": "planetbids",
+            "open": "true"
+          },
+          "provider_total": 758,
+          "provider_total_pages": 31,
+          "pages_requested": 15,
+          "records_returned": 375,
+          "unique_records": 296,
+          "duplicate_records": 79,
+          "last_successful_page": 15,
+          "remaining_unvisited_pages": 16,
+          "completion_status": "budget_exhausted_partial",
+          "errors": []
+        },
+        "calprocure_open|tradelines=None|open=true": {
+          "source": "calprocure_open",
+          "query_parameters": {
+            "sources": "calprocure",
+            "open": "true"
+          },
+          "provider_total": 358,
+          "provider_total_pages": 15,
+          "pages_requested": 15,
+          "records_returned": 358,
+          "unique_records": 253,
+          "duplicate_records": 105,
+          "last_successful_page": 15,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "publicpurchase_open|tradelines=None|open=true": {
+          "source": "publicpurchase_open",
+          "query_parameters": {
+            "sources": "publicpurchase",
+            "open": "true"
+          },
+          "provider_total": 88,
+          "provider_total_pages": 4,
+          "pages_requested": 4,
+          "records_returned": 88,
+          "unique_records": 87,
+          "duplicate_records": 1,
+          "last_successful_page": 4,
+          "remaining_unvisited_pages": 0,
+          "completion_status": "complete",
+          "errors": []
+        },
+        "instantmarkets_open|tradelines=None|open=true": {
+          "source": "instantmarkets_open",
+          "query_parameters": {
+            "sources": "instantmarkets",
+            "open": "true"
+          },
+          "provider_total": 2507,
+          "provider_total_pages": 101,
+          "pages_requested": 15,
+          "records_returned": 375,
+          "unique_records": 327,
+          "duplicate_records": 48,
+          "last_successful_page": 15,
+          "remaining_unvisited_pages": 86,
+          "completion_status": "budget_exhausted_partial",
+          "errors": []
+        }
+      },
+      "inventory": {
+        "total": 2255,
+        "new": 0,
+        "updated": 0,
+        "unchanged": 2255,
+        "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\nextbid_inventory\\opportunities.jsonl"
+      },
+      "registry": {
+        "total_records": 2259,
+        "ingested": 2255,
+        "created_or_touched": 2255,
+        "created": 1314,
+        "updated": 941,
+        "duplicate_links_detected": 110,
+        "record_ids_sample": [
+          "pr_b7a1d55a01d604e5200f3a6b",
+          "pr_50b076cb822751444cfd46f8",
+          "pr_78d08a5cd154fb5ca696c489",
+          "pr_91766049e33e1c1f89768d06",
+          "pr_3e2ab8f9413d3c595c728d1a",
+          "pr_94bb2a00c302861f8e8ce06b",
+          "pr_ef3f34361ed22079430b4641",
+          "pr_18416eed380c81d58b1e30a9",
+          "pr_daa2356a67b920783a330843",
+          "pr_56aa758bf76dfdf9932d46f3",
+          "pr_839ba19397d256e16af3fc6a",
+          "pr_57b7a3eb6ec1e4e4efab0bf4",
+          "pr_a674efd9e321b3e066e3a26f",
+          "pr_dcf5dc94491a45e7410218a8",
+          "pr_41aa199b4e7e61e05f39da48",
+          "pr_1aa4510489dc607190b93f1b",
+          "pr_2d2ff68bfb40e95ceb8e8c0d",
+          "pr_06c55a739aa7d2495257b6d6",
+          "pr_12d18b2076d17d3f94c1fe64",
+          "pr_dcf9ab23b31b8368206f483d"
+        ],
+        "metered_calls": 0
+      },
+      "errors": [
+        "bonfire_open|tradelines=None|open=true:page4:PermissionError"
+      ],
+      "scope": "build_002m_discovery_backfill",
+      "detail_calls": 0,
+      "document_calls": 0
+    },
+    "unique_new_wave3": 1314,
+    "dibbs_waste_note": "nationwide_commodities aborted; excluded-source flood"
+  },
+  "recovery": {
+    "unique_nextbid": 2255,
+    "stage_b_count": 709,
+    "strict_fits": [
+      {
+        "nb_id": "NB00348901",
+        "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+        "solicitation_number": "C26RI103317777R",
+        "agency": "Chicago Transit Authority",
+        "source": "bonfire",
+        "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+        "deadline_at": "2026-11-23T20:00:00.000Z",
+        "quantity": "12",
+        "quantity_unit": "EA",
+        "quantity_semantic": "ORDERED_QUANTITY",
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Twelve (12)",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00348901",
+          "source_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Twelve (12)",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "12",
+            "quantity_semantic": "ORDERED_QUANTITY",
+            "quantity_evidence": [
+              "affirmative_ordered_quantity_language",
+              "Twelve (12)",
+              "source:pipeline_enrichment"
+            ]
+          }
+        }
+      },
+      {
+        "nb_id": "NB00321554",
+        "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+        "solicitation_number": null,
+        "agency": "Monterey One Water",
+        "source": "planetbids",
+        "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+        "deadline_at": "2026-11-23T21:30:00.000Z",
+        "quantity": "1",
+        "quantity_unit": "EA",
+        "quantity_semantic": "ORDERED_QUANTITY",
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "ONE (1)",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00321554",
+          "source_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "ONE (1)",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "1",
+            "quantity_semantic": "ORDERED_QUANTITY",
+            "quantity_evidence": [
+              "affirmative_ordered_quantity_language",
+              "ONE (1)",
+              "source:pipeline_enrichment"
+            ]
+          }
+        }
+      },
+      {
+        "nb_id": "NB00345848",
+        "title": "Two (2) Animal Transport Vehicles",
+        "solicitation_number": "ITB 27-20001-SR",
+        "agency": "City Of Lubbock",
+        "source": "bonfire",
+        "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+        "deadline_at": "2026-11-24T20:00:00.000Z",
+        "quantity": "2",
+        "quantity_unit": "EA",
+        "quantity_semantic": "ORDERED_QUANTITY",
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Two (2)",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00345848",
+          "source_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "2",
+            "quantity_semantic": "ORDERED_QUANTITY",
+            "quantity_evidence": [
+              "affirmative_ordered_quantity_language",
+              "Two (2)",
+              "source:pipeline_enrichment"
+            ]
+          }
+        }
+      },
+      {
+        "nb_id": "NB00375339",
+        "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+        "solicitation_number": "155840",
+        "agency": "stmaryscountymd",
+        "source": "opengov",
+        "official_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+        "deadline_at": "2026-11-30T20:00:00.000Z",
+        "quantity": "53",
+        "quantity_unit": null,
+        "quantity_semantic": "ESTIMATED_QUANTITY",
+        "quantity_evidence": null,
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00375339",
+          "source_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": null,
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "53",
+            "quantity_semantic": "ESTIMATED_QUANTITY",
+            "quantity_evidence": null
+          }
+        }
+      },
+      {
+        "nb_id": "NB00339475",
+        "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+        "solicitation_number": "414449FC",
+        "agency": "San Diego International Airport",
+        "source": "planetbids",
+        "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+        "deadline_at": "2026-11-30T21:00:00.000Z",
+        "quantity": "2",
+        "quantity_unit": null,
+        "quantity_semantic": "ORDERED_QUANTITY",
+        "quantity_evidence": [
+          "quantity_field_present"
+        ],
+        "requirement_class": "product_with_incidental_services",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00339475",
+          "source_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "quantity_field_present"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "2",
+            "quantity_semantic": "ORDERED_QUANTITY",
+            "quantity_evidence": [
+              "quantity_field_present"
+            ]
+          }
+        }
+      },
+      {
+        "nb_id": "NB00326707",
+        "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+        "solicitation_number": "2140049",
+        "agency": "Parks Recreation & Historic Preservation, NYS Office of",
+        "source": "instantmarkets",
+        "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+        "deadline_at": "2026-12-04T12:00:00.000Z",
+        "quantity": "1",
+        "quantity_unit": null,
+        "quantity_semantic": "ORDERED_QUANTITY",
+        "quantity_evidence": null,
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00326707",
+          "source_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": null,
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": {
+            "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+            "quantity": "1",
+            "quantity_semantic": "ORDERED_QUANTITY",
+            "quantity_evidence": null
+          }
+        }
+      },
+      {
+        "nb_id": "NB00379502",
+        "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+        "solicitation_number": "RFB-12MPD-431",
+        "agency": "indy",
+        "source": "opengov",
+        "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+        "deadline_at": "2026-12-10T15:00:00.000Z",
+        "quantity": "2027",
+        "quantity_unit": "Ford",
+        "quantity_semantic": null,
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Purchase of 2027 Ford",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00379502",
+          "source_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of 2027 Ford",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": null
+        }
+      },
+      {
+        "nb_id": "NB00328155",
+        "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+        "solicitation_number": "OOGM 26-2",
+        "agency": "Pennsylvania Department of Environmental Protection",
+        "source": "instantmarkets",
+        "official_url": "https://www.bidexpress.com/solicitations/49584",
+        "deadline_at": "2026-12-03T12:00:00.000Z",
+        "quantity": "25",
+        "quantity_unit": "EA",
+        "quantity_semantic": null,
+        "quantity_evidence": [
+          "estimated_quantity_language",
+          "Five (25)",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00328155",
+          "source_url": "https://www.bidexpress.com/solicitations/49584",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "estimated_quantity_language",
+            "Five (25)",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": null
+        }
+      },
+      {
+        "nb_id": "NB00362602",
+        "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+        "solicitation_number": "IFB No. PO1071-27",
+        "agency": "Metrolink (SCRRA)",
+        "source": "planetbids",
+        "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+        "deadline_at": "2026-12-08T22:00:00.000Z",
+        "quantity": "8",
+        "quantity_unit": "new",
+        "quantity_semantic": null,
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "purchase 8 new",
+          "source:pipeline_enrichment"
+        ],
+        "requirement_class": "product_supply",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "evidence": {
+          "nextbid_nb_id": "NB00362602",
+          "source_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "purchase 8 new",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": null
+        }
+      }
+    ],
+    "stage_counts": {
+      "excluded_listing": 170,
+      "VERIFIED_PRODUCT_OPPORTUNITY": 709,
+      "VERIFIED_ACTIVE_SOLICITATION": 1289,
+      "VERIFIED_M3_PROCUREMENT_FIT": 9,
+      "none": 78
+    },
+    "quantity_defined": 13,
+    "prior_free_source_count": 3,
+    "prior_free_source": [
+      {
+        "solicitation_number": "PE-74600-NONST-2027-000000031",
+        "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+        "buyer_location": "Georgia",
+        "procurement_platform": "georgia_gpr",
+        "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20",
+        "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+        "bid_deadline": null,
+        "product_description": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+        "ordered_quantity": "5",
+        "unit_of_measure": "EA",
+        "package_completeness": "COMPLETE",
+        "quantity_evidence_location": [
+          "affirmative_ordered_quantity_language",
+          "Five (5)",
+          "source:pipeline_enrichment"
+        ],
+        "qualification_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "requirement_class": "product_with_incidental_services"
+        },
+        "outstanding_commercial_requirements": [
+          "supplier_quote",
+          "financing_verification",
+          "owner_bid_approval"
+        ],
+        "document_inventory": [
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#pane-documents",
+            "name": "eventDetails",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-74600-NONST-2027-000000031&sourceSystemType=gpr20#collapse-documents",
+            "name": "eventDetails",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=56228784&sourceSystemType=gpr20",
+            "name": "RFP 2026_11 Five New Custom Class A Pumper Ap.pdf",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57788090&sourceSystemType=gpr20",
+            "name": "Q_A _ RFP Class _A_ Pumpers (2026_11).pdf",
+            "status": "downloaded"
+          }
+        ]
+      },
+      {
+        "solicitation_number": "PE-61700-NONST-2027-000000082",
+        "buyer_name": "ct Us Announcements X Thanksgiving Day Holiday 2026 Public Holiday : The Georgia Department of Administrative Services (DOAS) Procurem",
+        "buyer_location": "Georgia",
+        "procurement_platform": "georgia_gpr",
+        "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20",
+        "active_status_evidence": "eventDetails status Open + Goods OPEN listing",
+        "bid_deadline": null,
+        "product_description": "Pumper Fire Truck",
+        "ordered_quantity": "1",
+        "unit_of_measure": "EA",
+        "package_completeness": "COMPLETE",
+        "quantity_evidence_location": [
+          "affirmative_ordered_quantity_language",
+          "furnish 1 new",
+          "source:pipeline_enrichment"
+        ],
+        "qualification_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "requirement_class": "product_supply"
+        },
+        "outstanding_commercial_requirements": [
+          "supplier_quote",
+          "financing_verification",
+          "owner_bid_approval"
+        ],
+        "document_inventory": [
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#pane-documents",
+            "name": "eventDetails",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-61700-NONST-2027-000000082&sourceSystemType=gpr20#collapse-documents",
+            "name": "eventDetails",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://ssl.doas.state.ga.us/gpr/downloadAttachment?attachmentId=57465020&sourceSystemType=gpr20",
+            "name": "Burke County Pumping Apparatus Bid Package 11.pdf",
+            "status": "downloaded"
+          }
+        ]
+      },
+      {
+        "solicitation_number": "SRS27002-ATHSUPPLY",
+        "buyer_name": "Caesar Rodney School District",
+        "buyer_location": "Delaware",
+        "procurement_platform": "delaware_mmp",
+        "official_url": "https://mmp.delaware.gov/Bids/Details/9397",
+        "active_status_evidence": "data.delaware.gov open bids + mmp.delaware.gov detail",
+        "bid_deadline": "Responses",
+        "product_description": "Athletic Equipment Uniforms and Related Services",
+        "ordered_quantity": "2",
+        "unit_of_measure": "EA",
+        "document_inventory": [
+          {
+            "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB2.xlsx",
+            "name": "SRS27002-ATHSUPPLY_appB2.xlsx",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_rfp.pdf",
+            "name": "SRS27002-ATHSUPPLY_rfp.pdf",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB1.xlsx",
+            "name": "SRS27002-ATHSUPPLY_appB1.xlsx",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_appB3.xlsx",
+            "name": "SRS27002-ATHSUPPLY_appB3.xlsx",
+            "status": "downloaded"
+          },
+          {
+            "url": "https://bidcondocs.delaware.gov/SRS/SRS27002-ATHSUPPLY_ad01.pdf",
+            "name": "SRS27002-ATHSUPPLY_ad01.pdf",
+            "status": "downloaded"
+          }
+        ],
+        "package_completeness": "COMPLETE",
+        "quantity_evidence_location": [
+          "affirmative_ordered_quantity_language",
+          "Quantity: 2 EA",
+          "source:pipeline_enrichment"
+        ],
+        "qualification_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "requirement_class": "product_with_incidental_services"
+        },
+        "outstanding_commercial_requirements": [
+          "supplier_quote",
+          "financing_verification",
+          "owner_bid_approval"
+        ]
+      }
+    ],
+    "registry": {
+      "total_records": 2259,
+      "ingested": 2255,
+      "created_or_touched": 2255,
+      "created": 0,
+      "updated": 2255,
+      "duplicate_links_detected": 136,
+      "record_ids_sample": [
+        "pr_b7a1d55a01d604e5200f3a6b",
+        "pr_50b076cb822751444cfd46f8",
+        "pr_78d08a5cd154fb5ca696c489",
+        "pr_91766049e33e1c1f89768d06",
+        "pr_3e2ab8f9413d3c595c728d1a",
+        "pr_94bb2a00c302861f8e8ce06b",
+        "pr_ef3f34361ed22079430b4641",
+        "pr_18416eed380c81d58b1e30a9",
+        "pr_daa2356a67b920783a330843",
+        "pr_56aa758bf76dfdf9932d46f3",
+        "pr_839ba19397d256e16af3fc6a",
+        "pr_57b7a3eb6ec1e4e4efab0bf4",
+        "pr_a674efd9e321b3e066e3a26f",
+        "pr_dcf5dc94491a45e7410218a8",
+        "pr_41aa199b4e7e61e05f39da48",
+        "pr_1aa4510489dc607190b93f1b",
+        "pr_2d2ff68bfb40e95ceb8e8c0d",
+        "pr_06c55a739aa7d2495257b6d6",
+        "pr_12d18b2076d17d3f94c1fe64",
+        "pr_dcf9ab23b31b8368206f483d"
+      ],
+      "metered_calls": 0
+    }
+  },
+  "recovery_elapsed_seconds": 7.7,
+  "free_doc_pass": {
+    "ok": true,
+    "result": {
+      "total": 9,
+      "COMPLETE": 0,
+      "PARTIAL": 0,
+      "ACCESS_RESTRICTED": 9,
+      "VERIFICATION_REQUIRED": 0,
+      "FAILED": 0,
+      "UPDATE_AVAILABLE": 0,
+      "ACQUISITION_IN_PROGRESS": 0,
+      "NOT_ACQUIRED": 0,
+      "errors": 0,
+      "newly_product": 0,
+      "newly_resolved": 0,
+      "identified_docs": 0,
+      "downloaded_docs": 0,
+      "by_source": {
+        "bonfire": {
+          "n": 2,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "planetbids": {
+          "n": 3,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "opengov": {
+          "n": 2,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "instantmarkets": {
+          "n": 2,
+          "downloaded": 0,
+          "complete": 0
+        }
+      },
+      "by_platform": {
+        "euna_bonfire": {
+          "n": 2,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "planetbids": {
+          "n": 3,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "opengov": {
+          "n": 2,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "gov_html": {
+          "n": 1,
+          "downloaded": 0,
+          "complete": 0
+        },
+        "generic_http": {
+          "n": 1,
+          "downloaded": 0,
+          "complete": 0
+        }
+      },
+      "packages": [
+        {
+          "id": "578683bb-e92b-477d-9199-bbb67bafb748",
+          "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fi",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "platform": "euna_bonfire",
+          "source_key": "bonfire"
+        },
+        {
+          "id": "0b762aba-a3c8-434c-91fb-8b268bbeecbe",
+          "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "platform": "planetbids",
+          "source_key": "planetbids"
+        },
+        {
+          "id": "a774fb90-d1ec-405d-b5d7-77959ca14a62",
+          "title": "Two (2) Animal Transport Vehicles",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "platform": "euna_bonfire",
+          "source_key": "bonfire"
+        },
+        {
+          "id": "d61b94aa-66f9-4925-86b8-e937f986ece8",
+          "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+          "platform": "opengov",
+          "source_key": "opengov"
+        },
+        {
+          "id": "cbe49921-9d12-4393-8c64-28532723700f",
+          "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "platform": "planetbids",
+          "source_key": "planetbids"
+        },
+        {
+          "id": "4c2fd9a6-547f-46dc-8251-3ac9c4b8e2ae",
+          "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "platform": "gov_html",
+          "source_key": "instantmarkets"
+        },
+        {
+          "id": "3ec44bc3-e855-44e0-b909-cbdb0a2a2420",
+          "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "platform": "opengov",
+          "source_key": "opengov"
+        },
+        {
+          "id": "fffd41af-b043-4d98-8648-23411ff7cdd6",
+          "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://www.bidexpress.com/solicitations/49584",
+          "platform": "generic_http",
+          "source_key": "instantmarkets"
+        },
+        {
+          "id": "cbf69bd1-ef4b-481f-8eeb-7abf5d77e25b",
+          "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+          "status": "ACCESS_RESTRICTED",
+          "identified": 0,
+          "downloaded": 0,
+          "url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "platform": "planetbids",
+          "source_key": "planetbids"
+        }
+      ],
+      "items": [
+        {
+          "external_key": "NB00348901",
+          "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+          "solicitation_number": "C26RI103317777R",
+          "buyer_name": "Chicago Transit Authority",
+          "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "source_key": "bonfire",
+          "nb_id": "NB00348901",
+          "package_id": "578683bb-e92b-477d-9199-bbb67bafb748",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+          "url_kind": "detail",
+          "platform": "euna_bonfire",
+          "package_access_issues": [
+            "access_restricted"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00321554",
+          "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+          "solicitation_number": null,
+          "buyer_name": "Monterey One Water",
+          "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "source_key": "planetbids",
+          "nb_id": "NB00321554",
+          "package_id": "0b762aba-a3c8-434c-91fb-8b268bbeecbe",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+          "url_kind": "detail",
+          "platform": "planetbids",
+          "package_access_issues": [
+            "authentication_required"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00345848",
+          "title": "Two (2) Animal Transport Vehicles",
+          "solicitation_number": "ITB 27-20001-SR",
+          "buyer_name": "City Of Lubbock",
+          "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "source_key": "bonfire",
+          "nb_id": "NB00345848",
+          "package_id": "a774fb90-d1ec-405d-b5d7-77959ca14a62",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+          "url_kind": "detail",
+          "platform": "euna_bonfire",
+          "package_access_issues": [
+            "access_restricted"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00375339",
+          "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+          "solicitation_number": "155840",
+          "buyer_name": "stmaryscountymd",
+          "official_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+          "source_key": "opengov",
+          "nb_id": "NB00375339",
+          "package_id": "d61b94aa-66f9-4925-86b8-e937f986ece8",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+          "url_kind": "listing",
+          "platform": "opengov",
+          "package_access_issues": [
+            "listing_http_403",
+            "access_restricted"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00339475",
+          "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+          "solicitation_number": "414449FC",
+          "buyer_name": "San Diego International Airport",
+          "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "source_key": "planetbids",
+          "nb_id": "NB00339475",
+          "package_id": "cbe49921-9d12-4393-8c64-28532723700f",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+          "url_kind": "detail",
+          "platform": "planetbids",
+          "package_access_issues": [
+            "authentication_required"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00326707",
+          "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+          "solicitation_number": "2140049",
+          "buyer_name": "Parks Recreation & Historic Preservation, NYS Office of",
+          "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "source_key": "instantmarkets",
+          "nb_id": "NB00326707",
+          "package_id": "4c2fd9a6-547f-46dc-8251-3ac9c4b8e2ae",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+          "url_kind": "unknown",
+          "platform": "gov_html",
+          "package_access_issues": [
+            "unknown_url_kind_attempt",
+            "authentication_required"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00379502",
+          "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+          "solicitation_number": "RFB-12MPD-431",
+          "buyer_name": "indy",
+          "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "source_key": "opengov",
+          "nb_id": "NB00379502",
+          "package_id": "3ec44bc3-e855-44e0-b909-cbdb0a2a2420",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "url_kind": "listing",
+          "platform": "opengov",
+          "package_access_issues": [
+            "listing_http_403",
+            "access_restricted"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00328155",
+          "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+          "solicitation_number": "OOGM 26-2",
+          "buyer_name": "Pennsylvania Department of Environmental Protection",
+          "official_url": "https://www.bidexpress.com/solicitations/49584",
+          "source_key": "instantmarkets",
+          "nb_id": "NB00328155",
+          "package_id": "fffd41af-b043-4d98-8648-23411ff7cdd6",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://www.bidexpress.com/solicitations/49584",
+          "url_kind": "listing",
+          "platform": "generic_http",
+          "package_access_issues": [
+            "listing_requires_authentication",
+            "authentication_required"
+          ],
+          "extraction_status": "NOT_READY"
+        },
+        {
+          "external_key": "NB00362602",
+          "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+          "solicitation_number": "IFB No. PO1071-27",
+          "buyer_name": "Metrolink (SCRRA)",
+          "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "source_key": "planetbids",
+          "nb_id": "NB00362602",
+          "package_id": "cbf69bd1-ef4b-481f-8eeb-7abf5d77e25b",
+          "package_status": "ACCESS_RESTRICTED",
+          "package_identified": 0,
+          "package_downloaded": 0,
+          "package_missing": 0,
+          "package_extracted": 0,
+          "authoritative_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+          "url_kind": "detail",
+          "platform": "planetbids",
+          "package_access_issues": [
+            "authentication_required"
+          ],
+          "extraction_status": "NOT_READY"
+        }
+      ]
+    },
+    "processed": 9,
+    "metered_nextbid": 0
+  },
+  "free_doc_elapsed_seconds": 6.6,
+  "compared_to_002l": {
+    "002l_stage_c_nextbid": 6,
+    "002m_stage_c_nextbid_verified": 7,
+    "newly_recovered_stage_c_vs_002l": 1,
+    "false_positives_caught": [
+      {
+        "nb_id": "NB00379502",
+        "solicitation_number": "RFB-12MPD-431",
+        "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+        "source": "opengov",
+        "quantity": "2027",
+        "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+        "evidence": {
+          "nextbid_nb_id": "NB00379502",
+          "source_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Purchase of 2027 Ford",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": null
+        },
+        "stage_c_status": "REJECTED_AFTER_EVIDENCE_REVIEW",
+        "rejection_reason": "quantity_is_model_year_not_order_qty (2027 Ford)"
+      },
+      {
+        "nb_id": "NB00328155",
+        "solicitation_number": "OOGM 26-2",
+        "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+        "source": "instantmarkets",
+        "quantity": "25",
+        "official_url": "https://www.bidexpress.com/solicitations/49584",
+        "evidence": {
+          "nextbid_nb_id": "NB00328155",
+          "source_url": "https://www.bidexpress.com/solicitations/49584",
+          "pipeline_reasons": [
+            "product_class_defined_quantity_individual"
+          ],
+          "quantity_evidence": [
+            "estimated_quantity_language",
+            "Five (25)",
+            "source:pipeline_enrichment"
+          ],
+          "recovery": "offline_full_population_002l",
+          "build_002i_evidence": null
+        },
+        "stage_c_status": "REJECTED_AFTER_EVIDENCE_REVIEW",
+        "rejection_reason": "services_well_plugging_not_product_resale; weak quantity evidence Five (25)"
+      }
+    ]
+  },
+  "inventory_summary": {
+    "previously_retained": 849,
+    "newly_discovered_unique": 1314,
+    "total_durable_inventory": 2255,
+    "stage_b": 709,
+    "stage_c_nextbid": 7,
+    "stage_c_free_source": 3,
+    "stage_c_total": 10,
+    "stage_c_nextbid_pipeline_before_review": 9,
+    "stage_c_false_positives_rejected": 2
+  },
+  "stage_c_list": [
+    {
+      "nb_id": "NB00348901",
+      "solicitation_number": "C26RI103317777R",
+      "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+      "source": "bonfire",
+      "quantity": "12",
+      "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+      "evidence": {
+        "nextbid_nb_id": "NB00348901",
+        "source_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Twelve (12)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Twelve (12)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00321554",
+      "solicitation_number": null,
+      "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+      "source": "planetbids",
+      "quantity": "1",
+      "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+      "evidence": {
+        "nextbid_nb_id": "NB00321554",
+        "source_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "ONE (1)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "ONE (1)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00345848",
+      "solicitation_number": "ITB 27-20001-SR",
+      "title": "Two (2) Animal Transport Vehicles",
+      "source": "bonfire",
+      "quantity": "2",
+      "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+      "evidence": {
+        "nextbid_nb_id": "NB00345848",
+        "source_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Two (2)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00375339",
+      "solicitation_number": "155840",
+      "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+      "source": "opengov",
+      "quantity": "53",
+      "official_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+      "evidence": {
+        "nextbid_nb_id": "NB00375339",
+        "source_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "53",
+          "quantity_semantic": "ESTIMATED_QUANTITY",
+          "quantity_evidence": null
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00339475",
+      "solicitation_number": "414449FC",
+      "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+      "source": "planetbids",
+      "quantity": "2",
+      "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+      "evidence": {
+        "nextbid_nb_id": "NB00339475",
+        "source_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "quantity_field_present"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "quantity_field_present"
+          ]
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00326707",
+      "solicitation_number": "2140049",
+      "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+      "source": "instantmarkets",
+      "quantity": "1",
+      "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+      "evidence": {
+        "nextbid_nb_id": "NB00326707",
+        "source_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": null
+        }
+      },
+      "stage_c_status": "VERIFIED"
+    },
+    {
+      "nb_id": "NB00362602",
+      "solicitation_number": "IFB No. PO1071-27",
+      "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+      "source": "planetbids",
+      "quantity": "8",
+      "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+      "evidence": {
+        "nextbid_nb_id": "NB00362602",
+        "source_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "purchase 8 new",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      },
+      "stage_c_status": "VERIFIED"
+    }
+  ],
+  "emergency_stop_final": {
+    "engaged": true,
+    "nextbid_enabled": false,
+    "env_emergency_stop": true,
+    "file_flag": {
+      "engaged": true,
+      "reason": "BUILD_002M_WAVE2_COMPLETE_RELOCK",
+      "engaged_at": "2026-11-22T03:45:05.833780+00:00",
+      "metered_calls_forbidden": true,
+      "scheduler_forbidden": true,
+      "retries_forbidden": true,
+      "resume_requires_owner_authorization": true
+    },
+    "metered_calls_allowed": false,
+    "resume_requires_owner_authorization": true
+  },
+  "acquisition_locked_final": true,
+  "scheduler_paused": true,
+  "normal_limits_restored": {
+    "daily": 100,
+    "job": 50,
+    "monthly_reserve": 1000
+  },
+  "acceptance_gates": {
+    "within_300_calls": true,
+    "search_only": true,
+    "zero_paid_detail_docs": true,
+    "lock_restored": true,
+    "scheduler_disabled": true,
+    "no_fabricated_results": true
+  },
+  "do_not_begin_build_003": true,
+  "await_owner_acceptance": true,
+  "wave": 3,
+  "wave1_calls": 23,
+  "wave2_calls": 194,
+  "provider_used_delta_wave2": 194,
+  "usage_before_wave2": {
+    "ok": true,
+    "remaining": 2907,
+    "used": 3093,
+    "allowance": 6000,
+    "raw_ok": true
+  },
+  "provider_used_delta_build": 284,
+  "wave3_calls": 67,
+  "usage_before_build": {
+    "used": 3070,
+    "remaining": 2930,
+    "allowance": 6000
+  },
+  "error": null,
+  "finished_at": "2026-11-22T03:48:26.544176+00:00",
+  "stage_c_list_raw_pipeline": [
+    {
+      "nb_id": "NB00348901",
+      "solicitation_number": "C26RI103317777R",
+      "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+      "source": "bonfire",
+      "quantity": "12",
+      "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+      "evidence": {
+        "nextbid_nb_id": "NB00348901",
+        "source_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Twelve (12)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "12",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Twelve (12)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      }
+    },
+    {
+      "nb_id": "NB00321554",
+      "solicitation_number": null,
+      "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP  WITH A TRAILER",
+      "source": "planetbids",
+      "quantity": "1",
+      "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+      "evidence": {
+        "nextbid_nb_id": "NB00321554",
+        "source_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "ONE (1)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "ONE (1)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      }
+    },
+    {
+      "nb_id": "NB00345848",
+      "solicitation_number": "ITB 27-20001-SR",
+      "title": "Two (2) Animal Transport Vehicles",
+      "source": "bonfire",
+      "quantity": "2",
+      "official_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+      "evidence": {
+        "nextbid_nb_id": "NB00345848",
+        "source_url": "https://ci-lubbock-tx.bonfirehub.com/opportunities/260192",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Two (2)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "affirmative_ordered_quantity_language",
+            "Two (2)",
+            "source:pipeline_enrichment"
+          ]
+        }
+      }
+    },
+    {
+      "nb_id": "NB00375339",
+      "solicitation_number": "155840",
+      "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+      "source": "opengov",
+      "quantity": "53",
+      "official_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+      "evidence": {
+        "nextbid_nb_id": "NB00375339",
+        "source_url": "https://procurement.opengov.com/portal/stmaryscountymd/projects/326590",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "53",
+          "quantity_semantic": "ESTIMATED_QUANTITY",
+          "quantity_evidence": null
+        }
+      }
+    },
+    {
+      "nb_id": "NB00339475",
+      "solicitation_number": "414449FC",
+      "title": "Two (2) New/Unused 2026 or Newer Hybrid Full Size Light Duty four (4) door pick up",
+      "source": "planetbids",
+      "quantity": "2",
+      "official_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+      "evidence": {
+        "nextbid_nb_id": "NB00339475",
+        "source_url": "https://vendors.planetbids.com/portal/16725/bo/bo-detail/147417",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "quantity_field_present"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "2",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": [
+            "quantity_field_present"
+          ]
+        }
+      }
+    },
+    {
+      "nb_id": "NB00326707",
+      "solicitation_number": "2140049",
+      "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+      "source": "instantmarkets",
+      "quantity": "1",
+      "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+      "evidence": {
+        "nextbid_nb_id": "NB00326707",
+        "source_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=All&GovernmentId=&Top=500&Sort=-DateIssued",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": null,
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": {
+          "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+          "quantity": "1",
+          "quantity_semantic": "ORDERED_QUANTITY",
+          "quantity_evidence": null
+        }
+      }
+    },
+    {
+      "nb_id": "NB00379502",
+      "solicitation_number": "RFB-12MPD-431",
+      "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+      "source": "opengov",
+      "quantity": "2027",
+      "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+      "evidence": {
+        "nextbid_nb_id": "NB00379502",
+        "source_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Purchase of 2027 Ford",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      }
+    },
+    {
+      "nb_id": "NB00328155",
+      "solicitation_number": "OOGM 26-2",
+      "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+      "source": "instantmarkets",
+      "quantity": "25",
+      "official_url": "https://www.bidexpress.com/solicitations/49584",
+      "evidence": {
+        "nextbid_nb_id": "NB00328155",
+        "source_url": "https://www.bidexpress.com/solicitations/49584",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "estimated_quantity_language",
+          "Five (25)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      }
+    },
+    {
+      "nb_id": "NB00362602",
+      "solicitation_number": "IFB No. PO1071-27",
+      "title": "F125 Wheel Sets & BTR Wheel Assemblies IFB No. PO1071-27",
+      "source": "planetbids",
+      "quantity": "8",
+      "official_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+      "evidence": {
+        "nextbid_nb_id": "NB00362602",
+        "source_url": "https://vendors.planetbids.com/portal/13821/bo/bo-detail/148155",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "purchase 8 new",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      }
+    }
+  ],
+  "stage_c_flagged_false_positives": [
+    {
+      "nb_id": "NB00379502",
+      "solicitation_number": "RFB-12MPD-431",
+      "title": "Outright Purchase of 2027 Ford Utility Pursuit Vehicles",
+      "source": "opengov",
+      "quantity": "2027",
+      "official_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+      "evidence": {
+        "nextbid_nb_id": "NB00379502",
+        "source_url": "https://procurement.opengov.com/portal/indy/projects/313143",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "affirmative_ordered_quantity_language",
+          "Purchase of 2027 Ford",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      },
+      "stage_c_status": "REJECTED_AFTER_EVIDENCE_REVIEW",
+      "rejection_reason": "quantity_is_model_year_not_order_qty (2027 Ford)"
+    },
+    {
+      "nb_id": "NB00328155",
+      "solicitation_number": "OOGM 26-2",
+      "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+      "source": "instantmarkets",
+      "quantity": "25",
+      "official_url": "https://www.bidexpress.com/solicitations/49584",
+      "evidence": {
+        "nextbid_nb_id": "NB00328155",
+        "source_url": "https://www.bidexpress.com/solicitations/49584",
+        "pipeline_reasons": [
+          "product_class_defined_quantity_individual"
+        ],
+        "quantity_evidence": [
+          "estimated_quantity_language",
+          "Five (25)",
+          "source:pipeline_enrichment"
+        ],
+        "recovery": "offline_full_population_002l",
+        "build_002i_evidence": null
+      },
+      "stage_c_status": "REJECTED_AFTER_EVIDENCE_REVIEW",
+      "rejection_reason": "services_well_plugging_not_product_resale; weak quantity evidence Five (25)"
+    }
+  ],
+  "integrity_notes": [
+    "Nationwide commodities search without sources= whitelist flooded with DIBBS; aborted after detection.",
+    "Two pipeline Stage C hits rejected after evidence review (model year; services).",
+    "Provider used delta equals local metered search calls (284)."
+  ],
+  "production": {
+    "build_id": "20261122-m3-2-build-002m",
+    "healthz": "https://samgov-production.up.railway.app/healthz",
+    "NEXTBID_ENABLED": false,
+    "NEXTBID_EMERGENCY_STOP": true,
+    "acquisition_locked": true
+  }
+}

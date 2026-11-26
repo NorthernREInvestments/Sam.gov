@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "M3 Supply"
-    build_id: str = "20261121-m3-2-build-002i"
+    build_id: str = "20261122-m3-2-build-002m"
     secret_key: str = ""
     database_url: str = "postgresql://localhost/m3"
     m3_data_root: str = ""
@@ -52,6 +52,23 @@ class Settings(BaseSettings):
     research_timeout_seconds: float = 25.0
     research_max_retries: int = 2
     upload_max_bytes: int = 15 * 1024 * 1024
+    # NextBid Data API (paid; never log the key)
+    nextbid_api_key: str = ""
+    # Default OFF + emergency stop ON (Build 002J fail-closed)
+    nextbid_enabled: bool = False
+    nextbid_emergency_stop: bool = True
+    nextbid_page_size: int = 25
+    # Soft bucket planning (controller enforces hard daily/job/reserve)
+    nextbid_budget_discovery: int = 50
+    nextbid_budget_detail: int = 30
+    nextbid_budget_documents: int = 20
+    nextbid_budget_reserve: int = 1000
+    nextbid_hard_stop_remaining: int = 1000
+    nextbid_schedule_minutes: int = 180
+    # Hard enforceable ceilings (controller clamps daily ≤ 100)
+    nextbid_daily_call_limit: int = 100
+    nextbid_job_call_limit: int = 50
+    nextbid_max_concurrency: int = 4
 
     def resolved_secret(self) -> str:
         key = (self.secret_key or os.getenv("SECRET_KEY") or "").strip()

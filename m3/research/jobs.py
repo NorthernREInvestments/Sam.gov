@@ -14,6 +14,10 @@ Usage:
   python -m m3.research.jobs offline-full-text-reprocess --from YYYY-MM-DD --to YYYY-MM-DD
   python -m m3.research.jobs demote-expired-queues
   python -m m3.research.jobs validate-ai-doc-understanding --offline
+  python -m m3.research.jobs bulk-ai-doc-analysis --owner-auth OWNER_AUTHORIZED_BULK_AI_DOC_ANALYSIS --max-usd 5
+  python -m m3.research.jobs fresh-inventory-reset
+  python -m m3.research.jobs fresh-cohort-ai-complete --owner-auth OWNER_AUTHORIZED_FRESH_COHORT_AI_ANALYSIS --max-usd 0.25
+  python -m m3.research.jobs solicitation-sop
   python -m m3.research.jobs nextbid-data-loss-investigation
   python -m m3.research.jobs nextbid-permanent-repair
   python -m m3.research.jobs nextbid-final-pipeline-audit
@@ -3568,6 +3572,65 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="Use mocked model responses only (default; no OpenAI calls)",
     )
+    p_bulk_ai = sub.add_parser(
+        "bulk-ai-doc-analysis",
+        help="Owner-authorized bulk live OpenAI analysis of ALL substantive local packages",
+    )
+    p_bulk_ai.add_argument(
+        "--owner-auth",
+        required=True,
+        help="Must be OWNER_AUTHORIZED_BULK_AI_DOC_ANALYSIS",
+    )
+    p_bulk_ai.add_argument(
+        "--max-usd",
+        type=float,
+        default=5.0,
+        help="Hard OpenAI ceiling for this job (default 5.00)",
+    )
+    p_bulk_ai.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Inventory + cost estimate only; zero OpenAI spend",
+    )
+    p_bulk_ai.add_argument(
+        "--no-queues",
+        action="store_true",
+        help="Do not update owner procurement queues",
+    )
+    p_bulk_ai.add_argument(
+        "--concurrency",
+        type=int,
+        default=5,
+        help="Max concurrent OpenAI solicitation analyses (default 5; auto-reduces on rate limits)",
+    )
+    sub.add_parser(
+        "fresh-inventory-reset",
+        help="Reset active inventory to Nov 24 evening–Nov 25 acquisition cohort (zero NextBid/OpenAI)",
+    )
+    p_fresh_ai = sub.add_parser(
+        "fresh-cohort-ai-complete",
+        help="Owner-authorized OpenAI completion for all active fresh-cohort solicitations",
+    )
+    p_fresh_ai.add_argument(
+        "--owner-auth",
+        required=True,
+        help="Must be OWNER_AUTHORIZED_FRESH_COHORT_AI_ANALYSIS",
+    )
+    p_fresh_ai.add_argument("--max-usd", type=float, default=0.25)
+    p_fresh_ai.add_argument("--concurrency", type=int, default=5)
+    sub.add_parser(
+        "solicitation-sop",
+        help="Enforce permanent solicitation SOP on fresh inventory + validate retained cases (zero API)",
+    )
+    p_docrec = sub.add_parser(
+        "document-recovery-run",
+        help="Owner-authorized fresh-cohort document recovery (≤10 NextBid, ≤$0.25 OpenAI); restores killswitch",
+    )
+    p_docrec.add_argument(
+        "--continue-manifests",
+        action="store_true",
+        help="Continue from already-paid list_documents manifests (free source_url / remaining credits)",
+    )
     sub.add_parser("nextbid-data-loss-investigation")
     sub.add_parser("nextbid-permanent-repair")
     sub.add_parser("nextbid-final-pipeline-audit")
@@ -4019,6 +4082,272 @@ def main(argv: list[str] | None = None) -> int:
                 result,
             )
             print(json.dumps({"ok": True, "demote_expired_queues": result}, default=str), flush=True)
+        elif args.cmd == "fresh-inventory-reset":
+            from m3.research.fresh_inventory_reset import run_fresh_inventory_reset
+
+            constraints = assert_constraints(db)
+            if not constraints.get("nextbid_locked"):
+                print(json.dumps({"ok": False, "error": "nextbid_killswitch_must_remain_locked"}), flush=True)
+                return 2
+            result = run_fresh_inventory_reset(db)
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(result.get("ok")),
+                        "fresh_inventory_reset": {
+                            "previous": (result.get("inventory_reset") or {}).get("previous_inventory_total"),
+                            "fresh": (result.get("inventory_reset") or {}).get("fresh_retained"),
+                            "legacy_removed": (result.get("inventory_reset") or {}).get(
+                                "legacy_removed_from_active"
+                            ),
+                            "cache_hits": (result.get("ai_analysis") or {}).get("reusable_cached"),
+                            "awaiting_ai": (result.get("ai_analysis") or {}).get(
+                                "awaiting_owner_ai_authorization"
+                            ),
+                            "est_openai_usd": ((result.get("ai_analysis") or {}).get("estimate") or {}).get(
+                                "estimated_usd_max"
+                            ),
+                            "supplier_ready": len(
+                                ((result.get("commercial_results") or {}).get("supplier_quote_ready") or [])
+                            ),
+                            "nextbid": 0,
+                            "openai": 0,
+                            "report": str(
+                                get_settings().data_root()
+                                / "acceptance"
+                                / "jobs_fresh_inventory_reset_last.json"
+                            ),
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "solicitation-sop":
+            from m3.research.solicitation_sop import (
+                process_fresh_inventory_sop,
+                sop_stage_function_map,
+                validate_retained_failure_cases,
+                expected_call_scenarios,
+            )
+            from m3.research.nextbid_controller import acquisition_locked, load_budget_state
+            from m3.research.nextbid_killswitch import emergency_stop_status
+
+            constraints = assert_constraints(db)
+            if not constraints.get("nextbid_locked"):
+                print(json.dumps({"ok": False, "error": "nextbid_killswitch_must_remain_locked"}), flush=True)
+                return 2
+            cases = validate_retained_failure_cases(db)
+            fresh = process_fresh_inventory_sop(db)
+            budget = load_budget_state()
+            report = {
+                "ok": True,
+                "sop_implementation": sop_stage_function_map(),
+                "api_call_scenarios": expected_call_scenarios(),
+                "retained_case_validation": cases,
+                "fresh_inventory": {
+                    k: fresh.get(k)
+                    for k in (
+                        "fresh_accounted",
+                        "coverage",
+                        "owner_queues",
+                        "ai_cached_reuse",
+                        "awaiting_ai_auth",
+                        "supplier_pricing_yes",
+                        "openai_spent_usd",
+                        "nextbid_calls",
+                        "queue_summary",
+                        "policy",
+                    )
+                },
+                "api_safety": {
+                    "nextbid_spent": 0,
+                    "openai_spent": 0.0,
+                    "acquisition_locked": acquisition_locked(),
+                    "killswitch": emergency_stop_status(),
+                    "account_remaining": budget.get("account_remaining"),
+                    "reserve_floor": 1000,
+                    "reserve_intact": int(budget.get("account_remaining") or 0) >= 1000,
+                    "sop_gate_on_reserve": True,
+                    "deployment": False,
+                    "schedulers_activated": False,
+                },
+            }
+            out_path = get_settings().data_root() / "acceptance" / "jobs_solicitation_sop_acceptance_last.json"
+            _write(out_path, report)
+            temp = Path(__file__).resolve().parents[2] / "TEMP" / "solicitation_sop"
+            temp.mkdir(parents=True, exist_ok=True)
+            (temp / "ACCEPTANCE_REPORT.json").write_text(
+                json.dumps(report, indent=2, default=str), encoding="utf-8"
+            )
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "solicitation_sop": {
+                            "fresh": fresh.get("fresh_accounted"),
+                            "cached_ai": fresh.get("ai_cached_reuse"),
+                            "awaiting_ai": fresh.get("awaiting_ai_auth"),
+                            "supplier_yes": fresh.get("supplier_pricing_yes"),
+                            "queues": fresh.get("owner_queues"),
+                            "cases": len((cases.get("cases") or [])),
+                            "nextbid": 0,
+                            "openai": 0,
+                            "report": str(out_path),
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "document-recovery-run":
+            from m3.research.document_recovery_run import run_document_recovery, continue_manifest_recovery
+            from m3.research.nextbid_controller import load_budget_state
+            from m3.research.nextbid_killswitch import emergency_stop_status
+
+            # This command intentionally unlocks under DOC_RECOVERY_SCOPE then re-locks.
+            before = load_budget_state()
+            if int(before.get("account_remaining") or 0) < 1000:
+                print(json.dumps({"ok": False, "error": "protected_reserve_would_be_breached"}), flush=True)
+                return 2
+            prior = get_settings().data_root() / "acceptance" / "jobs_document_recovery_last.json"
+            if prior.exists() and getattr(args, "continue_manifests", False):
+                spent = 0
+                try:
+                    prev = json.loads(prior.read_text(encoding="utf-8"))
+                    spent = int(prev.get("nextbid_credits_consumed") or 0)
+                except Exception:
+                    spent = 9
+                result = continue_manifest_recovery(db, already_spent_account=spent)
+                print(
+                    json.dumps(
+                        {
+                            "ok": bool(result.get("ok")),
+                            "document_recovery_continuation": {
+                                "nextbid_credits": result.get("nextbid_credits_consumed"),
+                                "openai_spent_usd": result.get("openai_spent_usd"),
+                                "originals": sum(1 for r in (result.get("recovery") or []) if r.get("original_saved")),
+                                "remaining_active": result.get("remaining_active"),
+                                "queues": result.get("sop_owner_queues"),
+                                "killswitch_restored": result.get("killswitch_restored"),
+                                "account_remaining": (result.get("after_budget") or {}).get("account_remaining"),
+                            },
+                            "killswitch": emergency_stop_status(),
+                        },
+                        default=str,
+                    ),
+                    flush=True,
+                )
+            else:
+                result = run_document_recovery(db)
+                print(
+                    json.dumps(
+                        {
+                            "ok": bool(result.get("ok")),
+                            "document_recovery": {
+                                "nextbid_credits": result.get("nextbid_credits_consumed"),
+                                "openai_spent_usd": result.get("openai_spent_usd"),
+                                "rejected": len(result.get("rejected") or []),
+                                "recovery_attempts": len(result.get("recovery") or []),
+                                "remaining_active": result.get("remaining_active"),
+                                "supplier_cards": len(result.get("supplier_pricing_cards") or []),
+                                "queues": result.get("sop_owner_queues"),
+                                "killswitch_restored": result.get("killswitch_restored"),
+                                "authorization_revoked": result.get("authorization_revoked"),
+                                "account_remaining": (result.get("after_budget") or {}).get("account_remaining"),
+                                "report": str(
+                                    get_settings().data_root()
+                                    / "acceptance"
+                                    / "jobs_document_recovery_last.json"
+                                ),
+                            },
+                            "killswitch": emergency_stop_status(),
+                        },
+                        default=str,
+                    ),
+                    flush=True,
+                )
+        elif args.cmd == "fresh-cohort-ai-complete":
+            from m3.research.fresh_inventory_reset import run_fresh_cohort_ai_complete
+
+            constraints = assert_constraints(db)
+            if not constraints.get("nextbid_locked"):
+                print(json.dumps({"ok": False, "error": "nextbid_killswitch_must_remain_locked"}), flush=True)
+                return 2
+            result = run_fresh_cohort_ai_complete(
+                db,
+                owner_authorization=str(args.owner_auth),
+                max_usd=float(args.max_usd),
+                concurrency=int(getattr(args, "concurrency", 5) or 5),
+            )
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(result.get("ok")),
+                        "fresh_cohort_ai_complete": {
+                            "reconciled": result.get("reconciled"),
+                            "cached": result.get("previously_analyzed_openai_cache"),
+                            "new_live": result.get("newly_analyzed_openai"),
+                            "needs_docs": result.get("needs_original_documents"),
+                            "quote_ready": result.get("supplier_quote_ready_count"),
+                            "actionable": result.get("currently_actionable_count"),
+                            "openai_spent_usd": result.get("openai_spent_usd"),
+                            "nextbid": 0,
+                            "report": str(
+                                get_settings().data_root()
+                                / "acceptance"
+                                / "jobs_fresh_cohort_ai_complete_last.json"
+                            ),
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
+        elif args.cmd == "bulk-ai-doc-analysis":
+            from m3.research.bulk_ai_doc_analysis import run_bulk_ai_document_analysis
+
+            constraints = assert_constraints(db)
+            if not constraints.get("nextbid_locked"):
+                print(json.dumps({"ok": False, "error": "nextbid_killswitch_must_remain_locked"}), flush=True)
+                return 2
+            result = run_bulk_ai_document_analysis(
+                db,
+                owner_authorization=str(args.owner_auth),
+                max_usd=float(args.max_usd),
+                write_owner_queues_flag=not bool(args.no_queues),
+                dry_run=bool(args.dry_run),
+                concurrency=int(getattr(args, "concurrency", 5) or 5),
+            )
+            result["cleanup_commit"] = "3470914"
+            result["ai_integration_commit"] = "2353977"
+            out_path = get_settings().data_root() / "acceptance" / "jobs_bulk_ai_doc_analysis_last.json"
+            _write(out_path, result)
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(result.get("ok")),
+                        "bulk_ai_doc_analysis": {
+                            "dry_run": result.get("dry_run"),
+                            "openai_spent_usd": result.get("openai_spent_usd")
+                            or (result.get("metrics") or {}).get("openai_spent_usd"),
+                            "analyzed": result.get("analyzed_count")
+                            or (result.get("metrics") or {}).get("packages_analyzed_by_openai"),
+                            "inventory_total": (result.get("inventory") or {}).get("inventory_total_records")
+                            or (result.get("metrics") or {}).get("total_solicitation_records_inventoried"),
+                            "substantive": (result.get("metrics") or {}).get(
+                                "locally_retained_substantive_packages"
+                            ),
+                            "unanalyzed_cap": (result.get("metrics") or {}).get("unanalyzed_due_to_cost_cap"),
+                            "nextbid_api_calls": 0,
+                            "stopped_reason": result.get("stopped_reason"),
+                            "report": str(out_path),
+                        },
+                    },
+                    default=str,
+                ),
+                flush=True,
+            )
         elif args.cmd == "validate-ai-doc-understanding":
             from pathlib import Path as _Path
 

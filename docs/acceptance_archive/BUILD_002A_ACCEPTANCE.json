@@ -1,0 +1,1195 @@
+{
+  "build": "002A",
+  "started": "2026-11-21T06:41:36Z",
+  "max_pages_harness": 12,
+  "schema_validation": [
+    {
+      "source_key": "la_ramp_open_bids",
+      "operational": true,
+      "title_field": "title",
+      "kind": "active_solicitation_candidate",
+      "ok": true
+    },
+    {
+      "source_key": "montgomery_md_solicitations",
+      "operational": true,
+      "title_field": "description",
+      "kind": "active_solicitation_candidate",
+      "ok": true
+    },
+    {
+      "source_key": "delaware_open_bids",
+      "operational": true,
+      "title_field": "contracttitle",
+      "kind": "active_solicitation_candidate",
+      "ok": true
+    },
+    {
+      "source_key": "cook_county_buying_plan_2026",
+      "operational": true,
+      "title_field": "project_description",
+      "kind": "active_solicitation_candidate",
+      "ok": true
+    },
+    {
+      "source_key": "mesa_az_solicitations",
+      "operational": true,
+      "title_field": "contract_description",
+      "kind": "active_solicitation_candidate",
+      "ok": true
+    },
+    {
+      "source_key": "mesa_check",
+      "operational": true,
+      "title_field": "contract_description",
+      "kind": "active_solicitation_candidate"
+    }
+  ],
+  "non_solicitation_probe": {
+    "operational": false,
+    "reason": "sample_status=404",
+    "kind": null
+  },
+  "adapter_keyword_gate": {
+    "without_gate_accepted": 94,
+    "with_gate_accepted": 89,
+    "gate_removed_ok": true,
+    "pages": 1,
+    "pagination_complete_3page_slice": true,
+    "more_available": false,
+    "stats": {
+      "mapping_failures": 0,
+      "closed_excluded": 0,
+      "non_product_excluded": 129,
+      "keyword_excluded": 0,
+      "accepted": 94
+    }
+  },
+  "pagination_beyond_3": {
+    "source": "mesa_az_solicitations",
+    "pages_fetched": 4,
+    "rows_examined": 1602,
+    "accepted": 398,
+    "exceeds_prior_3_page_cap": true,
+    "more_available": false,
+    "pagination_complete": true
+  },
+  "vocabulary": {
+    "screws": [
+      "screws",
+      "screw",
+      "machine screw",
+      "cap screw",
+      "self-tapping screw",
+      "wood screw",
+      "sheet metal screw",
+      "fastener",
+      "fasteners",
+      "screw kit",
+      "screw assortment"
+    ],
+    "valves": [
+      "valves",
+      "valve",
+      "ball valve",
+      "gate valve",
+      "check valve",
+      "butterfly valve",
+      "vacuum valve",
+      "hydraulic valve",
+      "plumbing valve",
+      "control valve",
+      "solenoid valve"
+    ],
+    "equipment": [
+      "equipment",
+      "apparatus",
+      "machinery",
+      "capital equipment",
+      "industrial equipment",
+      "commercial equipment",
+      "laundry equipment",
+      "fitness equipment"
+    ],
+    "appliances": [
+      "appliances",
+      "appliance",
+      "refrigerator",
+      "refrigerators",
+      "freezer",
+      "freezers",
+      "washer",
+      "dryer",
+      "range",
+      "oven",
+      "dishwasher",
+      "commercial laundry",
+      "ice machine",
+      "ice maker"
+    ],
+    "generators": [
+      "generators",
+      "generator",
+      "genset",
+      "backup power",
+      "standby generator",
+      "portable generator",
+      "diesel generator"
+    ],
+    "exact_mpn": {
+      "mode": "exact_mpn",
+      "raw": "ABC-12345",
+      "include_terms": [
+        "abc-12345"
+      ],
+      "exclude_terms": [],
+      "is_exact_mpn": true
+    }
+  },
+  "filter_layer": {
+    "sample_size": 50,
+    "default_no_value_bands": 50,
+    "with_50k_band_no_unknown": 0,
+    "screws_matches": 0,
+    "match_reasons_sample": null,
+    "clear_filters_restores_population": true
+  },
+  "uncertain_resolution_unit": {
+    "investigated": 4,
+    "resolved_counts": {
+      "product_supply": 2,
+      "services_only": 1,
+      "requires_further_verification": 1
+    },
+    "still_uncertain": 1,
+    "classes": [
+      "product_supply",
+      "services",
+      "product_supply",
+      "unknown_mixed"
+    ]
+  },
+  "source_repair": {
+    "examined": 0,
+    "repaired_operational": 0,
+    "quarantined": 0,
+    "skipped_already_validated": 26
+  },
+  "nationwide_unfiltered": {
+    "status": "partial",
+    "incomplete": true,
+    "notices_examined": 14345,
+    "mapping_failures": 0,
+    "unfiltered_count": 1432,
+    "verified_product": 311,
+    "uncertain_remaining": 811,
+    "uncertain_investigated": 1432,
+    "matching_count": 1432,
+    "page_count": 100,
+    "pages_fetched": 42,
+    "sources_succeeded": [
+      "ne_das_public",
+      "discovered_data_winnipeg_ca_rijt-92n4",
+      "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "la_ramp_open_bids",
+      "mesa_az_solicitations",
+      "cook_county_buying_plan_2026",
+      "discovered_data_cityofnewyork_us_bzjf-rmtp",
+      "delaware_open_bids",
+      "discovered_data_cityofnewyork_us_ww83-bcks",
+      "montgomery_md_solicitations",
+      "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+      "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+      "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+      "discovered_data_lacity_org_hf3r-utnq",
+      "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+      "iowa_das",
+      "kansas_purchasing",
+      "socrata_catalog_discovery"
+    ],
+    "sources_fully_paginated_n": 16,
+    "sources_incomplete_n": 1,
+    "source_yield": [
+      {
+        "source_key": "ne_das_public",
+        "pages": 3,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "pages": 12,
+        "rows_examined": 6000,
+        "accepted": 3,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 5993,
+          "non_product_excluded": 4,
+          "keyword_excluded": 0,
+          "accepted": 3
+        }
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "pages": 4,
+        "rows_examined": 1602,
+        "accepted": 398,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1170,
+          "non_product_excluded": 34,
+          "keyword_excluded": 0,
+          "accepted": 398
+        }
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "pages": 1,
+        "rows_examined": 223,
+        "accepted": 94,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 129,
+          "keyword_excluded": 0,
+          "accepted": 94
+        }
+      },
+      {
+        "source_key": "mesa_az_solicitations",
+        "pages": 4,
+        "rows_examined": 1602,
+        "accepted": 227,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1360,
+          "non_product_excluded": 15,
+          "keyword_excluded": 0,
+          "accepted": 227
+        }
+      },
+      {
+        "source_key": "cook_county_buying_plan_2026",
+        "pages": 1,
+        "rows_examined": 164,
+        "accepted": 53,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 111,
+          "keyword_excluded": 0,
+          "accepted": 53
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "pages": 1,
+        "rows_examined": 111,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 109,
+          "non_product_excluded": 0,
+          "keyword_excluded": 0,
+          "accepted": 2
+        }
+      },
+      {
+        "source_key": "delaware_open_bids",
+        "pages": 1,
+        "rows_examined": 42,
+        "accepted": 30,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 8,
+          "non_product_excluded": 4,
+          "keyword_excluded": 0,
+          "accepted": 30
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "pages": 2,
+        "rows_examined": 940,
+        "accepted": 256,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 684,
+          "keyword_excluded": 0,
+          "accepted": 256
+        }
+      },
+      {
+        "source_key": "montgomery_md_solicitations",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 16,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "non_product_excluded": 1,
+          "keyword_excluded": 0,
+          "accepted": 16
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "pages": 1,
+        "rows_examined": 194,
+        "accepted": 187,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 7,
+          "keyword_excluded": 0,
+          "accepted": 187
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "pages": 2,
+        "rows_examined": 564,
+        "accepted": 117,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 447,
+          "keyword_excluded": 0,
+          "accepted": 117
+        }
+      },
+      {
+        "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "pages": 1,
+        "rows_examined": 95,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 89,
+          "keyword_excluded": 0,
+          "accepted": 6
+        }
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "pages": 1,
+        "rows_examined": 223,
+        "accepted": 98,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "non_product_excluded": 125,
+          "keyword_excluded": 0,
+          "accepted": 98
+        }
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 16,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "non_product_excluded": 1,
+          "keyword_excluded": 0,
+          "accepted": 16
+        }
+      },
+      {
+        "source_key": "iowa_das",
+        "pages": 1,
+        "rows_examined": 6,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 6,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "kansas_purchasing",
+        "pages": 1,
+        "rows_examined": 49,
+        "accepted": 49,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 49,
+          "mapping_failures": 0
+        }
+      }
+    ],
+    "sample_titles": [
+      {
+        "buyer": "Nebraska DAS Materiel / Purchasing",
+        "title": "Office Depot Contract",
+        "sol": null,
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://das.nebraska.gov/materiel/bid-opportunities.html",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Nebraska DAS Materiel / Purchasing",
+        "title": "External",
+        "sol": null,
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://das.nebraska.gov/materiel/docs/NE_DAS_Materiel_SPB_Guide-Commodity_Procurement_Decision_Tree.pdf",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Request for Qualification Modular Fire Paramedic Station and Site Development",
+        "sol": null,
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=94-2023_A&YEAR=2023",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "West Nile Virus Service Purchase Agreement with The Government of Manitoba as represented by The Minister of Health, Sen",
+        "sol": null,
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=444-2020&YEAR=2020",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "GoM - Collaborative Procurement-Cloud Services",
+        "sol": null,
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "http://www.winnipeg.ca/MatMgt/FolderContents.asp?FOLDER_NAME=534-2021&YEAR=2021",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Fire Protection Equipment Maintenance & Repair Services",
+        "sol": "2027068",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "product_with_incidental_services"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Bee and Other Stinging Insect Removal Services",
+        "sol": "2027066",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Emergency and Non Emer Response for Hazardous, Universal & Bio Wastes",
+        "sol": "2027067",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Streetlight Maint., Installations, Removals, & Rusted Pole Replacement",
+        "sol": "2027062",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Cleaning and Repair of Fire Personal Protective Equipment",
+        "sol": "2027058",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "product_supply"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Ammunition and Less Lethal Products",
+        "sol": "2027054",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Total Organic Carbon (TOC) Analyzer",
+        "sol": "2027050",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "GEA Mechanical Equipment Centrifuge\nEQUIPMENT, PARTS, AND SERVICES",
+        "sol": "2027046",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "product_supply"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Airport Landing Fee Solution",
+        "sol": "2027041",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      },
+      {
+        "buyer": "Unknown",
+        "title": "Sunaire Emergency Shelter",
+        "sol": "2027033",
+        "closes": null,
+        "value_min": null,
+        "set_aside": "unknown",
+        "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+        "class": "unknown_mixed"
+      }
+    ]
+  },
+  "keyword_accuracy": {
+    "screws": {
+      "matches": 3,
+      "examples": [
+        {
+          "title": "Fasteners, Hardware, and Electrical Supplies",
+          "reasons": [
+            "title_match",
+            "term:fastener"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Fasteners, Hardware, and Electrical Supplies",
+          "reasons": [
+            "title_match",
+            "term:fastener"
+          ],
+          "url": "https://www.mesaaz.gov/business/purchasing"
+        },
+        {
+          "title": "Pneumatic Rotary Screw Air Compressor",
+          "reasons": [
+            "title_match",
+            "term:screw"
+          ],
+          "url": "https://datacatalog.cookcountyil.gov/Finance-Operations/Procurement-Intent-to-Execute/ag43-fvd7"
+        }
+      ]
+    },
+    "valves": {
+      "matches": 16,
+      "examples": [
+        {
+          "title": "Ball Valves",
+          "reasons": [
+            "title_match",
+            "term:valves"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Bronze Water Service Valves, Fittings and Hydrants",
+          "reasons": [
+            "title_match",
+            "term:valves"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Natural Gas Service Excess Flow Valves",
+          "reasons": [
+            "title_match",
+            "term:valves"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Pull and Valve Boxes",
+          "reasons": [
+            "title_match",
+            "term:valve"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "CPVC & PVC Fittings, Pipe, Valves, Related & Non-related products",
+          "reasons": [
+            "title_match",
+            "term:valves"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        }
+      ]
+    },
+    "equipment": {
+      "matches": 120,
+      "examples": [
+        {
+          "title": "Fire Protection Equipment Maintenance & Repair Services",
+          "reasons": [
+            "title_match",
+            "term:equipment"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Cleaning and Repair of Fire Personal Protective Equipment",
+          "reasons": [
+            "title_match",
+            "term:equipment"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "GEA Mechanical Equipment Centrifuge\nEQUIPMENT, PARTS, AND SERVICES",
+          "reasons": [
+            "title_match",
+            "term:equipment"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Endress + Hauser Equipment, Parts and Services",
+          "reasons": [
+            "title_match",
+            "term:equipment"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Structural/Extrication Personal Protective Equipment (PPE)",
+          "reasons": [
+            "title_match",
+            "term:equipment"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        }
+      ]
+    },
+    "appliances": {
+      "matches": 22,
+      "examples": [
+        {
+          "title": "REFRIGERATOR",
+          "reasons": [
+            "category_match",
+            "term:appliances"
+          ],
+          "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000otdvBIAQ"
+        },
+        {
+          "title": "BELL JET RANGER HELICOPTER, PARTS & SERVICE",
+          "reasons": [
+            "title_match",
+            "term:range"
+          ],
+          "url": "https://www.rampla.org/s/opportunity-details?id=006Ql00000oiiuzIAA"
+        },
+        {
+          "title": "WASHING MACHINE & DRYER, HIGH TEMP",
+          "reasons": [
+            "category_match",
+            "term:appliances"
+          ],
+          "url": "https://data.cityofnewyork.us/City-Government/M-WBE-Upcoming-Procurements/ww83-bcks"
+        },
+        {
+          "title": "Pressure Washers",
+          "reasons": [
+            "category_match",
+            "term:appliances"
+          ],
+          "url": "https://data.cityofnewyork.us/City-Government/M-WBE-Upcoming-Procurements/ww83-bcks"
+        },
+        {
+          "title": "Gasoline Powered Pressure Washer,needed for 6 sites within the 5 boroughs",
+          "reasons": [
+            "category_match",
+            "term:appliances"
+          ],
+          "url": "https://data.cityofnewyork.us/City-Government/M-WBE-Upcoming-Procurements/ww83-bcks"
+        }
+      ]
+    },
+    "generators": {
+      "matches": 20,
+      "examples": [
+        {
+          "title": "Generator Purchase and Installation Services",
+          "reasons": [
+            "title_match",
+            "term:generator"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Emergency and Non-Emergency Generator Rental Services",
+          "reasons": [
+            "title_match",
+            "term:generator"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Generator Maintence and Repair. DoIT",
+          "reasons": [
+            "title_match",
+            "term:generator"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Facitilies Generator Maintenance and Repair Services",
+          "reasons": [
+            "title_match",
+            "term:generator"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        },
+        {
+          "title": "Cat Generator Diagnostic, Maintenance and Repair Services",
+          "reasons": [
+            "title_match",
+            "term:generator"
+          ],
+          "url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc"
+        }
+      ]
+    },
+    "exact_mpn_3M-2091": {
+      "matches": 0
+    }
+  },
+  "combined_filters": {
+    "multi_filter_matches": 15,
+    "cleared_matches": 1432,
+    "clear_does_not_discard_underlying": true
+  },
+  "representative_product_sample": [
+    {
+      "buyer": "Unknown",
+      "product": "Fire Protection Equipment Maintenance & Repair Services",
+      "solicitation_number": "2027068",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_with_incidental_services"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Cleaning and Repair of Fire Personal Protective Equipment",
+      "solicitation_number": "2027058",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "GEA Mechanical Equipment Centrifuge\nEQUIPMENT, PARTS, AND SERVICES",
+      "solicitation_number": "2027046",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Tire Recapping Services",
+      "solicitation_number": "2027032",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Safety and Medical Supplies",
+      "solicitation_number": "2027027",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Mesa Emergency Vehicle Preemption (EVP) System",
+      "solicitation_number": "2027025",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Uniform Garment Rental and Related Items - Citywide",
+      "solicitation_number": "2027024",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Glock Handguns and Glock Accessories and Parts",
+      "solicitation_number": "2027022",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Ball Valves",
+      "solicitation_number": "2026172",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "OEM and Aftermarket Refuse Truck Parts",
+      "solicitation_number": "2026163",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Uniform Garments - Citywide",
+      "solicitation_number": "2026149",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "On-Site Vehicle Glass Services",
+      "solicitation_number": "2026139",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Storm Drain Pump and Maintenance Repair",
+      "solicitation_number": "2026134",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Endress + Hauser Equipment, Parts and Services",
+      "solicitation_number": "2026125",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Ford and Nissan OEM Auto and Light Duty Truck Parts",
+      "solicitation_number": "2026115",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Household Hazardous Materials Facility Operational Support",
+      "solicitation_number": "2026102",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Structural/Extrication Personal Protective Equipment (PPE)",
+      "solicitation_number": "2026100",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Pavement Marking Materials and Traffic Paint",
+      "solicitation_number": "2026093",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Electrical Equipment, Part & Supplies, Industrial & Non-Industrial AX",
+      "solicitation_number": "2026086",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Streetlight Parts and Electrical Supplies",
+      "solicitation_number": "2026081",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "MRO Supplies: Industrial Building Plumbing Electrical & HVAC Materials",
+      "solicitation_number": "2026071",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Bronze Water Service Valves, Fittings and Hydrants",
+      "solicitation_number": "2026062",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "On-Site HD Vehicle Repair and Preventative Maintenance Services",
+      "solicitation_number": "2026059",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_with_incidental_services"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Fasteners, Hardware, and Electrical Supplies",
+      "solicitation_number": "2026037",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Fencing and Gate, Installation, Repair, Rental & Supplies",
+      "solicitation_number": "2026029",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_with_incidental_services"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Hostile Vehicle Mitigation Barriers",
+      "solicitation_number": "2026008",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Clay and Glaze Materials",
+      "solicitation_number": "2026002",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Public Restroom Furnishings New and Repair Parts",
+      "solicitation_number": "2026001",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Electric Utility Distribution Transformers",
+      "solicitation_number": "2025233",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_supply"
+    },
+    {
+      "buyer": "Unknown",
+      "product": "Helicopter Airframe Parts & Repair Services",
+      "solicitation_number": "2025221",
+      "closing_date": null,
+      "estimated_value_min": null,
+      "estimated_value_max": null,
+      "set_aside": "unknown",
+      "official_url": "https://citydata.mesaaz.gov/Business-Services/Business-Services-Purchasing-Solicitations/dfcn-ivuc",
+      "state": null,
+      "class": "product_with_incidental_services"
+    }
+  ],
+  "elapsed_seconds": 200.0
+}

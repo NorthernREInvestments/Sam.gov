@@ -531,6 +531,81 @@ class PackageJobItem(Base):
     job: Mapped["PackageAcquisitionJob"] = relationship(back_populates="items")
 
 
+class ProcurementRecord(Base):
+    """Permanent discovered-solicitation identity (Build 002L). Soft-archive only."""
+
+    __tablename__ = "procurement_records"
+    __table_args__ = (
+        UniqueConstraint("record_id", name="uq_procurement_records_record_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    record_id: Mapped[str] = mapped_column(String(64), index=True)
+    canonical_key: Mapped[str] = mapped_column(String(128), index=True)
+    provider: Mapped[str] = mapped_column(String(64), default="", index=True)
+    provider_id: Mapped[str] = mapped_column(String(128), default="", index=True)
+    nb_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    solicitation_number: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    agency: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    official_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deadline_at: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    quantity: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    quantity_semantic: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    requirement_class: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    procurement_stage: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    package_status: Mapped[str] = mapped_column(String(48), default="UNKNOWN", index=True)
+    lifecycle_status: Mapped[str] = mapped_column(String(64), default="active_or_unknown", index=True)
+    active_queue: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    protected: Mapped[bool] = mapped_column(Boolean, default=False)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    first_discovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    exclusion_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    classification_history: Mapped[list] = mapped_column(JSONB, default=list)
+    source_provenance: Mapped[list] = mapped_column(JSONB, default=list)
+    document_manifest: Mapped[list] = mapped_column(JSONB, default=list)
+    raw_snapshot: Mapped[dict] = mapped_column(JSONB, default=dict)
+    build_origins: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProcurementRecordEvent(Base):
+    """Append-only change history for procurement records (Build 002L)."""
+
+    __tablename__ = "procurement_record_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    record_id: Mapped[str] = mapped_column(String(64), index=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
+    actor: Mapped[str] = mapped_column(String(64), default="system")
+    detail: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class ProcurementSourceLink(Base):
+    """Source-specific identity linked to a canonical procurement record."""
+
+    __tablename__ = "procurement_source_links"
+    __table_args__ = (
+        UniqueConstraint("record_id", "source", "source_record_id", name="uq_procurement_source_link"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    record_id: Mapped[str] = mapped_column(String(64), index=True)
+    source: Mapped[str] = mapped_column(String(64), index=True)
+    source_record_id: Mapped[str] = mapped_column(String(128), index=True)
+    official_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Fix forward refs for relationship typing under from __future__ annotations
 from typing import TYPE_CHECKING  # noqa: E402
 

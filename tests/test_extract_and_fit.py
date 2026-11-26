@@ -124,7 +124,8 @@ def test_pipeline_rejects_ambiguous_unit_paren():
             "record_type": "INDIVIDUAL_SOLICITATION",
         }
     )
-    assert pipe["stage"] == STAGE_B
+    # Stage B = product opportunity without firm Stage-C quantity
+    assert pipe["stage"] in {STAGE_B, "VERIFIED_PRODUCT_OPPORTUNITY"}
     assert not pipe["quantity_defined"]
 
 

@@ -1,0 +1,75 @@
+{
+  "build": "002Q",
+  "elapsed_sec": 2.9,
+  "openai_spent_usd": 0.0,
+  "metered_nextbid_calls": 0,
+  "acquire_full_unique": 23091,
+  "acquire_incremental_unique": 4385,
+  "stage_c_total": 74,
+  "bid_eligible_total": 0,
+  "ready_to_submit_total": 0,
+  "constraints": {
+    "nextbid_locked": true,
+    "controller": {
+      "locked": true,
+      "killswitch": {
+        "engaged": true,
+        "nextbid_enabled": false,
+        "env_emergency_stop": true,
+        "file_flag": {
+          "engaged": true,
+          "reason": "BUILD_002N_START_LOCK",
+          "engaged_at": "2026-11-22T04:10:37.129680+00:00",
+          "metered_calls_forbidden": true,
+          "scheduler_forbidden": true,
+          "retries_forbidden": true,
+          "resume_requires_owner_authorization": true
+        },
+        "metered_calls_allowed": false,
+        "resume_requires_owner_authorization": true
+      },
+      "owner_authorization": null,
+      "limits": {
+        "daily": 100,
+        "job": 50,
+        "monthly_reserve": 1000,
+        "test": 100,
+        "owner_hard_daily_ceiling": 100,
+        "owner_hard_test_ceiling": 100,
+        "scope": null,
+        "allowed_endpoints": null
+      },
+      "budget_state": {
+        "day": "2026-11-22",
+        "day_used": 0,
+        "test_used": 284,
+        "month_used_local": 300,
+        "account_remaining": 2646,
+        "account_used": 3354,
+        "account_allowance": 6000,
+        "effective_available": 0
+      },
+      "resume_requires_owner_authorization": true
+    },
+    "openai_daily": 1.0,
+    "openai_per_job": 0.5,
+    "spend": {
+      "paid_research_enabled": true,
+      "daily_budget_usd": 1.0,
+      "monthly_budget_usd": 30.0,
+      "per_job_budget_usd": 0.5,
+      "per_user_daily_budget_usd": 1.0,
+      "max_research_depth": 2,
+      "default_model": "gpt-4o-mini",
+      "capable_model": "gpt-5-mini",
+      "search_context_size": "low",
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668,
+      "today_remaining_usd": 1.0,
+      "month_remaining_usd": 28.9332,
+      "cost_basis": "application_estimate_not_invoice",
+      "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+    },
+    "build_id": "20261122-m3-2-build-002q"
+  }
+}

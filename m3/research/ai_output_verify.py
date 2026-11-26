@@ -160,19 +160,79 @@ def verify_analysis_against_sources(
     bid = evaluate_bid_eligibility(work, pipe, document_text=corpus)
     dl = evaluate_deadline_gate(work)
 
-    # Promotion requires deterministic gates — AI alone insufficient
-    supplier_quote_ready = bool(
-        bid.get("supplier_quote_ready")
-        and not blocks
-        and not dl.get("expired")
-        and verified_line_items
-        and coverage.get("has_substantive_document_content")
-    )
-    currently_open_verified = bool(bid.get("currently_open_verified"))
-    bid_submission_ready = bool(bid.get("ready_to_submit") and supplier_quote_ready and currently_open_verified)
-
     if not verified_line_items and analysis.get("is_product_purchase"):
         unknown_fields.append("line_items")
+
+    # --- Authoritative readiness (AI cannot bypass) ---
+    # Unknown/missing quantities on ANY verified line block FULL supplier-quote readiness.
+    lines_missing_qty = [
+        li
+        for li in verified_line_items
+        if li.get("quantity") in (None, "", "UNKNOWN", "unknown")
+        or str(li.get("quantity_semantic") or "").upper() == "UNKNOWN"
+    ]
+    qty_complete = bool(verified_line_items) and not lines_missing_qty
+    if lines_missing_qty:
+        for li in lines_missing_qty:
+            uf = f"quantity:{(li.get('description') or '')[:40]}"
+            if uf not in unknown_fields:
+                unknown_fields.append(uf)
+
+    pkg_label = str(coverage.get("package_completeness") or "")
+    docs_pending = int((coverage.get("document_inventory") or {}).get("download_pending") or 0)
+    reported_docs = coverage.get("opportunity_document_count")
+    package_blocks_full_quote = bool(
+        docs_pending > 0
+        or pkg_label in {"partial_document_package", "listing_only", "package_completeness_unverified"}
+        or (reported_docs is not None and int(reported_docs) > 0 and docs_pending > 0)
+    )
+
+    readiness_blockers: list[str] = []
+    if blocks:
+        readiness_blockers.append("unsuitable_execution_obligations")
+    if dl.get("expired"):
+        readiness_blockers.append("deadline_expired")
+    if not verified_line_items:
+        readiness_blockers.append("no_verified_line_items")
+    if not qty_complete:
+        readiness_blockers.append("unknown_mandatory_line_quantities")
+    if not coverage.get("has_substantive_document_content"):
+        readiness_blockers.append("insufficient_substantive_source_content")
+    if package_blocks_full_quote and pkg_label != "complete_relevant_package" and pkg_label != "complete_package_reviewed":
+        # Body-only packages may still quote if quantities complete and no pending attachments
+        if docs_pending > 0 or (reported_docs is not None and int(reported_docs) > 0 and not coverage.get("document_inventory", {}).get("downloaded")):
+            readiness_blockers.append("required_attachments_not_downloaded")
+    if not bid.get("supplier_quote_ready"):
+        readiness_blockers.append("bid_eligibility_gate_failed")
+
+    # Partial: some lines quoteable, but full solicitation not ready
+    partial_supplier_quote = bool(
+        verified_line_items
+        and not blocks
+        and not dl.get("expired")
+        and coverage.get("has_substantive_document_content")
+        and lines_missing_qty
+        and any(li.get("quantity") not in (None, "", "UNKNOWN", "unknown") for li in verified_line_items)
+    )
+
+    supplier_quote_ready = bool(not readiness_blockers)
+    currently_open_verified = bool(bid.get("currently_open_verified"))
+    # Bid submission ready requires supplier-quote ready PLUS submission gates — never AI alone
+    bid_submission_ready = bool(
+        supplier_quote_ready
+        and currently_open_verified
+        and bid.get("ready_to_submit")
+        and not unknown_fields
+    )
+    if supplier_quote_ready and not currently_open_verified:
+        readiness_blockers.append("open_status_unverified")
+
+    complete_reviewed = bool(
+        coverage.get("complete_solicitation_reviewed_claim_allowed")
+        and pkg_label in {"complete_package_reviewed", "complete_relevant_package"}
+        and docs_pending == 0
+        and coverage.get("has_substantive_document_content")
+    )
 
     return {
         "ok": True,
@@ -187,15 +247,13 @@ def verify_analysis_against_sources(
         "bid": bid,
         "promotion": {
             "supplier_quote_ready": supplier_quote_ready,
+            "partial_supplier_quote": partial_supplier_quote and not supplier_quote_ready,
             "currently_open_verified": currently_open_verified,
             "bid_submission_ready": bid_submission_ready,
+            "readiness_blockers": readiness_blockers,
             "ai_analysis_alone_insufficient": True,
+            "ai_cannot_bypass_gates": True,
         },
-        "complete_solicitation_reviewed": bool(
-            coverage.get("has_substantive_document_content")
-            and int(coverage.get("substantive_doc_count") or 0) >= 1
-            # Still do not claim entire solicitation unless caller marks required docs examined
-            and False  # hard: never auto-claim full package review from partial assembly
-        ),
+        "complete_solicitation_reviewed": complete_reviewed,
         "item": work,
     }

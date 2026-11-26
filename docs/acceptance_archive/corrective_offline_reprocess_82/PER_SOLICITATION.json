@@ -1,0 +1,3355 @@
+[
+  {
+    "nb_id": "NB00080682",
+    "title": "Qualified Vendor List (QVL) for the Purchase of New Vehicles",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/tucson-az/projects/24977",
+    "solicitation_number": "230022",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00080682",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 9,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=9_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 4808,
+    "ai_present": true,
+    "original_ai_quote_ready": true,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded"
+    ],
+    "unknown_fields": [
+      "quantity:Automobiles: mini, subcompact, compact, ",
+      "quantity:Pickup Trucks: light duty, half ton, thr",
+      "quantity:Cab and Chassis: class 4, class 5, and c",
+      "quantity:Vans: passenger and cargo",
+      "quantity:Sport Utility Vehicles (SUVs): compact, ",
+      "quantity:Police Pursuit-Rated SUVs, Sedans, and T",
+      "quantity:Police and Fire Special Service Vehicles"
+    ],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00227674",
+    "title": "RFQ 50433 - Credit and/or Liquidity Facilities and/or Making a Direct Purchase of Bonds",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/sfo/projects/286370",
+    "solicitation_number": "50433",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00227674",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 1169,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unsuitable_execution_obligations",
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "UNKNOWN"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00258512",
+    "title": "FURNISH AND DELIVER CONCRETE FOR VARIOUS MONMOUTH COUNTY DEPARTMENTS ON-CALL, AS NEEDED",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pol.co.monmouth.nj.us/BidDetails?ID=F-57-2026&BidType=2",
+    "solicitation_number": "F-57-2026",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00258512",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2484,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00260122",
+    "title": "27-031 SNOW PLOWING, AND HAULING OF SNOW AND ICE, TRUCKS AND EQUIPMENT FOR 2026 2027 WINTER SEASON",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-27-1167-PUR02-PUR01-133121&external=true&parentUrl=close",
+    "solicitation_number": "BD-27-1167-PUR02-PUR01-133121",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00260122",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00260203",
+    "title": "Single Purchase of an Agilent 8890 GC System Custom with dual ECD detectors",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.fedconnect.net/FedConnect/PublicPages/PublicSearch/Public_Opportunities.aspx",
+    "solicitation_number": "68HE0426Q0008",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00260203",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2472,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00260545",
+    "title": "Purchase of Publicly-Assisted Affordable Housing",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-20-1076-OCDDE-OCD01-48615&external=true&parentUrl=close",
+    "solicitation_number": "BD-20-1076-OCDDE-OCD01-48615",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00260545",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 4039,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00261711",
+    "title": "FURNISH AND DELIVER LUBRICANTS, MOTOR OILS, ANTI-FREEZE, DEGREASERS, CLEANERS AND WINDSHIELD WASHER FLUID FOR VARIOUS MONMOUTH COUNTY DIVISIONS ON-CALL, AS NEEDED",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pol.co.monmouth.nj.us/BidDetails?ID=F-25-2026&BidType=2",
+    "solicitation_number": "F-25-2026",
+    "disposition": "active",
+    "status": "partial_supplier_pricing",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00261711",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 7655,
+    "ai_present": true,
+    "original_ai_quote_ready": true,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": true,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities"
+    ],
+    "unknown_fields": [
+      "quantity:ENGINE OIL, 10W-30, FULL SYNTHETIC MOTOR"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00261760",
+    "title": "BL081-24 Purchase of a Swift Water Rescue Boat",
+    "source_portal": "instantmarkets",
+    "official_url": "https://ssl.doas.state.ga.us/gpr/eventDetails?eSourceNumber=PE-77023-NONST-2024-000000182&sourceSystemType=gpr20",
+    "solicitation_number": "BL081-24",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00261760",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00262082",
+    "title": "Town of Madison - Highway Vehicle (2005 Sterling)",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.memun.org/Bids-Proposals/town-of-madison-highway-vehicle-2005-sterling",
+    "solicitation_number": null,
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00262082",
+      "manifests": 1,
+      "documents": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00262082.json",
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2224,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00262627",
+    "title": "F.13 Lunar Terrain Vehicle Instruments Program: Not Solicited in ROSES-2025",
+    "source_portal": "instantmarkets",
+    "official_url": "https://nspires.nasaprs.com/external/solicitations/summary!init.do?solId={E9601D33-B74C-7D6B-4BE7-DE8858F0EC01}&path=open",
+    "solicitation_number": "NNH25ZDA001N-LTVI",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00262627",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2472,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "UNKNOWN"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00263284",
+    "title": "Town of Madison - Highway Vehicle (2004 Sterling)",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.memun.org/Bids-Proposals/town-of-madison-highway-vehicle-2004-sterling",
+    "solicitation_number": null,
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00263284",
+      "manifests": 1,
+      "documents": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00263284.json",
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2322,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00263615",
+    "title": "Purchase & Delivery of Sweeper Truck for the Juneau International Airport",
+    "source_portal": "instantmarkets",
+    "official_url": "https://juneau.org/finance/purchasing/posting-notices/entry/125766",
+    "solicitation_number": "B 27-030",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00263615",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 699,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00264384",
+    "title": "DFSMH RFR for Sand and Materials",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.commbuys.com/bso/external/bidDetail.sda?docId=BD-21-1021-DFS-DFS01-58331&external=true&parentUrl=close",
+    "solicitation_number": "BD-21-1021-DFS-DFS01-58331",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00264384",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00265618",
+    "title": "Purchase of Leased/Rented Used Vehicles ITQ",
+    "source_portal": "instantmarkets",
+    "official_url": "http://www.emarketplace.state.pa.us/Solicitations.aspx?SID=4400032873",
+    "solicitation_number": "4400032873",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00265618",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 8899,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Used rental and lease sedans, SUV\u2019s, lig"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00265924",
+    "title": "SNOW PLOWING, AND HAULING OF SNOW AND ICE, TRUCKS AND EQUIPMENT FOR 2026 \u2013 2027 WINTER SEASON",
+    "source_portal": "instantmarkets",
+    "official_url": "http://www.springfield-ma.gov/finance/procurement-bids/bid_detail.php?bid=202727-031",
+    "solicitation_number": "27-031",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00265924",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2356,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unsuitable_execution_obligations",
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "UNKNOWN"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00266353",
+    "title": "Athletics and Cheer Equipment, Supply, and Uniforms Vendors",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.beaconbid.com/solicitations/texarkana-isd/3d131a1a-9768-41ea-95ec-002e988e1363/athletics-and-cheer-equipment-supply-and-uniforms-vendors",
+    "solicitation_number": "23-23.2.FEB-20",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00266353",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00267597",
+    "title": "MPA 125 Rock Salt for Road Use - open enrollment",
+    "source_portal": "instantmarkets",
+    "official_url": "https://webprocure.proactiscloud.com/wp-web-public/en/#/bidboard/bid/142823?customerid=46",
+    "solicitation_number": "OEV26006589",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00267597",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 1030,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Rock Salt"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00269359",
+    "title": "Automated External Defibrillators (AED\u2019s) and Associated Support Materials at O\u2019Hare and Midway International Airports",
+    "source_portal": "instantmarkets",
+    "official_url": "https://webapps1.chicago.gov/vcsearch/solicitations#row=",
+    "solicitation_number": "1281345A",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00269359",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00270738",
+    "title": "PRE-QUALIFICATION FOR PARK EQUIPMENT AND PARTS",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=1",
+    "solicitation_number": "21-056/LP-1",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00270738",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00270921",
+    "title": "HDPE PIPE AND FITTINGS, PURCHASE AND DELIVERY OF, RPQ",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=1",
+    "solicitation_number": "26-009/JS-1",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00270921",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00271217",
+    "title": "ATHLETIC EQUIPMENT, UNIFORMS AND RELATED SUPPLIES",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.alachuaschools.net/o/acps/page/awards-solicitations-and-other-contracts",
+    "solicitation_number": "24-35",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00271217",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00273546",
+    "title": "MEDICAL SUPPLIES AND EQUIPMENT (CATALOG DISCOUNT)",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.alachuaschools.net/o/acps/page/awards-solicitations-and-other-contracts",
+    "solicitation_number": "23-38",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00273546",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00273645",
+    "title": "VACUUM TRUCK RENTAL",
+    "source_portal": "instantmarkets",
+    "official_url": "https://public.mymanatee.org/rfp_post/controller;jsessionid=E59008E25082777F5ABB3EDC40B8420B?rfp_id=26-R089140KD&action=details&view=home",
+    "solicitation_number": "26-R089140KD",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00273645",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00274102",
+    "title": "Pre-Solicitation Notice - WRWTP Finished Water Pump Station Upgrades",
+    "source_portal": "instantmarkets",
+    "official_url": "https://oregonbuys.gov/bso/external/bidDetail.sda?docId=S-KW0030-00018085&external=true&parentUrl=close",
+    "solicitation_number": "S-KW0030-00018085",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00274102",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00274728",
+    "title": "Emergency Responder Equipment and Supplies",
+    "source_portal": "instantmarkets",
+    "official_url": "http://www.emarketplace.state.pa.us/Solicitations.aspx?SID=COSTARS%2012%20Rebid",
+    "solicitation_number": "COSTARS 12 Rebid",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00274728",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 974,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "line_items"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00274983",
+    "title": "HVACR EQUIPMENT PARTS & SUPPLIES",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.alachuaschools.net/o/acps/page/awards-solicitations-and-other-contracts",
+    "solicitation_number": "25-16",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00274983",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00275253",
+    "title": "Fuel Management and Dispensing Equipment",
+    "source_portal": "instantmarkets",
+    "official_url": "https://scbo.sc.gov/online-edition?s=69222",
+    "solicitation_number": "27-R0004",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00275253",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 834,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00275434",
+    "title": "REPAIR OF FUEL SYSTEMS EQUIPMENT, PRE-QUAL OF VENDORS",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=1",
+    "solicitation_number": "F650559/JS",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00275434",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00276411",
+    "title": "PIPE & FITTINGS, DUCTILE IRON, PURCHASE OF, PRE-QUAL, CTYWD",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=2",
+    "solicitation_number": "26-035/BB-1",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00276411",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00278207",
+    "title": "Purchase of Three (3) 10-Ton and Two (2) 20-Ton Telescopic Cranes Trucks",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.njtransit.com/procurement/notice-of-awards",
+    "solicitation_number": "25-002",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00278207",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00278812",
+    "title": "Generator Replacement - Union Station / WRA [CANCELLED]",
+    "source_portal": "instantmarkets",
+    "official_url": "http://www.worcesterma.gov/finance/purchasing-bids/bids/8803-m7",
+    "solicitation_number": "8803-M7",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00278812",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2372,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "line_items"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00278872",
+    "title": "EMERGENCY NOTICE: JPMC Rock Salt IDOT Emergency",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.bidbuy.illinois.gov/bso/external/bidDetail.sda?docId=27-416CMS-BOSS4-B-53801&external=true&parentUrl=close",
+    "solicitation_number": "27-416CMS-BOSS4-B-53801",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00278872",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00279194",
+    "title": "VEHICLES,EQUIPMENT,ATTACHMENTS & RELATED TOOLS & ACCESSORIES",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=2",
+    "solicitation_number": "26-066/KM",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00279194",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00281162",
+    "title": "Cafeteria Supplies & Equipment - Small - Bid #25-71",
+    "source_portal": "instantmarkets",
+    "official_url": "https://mcpssbids.powerappsportals.com/activecontracts/",
+    "solicitation_number": "25-71",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00281162",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00286337",
+    "title": "Port of Los Angeles Clean Ports Program \u2013 Zero-Emission Truck Purchase Incentive Project",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/83809/bo/bo-detail/143552",
+    "solicitation_number": null,
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00286337",
+      "manifests": 1,
+      "documents": 3,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00286337.json",
+      "downloaded": 0,
+      "download_pending": 1
+    },
+    "opportunity_document_count": 1,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "discovered_docs_not_downloaded:3"
+    ],
+    "document_inventory": {
+      "inventoried": 3,
+      "downloaded": 0,
+      "download_pending": 3
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 1206,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00291174",
+    "title": "Electric Motor Rewind, Repair and Purchase",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/tucson-az/projects/310229",
+    "solicitation_number": "270133",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00291174",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 12,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=12_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 4054,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "deadline_expired",
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Electric motor repair services",
+      "quantity:Variable Frequency Drives - installation",
+      "quantity:Soft Start Motor Controllers - installat",
+      "quantity:Standard motor controls repair, replacem",
+      "quantity:Pump repair, rebuilding, and replacement"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00291755",
+    "title": "Sourcewell Material Processing & Recycling Eqp w/ Related Prod.&Serv.",
+    "source_portal": "instantmarkets",
+    "official_url": "https://postingboard.esmsolutions.com/3444a404-3818-494f-84c5-2a850acd7779/eventDetail/20281",
+    "solicitation_number": null,
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00291755",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00301738",
+    "title": "FORD AUTOMOTIVE AND TRUCK OEM PARTS, PURCHASE AND DELIVERY,",
+    "source_portal": "instantmarkets",
+    "official_url": "https://pbcvssp.pbc.gov/vssprd/Advantage4#row=1",
+    "solicitation_number": "27-004/BW",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00301738",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00302062",
+    "title": "District-wide Purchase of Dell and Miscellaneous Products Bid No. 7310",
+    "source_portal": "planetbids",
+    "official_url": null,
+    "solicitation_number": "Bid No. 7310",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00302062",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 767,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00317405",
+    "title": "Invitation to Bid for Purchase of County Owned Surplus Property",
+    "source_portal": "bonfire",
+    "official_url": "https://jacksongov.bonfirehub.com/opportunities/258701",
+    "solicitation_number": "26-070 - ITB",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00317405",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 3,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=3_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00318497",
+    "title": "FURNISH AND INSTALL INSERTS FOR SIPHONS 1  & 3 AT GLOBE HOLLOW WATER TREATMENT FACILITY",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/townofmanchester/projects/316513",
+    "solicitation_number": "26/27-17",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00318497",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 25,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=25_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 2844,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unsuitable_execution_obligations",
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Replace Siphon No. 1 and Siphon No. 3"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00318728",
+    "title": "Pacheco Pumping Plant Pump 12 Rebuild",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/48397/bo/bo-detail/144420",
+    "solicitation_number": "VW0725",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00318728",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00320100",
+    "title": "Furnish and Deliver Recycling Carts",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/frederickcountymd/projects/311486",
+    "solicitation_number": "27-283 IFB",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00320100",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 3,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=3_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 1004,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Recycling carts"
+    ],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00320199",
+    "title": "Liquid Oxygen Equipment Prepurchase",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/lvmwd/projects/299470",
+    "solicitation_number": "2026-RFB-049",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00320199",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 6,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=6_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 928,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00320237",
+    "title": "Chemical Controller Purchase",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/clevelandoh/projects/299298",
+    "solicitation_number": "2025-RFP-151",
+    "disposition": "rejected_removed",
+    "status": "rejected",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00320237",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 3717,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unsuitable_execution_obligations",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00321257",
+    "title": "Vehicle Filters",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/akronmetro/projects/318290",
+    "solicitation_number": "2026-15",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00321257",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 5,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=5_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 739,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00321512",
+    "title": "Montour Township Board of Supervisors - Pump Station No. 4 Modifications (General & Electrical)",
+    "source_portal": "bonfire",
+    "official_url": "https://pennbid.bonfirehub.com/opportunities/259636",
+    "solicitation_number": "Montour Township, Columbia County",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00321512",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 4,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=4_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00321554",
+    "title": "PURCHASE OF ONE (1) 6\u201d HIGH PRESSURE DIESEL PUMP WITH A TRAILER",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/79520/bo/bo-detail/147413",
+    "solicitation_number": null,
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00321554",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 699,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00326444",
+    "title": "NYSLSPHL - Furnish and Deliver Class I Biological Safety Cabinets",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.nyscr.ny.gov/Ads/Search?Skip=0&UseBookmarks=&UseNotifications=&UseProfile=&SubcontractId=&DivisionId=&Status=Open&Keyword=&DateFilter=Today&GovernmentId=&Top=500&Sort=-DateIssued",
+    "solicitation_number": "2140060",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00326444",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 983,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Class I Biological Safety Cabinets"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00330151",
+    "title": "NYSLSPHL - Furnish and Deliver Class I Biological Safety Cabinets",
+    "source_portal": "instantmarkets",
+    "official_url": "http://www.dasny.org/opportunities/rfps-bids/2026/nyslsphl-furnish-and-deliver-class-i-biological-safety-cabinets",
+    "solicitation_number": "3425009999 - P25",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00330151",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 853,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00330550",
+    "title": "SAP - Purchase of strontium 89 and iodine 131 solu",
+    "source_portal": "instantmarkets",
+    "official_url": "https://www.fedconnect.net/FedConnect/PublicPages/PublicSearch/Public_Opportunities.aspx#row=",
+    "solicitation_number": "68HE0M27Q0002",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00330550",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "substantive_solicitation_body",
+    "package_reasons": [
+      "substantive_local_body_without_attachment_inventory_completeness_unverified"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 5640,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "deadline_expired",
+      "unknown_mandatory_line_quantities",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Strontium 89 solution",
+      "quantity:Iodine 131 solution"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00331467",
+    "title": "2027 Office Supply Contract",
+    "source_portal": "bonfire",
+    "official_url": "https://pennbid.bonfirehub.com/opportunities/258640",
+    "solicitation_number": "Dauphin County Office of County Commissioners, PA",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00331467",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 3,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=3_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00338304",
+    "title": "Purchase of  FPVC C900  DR18 Water Pipe",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/lcfla/projects/319906",
+    "solicitation_number": "004-2027",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00338304",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 11226,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "deadline_expired",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00338394",
+    "title": "Purchase and Delivery of Light Rail Vehicle Truck Components",
+    "source_portal": "bonfire",
+    "official_url": "https://ridemetro.bonfirehub.com/opportunities/258875",
+    "solicitation_number": "2027000008",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00338394",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 1,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=1_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00338574",
+    "title": "Crossings Park Improvements Phase 2 Bristol Sports Arena-Skate Park and Pump Track",
+    "source_portal": "bonfire",
+    "official_url": "https://hiltonheadislandsc.bonfirehub.com/opportunities/259971",
+    "solicitation_number": "2026-26",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00338574",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 22,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=22_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00338603",
+    "title": "Furnish one hundred sixty (160) Chemical Flow Meters for the Metropolitan Water District Skinner Plant RFB-DV-481494",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/16151/bo/bo-detail/147393",
+    "solicitation_number": "RFB-DV-481494",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00338603",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 9,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=9_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 934,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00339418",
+    "title": "Network Equipment (E-Rate Year 30) 26-27-03TE",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/60604/bo/bo-detail/147750",
+    "solicitation_number": "26-27-03TE",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00339418",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00339590",
+    "title": "Instructional Materials Adoption (K-5 Science)",
+    "source_portal": "bonfire",
+    "official_url": "https://aps.bonfirehub.com/opportunities/259712",
+    "solicitation_number": "27-092926-70-P-LP",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00339590",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 9,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=9_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341157",
+    "title": "Purchase of Steel Consumables",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/btboces/projects/319350",
+    "solicitation_number": "IP-60-E-27",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341157",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 939,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341334",
+    "title": "Annual Requirements Contract for Fill Materials for the  Parks, Recreation, and Culture Department",
+    "source_portal": "bonfire",
+    "official_url": "https://arlingtontx.bonfirehub.com/opportunities/260539",
+    "solicitation_number": "27-0075",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341334",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 6,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=6_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341338",
+    "title": "Double-Sided Padmount Solid Dielectric Switchgear with Integrated Automation - Purchase Order",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/anaheim/projects/290478",
+    "solicitation_number": "SY270000491-LR",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341338",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 3,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=3_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 3946,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "quantity:Double-Sided Padmount Solid Dielectric S"
+    ],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341359",
+    "title": "Pump Station 2 Improvements and Modernization (Advertisement Only : No BIDS)",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/17950/bo/bo-detail/147671",
+    "solicitation_number": "K-27-2502-DBB-3-C",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341359",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 4,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=4_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341370",
+    "title": "Furnish and Deliver Miscellaneous Water Utility Materials",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/pasadena/projects/306172",
+    "solicitation_number": "2026-IFB-MS-0546",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341370",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 10,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=10_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 1954,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "deadline_expired",
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "line_items"
+    ],
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00341371",
+    "title": "Purchase of Signal Monitoring Solutions",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/ocgov/projects/318581",
+    "solicitation_number": "IFB-060-3160803-SC",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341371",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 6,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=6_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 3810,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "deadline_expired",
+      "no_verified_line_items",
+      "unknown_mandatory_line_quantities",
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [
+      "line_items"
+    ],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00341402",
+    "title": "Purchase and Delivery of Filled and Unfilled Sandbags VW0720",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/48397/bo/bo-detail/143761",
+    "solicitation_number": "VW0720",
+    "disposition": "active",
+    "status": "incomplete_or_blocked",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00341402",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 922,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": [
+      "all"
+    ],
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00343998",
+    "title": "Purchase of Fleet Vehicles FY 2027",
+    "source_portal": "bonfire",
+    "official_url": "https://sara-tx.bonfirehub.com/opportunities/260767",
+    "solicitation_number": "00366",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00343998",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00348901",
+    "title": "C26RI103317777R - REBID - Invitation For Bids (Non- Negotiable) - Furnish and Deliver Twelve (12) Miles of 288 Ribbon Fiber Optic Cable.",
+    "source_portal": "bonfire",
+    "official_url": "https://transitchicago.bonfirehub.com/opportunities/260725",
+    "solicitation_number": "C26RI103317777R",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00348901",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 8,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=8_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00356571",
+    "title": "Purchase of SUV",
+    "source_portal": "bonfire",
+    "official_url": "https://pennbid.bonfirehub.com/opportunities/255333",
+    "solicitation_number": "Bethlehem Housing Authority, Northampton County",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00356571",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "package_completeness_unverified",
+    "package_reasons": [
+      "insufficient_evidence_to_classify_package"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00362651",
+    "title": "Product Purchase Contract for 2026 or Newer Dodge Durango & Ram ProMaster City 12700874",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/14769/bo/bo-detail/148193",
+    "solicitation_number": "12700874",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00362651",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00362652",
+    "title": "Product Purchase Contract for Chevrolet Vehicles 12700767",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/14769/bo/bo-detail/148191",
+    "solicitation_number": "12700767",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00362652",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00372835",
+    "title": "*222816 Purchase of - Police Equipment and Supplies",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263194",
+    "solicitation_number": "IFS  - AVI B21000010",
+    "disposition": "archived_after_close",
+    "status": "archived_expired",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00372835",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "none_rejected_or_archived"
+  },
+  {
+    "nb_id": "NB00375193",
+    "title": "Weapons Purchase and Trade-In for Norfolk Police Department and Norfolk Sheriff\u2019s Office",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/norfolk/projects/327182",
+    "solicitation_number": "11070-0-2027/MD",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00375193",
+      "manifests": 1,
+      "documents": 4,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00375193.json",
+      "downloaded": 0,
+      "download_pending": 2
+    },
+    "opportunity_document_count": 3,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "discovered_docs_not_downloaded:4"
+    ],
+    "document_inventory": {
+      "inventoried": 4,
+      "downloaded": 0,
+      "download_pending": 4
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00375309",
+    "title": "Bulk Propane Fuel Supply",
+    "source_portal": "opengov",
+    "official_url": "https://procurement.opengov.com/portal/pembrokepines/projects/321591",
+    "solicitation_number": "CS-2026-QQ-02",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "read_file",
+      "get_document_download"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00375309",
+      "manifests": 1,
+      "documents": 12,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00375309.json",
+      "downloaded": 0,
+      "download_pending": 10
+    },
+    "opportunity_document_count": 11,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "discovered_docs_not_downloaded:12"
+    ],
+    "document_inventory": {
+      "inventoried": 12,
+      "downloaded": 0,
+      "download_pending": 12
+    },
+    "has_substantive_body": true,
+    "assembled_chars": 59386,
+    "ai_present": true,
+    "original_ai_quote_ready": false,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": [
+      "required_attachments_not_downloaded",
+      "bid_eligibility_gate_failed"
+    ],
+    "unknown_fields": [],
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00375408",
+    "title": "Purchase of County Owned Surplus Property - 500 E. 26th Street and 502 E. 26th Street, Kansas City, Missouri",
+    "source_portal": "bonfire",
+    "official_url": "https://jacksongov.bonfirehub.com/opportunities/263490",
+    "solicitation_number": "26-073",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00375408",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00375450",
+    "title": "Purchase of Fair Park Grounds Nursery Supplies*222688",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263585",
+    "solicitation_number": "IFS-PKR-B11000049",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00375450",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00380160",
+    "title": "Purchase of Gasoline and Diesel Fuel (Contract #B-26-004)",
+    "source_portal": "bonfire",
+    "official_url": "https://pennbid.bonfirehub.com/opportunities/263439",
+    "solicitation_number": "Radnor Township, Delaware County",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "ok": true,
+      "nb_id": "NB00380160",
+      "manifests": 1,
+      "documents": 0,
+      "path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\solicitation_document_inventory\\by_nb_id\\NB00380160.json",
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "opportunity_document_count": 4,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=4_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00380167",
+    "title": "Furnish All Labor, Material and Equipment for Roof Replacements at Various City of Garden Grove Water Facilities",
+    "source_portal": "planetbids",
+    "official_url": "https://vendors.planetbids.com/portal/15118/bo/bo-detail/148366",
+    "solicitation_number": "S-1399",
+    "disposition": "active",
+    "status": "incomplete_listing_or_body",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00380167",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 0,
+    "package_completeness": "listing_only",
+    "package_reasons": [
+      "listing_preview_or_thin_description_only"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_openai_or_local_research"
+  },
+  {
+    "nb_id": "NB00380775",
+    "title": "Purchase of SURVEILLANCE AND COUNTERSURVEILLANCE EQUIPMENT AND SUPPLIES *222447",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263970",
+    "solicitation_number": "IFS AVI B700016",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00380775",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00380776",
+    "title": "Purchase of WATER SUPPLY, GROUNDWATER, SEWAGE TREATMENT, AND RELATED EQUIPMENT *222600",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263968",
+    "solicitation_number": "IFS DWU B700015",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00380776",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00380777",
+    "title": "Purchase of BEARINGS *222544",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263941",
+    "solicitation_number": "IFS DWU B700014",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00380777",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00380778",
+    "title": "Purchase of PAINTS, PRIMERS, SEALERS, ETC. (FOR INSULATION) *222511",
+    "source_portal": "bonfire",
+    "official_url": "https://dallascityhall.bonfirehub.com/opportunities/263931",
+    "solicitation_number": "IFS DFD B700013",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00380778",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 2,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=2_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 0,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  },
+  {
+    "nb_id": "NB00384030",
+    "title": "ITQ#168792 Remanufacture Air Circuit Breakers",
+    "source_portal": "opengov",
+    "official_url": null,
+    "solicitation_number": "REQ-168792",
+    "disposition": "active",
+    "status": "awaiting_document_retrieval",
+    "window_endpoints": [
+      "get_opportunity"
+    ],
+    "manifest_reprocess": {
+      "nb_id": "NB00384030",
+      "ok": true,
+      "manifests": 0,
+      "documents": 0,
+      "reason": "no_stored_list_documents"
+    },
+    "opportunity_document_count": 5,
+    "package_completeness": "partial_document_package",
+    "package_reasons": [
+      "opportunity_reports_document_count=5_but_no_inventory_or_bodies"
+    ],
+    "document_inventory": {
+      "inventoried": 0,
+      "downloaded": 0,
+      "download_pending": 0
+    },
+    "has_substantive_body": false,
+    "assembled_chars": 729,
+    "ai_present": false,
+    "original_ai_quote_ready": null,
+    "corrected_quote_ready": false,
+    "corrected_partial_quote": false,
+    "corrected_bid_ready": false,
+    "readiness_blockers": null,
+    "unknown_fields": null,
+    "next_authorized_action": "authorized_document_retrieval"
+  }
+]

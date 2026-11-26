@@ -1,0 +1,1971 @@
+{
+  "build": "002Q",
+  "job": "document-reconcile",
+  "finished_at": "2026-11-22T20:59:20.573183+00:00",
+  "constraints": {
+    "nextbid_locked": true,
+    "no_acquire_restart": true,
+    "no_paid_search": true
+  },
+  "diagnosis": {
+    "freeze_n": 23091,
+    "packages_total": 7090,
+    "packages_with_downloads": 1493,
+    "match_methods_pre_repair": {
+      "external_key": 3284,
+      "unmatched": 9055,
+      "normalized_url": 10508,
+      "solicitation_number": 244
+    },
+    "freeze_rows_matched_any_package": 14036,
+    "freeze_rows_matched_package_with_downloads": 1716,
+    "root_cause": [
+      {
+        "id": "KEYS_MOSTLY_MATCH_BY_EXTERNAL_KEY",
+        "finding": "Product opportunities largely share external_key with SolicitationPackage rows. Prior zero quantity recovery was NOT primarily a missing join."
+      },
+      {
+        "id": "JUNK_OR_THIN_EXCERPTS",
+        "finding": "Many matched packages store portal chrome / stub HTML excerpts (e.g. Mesa Employee Data Portal) instead of solicitation body text; PDF blobs are re-read when present."
+      },
+      {
+        "id": "ALTERNATE_KEY_SCHEMES",
+        "finding": "Georgia/SF/Winnipeg minorities use solicitation_number, normalized URL, or opportunity-id joins when external_key schemes differ (gt:ga:\u2026 vs hash)."
+      }
+    ]
+  },
+  "package_reconcile": {
+    "population": 23091,
+    "packages_total": 7090,
+    "packages_with_downloads": 1493,
+    "linked": 14036,
+    "unmatched": 9055,
+    "match_methods": {
+      "external_key": 3284,
+      "unmatched": 9055,
+      "normalized_url": 10508,
+      "solicitation_number": 244
+    },
+    "with_usable_text": 815,
+    "with_quantity_hint": 60,
+    "pdf_reextracted": 0,
+    "junk_excerpts": 13221,
+    "text_sources": {
+      "package_excerpt": 815,
+      "junk_or_thin_excerpt_no_pdf": 13221
+    },
+    "index_stats": {
+      "packages_total": 7090,
+      "with_downloads": 1493,
+      "keys_ek": 7090,
+      "keys_sn": 2504,
+      "keys_nurl": 1998,
+      "keys_oid": 351
+    }
+  },
+  "qualify_counts": {
+    "discovered": 23091,
+    "verified_individual": 1224,
+    "potential_product": 390,
+    "product_quantity_verified": 18,
+    "complete_package": 542,
+    "commercially_qualified": 18,
+    "bid_eligible": 2,
+    "ready_to_submit": 2,
+    "excluded": 22269,
+    "quantity_recovered_from_package": 0,
+    "quantity_recovered_from_prior_evidence": 0,
+    "quantity_recovered_from_package_hint": 55,
+    "identity_upgraded_to_individual": 0,
+    "identity_demoted_from_forced": 0,
+    "package_linked": 14062
+  },
+  "stage_c_total": 18,
+  "bid_eligible_total": 2,
+  "product_opportunities": {
+    "n": 390,
+    "blocker_counts": {
+      "missing_quantity": 372,
+      "none_stage_c": 18
+    },
+    "sample_rows": [
+      {
+        "external_key": "db9604f295a80c929c76e101ce00c3be",
+        "title": "Regional Pumping Stations Concrete Equipment Pads Installation",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "0373d3f51b414762575da47334a5691f",
+        "title": "Supply and Delivery of Cleaning Supplies",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "f7400e9b468e5104d41ec5ffc335735a",
+        "title": "Supply and Delivery of and Assembly of Fitness Equipment",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "37b7a05b945e57e267bc52816e5dba29",
+        "title": "Request for Proposal Professional Consulting Services for Perimeter Road Pumping Station Pump Replacement and Electrical Upgrades",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "71d3422c9647cc52bc0689265d6022c8",
+        "title": "Supply of Commercial Chain Link Fencing",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "d2f9bd2d7b3d62df2042a8cb2a8a66a5",
+        "title": "Request for Proposal for the Supply and Delivery of Multi-Language Library Materials and Catalogue Records",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "e288ce7e71a66fe373e4ed7f4c7dbf98",
+        "title": "Supply and Delivery of CISCO UCS C220 M6 Server Hardware and Support Agreement",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "ff0c96cf6a3a8d6f2fd7e5ee5783afff",
+        "title": "Supply and Delivery of Parking Penalty Notice Paper Rolls",
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "solicitation_number": null,
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": null,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "3ad18b7eff64b6706ea8348a6685df16",
+        "title": "Glock Handguns and Glock Accessories and Parts",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2027022",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "903c69facfc0074ae8ec0bfd59cbdcdb",
+        "title": "Ball Valves",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026172",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "731a95bf50e2d317d1817cd7770b3e44",
+        "title": "OEM and Aftermarket Refuse Truck Parts",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026163",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "89db1e1e541466aa7e9be6b302e9ec5e",
+        "title": "On-Site Vehicle Glass Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026139",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "f7a3de3a0f5c1a9875c8411d6e6590e9",
+        "title": "Storm Drain Pump and Maintenance Repair",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026134",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "936531e345660e37753b525d86a522e5",
+        "title": "Ford and Nissan OEM Auto and Light Duty Truck Parts",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026115",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "7be2d8f3660bc1fd37b056a5746cbbcb",
+        "title": "Household Hazardous Materials Facility Operational Support",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026102",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "b54bf4e06f8a7d0e89070871771acb25",
+        "title": "Structural/Extrication Personal Protective Equipment (PPE)",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026100",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "a744a55c213e982f09d9d13dee8bb0d5",
+        "title": "Pavement Marking Materials and Traffic Paint",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026093",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "0db9a80c68182e13aa0a7ffdd2443a59",
+        "title": "Electrical Equipment, Part & Supplies, Industrial & Non-Industrial AX",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026086",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "a72ea526efc30b2820e0c964a95175b6",
+        "title": "Streetlight Parts and Electrical Supplies",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026081",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "eb7ba6948bd47304ed568f8e4629d932",
+        "title": "Fasteners, Hardware, and Electrical Supplies",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026037",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "42b9e61b8465a1c948f481bb8dddb25d",
+        "title": "Hostile Vehicle Mitigation Barriers",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026008",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "151f1d461187398d3db015c53bca6f65",
+        "title": "Clay and Glaze Materials",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026002",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "da9744bfbba20e7aae73771f80d943cd",
+        "title": "Public Restroom Furnishings New and Repair Parts",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2026001",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "d101e861b20bf8a5a65ce7796cf694e6",
+        "title": "Electric Utility Distribution Transformers",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025233",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "673bba5000e77c1dce8fb796d5c9409d",
+        "title": "Automotive Repair & Maint for Light Duty Vehicles - OEM Dealers Only",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025190",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "464d74d13330a9ea64be5d64f12347e2",
+        "title": "Off Site/On-Site Vehicle Washing Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025185",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "1340dd3c61fa520b187cce97ba2a12c2",
+        "title": "Sale of Used Electric Distribution Equipment",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025186",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "a5cdba9b1d10f107955099c50bf9436d",
+        "title": "Infosense Sewer Line Rapid Assessment Maint, Repair and Equipment/Part",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025179",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "faa18fd7849d701a3f290fd6aededd1d",
+        "title": "Audio Visual Parts and Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025167",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "4f76597debe5da6baf9839a12e138941",
+        "title": "Industrial Plumbing Supplies - Axia\ning Supplies - Axia",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025165",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "119d26eebd3b3a3154a6522bdef23e2e",
+        "title": "Pavement Preservation Materials II",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025146",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "1659bfcf2d6eb70db956f078c402dbc3",
+        "title": "LED Streetlight Fixtures",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025149",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "c2b245a47e52e40e8fcbe10498af3ccb",
+        "title": "APG-Neuros Blower Equipment, Parts, and Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025106",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "8981f5631fbfcc0b68a75fcec44d62eb",
+        "title": "IDEXX Water Testing Reagents and Supplies",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025103",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "0c5906e99bd58fb0ad0a899e0d87f421",
+        "title": "Pavement Preservation Materials",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025096",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "27cbf9f98145d287cb38355e5deca416",
+        "title": "Self-Contained Breathing Apparatus (SCBA) Air Equipment, Parts, Repair",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025092",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "e44150e3454a949db3ab97a44e049a21",
+        "title": "Office Supplies and Related Products",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025067",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "2f3ec14fdaaf9a9907d275ba54c3e9d7",
+        "title": "Enterprise Automatic Vehicle Locator (AVL) Telematics Solution",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025046",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "2e0ec8661acc82eb6ad7c8b7db3b2afb",
+        "title": "Batteries for Intelligent Transportation System Devices",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025042",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "3d11f5f98e1ffe658e9cf221bad41a7a",
+        "title": "Heavy-Duty (OEM) Cab & Chassis Parts",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025017",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "121725a6e2b506ae95c54a4dfcc0d03b",
+        "title": "Electrical Maintenance, Installations and Lighting Repairs",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025005",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "511ce5661d9a8cf0da27f5482ebe5bc9",
+        "title": "Natural Gas Service Excess Flow Valves",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2025001",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "4f6202df4f4dd025af1dee475a1ffa9a",
+        "title": "Helicopter Engine-Parts, Repair and Overhaul Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024191",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "56e62ad217a168eca7eab8d6c4efa1e1",
+        "title": "HVAC PM Services",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024186",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "8401cc804b5850d90ad839709b4181fb",
+        "title": "Generator Maintence and Repair. DoIT",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024176",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "619250281a9f2d7b1337b37e18d8ab9c",
+        "title": "Emergency Medical Supplies And Pharmaceuticals",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024173",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "080f8b0c7d6ef01d7cbfd5de859bb296",
+        "title": "Ground Maintenance Equipment Purchase",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024171",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "b754bc2d11fc58503f460a1e92f4a54f",
+        "title": "Trailer Parts, Automotive Lighting, Mirrors & Safety Supplies",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024163",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "757d2228f97379691038875410a4dffa",
+        "title": "Concrete Materials - Delivery Only",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024100",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      },
+      {
+        "external_key": "3ebcfc05b1bdaa6c824d2bdf67629b4e",
+        "title": "Playground and Park Equipment",
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "solicitation_number": "2024091",
+        "status": "open",
+        "stage": "VERIFIED_PRODUCT_OPPORTUNITY",
+        "blocker": "missing_quantity",
+        "quantity": null,
+        "quantity_semantic": null,
+        "package_status": "FAILED",
+        "package_match_method": "external_key",
+        "document_text_len": 959,
+        "bid_eligible": false,
+        "failed_gates": [
+          "tangible_products",
+          "defined_quantities",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "unknown_flags": [
+          "quantity_unknown"
+        ]
+      }
+    ]
+  },
+  "stage_c_ineligibility": {
+    "freeze_stage_c_n": 18,
+    "freeze_stage_c_bid_eligible": 0,
+    "freeze_stage_c_rows": [
+      {
+        "external_key": "0196616abe6d211aeb8a2d3633114d5a",
+        "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+        "solicitation_number": "233123",
+        "status": "open",
+        "quantity": "250",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions', 'sufficient_documents']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail",
+          "sufficient_documents": "fail"
+        }
+      },
+      {
+        "external_key": "915f9097e32dc2739bb376b337639a05",
+        "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+        "solicitation_number": "233012",
+        "status": "open",
+        "quantity": "300",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions', 'sufficient_documents']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail",
+          "sufficient_documents": "fail"
+        }
+      },
+      {
+        "external_key": "92945a428359df0b4e267d25ecebc9d1",
+        "title": "Athletic Equipment Uniforms and Related Services",
+        "solicitation_number": "SRS27002-ATHSUPPLY",
+        "status": "unknown",
+        "quantity": "2",
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "b795d0efcae6eedea6aaed9c88257473",
+        "title": "Next Generation 911 Evolution",
+        "solicitation_number": "GSS26716-E911_SVC",
+        "status": "unknown",
+        "quantity": "1",
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "122bdb254694c663ad59162fe1144489",
+        "title": "MARKET RESEARCH - LIVE WORMS, WAX (250 PER CUP)",
+        "solicitation_number": "233123",
+        "status": "open",
+        "quantity": "250",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions', 'sufficient_documents']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail",
+          "sufficient_documents": "fail"
+        }
+      },
+      {
+        "external_key": "2a1ff3d679657d946d1aa0a55503ac04",
+        "title": "139903R1 HYDRANT PRESSURE RECORDER (300 UNIT)",
+        "solicitation_number": "233012",
+        "status": "open",
+        "quantity": "300",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions', 'sufficient_documents']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail",
+          "sufficient_documents": "fail"
+        }
+      },
+      {
+        "external_key": "f585f2dbf4b799f6c9eb0b17bde19b30",
+        "title": "2026-28 2027 Ford 4 x 4 F550 2dr Mini Rescue Vehicle",
+        "solicitation_number": "PE-33306-NONST-2027-000000027",
+        "status": "open",
+        "quantity": "7",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "0dafa972126b364dbbd6fb2f6ae244a1",
+        "title": "2026-011 Five (5) New Custom Class A Pumper Apparatus",
+        "solicitation_number": "PE-74600-NONST-2027-000000031",
+        "status": "open",
+        "quantity": "5",
+        "failed_gates": [
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['submission_instructions']",
+        "gate_failures": {
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "b0bc8de0ca629940adc5768a3525d3c0",
+        "title": "RFB No. FVFD-2026-01 - Fire Department SCBA, Cylinders, and Facepieces",
+        "solicitation_number": "PE-66244-NONST-2027-000000005",
+        "status": "open",
+        "quantity": "5",
+        "failed_gates": [
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['submission_instructions']",
+        "gate_failures": {
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "341f5b4a927db3f72e4bc661ca29fe1a",
+        "title": "Pumper Fire Truck",
+        "solicitation_number": "PE-61700-NONST-2027-000000082",
+        "status": "open",
+        "quantity": "1",
+        "failed_gates": [
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['submission_instructions']",
+        "gate_failures": {
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "07e7dfaadf6e60f37ab0f90f55003494",
+        "title": "RFP 2026-09 Polaris Ranger 1000",
+        "solicitation_number": "PE-66992-NONST-2027-000000035",
+        "status": "open",
+        "quantity": "1",
+        "failed_gates": [
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['submission_instructions']",
+        "gate_failures": {
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "f5fd3371acfd1629bba5347edae38e63",
+        "title": "IWQ 141315 Purchase of Full-Port Glass Lined Plug Valve",
+        "solicitation_number": "PE-77023-NONST-2026-000000831",
+        "status": "open",
+        "quantity": "1",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "864e51200d484e3c8636a9a0812007f4",
+        "title": "Tractor Truck",
+        "solicitation_number": "PE-61700-NONST-2027-000000079",
+        "status": "open",
+        "quantity": "1",
+        "failed_gates": [
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['submission_instructions']",
+        "gate_failures": {
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "14af69ff2e59da0a9cb759e529975675",
+        "title": "27-015 INSTRUCTIONAL SUPPLIES",
+        "solicitation_number": "PE-67610-NONST-2027-000000106",
+        "status": "open",
+        "quantity": "1200",
+        "failed_gates": [
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['reseller_eligibility', 'no_blocking_install_insurance_bond_license', 'submission_instructions']",
+        "gate_failures": {
+          "reseller_eligibility": "fail",
+          "no_blocking_install_insurance_bond_license": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "509c0465f60894290fda1d3b927017ef",
+        "title": "NOTICE OF BID SOLICITATION: 27DPP01338 - T2789 BUCKET TRUCK, MINIMUM 19,500 LB. GVWR CREW CAB AND CHASSIS, DRW, 4WD WITH MAXIMUM 10.5 FOOT SERVICE BODY, REAR ST",
+        "solicitation_number": null,
+        "status": "unknown",
+        "quantity": "19500",
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "ec5087f2a06b94cf8dadc52442699613",
+        "title": "NOTICE OF BID SOLICITATION - BID AMENDMENT: 26DPP01328 - T3170 \u2013 INCIDENT MANAGEMENT RESPONSE TRUCK (IMRT), MINIMUM 10,600 LB. GVWR EXTENDED CAB AND CHASSIS, SR",
+        "solicitation_number": null,
+        "status": "unknown",
+        "quantity": "10600",
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "868fa56eced6877325dc028c1c584c92",
+        "title": "NOTICE OF BID SOLICITATION: 26DPP01328 - T3170 INCIDENT MANAGEMENT RESPONSE TRUCK (IMRT), MINIMUM 10,600 LB. GVWR EXTENDED CAB AND CHASSIS, SRW, 4WD WITH 8 FT. ",
+        "solicitation_number": null,
+        "status": "unknown",
+        "quantity": "10600",
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "submission_instructions": "fail"
+        }
+      },
+      {
+        "external_key": "6d562765ed56048c9d6df2f96ea3a039",
+        "title": "NOTICE OF BID SOLICITATION: 26DPP01247 - T3143 - MAINTENANCE OF AIRCRAFT, PARTS & SERVICE (SUPPLEMENTAL)",
+        "solicitation_number": null,
+        "status": "unknown",
+        "quantity": "10600",
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions"
+        ],
+        "why_not_bid_eligible": "Stage C is procurement fit only; bid-eligible requires all procurement gates to pass. Failed: ['active_solicitation', 'submission_instructions']",
+        "gate_failures": {
+          "active_solicitation": "fail",
+          "submission_instructions": "fail"
+        }
+      }
+    ],
+    "explanation": "Stage C \u2260 bid-eligible. Bid-eligible requires active status, Stage C, submission instructions, sufficient documents, reseller terms, and no blocking install/bond/license \u2014 all evidenced. Pricing/financing unused.",
+    "002p_retained_n": 64,
+    "002p_retained_bid_eligible": 0,
+    "002p_retained_gate_failures": {
+      "active_solicitation": 64,
+      "reseller_eligibility": 54,
+      "no_blocking_install_insurance_bond_license": 54,
+      "submission_instructions": 64,
+      "sufficient_documents": 61
+    },
+    "002p_retained_samples": [
+      {
+        "nb_id": "NB00221043",
+        "title": "Zero-Emission Truck Purchasing Incentive Project",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00260314",
+        "title": "Towable Air Start Unit",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00260545",
+        "title": "Purchase of Publicly-Assisted Affordable Housing",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00260636",
+        "title": "RFR 251633 Metabolic Food and Formulas",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00261760",
+        "title": "BL081-24 Purchase of a Swift Water Rescue Boat",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00263282",
+        "title": "T1954 - Professional Auctioneer Services for Vehicles and Heavy Equipment - DSS",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00263724",
+        "title": "SP22-TRAILER-Q66 Trailers, trailer parts and services",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00269089",
+        "title": "12-IND-7515-Flag Material",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00275531",
+        "title": "Textile Machinery, parts, Supplies and Service",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00279235",
+        "title": "Zero-Emission Truck Purchasing Incentive Project",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00279554",
+        "title": "Various sale of Property at online auction 2026 and 2027",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00280391",
+        "title": "DCR 004 Portable Toilet Services",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00280426",
+        "title": "Tipping Machinery Equipment and Service",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00282078",
+        "title": "Hudson Fire Station 1 - GARAGE DOOR REPLACEMENT",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00286264",
+        "title": "Modular Floating Platforms",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00286337",
+        "title": "Port of Los Angeles Clean Ports Program \u2013 Zero-Emission Truck Purchase Incentive Project",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00294331",
+        "title": "Gorge Powerhouse Crane Replacement",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00302278",
+        "title": "27-IND-7000-Wood",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00315688",
+        "title": "ITB_EQ-2039A - BLOUNT ISLAND MARINE TERMINAL HANJUNG CRANE #8841 REFURBISHMENT",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      },
+      {
+        "nb_id": "NB00320183",
+        "title": "London Foggers Truck-Mounted Generators",
+        "stage": "VERIFIED_M3_PROCUREMENT_FIT",
+        "quantity_defined": true,
+        "bid_eligible": false,
+        "failed_gates": [
+          "active_solicitation",
+          "reseller_eligibility",
+          "no_blocking_install_insurance_bond_license",
+          "submission_instructions",
+          "sufficient_documents"
+        ],
+        "record_type": "INDIVIDUAL_SOLICITATION"
+      }
+    ],
+    "002p_demoted_n": 9
+  },
+  "metered_nextbid": 0,
+  "openai_spent": 0
+}

@@ -1,0 +1,438 @@
+{
+  "build": "002Q",
+  "job": "qualification-repair",
+  "finished_at": "2026-11-22T17:51:26.502563+00:00",
+  "constraints": {
+    "nextbid_locked": true,
+    "no_full_acquire_restart": true,
+    "openai_ceilings_unchanged": true
+  },
+  "before": {
+    "n": 23091,
+    "verified_individual": 750,
+    "stage_a": 456,
+    "stage_b": 268,
+    "stage_c": 0,
+    "product_opportunity": 268,
+    "excluded": 22641,
+    "quantity_defined": 0,
+    "bid_eligible": 0,
+    "ready_to_submit": 0,
+    "missing_quantity_product": 268,
+    "identity_not_individual": 22341,
+    "product_blocked_by_identity": 748,
+    "note": "Captured from first offline snapshot on unrepaired freeze; Stage C=0 due to quantity drop"
+  },
+  "after": {
+    "n": 23091,
+    "verified_individual": 1224,
+    "stage_c": 6,
+    "product_opportunity": 390,
+    "excluded": 22269,
+    "bid_eligible": 0,
+    "ready_to_submit": 0,
+    "quantity_recovered_from_package": 0,
+    "identity_upgraded_to_individual": 9
+  },
+  "deltas": {
+    "verified_individual": 474,
+    "stage_c": 6,
+    "bid_eligible": 0,
+    "product_opportunity": 122
+  },
+  "identity_investigation": {
+    "product_opportunities_blocked_by_identity_pre_repair": 625,
+    "sample_repaired_to_individual_in_sample": 0,
+    "samples": [
+      {
+        "title": "Office Depot Contract",
+        "source_key": "ne_das_public",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://das.nebraska.gov/materiel/bid-opportunities.html",
+        "solicitation_number": null
+      },
+      {
+        "title": "Customized Tamper Evident Plastic Evidence Bags",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1203417"
+      },
+      {
+        "title": "Vegetated Roof (Green) Maintenance",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1202826"
+      },
+      {
+        "title": "Sound Level Meter Supply, Repair, and Calibration Services",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1202642"
+      },
+      {
+        "title": "Tobacco Community Program Grant Cessation Initiatives",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1204067"
+      },
+      {
+        "title": "Tobacco Community Outreach, Education, and Prevention Services",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1204066"
+      },
+      {
+        "title": "Stryker Rescue Boats, Accessories, and Maintenance",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1201320"
+      },
+      {
+        "title": "Home Share Program",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1202885"
+      },
+      {
+        "title": "Glock 45T SIMS Training Guns",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1204426"
+      },
+      {
+        "title": "Feasibility Study and Plan for a County Customized Employment Model",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1204570"
+      },
+      {
+        "title": "Classification Plan and Compensation Program Evaluation and Upgrades",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1194842"
+      },
+      {
+        "title": "Commissary Services and Accounting System",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1200740"
+      },
+      {
+        "title": "Recreation Apparel",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1201899"
+      },
+      {
+        "title": "Court Reporting, Stenographic and Transcription Services",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1197764"
+      },
+      {
+        "title": "Wheaton Arts and Cultural Center (WACC) Operator",
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "status": "open",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://data.montgomerycountymd.gov/Government/Solicitations/eeq6-nnwe",
+        "solicitation_number": "1200454"
+      },
+      {
+        "title": "Search Statewide Contracts",
+        "source_key": "al_purchasing",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://procurement.alabama.gov/state-procurement-events/",
+        "solicitation_number": "Procurement"
+      },
+      {
+        "title": "Statewide Vehicle And Accessory Contract List",
+        "source_key": "al_purchasing",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://procurement.alabama.gov/state-procurement-news/",
+        "solicitation_number": null
+      },
+      {
+        "title": "Alabama Buys Public Solicitations Information",
+        "source_key": "al_purchasing",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://procurement.alabama.gov/resource-library/",
+        "solicitation_number": null
+      },
+      {
+        "title": "STAARS Solicitations (historical)",
+        "source_key": "al_purchasing",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://alabamabuys.gov",
+        "solicitation_number": null
+      },
+      {
+        "title": "Miscellaneous Supplier Resources and Disclosure Statement",
+        "source_key": "al_purchasing",
+        "status": "unknown",
+        "prior_record_type": "SUPPORTING_DOCUMENT",
+        "prior_verified_individual": false,
+        "repaired_record_type": "SUPPORTING_DOCUMENT",
+        "repaired_verified_individual": false,
+        "official_url": "https://procurement.alabama.gov/media/y2bp0bpk/productsandservicescodes-11823.pdf",
+        "solicitation_number": null
+      },
+      {
+        "title": "procurement",
+        "source_key": "boston_procurement",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://www.boston.gov/departments/procurement",
+        "solicitation_number": null
+      },
+      {
+        "title": "View City Projects",
+        "source_key": "boston_procurement",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://www.boston.gov/departments/procurement#content",
+        "solicitation_number": null
+      },
+      {
+        "title": "Parks and playgrounds",
+        "source_key": "boston_procurement",
+        "status": "unknown",
+        "prior_record_type": "UNRESOLVED_RECORD",
+        "prior_verified_individual": false,
+        "repaired_record_type": "UNRESOLVED_RECORD",
+        "repaired_verified_individual": false,
+        "official_url": "https://www.boston.gov/government/cabinets/economic-opportunity-and-inclusion",
+        "solicitation_number": null
+      },
+      {
+        "title": "Procurement Our mission is to purchase the highest-quality goods and services at the lowest possible price for the City and its residents. We also support nonpr",
+        "source_key": "boston_procurement",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://www.boston.gov/career-center",
+        "solicitation_number": null
+      },
+      {
+        "title": "Equitable Procurement",
+        "source_key": "boston_procurement",
+        "status": "unknown",
+        "prior_record_type": "PROCUREMENT_LISTING",
+        "prior_verified_individual": false,
+        "repaired_record_type": "PROCUREMENT_LISTING",
+        "repaired_verified_individual": false,
+        "official_url": "https://www.boston.gov/city-boston-services-applications-and-permits",
+        "solicitation_number": null
+      }
+    ],
+    "post_repair_identity_breakdown": {
+      "PROCUREMENT_LISTING": 718,
+      "SUPPORTING_DOCUMENT": 34,
+      "INDIVIDUAL_SOLICITATION": 1224,
+      "GENERAL_PROCUREMENT_INFORMATION": 4633,
+      "UNRESOLVED_RECORD": 7745,
+      "HISTORICAL_AWARD": 7412,
+      "PURCHASING_PLAN": 166,
+      "PROCUREMENT_FORECAST": 1114,
+      "UNRELATED_CONTENT": 16,
+      "PROCUREMENT_PORTAL": 27,
+      "VENDOR_REGISTRATION": 2
+    },
+    "identity_upgraded_this_pass": 9
+  },
+  "quantity_recovery": {
+    "pre_repair_missing_quantity_product": 268,
+    "recovered_from_package_this_pass": 0,
+    "recovered_from_prior_evidence_this_pass": 1,
+    "packages_indexed": 2952
+  },
+  "reconcile_002p_stage_c": {
+    "prior_count": 73,
+    "still_stage_c": 64,
+    "demoted": 9,
+    "demotion_reasons": {
+      "excluded:record_type:UNRESOLVED_RECORD": 2,
+      "excluded:class:services_title_confirmed": 3,
+      "excluded:record_type:PROCUREMENT_LISTING": 3,
+      "quantity_not_defined:active_status_unverified,quantity_estimated_not_firm_order": 1
+    },
+    "demotion_samples": [
+      {
+        "nb_id": "NB00259947",
+        "title": "EXT AIR | TERMINAL 3 EAST VIDEO GAME LOUNGE LEASE",
+        "why": "excluded:record_type:UNRESOLVED_RECORD",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00281812",
+        "title": "RFP:105F-26 Shuttle Bus Services",
+        "why": "excluded:class:services_title_confirmed",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00326568",
+        "title": "Inmate Communications",
+        "why": "excluded:record_type:PROCUREMENT_LISTING",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00326707",
+        "title": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer for Saratoga Region",
+        "why": "excluded:record_type:UNRESOLVED_RECORD",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00328110",
+        "title": "AMR, N Liberty S, Multi Cnty",
+        "why": "excluded:record_type:PROCUREMENT_LISTING",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00328155",
+        "title": "Cleaning Out and Plugging Twenty-Five (25) Orphan Gas Wells Wetmore Township, McKean County",
+        "why": "excluded:record_type:PROCUREMENT_LISTING",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00348866",
+        "title": "IFB Monthly and On-call Pest Control Services, San Bernardino County",
+        "why": "excluded:class:services_title_confirmed",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00375339",
+        "title": "Unication G5 Dual Band P25 Voice Pagers 700-800 MHz/VHF (136-174 MHz)",
+        "why": "quantity_not_defined:active_status_unverified,quantity_estimated_not_firm_order",
+        "legitimate_demotion": true
+      },
+      {
+        "nb_id": "NB00376271",
+        "title": "IFB 32A0743 Painting Services in Yuba County",
+        "why": "excluded:class:services_title_confirmed",
+        "legitimate_demotion": true
+      }
+    ],
+    "note": "Demotions require evidence (class/status/identity/quantity); none are forced."
+  },
+  "bid_eligible": {
+    "total": 0,
+    "ready_to_submit": 0,
+    "gate_fail_counts": {
+      "active_solicitation": 21888,
+      "tangible_products": 23085,
+      "defined_quantities": 23085,
+      "submission_instructions": 22927,
+      "reseller_eligibility": 19048,
+      "no_blocking_install_insurance_bond_license": 19092,
+      "sufficient_documents": 9503
+    },
+    "procurement_only": true,
+    "excludes_pricing_financing_supplier_stock": true
+  },
+  "repairs_applied": [
+    "POPULATION_FREEZE_PRESERVES_QUANTITY_EVIDENCE",
+    "BID_ELIGIBLE_EVIDENCE_BASED_PROCUREMENT_GATES",
+    "QUALIFY_USES_SOURCE_IDENTITY_NEVER_FORCED",
+    "OPEN_DATA_ACTIVE_IDENTITY_INDIVIDUAL",
+    "SERVICE_TITLE_NARROWED_PRODUCT_SUPPLY_PROTECTED",
+    "FULL_POPULATION_REPROCESS"
+  ],
+  "population_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance_populations\\4bde6e5e-b5e8-41ba-9989-ace54ed33592.jsonl",
+  "metered_nextbid": 0,
+  "openai_spent": 0
+}

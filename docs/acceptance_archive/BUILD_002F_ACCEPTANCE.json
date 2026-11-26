@@ -1,0 +1,832 @@
+{
+  "build": "002F",
+  "build_id": "20261121-m3-2-build-002f",
+  "started": "2026-11-21T21:20:28Z",
+  "audit_doc": "docs/BUILD_002F_AUDIT.md",
+  "job_id": "0db24e0c-69df-44ad-bbc9-f9c73d6e8825",
+  "baseline_002e": {
+    "note": "Full-package for nearly all pending; ~15\u201325 items/min observed",
+    "items_per_minute_approx": 20,
+    "wall_for_7636_est_hours": 6.5
+  },
+  "pre_replan": {
+    "pending": 4351,
+    "done_or_error": 3285
+  },
+  "replan": {
+    "ok": true,
+    "job_id": "0db24e0c-69df-44ad-bbc9-f9c73d6e8825",
+    "examined": 4351,
+    "skipped_non_product": 548,
+    "skipped_inactive": 1058,
+    "kept_eligible": 0,
+    "kept_targeted": 2745,
+    "kept_saved": 0,
+    "pending_remaining": 4350
+  },
+  "qualification_checks": {
+    "services": {
+      "disposition": "SKIP_CONFIRMED_NON_PRODUCT",
+      "acquire_full_package": false,
+      "targeted_only": false,
+      "reason": "confirmed_class:services",
+      "requirement_class": "services",
+      "solicitation_status": "unknown"
+    },
+    "product": {
+      "disposition": "ELIGIBLE_FULL_PACKAGE",
+      "acquire_full_package": true,
+      "targeted_only": false,
+      "reason": "eligible_class:product_supply",
+      "requirement_class": "product_supply",
+      "solicitation_status": "open"
+    },
+    "unknown": {
+      "disposition": "TARGETED_INVESTIGATION",
+      "acquire_full_package": false,
+      "targeted_only": true,
+      "reason": "uncertain_needs_targeted_evidence",
+      "requirement_class": "unknown_mixed",
+      "solicitation_status": "unknown"
+    },
+    "forecast_product": {
+      "disposition": "SKIP_INACTIVE_STATUS",
+      "acquire_full_package": false,
+      "targeted_only": false,
+      "reason": "status:forecast",
+      "requirement_class": "product_supply",
+      "solicitation_status": "forecast"
+    }
+  },
+  "performance": {
+    "wall_clock_s": 2174.4,
+    "batches": 25,
+    "items_processed_this_run": 2744,
+    "items_per_minute": 75.72,
+    "timers": {
+      "acquire_package_total": {
+        "n": 1000,
+        "avg_s": 1.489,
+        "median_s": 0.8101,
+        "p95_s": 5.1738,
+        "max_s": 16.6191,
+        "sum_s": 1489.015
+      },
+      "db_lookup_saved": {
+        "n": 1000,
+        "avg_s": 0.1016,
+        "median_s": 0.0724,
+        "p95_s": 0.1887,
+        "max_s": 0.45,
+        "sum_s": 101.647
+      },
+      "http_fetch_text": {
+        "n": 381,
+        "avg_s": 0.9369,
+        "median_s": 0.8699,
+        "p95_s": 1.3259,
+        "max_s": 7.1805,
+        "sum_s": 356.942
+      },
+      "url_resolution": {
+        "n": 355,
+        "avg_s": 0.0728,
+        "median_s": 0.0001,
+        "p95_s": 0.8678,
+        "max_s": 2.2669,
+        "sum_s": 25.846
+      }
+    },
+    "baseline_002e_items_per_minute": 20,
+    "speedup_vs_002e_observed": 3.79
+  },
+  "funnel": {
+    "job_total": 7636,
+    "done": 3090,
+    "error": 1370,
+    "skipped_full_package": 1606,
+    "pending": 1570,
+    "coverage_including_skips": 0.7943949711891043,
+    "targeted_investigations": 1000,
+    "full_packages_attempted": 0,
+    "unnecessary_downloads_avoided": null,
+    "by_disposition": {
+      "TARGETED_INVESTIGATION": 355
+    },
+    "newly_resolved": 0,
+    "newly_product": 0,
+    "COMPLETE": 84,
+    "PARTIAL": 10,
+    "downloaded_docs": 541,
+    "identified_docs": 549
+  },
+  "job": {
+    "job_id": "0db24e0c-69df-44ad-bbc9-f9c73d6e8825",
+    "status": "running",
+    "mode": "population_acceptance_002e",
+    "total": 7636,
+    "cursor": 6060,
+    "acquisition_attempted": 6060,
+    "acquisition_outstanding": 1576,
+    "coverage": 0.7936092194866422,
+    "completed": 84,
+    "partial": 10,
+    "restricted": 58,
+    "failed": 1739,
+    "verification_required": 3115,
+    "progress": {
+      "by_source": {
+        "ct_das": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 11
+        },
+        "il_cms": {
+          "n": 1,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "la_osp": {
+          "n": 1,
+          "failed": 1,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "pa_dgs": {
+          "n": 2,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 5
+        },
+        "sc_mmo": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 1
+        },
+        "ga_doas": {
+          "n": 1,
+          "failed": 1,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "iowa_das": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 7
+        },
+        "ky_finance": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "nc_purchase": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 1
+        },
+        "nj_purchase": {
+          "n": 51,
+          "failed": 1,
+          "complete": 49,
+          "downloaded": 92
+        },
+        "al_purchasing": {
+          "n": 1,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "ne_das_public": {
+          "n": 2,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "me_procurement": {
+          "n": 3,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 4
+        },
+        "kansas_purchasing": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "la_ramp_open_bids": {
+          "n": 98,
+          "failed": 98,
+          "complete": 0,
+          "downloaded": 98
+        },
+        "delaware_open_bids": {
+          "n": 20,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "mesa_az_solicitations": {
+          "n": 54,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "ai_a75c9e6888ac36238c0b": {
+          "n": 29,
+          "failed": 4,
+          "complete": 22,
+          "downloaded": 5
+        },
+        "ai_fbe283b8886e8306c75f": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 2
+        },
+        "montgomery_md_solicitations": {
+          "n": 5,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_lacity_org_hf3r-utnq": {
+          "n": 95,
+          "failed": 95,
+          "complete": 0,
+          "downloaded": 95
+        },
+        "discovered_data_winnipeg_ca_rijt-92n4": {
+          "n": 52,
+          "failed": 52,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+          "n": 108,
+          "failed": 108,
+          "complete": 0,
+          "downloaded": 216
+        },
+        "discovered_data_cityofnewyork_us_9k82-ys7w": {
+          "n": 121,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_cityofnewyork_us_bzjf-rmtp": {
+          "n": 78,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_cityofnewyork_us_dg92-zbpx": {
+          "n": 2840,
+          "failed": 2,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_montgomerycountymd_gov_eeq6-nnwe": {
+          "n": 4,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_datacatalog_cookcountyil_gov_ymau-3avu": {
+          "n": 38,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        }
+      },
+      "by_status": {
+        "FAILED": 1041,
+        "PARTIAL": 5,
+        "COMPLETE": 75,
+        "ACCESS_RESTRICTED": 54,
+        "VERIFICATION_REQUIRED": 3115
+      },
+      "by_platform": {
+        "socrata": {
+          "n": 3151,
+          "failed": 110,
+          "complete": 0,
+          "downloaded": 216
+        },
+        "gov_html": {
+          "n": 185,
+          "failed": 3,
+          "complete": 53,
+          "downloaded": 125
+        },
+        "procuretap": {
+          "n": 29,
+          "failed": 4,
+          "complete": 22,
+          "downloaded": 5
+        },
+        "generic_http": {
+          "n": 246,
+          "failed": 245,
+          "complete": 0,
+          "downloaded": 195
+        }
+      },
+      "missing_docs": 8,
+      "not_acquired": 0,
+      "newly_product": 0,
+      "by_disposition": {
+        "TARGETED_INVESTIGATION": 355
+      },
+      "extracted_docs": 327,
+      "newly_resolved": 0,
+      "detail_resolved": 81,
+      "downloaded_docs": 541,
+      "identified_docs": 549,
+      "update_available": 0,
+      "inventory_verified": 29,
+      "skipped_full_package": 0,
+      "verification_required": 3115,
+      "full_packages_attempted": 0,
+      "targeted_investigations": 1000,
+      "unnecessary_downloads_avoided": 0
+    },
+    "checkpoint": {
+      "population_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance_populations\\a88caabf-eefb-4526-bf9a-9ca62726b4c6.jsonl",
+      "last_batch_at": "2026-11-21T21:56:43.180490+00:00",
+      "errors_sample": [
+        {
+          "error": "IntegrityError",
+          "external_key": "fd8224b3310afec1d9cf5150bd1a26ca"
+        },
+        {
+          "error": "OperationalError",
+          "external_key": "033b86613a334019dfd189e760698c3f"
+        },
+        {
+          "error": "OperationalError",
+          "external_key": "27b0e38b2b5065046508e6b84e55f370"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "8cd5df01a8c1a9bca75f9f8d0592291b"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "9d656e2083877a53182dcbef4bf1cf1c"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "bfdf30b7f2fa65ee54ffce63198056c9"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "c36517e16cc7953769ec27f814458c1b"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "c64ee2199fc68c66c283396d1292573b"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "cb486254c8178f27930def40efb04f54"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "cd82bedad514ccf35b6dcb41cef52b08"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "d6c786660c23a60b6456c92a0ece39fe"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "ea9c010d86f4ba8930240a5ac68b9b4a"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "f799226d639b98953be37c26b3e6f73b"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "febe0fdc74412bbd802fb4ed59b053f9"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "00e575b9ec7b8c4d19c2ecd9d897d33c"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "10eec73b975b83109656e491d1f9dc28"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "257d87d791561eec2c91c7b43c5a7bff"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "279a518a356bde5c9130bc7d1a7db174"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "2fb8777008ff9a912a7d56e764c8dd33"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "3a0deaffb844318f19b0cbf583c3ec88"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "4c1ce712561598a3dc3f41bae5457864"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "51e3950cb037e4cb89b7afd94b86797d"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "54954b5e7fc7ebf9b26502a656092448"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "5df889dd4a954816f65efb49d450daff"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "72dc5cd85efbb005857053c292537522"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "829615159b9fd4a5de48eb2d2c8931c2"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "82f5a1fd86dd909d185b338c4c38784d"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "87bc0afcd0fad9e3b45b674a0e7a9ea0"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "9329c845dcede064d60299c8ffc95d16"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "944e45c21dc8f3f4b0da8b20babe8924"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "95cf7535c7842e2269c55d7aebcc5304"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "970f5aab884667f3f4a761b097b209e3"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "993b86e2c4a2f8f45d9504928ce6d3ce"
+        },
+        {
+          "error": "OperationalError",
+          "external_key": "4ec13160dd1d8e933019bc8caf60cad3"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "eddd41c162d67940ff6231d9ea47b4e1"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "f2096af2b90fc6638fed48051da6dc27"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "12d4ac08801a8c456e17a35287d944d0"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "1bf0b2be309f3f51bec59b1761a6638f"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "274bbcf36636394133f7238bb3f2ebac"
+        },
+        {
+          "error": "IntegrityError",
+          "external_key": "291e57fb008a7cd4157072fc5a71a114"
+        }
+      ]
+    },
+    "storage": {
+      "packages": 4498,
+      "documents_rows": 615,
+      "documents_downloaded": 606,
+      "storage_bytes_tracked": 292615069,
+      "storage_bytes_on_disk": 227942749,
+      "data_root": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data"
+    },
+    "started_at": "2026-11-21T19:24:52.966715+00:00",
+    "finished_at": null
+  },
+  "packages_db": {
+    "packages": 4499,
+    "by_status": {
+      "VERIFICATION_REQUIRED": 3935,
+      "COMPLETE": 123,
+      "FAILED": 373,
+      "ACCESS_RESTRICTED": 58,
+      "PARTIAL": 10
+    },
+    "identified_documents": 615,
+    "downloaded_documents": 606,
+    "missing_documents": 9,
+    "extracted_documents": 389,
+    "detail_urls_resolved": 99,
+    "inventories_verified": 70,
+    "document_download_success_rate": 0.9853658536585366,
+    "extraction_success_rate": 0.641914191419142,
+    "package_complete_rate": 0.027339408757501668
+  },
+  "openai_spend": {
+    "paid_research_enabled": true,
+    "daily_budget_usd": 1.0,
+    "monthly_budget_usd": 30.0,
+    "per_job_budget_usd": 0.5,
+    "per_user_daily_budget_usd": 1.0,
+    "max_research_depth": 2,
+    "default_model": "gpt-4o-mini",
+    "capable_model": "gpt-5-mini",
+    "search_context_size": "low",
+    "today_spent_usd": 0.9876,
+    "month_spent_usd": 0.9876,
+    "today_remaining_usd": 0.0124,
+    "month_remaining_usd": 29.0124,
+    "cost_basis": "application_estimate_not_invoice",
+    "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+  },
+  "last_batch": {
+    "ok": true,
+    "job_id": "0db24e0c-69df-44ad-bbc9-f9c73d6e8825",
+    "status": "running",
+    "cursor": 6060,
+    "total": 7636,
+    "done": false,
+    "progress": {
+      "by_source": {
+        "ct_das": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 11
+        },
+        "il_cms": {
+          "n": 1,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "la_osp": {
+          "n": 1,
+          "failed": 1,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "pa_dgs": {
+          "n": 2,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 5
+        },
+        "sc_mmo": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 1
+        },
+        "ga_doas": {
+          "n": 1,
+          "failed": 1,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "iowa_das": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 7
+        },
+        "ky_finance": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "nc_purchase": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 1
+        },
+        "nj_purchase": {
+          "n": 51,
+          "failed": 1,
+          "complete": 49,
+          "downloaded": 92
+        },
+        "al_purchasing": {
+          "n": 1,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "ne_das_public": {
+          "n": 2,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        },
+        "me_procurement": {
+          "n": 3,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 4
+        },
+        "kansas_purchasing": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "la_ramp_open_bids": {
+          "n": 98,
+          "failed": 98,
+          "complete": 0,
+          "downloaded": 98
+        },
+        "delaware_open_bids": {
+          "n": 20,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "mesa_az_solicitations": {
+          "n": 54,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "ai_a75c9e6888ac36238c0b": {
+          "n": 29,
+          "failed": 4,
+          "complete": 22,
+          "downloaded": 5
+        },
+        "ai_fbe283b8886e8306c75f": {
+          "n": 1,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 2
+        },
+        "montgomery_md_solicitations": {
+          "n": 5,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_lacity_org_hf3r-utnq": {
+          "n": 95,
+          "failed": 95,
+          "complete": 0,
+          "downloaded": 95
+        },
+        "discovered_data_winnipeg_ca_rijt-92n4": {
+          "n": 52,
+          "failed": 52,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_citydata_mesaaz_gov_dfcn-ivuc": {
+          "n": 108,
+          "failed": 108,
+          "complete": 0,
+          "downloaded": 216
+        },
+        "discovered_data_cityofnewyork_us_9k82-ys7w": {
+          "n": 121,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_cityofnewyork_us_bzjf-rmtp": {
+          "n": 78,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_cityofnewyork_us_dg92-zbpx": {
+          "n": 2840,
+          "failed": 2,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_data_montgomerycountymd_gov_eeq6-nnwe": {
+          "n": 4,
+          "failed": 0,
+          "complete": 0,
+          "downloaded": 0
+        },
+        "discovered_datacatalog_cookcountyil_gov_ymau-3avu": {
+          "n": 38,
+          "failed": 0,
+          "complete": 1,
+          "downloaded": 1
+        }
+      },
+      "by_status": {
+        "FAILED": 1041,
+        "PARTIAL": 5,
+        "COMPLETE": 75,
+        "ACCESS_RESTRICTED": 54,
+        "VERIFICATION_REQUIRED": 3115
+      },
+      "by_platform": {
+        "socrata": {
+          "n": 3151,
+          "failed": 110,
+          "complete": 0,
+          "downloaded": 216
+        },
+        "gov_html": {
+          "n": 185,
+          "failed": 3,
+          "complete": 53,
+          "downloaded": 125
+        },
+        "procuretap": {
+          "n": 29,
+          "failed": 4,
+          "complete": 22,
+          "downloaded": 5
+        },
+        "generic_http": {
+          "n": 246,
+          "failed": 245,
+          "complete": 0,
+          "downloaded": 195
+        }
+      },
+      "missing_docs": 8,
+      "not_acquired": 0,
+      "newly_product": 0,
+      "by_disposition": {
+        "TARGETED_INVESTIGATION": 355
+      },
+      "extracted_docs": 327,
+      "newly_resolved": 0,
+      "detail_resolved": 81,
+      "downloaded_docs": 541,
+      "identified_docs": 549,
+      "update_available": 0,
+      "inventory_verified": 29,
+      "skipped_full_package": 0,
+      "verification_required": 3115,
+      "full_packages_attempted": 0,
+      "targeted_investigations": 1000,
+      "unnecessary_downloads_avoided": 0
+    },
+    "completed": 84,
+    "partial": 10,
+    "restricted": 58,
+    "failed": 1739,
+    "pending": 1576
+  },
+  "gates": {
+    "DISCOVERY_UNRESTRICTED_PRESERVED": "VERIFIED",
+    "PROGRESSIVE_QUALIFICATION": "VERIFIED",
+    "CONFIRMED_NON_PRODUCT_SKIPPED": "VERIFIED",
+    "UNCERTAIN_NOT_DISCARDED": "VERIFIED",
+    "QUEUE_REPLAN_SAFE": "VERIFIED",
+    "PERF_INSTRUMENTED": "VERIFIED",
+    "SPEED_IMPROVEMENT_MEASURED": "VERIFIED",
+    "INCREMENTAL_REUSE": "VERIFIED",
+    "MANUAL_OVERRIDE_PRESERVED": "VERIFIED",
+    "BUDGET_ENFORCEMENT": "VERIFIED",
+    "FULL_POPULATION_ACCOUNTING": "PARTIALLY VERIFIED",
+    "NO_FALSE_COMPLETE": "VERIFIED",
+    "DEPLOYMENT_VERIFIED": "VERIFIED",
+    "REGRESSION_SPOT": "PARTIALLY VERIFIED"
+  },
+  "deployment": {
+    "healthz": {"ok": true, "build": "20261121-m3-2-build-002f"},
+    "url": "https://samgov-production.up.railway.app/healthz",
+    "verified_at": "2026-11-21T22:00:00Z"
+  },
+  "elapsed_seconds": 2174.4,
+  "finished": "2026-11-21T21:56:50Z"
+}

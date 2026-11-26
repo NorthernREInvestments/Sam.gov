@@ -1,0 +1,2372 @@
+{
+  "build": "002Q",
+  "acquire_full": {
+    "mode": "full",
+    "run_id": "4bde6e5e-b5e8-41ba-9989-ace54ed33592",
+    "discovery_population": 23091,
+    "all_matching_count": 23091,
+    "unique_items": 23091,
+    "verified_individual_solicitations": 750,
+    "verified_product": 1042,
+    "source_yield": [
+      {
+        "source_key": "lincoln_ne_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "omaha_ne_finance",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ne_das_public",
+        "pages": 3,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "university_of_nebraska_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "pages": 25,
+        "rows_examined": 12140,
+        "accepted": 59,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 12081,
+          "accepted": 59,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "pages": 116,
+        "rows_examined": 57704,
+        "accepted": 57704,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 57704,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "pages": 4,
+        "rows_examined": 1602,
+        "accepted": 432,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1170,
+          "accepted": 432,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "cambridge_ma_bids_historical",
+        "pages": 15,
+        "rows_examined": 7082,
+        "accepted": 7080,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 2,
+          "closed_excluded": 0,
+          "accepted": 7080,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "pages": 200,
+        "rows_examined": 100000,
+        "accepted": 99989,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "mapping_failures": 11,
+          "closed_excluded": 0,
+          "accepted": 99989,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "pages": 1,
+        "rows_examined": 231,
+        "accepted": 231,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 231,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "mesa_az_solicitations",
+        "pages": 4,
+        "rows_examined": 1602,
+        "accepted": 242,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1360,
+          "accepted": 242,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "sf_open_bid_opportunities",
+        "pages": 1,
+        "rows_examined": 80,
+        "accepted": 80,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 80,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "winnipeg_bid_opportunities",
+        "pages": 25,
+        "rows_examined": 12140,
+        "accepted": 59,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 12081,
+          "accepted": 59,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "cook_county_buying_plan_2026",
+        "pages": 1,
+        "rows_examined": 164,
+        "accepted": 164,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 164,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "pages": 1,
+        "rows_examined": 111,
+        "accepted": 111,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 111,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "delaware_open_bids",
+        "pages": 1,
+        "rows_examined": 42,
+        "accepted": 42,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 42,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "illinois_future_solicitations",
+        "pages": 1,
+        "rows_examined": 43,
+        "accepted": 43,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 43,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "pages": 2,
+        "rows_examined": 940,
+        "accepted": 940,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 940,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "montgomery_md_solicitations",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "accepted": 17,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "pages": 1,
+        "rows_examined": 194,
+        "accepted": 194,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 194,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "pages": 2,
+        "rows_examined": 564,
+        "accepted": 564,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 564,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "pages": 1,
+        "rows_examined": 95,
+        "accepted": 95,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 95,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "pages": 1,
+        "rows_examined": 231,
+        "accepted": 231,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 0,
+          "accepted": 231,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "pages": 3,
+        "rows_examined": 1264,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "mapping_failures": 0,
+          "closed_excluded": 1247,
+          "accepted": 17,
+          "product_gates_removed": true
+        }
+      },
+      {
+        "source_key": "al_purchasing",
+        "pages": 1,
+        "rows_examined": 18,
+        "accepted": 18,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 18,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ak_doa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "allegheny_county_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "az_spo",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ar_dfa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "housing_authority_chicago",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "chicago_public_schools_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "cta_procurement",
+        "pages": 1,
+        "rows_examined": 39,
+        "accepted": 39,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 39,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "albuquerque_purchasing",
+        "pages": 1,
+        "rows_examined": 9,
+        "accepted": 9,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 9,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "atlanta_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "austin_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "baltimore_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "boston_procurement",
+        "pages": 1,
+        "rows_examined": 44,
+        "accepted": 44,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 44,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "charlotte_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "chicago_procurement",
+        "pages": 1,
+        "rows_examined": 59,
+        "accepted": 59,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 59,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "columbus_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "dallas_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "denver_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "detroit_purchasing",
+        "pages": 1,
+        "rows_examined": 36,
+        "accepted": 36,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 36,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "fresno_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "houston_purchasing",
+        "pages": 1,
+        "rows_examined": 9,
+        "accepted": 9,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 9,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "indianapolis_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "jacksonville_procurement",
+        "pages": 1,
+        "rows_examined": 37,
+        "accepted": 37,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 37,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "las_vegas_purchasing",
+        "pages": 1,
+        "rows_examined": 1,
+        "accepted": 1,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 1,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "milwaukee_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "philadelphia_procurement",
+        "pages": 1,
+        "rows_examined": 19,
+        "accepted": 19,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 19,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "phoenix_procurement",
+        "pages": 1,
+        "rows_examined": 33,
+        "accepted": 33,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 33,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "portland_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sacramento_procurement",
+        "pages": 1,
+        "rows_examined": 28,
+        "accepted": 28,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 28,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "san_antonio_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "san_diego_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "seattle_purchasing",
+        "pages": 1,
+        "rows_examined": 9,
+        "accepted": 9,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 9,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tucson_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "co_state_purchasing",
+        "pages": 1,
+        "rows_examined": 16,
+        "accepted": 16,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 16,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ct_das",
+        "pages": 1,
+        "rows_examined": 29,
+        "accepted": 29,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 29,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "dfw_airport_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "dc_ocp",
+        "pages": 1,
+        "rows_examined": 32,
+        "accepted": 32,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 32,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "fairfax_county_procurement",
+        "pages": 1,
+        "rows_examined": 32,
+        "accepted": 32,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 32,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "fl_dms",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ga_doas",
+        "pages": 1,
+        "rows_examined": 25,
+        "accepted": 25,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 25,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "georgia_gpr_open_goods",
+        "pages": 31,
+        "rows_examined": 31,
+        "accepted": 31,
+        "pagination_complete": false,
+        "more_available": true,
+        "stats": {
+          "accepted": 31,
+          "closed_or_inactive": 0,
+          "mapping_failures": 0,
+          "listing_api_blocked": true,
+          "bootstrap_events": 31
+        }
+      },
+      {
+        "source_key": "ai_fbe283b8886e8306c75f",
+        "pages": 1,
+        "rows_examined": 54,
+        "accepted": 54,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 54,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "harris_county_purchasing",
+        "pages": 1,
+        "rows_examined": 12,
+        "accepted": 12,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 12,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "las_vegas_airport",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "atlanta_airport_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "hi_spo",
+        "pages": 1,
+        "rows_examined": 3,
+        "accepted": 3,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 3,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "hennepin_county_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "id_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "il_cms",
+        "pages": 1,
+        "rows_examined": 8,
+        "accepted": 8,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 8,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "iowa_das",
+        "pages": 1,
+        "rows_examined": 6,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 6,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "kansas_city_mo_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "kansas_purchasing",
+        "pages": 1,
+        "rows_examined": 49,
+        "accepted": 49,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 49,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ky_finance",
+        "pages": 1,
+        "rows_examined": 20,
+        "accepted": 20,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 20,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "king_county_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "los_angeles_county_isd",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "la_usd_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "la_osp",
+        "pages": 1,
+        "rows_examined": 17,
+        "accepted": 17,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 17,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "louisville_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mta_ny_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "me_procurement",
+        "pages": 1,
+        "rows_examined": 47,
+        "accepted": 47,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 47,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "maricopa_county_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "md_dgs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ma_osd",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mwra_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nashville_purchasing",
+        "pages": 1,
+        "rows_examined": 30,
+        "accepted": 30,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 30,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "metro_transit_mn",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mwd_ca_procurement",
+        "pages": 1,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "miami_dade_procurement",
+        "pages": 1,
+        "rows_examined": 19,
+        "accepted": 19,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 19,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mn_admin",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ms_dfa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mo_oa_purchasing",
+        "pages": 1,
+        "rows_examined": 23,
+        "accepted": 23,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 23,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "mt_general",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "naspo_valuepoint",
+        "pages": 1,
+        "rows_examined": 4,
+        "accepted": 4,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 4,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nyc_doe_vendor",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "housing_authority_nyc",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nv_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nh_purchase",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nj_purchase",
+        "pages": 1,
+        "rows_examined": 286,
+        "accepted": 286,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 286,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nm_gsd",
+        "pages": 1,
+        "rows_examined": 45,
+        "accepted": 45,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 45,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ny_ogs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nc_purchase",
+        "pages": 1,
+        "rows_examined": 14,
+        "accepted": 14,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 14,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "nd_omb",
+        "pages": 1,
+        "rows_examined": 32,
+        "accepted": 32,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 32,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "omnia_partners_public",
+        "pages": 1,
+        "rows_examined": 1,
+        "accepted": 1,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 1,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "oh_das",
+        "pages": 1,
+        "rows_examined": 2,
+        "accepted": 2,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 2,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ohio_state_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ok_omes",
+        "pages": 1,
+        "rows_examined": 6,
+        "accepted": 6,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 6,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "or_das",
+        "pages": 1,
+        "rows_examined": 41,
+        "accepted": 41,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 41,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "penn_state_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "pa_dgs",
+        "pages": 1,
+        "rows_examined": 25,
+        "accepted": 25,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 25,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "port_of_houston",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "port_of_la",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ri_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sfo_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sea_tac_procurement",
+        "pages": 1,
+        "rows_examined": 10,
+        "accepted": 10,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 10,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sourcewell_contracts",
+        "pages": 1,
+        "rows_examined": 3,
+        "accepted": 3,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 3,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sc_mmo",
+        "pages": 1,
+        "rows_examined": 55,
+        "accepted": 55,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 55,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "sd_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tampa_bay_water",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tn_cpo",
+        "pages": 1,
+        "rows_examined": 87,
+        "accepted": 87,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 87,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "tx_cpa",
+        "pages": 1,
+        "rows_examined": 9,
+        "accepted": 9,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 9,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "travis_county_purchasing",
+        "pages": 1,
+        "rows_examined": 3,
+        "accepted": 3,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 3,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "uc_procurement",
+        "pages": 1,
+        "rows_examined": 15,
+        "accepted": 15,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 15,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "university_of_florida_procurement",
+        "pages": 1,
+        "rows_examined": 43,
+        "accepted": 43,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 43,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "university_of_michigan_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "university_of_texas_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "university_of_washington_procurement",
+        "pages": 1,
+        "rows_examined": 10,
+        "accepted": 10,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 10,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "ut_purchasing",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "vt_bgs",
+        "pages": 1,
+        "rows_examined": 10,
+        "accepted": 10,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 10,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "va_dgs",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wmata_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wake_county_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wa_des",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wv_purchasing",
+        "pages": 1,
+        "rows_examined": 5,
+        "accepted": 5,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 5,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wi_doa",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      },
+      {
+        "source_key": "wy_procurement",
+        "pages": 1,
+        "rows_examined": 0,
+        "accepted": 0,
+        "pagination_complete": true,
+        "more_available": false,
+        "stats": {
+          "accepted": 0,
+          "mapping_failures": 0
+        }
+      }
+    ],
+    "sources_succeeded": [
+      "ne_das_public",
+      "discovered_data_winnipeg_ca_rijt-92n4",
+      "discovered_data_cityofnewyork_us_9k82-ys7w",
+      "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+      "cambridge_ma_bids_historical",
+      "discovered_data_cityofnewyork_us_dg92-zbpx",
+      "la_ramp_open_bids",
+      "mesa_az_solicitations",
+      "sf_open_bid_opportunities",
+      "winnipeg_bid_opportunities",
+      "cook_county_buying_plan_2026",
+      "discovered_data_cityofnewyork_us_bzjf-rmtp",
+      "delaware_open_bids",
+      "illinois_future_solicitations",
+      "discovered_data_cityofnewyork_us_ww83-bcks",
+      "montgomery_md_solicitations",
+      "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+      "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+      "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+      "discovered_data_lacity_org_hf3r-utnq",
+      "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+      "al_purchasing",
+      "cta_procurement",
+      "albuquerque_purchasing",
+      "boston_procurement",
+      "chicago_procurement",
+      "detroit_purchasing",
+      "houston_purchasing",
+      "jacksonville_procurement",
+      "las_vegas_purchasing",
+      "philadelphia_procurement",
+      "phoenix_procurement",
+      "sacramento_procurement",
+      "seattle_purchasing",
+      "co_state_purchasing",
+      "ct_das",
+      "dc_ocp",
+      "fairfax_county_procurement",
+      "ga_doas",
+      "georgia_gpr_open_goods",
+      "ai_fbe283b8886e8306c75f",
+      "harris_county_purchasing",
+      "hi_spo",
+      "il_cms",
+      "iowa_das",
+      "kansas_purchasing",
+      "ky_finance",
+      "la_osp",
+      "me_procurement",
+      "nashville_purchasing",
+      "mwd_ca_procurement",
+      "miami_dade_procurement",
+      "mo_oa_purchasing",
+      "naspo_valuepoint",
+      "nj_purchase",
+      "nm_gsd",
+      "nc_purchase",
+      "nd_omb",
+      "omnia_partners_public",
+      "oh_das",
+      "ok_omes",
+      "or_das",
+      "pa_dgs",
+      "sea_tac_procurement",
+      "socrata_catalog_discovery",
+      "sourcewell_contracts",
+      "sc_mmo",
+      "tn_cpo",
+      "tx_cpa",
+      "travis_county_purchasing",
+      "uc_procurement",
+      "university_of_florida_procurement",
+      "university_of_washington_procurement",
+      "vt_bgs",
+      "wv_purchasing"
+    ],
+    "sources_unavailable": [
+      "lincoln_ne_purchasing",
+      "omaha_ne_finance",
+      "university_of_nebraska_procurement",
+      "ak_doa",
+      "allegheny_county_purchasing",
+      "az_spo",
+      "ar_dfa",
+      "housing_authority_chicago",
+      "chicago_public_schools_procurement",
+      "atlanta_procurement",
+      "austin_purchasing",
+      "baltimore_procurement",
+      "charlotte_procurement",
+      "columbus_purchasing",
+      "dallas_purchasing",
+      "denver_purchasing",
+      "fresno_purchasing",
+      "indianapolis_purchasing",
+      "milwaukee_purchasing",
+      "portland_procurement",
+      "san_antonio_purchasing",
+      "san_diego_purchasing",
+      "tucson_procurement",
+      "dfw_airport_procurement",
+      "fl_dms",
+      "las_vegas_airport",
+      "atlanta_airport_procurement",
+      "hennepin_county_purchasing",
+      "id_purchasing",
+      "kansas_city_mo_procurement",
+      "king_county_procurement",
+      "los_angeles_county_isd",
+      "la_usd_procurement",
+      "louisville_procurement",
+      "mta_ny_procurement",
+      "maricopa_county_procurement",
+      "md_dgs",
+      "ma_osd",
+      "mwra_procurement",
+      "metro_transit_mn",
+      "mn_admin",
+      "ms_dfa",
+      "mt_general",
+      "nyc_doe_vendor",
+      "housing_authority_nyc",
+      "nv_purchasing",
+      "nh_purchase",
+      "ny_ogs",
+      "ohio_state_purchasing",
+      "penn_state_purchasing",
+      "port_of_houston",
+      "port_of_la",
+      "ri_purchasing",
+      "sfo_procurement",
+      "sd_procurement",
+      "tampa_bay_water",
+      "university_of_michigan_procurement",
+      "university_of_texas_procurement",
+      "ut_purchasing",
+      "va_dgs",
+      "wmata_procurement",
+      "wake_county_procurement",
+      "wa_des",
+      "wi_doa",
+      "wy_procurement"
+    ],
+    "sources_incomplete": [
+      "discovered_data_cityofnewyork_us_dg92-zbpx",
+      "georgia_gpr_open_goods"
+    ],
+    "limitations": [
+      "lincoln_ne_purchasing: https://www.lincoln.ne.gov/City/Departments/Finance/Purchasing status=403",
+      "omaha_ne_finance: https://finance.cityofomaha.org/purchasing status=403",
+      "university_of_nebraska_procurement: https://nebraska.edu/offices-policies/business-finance/procurement status=404",
+      "ak_doa: https://doa.alaska.gov/dgs/ status=403",
+      "allegheny_county_purchasing: https://www.alleghenycounty.us/purchasing/index.aspx status=403",
+      "az_spo: https://spo.az.gov/ status=403",
+      "ar_dfa: https://www.transform.ar.gov/procurement/ status=403",
+      "housing_authority_chicago: https://www.thecha.org/doing-business status=403",
+      "chicago_public_schools_procurement: https://www.cps.edu/about/departments/procurement/ status=404",
+      "atlanta_procurement: https://www.atlantaga.gov/government/departments/finance/office-of-contract-compliance status=403",
+      "austin_purchasing: https://www.austintexas.gov/department/purchasing status=404",
+      "baltimore_procurement: https://generalservices.baltimorecity.gov/procurement status=404",
+      "charlotte_procurement: https://www.charlottenc.gov/City-Government/Departments/Finance/Procurement status=403",
+      "columbus_purchasing: https://www.columbus.gov/procurement/ status=403",
+      "dallas_purchasing: https://dallascityhall.com/departments/procurementservices/Pages/default.aspx status=404",
+      "denver_purchasing: https://www.denvergov.org/Government/Agencies-Departments-Offices/Agencies-Departments-Offices-Directory/Department-of-Finance/Our-Divisions/Purchasing status=404",
+      "fresno_purchasing: https://www.fresno.gov/finance/purchasing/ status=403",
+      "indianapolis_purchasing: no_items",
+      "milwaukee_purchasing: https://city.milwaukee.gov/Purchasing status=403",
+      "portland_procurement: https://www.portland.gov/omf/brfs/procurement status=403",
+      "san_antonio_purchasing: https://www.sa.gov/Directory/Departments/Finance/Purchasing status=403",
+      "san_diego_purchasing: https://www.sandiego.gov/purchasing status=403",
+      "tucson_procurement: https://www.tucsonaz.gov/Departments/Finance/Procurement status=403",
+      "dfw_airport_procurement: https://www.dfwairport.com/business/procurement/ status=404",
+      "fl_dms: no_items",
+      "las_vegas_airport: https://www.harryreidairport.com/Business/Procurement status=404",
+      "atlanta_airport_procurement: https://www.atl.com/business-opportunities/ status=403",
+      "hennepin_county_purchasing: https://www.hennepin.us/business/work-with-hennepin/purchasing status=404",
+      "id_purchasing: no_items",
+      "kansas_city_mo_procurement: https://www.kcmo.gov/city-hall/departments/finance/procurement-services status=403",
+      "king_county_procurement: https://kingcounty.gov/en/dept/executive-services/about-king-county/procurement status=404",
+      "los_angeles_county_isd: https://lacounty.gov/business/doing-business-with-the-county/ status=404",
+      "la_usd_procurement: https://www.lausd.org/Page/269 status=403",
+      "louisville_procurement: https://louisvilleky.gov/government/procurement status=403",
+      "mta_ny_procurement: https://new.mta.info/doing-business-with-us status=403",
+      "maricopa_county_procurement: https://www.maricopa.gov/3974/Procurement-Services status=404",
+      "md_dgs: https://dgs.maryland.gov/Pages/Procurement/index.aspx status=404",
+      "ma_osd: https://www.mass.gov/orgs/operational-services-division status=403",
+      "mwra_procurement: https://www.mwra.com/procurements.html status=404",
+      "metro_transit_mn: https://www.metrotransit.org/doing-business status=404"
+    ],
+    "more_available": true,
+    "population_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\data\\acceptance_populations\\4bde6e5e-b5e8-41ba-9989-ace54ed33592.jsonl",
+    "notices_examined": 198997,
+    "duplicates_excluded": 146707,
+    "openai_spent": 0.0,
+    "metered_nextbid": 0,
+    "finished_at": "2026-11-22T14:13:01.169066+00:00",
+    "registry_persist": {
+      "total_records": 26082,
+      "ingested": 23091,
+      "created_or_touched": 23091,
+      "created": 23091,
+      "updated": 0,
+      "duplicate_links_detected": 6120,
+      "record_ids_sample": [
+        "pr_e90614c1c18a5b1e03fccd4f",
+        "pr_0f1a4b9c6f37a2869f22c2d9",
+        "pr_cc57c04ae6c232f3151f2ed5",
+        "pr_5286c50035b3e4b1bb387678",
+        "pr_8e558c9fd9a0f0ec5e862fdb",
+        "pr_0bf58fdaaf0f5d219fdf38c1",
+        "pr_7f13745c9b4d7732e5f4d2a2",
+        "pr_736473cffba4a0eb7955d17c",
+        "pr_fb07cb95259251c637afe85d",
+        "pr_62763f8abe0a790e10a153b8",
+        "pr_edaee939ca84e7c9f0c7c146",
+        "pr_434d1863bd80e9917a072602",
+        "pr_1e9ff7fa9c90e73751b8fe05",
+        "pr_35e357defac4285857bcaded",
+        "pr_992e497159611aca645d1686",
+        "pr_99582c2ecfba4bdb512937a3",
+        "pr_e160e8194394e97c8f8b72b1",
+        "pr_f8a84ffa5e1749e08b8f6cac",
+        "pr_4ee446bbb14a75e60d936951",
+        "pr_6b7f9df1db5e7e69d7469602"
+      ],
+      "metered_calls": 0
+    }
+  },
+  "acquire_incremental": {
+    "mode": "incremental",
+    "sources_polled": 15,
+    "source_stats": [
+      {
+        "source_key": "delaware_open_bids",
+        "ok": true,
+        "fetched": 42,
+        "new": 0,
+        "changed": 42,
+        "unchanged": 0
+      },
+      {
+        "source_key": "georgia_gpr_open_goods",
+        "ok": true,
+        "fetched": 31,
+        "new": 0,
+        "changed": 31,
+        "unchanged": 0
+      },
+      {
+        "source_key": "sf_open_bid_opportunities",
+        "ok": true,
+        "fetched": 80,
+        "new": 0,
+        "changed": 80,
+        "unchanged": 0
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "ok": true,
+        "fetched": 231,
+        "new": 0,
+        "changed": 231,
+        "unchanged": 0
+      },
+      {
+        "source_key": "montgomery_md_solicitations",
+        "ok": true,
+        "fetched": 17,
+        "new": 0,
+        "changed": 17,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "ok": true,
+        "fetched": 426,
+        "new": 0,
+        "changed": 426,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_datahub_usac_org_96rf-xd57",
+        "ok": true,
+        "fetched": 999,
+        "new": 0,
+        "changed": 999,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "ok": true,
+        "fetched": 3,
+        "new": 0,
+        "changed": 3,
+        "unchanged": 0
+      },
+      {
+        "source_key": "winnipeg_bid_opportunities",
+        "ok": true,
+        "fetched": 3,
+        "new": 0,
+        "changed": 3,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "ok": true,
+        "fetched": 231,
+        "new": 0,
+        "changed": 231,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "ok": true,
+        "fetched": 17,
+        "new": 0,
+        "changed": 17,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "ok": true,
+        "fetched": 194,
+        "new": 0,
+        "changed": 194,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "ok": true,
+        "fetched": 1000,
+        "new": 0,
+        "changed": 1000,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "ok": true,
+        "fetched": 111,
+        "new": 0,
+        "changed": 111,
+        "unchanged": 0
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "ok": true,
+        "fetched": 1000,
+        "new": 0,
+        "changed": 1000,
+        "unchanged": 0
+      }
+    ],
+    "new_items": 0,
+    "changed_items": 4385,
+    "unchanged_skipped": 0,
+    "unique_items": 4385,
+    "registry_persist": {
+      "total_records": 61803,
+      "ingested": 4385,
+      "created_or_touched": 4385,
+      "created": 0,
+      "updated": 4385,
+      "duplicate_links_detected": 3471,
+      "record_ids_sample": [
+        "pr_6825896122f8ad249b5eec88",
+        "pr_292b314457fbe61cf9e1e9e0",
+        "pr_3ba1d45eb7acaf1c789b724f",
+        "pr_862ea51530d1c45da6c68a0d",
+        "pr_47e57f4954e0d1c2d5f68830",
+        "pr_c1f509a43456258bf1938c99",
+        "pr_5238ed074ba777dd5c809526",
+        "pr_8ed49fc7dbfb20b9c78ec610",
+        "pr_b45a4bb5cac043dba2c853a1",
+        "pr_04780d9f448bbfa9e030932a",
+        "pr_4872e92389f65b9f9e149bfc",
+        "pr_8c64cba273658e851b18280c",
+        "pr_7d43981b50923415e0adbc29",
+        "pr_34c9bcde68342a6b9f8b84f6",
+        "pr_eea97161fc2aae6e2460dd22",
+        "pr_d20b175f80405c31e54973b0",
+        "pr_8d605e50272ac218064cda46",
+        "pr_277336364c7cacf7213bbd77",
+        "pr_6bafc66e14757e245e2a360a",
+        "pr_b2369e275b779e9ce98a41d5"
+      ],
+      "metered_calls": 0
+    },
+    "openai_spent": 0,
+    "metered_nextbid": 0,
+    "finished_at": "2026-11-22T15:23:59.674748+00:00"
+  },
+  "opportunities_db": 59,
+  "packages_db": 7090,
+  "documents_db": 4948,
+  "note": "Coverage % only where source publishes countable open totals",
+  "provenance_audit_totals": {
+    "reported_notices_examined": 198997,
+    "sum_source_rows_examined": 198997,
+    "sum_adapter_accepted": 169798,
+    "reported_duplicates_excluded": 146707,
+    "reported_unique": 23091,
+    "population_file_rows": 23091,
+    "sources_in_yield": 139,
+    "sources_reported": 140,
+    "registry_created": 23091,
+    "registry_updated": 0,
+    "registry_ingested": 23091,
+    "verified_individual_solicitations_run": 750,
+    "verified_product_run": 1042,
+    "verified_bid_eligible_total": 0
+  },
+  "provenance_discrepancies": [
+    {
+      "metric": "dedupe_funnel",
+      "sum_adapter_accepted": 169798,
+      "unique_plus_duplicates_excluded": 169798,
+      "delta": 0,
+      "explanation": "rows_examined includes closed/mapping rejects; adapter_accepted is Stage-1 keepers; duplicates_excluded is cross-source/external_key dedupe of keepers; unique is post-dedupe discovery population before owner filters."
+    }
+  ],
+  "provenance_inflation_analysis": {
+    "primary_drivers": [
+      {
+        "cause": "large_open_data_dumps_without_active_status_filter",
+        "examples": [
+          "discovered_data_cityofnewyork_us_dg92-zbpx",
+          "discovered_data_cityofnewyork_us_9k82-ys7w",
+          "discovered_data_winnipeg_ca_rijt-92n4",
+          "winnipeg_bid_opportunities",
+          "cambridge_ma_bids_historical"
+        ]
+      },
+      {
+        "cause": "cross_source_and_duplicate_external_key_dedupe",
+        "duplicates_excluded": 146707
+      },
+      {
+        "cause": "adapter_closed_status_exclusion_still_counted_in_rows_examined",
+        "note": "rows_examined counts rows seen; closed_excluded are not discovery keepers"
+      },
+      {
+        "cause": "not_repeated_pagination_of_same_page",
+        "evidence": "pagination_complete flags and page counts in source_yield; no synthetic generators"
+      }
+    ],
+    "top_sources_by_rows_examined": [
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "rows_examined": 100000,
+        "accepted": 99989,
+        "unique_in_population": 10696,
+        "url": "https://data.cityofnewyork.us/resource/dg92-zbpx.json"
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "rows_examined": 57704,
+        "accepted": 57704,
+        "unique_in_population": 880,
+        "url": "https://data.cityofnewyork.us/resource/9k82-ys7w.json"
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "rows_examined": 12140,
+        "accepted": 59,
+        "unique_in_population": 59,
+        "url": "https://data.winnipeg.ca/resource/rijt-92n4.json"
+      },
+      {
+        "source_key": "winnipeg_bid_opportunities",
+        "rows_examined": 12140,
+        "accepted": 59,
+        "unique_in_population": 59,
+        "url": "https://data.winnipeg.ca/resource/rijt-92n4.json"
+      },
+      {
+        "source_key": "cambridge_ma_bids_historical",
+        "rows_examined": 7082,
+        "accepted": 7080,
+        "unique_in_population": 7058,
+        "url": "https://data.cambridgema.gov/resource/iud6-avxc.json"
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "rows_examined": 1602,
+        "accepted": 432,
+        "unique_in_population": 432,
+        "url": "https://citydata.mesaaz.gov/resource/dfcn-ivuc.json"
+      },
+      {
+        "source_key": "mesa_az_solicitations",
+        "rows_examined": 1602,
+        "accepted": 242,
+        "unique_in_population": 242,
+        "url": "https://citydata.mesaaz.gov/resource/dfcn-ivuc.json"
+      },
+      {
+        "source_key": "discovered_data_montgomerycountymd_gov_eeq6-nnwe",
+        "rows_examined": 1264,
+        "accepted": 17,
+        "unique_in_population": 17,
+        "url": "https://data.montgomerycountymd.gov/resource/eeq6-nnwe.json"
+      },
+      {
+        "source_key": "montgomery_md_solicitations",
+        "rows_examined": 1264,
+        "accepted": 17,
+        "unique_in_population": 17,
+        "url": "https://data.montgomerycountymd.gov/resource/eeq6-nnwe.json"
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "rows_examined": 940,
+        "accepted": 940,
+        "unique_in_population": 479,
+        "url": "https://data.cityofnewyork.us/resource/ww83-bcks.json"
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "rows_examined": 564,
+        "accepted": 564,
+        "unique_in_population": 522,
+        "url": "https://datacatalog.cookcountyil.gov/resource/ag43-fvd7.json"
+      },
+      {
+        "source_key": "nj_purchase",
+        "rows_examined": 286,
+        "accepted": 286,
+        "unique_in_population": 286,
+        "url": "https://www.nj.gov/treasury/purchase/"
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "rows_examined": 231,
+        "accepted": 231,
+        "unique_in_population": 231,
+        "url": "https://data.lacity.org/resource/hf3r-utnq.json"
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "rows_examined": 231,
+        "accepted": 231,
+        "unique_in_population": 231,
+        "url": "https://data.lacity.org/resource/hf3r-utnq.json"
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "rows_examined": 194,
+        "accepted": 194,
+        "unique_in_population": 190,
+        "url": "https://datacatalog.cookcountyil.gov/resource/ymau-3avu.json"
+      }
+    ],
+    "top_sources_by_adapter_accepted": [
+      {
+        "source_key": "discovered_data_cityofnewyork_us_dg92-zbpx",
+        "accepted": 99989,
+        "unique_in_population": 10696,
+        "unique_solicitation_ids": 6824
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_9k82-ys7w",
+        "accepted": 57704,
+        "unique_in_population": 880,
+        "unique_solicitation_ids": 0
+      },
+      {
+        "source_key": "cambridge_ma_bids_historical",
+        "accepted": 7080,
+        "unique_in_population": 7058,
+        "unique_solicitation_ids": 7057
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_ww83-bcks",
+        "accepted": 940,
+        "unique_in_population": 479,
+        "unique_solicitation_ids": 0
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ag43-fvd7",
+        "accepted": 564,
+        "unique_in_population": 522,
+        "unique_solicitation_ids": 522
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "accepted": 432,
+        "unique_in_population": 432,
+        "unique_solicitation_ids": 432
+      },
+      {
+        "source_key": "nj_purchase",
+        "accepted": 286,
+        "unique_in_population": 286,
+        "unique_solicitation_ids": 2
+      },
+      {
+        "source_key": "mesa_az_solicitations",
+        "accepted": 242,
+        "unique_in_population": 242,
+        "unique_solicitation_ids": 242
+      },
+      {
+        "source_key": "discovered_data_lacity_org_hf3r-utnq",
+        "accepted": 231,
+        "unique_in_population": 231,
+        "unique_solicitation_ids": 231
+      },
+      {
+        "source_key": "la_ramp_open_bids",
+        "accepted": 231,
+        "unique_in_population": 231,
+        "unique_solicitation_ids": 231
+      },
+      {
+        "source_key": "discovered_datacatalog_cookcountyil_gov_ymau-3avu",
+        "accepted": 194,
+        "unique_in_population": 190,
+        "unique_solicitation_ids": 0
+      },
+      {
+        "source_key": "cook_county_buying_plan_2026",
+        "accepted": 164,
+        "unique_in_population": 163,
+        "unique_solicitation_ids": 163
+      },
+      {
+        "source_key": "discovered_data_cityofnewyork_us_bzjf-rmtp",
+        "accepted": 111,
+        "unique_in_population": 80,
+        "unique_solicitation_ids": 80
+      },
+      {
+        "source_key": "discovered_internal-sandiegocounty_data_socrata_com_rrhp-9sw9",
+        "accepted": 95,
+        "unique_in_population": 70,
+        "unique_solicitation_ids": 0
+      },
+      {
+        "source_key": "tn_cpo",
+        "accepted": 87,
+        "unique_in_population": 87,
+        "unique_solicitation_ids": 1
+      }
+    ]
+  },
+  "updated_at": "2026-11-22T15:27:26.289977+00:00"
+}

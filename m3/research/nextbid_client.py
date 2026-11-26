@@ -167,6 +167,20 @@ class NextBidClient:
         self.budget.record("documents", "read_file", 1)
         return data
 
+    def get_document_download(self, nb_id: str, document_hash: str) -> dict[str, Any]:
+        """Metered: temporary object-store download URL for a known document SHA-256."""
+        h = str(document_hash or "").strip()
+        data = metered_request(
+            "GET",
+            f"/opportunities/{nb_id}/documents/{h}/download",
+            job_id=self.job_id,
+            endpoint="get_document_download",
+            nb_id=nb_id,
+            max_retries=0,
+        )
+        self.budget.record("documents", "get_document_download", 1)
+        return data
+
 
 def checkpoint_path(name: str = "nextbid_acquire_v1") -> Path:
     root = get_settings().data_root() / "nextbid_checkpoints"

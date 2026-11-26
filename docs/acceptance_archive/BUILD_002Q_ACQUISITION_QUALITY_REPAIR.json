@@ -1,0 +1,1040 @@
+{
+  "build": "002Q",
+  "job": "acquisition-quality-repair",
+  "finished_at": "2026-11-22T21:47:28.759717+00:00",
+  "elapsed_sec": 420.5,
+  "constraints": {
+    "nextbid_locked": true,
+    "controller": {
+      "locked": true,
+      "killswitch": {
+        "engaged": true,
+        "nextbid_enabled": false,
+        "env_emergency_stop": true,
+        "file_flag": {
+          "engaged": true,
+          "reason": "BUILD_002N_START_LOCK",
+          "engaged_at": "2026-11-22T04:10:37.129680+00:00",
+          "metered_calls_forbidden": true,
+          "scheduler_forbidden": true,
+          "retries_forbidden": true,
+          "resume_requires_owner_authorization": true
+        },
+        "metered_calls_allowed": false,
+        "resume_requires_owner_authorization": true
+      },
+      "owner_authorization": null,
+      "limits": {
+        "daily": 100,
+        "job": 50,
+        "monthly_reserve": 1000,
+        "test": 100,
+        "owner_hard_daily_ceiling": 100,
+        "owner_hard_test_ceiling": 100,
+        "scope": null,
+        "allowed_endpoints": null
+      },
+      "budget_state": {
+        "day": "2026-11-22",
+        "day_used": 0,
+        "test_used": 284,
+        "month_used_local": 300,
+        "account_remaining": 2646,
+        "account_used": 3354,
+        "account_allowance": 6000,
+        "effective_available": 0
+      },
+      "resume_requires_owner_authorization": true
+    },
+    "openai_daily": 1.0,
+    "openai_per_job": 0.5,
+    "spend": {
+      "paid_research_enabled": true,
+      "daily_budget_usd": 1.0,
+      "monthly_budget_usd": 30.0,
+      "per_job_budget_usd": 0.5,
+      "per_user_daily_budget_usd": 1.0,
+      "max_research_depth": 2,
+      "default_model": "gpt-4o-mini",
+      "capable_model": "gpt-5-mini",
+      "search_context_size": "low",
+      "today_spent_usd": 0.0,
+      "month_spent_usd": 1.0668,
+      "today_remaining_usd": 1.0,
+      "month_remaining_usd": 28.9332,
+      "cost_basis": "application_estimate_not_invoice",
+      "note": "Estimated costs enforce budgets; OpenAI invoices may differ."
+    },
+    "build_id": "20261122-m3-2-build-002q"
+  },
+  "openai_spent": 0,
+  "metered_nextbid": 0,
+  "source_quality": {
+    "active_enabled_sources": 62,
+    "total_sources": 250,
+    "disabled_historical_or_forecast": 69,
+    "disabled_duplicates": 0,
+    "purpose_counts": {
+      "individual_solicitation_candidate": 73,
+      "supplier_directory": 70,
+      "historical_award": 17,
+      "quarantined": 83,
+      "forecast": 5,
+      "purchasing_plan": 1,
+      "procurement_listing": 1
+    },
+    "role_counts": {
+      "active_opportunity": 73,
+      "supplier_research": 70,
+      "pricing_research_only": 17,
+      "quarantined": 83,
+      "forecast_only": 6,
+      "portal_or_listing": 1
+    },
+    "disabled_samples": [
+      {
+        "source_key": "supplier_digikey",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_winzer",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_school_outfitters",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_rs_components",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_homedepot_pro",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_capitol_supply",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_hd_supply",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_lowes_pro",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_zoro",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_acme_tools",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_uline",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_valin",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_samsara_tools",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_govconnection",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_virco",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_cdwg",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_worthington",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_kaustik",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_staples_business",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_baker_distributing",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_fellowes",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_quill",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_radioshack_alt",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_shure",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_safety_glasses",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_cleaning_supplies",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_electrical_wholesale",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_johnstone",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_msc",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_rexel",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_supplyhouse",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_demco",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_mcmaster",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_global_industrial",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_b_and_h",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_oreilly",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_applied_industrial",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_omaha_fixture",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_autoforum",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_allied_elec",
+        "reason": "supplier_research",
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      }
+    ],
+    "duplicate_disabled": [],
+    "classified_sample": [
+      {
+        "source_key": "brla_bid_openings_results",
+        "adapter": "socrata_contracts",
+        "enabled": true,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "operational_or_verified_or_declared_active"
+        ]
+      },
+      {
+        "source_key": "supplier_works",
+        "adapter": "supplier_page",
+        "enabled": false,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "discovered_data_ny_gov_twsw-2mqa",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "historical_award",
+        "acquisition_role": "pricing_research_only",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "config.acquisition_role=pricing_research_only"
+        ]
+      },
+      {
+        "source_key": "supplier_digikey",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_winzer",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_school_outfitters",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_grainger_gov",
+        "adapter": "supplier_page",
+        "enabled": false,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "colorado_vss_public",
+        "adapter": "html_link_harvest",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "free_solicitation_adapter_default"
+        ]
+      },
+      {
+        "source_key": "discovered_data_delaware_gov_6a9e-y46r",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "quarantined",
+        "acquisition_role": "quarantined",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "quarantined_or_non_operational"
+        ]
+      },
+      {
+        "source_key": "maryland_procure",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "free_solicitation_adapter_default"
+        ]
+      },
+      {
+        "source_key": "supplier_rs_components",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "nyc_checkbook_solicitations",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "free_solicitation_adapter_default"
+        ]
+      },
+      {
+        "source_key": "supplier_homedepot_pro",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_capitol_supply",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_hd_supply",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_lowes_pro",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_zoro",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_acme_tools",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "supplier_uline",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "discovered_data_ny_gov_e3e7-qwer",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "operational_or_verified_or_declared_active"
+        ]
+      },
+      {
+        "source_key": "discovered_data_winnipeg_ca_rijt-92n4",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "operational_or_verified_or_declared_active"
+        ]
+      },
+      {
+        "source_key": "ai_61d7dedc83d6b06e9694",
+        "adapter": "html_link_harvest",
+        "enabled": false,
+        "purpose": "quarantined",
+        "acquisition_role": "quarantined",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "quarantined_or_non_operational"
+        ]
+      },
+      {
+        "source_key": "discovered_cos-data_seattle_gov_5mzj-4rtf",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "quarantined",
+        "acquisition_role": "quarantined",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "quarantined_or_non_operational"
+        ]
+      },
+      {
+        "source_key": "discovered_citydata_mesaaz_gov_dfcn-ivuc",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "operational_or_verified_or_declared_active"
+        ]
+      },
+      {
+        "source_key": "supplier_valin",
+        "adapter": "supplier_page",
+        "enabled": true,
+        "purpose": "supplier_directory",
+        "acquisition_role": "supplier_research",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "adapter:supplier_page"
+        ]
+      },
+      {
+        "source_key": "ai_a75c9e6888ac36238c0b",
+        "adapter": "html_link_harvest",
+        "enabled": false,
+        "purpose": "individual_solicitation_candidate",
+        "acquisition_role": "active_opportunity",
+        "active_opportunity_ok": true,
+        "evidence": [
+          "operational_or_verified_or_declared_active"
+        ]
+      },
+      {
+        "source_key": "discovered_data_kcmo_org_6wc4-sd7p",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "quarantined",
+        "acquisition_role": "quarantined",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "quarantined_or_non_operational"
+        ]
+      },
+      {
+        "source_key": "discovered_data_delaware_gov_75y3-eci7",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "historical_award",
+        "acquisition_role": "pricing_research_only",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "config.acquisition_role=pricing_research_only"
+        ]
+      },
+      {
+        "source_key": "discovered_data_ny_gov_dprp-55ye",
+        "adapter": "socrata_contracts",
+        "enabled": false,
+        "purpose": "historical_award",
+        "acquisition_role": "pricing_research_only",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "config.acquisition_role=pricing_research_only"
+        ]
+      },
+      {
+        "source_key": "mwra_procurement",
+        "adapter": "html_link_harvest",
+        "enabled": true,
+        "purpose": "quarantined",
+        "acquisition_role": "quarantined",
+        "active_opportunity_ok": false,
+        "evidence": [
+          "quarantined_or_non_operational"
+        ]
+      }
+    ]
+  },
+  "document_validation": {
+    "packages_scanned_with_downloads": 1505,
+    "genuine_non_junk_excerpts": 286,
+    "junk_packages_demoted": 282,
+    "linked_packages": 14075,
+    "genuine_solicitation_packages": 334,
+    "junk_or_thin_linked": 13741,
+    "document_acquisition_success_rate": 0.0237,
+    "targeted_recovery_success_rate": 0.702
+  },
+  "active_solicitations_by_source": {
+    "discovered_citydata_mesaaz_gov_dfcn-ivuc": 242,
+    "nj_purchase": 235,
+    "la_ramp_open_bids": 231,
+    "discovered_data_lacity_org_hf3r-utnq": 231,
+    "sf_open_bid_opportunities": 80,
+    "discovered_data_winnipeg_ca_rijt-92n4": 59,
+    "winnipeg_bid_opportunities": 59,
+    "delaware_open_bids": 42,
+    "georgia_gpr_open_goods": 31,
+    "chicago_procurement": 6,
+    "al_purchasing": 2,
+    "boston_procurement": 2,
+    "sacramento_procurement": 2,
+    "detroit_purchasing": 1,
+    "nc_purchase": 1
+  },
+  "product_opportunities_by_source": {
+    "la_ramp_open_bids": 96,
+    "discovered_data_lacity_org_hf3r-utnq": 96,
+    "discovered_citydata_mesaaz_gov_dfcn-ivuc": 52,
+    "nj_purchase": 50,
+    "georgia_gpr_open_goods": 31,
+    "delaware_open_bids": 24,
+    "sf_open_bid_opportunities": 23,
+    "discovered_data_winnipeg_ca_rijt-92n4": 8,
+    "winnipeg_bid_opportunities": 8,
+    "al_purchasing": 1,
+    "nc_purchase": 1
+  },
+  "connector_smoke": {
+    "tested": 15,
+    "ok": 4,
+    "fail": 11,
+    "samples": [
+      {
+        "source_key": "brla_bid_openings_results",
+        "adapter": "socrata_contracts",
+        "ok": true,
+        "detail": {
+          "status": "verified",
+          "records_retrieved": 5,
+          "active_like": 5,
+          "reason": "retrieved_legitimate_solicitation_records",
+          "sample_titles": [
+            "PARISHWIDE PAVEMENT RE-MARKING CITY-PARISH PROJECT No. 26-TS-CI-0026",
+            "RFP-2026-15-6110 Model Cities Initiative (MCI) Grant Management and Administration",
+            "IMAGINATION WAY\n(ARDENWOOD DR. TO LOBDELL BLVD. CONNECTOR)\nCITY-PARISH PROJECT NO. 20-CP-HC-0017",
+            "26-1500 DDD Interstate Underpass Gateway Lighting",
+            "M10089 2027 or Newer Ram ProMaster 2500 Van"
+          ]
+        }
+      },
+      {
+        "source_key": "tx_cpa",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "cta_procurement",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "university_of_florida_procurement",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "nc_purchase",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "boston_procurement",
+        "adapter": "html_link_harvest",
+        "ok": true,
+        "detail": {
+          "status": "verified",
+          "records_retrieved": 1,
+          "active_like": 1,
+          "reason": "retrieved_legitimate_solicitation_records",
+          "sample_titles": [
+            "Parks and playgrounds"
+          ]
+        }
+      },
+      {
+        "source_key": "sourcewell_contracts",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "delaware_open_bids",
+        "adapter": "socrata_contracts",
+        "ok": true,
+        "detail": {
+          "status": "verified",
+          "records_retrieved": 5,
+          "active_like": 5,
+          "reason": "retrieved_legitimate_solicitation_records",
+          "sample_titles": [
+            "Phase 1 Bid Pack B Demolition & Site Preparation",
+            "Delaware Migrant Education Program MEP",
+            "Bond Issuance Underwriting Team",
+            "Phase 1 Bid Pack A Site Electrical Reconfiguration",
+            "Indoor Access Point Purchase & Installation"
+          ]
+        }
+      },
+      {
+        "source_key": "sea_tac_procurement",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "nm_gsd",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "iowa_das",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "fairfax_county_procurement",
+        "adapter": "html_link_harvest",
+        "ok": true,
+        "detail": {
+          "status": "verified",
+          "records_retrieved": 1,
+          "active_like": 1,
+          "reason": "retrieved_legitimate_solicitation_records",
+          "sample_titles": [
+            "Solicitation Notifications"
+          ]
+        }
+      },
+      {
+        "source_key": "houston_purchasing",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "chicago_procurement",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      },
+      {
+        "source_key": "sc_mmo",
+        "adapter": "html_link_harvest",
+        "ok": false,
+        "detail": {
+          "status": "unverified_or_restricted",
+          "records_retrieved": 0,
+          "active_like": 0,
+          "reason": "html_portal_reachable_but_no_solicitation_like_links",
+          "sample_titles": []
+        }
+      }
+    ]
+  },
+  "product_recovery": {
+    "missing_qty_targets": 370,
+    "stage_c_gap_targets": 20,
+    "attempted": 151,
+    "skipped_blocked_host": 187,
+    "skipped_junk_portal_host": 52,
+    "acquired_ok": 106,
+    "qty_after": 16,
+    "failures": {
+      "FAILED": 40,
+      "ACCESS_RESTRICTED": 5
+    },
+    "by_source": {
+      "georgia_gpr_open_goods": 31,
+      "al_purchasing": 1,
+      "delaware_open_bids": 24,
+      "nj_purchase": 50,
+      "sf_open_bid_opportunities": 23,
+      "discovered_data_lacity_org_hf3r-utnq": 5,
+      "discovered_data_winnipeg_ca_rijt-92n4": 8,
+      "winnipeg_bid_opportunities": 8,
+      "nc_purchase": 1
+    },
+    "skipped": true
+  },
+  "after_reprocess": {
+    "population": 23091,
+    "product_opportunities": 390,
+    "missing_quantity_among_products": 370,
+    "stage_c": 20,
+    "bid_eligible": 2,
+    "package_linked": 14101,
+    "qualify_counts": {
+      "discovered": 23091,
+      "verified_individual": 1224,
+      "potential_product": 390,
+      "product_quantity_verified": 20,
+      "complete_package": 458,
+      "commercially_qualified": 20,
+      "bid_eligible": 2,
+      "ready_to_submit": 2,
+      "excluded": 22269,
+      "quantity_recovered_from_package": 0,
+      "quantity_recovered_from_prior_evidence": 0,
+      "quantity_recovered_from_package_hint": 0,
+      "identity_upgraded_to_individual": 0,
+      "identity_demoted_from_forced": 0,
+      "package_linked": 14101
+    },
+    "package_reconcile": {
+      "population": 23091,
+      "packages_total": 7142,
+      "packages_with_downloads": 1505,
+      "linked": 14075,
+      "unmatched": 9016,
+      "match_methods": {
+        "external_key": 3336,
+        "unmatched": 9016,
+        "normalized_url": 10500,
+        "solicitation_number": 239
+      },
+      "with_usable_text": 334,
+      "with_quantity_hint": 53,
+      "pdf_reextracted": 40,
+      "junk_excerpts": 13741,
+      "text_sources": {
+        "package_excerpt": 334,
+        "junk_or_thin_excerpt_no_pdf": 13701,
+        "reextracted_pdf_blob": 40
+      },
+      "index_stats": {
+        "packages_total": 7142,
+        "with_downloads": 1505,
+        "keys_ek": 7142,
+        "keys_sn": 2551,
+        "keys_nurl": 2037,
+        "keys_oid": 390
+      }
+    }
+  },
+  "remaining_acquisition_blockers": {
+    "missing_quantity_product": 370,
+    "junk_packages_demoted_this_pass": 282,
+    "ramp_access_restricted_skipped": 187,
+    "junk_portal_hosts_skipped": 52,
+    "note": "Quantity remains the dominant product blocker where free official documents are unavailable or auth-walled (e.g. LA RAMP). Historical dumps disabled for future active acquisition; existing freeze retained (no full historical reacquisition)."
+  }
+}

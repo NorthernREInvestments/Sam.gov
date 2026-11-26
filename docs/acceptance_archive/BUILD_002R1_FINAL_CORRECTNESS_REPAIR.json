@@ -1,0 +1,489 @@
+{
+  "build": "002R.1",
+  "directive": "COMPLETE_INDEPENDENT_AUDIT_EXPORT",
+  "generated_at": "2026-11-23T14:02:55.045523+00:00",
+  "elapsed_sec": 407.38,
+  "total_records_processed": 8088,
+  "new_classification_counts": {
+    "INSUFFICIENT_EVIDENCE": 2399,
+    "POTENTIAL_PRODUCT": 377,
+    "VENDOR_QUALIFICATION": 27,
+    "CONFIRMED_SERVICE": 270,
+    "CONFIRMED_PRODUCT": 382,
+    "CONFIRMED_CONSTRUCTION": 111,
+    "MIXED_PRODUCT_SERVICE": 102,
+    "CANCELLED": 4,
+    "CLOSED_EXPIRED": 52,
+    "DUPLICATE": 55,
+    "OTHER_INCOMPATIBLE": 21,
+    "FEDERAL_PARKED": 4288
+  },
+  "changed_classifications": 3608,
+  "changed_vs_prior_audit_export": 0,
+  "changed_vs_prior_audit_ids_sample": [],
+  "comparison_vs_prior_audit": [
+    {
+      "classification": "CANCELLED",
+      "old_count": 4,
+      "new_count": 4,
+      "change": 0,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "CLOSED_EXPIRED",
+      "old_count": 52,
+      "new_count": 52,
+      "change": 0,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "CONFIRMED_CONSTRUCTION",
+      "old_count": 218,
+      "new_count": 111,
+      "change": -107,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "CONFIRMED_PRODUCT",
+      "old_count": 770,
+      "new_count": 382,
+      "change": -388,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "CONFIRMED_SERVICE",
+      "old_count": 1298,
+      "new_count": 270,
+      "change": -1028,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "DUPLICATE",
+      "old_count": 55,
+      "new_count": 55,
+      "change": 0,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "FEDERAL_PARKED",
+      "old_count": 4288,
+      "new_count": 4288,
+      "change": 0,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "INSUFFICIENT_EVIDENCE",
+      "old_count": 1238,
+      "new_count": 2399,
+      "change": 1161,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "MIXED_PRODUCT_SERVICE",
+      "old_count": 148,
+      "new_count": 102,
+      "change": -46,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "OTHER_INCOMPATIBLE",
+      "old_count": 15,
+      "new_count": 21,
+      "change": 6,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "POTENTIAL_PRODUCT",
+      "old_count": 2,
+      "new_count": 377,
+      "change": 375,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    },
+    {
+      "classification": "VENDOR_QUALIFICATION",
+      "old_count": 0,
+      "new_count": 27,
+      "change": 27,
+      "evidence_basis": "repaired_classify_and_quantity_extractors_on_retained_evidence"
+    }
+  ],
+  "previous_rejections_overturned": 373,
+  "prior_incompatible_reconsidered": 760,
+  "evidence_completeness": {
+    "partial_source_evidence": 6903,
+    "full_source_evidence": 1185
+  },
+  "records_with_full_source_evidence": 1185,
+  "records_with_partial_source_evidence": 6903,
+  "records_missing_original_evidence": 0,
+  "records_with_verified_quantities": 165,
+  "export_folder": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\audit_exports\\BUILD_002R1_VERIFICATION_EXPORT",
+  "zip_files": [
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_001.zip",
+      "bytes": 1882137,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_002.zip",
+      "bytes": 1965613,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_003.zip",
+      "bytes": 1996626,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_004.zip",
+      "bytes": 1938266,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_005.zip",
+      "bytes": 1958490,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_006.zip",
+      "bytes": 1930799,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_007.zip",
+      "bytes": 1874384,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_008.zip",
+      "bytes": 1852183,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_009.zip",
+      "bytes": 1858703,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_010.zip",
+      "bytes": 1862296,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_011.zip",
+      "bytes": 1766980,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_012.zip",
+      "bytes": 1812403,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_013.zip",
+      "bytes": 1586447,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_014.zip",
+      "bytes": 1497756,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_015.zip",
+      "bytes": 1494297,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_016.zip",
+      "bytes": 1504304,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_017.zip",
+      "bytes": 1498468,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_018.zip",
+      "bytes": 1642455,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_019.zip",
+      "bytes": 1497597,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_020.zip",
+      "bytes": 1506366,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_021.zip",
+      "bytes": 1719989,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_022.zip",
+      "bytes": 1496520,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_023.zip",
+      "bytes": 1496758,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_024.zip",
+      "bytes": 1492750,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_025.zip",
+      "bytes": 1499077,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_026.zip",
+      "bytes": 1490753,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_027.zip",
+      "bytes": 1549715,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_028.zip",
+      "bytes": 1597280,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_029.zip",
+      "bytes": 1498256,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_030.zip",
+      "bytes": 1575692,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_031.zip",
+      "bytes": 1659076,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_032.zip",
+      "bytes": 1864752,
+      "records": 250
+    },
+    {
+      "filename": "BUILD_002R1_VERIFICATION_EXPORT_part_033.zip",
+      "bytes": 657163,
+      "records": 88
+    }
+  ],
+  "validation": {
+    "inventory_total": 8088,
+    "index_rows": 8088,
+    "class_sum": 8088,
+    "every_id_in_exactly_one_archive": true,
+    "zip_record_sum": 8088,
+    "missing_packages": 0,
+    "prior_incompatible_count": 760,
+    "prior_incompatible_reconsidered": 760,
+    "api_calls": 0,
+    "acquisition_locked": true,
+    "ok": true,
+    "errors": []
+  },
+  "api_expenditure": 0,
+  "acquisition_locked": true,
+  "confirmed_example_checks": {
+    "NB00376112": {
+      "primary": "CONFIRMED_PRODUCT",
+      "product_type": "confirmed_product",
+      "quantity": null,
+      "quantity_status": "NOT_FOUND_IN_RETAINED_EVIDENCE",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00372623": {
+      "primary": "CONFIRMED_PRODUCT",
+      "product_type": "confirmed_product",
+      "quantity": null,
+      "quantity_status": "NOT_FOUND_IN_RETAINED_EVIDENCE",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00375228": {
+      "primary": "CONFIRMED_PRODUCT",
+      "product_type": "confirmed_product",
+      "quantity": null,
+      "quantity_status": "NOT_FOUND_IN_RETAINED_EVIDENCE",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00326707": {
+      "primary": "CONFIRMED_PRODUCT",
+      "product_type": "confirmed_product",
+      "quantity": "1",
+      "quantity_status": "VERIFIED",
+      "quantity_semantic": "ORDERED_QUANTITY",
+      "verified_line_item_count": 1,
+      "verified_line_items": [
+        {
+          "quantity": "1",
+          "product": "Compact Tracked Articulating Boom Lift with Transport Trailer",
+          "snippet": "One (1) Compact Tracked Articulating Boom Lift with Transport Trailer"
+        }
+      ],
+      "prior_audit": null
+    },
+    "NB00265253": {
+      "primary": "INSUFFICIENT_EVIDENCE",
+      "product_type": "insufficient_evidence",
+      "quantity": null,
+      "quantity_status": "MULTI_LINE_ITEM",
+      "quantity_semantic": "MULTI_LINE_ITEM",
+      "verified_line_item_count": 2,
+      "verified_line_items": [
+        {
+          "quantity": "10",
+          "product": "contracts will be awarded",
+          "snippet": "ten (10) contracts will be awarded"
+        },
+        {
+          "quantity": "1",
+          "product": "contract will be awarded",
+          "snippet": "One (1) contract will be awarded"
+        }
+      ],
+      "prior_audit": null
+    },
+    "NB00051362": {
+      "primary": "VENDOR_QUALIFICATION",
+      "product_type": "vendor_qualification",
+      "quantity": null,
+      "quantity_status": "NOT_APPLICABLE_NON_PRODUCT",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00328110": {
+      "primary": "CONFIRMED_CONSTRUCTION",
+      "product_type": "confirmed_construction",
+      "quantity": null,
+      "quantity_status": "NOT_APPLICABLE_NON_PRODUCT",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00341368": {
+      "primary": "POTENTIAL_PRODUCT",
+      "product_type": "potential_product",
+      "quantity": null,
+      "quantity_status": "NOT_FOUND_IN_RETAINED_EVIDENCE",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00291906": {
+      "primary": "CONFIRMED_SERVICE",
+      "product_type": "confirmed_service",
+      "quantity": null,
+      "quantity_status": "NOT_APPLICABLE_NON_PRODUCT",
+      "quantity_semantic": null,
+      "verified_line_item_count": 0,
+      "verified_line_items": [],
+      "prior_audit": null
+    },
+    "NB00320329": {
+      "primary": "CONFIRMED_PRODUCT",
+      "product_type": "confirmed_product",
+      "quantity": null,
+      "quantity_status": "MULTI_LINE_ITEM",
+      "quantity_semantic": "MULTI_LINE_ITEM",
+      "verified_line_item_count": 4,
+      "verified_line_items": [
+        {
+          "quantity": "2",
+          "product": "Narrow-Aisle Reach Trucks",
+          "snippet": "two (2) Narrow-Aisle Reach Trucks"
+        },
+        {
+          "quantity": "1",
+          "product": "Sit-Down Rider Truck",
+          "snippet": "one (1) Sit-Down Rider Truck"
+        },
+        {
+          "quantity": "1",
+          "product": "Rider Pallet Truck Forklifts",
+          "snippet": "one (1) Rider Pallet Truck Forklifts"
+        },
+        {
+          "quantity": "4",
+          "product": "compatible Lithium-Ion Battery Chargers",
+          "snippet": "and (4) compatible Lithium-Ion Battery Chargers "
+        }
+      ],
+      "prior_audit": null
+    }
+  },
+  "stop": "AWAIT_OWNER_REVIEW",
+  "disclaimer": "Software-generated decisions after canonical repair. Not independently verified \u2014 upload export for human/ChatGPT review.",
+  "regression_checks": {
+    "NB00326707_no_duplicate_boom": true,
+    "NB00320329_four_distinct_lines": true,
+    "NB00341368_no_false_kv_qty": true,
+    "NB00291906_no_false_hours_qty": true
+  },
+  "paid_recovery_plan": {
+    "status": "PREPARED_NOT_EXECUTED",
+    "credits": {
+      "used": 3453,
+      "remaining": 2547,
+      "protected_reserve": 1000,
+      "maximum_potentially_spendable": 1547,
+      "daily_and_per_job_limits_retained": true,
+      "page_size_max_supported": 25,
+      "killswitch": "LOCKED",
+      "execute": false
+    },
+    "bucket_counts": {
+      "B_sufficient_evidence_no_calls": 200,
+      "C_need_provider_details": 200,
+      "D_need_document_listing": 200,
+      "E_need_specific_documents": 0,
+      "F_docs_stored_but_processed_incorrectly": 0
+    },
+    "estimated_credits_if_authorized": 523,
+    "plan_path": "C:\\Users\\M_gra\\OneDrive\\Desktop\\Sam.Gov App\\govtracker\\audit_exports\\BUILD_002R1_VERIFICATION_EXPORT\\PAID_RECOVERY_PLAN.json"
+  },
+  "evidence_vault_durability": {
+    "ok": true,
+    "checks": {
+      "atomic_persist": true,
+      "body_not_truncated": true,
+      "historical_versions_retained": true,
+      "merge_thicker_keeps_longer_text": true,
+      "reuse_cached_paid_response": true,
+      "store_root_exists": true,
+      "content_hash_stable": true
+    }
+  },
+  "correctly_verified_product_line_item_count": 119,
+  "records_with_multi_line_schedules": 21,
+  "identical_duplicate_line_item_records": []
+}
