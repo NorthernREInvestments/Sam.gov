@@ -673,6 +673,15 @@ _REGEX_SERVICEISH_RE = re.compile(
     r"pharmacy\s+benefits?|benefits?\s+management|\bPBM\b|"
     r"board\s+recommend|bid\s+tabulation|tab\s+sheet|"
     r"questions?\s+and\s+responses?|pre[\s-]?bid\s+slide|"
+    r"tree\s+trimming\s+services|hauling\s+of|drayage|"
+    r"waste\s+pickup|biohazard\s+waste|"
+    r"software\s+(?:renewal|maintenance|subscription)|"
+    r"(?:annual|license)\s+renewal|"
+    r"therapy\s+training|commute\s+solutions?|"
+    r"equipment\s+rental|uniform\s+rental|tractor\s+rental|"
+    r"rental\s+and\s+launder|job\s+walk|"
+    r"roof\s+replacement|fire\s+alarm\s+system\s+replacement|"
+    r"road\s+overlay|bid\s+pack\b|"
     # Perishable food commodities — never spend triage/docs on these.
     r"food\s+items|perishable(?:s)?|grocer(?:y|ies)|"
     r"(?:fs\s+)?(?:milk|bread)\s+supply|milk\s+supply|bread\s+supply|"
@@ -1392,12 +1401,17 @@ def promote_kept_to_opportunities(
                     or it.get("product_category")
                     or triage.get("product_category")
                 ) or guess_product_category(it.get("title"), what, qty)
+                # Never promote without a category — last-chance guess from list title text.
                 list_title = build_product_list_title(
                     what_they_want=what,
                     quantity=raw_qty,
                     official_title=str(it.get("title") or ""),
                     solicitation_number=str(it.get("solicitation_number") or ""),
                 )
+                if not category:
+                    category = guess_product_category(list_title, it.get("title"), what, qty)
+                if not category:
+                    category = "general_products"
                 item = {
                     "external_key": key,
                     "title": it.get("title"),
@@ -1416,6 +1430,7 @@ def promote_kept_to_opportunities(
                     "documents_available": "yes" if (it.get("saved_documents") or []) else "unknown",
                     "estimated_value_unknown": True,
                     "posted_at": it.get("posted_at") or it.get("posted_date"),
+                    "want_type": triage.get("want_type") or doc_final.get("want_type"),
                     "evidence": {
                         "free_source_keep": True,
                         "want_type": triage.get("want_type"),
