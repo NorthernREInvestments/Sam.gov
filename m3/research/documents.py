@@ -87,6 +87,36 @@ def extract_docx_text(data: bytes) -> dict[str, Any]:
         return {"ok": False, "reason": f"docx_extract_error:{type(exc).__name__}", "text": "", "format": "docx"}
 
 
+_QTY_HEADER_RE = re.compile(
+    r"(?i)^("
+    r"quantity|qty\.?|est\.?\s*qty|estimated\s+(?:quantity|usage|qty|annual\s+usage)|"
+    r"annual\s+(?:usage|qty|quantity)|estimated\s+usage|usage|order\s+qty|"
+    r"qty\s+required|required\s+qty|no\.?\s*of\s*units|units?"
+    r")$"
+)
+_ITEM_HEADER_RE = re.compile(
+    r"(?i)^(item\s+description|description|item|product|commodity|grade/?type|grade|type)$"
+)
+_UOM_HEADER_RE = re.compile(r"(?i)^(uom|u/?m|unit(?:\s+of\s+measure)?|units?)$")
+
+
+def _xlsx_map_headers(lower_cells: list[str]) -> dict[str, int]:
+    header_idx: dict[str, int] = {}
+    for j, h in enumerate(lower_cells):
+        h = (h or "").strip()
+        if not h:
+            continue
+        if _QTY_HEADER_RE.match(h) and "quantity" not in header_idx:
+            header_idx["quantity"] = j
+        elif _ITEM_HEADER_RE.match(h) and "item" not in header_idx:
+            header_idx["item"] = j
+        elif _UOM_HEADER_RE.match(h) and "uom" not in header_idx:
+            header_idx["uom"] = j
+        elif h in {"#", "item #", "line", "line #", "line no", "line no.", "line number"}:
+            header_idx.setdefault("line", j)
+    return header_idx
+
+
 def extract_xls_text(data: bytes) -> dict[str, Any]:
     """Extract legacy .xls cell text via xlrd. Never utf-8-decode OLE bytes."""
     try:
@@ -101,25 +131,85 @@ def extract_xls_text(data: bytes) -> dict[str, Any]:
     try:
         book = xlrd.open_workbook(file_contents=data)
         parts: list[str] = []
+        qty_lines: list[str] = []
+        schedule_rows: list[dict[str, Any]] = []
         for sheet in book.sheets()[:8]:
             parts.append(f"[worksheet:{sheet.name}]")
+            header_idx: dict[str, int] = {}
             for r in range(min(int(sheet.nrows), 400)):
-                cells = []
+                cells: list[Any] = []
                 for c in range(int(sheet.ncols)):
                     val = sheet.cell_value(r, c)
                     if val is None or val == "":
-                        continue
-                    s = str(val).strip()
-                    if s:
-                        cells.append(s)
-                if cells:
-                    parts.append(" | ".join(cells))
-        text = _clean("\n".join(parts), limit=20000)
+                        cells.append(None)
+                    else:
+                        cells.append(val)
+                nonempty = [str(c) for c in cells if c is not None and str(c).strip()]
+                if not nonempty:
+                    continue
+                lower_cells = [str(c or "").strip().lower() for c in cells]
+                if not header_idx:
+                    mapped = _xlsx_map_headers(lower_cells)
+                    if "quantity" in mapped or any(
+                        h in lower_cells
+                        for h in (
+                            "item description",
+                            "item",
+                            "bid/no bid decision",
+                            "grade/type",
+                            "facility name & address",
+                        )
+                    ):
+                        header_idx = mapped
+                parts.append(" | ".join(nonempty))
+                if "quantity" in header_idx:
+                    qcell = cells[header_idx["quantity"]] if header_idx["quantity"] < len(cells) else None
+                    if qcell is not None and re.search(r"^\s*[\d,]+(?:\.\d+)?\s*$", str(qcell)):
+                        item = ""
+                        if "item" in header_idx and header_idx["item"] < len(cells) and cells[header_idx["item"]]:
+                            item = str(cells[header_idx["item"]]).strip()[:80]
+                        uom = "EA"
+                        if "uom" in header_idx and header_idx["uom"] < len(cells) and cells[header_idx["uom"]]:
+                            uom = str(cells[header_idx["uom"]]).strip() or "EA"
+                        qnum = str(qcell).strip().replace(",", "")
+                        qty_lines.append(
+                            f"Quantity: {qnum} {uom}" + (f" line_item:{item}" if item else "")
+                        )
+                        try:
+                            qf = float(qnum)
+                        except ValueError:
+                            qf = None
+                        if qf is not None and qf > 0:
+                            schedule_rows.append(
+                                {"quantity": qf, "uom": uom, "item": item, "sheet": sheet.name}
+                            )
+        schedule_summary = summarize_schedule_quantities(schedule_rows)
+        if qty_lines:
+            seen: set[str] = set()
+            uniq: list[str] = []
+            for q in qty_lines[:120]:
+                if q not in seen:
+                    seen.add(q)
+                    uniq.append(q)
+            summary_lines = []
+            if schedule_summary.get("title_quantity"):
+                summary_lines.append(f"SCHEDULE_TOTAL_QUANTITY: {schedule_summary['title_quantity']}")
+            if schedule_summary.get("line_count"):
+                summary_lines.append(f"SCHEDULE_LINE_COUNT: {schedule_summary['line_count']}")
+            parts = ["[extracted_quantity_lines]", *summary_lines, *uniq, *parts]
+        raw = "\n".join(parts)
+        text = (raw or "").replace("\x00", "")
+        text = "".join(ch for ch in text if ch in "\n\t" or ord(ch) >= 32)
+        if len(text) > 40000:
+            text = text[:40000]
         return {
             "ok": bool(text),
             "text": text,
             "format": "xls",
             "reason": None if text else "empty_xls",
+            "quantity_lines": qty_lines[:80] if qty_lines else [],
+            "schedule_rows": schedule_rows[:200],
+            "schedule_summary": schedule_summary,
         }
     except Exception as exc:
         return {
@@ -133,8 +223,8 @@ def extract_xls_text(data: bytes) -> dict[str, Any]:
 def extract_xlsx_text(data: bytes) -> dict[str, Any]:
     """Extract spreadsheet text preserving sheet/row structure for quantity schedules.
 
-    Also emits affirmative Quantity: N lines when a Quantity column or trailing
-    parenthetical ordered count is present in pricing / bid-response sheets.
+    Also emits affirmative Quantity: N lines when a Quantity / Estimated Usage
+    column (with optional UoM) is present in pricing / bid-response sheets.
     """
     # Legacy BIFF .xls must not go through openpyxl / utf-8 decode.
     if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
@@ -145,6 +235,7 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         parts: list[str] = []
         qty_lines: list[str] = []
+        schedule_rows: list[dict[str, Any]] = []
         for ws in wb.worksheets[:8]:
             parts.append(f"[worksheet:{ws.title}]")
             header_idx: dict[str, int] = {}
@@ -155,31 +246,46 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
                 nonempty = [str(c) for c in cells if c is not None and str(c).strip()]
                 if not nonempty:
                     continue
-                # Header detection
                 lower_cells = [str(c or "").strip().lower() for c in cells]
-                if not header_idx and any(
-                    h in lower_cells for h in ("quantity", "qty", "item description", "item", "bid/no bid decision")
-                ):
-                    for j, h in enumerate(lower_cells):
-                        if h in {"quantity", "qty", "qty.", "estimated quantity", "order qty"}:
-                            header_idx["quantity"] = j
-                        if h in {"item description", "description", "item"}:
-                            header_idx["item"] = j
-                        if "#" == h or h in {"item #", "line", "line #"}:
-                            header_idx["line"] = j
+                # Header detection — Quantity OR Estimated Usage / Annual Usage, etc.
+                if not header_idx:
+                    mapped = _xlsx_map_headers(lower_cells)
+                    if "quantity" in mapped or any(
+                        h in lower_cells
+                        for h in (
+                            "item description",
+                            "item",
+                            "bid/no bid decision",
+                            "grade/type",
+                            "facility name & address",
+                        )
+                    ):
+                        header_idx = mapped
                 line = " | ".join(nonempty)
                 parts.append(line)
-                # Explicit Quantity column
+                # Explicit Quantity / Estimated Usage column
                 if "quantity" in header_idx:
                     qcell = cells[header_idx["quantity"]] if header_idx["quantity"] < len(cells) else None
                     if qcell is not None and re.search(r"^\s*[\d,]+(?:\.\d+)?\s*$", str(qcell)):
                         item = ""
                         if "item" in header_idx and header_idx["item"] < len(cells) and cells[header_idx["item"]]:
-                            item = str(cells[header_idx["item"]])[:80]
-                        qty_lines.append(f"Quantity: {str(qcell).strip()} EA" + (f" line_item:{item}" if item else ""))
+                            item = str(cells[header_idx["item"]]).strip()[:80]
+                        uom = "EA"
+                        if "uom" in header_idx and header_idx["uom"] < len(cells) and cells[header_idx["uom"]]:
+                            uom = str(cells[header_idx["uom"]]).strip() or "EA"
+                        qnum = str(qcell).strip().replace(",", "")
+                        qty_lines.append(
+                            f"Quantity: {qnum} {uom}" + (f" line_item:{item}" if item else "")
+                        )
+                        try:
+                            qf = float(qnum)
+                        except ValueError:
+                            qf = None
+                        if qf is not None and qf > 0:
+                            schedule_rows.append(
+                                {"quantity": qf, "uom": uom, "item": item, "sheet": ws.title}
+                            )
                 # Pricing sheets often encode ordered counts as trailing (N) in item text
-                if re.search(r"(?i)bid/no bid|vendor responses|item description|pricing", " ".join(lower_cells[:6]) + " " + (ws.title or "")):
-                    pass
                 for cell in nonempty:
                     m = re.search(
                         r"(?i)^(.{8,120}?)\((\d{1,5})\)\s*$",
@@ -190,26 +296,176 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
                         qty_lines.append(
                             f"Quantity: {m.group(2)} EA line_item:{m.group(1).strip()[:80]}"
                         )
+                        schedule_rows.append(
+                            {
+                                "quantity": float(m.group(2)),
+                                "uom": "EA",
+                                "item": m.group(1).strip()[:80],
+                                "sheet": ws.title,
+                            }
+                        )
+        schedule_summary = summarize_schedule_quantities(schedule_rows)
         if qty_lines:
             # Deduplicate while preserving order
             seen: set[str] = set()
             uniq: list[str] = []
-            for q in qty_lines[:80]:
+            for q in qty_lines[:120]:
                 if q not in seen:
                     seen.add(q)
                     uniq.append(q)
+            summary_lines = []
+            if schedule_summary.get("title_quantity"):
+                summary_lines.append(f"SCHEDULE_TOTAL_QUANTITY: {schedule_summary['title_quantity']}")
+            if schedule_summary.get("line_count"):
+                summary_lines.append(f"SCHEDULE_LINE_COUNT: {schedule_summary['line_count']}")
             # Prepend quantity lines so _clean truncation cannot drop them
-            parts = ["[extracted_quantity_lines]", *uniq, *parts]
-        text = _clean("\n".join(parts), limit=20000)
+            parts = ["[extracted_quantity_lines]", *summary_lines, *uniq, *parts]
+        # Keep newlines in quantity block — use a higher limit and preserve structure.
+        raw = "\n".join(parts)
+        text = (raw or "").replace("\x00", "")
+        text = "".join(ch for ch in text if ch in "\n\t" or ord(ch) >= 32)
+        if len(text) > 40000:
+            text = text[:40000]
         return {
             "ok": bool(text),
             "text": text,
             "format": "xlsx",
             "reason": None if text else "empty_xlsx",
-            "quantity_lines": qty_lines[:40] if qty_lines else [],
+            "quantity_lines": qty_lines[:80] if qty_lines else [],
+            "schedule_rows": schedule_rows[:200],
+            "schedule_summary": schedule_summary,
         }
     except Exception as exc:
         return {"ok": False, "reason": f"xlsx_extract_error:{type(exc).__name__}", "text": "", "format": "xlsx"}
+
+
+def summarize_schedule_quantities(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collapse schedule rows into a title-friendly quantity string."""
+    if not rows:
+        return {}
+    by_uom: dict[str, float] = {}
+    for r in rows:
+        uom = str(r.get("uom") or "EA").strip() or "EA"
+        try:
+            q = float(r.get("quantity") or 0)
+        except (TypeError, ValueError):
+            continue
+        if q <= 0:
+            continue
+        by_uom[uom] = by_uom.get(uom, 0.0) + q
+    if not by_uom:
+        return {"line_count": len(rows)}
+    parts: list[str] = []
+    for uom, total in by_uom.items():
+        if float(total).is_integer():
+            parts.append(f"{int(total):,} {uom}")
+        else:
+            parts.append(f"{total:g} {uom}")
+    title_qty = " + ".join(parts)
+    return {
+        "line_count": len(rows),
+        "totals_by_uom": {k: (int(v) if float(v).is_integer() else v) for k, v in by_uom.items()},
+        "title_quantity": title_qty,
+        "is_multi_line": len(rows) >= 2,
+    }
+
+
+_USELESS_AI_QTY = re.compile(
+    r"(?i)^("
+    r"unknown|n/?a|none|null|tbd|not\s+specified\.?|see\s+(?:bid|docs?|attachment|schedule)|"
+    r"approximate(?:\s+and\s+not\s+guaranteed)?.*|"
+    r"various\s+quantit(?:y|ies).*|"
+    r"not\s+explicitly\s+mentioned\.?"
+    r")\s*$"
+)
+
+
+def quantity_is_unspecified(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, (list, dict)) and not value:
+        return True
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value) <= 0
+    text = str(value).strip()
+    if not text:
+        return True
+    return bool(_USELESS_AI_QTY.match(text))
+
+
+def merge_schedule_summaries(summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    for s in summaries:
+        if not s:
+            continue
+        totals = s.get("totals_by_uom") or {}
+        if isinstance(totals, dict) and totals:
+            for uom, total in totals.items():
+                try:
+                    q = float(total)
+                except (TypeError, ValueError):
+                    continue
+                if q > 0:
+                    rows.append({"quantity": q, "uom": uom})
+            continue
+        title_q = str(s.get("title_quantity") or "").strip()
+        if title_q:
+            for part in re.split(r"\s*\+\s*", title_q):
+                m = re.match(r"^\s*([\d,]+(?:\.\d+)?)\s+(\S+)\s*$", part)
+                if m:
+                    rows.append(
+                        {
+                            "quantity": float(m.group(1).replace(",", "")),
+                            "uom": m.group(2),
+                        }
+                    )
+    return summarize_schedule_quantities(rows)
+
+
+def schedule_quantity_from_paths(paths: list[Any]) -> dict[str, Any]:
+    """Deterministic quantity from local bid sheets (xlsx/xls). No OpenAI."""
+    from pathlib import Path
+
+    summaries: list[dict[str, Any]] = []
+    all_lines: list[str] = []
+    for raw in paths:
+        path = Path(raw)
+        if not path.is_file():
+            continue
+        low = path.name.lower()
+        try:
+            data = path.read_bytes()
+        except OSError:
+            continue
+        if low.endswith((".xlsx", ".xlsm")) or (data[:2] == b"PK" and low.endswith((".xlsx", ".xlsm"))):
+            ex = extract_xlsx_text(data)
+        elif low.endswith(".xls") or data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+            ex = extract_xls_text(data)
+        else:
+            continue
+        if ex.get("schedule_summary"):
+            summaries.append(ex["schedule_summary"])
+        for line in ex.get("quantity_lines") or []:
+            if line not in all_lines:
+                all_lines.append(line)
+    summary = merge_schedule_summaries(summaries)
+    if summary:
+        summary = {**summary, "quantity_lines": all_lines[:80], "source": "bid_sheet_schedule"}
+    return summary
+
+
+def prefer_schedule_quantity(ai_quantity: Any, schedule: dict[str, Any] | None) -> Any:
+    """Hard rule: bid-sheet schedule wins over AI 'Not specified' / empty."""
+    title_q = str((schedule or {}).get("title_quantity") or "").strip()
+    if not title_q:
+        return ai_quantity
+    if quantity_is_unspecified(ai_quantity):
+        return title_q
+    # Prefer schedule total when AI only echoed a vague estimate phrase.
+    ai_text = str(ai_quantity).strip()
+    if re.search(r"(?i)\b(not\s+specified|see\s+attachment|various)\b", ai_text):
+        return title_q
+    return ai_quantity
 
 
 def extract_csv_or_txt(data: bytes) -> dict[str, Any]:

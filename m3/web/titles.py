@@ -86,36 +86,157 @@ def extract_product_from_official_title(title: str, solicitation_number: str | N
     return readable_product_phrase(text)
 
 
+_USELESS_QTY = re.compile(
+    r"(?i)^("
+    r"unknown|n/?a|none|null|tbd|not\s+specified\.?|see\s+(?:bid|docs?)|"
+    r"approximate(?:\s+and\s+not\s+guaranteed)?.*|"
+    r"university\s+reserves.*|"
+    r"various\s+quantit(?:y|ies).*|"
+    r"(?:total\s+)?estimated\s+quantit(?:y|ies).*"
+    r")\s*$"
+)
+
+
+def _humanize_qty_key(key: str) -> str:
+    s = re.sub(r"[_]+", " ", str(key or "")).strip()
+    s = re.sub(r"(?i)^(product|item|line)\s*\d+\s*", "", s).strip()
+    return readable_product_phrase(s) or s
+
+
+def normalize_quantity_for_title(quantity: Any) -> tuple[str | None, bool]:
+    """Return (qty_text, is_multi_parts) for Active titles.
+
+    Examples:
+      "500 EA" -> ("500 EA", False)
+      {"APC_Smart_UPS": 10, "APC_Smart_RM_UPS": 10} -> ("10 APC Smart UPS + 10 APC Smart RM UPS", True)
+      [{"description": "Ibuprofen", "quantity": 250}, ...] -> ("Multiple Parts Listing", True)
+    """
+    if quantity is None:
+        return None, False
+    if isinstance(quantity, (int, float)) and not isinstance(quantity, bool):
+        if float(quantity) <= 0:
+            return None, False
+        if float(quantity).is_integer():
+            return str(int(quantity)), False
+        return str(quantity), False
+    if isinstance(quantity, dict):
+        mats = quantity.get("materials") if isinstance(quantity.get("materials"), list) else None
+        if mats and len(mats) >= 2:
+            return "Multiple Parts Listing", True
+        pairs: list[str] = []
+        for k, v in quantity.items():
+            if isinstance(v, (list, dict)) or str(k) == "materials":
+                continue
+            label = _humanize_qty_key(str(k))
+            num = None
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                num = str(int(v)) if float(v).is_integer() else str(v)
+            elif isinstance(v, str) and re.search(r"\d", v):
+                num = readable_product_phrase(v)
+            if not num:
+                continue
+            # Keys like product_1_quantity → keep the number only
+            if re.search(r"(?i)(product|item|line)[_\s]*\d+[_\s]*quantity|^quantity$|^qty$", str(k)):
+                pairs.append(num)
+            elif label and not re.search(r"(?i)^(quantity|qty)$", label):
+                pairs.append(f"{num} {label}")
+            else:
+                pairs.append(num)
+        if len(pairs) >= 3:
+            return "Multiple Parts Listing", True
+        if len(pairs) == 2:
+            return " + ".join(pairs), True
+        if len(pairs) == 1:
+            return pairs[0], False
+        return None, False
+    if isinstance(quantity, list):
+        if not quantity:
+            return None, False
+        if len(quantity) >= 2:
+            return "Multiple Parts Listing", True
+        only = quantity[0]
+        if isinstance(only, dict):
+            label = (
+                only.get("description")
+                or only.get("item")
+                or only.get("material")
+                or only.get("name")
+                or ""
+            )
+            num = only.get("quantity") or only.get("qty") or only.get("quantity_tons")
+            label_s = readable_product_phrase(str(label))
+            if isinstance(num, (int, float)) and label_s:
+                n = str(int(num)) if float(num).is_integer() else str(num)
+                return f"{n} {label_s}", False
+            if label_s:
+                return label_s, False
+        return normalize_quantity_for_title(only)
+    # string / other
+    raw = str(quantity).strip()
+    # Preserve schedule totals like "9,062 BG" / "13,924 EA + 15,670 FT" (do not title-case UoM).
+    if re.match(
+        r"^\d[\d,]*(?:\.\d+)?\s+[A-Za-z]{1,12}(?:\s*\+\s*\d[\d,]*(?:\.\d+)?\s+[A-Za-z]{1,12})*$",
+        raw,
+    ):
+        return raw[:128], ("+" in raw)
+    qty = readable_product_phrase(raw)
+    if not qty or _USELESS_QTY.match(qty):
+        return None, False
+    # JSON-ish list dumped as string
+    if qty.startswith("[") or qty.startswith("{"):
+        return "Multiple Parts Listing", True
+    if len(qty) > 90:
+        if re.search(r"(?i)\b(various|multiple|line\s+items|tons)\b", qty):
+            return "Multiple Parts Listing", True
+        qty = qty[:87] + "..."
+    return qty, False
+
+
+def format_quantity_storage(quantity: Any) -> str | None:
+    """Compact string for Opportunity.quantity column (max ~128)."""
+    text, multi = normalize_quantity_for_title(quantity)
+    if not text:
+        return None
+    if multi and text == "Multiple Parts Listing":
+        return "Multiple Parts Listing"
+    return text[:128]
+
+
 def build_product_list_title(
     *,
-    what_they_want: str | None = None,
-    quantity: str | None = None,
+    what_they_want: Any = None,
+    quantity: Any = None,
     official_title: str | None = None,
     solicitation_number: str | None = None,
 ) -> str:
-    """Active/list Title column: the product being bought (qty + what), not buyer/source junk."""
-    what = readable_product_phrase(str(what_they_want or "").strip())
-    qty = readable_product_phrase(str(quantity or "").strip())
-    # Drop useless quantity placeholders / bare counts with no unit
-    if qty and re.search(
-        r"(?i)^(unknown|n/?a|tbd|approximate|not\s+guaranteed|see\s+(?:bid|docs?)|"
-        r"\d{1,4}|one|two|three|a|an)\b\.?$",
-        qty,
-    ):
-        qty = ""
-    if len(qty) > 80:
-        qty = ""
+    """Active/list Title column: qty + product (e.g. '15 3\" ball valves', 'Multiple Parts Listing')."""
+    # what_they_want sometimes arrives as a list/dict from model quirks
+    if isinstance(what_they_want, (list, dict)):
+        what = "Multiple Parts Listing"
+    else:
+        what = readable_product_phrase(str(what_they_want or "").strip())
+        if what.startswith("[") or what.startswith("{"):
+            what = "Multiple Parts Listing"
+    qty, _multi = normalize_quantity_for_title(quantity)
     product = extract_product_from_official_title(official_title or "", solicitation_number)
-    if what and len(what) >= 3:
-        # Prefer "15 each — Ball Valves" when qty is short and not already in what.
-        if qty and qty.lower() not in what.lower() and not re.search(r"(?i)\bmultiple\b", what):
-            return f"{qty} — {what}"[:240]
-        return what[:240]
-    if product:
-        if qty and qty.lower() not in product.lower():
-            return f"{qty} — {product}"[:240]
-        return product[:240]
-    return "Untitled"
+
+    # Prefer concrete product phrase; fall back to cleaned official title.
+    product_phrase = what if what and len(what) >= 3 else product
+    if not product_phrase:
+        if qty:
+            return qty[:240]
+        return "Untitled"
+
+    # Explicit multi-line packages
+    if qty and qty.lower() == "multiple parts listing":
+        if product_phrase.lower() == "multiple parts listing":
+            return "Multiple Parts Listing"
+        return f"Multiple Parts Listing — {product_phrase}"[:240]
+
+    if qty and qty.lower() not in product_phrase.lower():
+        # "15 EA — Ball Valves" / "10 APC Smart UPS + 10 APC Smart RM UPS — UPS Purchase"
+        return f"{qty} — {product_phrase}"[:240]
+    return product_phrase[:240]
 
 
 def resolve_buyer_display(buyer_name: str | None, *, source_name: str | None = None) -> str | None:

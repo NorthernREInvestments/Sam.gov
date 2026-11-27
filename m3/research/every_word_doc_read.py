@@ -190,7 +190,7 @@ def extract_file_units(path: Path) -> list[dict[str, Any]]:
                 "extract_ok": bool(ex.get("ok")),
             }
         ]
-    if low.endswith((".xlsx", ".xlsm")) or data[:2] == b"PK" and low.endswith(".xlsx"):
+    if low.endswith((".xlsx", ".xlsm")) or (data[:2] == b"PK" and low.endswith((".xlsx", ".xlsm"))):
         ex = extract_xlsx_text(data)
         t = str(ex.get("text") or "")
         return [
@@ -203,6 +203,9 @@ def extract_file_units(path: Path) -> list[dict[str, Any]]:
                 "chars": len(t),
                 "extract_ok": bool(ex.get("ok")),
                 "extract_reason": ex.get("reason"),
+                "quantity_lines": ex.get("quantity_lines") or [],
+                "schedule_summary": ex.get("schedule_summary") or {},
+                "schedule_rows": ex.get("schedule_rows") or [],
             }
         ]
     if low.endswith(".xls") or data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
@@ -218,6 +221,9 @@ def extract_file_units(path: Path) -> list[dict[str, Any]]:
                 "chars": len(t),
                 "extract_ok": bool(ex.get("ok")),
                 "extract_reason": ex.get("reason"),
+                "quantity_lines": ex.get("quantity_lines") or [],
+                "schedule_summary": ex.get("schedule_summary") or {},
+                "schedule_rows": ex.get("schedule_rows") or [],
             }
         ]
     if low.endswith((".csv", ".txt", ".md", ".json", ".html", ".htm")):
@@ -332,11 +338,18 @@ def read_every_word_for_nb(
         if nb_id not in str(p.resolve()):
             raise RuntimeError(f"file_not_under_nb_id:{p}")
 
+    from m3.research.documents import (
+        merge_schedule_summaries,
+        prefer_schedule_quantity,
+        schedule_quantity_from_paths,
+    )
+
     spent = Decimal("0")
     file_reports: list[dict[str, Any]] = []
     all_chunk_findings: list[dict[str, Any]] = []
     total_chars = 0
     total_chunks = 0
+    schedule_summaries: list[dict[str, Any]] = []
 
     # Build every file's chunks first, then run ALL chunks in one parallel pool
     # (up to max_workers) so multi-file packages don't serialize file-by-file.
@@ -349,6 +362,8 @@ def read_every_word_for_nb(
         page_map: list[dict[str, Any]] = []
         skipped = bool(units and (units[0].get("skipped_sensitive") or units[0].get("method", "").startswith("skipped_")))
         for u in units:
+            if u.get("schedule_summary"):
+                schedule_summaries.append(u["schedule_summary"])
             t = u.get("text") or ""
             start = sum(len(x) for x in parts)
             parts.append(t)
@@ -362,6 +377,7 @@ def read_every_word_for_nb(
                     "char_end": start + len(t),
                     "skipped_sensitive": u.get("skipped_sensitive"),
                     "skip_reason": u.get("skip_reason"),
+                    "schedule_summary": u.get("schedule_summary") or {},
                 }
             )
         full_text = "".join(parts)
@@ -485,6 +501,20 @@ def read_every_word_for_nb(
         meta.pop("path", None)
         file_reports.append(meta)
 
+    # Deterministic schedule qty from bid sheets — never trust AI alone for this.
+    schedule = merge_schedule_summaries(schedule_summaries)
+    if not schedule.get("title_quantity"):
+        schedule = schedule_quantity_from_paths(files) or schedule
+    schedule_hint = ""
+    if schedule.get("title_quantity"):
+        schedule_hint = (
+            f"\nDETERMINISTIC_BID_SHEET_QUANTITY: {schedule['title_quantity']}\n"
+            f"SCHEDULE_LINE_COUNT: {schedule.get('line_count')}\n"
+            "If DETERMINISTIC_BID_SHEET_QUANTITY is present, quantity MUST equal that "
+            "value (Estimated Usage / Quantity columns from bid sheets). "
+            "Never answer 'Not specified' when a schedule total is provided.\n"
+        )
+
     final, cost = _ask_json(
         client,
         model,
@@ -498,6 +528,8 @@ def read_every_word_for_nb(
         "Food-service equipment or non-food supplies may still be PRODUCT.\n"
         "what_they_want must name the product(s) being purchased in plain English "
         "(e.g. '15 3-inch ball valves' or 'Multiple parts listing — filters and hoses'). "
+        "quantity must come from Quantity / Estimated Usage / Annual Usage columns or "
+        "explicit counts in the packet. Sum Estimated Usage rows by UoM when present. "
         "product_category must be exactly one of: furniture, janitorial, it_hardware, "
         "electrical, automotive, medical, safety, apparel, appliances, fuel, "
         "building_materials, plumbing, fleet_equipment, industrial_equipment, "
@@ -505,10 +537,26 @@ def read_every_word_for_nb(
         "JSON keys: nb_id, title_verified, documents_belong_to_solicitation, "
         "want_type, decision, what_they_want, quantity, close_date, product_category, "
         "key_requirements, missing_info, supplier_quote_ready, why, next_step, "
-        "files_read, total_chunks_read.\n\n"
+        "files_read, total_chunks_read.\n"
+        f"{schedule_hint}\n"
         f"CHUNK_FINDINGS:\n{json.dumps(all_chunk_findings, indent=2)[:200000]}",
     )
     spent += cost
+
+    if not isinstance(final, dict):
+        final = {}
+    overridden = prefer_schedule_quantity(final.get("quantity"), schedule)
+    if schedule.get("title_quantity") and overridden == schedule.get("title_quantity"):
+        final["quantity"] = overridden
+        final["quantity_source"] = "bid_sheet_schedule"
+        missing = final.get("missing_info")
+        if isinstance(missing, dict) and "quantity" in missing:
+            missing = {k: v for k, v in missing.items() if k != "quantity"}
+            final["missing_info"] = missing
+        # Clear false "insufficient quantity" framing when schedule exists.
+        why = str(final.get("why") or "")
+        if re.search(r"(?i)quantit", why) and re.search(r"(?i)insufficient|not\s+specif|missing", why):
+            final["why"] = "Bid-sheet schedule quantities applied from Estimated Usage / Quantity columns."
 
     return {
         "ok": True,
@@ -519,6 +567,7 @@ def read_every_word_for_nb(
         "total_chunks_read": total_chunks,
         "files": file_reports,
         "final": final,
+        "schedule_quantity": schedule or None,
         "openai_spent_usd": float(spent),
         "max_workers": max_workers,
     }

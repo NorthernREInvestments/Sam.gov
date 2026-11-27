@@ -1338,18 +1338,55 @@ def promote_kept_to_opportunities(
                         db.add(existed)
                         db.commit()
                     continue
+                from m3.research.documents import (
+                    prefer_schedule_quantity,
+                    quantity_is_unspecified,
+                    schedule_quantity_from_paths,
+                )
                 from m3.research.product_category import (
                     guess_product_category,
                     normalize_product_category,
                 )
-                from m3.web.titles import build_product_list_title
+                from m3.web.titles import build_product_list_title, format_quantity_storage
 
                 what = (
                     triage.get("what_they_want")
                     or doc_final.get("what_they_want")
                     or None
                 )
-                qty = triage.get("quantity") or doc_final.get("quantity") or it.get("quantity")
+                raw_qty = triage.get("quantity") or doc_final.get("quantity") or it.get("quantity")
+                # Fail-closed: bid-sheet Estimated Usage / Quantity wins over AI "Not specified".
+                schedule = (it.get("doc_read") or {}).get("schedule_quantity") or {}
+                if quantity_is_unspecified(raw_qty) or not schedule.get("title_quantity"):
+                    keep_paths = []
+                    for d in it.get("saved_documents") or []:
+                        p = d.get("path") or d.get("local_path")
+                        if p:
+                            keep_paths.append(p)
+                    if not keep_paths:
+                        sol = str(it.get("solicitation_number") or key or "")
+                        keep_dir = (
+                            keep_root()
+                            / "by_source"
+                            / source_key
+                            / re.sub(r"[^\w\-]+", "_", sol)
+                        )
+                        kd = it.get("keep_dir")
+                        if kd:
+                            keep_dir = Path(kd)
+                        if keep_dir.is_dir():
+                            keep_paths = [
+                                p
+                                for p in keep_dir.iterdir()
+                                if p.is_file()
+                                and p.suffix.lower() in {".xlsx", ".xlsm", ".xls"}
+                            ]
+                    if keep_paths:
+                        scanned = schedule_quantity_from_paths(keep_paths)
+                        if scanned.get("title_quantity"):
+                            schedule = scanned
+                raw_qty = prefer_schedule_quantity(raw_qty, schedule)
+                qty = format_quantity_storage(raw_qty)
                 category = normalize_product_category(
                     doc_final.get("product_category")
                     or it.get("product_category")
@@ -1357,7 +1394,7 @@ def promote_kept_to_opportunities(
                 ) or guess_product_category(it.get("title"), what, qty)
                 list_title = build_product_list_title(
                     what_they_want=what,
-                    quantity=qty if isinstance(qty, str) else None,
+                    quantity=raw_qty,
                     official_title=str(it.get("title") or ""),
                     solicitation_number=str(it.get("solicitation_number") or ""),
                 )
@@ -1375,7 +1412,7 @@ def promote_kept_to_opportunities(
                     "procurement_type": it.get("procurement_type"),
                     "product_category": category,
                     "quantity": qty,
-                    "what_they_want": what,
+                    "what_they_want": what if isinstance(what, str) else format_quantity_storage(what),
                     "documents_available": "yes" if (it.get("saved_documents") or []) else "unknown",
                     "estimated_value_unknown": True,
                     "posted_at": it.get("posted_at") or it.get("posted_date"),
@@ -1389,6 +1426,13 @@ def promote_kept_to_opportunities(
                         "close_date_source": "listing"
                         if parse_deadline_value(it.get("deadline_at"))
                         else ("triage_or_doc_read" if parse_deadline_value(enriched.get("deadline_at")) else None),
+                        "schedule_quantity": schedule.get("title_quantity") if schedule else None,
+                        "quantity_source": (
+                            "bid_sheet_schedule"
+                            if schedule.get("title_quantity")
+                            and str(raw_qty) == str(schedule.get("title_quantity"))
+                            else None
+                        ),
                     },
                 }
                 ok, reasons = opportunity_ui_ready(item)

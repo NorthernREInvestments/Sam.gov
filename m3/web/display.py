@@ -127,7 +127,7 @@ def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_
     )
     list_title = build_product_list_title(
         what_they_want=out.get("what_they_want") or evidence.get("what_they_want"),
-        quantity=out.get("quantity"),
+        quantity=out.get("quantity") or evidence.get("quantity"),
         official_title=out.get("title"),
         solicitation_number=out.get("solicitation_number"),
     )
