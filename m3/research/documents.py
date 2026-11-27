@@ -87,12 +87,58 @@ def extract_docx_text(data: bytes) -> dict[str, Any]:
         return {"ok": False, "reason": f"docx_extract_error:{type(exc).__name__}", "text": "", "format": "docx"}
 
 
+def extract_xls_text(data: bytes) -> dict[str, Any]:
+    """Extract legacy .xls cell text via xlrd. Never utf-8-decode OLE bytes."""
+    try:
+        import xlrd
+    except ImportError:
+        return {
+            "ok": False,
+            "reason": "xls_needs_xlrd",
+            "text": "",
+            "format": "xls",
+        }
+    try:
+        book = xlrd.open_workbook(file_contents=data)
+        parts: list[str] = []
+        for sheet in book.sheets()[:8]:
+            parts.append(f"[worksheet:{sheet.name}]")
+            for r in range(min(int(sheet.nrows), 400)):
+                cells = []
+                for c in range(int(sheet.ncols)):
+                    val = sheet.cell_value(r, c)
+                    if val is None or val == "":
+                        continue
+                    s = str(val).strip()
+                    if s:
+                        cells.append(s)
+                if cells:
+                    parts.append(" | ".join(cells))
+        text = _clean("\n".join(parts), limit=20000)
+        return {
+            "ok": bool(text),
+            "text": text,
+            "format": "xls",
+            "reason": None if text else "empty_xls",
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "reason": f"xls_extract_error:{type(exc).__name__}",
+            "text": "",
+            "format": "xls",
+        }
+
+
 def extract_xlsx_text(data: bytes) -> dict[str, Any]:
     """Extract spreadsheet text preserving sheet/row structure for quantity schedules.
 
     Also emits affirmative Quantity: N lines when a Quantity column or trailing
     parenthetical ordered count is present in pricing / bid-response sheets.
     """
+    # Legacy BIFF .xls must not go through openpyxl / utf-8 decode.
+    if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        return extract_xls_text(data)
     try:
         import openpyxl
 

@@ -79,6 +79,13 @@ from m3.research.http_util import fetch_bytes, fetch_text
 from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
 from m3.research.opportunity_checklist_triage import (
     authorize_document_fetch,
+    body_agency_not_buying_reason,
+    body_install_labor_reason,
+    body_perishable_food_reason,
+    body_service_contract_reason,
+    body_surplus_sale_reason,
+    perishable_food_reason,
+    title_signal_decision,
     triage_opportunities_parallel,
 )
 from m3.research.package import (
@@ -220,6 +227,12 @@ FREE_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         "search": search_pocatello_sd25,
         "discover_docs": discover_pocatello_sd25_documents,
         "detail_mode": "pdf_notice",
+        "live_only": True,
+        "archive_index": {
+            "url": "https://www.sd25.us/departments/business-office",
+            "section": "Historic Bid Information",
+            "note": "Year folders on Business Office page — look up later, do not acquire.",
+        },
     },
     "danville_va": {
         "list_url": "https://www.danvilleva.gov/Bids.aspx?CatID=16&Status=Open&txtSort=Date",
@@ -269,6 +282,11 @@ FREE_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         "search": search_louisiana_lapac,
         "discover_docs": discover_louisiana_lapac_documents,
         "detail_mode": "pdf_notice",
+        "live_only": True,
+        "archive_index": {
+            "url": "https://wwwcfprd.doa.louisiana.gov/osp/lapac/catbids.cfm",
+            "note": "LaPAC category search; front-end keeps open Bid Open Date only.",
+        },
     },
 }
 
@@ -327,6 +345,222 @@ def trash_root() -> Path:
     p = get_settings().data_root() / "free_source_trash"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def body_triage_root() -> Path:
+    p = get_settings().data_root() / "ai_free_source_body_triage"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+_REAL_ATTACHMENT_EXT = frozenset(
+    {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".xlsm", ".csv", ".txt", ".rtf", ".zip", ".html", ".htm"}
+)
+
+_OFFICE_INTERNAL_NAME_RE = re.compile(
+    r"(?i)^("
+    r"\[content_types\]\.xml|"
+    r".*\.rels|"
+    r"app\.xml|core\.xml|custom\.xml|"
+    r"document\.xml|settings\.xml|styles\.xml|fonttable\.xml|websettings\.xml|"
+    r"sharedstrings\.xml|workbook\.xml|sheet\d+\.xml|theme\d+\.xml|"
+    r"vbaproject\.bin|calcchain\.xml"
+    r")$"
+)
+
+
+def is_real_attachment_doc(doc: dict[str, Any]) -> bool:
+    """True for solicitation attachments; false for Office ZIP guts / junk members."""
+    name = str(doc.get("name") or "").strip()
+    if not name or name.startswith("."):
+        return False
+    base = Path(name).name
+    if _OFFICE_INTERNAL_NAME_RE.match(base):
+        return False
+    path = str(doc.get("path") or doc.get("url") or "").replace("\\", "/").lower()
+    low_name = name.replace("\\", "/").lower()
+    combined = f"{low_name}|{path}"
+    if any(
+        seg in combined
+        for seg in ("/_rels/", "/word/", "/xl/", "/ppt/", "/docprops/", "[content_types]")
+    ):
+        ext = Path(base).suffix.lower()
+        if ext not in _REAL_ATTACHMENT_EXT:
+            return False
+    ext = Path(base).suffix.lower()
+    if ext in _REAL_ATTACHMENT_EXT:
+        return True
+    # Direct download without extension can still be a notice blob.
+    if not doc.get("from_zip") and "_extracted" not in combined:
+        return ext in {"", ".bin"} or ext in _REAL_ATTACHMENT_EXT
+    return False
+
+
+def real_attachment_docs(docs: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    return [d for d in (docs or []) if is_real_attachment_doc(d)]
+
+
+def real_attachment_hashes(docs: list[dict[str, Any]] | None) -> set[str]:
+    return {
+        str(d.get("sha256") or "")
+        for d in real_attachment_docs(docs)
+        if d.get("sha256")
+    }
+
+
+def opportunity_body_sha256(opportunity: dict[str, Any] | None) -> str:
+    opp = opportunity or {}
+    blob = json.dumps(
+        {
+            "title": opp.get("title"),
+            "description": opp.get("description"),
+            "summary": opp.get("summary"),
+            "notice_type": opp.get("notice_type"),
+            "ai_summary": opp.get("ai_summary"),
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+        default=str,
+    )
+    return sha256(blob.encode("utf-8")).hexdigest()
+
+
+def persist_body_triage(
+    *,
+    source_key: str,
+    nb_key: str,
+    opportunity: dict[str, Any] | None,
+    triage: dict[str, Any],
+    reused: bool = False,
+) -> Path:
+    """Durable full OpenAI body-triage JSON BEFORE keep/trash acts on it."""
+    dest = body_triage_root() / source_key
+    dest.mkdir(parents=True, exist_ok=True)
+    path = dest / f"{nb_key}.json"
+    payload = {
+        "persisted_at": _utc(),
+        "source_key": source_key,
+        "nb_id": nb_key,
+        "body_sha256": opportunity_body_sha256(opportunity) if opportunity else None,
+        "reused_unchanged_body": reused,
+        "opportunity_snapshot": {
+            "title": (opportunity or {}).get("title"),
+            "description": str((opportunity or {}).get("description") or "")[:12000],
+            "summary": (opportunity or {}).get("summary"),
+            "notice_type": (opportunity or {}).get("notice_type"),
+        },
+        "triage": triage,
+    }
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    return path
+
+
+def load_reusable_body_triage(
+    *,
+    source_key: str,
+    nb_key: str,
+    body_sha: str,
+) -> dict[str, Any] | None:
+    path = body_triage_root() / source_key / f"{nb_key}.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if data.get("body_sha256") != body_sha:
+        return None
+    triage = data.get("triage")
+    if not isinstance(triage, dict) or not triage.get("ok"):
+        return None
+    # Replayed triage is free — zero out spend attribution for this run.
+    out = dict(triage)
+    out["openai_spent_usd"] = 0.0
+    out["reused_unchanged_body"] = True
+    out["live_ai_invoked"] = False
+    return out
+
+
+def apply_deadline_from_evidence(item: dict[str, Any]) -> dict[str, Any]:
+    """Copy listing/triage/doc-read close into deadline_at when listing omitted it."""
+    from m3.research.opportunity_ui_ready import enrich_deadline_from_evidence
+
+    enriched = enrich_deadline_from_evidence(
+        {
+            **item,
+            "triage": item.get("triage") or {},
+            "doc_read": item.get("doc_read") or {},
+            "deadline_at": item.get("deadline_at"),
+        }
+    )
+    out = dict(item)
+    if enriched.get("deadline_at"):
+        out["deadline_at"] = enriched["deadline_at"]
+    return out
+
+
+def past_deadline_scrap_reason(item: dict[str, Any]) -> str | None:
+    """Once we know the close date and it has passed — scrap, do not keep/hold."""
+    from datetime import datetime, timezone
+
+    from m3.research.opportunity_ui_ready import parse_deadline_value
+
+    due = parse_deadline_value(item.get("deadline_at"))
+    if due is None:
+        doc_final = ((item.get("doc_read") or {}).get("final") or {})
+        triage = item.get("triage") or {}
+        due = parse_deadline_value(
+            doc_final.get("close_date") or triage.get("close_date")
+        )
+    if due is not None and due < datetime.now(timezone.utc):
+        return f"past_deadline:{due.date().isoformat()}"
+    return None
+
+
+def doc_read_not_product_reason(item: dict[str, Any]) -> str | None:
+    """After DOC_READ: demote false PRODUCT keeps when docs prove services/PBM/food."""
+    from m3.research.opportunity_checklist_triage import (
+        triage_product_service_contradiction_reason,
+    )
+
+    doc_read = item.get("doc_read") or {}
+    final = doc_read.get("final") if isinstance(doc_read.get("final"), dict) else {}
+    title = str(item.get("title") or "")
+    what = str(final.get("what_they_want") or (item.get("triage") or {}).get("what_they_want") or "")
+    food = perishable_food_reason(title, what, final.get("want_type"))
+    if food:
+        return f"doc_read_{food}"
+    if not final:
+        return None
+    reason = triage_product_service_contradiction_reason(
+        {
+            "want_type": final.get("want_type") or "PRODUCT",
+            "decision": "PRODUCT",
+            "what_they_want": final.get("what_they_want"),
+            "parsed": final,
+        }
+    )
+    if reason:
+        return f"doc_read_{reason}"
+    want = str(final.get("want_type") or "").upper()
+    if want in {"SERVICE", "MIX", "SERVICE_OR_MIX"}:
+        return f"doc_read_want_type_not_product:{want}"
+    return None
+
+
+def _zip_member_is_real_solicitation_file(member_name: str, info_filename: str) -> bool:
+    name = Path(member_name).name
+    if not name or name.startswith(".") or name.startswith("~"):
+        return False
+    if _OFFICE_INTERNAL_NAME_RE.match(name):
+        return False
+    low = (info_filename or "").replace("\\", "/").lower()
+    ext = Path(name).suffix.lower()
+    if ext in _REAL_ATTACHMENT_EXT:
+        return True
+    if any(seg in low for seg in ("/_rels/", "/word/", "/xl/", "/ppt/", "/docprops/")):
+        return False
+    return False
 
 
 def _strip_html(html: str) -> str:
@@ -427,20 +661,66 @@ def step1_list_nebraska(*, limit: int | None = None) -> dict[str, Any]:
     return step1_list_source("nebraska_spb", limit=limit)
 
 
+# Cheap title/category kills — never spend OpenAI body triage on these.
+_REGEX_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"case\s+management|consulting|staffing|construction|renovation|remodel(?:ing)?|"
+    r"janitorial|custodial|professional\s+services|management\s+services|"
+    r"engineering\s+services|architectural\s+services|legal\s+services|"
+    r"audit(?:ing|or)?\s+services|snow\s+removal|mowing\b|pest\s+control|"
+    r"asphalt\s+(?:paving|overlay)|road\s+resurfacing|pavement\s+(?:repair|marking)|"
+    r"landscap(?:e|ing)\s+services|grounds?\s+maintenance|"
+    r"pharmacy\s+benefits?|benefits?\s+management|\bPBM\b|"
+    r"board\s+recommend|bid\s+tabulation|tab\s+sheet|"
+    r"questions?\s+and\s+responses?|pre[\s-]?bid\s+slide|"
+    # Perishable food commodities — never spend triage/docs on these.
+    r"food\s+items|perishable(?:s)?|grocer(?:y|ies)|"
+    r"(?:fs\s+)?(?:milk|bread)\s+supply|milk\s+supply|bread\s+supply|"
+    r"fresh\s+(?:fruit|vegetable|produce)|dairy\s+products?|"
+    r"frozen\s+(?:foods?|meats?|turkey)|cafeteria\s+food"
+    r")\b"
+)
+
+_CLOSED_LISTING_STATUS_RE = re.compile(
+    r"(?i)^(closed|awarded|cancelled|canceled|expired|historical|historic|"
+    r"archive|archived|tabulated|complete[d]?|inactive)\b"
+)
+
+
+def listing_not_open_live_reason(item: dict[str, Any]) -> str | None:
+    """Front-end gate: only open/live solicitations enter body triage."""
+    status = str(
+        item.get("listing_status")
+        or item.get("status")
+        or (item.get("evidence") or {}).get("listing_status")
+        or ""
+    ).strip()
+    if status and _CLOSED_LISTING_STATUS_RE.search(status):
+        return f"listing_not_open:{status}"
+    from m3.research.opportunity_ui_ready import parse_deadline_value
+    from datetime import datetime, timezone
+
+    due = parse_deadline_value(item.get("deadline_at") or item.get("response_deadline"))
+    if due is not None and due < datetime.now(timezone.utc):
+        return "listing_past_deadline"
+    return None
+
+
 def step2_regex_screen(items: list[dict[str, Any]]) -> dict[str, Any]:
     keep: list[dict[str, Any]] = []
     trash: list[dict[str, Any]] = []
     for it in items:
         title = str(it.get("title") or "")
+        live_reason = listing_not_open_live_reason(it)
+        if live_reason:
+            trash.append({**it, "trash_reason": live_reason, "trash_step": 2})
+            continue
         reason = listing_skip_before_detail_reason(title)
         cat = str(it.get("nigp_category") or "")
         if reason:
             trash.append({**it, "trash_reason": reason, "trash_step": 2})
             continue
-        if re.search(
-            r"(?i)\b(case\s+management|consulting|staffing|construction|renovation)\b",
-            f"{title} {cat}",
-        ):
+        if _REGEX_SERVICEISH_RE.search(f"{title} {cat}"):
             trash.append(
                 {
                     **it,
@@ -472,11 +752,32 @@ def step3_body_triage(
     detail_mode = str(spec.get("detail_mode") or "html")
 
     def _prep(it: dict[str, Any]) -> dict[str, Any]:
+        # Never raise — one corrupt notice must not kill the whole portal.
+        try:
+            return _prep_inner(it)
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "item": it,
+                "triage": {
+                    "ok": False,
+                    "nb_id": it.get("external_key"),
+                    "want_type": "UNCLEAR",
+                    "decision": "UNCLEAR",
+                    "next_step": "SKIP",
+                    "why": f"prep_error:{type(exc).__name__}:{exc}"[:240],
+                },
+                "opportunity": None,
+                "detail_url": str(it.get("official_url") or ""),
+            }
+
+    def _prep_inner(it: dict[str, Any]) -> dict[str, Any]:
         url = str(it.get("official_url") or "")
         # Notice-file portals (NJ/TN/UW): the listing link IS the solicitation document.
         path_low = url.lower().split("?", 1)[0]
         if detail_mode == "pdf_notice" or path_low.endswith((".pdf", ".doc", ".docx")):
             import time
+
+            from m3.research.documents import extract_xlsx_text
 
             status, final, data = 0, url, b""
             last_why = "notice_fetch_failed"
@@ -505,10 +806,27 @@ def step3_body_triage(
                     "detail_url": url,
                 }
             final_path = (final or url).lower().split("?", 1)[0]
-            if final_path.endswith(".docx") or data[:2] == b"PK":
-                extracted = extract_docx_text(data)
-            else:
-                extracted = extract_pdf_text(data, allow_ocr=False)
+            # Choose extractor by real type — never utf8-decode binaries / Office ZIP guts.
+            try:
+                if final_path.endswith(".docx") or (
+                    data[:2] == b"PK" and final_path.endswith((".docx",))
+                ):
+                    extracted = extract_docx_text(data)
+                elif final_path.endswith((".xlsx", ".xlsm", ".xls")) or (
+                    data[:2] == b"PK" and "sheet" in final_path
+                ):
+                    extracted = extract_xlsx_text(data)
+                elif data[:4] == b"%PDF" or final_path.endswith(".pdf") or "documentcenter/view" in final_path:
+                    extracted = extract_pdf_text(data, allow_ocr=False)
+                elif data[:2] == b"PK":
+                    # Unknown ZIP/Office container — try docx then pdf, never raw decode.
+                    extracted = extract_docx_text(data)
+                    if not (extracted.get("text") or "").strip():
+                        extracted = extract_pdf_text(data, allow_ocr=False)
+                else:
+                    extracted = extract_pdf_text(data, allow_ocr=False)
+            except Exception as exc:  # noqa: BLE001
+                extracted = {"ok": False, "text": "", "reason": f"extract_error:{type(exc).__name__}"}
             text = str(extracted.get("text") or "")
             if len(text) < 40:
                 text = f"{it.get('title') or ''}\n{it.get('summary') or ''}".strip()
@@ -516,8 +834,14 @@ def step3_body_triage(
             if final or url:
                 existing = list(dict.fromkeys([*(existing or []), final or url]))
             if source_key in _PDF_NOTICE_SOURCES:
-                docs = discover(final or url, "", extra_urls=existing)
-                doc_urls = [d["source_url"] for d in docs]
+                try:
+                    docs = discover(final or url, "", extra_urls=existing)
+                    doc_urls = [d["source_url"] for d in docs]
+                except TypeError:
+                    docs = discover(final or url, "")
+                    doc_urls = [d["source_url"] for d in docs]
+                except Exception:
+                    doc_urls = existing
             else:
                 doc_urls = existing
             it = {
@@ -553,30 +877,111 @@ def step3_body_triage(
         return {"item": it, "opportunity": opp, "detail_url": final or url, "triage": None}
 
     prepared = map_parallel(_prep, items, max_workers=min(max_workers, max(1, len(items))), ordered=True)
-    triage_inputs = [
-        {"nb_id": str(p["item"].get("external_key") or p["item"].get("solicitation_number")), "opportunity": p["opportunity"]}
-        for p in prepared
-        if p.get("opportunity")
-    ]
+
+    # Reuse prior full triage when the detail body hash is unchanged — skip OpenAI.
+    # Also skip OpenAI when deterministic body/title rules already prove non-product.
+    triage_inputs: list[dict[str, Any]] = []
+    reused_by_id: dict[str, dict[str, Any]] = {}
+    deterministic_by_id: dict[str, dict[str, Any]] = {}
+    for p in prepared:
+        if p.get("triage") and not p.get("opportunity"):
+            continue
+        if not p.get("opportunity"):
+            continue
+        it = p["item"]
+        eid = str(it.get("external_key") or it.get("solicitation_number") or "")
+        nb_key = re.sub(r"[^\w\-]+", "_", eid)
+        opp = p["opportunity"]
+        body_sha = opportunity_body_sha256(opp)
+        prior = load_reusable_body_triage(source_key=source_key, nb_key=nb_key, body_sha=body_sha)
+        if prior is not None:
+            reused_by_id[eid] = prior
+            continue
+        det_reason = (
+            body_surplus_sale_reason(opp)
+            or body_agency_not_buying_reason(opp)
+            or body_install_labor_reason(opp)
+            or body_service_contract_reason(opp)
+            or body_perishable_food_reason(opp)
+            or perishable_food_reason(it.get("title"), opp.get("title"))
+        )
+        if det_reason:
+            deterministic_by_id[eid] = {
+                "ok": True,
+                "nb_id": eid,
+                "want_type": "SERVICE",
+                "decision": "SERVICE_OR_MIX",
+                "next_step": "SKIP",
+                "why": f"deterministic_pre_openai:{det_reason}",
+                "what_they_want": None,
+                "openai_spent_usd": 0.0,
+                "live_ai_invoked": False,
+                "parsed": {
+                    "agency_is_buying": True,
+                    "is_product_only": False,
+                    "why": det_reason,
+                },
+            }
+            continue
+        title_dec = title_signal_decision(str(opp.get("title") or it.get("title") or ""))
+        if title_dec and title_dec.get("next_step") == "SKIP":
+            deterministic_by_id[eid] = {
+                "ok": True,
+                "nb_id": eid,
+                "want_type": title_dec.get("want_type") or "SERVICE",
+                "decision": title_dec.get("decision") or "SERVICE_OR_MIX",
+                "next_step": "SKIP",
+                "why": f"deterministic_title:{title_dec.get('why')}",
+                "what_they_want": None,
+                "openai_spent_usd": 0.0,
+                "live_ai_invoked": False,
+                "parsed": {
+                    "agency_is_buying": title_dec.get("agency_is_buying", True),
+                    "is_product_only": False,
+                    "why": title_dec.get("why"),
+                },
+            }
+            continue
+        triage_inputs.append({"nb_id": eid, "opportunity": opp})
+
     triaged = (
         triage_opportunities_parallel(triage_inputs, max_workers=max_workers) if triage_inputs else []
     )
     by_id = {str(t.get("nb_id")): t for t in triaged}
+    by_id.update(reused_by_id)
+    by_id.update(deterministic_by_id)
     kept: list[dict[str, Any]] = []
     trashed: list[dict[str, Any]] = []
+    reused_count = 0
+    deterministic_skip_count = 0
     for p in prepared:
         it = p["item"]
         eid = str(it.get("external_key") or it.get("solicitation_number"))
+        nb_key = re.sub(r"[^\w\-]+", "_", eid)
         triage = p.get("triage") or by_id.get(eid)
         if not triage:
             trashed.append({**it, "trash_reason": "missing_triage", "trash_step": 3})
             continue
+        reused = bool(triage.get("reused_unchanged_body")) or eid in reused_by_id
+        if reused:
+            reused_count += 1
+        if eid in deterministic_by_id:
+            deterministic_skip_count += 1
+        # Persist FULL triage JSON before any keep/trash act (paid=kept for OpenAI body).
+        persist_body_triage(
+            source_key=source_key,
+            nb_key=nb_key,
+            opportunity=p.get("opportunity"),
+            triage=triage,
+            reused=reused,
+        )
         gate = authorize_document_fetch(triage, opportunity=p.get("opportunity"))
         row = {
             **it,
             "triage": triage,
             "docs_fetch_gate": gate,
             "detail_url": p.get("detail_url"),
+            "body_triage_reused": reused,
         }
         if (
             triage.get("ok")
@@ -597,6 +1002,9 @@ def step3_body_triage(
         "trashed": trashed,
         "kept_count": len(kept),
         "trashed_count": len(trashed),
+        "reused_unchanged_body": reused_count,
+        "deterministic_skip_no_openai": deterministic_skip_count,
+        "openai_calls": len(triage_inputs),
         "openai_spent_usd": sum(float((k.get("triage") or {}).get("openai_spent_usd") or 0) for k in kept)
         + sum(float((t.get("triage") or {}).get("openai_spent_usd") or 0) for t in trashed),
     }
@@ -650,8 +1058,10 @@ def step4_download_docs(
                         "content_type": ctype,
                     }
                 )
-                # Indiana-style ZIP packages: permanently keep archive + extract members.
-                if (name.lower().endswith(".zip") or data[:2] == b"PK") and data[:2] == b"PK":
+                # Only explode true .zip solicitation packages (Indiana IDOA, etc.).
+                # DOCX/XLSX are also PK zip containers — extracting them floods the
+                # package with Office XML guts and wastes every-word OpenAI reads.
+                if name.lower().endswith(".zip") and data[:2] == b"PK":
                     import zipfile
 
                     extract_dir = dest_dir / f"{Path(name).stem}_extracted"
@@ -662,7 +1072,9 @@ def step4_download_docs(
                                 if info.is_dir():
                                     continue
                                 member_name = Path(info.filename).name
-                                if not member_name or member_name.startswith("."):
+                                if not _zip_member_is_real_solicitation_file(
+                                    member_name, info.filename
+                                ):
                                     continue
                                 raw = zf.read(info)
                                 mh = sha256(raw).hexdigest()
@@ -688,6 +1100,8 @@ def step4_download_docs(
                         failed.append({"url": url, "error": f"zip_extract:{type(zexc).__name__}:{zexc}"})
             except Exception as exc:  # noqa: BLE001
                 failed.append({"url": url, "error": f"{type(exc).__name__}:{exc}"})
+        # Fingerprint / KEEP index only care about real attachments — drop Office guts.
+        saved = real_attachment_docs(saved)
         return {**it, "saved_documents": saved, "failed_documents": failed, "keep_dir": str(dest_dir)}
 
     out = map_parallel(_one, items, max_workers=min(max_workers, max(1, len(items))), ordered=True) if items else []
@@ -718,7 +1132,11 @@ def _prior_doc_fingerprint(source_key: str, solicitation_number: str) -> set[str
             continue
         if not item.get("doc_read_ok"):
             return set()
-        return {str(d.get("sha256") or "") for d in (item.get("docs") or []) if d.get("sha256")}
+        # Prefer explicit real-attachment fingerprint; fall back to filtered docs list.
+        stored = item.get("attachment_fingerprint")
+        if isinstance(stored, list) and stored:
+            return {str(h) for h in stored if h}
+        return real_attachment_hashes(item.get("docs") or [])
     return set()
 
 
@@ -737,61 +1155,315 @@ def step5_doc_read(
     """
     from m3.research.every_word_doc_read import read_every_word_for_nb
 
+    # Cost is per token, not per worker — run packages wide (up to 80).
+    package_workers = min(80, max(1, len(items)))
+    # Bound total in-flight chunk calls so OpenAI rate limits don't erase the win.
+    chunk_workers = max(2, min(20, max(2, 160 // package_workers)))
+
     def _one(it: dict[str, Any]) -> dict[str, Any]:
         sol = str(it.get("solicitation_number") or it.get("external_key") or "unknown")
         nb_key = re.sub(r"[^\w\-]+", "_", sol)
         originals_parent = keep_root() / "by_source" / source_key
-        current_hashes = {
-            str(d.get("sha256") or "")
-            for d in (it.get("saved_documents") or [])
-            if d.get("sha256")
-        }
-        if skip_unchanged and current_hashes:
-            prior = _prior_doc_fingerprint(source_key, sol)
-            if prior and prior == current_hashes:
-                ai_path = (
-                    get_settings().data_root()
-                    / "ai_free_source_doc_read"
-                    / source_key
-                    / f"{nb_key}.json"
-                )
+        try:
+            # Stable fingerprint = real attachments only (never Office ZIP internals).
+            current_hashes = real_attachment_hashes(it.get("saved_documents") or [])
+            ai_path = (
+                get_settings().data_root()
+                / "ai_free_source_doc_read"
+                / source_key
+                / f"{nb_key}.json"
+            )
+            if skip_unchanged and current_hashes:
+                prior = _prior_doc_fingerprint(source_key, sol)
                 cached = None
                 if ai_path.exists():
                     try:
                         cached = json.loads(ai_path.read_text(encoding="utf-8"))
                     except Exception:
                         cached = None
-                return {
-                    **it,
-                    "doc_read": cached
-                    or {
-                        "ok": True,
-                        "nb_id": nb_key,
-                        "status": "REUSED_UNCHANGED_PACKAGE",
-                        "openai_spent_usd": 0.0,
-                    },
-                    "doc_read_reused": True,
-                }
-        rec = read_every_word_for_nb(
-            nb_id=nb_key,
-            title=str(it.get("title") or ""),
-            originals_dir=originals_parent,
-            max_workers=max_workers,
-        )
-        ai_dir = get_settings().data_root() / "ai_free_source_doc_read" / source_key
-        ai_dir.mkdir(parents=True, exist_ok=True)
-        (ai_dir / f"{nb_key}.json").write_text(json.dumps(rec, indent=2, default=str), encoding="utf-8")
-        return {**it, "doc_read": rec, "doc_read_reused": False}
+                # Reuse prior successful every-word if KEEP fingerprint matches, OR
+                # the saved AI report's file sha256 set matches current attachments
+                # (avoids re-buying OpenAI after a mid-run restart).
+                cached_hashes: set[str] = set()
+                if isinstance(cached, dict) and cached.get("ok"):
+                    cached_hashes = {
+                        str(f.get("sha256") or "")
+                        for f in (cached.get("files") or [])
+                        if f.get("sha256")
+                    }
+                if (prior and prior == current_hashes) or (
+                    cached_hashes and cached_hashes == current_hashes
+                ):
+                    return {
+                        **it,
+                        "doc_read": cached
+                        or {
+                            "ok": True,
+                            "nb_id": nb_key,
+                            "status": "REUSED_UNCHANGED_PACKAGE",
+                            "openai_spent_usd": 0.0,
+                        },
+                        "doc_read_reused": True,
+                    }
+            rec = read_every_word_for_nb(
+                nb_id=nb_key,
+                title=str(it.get("title") or ""),
+                originals_dir=originals_parent,
+                max_workers=chunk_workers,
+            )
+            ai_dir = get_settings().data_root() / "ai_free_source_doc_read" / source_key
+            ai_dir.mkdir(parents=True, exist_ok=True)
+            (ai_dir / f"{nb_key}.json").write_text(json.dumps(rec, indent=2, default=str), encoding="utf-8")
+            return {**it, "doc_read": rec, "doc_read_reused": False}
+        except Exception as exc:  # noqa: BLE001
+            # One corrupt PDF / bad JSON must NOT kill the whole portal.
+            err = {
+                "ok": False,
+                "nb_id": nb_key,
+                "status": "DOC_READ_ERROR",
+                "error": f"{type(exc).__name__}:{exc}"[:400],
+                "openai_spent_usd": 0.0,
+            }
+            ai_dir = get_settings().data_root() / "ai_free_source_doc_read" / source_key
+            ai_dir.mkdir(parents=True, exist_ok=True)
+            (ai_dir / f"{nb_key}.json").write_text(json.dumps(err, indent=2, default=str), encoding="utf-8")
+            return {**it, "doc_read": err, "doc_read_reused": False, "doc_read_error": err["error"]}
 
-    workers = min(3, max(1, len(items)))
-    out = map_parallel(_one, items, max_workers=workers, ordered=True) if items else []
+    out = map_parallel(_one, items, max_workers=package_workers, ordered=True) if items else []
     return {
         "step": 5,
         "name": "DOC_READ",
         "items": out,
         "openai_spent_usd": sum(float((i.get("doc_read") or {}).get("openai_spent_usd") or 0) for i in out),
         "reused_unchanged": sum(1 for i in out if i.get("doc_read_reused")),
+        "package_workers": package_workers,
+        "chunk_workers": chunk_workers,
     }
+
+
+def _parse_posted_date(raw: Any) -> Any:
+    from datetime import date, datetime
+
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, date) and not isinstance(raw, datetime):
+        return raw
+    s = str(raw).strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(s[:19]).date()
+    except Exception:
+        try:
+            return datetime.strptime(s[:10], "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+
+def promote_kept_to_opportunities(
+    kept_items: list[dict[str, Any]],
+    *,
+    source_key: str,
+) -> dict[str, Any]:
+    """Upsert UI-ready PRODUCT keepers into Opportunity.
+
+    Unknown Closes = FAIL — incomplete packages stay in keep index / disk only
+    and are never shown as Active/Saved rows.
+    """
+    from m3.db import SessionLocal
+    from m3.models import Opportunity, User
+    from m3.research.opportunity_ui_ready import (
+        enrich_deadline_from_evidence,
+        opportunity_ui_ready,
+        parse_deadline_value,
+    )
+    from m3.services import save_opportunity
+
+    if not kept_items:
+        return {"promoted": 0, "created": 0, "updated": 0, "skipped_incomplete": 0, "source": source_key}
+
+    db = SessionLocal()
+    created = updated = skipped = 0
+    errors: list[str] = []
+    skip_reasons: list[str] = []
+    try:
+        owner = (
+            db.query(User)
+            .filter(User.is_primary_owner.is_(True), User.is_active.is_(True))
+            .order_by(User.created_at.asc())
+            .first()
+        )
+        if owner is None:
+            owner = db.query(User).filter(User.is_active.is_(True)).order_by(User.created_at.asc()).first()
+        if owner is None:
+            return {"promoted": 0, "error": "no_active_user", "source": source_key}
+
+        for it in kept_items:
+            try:
+                key = str(it.get("external_key") or "").strip()
+                if not key:
+                    sol = str(it.get("solicitation_number") or it.get("title") or "").strip()
+                    key = f"{source_key}:{sol}" if sol else ""
+                if not key:
+                    skipped += 1
+                    continue
+                triage = it.get("triage") or {}
+                doc_final = ((it.get("doc_read") or {}).get("final") or {})
+                enriched = enrich_deadline_from_evidence(
+                    {
+                        **it,
+                        "triage": triage,
+                        "doc_read": it.get("doc_read") or {},
+                        "deadline_at": it.get("deadline_at"),
+                    }
+                )
+                # Past close = scrap. Never promote expired packets as Active.
+                past = past_deadline_scrap_reason(enriched)
+                food = perishable_food_reason(
+                    it.get("title"),
+                    triage.get("what_they_want"),
+                    doc_final.get("what_they_want"),
+                )
+                if past or food:
+                    skipped += 1
+                    skip_reasons.append(
+                        f"{it.get('solicitation_number') or key}:{past or food}"
+                    )
+                    existed = db.query(Opportunity).filter_by(external_key=key).one_or_none()
+                    if existed is not None and existed.status in {"saved", "pursuing"}:
+                        existed.status = "archived"
+                        note = (existed.notes or "").strip()
+                        tag = f"SCRAPPED:{past or food}"
+                        if tag not in note:
+                            existed.notes = (note + "\n" + tag).strip() if note else tag
+                        existed.updated_at = datetime.now(timezone.utc)
+                        db.add(existed)
+                        db.commit()
+                    continue
+                from m3.research.product_category import (
+                    guess_product_category,
+                    normalize_product_category,
+                )
+                from m3.web.titles import build_product_list_title
+
+                what = (
+                    triage.get("what_they_want")
+                    or doc_final.get("what_they_want")
+                    or None
+                )
+                qty = triage.get("quantity") or doc_final.get("quantity") or it.get("quantity")
+                category = normalize_product_category(
+                    doc_final.get("product_category")
+                    or it.get("product_category")
+                    or triage.get("product_category")
+                ) or guess_product_category(it.get("title"), what, qty)
+                list_title = build_product_list_title(
+                    what_they_want=what,
+                    quantity=qty if isinstance(qty, str) else None,
+                    official_title=str(it.get("title") or ""),
+                    solicitation_number=str(it.get("solicitation_number") or ""),
+                )
+                item = {
+                    "external_key": key,
+                    "title": it.get("title"),
+                    "display_title": list_title,
+                    "solicitation_number": it.get("solicitation_number"),
+                    "buyer_name": it.get("buyer_name") or it.get("agency"),
+                    "geo_state": it.get("geo_state") or (FREE_SOURCE_SPECS.get(source_key) or {}).get("geo_state"),
+                    "deadline_at": enriched.get("deadline_at"),
+                    "official_url": it.get("official_url") or it.get("detail_url"),
+                    "source_key": source_key,
+                    "requirement_class": "product_supply",
+                    "procurement_type": it.get("procurement_type"),
+                    "product_category": category,
+                    "quantity": qty,
+                    "what_they_want": what,
+                    "documents_available": "yes" if (it.get("saved_documents") or []) else "unknown",
+                    "estimated_value_unknown": True,
+                    "posted_at": it.get("posted_at") or it.get("posted_date"),
+                    "evidence": {
+                        "free_source_keep": True,
+                        "want_type": triage.get("want_type"),
+                        "what_they_want": what,
+                        "match_reason": triage.get("match_reason") or doc_final.get("match_reason"),
+                        "supplier_quote_ready": doc_final.get("supplier_quote_ready"),
+                        "source_name": source_key,
+                        "close_date_source": "listing"
+                        if parse_deadline_value(it.get("deadline_at"))
+                        else ("triage_or_doc_read" if parse_deadline_value(enriched.get("deadline_at")) else None),
+                    },
+                }
+                ok, reasons = opportunity_ui_ready(item)
+                # Incomplete = FAIL. Gov postings have closes; if we don't have them,
+                # we failed extraction — do NOT show as Active/Saved. Keep on disk only.
+                item["evidence"] = {
+                    **(item.get("evidence") or {}),
+                    "needs_openai_field_repair": (not ok),
+                    "ui_ready_fail": reasons if not ok else [],
+                    "blocked_from_ui_incomplete": (not ok),
+                }
+                if not ok:
+                    skipped += 1
+                    skip_reasons.append(
+                        f"{it.get('solicitation_number') or key}:{','.join(reasons)}"
+                    )
+                    # If a prior incomplete row is already in Active, pull it out.
+                    existed = db.query(Opportunity).filter_by(external_key=key).one_or_none()
+                    if existed is not None and existed.status in {"saved", "pursuing"}:
+                        ev = dict(existed.raw_evidence or {}) if isinstance(existed.raw_evidence, dict) else {}
+                        ev.update(item["evidence"])
+                        existed.raw_evidence = ev
+                        existed.status = "archived"
+                        note = (existed.notes or "").strip()
+                        tag = "INCOMPLETE_FAIL: missing closes/id — held until field repair"
+                        if tag not in note:
+                            existed.notes = (note + "\n" + tag).strip() if note else tag
+                        existed.updated_at = datetime.now(timezone.utc)
+                        db.add(existed)
+                        db.commit()
+                    continue
+
+                existed = db.query(Opportunity).filter_by(external_key=key).one_or_none()
+                opp = save_opportunity(db, item, owner, data_origin="operator")
+                posted = _parse_posted_date(item.get("posted_at"))
+                if posted is not None:
+                    opp.posted_at = posted
+                if category:
+                    opp.product_category = category
+                if list_title:
+                    opp.display_title = list_title[:512]
+                # Keep what_they_want on evidence for Active title rendering.
+                ev = dict(opp.raw_evidence or {}) if isinstance(opp.raw_evidence, dict) else {}
+                if what:
+                    ev["what_they_want"] = what
+                if category:
+                    ev["product_category"] = category
+                opp.raw_evidence = ev
+                # Surface freshly kept contracts at the top of "newest" sorts
+                opp.updated_at = datetime.now(timezone.utc)
+                if existed is None:
+                    created += 1
+                else:
+                    updated += 1
+                db.add(opp)
+                db.commit()
+            except Exception as exc:  # noqa: BLE001
+                db.rollback()
+                msg = str(exc).replace("\n", " ").strip()
+                if len(msg) > 180:
+                    msg = msg[:177] + "..."
+                errors.append(
+                    f"{it.get('solicitation_number') or it.get('external_key')}:{type(exc).__name__}:{msg}"
+                )
+        return {
+            "promoted": created + updated,
+            "created": created,
+            "updated": updated,
+            "skipped_incomplete": skipped,
+            "skip_reasons": skip_reasons[:30],
+            "source": source_key,
+            "errors": errors[:20],
+        }
+    finally:
+        db.close()
 
 
 def step6_keep_or_trash(
@@ -803,29 +1475,41 @@ def step6_keep_or_trash(
     """Persist keep index; write trash ledger (no further work on trash)."""
     keep_idx = keep_root() / "by_source" / source_key / "KEEP_INDEX.json"
     trash_idx = trash_root() / f"{source_key}_TRASH.json"
-    keep_payload = {
-        "updated_at": _utc(),
-        "count": len(kept_items),
-        "items": [
+    keep_rows: list[dict[str, Any]] = []
+    for i in kept_items:
+        enriched = apply_deadline_from_evidence(i)
+        keep_rows.append(
             {
-                "external_key": i.get("external_key"),
-                "solicitation_number": i.get("solicitation_number"),
-                "title": i.get("title"),
-                "deadline_at": i.get("deadline_at"),
-                "official_url": i.get("official_url") or i.get("detail_url"),
-                "want_type": (i.get("triage") or {}).get("want_type"),
-                "what_they_want": (i.get("triage") or {}).get("what_they_want"),
+                "external_key": enriched.get("external_key"),
+                "solicitation_number": enriched.get("solicitation_number"),
+                "title": enriched.get("title"),
+                "deadline_at": enriched.get("deadline_at"),
+                "close_date": ((enriched.get("doc_read") or {}).get("final") or {}).get(
+                    "close_date"
+                )
+                or (enriched.get("triage") or {}).get("close_date"),
+                "posted_at": enriched.get("posted_at") or enriched.get("posted_date"),
+                "official_url": enriched.get("official_url") or enriched.get("detail_url"),
+                "want_type": (enriched.get("triage") or {}).get("want_type"),
+                "what_they_want": (enriched.get("triage") or {}).get("what_they_want")
+                or ((enriched.get("doc_read") or {}).get("final") or {}).get("what_they_want"),
                 "docs": [
                     {"name": d.get("name"), "sha256": d.get("sha256"), "path": d.get("path")}
-                    for d in (i.get("saved_documents") or [])
+                    for d in real_attachment_docs(enriched.get("saved_documents") or [])
                 ],
-                "doc_read_ok": (i.get("doc_read") or {}).get("ok"),
-                "supplier_quote_ready": ((i.get("doc_read") or {}).get("final") or {}).get(
+                "attachment_fingerprint": sorted(
+                    real_attachment_hashes(enriched.get("saved_documents") or [])
+                ),
+                "doc_read_ok": (enriched.get("doc_read") or {}).get("ok"),
+                "supplier_quote_ready": ((enriched.get("doc_read") or {}).get("final") or {}).get(
                     "supplier_quote_ready"
                 ),
             }
-            for i in kept_items
-        ],
+        )
+    keep_payload = {
+        "updated_at": _utc(),
+        "count": len(keep_rows),
+        "items": keep_rows,
     }
     trash_payload = {
         "updated_at": _utc(),
@@ -844,6 +1528,7 @@ def step6_keep_or_trash(
     keep_idx.parent.mkdir(parents=True, exist_ok=True)
     keep_idx.write_text(json.dumps(keep_payload, indent=2, default=str), encoding="utf-8")
     trash_idx.write_text(json.dumps(trash_payload, indent=2, default=str), encoding="utf-8")
+    ui = promote_kept_to_opportunities(kept_items, source_key=source_key)
     return {
         "step": 6,
         "name": "KEEP_OR_TRASH",
@@ -851,6 +1536,7 @@ def step6_keep_or_trash(
         "trash_index": str(trash_idx),
         "kept_count": len(kept_items),
         "trashed_count": len(trashed_items),
+        "ui_promote": ui,
     }
 
 
@@ -956,6 +1642,37 @@ def run_free_source_steps(
             flush=True,
         )
 
+    # Persist AI/listing close into deadline_at, then scrap past-deadline + non-product.
+    still_kept: list[dict[str, Any]] = []
+    demoted_after_docs = 0
+    scrapped_past = 0
+    for it in docs_items:
+        it = apply_deadline_from_evidence(it)
+        past = past_deadline_scrap_reason(it)
+        if past:
+            scrapped_past += 1
+            all_trash.append({**it, "trash_reason": past, "trash_step": 5})
+            continue
+        reason = doc_read_not_product_reason(it)
+        if reason:
+            demoted_after_docs += 1
+            all_trash.append({**it, "trash_reason": reason, "trash_step": 5})
+        else:
+            still_kept.append(it)
+    docs_items = still_kept
+    if demoted_after_docs or scrapped_past:
+        print(
+            json.dumps(
+                {
+                    "phase": "DOC_READ_DEMOTE_NON_PRODUCT",
+                    "demoted": demoted_after_docs,
+                    "scrapped_past_deadline": scrapped_past,
+                    "still_kept": len(docs_items),
+                }
+            ),
+            flush=True,
+        )
+
     s6 = step6_keep_or_trash(kept_items=docs_items, trashed_items=all_trash, source_key=source_key)
     summary["steps"].append(s6)
     summary["kept"] = [
@@ -1052,44 +1769,89 @@ def run_delaware_open_bids_steps(
 def run_all_free_sources_daily(
     *,
     max_workers: int = 10,
+    source_workers: int = 5,
     read_docs: bool = True,
     sources: list[str] | None = None,
+    max_source_attempts: int = 3,
+    resume_failed_only: bool = False,
 ) -> dict[str, Any]:
     """Once-a-day full pull: every wired free portal, entire board, no listing cap.
 
     HTTP/docs are unlimited on these sites. OpenAI every-word runs for PRODUCT
     fits, but skips packages whose doc hashes already match a prior successful read.
+
+    Portals run concurrently up to ``source_workers`` (default 5). Within each
+    portal, triage/docs still use ``max_workers``.
+
+    If a portal dies, it is retried automatically (up to ``max_source_attempts``).
+    ``resume_failed_only`` re-runs only sources that failed in DAILY_FULL_BOARD_LAST.
     """
     os_env_setup()
+    last_path = keep_root() / "DAILY_FULL_BOARD_LAST.json"
+    if resume_failed_only and sources is None and last_path.exists():
+        try:
+            prior = json.loads(last_path.read_text(encoding="utf-8"))
+            sources = [
+                str(r.get("source"))
+                for r in (prior.get("results") or [])
+                if not r.get("ok") and r.get("source")
+            ]
+        except Exception:
+            sources = None
     keys = list(sources or FREE_SOURCE_SPECS.keys())
+    attempts = max(1, int(max_source_attempts))
     summary: dict[str, Any] = {
         "started_at": _utc(),
-        "mode": "daily_full_board",
+        "mode": "daily_full_board_resume" if resume_failed_only else "daily_full_board",
         "limit": None,
         "sources": keys,
+        "source_workers": max(1, int(source_workers)),
+        "max_source_attempts": attempts,
         "results": [],
+        "retries": [],
     }
     print(
-        json.dumps({"phase": "DAILY_START", "sources": keys, "full_board": True}),
+        json.dumps(
+            {
+                "phase": "DAILY_START",
+                "sources": keys,
+                "full_board": True,
+                "source_workers": summary["source_workers"],
+                "max_source_attempts": attempts,
+                "resume_failed_only": bool(resume_failed_only),
+            }
+        ),
         flush=True,
     )
-    for key in keys:
+
+    def _one_source(key: str) -> dict[str, Any]:
         if key not in FREE_SOURCE_SPECS:
-            summary["results"].append({"source": key, "ok": False, "error": "unsupported"})
-            continue
-        print(json.dumps({"phase": "DAILY_SOURCE", "source": key}), flush=True)
-        try:
-            result = run_free_source_steps(
-                key,
-                limit=None,
-                max_workers=max_workers,
-                read_docs=read_docs,
-                skip_unchanged_doc_read=True,
+            return {"source": key, "ok": False, "error": "unsupported"}
+        last_err = ""
+        for attempt in range(1, attempts + 1):
+            print(
+                json.dumps(
+                    {
+                        "phase": "DAILY_SOURCE",
+                        "source": key,
+                        "attempt": attempt,
+                        "max_attempts": attempts,
+                    }
+                ),
+                flush=True,
             )
-            summary["results"].append(
-                {
+            try:
+                result = run_free_source_steps(
+                    key,
+                    limit=None,
+                    max_workers=max_workers,
+                    read_docs=read_docs,
+                    skip_unchanged_doc_read=True,
+                )
+                return {
                     "source": key,
                     "ok": True,
+                    "attempt": attempt,
                     "listed": next(
                         (
                             s.get("rows_examined")
@@ -1101,17 +1863,76 @@ def run_all_free_sources_daily(
                     "kept_count": result.get("kept_count"),
                     "trashed_count": result.get("trashed_count"),
                     "kept": result.get("kept") or [],
+                    "ui_promote": next(
+                        (
+                            s.get("ui_promote")
+                            for s in (result.get("steps") or [])
+                            if s.get("name") == "KEEP_OR_TRASH"
+                        ),
+                        None,
+                    ),
                 }
-            )
-        except Exception as exc:  # noqa: BLE001
-            summary["results"].append(
-                {"source": key, "ok": False, "error": f"{type(exc).__name__}:{exc}"[:240]}
-            )
+            except Exception as exc:  # noqa: BLE001
+                last_err = f"{type(exc).__name__}:{exc}"[:240]
+                print(
+                    json.dumps(
+                        {
+                            "phase": "DAILY_SOURCE_RETRY",
+                            "source": key,
+                            "attempt": attempt,
+                            "error": last_err,
+                            "will_retry": attempt < attempts,
+                        }
+                    ),
+                    flush=True,
+                )
+                summary["retries"].append(
+                    {"source": key, "attempt": attempt, "error": last_err}
+                )
+        return {"source": key, "ok": False, "error": last_err, "attempts": attempts}
+
+    # Preserve source order in the summary for readable reports.
+    summary["results"] = map_parallel(
+        _one_source,
+        keys,
+        max_workers=max(1, int(source_workers)),
+        ordered=True,
+    )
+
+    # Final automatic resume pass for anything still failed after per-source retries.
+    still_failed = [str(r.get("source")) for r in summary["results"] if not r.get("ok") and r.get("source")]
+    if still_failed and not resume_failed_only:
+        print(
+            json.dumps({"phase": "DAILY_AUTO_RESUME", "sources": still_failed}),
+            flush=True,
+        )
+        resume_results = map_parallel(
+            _one_source,
+            still_failed,
+            max_workers=min(2, max(1, int(source_workers))),
+            ordered=True,
+        )
+        by_key = {str(r.get("source")): r for r in resume_results}
+        summary["results"] = [
+            by_key.get(str(r.get("source")), r) if not r.get("ok") else r
+            for r in summary["results"]
+        ]
+        summary["auto_resume"] = {
+            "sources": still_failed,
+            "recovered": [k for k, v in by_key.items() if v.get("ok")],
+            "still_failed": [k for k, v in by_key.items() if not v.get("ok")],
+        }
+
     summary["finished_at"] = _utc()
     summary["kept_total"] = sum(int(r.get("kept_count") or 0) for r in summary["results"] if r.get("ok"))
     summary["trashed_total"] = sum(
         int(r.get("trashed_count") or 0) for r in summary["results"] if r.get("ok")
     )
+    summary["failed_sources"] = [
+        {"source": r.get("source"), "error": r.get("error")}
+        for r in summary["results"]
+        if not r.get("ok")
+    ]
     out = keep_root() / "DAILY_FULL_BOARD_LAST.json"
     out.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     summary["report"] = str(out)
@@ -1121,6 +1942,7 @@ def run_all_free_sources_daily(
                 "phase": "DAILY_DONE",
                 "kept_total": summary["kept_total"],
                 "trashed_total": summary["trashed_total"],
+                "failed_sources": [f.get("source") for f in summary["failed_sources"]],
                 "report": summary["report"],
             }
         ),

@@ -100,14 +100,22 @@ def save_opportunity(
     existing = db.query(Opportunity).filter_by(external_key=key).one_or_none() if key else None
     deadline = None
     if enriched.get("deadline_at"):
+        # Prefer the shared parser (handles "12/17/2026 10:00:00 AM CT", etc.).
         try:
-            raw = str(enriched["deadline_at"]).replace("Z", "+00:00")
-            try:
-                deadline = datetime.fromisoformat(raw)
-            except ValueError:
-                deadline = datetime.fromisoformat(raw[:19])
+            from m3.research.opportunity_ui_ready import parse_deadline_value
+
+            deadline = parse_deadline_value(enriched.get("deadline_at"))
         except Exception:
             deadline = None
+        if deadline is None:
+            try:
+                raw = str(enriched["deadline_at"]).replace("Z", "+00:00")
+                try:
+                    deadline = datetime.fromisoformat(raw)
+                except ValueError:
+                    deadline = datetime.fromisoformat(raw[:19])
+            except Exception:
+                deadline = None
     titles = build_display_title(
         official_title=enriched.get("title"),
         buyer_name=enriched.get("buyer_name"),

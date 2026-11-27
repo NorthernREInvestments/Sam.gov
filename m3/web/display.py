@@ -7,7 +7,7 @@ from typing import Any
 
 from m3.research.enrich import enrich_opportunity_fields, human_datetime
 from m3.web.labels import label
-from m3.web.titles import build_display_title
+from m3.web.titles import build_display_title, build_product_list_title
 
 
 def unknown(val: Any, empty: str = "Unknown") -> str:
@@ -118,16 +118,27 @@ def value_class(item: dict[str, Any] | Any) -> str:
 def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_matches: int = 0) -> dict[str, Any]:
     enriched = enrich_opportunity_fields(item)
     out = dict(enriched)
+    evidence = out.get("evidence") if isinstance(out.get("evidence"), dict) else {}
     titles = build_display_title(
         official_title=out.get("title"),
         buyer_name=out.get("buyer_name"),
         solicitation_number=out.get("solicitation_number"),
-        source_name=(out.get("evidence") or {}).get("source_name"),
+        source_name=evidence.get("source_name"),
+    )
+    list_title = build_product_list_title(
+        what_they_want=out.get("what_they_want") or evidence.get("what_they_want"),
+        quantity=out.get("quantity"),
+        official_title=out.get("title"),
+        solicitation_number=out.get("solicitation_number"),
     )
     dl = format_deadline(out.get("deadline_at"), out.get("deadline_timezone"))
     fs = out.get("field_status") or {}
+    # List "Closes" column: xx/xx/xx + time (timezone only if not UTC).
+    closes = f"{dl['date']} {dl['time']}".strip()
+    if dl.get("timezone") and str(dl["timezone"]).upper() not in {"UTC", "UNKNOWN", ""}:
+        closes = f"{closes} {dl['timezone']}"
     out["display"] = {
-        "title": titles["display_title"],
+        "title": list_title,
         "official_title": titles["official_title"],
         "solicitation_number": unknown(out.get("solicitation_number")),
         "buyer": titles["buyer_display"],
@@ -136,7 +147,8 @@ def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_
         "closing_date": dl["date"],
         "closing_time": dl["time"],
         "timezone": dl["timezone"],
-        "closing_human": dl.get("human") or f"{dl['date']} {dl['time']} {dl['timezone']}",
+        "closes": closes,
+        "closing_human": closes,
         "days_remaining": days_remaining(out.get("deadline_at")),
         "value": format_value(out),
         "value_class": value_class(out),
@@ -159,5 +171,5 @@ def enrich_discovery_item(item: dict[str, Any], *, saved: bool = False, catalog_
         "record_type": label(out.get("record_type") or "unresolved"),
         "quantity_kind": label(out.get("quantity_kind") or "unknown"),
     }
-    out["display_title"] = titles["display_title"]
+    out["display_title"] = list_title
     return out

@@ -101,12 +101,14 @@ def human_datetime(dt: datetime | None, tz_label: str | None = None) -> dict[str
     else:
         label = "UTC"
     local = dt
+    date_s = local.strftime("%m/%d/%y")
+    time_s = local.strftime("%I:%M %p").lstrip("0")
     return {
-        "date": local.strftime("%b %d, %Y"),
-        "time": local.strftime("%I:%M %p").lstrip("0"),
+        "date": date_s,
+        "time": time_s,
         "timezone": label,
         "status": "verified",
-        "human": f"{local.strftime('%b %d, %Y')} at {local.strftime('%I:%M %p').lstrip('0')} ({label})",
+        "human": f"{date_s} {time_s} ({label})",
     }
 
 

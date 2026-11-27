@@ -290,4 +290,31 @@ def apply_contract_filters(items: list[dict[str, Any]], filters: dict[str, Any])
             item = dict(item)
             item["match_reasons"] = match_reasons
         out.append(item)
-    return out
+    return sort_contracts_newest_first(out)
+
+
+def _newest_sort_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    """ISO-ish strings for reverse chronological sort (posted → deadline → title)."""
+    posted = (
+        item.get("posted_at")
+        or item.get("posted_date")
+        or item.get("first_seen_at")
+        or item.get("discovered_at")
+        or ""
+    )
+    deadline = item.get("deadline_at") or item.get("response_deadline") or ""
+    title = str(item.get("title") or item.get("solicitation_number") or "")
+    return (str(posted)[:32], str(deadline)[:32], title.lower())
+
+
+def sort_contracts_newest_first(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Newest published contracts first; unknown posted dates sink below dated ones."""
+    dated: list[dict[str, Any]] = []
+    undated: list[dict[str, Any]] = []
+    for it in items:
+        posted = it.get("posted_at") or it.get("posted_date") or it.get("first_seen_at") or it.get("discovered_at")
+        (dated if posted else undated).append(it)
+    dated_sorted = sorted(dated, key=_newest_sort_key, reverse=True)
+    # Undated: still prefer nearer/farther deadlines then title for stable UI
+    undated_sorted = sorted(undated, key=_newest_sort_key, reverse=True)
+    return dated_sorted + undated_sorted

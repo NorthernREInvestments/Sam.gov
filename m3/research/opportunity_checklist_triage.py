@@ -42,8 +42,17 @@ SYSTEM = (
     "the agency buying from M3. "
     "SKIP agency surplus sales / equipment for sale. "
     "SKIP sole source, exemption, intent to award, demo-only, informational-only. "
+    "SKIP pharmacy benefits management (PBM), benefits administration, health/vision "
+    "insurance plan services, managed care, consulting, and other pure professional "
+    "services — those are SERVICE even if the packet includes spreadsheets. "
+    "SKIP perishable food / grocery buys: food items, milk, bread, produce, meat, "
+    "dairy, frozen foods, cafeteria food commodities, and other perishables. "
+    "M3 does not supply perishable food. Food-service equipment or non-food supplies "
+    "can still be PRODUCT; edible/perishable commodities must be SKIP. "
     "Do NOT set FETCH_DOCUMENTS unless want_type=PRODUCT, agency_is_buying=true, "
     "is_product_only=true. "
+    "If what_they_want is services/management/administration with no tangible goods, "
+    "want_type must be SERVICE and next_step SKIP — never PRODUCT. "
     "Return a single valid JSON object only. No markdown. No commentary."
 )
 
@@ -111,6 +120,50 @@ _BODY_INSTALL_LABOR_RE = re.compile(
     r")"
 )
 
+# Strong service-procurement signals — fail closed even if the model says PRODUCT.
+# Wrong PRODUCT is as bad as no info: never fetch docs / keep these.
+_SERVICE_CONTRACT_BUY_RE = re.compile(
+    r"(?i)("
+    r"pharmacy\s+benefits?\s+management|"
+    r"benefits?\s+management\s+services?|"
+    r"\bPBM\b|"
+    r"managed\s+care\s+(?:services?|plan|organization)|"
+    r"vision\s+(?:insurance|benefits?|plan)\s+services?|"
+    r"health\s+(?:insurance|plan)\s+administration|"
+    r"professional\s+services?\s+(?:contract|agreement|rfp)|"
+    r"request\s+for\s+proposals?\s+for\s+.{0,80}"
+    r"(?:management|consulting|administration)\s+services?|"
+    r"procure(?:ment)?\s+of\s+.{0,60}"
+    r"(?:management|consulting|administration)\s+services?|"
+    r"seeks?\s+to\s+procure\s+.{0,60}(?:management|consulting)\s+services?"
+    r")"
+)
+
+# Narrow: require service-as-the-buy, not "Animal Services Department" / "Incident Management".
+_WHAT_THEY_WANT_SERVICE_ASK_RE = re.compile(
+    r"(?i)("
+    r"\b(?:management|administration|consulting)\s+services?\b|"
+    r"\b(?:professional|janitorial|staffing|maintenance)\s+services?\b|"
+    r"\bservices?\s+(?:contract|agreement)\b|"
+    r"\bto\s+procure\s+.{0,60}services?\b|"
+    r"\bseeks?\s+to\s+procure\s+.{0,60}services?\b|"
+    r"\binsurance\s+plan\b|"
+    r"\bpharmacy\s+benefits?|"
+    r"\bbenefits?\s+management\b|"
+    r"\bfishing\s+services?\b|"
+    r"\bcontrol\s+services?\b|"
+    r"\bsupport\s+services?\b"
+    r")"
+)
+
+_WHAT_THEY_WANT_GOODS_CUE_RE = re.compile(
+    r"(?i)\b("
+    r"goods|products?|supplies|materials|equipment|commodit|"
+    r"furnish|purchase\s+of|supply\s+of|delivery\s+of|"
+    r"fuel|propane|gasoline|diesel|filters?|concrete|sandbags?"
+    r")\b"
+)
+
 # Goods supply patterns that first-pass models wrongly call MIX (delivery / labels).
 _GOODS_SUPPLY_RE = re.compile(
     r"(?i)("
@@ -162,6 +215,15 @@ def title_signal_decision(title: str) -> dict[str, Any] | None:
             "decision": "SERVICE_OR_MIX",
             "next_step": "SKIP",
             "why": f"Pre-detail skip ({pre_skip}): {t}",
+            "title_override": True,
+        }
+    food = perishable_food_reason(t)
+    if food:
+        return {
+            "want_type": "MIX",
+            "decision": "SERVICE_OR_MIX",
+            "next_step": "SKIP",
+            "why": f"Perishable food out of scope ({food}): {t}",
             "title_override": True,
         }
     has_p = bool(_PRODUCT_TITLE.search(t))
@@ -276,6 +338,95 @@ def body_install_labor_reason(opportunity: dict[str, Any]) -> str | None:
     return None
 
 
+def body_service_contract_reason(opportunity: dict[str, Any]) -> str | None:
+    """Deterministic fail-closed: body is a service buy (PBM, benefits admin, etc.)."""
+    blob = opportunity_text_blob(opportunity)
+    m = _SERVICE_CONTRACT_BUY_RE.search(blob)
+    if m:
+        return f"service_contract_buy:{m.group(0).lower()}"
+    return None
+
+
+# Perishable / edible food commodities — hard NO for M3 (not food-service equipment).
+_PERISHABLE_FOOD_RE = re.compile(
+    r"(?i)\b("
+    r"food\s+items|"
+    r"perishable(?:s)?|"
+    r"grocer(?:y|ies)|"
+    r"fresh\s+(?:fruit|vegetable|produce)|"
+    r"(?:fs\s+)?(?:milk|bread)\s+supply|"
+    r"milk\s+supply|"
+    r"bread\s+supply|"
+    r"food\s+service,\s+food|"
+    r"canteen\s+(?:food|resale)|"
+    r"frozen\s+(?:foods?|meats?|turkey|vegetables?)|"
+    r"meat(?:s)?\s+(?:and|&)\s+(?:poultry|seafood)|"
+    r"dairy\s+products?|"
+    r"cafeteria\s+food|"
+    r"edible\s+food"
+    r")\b"
+)
+
+
+def perishable_food_reason(*texts: Any) -> str | None:
+    """Fail-closed: perishable food / grocery commodity buys are out of scope."""
+    blob = "\n".join(str(t or "") for t in texts)
+    m = _PERISHABLE_FOOD_RE.search(blob)
+    if m:
+        return f"perishable_food:{m.group(0).lower()}"
+    return None
+
+
+def body_perishable_food_reason(opportunity: dict[str, Any]) -> str | None:
+    return perishable_food_reason(opportunity_text_blob(opportunity))
+
+
+def triage_product_service_contradiction_reason(
+    triage: dict[str, Any],
+    *,
+    opportunity: dict[str, Any] | None = None,
+) -> str | None:
+    """Fail closed when labeled PRODUCT (or free-form service want) contradicts goods.
+
+    Wrong PRODUCT is as bad as no info — never authorize docs or keep.
+    """
+    raw_want = str(triage.get("want_type") or "")
+    want = raw_want.upper()
+    decision = str(triage.get("decision") or "").upper()
+    parsed = triage.get("parsed") if isinstance(triage.get("parsed"), dict) else {}
+    what = str(triage.get("what_they_want") or parsed.get("what_they_want") or "")
+
+    # Free-form want_type from doc-read finals (e.g. "Pharmacy Benefits Management").
+    if want and want not in {"PRODUCT", "UNCLEAR", "SERVICE", "MIX", "SERVICE_OR_MIX"}:
+        if _SERVICE_CONTRACT_BUY_RE.search(raw_want) or re.search(
+            r"(?i)pharmacy|benefits?\s+management|\bPBM\b|managed\s+care|services?",
+            raw_want,
+        ):
+            return f"want_type_is_service_not_product:{raw_want}"
+
+    claiming_product = want == "PRODUCT" or decision == "PRODUCT"
+    if not claiming_product:
+        return None
+
+    blob_parts = [raw_want, what]
+    if opportunity is not None:
+        blob_parts.insert(0, opportunity_text_blob(opportunity))
+    blob = "\n".join(blob_parts)
+
+    m = _SERVICE_CONTRACT_BUY_RE.search(blob)
+    if m:
+        return f"product_label_contradicts_service:{m.group(0).lower()}"
+
+    food = perishable_food_reason(blob)
+    if food:
+        return f"product_label_contradicts_{food}"
+
+    if what and _WHAT_THEY_WANT_SERVICE_ASK_RE.search(what):
+        if not _WHAT_THEY_WANT_GOODS_CUE_RE.search(what):
+            return f"what_they_want_is_services_not_goods:{what[:160]}"
+    return None
+
+
 def goods_supply_salvage(opportunity: dict[str, Any]) -> dict[str, Any] | None:
     """Salvage false MIX/SERVICE when body is clearly goods supply (+ delivery OK).
 
@@ -287,6 +438,10 @@ def goods_supply_salvage(opportunity: dict[str, Any]) -> dict[str, Any] | None:
     if body_agency_not_buying_reason(opportunity):
         return None
     if body_install_labor_reason(opportunity):
+        return None
+    if body_service_contract_reason(opportunity):
+        return None
+    if body_perishable_food_reason(opportunity):
         return None
     blob = opportunity_text_blob(opportunity)
     if not blob.strip():
@@ -353,8 +508,19 @@ def authorize_document_fetch(
         labor = body_install_labor_reason(opportunity)
         if labor:
             return {"authorized": False, "reason": labor}
+        service_buy = body_service_contract_reason(opportunity)
+        if service_buy:
+            return {"authorized": False, "reason": service_buy}
+        food = body_perishable_food_reason(opportunity)
+        if food:
+            return {"authorized": False, "reason": food}
         if opportunity_shows_no_documents(opportunity):
             return {"authorized": False, "reason": "opportunity_shows_no_documents"}
+    contradiction = triage_product_service_contradiction_reason(
+        triage, opportunity=opportunity
+    )
+    if contradiction:
+        return {"authorized": False, "reason": contradiction}
     if want != "PRODUCT" or decision != "PRODUCT":
         return {
             "authorized": False,
@@ -735,6 +901,8 @@ def triage_opportunity(
     surplus = body_surplus_sale_reason(opportunity)
     not_buying = body_agency_not_buying_reason(opportunity)
     labor = body_install_labor_reason(opportunity)
+    service_buy = body_service_contract_reason(opportunity)
+    food = body_perishable_food_reason(opportunity) or perishable_food_reason(title)
     if surplus:
         title_override = {
             "want_type": "MIX",
@@ -762,6 +930,24 @@ def triage_opportunity(
             "decision": "SERVICE_OR_MIX",
             "next_step": "SKIP",
             "why": f"Body includes install/labor — not pure goods ({labor})",
+            "agency_is_buying": True,
+            "is_product_only": False,
+        }
+    elif service_buy:
+        title_override = {
+            "want_type": "SERVICE",
+            "decision": "SERVICE_OR_MIX",
+            "next_step": "SKIP",
+            "why": f"Body is a service contract — not tangible goods ({service_buy})",
+            "agency_is_buying": True,
+            "is_product_only": False,
+        }
+    elif food:
+        title_override = {
+            "want_type": "MIX",
+            "decision": "SERVICE_OR_MIX",
+            "next_step": "SKIP",
+            "why": f"Perishable food out of scope ({food})",
             "agency_is_buying": True,
             "is_product_only": False,
         }
@@ -816,6 +1002,31 @@ def triage_opportunity(
                 "goods_supply_salvage": True,
             }
 
+    # Fail-closed AFTER salvage: PRODUCT label + service/PBM evidence → SKIP.
+    # Wrong PRODUCT is as bad as no info.
+    contradiction = triage_product_service_contradiction_reason(
+        {
+            "want_type": parsed.get("want_type"),
+            "decision": decision,
+            "what_they_want": parsed.get("what_they_want"),
+            "parsed": parsed,
+        },
+        opportunity=opportunity,
+    )
+    if contradiction:
+        decision = "SERVICE_OR_MIX"
+        next_step = "SKIP"
+        parsed = {
+            **parsed,
+            "want_type": "SERVICE",
+            "decision": decision,
+            "next_step": next_step,
+            "why": contradiction,
+            "is_product_only": False,
+            "service_product_contradiction": True,
+            "title_override_applied": True,
+        }
+
     docs_gate = authorize_document_fetch(
         {
             "ok": True,
@@ -823,6 +1034,7 @@ def triage_opportunity(
             "decision": decision,
             "next_step": next_step,
             "parsed": parsed,
+            "what_they_want": parsed.get("what_they_want"),
         },
         opportunity=opportunity,
     )

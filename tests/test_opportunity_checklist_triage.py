@@ -39,6 +39,21 @@ def test_title_override_office_supply_not_unclear():
     assert hit["next_step"] == "FETCH_DOCUMENTS"
 
 
+def test_title_override_food_items_skipped():
+    hit = title_signal_decision("Request for Proposal, Food Items 2026-2027")
+    assert hit is not None
+    assert hit["next_step"] == "SKIP"
+    assert "food" in hit["why"].lower() or "perishable" in hit["why"].lower()
+
+
+def test_perishable_food_reason_blocks_milk_not_equipment():
+    from m3.research.opportunity_checklist_triage import perishable_food_reason
+
+    assert perishable_food_reason("FS Milk Supply 2026-27")
+    assert perishable_food_reason("Food Items RFP")
+    assert perishable_food_reason("Food Service Equipment Steamers") is None
+
+
 def test_title_override_pump_rebuild_is_service():
     hit = title_signal_decision("Pacheco Pumping Plant Pump 12 Rebuild")
     assert hit is not None
@@ -381,3 +396,104 @@ def test_oliver_hill_install_labor_blocks_fetch():
     )
     assert gate["authorized"] is False
     assert "install" in gate["reason"] or "labor" in gate["reason"]
+
+
+def test_pbm_service_contradiction_blocks_product_fetch():
+    from m3.research.opportunity_checklist_triage import (
+        authorize_document_fetch,
+        body_service_contract_reason,
+        goods_supply_salvage,
+        triage_product_service_contradiction_reason,
+    )
+
+    opp = {
+        "title": "RFP 31786-00191 Pharmacy Benefits Manager",
+        "description": (
+            "The State seeks to procure pharmacy benefits management services "
+            "for State Group Insurance Program participants."
+        ),
+        "document_count": 29,
+        "attachment_count": 29,
+        "documents": [{"name": "RFP.pdf"}],
+    }
+    assert body_service_contract_reason(opp)
+    assert goods_supply_salvage(opp) is None
+    gate = authorize_document_fetch(
+        {
+            "ok": True,
+            "want_type": "PRODUCT",
+            "decision": "PRODUCT",
+            "next_step": "FETCH_DOCUMENTS",
+            "what_they_want": "Pharmacy Benefits Management services",
+            "parsed": {
+                "agency_is_buying": True,
+                "is_product_only": True,
+                "what_they_want": "Pharmacy Benefits Management services",
+            },
+        },
+        opportunity=opp,
+    )
+    assert gate["authorized"] is False
+    assert "service" in gate["reason"]
+
+    # Doc-read free-form want_type must also fail closed.
+    reason = triage_product_service_contradiction_reason(
+        {
+            "want_type": "Pharmacy Benefits Management",
+            "decision": "Approved",
+            "what_they_want": "The State seeks to procure pharmacy benefits management services.",
+        }
+    )
+    assert reason
+
+
+def test_xlsx_extract_not_utf8_binary_junk():
+    import io
+    from pathlib import Path
+
+    from openpyxl import Workbook
+
+    from m3.research.every_word_doc_read import extract_file_units, is_sensitive_non_product_doc
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = "Item"
+    ws["B1"] = "Quantity"
+    ws["A2"] = "Gloves"
+    ws["B2"] = 500
+    buf = io.BytesIO()
+    wb.save(buf)
+    data = buf.getvalue()
+    tmp = Path("data") / "_test_xlsx_extract_tmp.xlsx"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_bytes(data)
+    try:
+        units = extract_file_units(tmp)
+        assert units[0]["method"] == "openpyxl"
+        assert "Gloves" in (units[0].get("text") or "")
+        assert "PK" not in (units[0].get("text") or "")[:20]
+    finally:
+        tmp.unlink(missing_ok=True)
+
+    assert is_sensitive_non_product_doc("Appendix 7.8 Claims Data History_July2022.xlsx")
+    assert is_sensitive_non_product_doc("Appendix 7.17 HIPAA Business Associate Assessment.xlsx")
+    assert not is_sensitive_non_product_doc("State of TN_Cost Proposal_REVISED.xlsx")
+
+
+def test_real_attachment_fingerprint_excludes_office_guts():
+    from m3.research.free_source_step_pipeline import (
+        is_real_attachment_doc,
+        real_attachment_hashes,
+    )
+
+    docs = [
+        {"name": "RFP.pdf", "sha256": "aaa"},
+        {"name": "document.xml", "sha256": "bbb", "from_zip": "packet.zip", "path": "word/document.xml"},
+        {"name": "Cost Proposal.xlsx", "sha256": "ccc"},
+        {"name": "[Content_Types].xml", "sha256": "ddd", "from_zip": "x.docx"},
+    ]
+    assert is_real_attachment_doc(docs[0])
+    assert not is_real_attachment_doc(docs[1])
+    assert is_real_attachment_doc(docs[2])
+    assert not is_real_attachment_doc(docs[3])
+    assert real_attachment_hashes(docs) == {"aaa", "ccc"}

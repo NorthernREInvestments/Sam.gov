@@ -3913,13 +3913,49 @@ def main(argv: list[str] | None = None) -> int:
         "free-source-daily",
         help=(
             "Once-a-day FULL pull of every wired free portal (NE/NJ/TN/…): no listing cap, "
-            "download all PRODUCT docs, every-word only for new/changed packages"
+            "download all PRODUCT docs, every-word only for new/changed packages. "
+            "Auto-retries portals that die; --resume-failed re-runs only prior failures."
         ),
     )
     p_free_daily.add_argument(
         "--skip-doc-read",
         action="store_true",
         help="List/triage/download only; skip OpenAI every-word",
+    )
+    p_free_daily.add_argument(
+        "--resume-failed",
+        action="store_true",
+        help="Re-run only sources that failed in DAILY_FULL_BOARD_LAST.json",
+    )
+    p_free_daily.add_argument(
+        "--sources",
+        default="",
+        help="Comma-separated source keys to run (default: all, or failed if --resume-failed)",
+    )
+    p_free_daily.add_argument(
+        "--max-source-attempts",
+        type=int,
+        default=3,
+        help="Auto-retry count per portal on crash (default 3)",
+    )
+    p_field_repair = sub.add_parser(
+        "opportunity-field-repair",
+        help=(
+            "Use OpenAI + local/official evidence to fill Unknown Closes/category/value/sol "
+            "on incomplete saved opportunities (does not archive or hide rows)"
+        ),
+    )
+    p_field_repair.add_argument("--limit", type=int, default=80)
+    p_field_repair.add_argument("--max-usd", type=float, default=2.0)
+    p_field_repair.add_argument(
+        "--only-missing-closes",
+        action="store_true",
+        help="Only repair rows missing deadline/Closes",
+    )
+    p_field_repair.add_argument(
+        "--restore-archived-incomplete",
+        action="store_true",
+        help="Restore rows soft-archived only for incomplete/Unknown fields before repair",
     )
     sub.add_parser(
         "free-source-wiring",
@@ -4572,9 +4608,31 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "free-source-daily":
             from m3.research.free_source_step_pipeline import run_all_free_sources_daily
 
+            src_raw = str(getattr(args, "sources", "") or "").strip()
+            sources = [s.strip() for s in src_raw.split(",") if s.strip()] or None
             result = run_all_free_sources_daily(
                 read_docs=not bool(args.skip_doc_read),
+                sources=sources,
+                max_source_attempts=int(getattr(args, "max_source_attempts", 3) or 3),
+                resume_failed_only=bool(getattr(args, "resume_failed", False)),
             )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "opportunity-field-repair":
+            from m3.research.opportunity_field_repair import (
+                repair_incomplete_opportunities,
+                restore_incomplete_from_archive,
+            )
+
+            restore = None
+            if args.restore_archived_incomplete:
+                restore = restore_incomplete_from_archive()
+            result = repair_incomplete_opportunities(
+                limit=int(args.limit),
+                max_usd=float(args.max_usd),
+                only_missing_closes=bool(args.only_missing_closes),
+            )
+            if restore is not None:
+                result["restore"] = restore
             print(json.dumps(result, default=str), flush=True)
         elif args.cmd == "free-source-wiring":
             from m3.research.free_source_step_pipeline import FREE_SOURCE_SPECS

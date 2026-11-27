@@ -76,6 +76,20 @@ def test_pocatello_groups_custodial_package():
     assert all("Budget" not in r["title"] for r in rows)
 
 
+def test_pocatello_current_bids_only_skips_historic():
+    html = """
+    <h2>Current Bids</h2>
+    <a href="https://resources.finalsite.net/images/v1/d25k12idus/a/Cameras2026Invitation.pdf">Invitation to Bid, Security Cameras 2026</a>
+    <h2>Historic Bid Information</h2>
+    <h3>2019 Bids</h3>
+    <a href="https://resources.finalsite.net/images/v1/d25k12idus/b/2019CustodialSuppliesInvitationtoBid.pdf">2019 Custodial Supplies, Invitation to Bid</a>
+    """
+    rows = parse_pocatello_listing_html(html)
+    assert len(rows) == 1
+    assert "Camera" in rows[0]["title"]
+    assert all("2019" not in r["title"] for r in rows)
+
+
 def test_indiana_zip_inventory_and_listing_parse():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:

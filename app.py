@@ -592,7 +592,15 @@ def home(request: Request, db: Session = Depends(get_db), user: User | None = De
         .limit(8)
         .all()
     )
-    recent_opps = active.order_by(Opportunity.created_at.desc()).limit(12).all()
+    recent_opps = (
+        active.order_by(
+            Opportunity.posted_at.desc().nulls_last(),
+            Opportunity.updated_at.desc(),
+            Opportunity.created_at.desc(),
+        )
+        .limit(12)
+        .all()
+    )
     recent_activity = []
     if user.is_primary_owner or user.role == "owner":
         raw_events = db.query(AuditEvent).order_by(AuditEvent.at.desc()).limit(20).all()
@@ -637,12 +645,29 @@ def opportunities_list(request: Request, db: Session = Depends(get_db), user: Us
     q = db.query(Opportunity)
     if status_filter == "active":
         q = q.filter(Opportunity.status.in_(list(ACTIVE_OPP_STATUSES)))
+        # Unknown Closes = FAIL — government postings have deadlines; missing means we failed.
+        q = q.filter(Opportunity.deadline_at.isnot(None))
     elif status_filter in {"saved", "pursuing", "archived", "not_interested"}:
         q = q.filter(Opportunity.status == status_filter)
-    items = q.order_by(Opportunity.created_at.desc()).limit(100).all()
+    # Newest contracts first: posted date, then most recently updated/saved
+    items = (
+        q.order_by(
+            Opportunity.posted_at.desc().nulls_last(),
+            Opportunity.updated_at.desc(),
+            Opportunity.created_at.desc(),
+        )
+        .limit(100)
+        .all()
+    )
     rows = []
+    from m3.research.opportunity_ui_ready import opportunity_ui_ready
+
     for o in items:
         item = _opp_item_from_model(o)
+        if status_filter == "active":
+            ready, _reasons = opportunity_ui_ready(item)
+            if not ready:
+                continue
         row = enrich_discovery_item(item, saved=True, catalog_matches=_catalog_match_count(db, item))
         row["saved_id"] = str(o.id)
         row["official_url"] = o.official_url

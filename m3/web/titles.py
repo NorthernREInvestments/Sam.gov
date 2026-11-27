@@ -49,11 +49,23 @@ def readable_product_phrase(raw: str) -> str:
     return text.strip(" -–—")
 
 
+_ATTACHMENT_JUNK = re.compile(
+    r"(?is)\s*(?:Original|Attachments?)\s*:\s*.*$"
+)
+_SOURCE_KEY_PREFIX = re.compile(
+    r"(?i)^\s*[a-z][a-z0-9_]{2,40}\s*[-–—]\s*"
+)
+_DOTD_PREFIX = re.compile(r"(?i)^\s*\*?RE-?BID\*?\s*")
+
+
 def extract_product_from_official_title(title: str, solicitation_number: str | None = None) -> str:
     """Strip solicitation numbers and closing-date clutter from official title."""
     text = (title or "").strip()
     if not text:
         return ""
+    text = _ATTACHMENT_JUNK.sub("", text)
+    text = _SOURCE_KEY_PREFIX.sub("", text)
+    text = _DOTD_PREFIX.sub("", text)
     text = _CLOSING.sub("", text)
     text = _DATE_TAIL.sub("", text)
     if solicitation_number:
@@ -69,8 +81,41 @@ def extract_product_from_official_title(title: str, solicitation_number: str | N
     # If we stripped everything, fall back to original cleaned string
     if len(text) < 3:
         text = _MULTI_SPACE.sub(" ", (title or "").strip())
+        text = _ATTACHMENT_JUNK.sub("", text)
         text = _CLOSING.sub("", text).strip()
     return readable_product_phrase(text)
+
+
+def build_product_list_title(
+    *,
+    what_they_want: str | None = None,
+    quantity: str | None = None,
+    official_title: str | None = None,
+    solicitation_number: str | None = None,
+) -> str:
+    """Active/list Title column: the product being bought (qty + what), not buyer/source junk."""
+    what = readable_product_phrase(str(what_they_want or "").strip())
+    qty = readable_product_phrase(str(quantity or "").strip())
+    # Drop useless quantity placeholders / bare counts with no unit
+    if qty and re.search(
+        r"(?i)^(unknown|n/?a|tbd|approximate|not\s+guaranteed|see\s+(?:bid|docs?)|"
+        r"\d{1,4}|one|two|three|a|an)\b\.?$",
+        qty,
+    ):
+        qty = ""
+    if len(qty) > 80:
+        qty = ""
+    product = extract_product_from_official_title(official_title or "", solicitation_number)
+    if what and len(what) >= 3:
+        # Prefer "15 each — Ball Valves" when qty is short and not already in what.
+        if qty and qty.lower() not in what.lower() and not re.search(r"(?i)\bmultiple\b", what):
+            return f"{qty} — {what}"[:240]
+        return what[:240]
+    if product:
+        if qty and qty.lower() not in product.lower():
+            return f"{qty} — {product}"[:240]
+        return product[:240]
+    return "Untitled"
 
 
 def resolve_buyer_display(buyer_name: str | None, *, source_name: str | None = None) -> str | None:

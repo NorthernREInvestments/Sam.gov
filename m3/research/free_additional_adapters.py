@@ -57,15 +57,17 @@ def parse_providence_listing_html(
         lab = _strip(a.get_text(" ", strip=True))
         name = unquote(urlparse(abs_u).path.split("/")[-1])
         mt = re.search(r"(?i)\bMT[-_ ]?(\d{4,6})\b", f"{lab} {name}")
-        sol = f"MT-{mt.group(1)}" if mt else ""
+        # No MT# = incomplete listing row (title fragments are not solicitation ids)
+        if not mt:
+            continue
+        sol = f"MT-{mt.group(1)}"
         title = lab or name
         is_add = bool(re.search(r"(?i)addendum", f"{lab} {name}"))
-        # Prefer MT id; else strip addendum suffix for grouping
-        key = sol or re.sub(r"(?i)\s*[-–]?\s*addendum.*$", "", title).strip().lower()[:80]
+        key = sol
         entry = groups.setdefault(
             key,
             {
-                "solicitation_number": sol or key[:48],
+                "solicitation_number": sol,
                 "title": re.sub(r"(?i)\s*addendum.*$", "", title).strip() or title,
                 "document_urls": [],
                 "detail_url": abs_u,
@@ -273,6 +275,56 @@ def discover_sanjuan_usd_documents(
 # --- Pocatello / Chubbuck SD25 ------------------------------------------------------
 
 POCATELLO_LIST_URL = "https://www.sd25.us/departments/business-office"
+# Closed/historic packets stay on the same page under Historic Bid Information
+# (year folders). Front-end acquisition must not ingest that archive.
+POCATELLO_ARCHIVE_INDEX = {
+    "url": POCATELLO_LIST_URL,
+    "section": "Historic Bid Information",
+    "note": "Year folders on the Business Office page; look up later, do not acquire.",
+}
+
+
+def _pocatello_live_section_links(soup, list_url: str) -> list[tuple[str, str]]:
+    """Return (abs_url, label) only from the Current Bids section when present."""
+    # Document-order walk: prefer explicit Current Bids → stop at Historic / year folders.
+    in_current = False
+    saw_current_marker = False
+    out: list[tuple[str, str]] = []
+    for el in soup.descendants:
+        if getattr(el, "name", None) is None:
+            continue
+        # Heading / accordion labels
+        if el.name in {"h1", "h2", "h3", "h4", "h5", "h6", "strong", "b", "button", "span", "div", "p"}:
+            label = _strip(el.get_text(" ", strip=True))
+            if not label or len(label) > 80:
+                continue
+            if re.search(r"(?i)^current\s+bids?\b", label):
+                in_current = True
+                saw_current_marker = True
+                continue
+            if saw_current_marker and re.search(
+                r"(?i)^(historic\s+bid\s+information|historical\s+bids?|"
+                r"20\d{2}\s+bids?)\b",
+                label,
+            ):
+                in_current = False
+                if re.search(r"(?i)historic", label):
+                    break
+                continue
+        if el.name != "a" or not el.get("href"):
+            continue
+        if saw_current_marker and not in_current:
+            continue
+        abs_u = urljoin(list_url, el["href"])
+        lab = _strip(el.get_text(" ", strip=True))
+        out.append((abs_u, lab))
+    # No Current Bids marker in fixture HTML → keep prior flat behavior for tests,
+    # but callers still drop obvious year-archive titles in search().
+    if not saw_current_marker:
+        out = []
+        for a in soup.find_all("a", href=True):
+            out.append((urljoin(list_url, a["href"]), _strip(a.get_text(" ", strip=True))))
+    return out
 
 
 def parse_pocatello_listing_html(
@@ -282,9 +334,7 @@ def parse_pocatello_listing_html(
 
     soup = BeautifulSoup(html or "", "html.parser")
     groups: dict[str, dict[str, Any]] = {}
-    for a in soup.find_all("a", href=True):
-        abs_u = urljoin(list_url, a["href"])
-        lab = _strip(a.get_text(" ", strip=True))
+    for abs_u, lab in _pocatello_live_section_links(soup, list_url):
         if "finalsite.net" not in abs_u.lower() and "resource-manager" not in abs_u:
             continue
         if not re.search(
@@ -372,6 +422,38 @@ def apply_quantity_amendment_overrides(
     return out
 
 
+def _pocatello_commodity_norm(text: str) -> str:
+    s = re.sub(
+        r"(?i)\b("
+        r"board\s+recommend\s*-?\s*|addendum(?:\s*\d+)?|"
+        r"invitation\s+to\s+bid|request\s+for\s+proposal|"
+        r"rfp\s+invitation|rfq\s+invitation|\brfp\b|\brfq\b|\bitb\b|re-?bid"
+        r")\b",
+        " ",
+        text or "",
+    )
+    s = re.sub(r"[^a-z0-9]+", " ", s.lower())
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _pocatello_awarded_norms(html: str, *, list_url: str) -> set[str]:
+    """Board Recommend PDFs = bid already decided → not open/live."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or "", "html.parser")
+    awarded: set[str] = set()
+    for abs_u, lab in _pocatello_live_section_links(soup, list_url):
+        blob = f"{lab} {abs_u}"
+        if not re.search(r"(?i)board\s*recommend|BoardRecommend", blob):
+            continue
+        norm = _pocatello_commodity_norm(lab) or _pocatello_commodity_norm(
+            abs_u.rsplit("/", 1)[-1]
+        )
+        if norm:
+            awarded.add(norm)
+    return awarded
+
+
 def search_pocatello_sd25(
     source: dict, *, limit: int | None = None, fetch_detail_docs: bool = True
 ) -> dict[str, Any]:
@@ -383,18 +465,69 @@ def search_pocatello_sd25(
         return {"ok": False, "items": [], "source_key": source.get("source_key"), "errors": [str(exc)], "stats": {}}
     if status >= 400 or not html:
         return {"ok": False, "items": [], "source_key": source.get("source_key"), "errors": [f"status={status}"], "stats": {}}
-    rows = parse_pocatello_listing_html(html, list_url=final or list_url)
+    effective_list = final or list_url
+    rows = parse_pocatello_listing_html(html, list_url=effective_list)
+    awarded = _pocatello_awarded_norms(html, list_url=effective_list)
     items: list[dict] = []
     skipped = 0
+    skipped_historic = 0
+    skipped_closed = 0
+    now_year = datetime.now(timezone.utc).year
     for row in rows:
         if limit is not None and len(items) >= int(limit):
             break
         title = row["title"]
-        if re.search(r"(?i)\b(parking\s+lot|tennis\s+court|rebuild|stairs|press\s+box)\b", title):
+        docs = row.get("document_urls") or []
+        doc_blob = " ".join(docs)
+        # Year-titled archive packets (e.g. "2019 Custodial…") are not live opens.
+        year_m = re.search(r"(?i)\b(20\d{2})\b", title)
+        if year_m and int(year_m.group(1)) < now_year:
+            skipped += 1
+            skipped_historic += 1
+            continue
+        # Board Recommend on the packet (or same commodity) ⇒ already awarded/closed.
+        norm = _pocatello_commodity_norm(title)
+        if (
+            re.search(r"(?i)board\s*recommend|BoardRecommend", f"{title} {doc_blob}")
+            or (norm and norm in awarded)
+            or any(
+                bool(norm)
+                and bool(a)
+                and (norm == a or norm.startswith(a + " ") or a.startswith(norm + " ") or a in norm or norm in a)
+                for a in awarded
+                if len(a) >= 4
+            )
+        ):
+            skipped += 1
+            skipped_closed += 1
+            continue
+        # Addendum-only stubs are not open solicitations.
+        if not re.search(
+            r"(?i)(invitation|request\s+for\s+proposal|\brfp\b|\brfq\b|\bitb\b)",
+            f"{title} {doc_blob}",
+        ):
+            skipped += 1
+            skipped_closed += 1
+            continue
+        if re.search(
+            r"(?i)\b("
+            r"parking\s+lot|tennis\s+court|rebuild|stairs|press\s+box|"
+            r"asphalt|roofing|chiller|boiler|hvac|restroom|track\s+improvement|"
+            r"fire\s+alarm|carpet|entry\s+doors?|lighting"
+            r")\b",
+            title,
+        ):
+            skipped += 1
+            continue
+        # Perishable food commodities are out of scope for M3.
+        if re.search(
+            r"(?i)\b(food\s+items|(?:fs\s+)?(?:milk|bread)\s+supply|perishable|grocer(?:y|ies))\b",
+            title,
+        ):
             skipped += 1
             continue
         if _serviceish(title) and not re.search(
-            r"(?i)\b(supplies|food|equipment|camera|intercom)\b", title
+            r"(?i)\b(supplies|equipment|camera|intercom|bus)\b", title
         ):
             skipped += 1
             continue
@@ -405,11 +538,12 @@ def search_pocatello_sd25(
             buyer="Pocatello/Chubbuck School District 25",
             state="ID",
             official_url=row["detail_url"],
-            discovery_url=final or list_url,
-            doc_urls=row["document_urls"],
+            discovery_url=effective_list,
+            doc_urls=docs,
             detail_url=row["detail_url"],
             tz="America/Boise",
         )
+        item["listing_status"] = "open"
         item["evidence"] = {
             **(item.get("evidence") or {}),
             "apply_amendments_before_qty": True,
@@ -417,10 +551,13 @@ def search_pocatello_sd25(
                 re.search(r"(?i)custodial\s+supplies", title)
             ),
             "verify_deadlines_independently": True,
+            "live_section": "Current Bids",
+            "archive_index": POCATELLO_ARCHIVE_INDEX,
         }
         items.append(item)
     return {
-        "ok": bool(items) or bool(rows),
+        # Empty Current Bids is success — do not fall through into Historic.
+        "ok": True,
         "items": items,
         "source_key": source.get("source_key"),
         "errors": [],
@@ -429,7 +566,16 @@ def search_pocatello_sd25(
         "rows_examined": len(rows),
         "pagination_complete": True,
         "more_available": False,
-        "stats": {"accepted": len(items), "skipped": skipped, "listing_rows": len(rows)},
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "skipped_historic": skipped_historic,
+            "skipped_closed": skipped_closed,
+            "listing_rows": len(rows),
+            "awarded_norms": len(awarded),
+            "live_only": True,
+            "archive_index": POCATELLO_ARCHIVE_INDEX,
+        },
     }
 
 
@@ -1336,10 +1482,14 @@ def search_louisiana_lapac(
     ordered = [t for t in terms if t[1] in product_terms] + [t for t in terms if t[1] not in product_terms]
     items: list[dict] = []
     skipped = 0
+    skipped_closed = 0
     pages = 1
     errors: list[str] = []
     rows_examined = 0
     seen_sol: set[str] = set()
+    from m3.research.opportunity_ui_ready import parse_deadline_value
+
+    now = datetime.now(timezone.utc)
     for cat_name, term in ordered:
         if limit is not None and len(items) >= int(limit):
             break
@@ -1371,6 +1521,12 @@ def search_louisiana_lapac(
                 if not re.search(r"(?i)\b(salt|paper|supply|supplies|equipment|chemical|food|hygiene)\b", title):
                     skipped += 1
                     continue
+            # Front-end: open/live only — past Bid Open Date/Time never enters triage.
+            due = parse_deadline_value(row.get("deadline_at"))
+            if due is not None and due < now:
+                skipped += 1
+                skipped_closed += 1
+                continue
             seen_sol.add(sol)
             item = _item_base(
                 source_key=source["source_key"],
@@ -1385,6 +1541,7 @@ def search_louisiana_lapac(
                 detail_url=row["detail_url"],
                 tz="America/Chicago",
             )
+            item["listing_status"] = "open"
             item["evidence"] = {
                 **(item.get("evidence") or {}),
                 "lapac_category": cat_name,
@@ -1405,8 +1562,10 @@ def search_louisiana_lapac(
         "stats": {
             "accepted": len(items),
             "skipped": skipped,
+            "skipped_closed": skipped_closed,
             "listing_rows": rows_examined,
             "categories": len(terms),
+            "live_only": True,
         },
     }
 

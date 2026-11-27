@@ -25,7 +25,7 @@
       <td class="title">{{ row.display.title }}</td>
       <td>{{ row.display.solicitation_number }}</td>
       <td>{{ row.display.buyer }}<br><span class="muted">{{ row.display.city }}, {{ row.display.state }}</span></td>
-      <td>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</td>
+      <td>{{ row.display.closes }}</td>
       <td>{{ row.display.value }}</td>
       <td>{{ row.display.product_category }}</td>
       <td class="actions-cell">
@@ -45,7 +45,7 @@
       <dt>Solicitation #</dt><dd>{{ row.display.solicitation_number }}</dd>
       <dt>Buyer</dt><dd>{{ row.display.buyer }}</dd>
       <dt>Location</dt><dd>{{ row.display.city }}, {{ row.display.state }}</dd>
-      <dt>Closes</dt><dd>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</dd>
+      <dt>Closes</dt><dd>{{ row.display.closes }}</dd>
       <dt>Est. value</dt><dd>{{ row.display.value }}</dd>
       <dt>Category</dt><dd>{{ row.display.product_category }}</dd>
     </dl>

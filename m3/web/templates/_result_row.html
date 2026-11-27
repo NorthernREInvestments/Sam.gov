@@ -5,7 +5,7 @@
     <dt>Solicitation #</dt><dd>{{ row.display.solicitation_number }}</dd>
     <dt>Buyer</dt><dd>{{ row.display.buyer }}</dd>
     <dt>Location</dt><dd>{{ row.display.city }}, {{ row.display.state }}</dd>
-    <dt>Closes</dt><dd>{{ row.display.closing_date }} {{ row.display.closing_time }} {{ row.display.timezone }}</dd>
+    <dt>Closes</dt><dd>{{ row.display.closes }}</dd>
     <dt>Days left</dt><dd>{{ row.display.days_remaining }}</dd>
     <dt>Est. value</dt><dd>{{ row.display.value }} <span class="muted">({{ row.display.value_class }})</span></dd>
     <dt>Set-aside</dt><dd>{{ row.display.set_aside }}{% if not row.display.set_aside_verified %} <span class="muted">(unverified)</span>{% endif %}</dd>
