@@ -156,6 +156,22 @@ class NextBidClient:
         return data
 
     def read_file(self, nb_id: str, path: str) -> dict[str, Any]:
+        # Hard NO: never spend a credit on NextBid document0 .json/.md sidecars.
+        # Those are pipeline artifacts, not buyer PDFs. Durable cache reuse only.
+        from m3.research.document_fetch_plan import is_document0_sidecar
+        from m3.research.nextbid_controller import NextBidControllerError
+        from m3.research.nextbid_response_store import lookup_cached_response
+
+        p = str(path or "")
+        if is_document0_sidecar({"path": p, "name": p, "kind": "document0" if "document0" in p.lower() else ""}):
+            cached = lookup_cached_response(
+                "GET", f"/opportunities/{nb_id}/files/{p}", {}, nb_id=nb_id
+            )
+            if isinstance(cached, dict) and cached:
+                return cached
+            raise NextBidControllerError(
+                f"document0_sidecar_metered_read_blocked:{nb_id}:{p[:120]}"
+            )
         data = metered_request(
             "GET",
             f"/opportunities/{nb_id}/files/{path}",

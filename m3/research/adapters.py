@@ -7,7 +7,7 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from m3.research.http_util import fetch_json, fetch_text
 from m3.research.schema_map import (
@@ -634,6 +634,1141 @@ def search_georgia_gpr(
             "mapping_failures": 0,
             "listing_api_blocked": True,
             "bootstrap_events": len(events),
+        },
+    }
+
+
+_NE_SPB_LIST_URL = "https://das.nebraska.gov/materiel/bid-opportunities.html"
+_NE_SPB_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"consulting|staffing|case\s+management|evaluation\s+services|"
+    r"construction|renovation|maintenance|janitorial|professional\s+services|"
+    r"managed\s+services|training\s+services|audit\s+services"
+    r")\b"
+)
+
+
+def _parse_ne_spb_opening(raw: str) -> str | None:
+    """Parse Opening column like '01/5/27' or '11/24/26' → ISO date (date only)."""
+    s = (raw or "").strip()
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})$", s)
+    if not m:
+        return None
+    month, day, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if year < 100:
+        year += 2000
+    try:
+        return datetime(year, month, day, tzinfo=timezone.utc).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _ne_spb_cell_text(td_html: str) -> str:
+    t = re.sub(r"(?is)<script[^>]*>.*?</script>", " ", td_html or "")
+    t = re.sub(r"<[^>]+>", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def parse_nebraska_spb_listing_html(html: str, *, list_url: str = _NE_SPB_LIST_URL) -> list[dict[str, Any]]:
+    """Parse Current Bid Opportunities table rows from das.nebraska.gov."""
+    # Prefer the Current Bid Opportunities table body
+    section = html
+    msec = re.search(
+        r"(?is)Current Bid Opportunities.*?<tbody>([\s\S]*?)</tbody>",
+        html or "",
+    )
+    if msec:
+        section = msec.group(1)
+    else:
+        mb = re.search(r"(?is)<tbody>([\s\S]*?)</tbody>", html or "")
+        section = mb.group(1) if mb else (html or "")
+
+    rows: list[dict[str, Any]] = []
+    for tr in re.findall(r"(?is)<tr[^>]*>([\s\S]*?)</tr>", section):
+        tds = re.findall(r"(?is)<td[^>]*>([\s\S]*?)</td>", tr)
+        if len(tds) < 7:
+            continue
+        am = re.search(r'href=["\']([^"\']+)["\']', tds[1], flags=re.I)
+        if not am:
+            continue
+        href = am.group(1).strip()
+        if "materiel/purchasing/" not in href.replace("\\", "/").lower():
+            continue
+        title = _ne_spb_cell_text(tds[1])
+        if not title or len(title) < 3:
+            continue
+        detail = urljoin(list_url, href)
+        rows.append(
+            {
+                "posted": _ne_spb_cell_text(tds[0]),
+                "title": title[:500],
+                "category_nigp": _ne_spb_cell_text(tds[2]) if len(tds) > 2 else "",
+                "opening": _ne_spb_cell_text(tds[3]) if len(tds) > 3 else "",
+                "bid_type": _ne_spb_cell_text(tds[4]) if len(tds) > 4 else "",
+                "buyer": _ne_spb_cell_text(tds[5]) if len(tds) > 5 else "",
+                "solicitation_number": _ne_spb_cell_text(tds[6]) if len(tds) > 6 else "",
+                "agency": _ne_spb_cell_text(tds[7]) if len(tds) > 7 else "State Purchasing Bureau",
+                "updated": _ne_spb_cell_text(tds[8]) if len(tds) > 8 else "",
+                "detail_url": detail,
+            }
+        )
+    return rows
+
+
+def search_nebraska_spb(
+    source: dict,
+    *,
+    limit: int | None = None,
+    fetch_detail_docs: bool = True,
+) -> dict[str, Any]:
+    """Nebraska State Purchasing Bureau — public bid opportunities (free, no login).
+
+    Listing: https://das.nebraska.gov/materiel/bid-opportunities.html
+    Detail pages under /materiel/purchasing/{sol}/… with Word/Excel project documents.
+    Same product-first rules as M3: skip obvious services; keep ITB goods buys.
+    """
+    from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
+
+    cfg = source.get("config") or {}
+    list_url = str(cfg.get("list_url") or _NE_SPB_LIST_URL)
+    errors: list[str] = []
+    items: list[dict] = []
+    skipped = 0
+
+    try:
+        status, final, html = fetch_text(list_url, timeout=30)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_fetch:{type(exc).__name__}:{exc}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+    if status >= 400 or not html:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_status={status}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+
+    rows = parse_nebraska_spb_listing_html(html, list_url=final or list_url)
+    for row in rows:
+        if limit is not None and len(items) >= int(limit):
+            break
+        title = row["title"]
+        sol = row.get("solicitation_number") or ""
+        bid_type = row.get("bid_type") or ""
+        category = row.get("category_nigp") or ""
+        blob = f"{title} {category} {bid_type}"
+        skip = listing_skip_before_detail_reason(title)
+        if skip or _NE_SPB_SERVICEISH_RE.search(blob):
+            skipped += 1
+            continue
+        # Prefer commodity ITBs; still allow goods-looking RFQs if not serviceish
+        if re.search(r"(?i)request\s+for\s+proposal", bid_type) and not re.search(
+            r"(?i)purchase|supply|furnish|commodity|salt|fuel|vehicle|equipment|material",
+            title,
+        ):
+            skipped += 1
+            continue
+
+        detail_url = row["detail_url"]
+        doc_urls: list[str] = []
+        project_description = ""
+        if fetch_detail_docs:
+            try:
+                dstat, dfinal, dhtml = fetch_text(detail_url, timeout=25)
+                if dstat < 400 and dhtml:
+                    detail_url = dfinal or detail_url
+                    for href in re.findall(r'href=["\']([^"\']+)["\']', dhtml, flags=re.I):
+                        low = href.lower()
+                        if any(low.endswith(ext) for ext in (".docx", ".doc", ".xlsx", ".xls", ".pdf", ".zip")):
+                            if "public_record" in low:
+                                continue
+                            doc_urls.append(urljoin(detail_url, href))
+                    dm = re.search(
+                        r"(?is)PROJECT DESCRIPTION:\s*</[^>]+>\s*<[^>]+>([\s\S]*?)</(?:p|div|td)",
+                        dhtml,
+                    )
+                    if not dm:
+                        dm = re.search(
+                            r"(?is)purpose of selecting a qualified Bidder to provide ([^.<]{5,200})",
+                            dhtml,
+                        )
+                    if dm:
+                        project_description = _ne_spb_cell_text(dm.group(1))[:500]
+            except Exception as exc:
+                errors.append(f"detail:{sol or title[:40]}:{type(exc).__name__}")
+
+        opening_iso = _parse_ne_spb_opening(row.get("opening") or "")
+        posted_iso = _parse_ne_spb_opening(row.get("posted") or "")
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or detail_url, title),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": (row.get("agency") or "Nebraska State Purchasing Bureau")[:200],
+                "geo_state": "NE",
+                "geo_city": None,
+                "geo_location": "NE",
+                "deadline_at": opening_iso,
+                "deadline_timezone": "America/Chicago",
+                "posted_at": posted_iso,
+                "procurement_type": bid_type or "unknown",
+                "product_category": _guess_category(title) or _guess_category(category) or "unknown",
+                "nigp_category": category or None,
+                "set_aside": "unknown",
+                "set_aside_verified": False,
+                "estimated_value_min": None,
+                "estimated_value_max": None,
+                "estimated_value_unknown": True,
+                "value_estimate_method": None,
+                "value_evidence": None,
+                "value_evidence_class": "not_yet_researched",
+                "official_url": detail_url[:2048],
+                "discovery_url": final or list_url,
+                "documents_available": "yes" if doc_urls else "unknown",
+                "document_urls": doc_urls,
+                "quantity": None,
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": "open",
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "source_purpose": "individual_solicitation_candidate",
+                "discovery_stage": "unrestricted",
+                "verified_individual_solicitation": True,
+                "record_type": "INDIVIDUAL_SOLICITATION",
+                "buyer_contact": row.get("buyer") or None,
+                "summary": project_description or None,
+                "evidence": {
+                    "detail_url": detail_url,
+                    "live_listing": True,
+                    "live_detail": bool(fetch_detail_docs),
+                    "documents_linked": len(doc_urls),
+                    "bid_type": bid_type,
+                    "opening_raw": row.get("opening"),
+                },
+            }
+        )
+
+    return {
+        "ok": bool(items) or (len(rows) > 0 and skipped == len(rows)),
+        "items": items,
+        "source_key": source.get("source_key"),
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": 1 + (len(items) if fetch_detail_docs else 0),
+        "rows_examined": len(rows),
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "mapping_failures": 0,
+            "listing_rows": len(rows),
+        },
+    }
+
+
+_NJ_PURCHASE_LIST_URL = "https://www.nj.gov/treasury/purchase/"
+_NJ_NOTICE_RE = re.compile(
+    r"(?i)^\s*NOTICE\s+OF\s+BID\s+SOLICITATION"
+    r"(?:\s*[-–—]\s*BID\s+AMENDMENT)?\s*:\s*"
+    r"([A-Z0-9]+)\s*[-–—]\s*(.+?)\s*$"
+)
+_NJ_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"case\s+management|consulting|staffing|construction|renovation|"
+    r"professional\s+services|training\s+services|maintenance\s+services|"
+    r"inspection\s+maintenance|re-?entry\s+programming|fiscal\s+intermediary|"
+    r"pharmacy\s+benefit|behavioral\s+risk|workforce\s+development|"
+    r"remedial\s+investigation|employee\s+benefits"
+    r")\b"
+)
+
+
+def parse_nj_purchase_notice_label(label: str) -> dict[str, Any] | None:
+    """Parse NJ Purchase Bureau notice link text into solicitation fields."""
+    text = re.sub(r"\s+", " ", (label or "").strip())
+    text = (
+        text.replace("&amp;", "&")
+        .replace("&#039;", "'")
+        .replace("&quot;", '"')
+    )
+    m = _NJ_NOTICE_RE.match(text)
+    if not m:
+        return None
+    sol = m.group(1).strip()
+    title = m.group(2).strip()
+    is_amendment = bool(re.search(r"(?i)bid\s+amendment", text))
+    return {
+        "solicitation_number": sol,
+        "title": title[:500],
+        "is_amendment": is_amendment,
+        "notice_label": text[:700],
+    }
+
+
+def parse_nj_purchase_listing_html(
+    html: str,
+    *,
+    list_url: str = _NJ_PURCHASE_LIST_URL,
+) -> list[dict[str, Any]]:
+    """Parse public NOTICE OF BID SOLICITATION PDF links from NJ Purchase Bureau."""
+    notices: list[dict[str, Any]] = []
+    for href, lab in re.findall(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+        html or "",
+        flags=re.I,
+    ):
+        label = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", lab or "")).strip()
+        parsed = parse_nj_purchase_notice_label(label)
+        if not parsed:
+            continue
+        abs_u = urljoin(list_url, href)
+        low = abs_u.lower().split("?", 1)[0]
+        if not low.endswith(".pdf"):
+            continue
+        if "specialnotices" not in low and "notice" not in label.lower():
+            # Prefer special notices board; still accept explicit notice PDFs.
+            if "purchase" not in low:
+                continue
+        notices.append(
+            {
+                **parsed,
+                "detail_url": abs_u,
+                "document_url": abs_u,
+            }
+        )
+    # Group amendments under the same solicitation number (primary = non-amendment first).
+    by_sol: dict[str, dict[str, Any]] = {}
+    for n in notices:
+        sol = n["solicitation_number"]
+        cur = by_sol.get(sol)
+        if not cur:
+            by_sol[sol] = {
+                "solicitation_number": sol,
+                "title": n["title"],
+                "detail_url": n["detail_url"],
+                "document_urls": [n["document_url"]],
+                "is_amendment_only": bool(n["is_amendment"]),
+                "notice_labels": [n["notice_label"]],
+            }
+            continue
+        if n["document_url"] not in cur["document_urls"]:
+            cur["document_urls"].append(n["document_url"])
+        cur["notice_labels"].append(n["notice_label"])
+        if n["is_amendment"]:
+            continue
+        # Prefer original notice title/url when present.
+        cur["title"] = n["title"]
+        cur["detail_url"] = n["detail_url"]
+        cur["is_amendment_only"] = False
+    return list(by_sol.values())
+
+
+def search_nj_purchase(
+    source: dict,
+    *,
+    limit: int | None = None,
+    fetch_detail_docs: bool = True,
+) -> dict[str, Any]:
+    """New Jersey Purchase Bureau — public bid solicitation notice PDFs (free).
+
+    Listing: https://www.nj.gov/treasury/purchase/
+    Each NOTICE OF BID SOLICITATION is a public PDF (body + primary document).
+    """
+    from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
+
+    cfg = source.get("config") or {}
+    list_url = str(cfg.get("list_url") or _NJ_PURCHASE_LIST_URL)
+    errors: list[str] = []
+    items: list[dict] = []
+    skipped = 0
+
+    try:
+        status, final, html = fetch_text(list_url, timeout=30)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_fetch:{type(exc).__name__}:{exc}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+    if status >= 400 or not html:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_status={status}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+
+    rows = parse_nj_purchase_listing_html(html, list_url=final or list_url)
+    for row in rows:
+        if limit is not None and len(items) >= int(limit):
+            break
+        title = row["title"]
+        sol = row.get("solicitation_number") or ""
+        skip = listing_skip_before_detail_reason(title)
+        if skip or _NJ_SERVICEISH_RE.search(title):
+            skipped += 1
+            continue
+        doc_urls = list(row.get("document_urls") or [])
+        # Optional: confirm PDF reachable (cheap HEAD-like GET of bytes meta via fetch_text skip).
+        # Body text extraction happens in stepped pipeline / package layer.
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or doc_urls[0], title),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": "New Jersey Division of Purchase and Property",
+                "geo_state": "NJ",
+                "geo_city": None,
+                "geo_location": "NJ",
+                "deadline_at": None,
+                "deadline_timezone": "America/New_York",
+                "posted_at": None,
+                "procurement_type": "bid_solicitation_notice",
+                "product_category": _guess_category(title) or "unknown",
+                "nigp_category": None,
+                "set_aside": "unknown",
+                "set_aside_verified": False,
+                "estimated_value_min": None,
+                "estimated_value_max": None,
+                "estimated_value_unknown": True,
+                "value_estimate_method": None,
+                "value_evidence": None,
+                "value_evidence_class": "not_yet_researched",
+                "official_url": (row.get("detail_url") or (doc_urls[0] if doc_urls else list_url))[:2048],
+                "discovery_url": final or list_url,
+                "documents_available": "yes" if doc_urls else "unknown",
+                "document_urls": doc_urls,
+                "quantity": None,
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": "open",
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "source_purpose": "individual_solicitation_candidate",
+                "discovery_stage": "unrestricted",
+                "verified_individual_solicitation": True,
+                "record_type": "INDIVIDUAL_SOLICITATION",
+                "summary": title,
+                "evidence": {
+                    "detail_url": row.get("detail_url"),
+                    "live_listing": True,
+                    "live_detail": bool(fetch_detail_docs),
+                    "documents_linked": len(doc_urls),
+                    "notice_labels": row.get("notice_labels") or [],
+                    "amendment_only": bool(row.get("is_amendment_only")),
+                },
+            }
+        )
+
+    return {
+        "ok": bool(items) or (len(rows) > 0 and skipped == len(rows)),
+        "items": items,
+        "source_key": source.get("source_key"),
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": 1,
+        "rows_examined": len(rows),
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "mapping_failures": 0,
+            "listing_rows": len(rows),
+        },
+    }
+
+
+_TN_CPO_LIST_URL = (
+    "https://www.tn.gov/generalservices/procurement/central-procurement-office--cpo-/"
+    "supplier-information/request-for-proposals--rfp--opportunities.html"
+)
+_TN_RFP_FOLDER_RE = re.compile(r"(?i)/rfp-updates/([^/]+)/")
+_TN_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"inmate\s+health|health\s+services|admin(?:istrative)?\s+serv|"
+    r"consulting|staffing|case\s+management|counseling|training\s+services|"
+    r"professional\s+services|burial\s+services|reservation\s+and\s+retail|"
+    r"queuing|virtual\s+line|point\s+of\s+sale|"
+    r"vision\s+services|life\s+and\s+ad|tpa\b|broker|captive\s+mgmt|"
+    r"family\s+support|insurance|software\s+platform|direct\s+certification|"
+    r"maintenance\s+rfp|\btitan\s+maintenance\b"
+    r")\b"
+)
+
+
+def _tn_title_from_package(sol: str, docs: list[dict[str, Any]]) -> str:
+    """Prefer descriptive RFP filename over bare 'RFP {sol}' labels."""
+    for d in docs:
+        url = str(d.get("url") or "")
+        name = unquote(urlparse(url).path.split("/")[-1])
+        stem = re.sub(r"\.[^.]+$", "", name)
+        if re.search(r"(?i)attachment|amendment|pro[_\s-]?forma|notice", stem):
+            continue
+        if not re.search(r"(?i)\bRFP\b|^RFP", stem):
+            continue
+        cleaned = re.sub(rf"(?i)^RFP[_-]?{re.escape(sol)}[_-]?", "", stem)
+        cleaned = cleaned.replace("_", " ").strip(" -_")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if cleaned and cleaned.upper() != sol.upper():
+            return cleaned[:500]
+    for d in docs:
+        lab = str(d.get("label") or "").strip()
+        if re.match(rf"(?i)^RFP\s+{re.escape(sol)}$", lab):
+            continue
+        if lab and not re.match(r"(?i)^(attachment|amendment|appendix|pro\s*forma)\b", lab):
+            return lab[:500]
+    return f"RFP {sol}"
+
+
+def parse_tn_cpo_listing_html(
+    html: str,
+    *,
+    list_url: str = _TN_CPO_LIST_URL,
+) -> list[dict[str, Any]]:
+    """Parse TN CPO RFP opportunity packages grouped by /rfp-updates/{sol}/ folders."""
+    by_sol: dict[str, list[dict[str, Any]]] = {}
+    for href, lab in re.findall(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+        html or "",
+        flags=re.I,
+    ):
+        label = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", lab or "")).strip()
+        label = label.replace("&amp;", "&")
+        abs_u = urljoin(list_url, href)
+        m = _TN_RFP_FOLDER_RE.search(abs_u)
+        if not m:
+            continue
+        low = abs_u.lower().split("?", 1)[0]
+        if not any(low.endswith(ext) for ext in (".pdf", ".doc", ".docx", ".xlsx", ".xls", ".zip")):
+            continue
+        sol = m.group(1)
+        by_sol.setdefault(sol, []).append({"label": label, "url": abs_u})
+
+    rows: list[dict[str, Any]] = []
+    for sol, docs in by_sol.items():
+        # De-dupe URLs preserving order
+        seen: set[str] = set()
+        uniq: list[dict[str, Any]] = []
+        for d in docs:
+            if d["url"] in seen:
+                continue
+            seen.add(d["url"])
+            uniq.append(d)
+        title = _tn_title_from_package(sol, uniq)
+        # Prefer a primary RFP/solicitation file as detail URL
+        primary = uniq[0]["url"]
+        for d in uniq:
+            name = unquote(urlparse(d["url"]).path.split("/")[-1]).lower()
+            if name.startswith("rfp") and "attachment" not in name and "amendment" not in name:
+                primary = d["url"]
+                break
+        rows.append(
+            {
+                "solicitation_number": sol,
+                "title": title,
+                "detail_url": primary,
+                "document_urls": [d["url"] for d in uniq],
+                "notice_labels": [d["label"] for d in uniq],
+            }
+        )
+    return rows
+
+
+def search_tn_cpo(
+    source: dict,
+    *,
+    limit: int | None = None,
+    fetch_detail_docs: bool = True,
+) -> dict[str, Any]:
+    """Tennessee Central Procurement Office — public RFP packages (free).
+
+    Listing: TN CPO RFP Opportunities page with /rfp-updates/{sol}/ document folders.
+    """
+    from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
+
+    import time
+
+    cfg = source.get("config") or {}
+    list_url = str(cfg.get("list_url") or _TN_CPO_LIST_URL)
+    errors: list[str] = []
+    items: list[dict] = []
+    skipped = 0
+
+    status, final, html = 0, list_url, ""
+    last_err = ""
+    for attempt in range(4):
+        try:
+            status, final, html = fetch_text(list_url, timeout=35)
+            if status < 400 and html:
+                break
+            last_err = f"list_status={status}"
+        except Exception as exc:
+            last_err = f"list_fetch:{type(exc).__name__}:{exc}"
+            status, final, html = 0, list_url, ""
+        time.sleep(0.8 * (attempt + 1))
+    if status >= 400 or not html:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [last_err or "list_fetch_failed"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+
+    rows = parse_tn_cpo_listing_html(html, list_url=final or list_url)
+    for row in rows:
+        if limit is not None and len(items) >= int(limit):
+            break
+        title = row["title"]
+        sol = row.get("solicitation_number") or ""
+        skip = listing_skip_before_detail_reason(title)
+        if skip or _TN_SERVICEISH_RE.search(title):
+            skipped += 1
+            continue
+        doc_urls = list(row.get("document_urls") or [])
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or doc_urls[0], title),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": "Tennessee Central Procurement Office",
+                "geo_state": "TN",
+                "geo_city": None,
+                "geo_location": "TN",
+                "deadline_at": None,
+                "deadline_timezone": "America/Chicago",
+                "posted_at": None,
+                "procurement_type": "rfp_package",
+                "product_category": _guess_category(title) or "unknown",
+                "nigp_category": None,
+                "set_aside": "unknown",
+                "set_aside_verified": False,
+                "estimated_value_min": None,
+                "estimated_value_max": None,
+                "estimated_value_unknown": True,
+                "value_estimate_method": None,
+                "value_evidence": None,
+                "value_evidence_class": "not_yet_researched",
+                "official_url": (row.get("detail_url") or (doc_urls[0] if doc_urls else list_url))[:2048],
+                "discovery_url": final or list_url,
+                "documents_available": "yes" if doc_urls else "unknown",
+                "document_urls": doc_urls,
+                "quantity": None,
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": "open",
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "source_purpose": "individual_solicitation_candidate",
+                "discovery_stage": "unrestricted",
+                "verified_individual_solicitation": True,
+                "record_type": "INDIVIDUAL_SOLICITATION",
+                "summary": title,
+                "evidence": {
+                    "detail_url": row.get("detail_url"),
+                    "live_listing": True,
+                    "live_detail": bool(fetch_detail_docs),
+                    "documents_linked": len(doc_urls),
+                    "notice_labels": row.get("notice_labels") or [],
+                },
+            }
+        )
+
+    return {
+        "ok": bool(items) or (len(rows) > 0 and skipped == len(rows)),
+        "items": items,
+        "source_key": source.get("source_key"),
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": 1,
+        "rows_examined": len(rows),
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "mapping_failures": 0,
+            "listing_rows": len(rows),
+        },
+    }
+
+
+_UW_PROCUREMENT_LIST_URL = (
+    "https://finance.uw.edu/ps/suppliers/supplier-solicitation-notices"
+)
+_UW_SOL_FILE_RE = re.compile(
+    r"(?i)/ps/files/purchasing/Solicitations-PostedPurchWebsite/[^\"'\s]+\.(?:pdf|docx?|xlsx?|zip)"
+)
+# Sol numbers look like 22-0038 or UW-24-0030 (not the whole filename).
+_UW_SOL_ID_RE = re.compile(r"(?i)\b(?:UW[-\s]?)?(\d{2}-\d{3,5})\b")
+_UW_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"mentor|caregiver|foster\s+parent|training|consulting|staffing|"
+    r"catering|food\s+service|professional\s+services|software|"
+    r"case\s+management|counseling|lived\s+experience"
+    r")\b"
+)
+
+
+def _uw_sol_from_text(text: str) -> str | None:
+    m = _UW_SOL_ID_RE.search(text or "")
+    if not m:
+        return None
+    num = m.group(1).upper()
+    if re.search(r"(?i)\bUW[-\s]?" + re.escape(m.group(1)), text or ""):
+        return f"UW-{num}"
+    return num
+
+
+def _uw_title_from_filename(href: str, sol: str) -> str:
+    stem = re.sub(r"\.[^.]+$", "", unquote(urlparse(href or "").path.split("/")[-1] or ""))
+    # Drop leading rfq/rfp + sol token(s); keep descriptive remainder.
+    stem = re.sub(r"(?i)^(rfq{1,2}|rfp|itb|ifb)[-_]+", "", stem)
+    stem = re.sub(r"(?i)^uw[-_]+", "", stem)
+    stem = re.sub(rf"(?i)^{re.escape(sol)}[-_]+", "", stem)
+    stem = re.sub(r"(?i)^\d{2}-\d{3,5}[-_]+", "", stem)
+    stem = re.sub(r"(?i)[-_]?(spanish|revisar)([-_]|$)", "", stem)
+    stem = re.sub(r"[-_]+", " ", stem).strip(" -_")
+    stem = re.sub(r"\s+", " ", stem).strip()
+    # Trailing lone revision digit (…-1) is noise when alone.
+    if re.fullmatch(r"\d+", stem or ""):
+        return f"UW solicitation {sol}"
+    return stem or f"UW solicitation {sol}"
+
+
+def parse_uw_procurement_notice_label(label: str, *, href: str = "") -> dict[str, Any] | None:
+    """Parse UW solicitation link text / filename into solicitation fields."""
+    text = re.sub(r"\s+", " ", (label or "").strip())
+    text = text.replace("&amp;", "&").replace("&#039;", "'").replace("&quot;", '"')
+    name = unquote(urlparse(href or "").path.split("/")[-1] or "")
+    sol = _uw_sol_from_text(text) or _uw_sol_from_text(name)
+    if not sol:
+        return None
+    title = re.sub(r"(?i)^\s*revisar\s+", "", text).strip()
+    bare = bool(re.match(r"(?i)^(?:RFQ{1,2}|RFP|ITB|IFB)\s*(?:UW[-\s]?)?\d{2}-\d{3,5}\s*$", title))
+    if not title or bare:
+        title = _uw_title_from_filename(href, sol)
+    return {
+        "solicitation_number": sol[:80],
+        "title": title[:500],
+        "notice_label": text[:700] or title[:700],
+    }
+
+
+def parse_uw_procurement_listing_html(
+    html: str,
+    *,
+    list_url: str = _UW_PROCUREMENT_LIST_URL,
+) -> list[dict[str, Any]]:
+    """Parse UW Supplier Solicitation Notices — public files under Solicitations-PostedPurchWebsite."""
+    by_sol: dict[str, list[dict[str, Any]]] = {}
+    for m in re.finditer(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+        html or "",
+        flags=re.I,
+    ):
+        href, lab = m.group(1), m.group(2)
+        abs_u = urljoin(list_url, href)
+        if not _UW_SOL_FILE_RE.search(abs_u):
+            continue
+        label = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", lab or "")).strip()
+        label = label.replace("&amp;", "&")
+        # Preceding cell/paragraph text only (avoid neighboring RFQ anchors).
+        start = max(0, m.start() - 450)
+        context = re.sub(
+            r"\s+", " ", re.sub(r"<[^>]+>", " ", (html or "")[start : m.start()])
+        ).strip()
+        parsed = parse_uw_procurement_notice_label(label, href=abs_u)
+        if not parsed:
+            continue
+        title = parsed["title"]
+        if title.lower().startswith("uw solicitation") and context:
+            ctx_clean = re.sub(r"(?i)\b(revisar|rfq{1,2}|rfp|itb)\b", " ", context)
+            ctx_clean = re.sub(r"\s+", " ", ctx_clean).strip()
+            if len(ctx_clean) > 24:
+                title = ctx_clean[-400:]
+        sol = parsed["solicitation_number"]
+        by_sol.setdefault(sol, []).append(
+            {
+                "label": parsed["notice_label"] or label,
+                "url": abs_u,
+                "title": title,
+                "context": context[:700],
+            }
+        )
+
+    rows: list[dict[str, Any]] = []
+    for sol, docs in by_sol.items():
+        seen: set[str] = set()
+        uniq: list[dict[str, Any]] = []
+        for d in docs:
+            if d["url"] in seen:
+                continue
+            seen.add(d["url"])
+            uniq.append(d)
+        # Prefer English / non-translation filename as primary title
+        title = uniq[0]["title"]
+        for d in uniq:
+            name = unquote(urlparse(d["url"]).path.split("/")[-1]).lower()
+            if "spanish" in name or "revisar" in (d.get("label") or "").lower():
+                continue
+            if d.get("title"):
+                title = d["title"]
+                break
+        primary = uniq[0]["url"]
+        for d in uniq:
+            name = unquote(urlparse(d["url"]).path.split("/")[-1]).lower()
+            if "spanish" not in name:
+                primary = d["url"]
+                break
+        rows.append(
+            {
+                "solicitation_number": sol,
+                "title": title,
+                "detail_url": primary,
+                "document_urls": [d["url"] for d in uniq],
+                "notice_labels": [d["label"] for d in uniq],
+                "contexts": [d.get("context") or "" for d in uniq if d.get("context")],
+            }
+        )
+    return rows
+
+
+def search_uw_procurement(
+    source: dict,
+    *,
+    limit: int | None = None,
+    fetch_detail_docs: bool = True,
+) -> dict[str, Any]:
+    """University of Washington Procurement — public solicitation notices (free).
+
+    Listing: https://finance.uw.edu/ps/suppliers/supplier-solicitation-notices
+    Public RFQ/RFP files under /ps/files/purchasing/Solicitations-PostedPurchWebsite/.
+    """
+    from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
+
+    cfg = source.get("config") or {}
+    list_url = str(cfg.get("list_url") or _UW_PROCUREMENT_LIST_URL)
+    errors: list[str] = []
+    items: list[dict] = []
+    skipped = 0
+
+    try:
+        status, final, html = fetch_text(list_url, timeout=30)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_fetch:{type(exc).__name__}:{exc}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+    if status >= 400 or not html:
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_status={status}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+
+    rows = parse_uw_procurement_listing_html(html, list_url=final or list_url)
+    for row in rows:
+        if limit is not None and len(items) >= int(limit):
+            break
+        title = row["title"]
+        sol = row.get("solicitation_number") or ""
+        skip = listing_skip_before_detail_reason(title)
+        blob = " ".join(
+            [
+                title,
+                " ".join(row.get("notice_labels") or []),
+                " ".join(row.get("document_urls") or []),
+                " ".join(str(x) for x in (row.get("contexts") or [])),
+            ]
+        )
+        if skip or _UW_SERVICEISH_RE.search(blob):
+            skipped += 1
+            continue
+        doc_urls = list(row.get("document_urls") or [])
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or doc_urls[0], title),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": "University of Washington Procurement Services",
+                "geo_state": "WA",
+                "geo_city": "Seattle",
+                "geo_location": "WA",
+                "deadline_at": None,
+                "deadline_timezone": "America/Los_Angeles",
+                "posted_at": None,
+                "procurement_type": "solicitation_notice",
+                "product_category": _guess_category(title) or "unknown",
+                "nigp_category": None,
+                "set_aside": "unknown",
+                "set_aside_verified": False,
+                "estimated_value_min": None,
+                "estimated_value_max": None,
+                "estimated_value_unknown": True,
+                "value_estimate_method": None,
+                "value_evidence": None,
+                "value_evidence_class": "not_yet_researched",
+                "official_url": (row.get("detail_url") or (doc_urls[0] if doc_urls else list_url))[:2048],
+                "discovery_url": final or list_url,
+                "documents_available": "yes" if doc_urls else "unknown",
+                "document_urls": doc_urls,
+                "quantity": None,
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": "open",
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "source_purpose": "individual_solicitation_candidate",
+                "discovery_stage": "unrestricted",
+                "verified_individual_solicitation": True,
+                "record_type": "INDIVIDUAL_SOLICITATION",
+                "summary": title,
+                "evidence": {
+                    "detail_url": row.get("detail_url"),
+                    "live_listing": True,
+                    "live_detail": bool(fetch_detail_docs),
+                    "documents_linked": len(doc_urls),
+                    "notice_labels": row.get("notice_labels") or [],
+                },
+            }
+        )
+
+    return {
+        "ok": bool(items) or (len(rows) > 0 and skipped == len(rows)),
+        "items": items,
+        "source_key": source.get("source_key"),
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": 1,
+        "rows_examined": len(rows),
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "mapping_failures": 0,
+            "listing_rows": len(rows),
+        },
+    }
+
+
+_DE_DATASET_URL = "https://data.delaware.gov/resource/2hnj-zwix.json"
+_DE_SERVICEISH_RE = re.compile(
+    r"(?i)\b("
+    r"design\s+services|professional\s+services|consulting|staffing|"
+    r"construction|renovation|mechanical\s+renovation|asphalt|paving|"
+    r"security\s+&\s+ada|migrant\s+education|audit|microgrid|"
+    r"training|case\s+management"
+    r")\b"
+)
+
+
+def search_delaware_mmp(
+    source: dict,
+    *,
+    limit: int | None = None,
+    fetch_detail_docs: bool = True,
+) -> dict[str, Any]:
+    """Delaware MMP — open-data list + public bidcondocs packages (free).
+
+    List: data.delaware.gov open bids. Packages: mmp.delaware.gov GetBidDocumentList.
+    """
+    from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
+    from m3.research.package import discover_delaware_mmp_documents
+
+    cfg = source.get("config") or {}
+    dataset = str(cfg.get("dataset_url") or cfg.get("list_url") or _DE_DATASET_URL)
+    errors: list[str] = []
+    items: list[dict] = []
+    skipped = 0
+
+    # Pull a wide page; free site — no credit cost.
+    soft = int(limit) if limit is not None else 500
+    joiner = "&" if "?" in dataset else "?"
+    list_url = f"{dataset}{joiner}$limit={max(soft * 3, 100)}"
+    try:
+        status, final, data = fetch_json(list_url, timeout=35)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_fetch:{type(exc).__name__}:{exc}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+    if status >= 400 or not isinstance(data, list):
+        return {
+            "ok": False,
+            "items": [],
+            "source_key": source.get("source_key"),
+            "errors": [f"list_status={status}"],
+            "verified_at": _utc(),
+            "pages_fetched": 0,
+            "rows_examined": 0,
+            "pagination_complete": False,
+            "more_available": True,
+            "stats": {"accepted": 0, "skipped": 0, "mapping_failures": 1},
+        }
+
+    rows_examined = 0
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        rows_examined += 1
+        if limit is not None and len(items) >= int(limit):
+            break
+        title = str(row.get("contracttitle") or "").strip()
+        sol = str(row.get("contractnumber") or "").strip()
+        if not title:
+            skipped += 1
+            continue
+        skip = listing_skip_before_detail_reason(title)
+        if skip or _DE_SERVICEISH_RE.search(title):
+            skipped += 1
+            continue
+        bid = _extract_url(row.get("bidurl"))
+        if not bid:
+            skipped += 1
+            continue
+        doc_urls: list[str] = []
+        primary = bid
+        if fetch_detail_docs:
+            try:
+                docs = discover_delaware_mmp_documents(bid)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"docs:{sol}:{type(exc).__name__}")
+                docs = []
+            doc_urls = [str(d.get("source_url") or "") for d in docs if d.get("source_url")]
+            # Prefer a primary solicitation PDF for body triage.
+            for u in doc_urls:
+                name = unquote(urlparse(u).path.split("/")[-1]).lower()
+                if name.endswith((".pdf", ".docx", ".doc")) and not re.search(
+                    r"(?i)(addendum|amend|ad\d+|app|att|pw|vol|specs?)", name
+                ):
+                    primary = u
+                    break
+            if primary == bid and doc_urls:
+                primary = doc_urls[0]
+        items.append(
+            {
+                "external_key": _key(source["source_key"], sol or bid, title),
+                "title": title[:500],
+                "solicitation_number": sol or None,
+                "buyer_name": str(row.get("agencycode") or "Delaware public entity")[:255],
+                "geo_state": "DE",
+                "geo_city": None,
+                "geo_location": "DE",
+                "deadline_at": str(row.get("deadlinedate") or "") or None,
+                "deadline_timezone": "America/New_York",
+                "posted_at": str(row.get("opendate") or "")[:10] or None,
+                "procurement_type": "open_bid",
+                "product_category": _guess_category(title) or "unknown",
+                "nigp_category": None,
+                "set_aside": "unknown",
+                "set_aside_verified": False,
+                "estimated_value_min": None,
+                "estimated_value_max": None,
+                "estimated_value_unknown": True,
+                "value_estimate_method": None,
+                "value_evidence": None,
+                "value_evidence_class": "not_yet_researched",
+                "official_url": primary[:2048],
+                "discovery_url": final or dataset,
+                "documents_available": "yes" if doc_urls else "unknown",
+                "document_urls": doc_urls,
+                "quantity": None,
+                "requirement_class": "pending_classification",
+                "classification_evidence": ["deferred_to_central_classifier"],
+                "solicitation_status": "open",
+                "source_key": source["source_key"],
+                "source_verified_at": _utc(),
+                "source_purpose": "individual_solicitation_candidate",
+                "discovery_stage": "unrestricted",
+                "verified_individual_solicitation": True,
+                "record_type": "INDIVIDUAL_SOLICITATION",
+                "summary": title,
+                "evidence": {
+                    "detail_url": bid,
+                    "live_listing": True,
+                    "live_detail": bool(fetch_detail_docs),
+                    "documents_linked": len(doc_urls),
+                },
+            }
+        )
+
+    return {
+        "ok": bool(items) or (rows_examined > 0 and skipped == rows_examined),
+        "items": items,
+        "source_key": source.get("source_key"),
+        "errors": errors,
+        "verified_at": _utc(),
+        "pages_fetched": 1,
+        "rows_examined": rows_examined,
+        "pagination_complete": True,
+        "more_available": False,
+        "stats": {
+            "accepted": len(items),
+            "skipped": skipped,
+            "mapping_failures": 0,
+            "listing_rows": rows_examined,
         },
     }
 

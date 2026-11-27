@@ -87,6 +87,60 @@ def _shared_client(timeout: float) -> httpx.Client:
     return client
 
 
+def _curl_fetch(url: str, *, timeout: float, binary: bool = False) -> tuple[int, str, bytes]:
+    """Fallback for hosts that JA3/fingerprint-block httpx (e.g. Pantheon 403)."""
+    import shutil
+    import subprocess
+    import sys
+    import tempfile
+    from pathlib import Path
+
+    curl = "curl.exe" if sys.platform.startswith("win") else "curl"
+    if not shutil.which(curl):
+        return 403, url, b""
+    tmp = Path(tempfile.mkstemp(prefix="m3_curl_")[1])
+    try:
+        cmd = [
+            curl,
+            "-sL",
+            "-A",
+            USER_AGENT,
+            "--max-time",
+            str(max(5, int(timeout))),
+            "-o",
+            str(tmp),
+            "-w",
+            "%{http_code}\n%{url_effective}",
+            url,
+        ]
+        proc = subprocess.run(cmd, capture_output=True, timeout=timeout + 5)
+        meta = (proc.stdout or b"").decode("utf-8", errors="replace").strip().splitlines()
+        status = 0
+        final = url
+        if meta:
+            try:
+                status = int(meta[0].strip())
+            except ValueError:
+                status = 0
+        if len(meta) > 1 and meta[1].startswith("http"):
+            final = meta[1].strip()
+        body = tmp.read_bytes() if tmp.exists() else b""
+        if not status:
+            status = 200 if body else 403
+        try:
+            validate_public_https_url(final)
+        except Exception:
+            return 403, url, b""
+        return status, final, body
+    except Exception:
+        return 403, url, b""
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def fetch_text(url: str, *, timeout: float | None = None) -> tuple[int, str, str]:
     """Returns status, final_url, text."""
     from m3.research.perf import timed
@@ -98,7 +152,12 @@ def fetch_text(url: str, *, timeout: float | None = None) -> tuple[int, str, str
         client = _shared_client(t)
         resp = client.get(safe)
         validate_public_https_url(str(resp.url))
-        return resp.status_code, str(resp.url), resp.text
+        status, final, text = resp.status_code, str(resp.url), resp.text
+        if status == 403:
+            c_status, c_final, c_body = _curl_fetch(safe, timeout=float(t), binary=False)
+            if c_status < 400 and c_body:
+                return c_status, c_final, c_body.decode("utf-8", errors="replace")
+        return status, final, text
 
 
 def fetch_json(url: str, *, timeout: float | None = None) -> tuple[int, str, object]:
@@ -132,4 +191,10 @@ def fetch_bytes(
                 total += len(chunk)
                 if total > max_bytes:
                     break
-            return resp.status_code, str(resp.url), b"".join(chunks), ctype
+            data = b"".join(chunks)
+            status, final = resp.status_code, str(resp.url)
+            if status == 403:
+                c_status, c_final, c_body = _curl_fetch(safe, timeout=float(t), binary=True)
+                if c_status < 400 and c_body:
+                    return c_status, c_final, c_body[:max_bytes], ctype or "application/octet-stream"
+            return status, final, data, ctype

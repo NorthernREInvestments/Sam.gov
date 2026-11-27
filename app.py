@@ -206,7 +206,10 @@ def _package_view(db: Session, item: dict, *, opportunity_id=None, action_base: 
                 }
             )
     package_dict = None
+    change_watch = {"watching": False}
     if pkg:
+        from m3.research.change_watch import watch_state_public
+
         package_dict = {
             "id": str(pkg.id),
             "package_status": pkg.package_status,
@@ -222,9 +225,11 @@ def _package_view(db: Session, item: dict, *, opportunity_id=None, action_base: 
             "access_issues": list(pkg.access_issues or []),
             "amendment_summary": pkg.amendment_summary or {},
         }
+        change_watch = watch_state_public(pkg)
     return {
         "package": package_dict,
         "package_documents": docs,
+        "change_watch": change_watch,
         "package_actions": {
             "acquire": f"{action_base}/package/acquire",
             "refresh": f"{action_base}/package/refresh",
@@ -311,7 +316,11 @@ def _startup() -> None:
     # NextBid: engage killswitch status; NEVER auto-start under emergency stop
     try:
         from m3.research.nextbid_killswitch import engage_emergency_stop, emergency_stop_status
-        from m3.research.nextbid_schedule import pause_scheduler, start_nextbid_scheduler
+        from m3.research.nextbid_schedule import (
+            pause_scheduler,
+            start_free_source_daily_scheduler,
+            start_nextbid_scheduler,
+        )
 
         settings = get_settings()
         if settings.nextbid_emergency_stop or not settings.nextbid_enabled:
@@ -321,6 +330,8 @@ def _startup() -> None:
             start_nextbid_scheduler()
         else:
             pause_scheduler(reason="killswitch_engaged")
+        # Free portals: full-board once/day when SCHEDULER_ENABLED=true (no NextBid credits)
+        start_free_source_daily_scheduler()
     except Exception:
         pass
 
@@ -950,16 +961,22 @@ def _commercial_from_item(item: dict, matches: list) -> dict:
     hist = (item.get("_historical_awards") or [None])[0]
     hist_price = None
     hist_match = None
+    hist_reason = None
+    hist_relevance = None
     if isinstance(hist, dict):
         try:
             hist_price = float(re.sub(r"[^\d.]", "", str(hist.get("unit_price") or ""))) if hist.get("unit_price") else None
         except Exception:
             hist_price = None
-        hist_match = hist.get("match_type")
+        hist_match = hist.get("match_class") or hist.get("match_type")
+        hist_reason = hist.get("match_reason")
+        hist_relevance = hist.get("relevance")
     return build_commercial_evidence(
         quantity=qty,
         historical_unit_price=hist_price,
         historical_match_type=hist_match,
+        historical_match_reason=hist_reason,
+        historical_relevance=hist_relevance,
         catalog_unit_price=cat_price,
         catalog_supplier=cat_supplier,
         catalog_effective_date=cat_date,
@@ -1030,6 +1047,19 @@ def opportunity_detail(
     assignable = []
     if has_perm(user.role, user.extra_permissions, "opportunities.write"):
         assignable = db.query(User).filter(User.is_active.is_(True)).order_by(User.full_name.asc()).all()
+    # Optional: show awards from the research run just completed (?awards_run=)
+    historical_awards = list(item.get("_historical_awards") or [])
+    awards_run_id = request.query_params.get("awards_run")
+    if awards_run_id and not historical_awards:
+        try:
+            hist_run = db.get(ResearchRun, uuid.UUID(str(awards_run_id)))
+            if hist_run and hist_run.objective == "historical_awards":
+                snap = hist_run.result_snapshot
+                if isinstance(snap, list):
+                    historical_awards = [a for a in snap if isinstance(a, dict)]
+                    item["_historical_awards"] = historical_awards
+        except Exception:
+            pass
     commercial = _commercial_from_item(item, matches)
     pkg_view = _package_view(db, item, opportunity_id=opp.id, action_base=f"/opportunities/{opp.id}")
     return TEMPLATES.TemplateResponse(
@@ -1050,7 +1080,7 @@ def opportunity_detail(
             can_write=has_perm(user.role, user.extra_permissions, "opportunities.write"),
             assignable_users=assignable,
             catalog_matches=matches[:20],
-            historical_awards=item.get("_historical_awards") or [],
+            historical_awards=historical_awards,
             commercial=commercial,
             research_target=f"/opportunities/{opp.id}/research-awards",
             return_to=return_to,
@@ -1270,7 +1300,7 @@ def api_nextbid_status(
         return {"ok": False, "error": "auth_required"}
     settings = get_settings()
     from m3.research.nextbid_controller import controller_status, refresh_account_usage
-    from m3.research.nextbid_schedule import scheduler_status
+    from m3.research.nextbid_schedule import free_source_scheduler_status, scheduler_status
 
     ctrl = controller_status()
     usage_probe = None
@@ -1287,6 +1317,7 @@ def api_nextbid_status(
         "acquisition_locked": ctrl.get("locked"),
         "key_configured": bool((settings.nextbid_api_key or "").strip()),
         "scheduler": scheduler_status(),
+        "free_source_daily_scheduler": free_source_scheduler_status(),
         "usage_free_probe": usage_probe,
         "usage_note": "Pass live_usage=1 for free /v1/usage probe only; never metered from this endpoint.",
         "budgets": {

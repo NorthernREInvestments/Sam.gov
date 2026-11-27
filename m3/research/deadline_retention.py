@@ -2,6 +2,9 @@
 
 Actionable queue: remove immediately when deadline passes.
 Working record: keep through deadline + 48h unless business activity or amendment.
+
+Longer policy (close + 30 days, change-order watch, bid exception) lives in
+`m3.research.change_watch` — soft-archive only; never deletes paid evidence.
 """
 
 from __future__ import annotations

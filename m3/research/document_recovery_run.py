@@ -57,14 +57,18 @@ CHECKPOINTS = {3, 6, 10}
 
 TRIAGE_SYSTEM = (
     "You are M3 Supply's initial solicitation triage analyst for tangible product resale. "
-    "Read ONLY the provided source text. Return JSON with keys: "
+    "Read ALL provided source text, especially the TITLE. "
+    "Empty/unknown procurement_kind does not make a case undecidable when the title "
+    "states what is wanted. "
+    "Return ONE valid JSON object only (no markdown) with keys: "
     "decision (REJECT_CONFIRMED|PRODUCT_INVESTIGATE|MIXED_INVESTIGATE|SOURCE_INCOMPLETE|"
     "PRODUCT_REQUIREMENTS_AVAILABLE|CLOSED_OR_EXPIRED), "
     "reason (string), rejection_category (construction|significant_installation|"
     "mandatory_maintenance|equipment_repair_service|substantial_labor_staffing|"
     "other_non_product_execution|null), "
     "is_preliminary_preview_only (boolean), "
-    "evidence_passage (short quote). Never invent facts. "
+    "evidence_passage (short quote), title_used (boolean — must be true). "
+    "Never invent facts. "
     "Do not declare supplier-quote readiness from a thin preview."
 )
 
@@ -127,7 +131,7 @@ def openai_triage(
     budget_remaining: Decimal,
 ) -> dict[str, Any]:
     """Immediate OpenAI triage — one small call when authorized; else heuristic fail-closed."""
-    from m3.research.openai_client import _extract_usage, _output_text, _parse_json_blob
+    from m3.research.openai_client import _extract_usage, _output_text, require_json_object
     from m3.research.budget import estimate_response_cost
     from openai import OpenAI
 
@@ -175,33 +179,79 @@ def openai_triage(
     client = OpenAI(api_key=api_key)
     model = settings.openai_default_model or "gpt-4o-mini"
     prompt = (
-        f"NB_ID: {nb_id}\nTITLE: {title}\nPREVIEW_ONLY: {preview_only}\n\nSOURCE:\n{snippet}\n\n"
-        "Return JSON only."
+        f"NB_ID: {nb_id}\nTITLE (mandatory): {title}\nPREVIEW_ONLY: {preview_only}\n\n"
+        f"SOURCE:\n{snippet}\n\n"
+        "Return one valid JSON object only. Set title_used=true."
     )
-    resp = client.responses.create(
-        model=model,
-        input=[
-            {"role": "system", "content": TRIAGE_SYSTEM},
-            {"role": "user", "content": prompt},
-        ],
-    )
-    usage = _extract_usage(resp)
-    cost = estimate_response_cost(
-        model=model, input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"], web_search_calls=0
-    )
-    parsed = _parse_json_blob(_output_text(resp)) or {}
+    spent = Decimal("0")
+    parsed: dict[str, Any] = {}
+    usage = {"input_tokens": 0, "output_tokens": 0}
+    resp_id = None
+    raw = ""
+    parse_ok = False
+    for attempt in range(1, 3):
+        user = prompt if attempt == 1 else (
+            "Previous reply was INVALID JSON. Return one valid JSON object only — "
+            f"no markdown.\n\nBad reply:\n{raw[:1500]}\n\n{prompt}"
+        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "input": [
+                {"role": "system", "content": TRIAGE_SYSTEM},
+                {"role": "user", "content": user},
+            ],
+            "text": {"format": {"type": "json_object"}},
+        }
+        try:
+            resp = client.responses.create(**kwargs)
+        except Exception:
+            kwargs.pop("text", None)
+            resp = client.responses.create(**kwargs)
+        usage = _extract_usage(resp)
+        cost = estimate_response_cost(
+            model=model,
+            input_tokens=usage["input_tokens"],
+            output_tokens=usage["output_tokens"],
+            web_search_calls=0,
+        )
+        spent += cost
+        raw = _output_text(resp)
+        resp_id = getattr(resp, "id", None)
+        ok, obj, _err = require_json_object(raw)
+        if ok and obj is not None:
+            parsed = obj
+            parse_ok = True
+            break
+    if not parse_ok:
+        return {
+            "decision": "SOURCE_INCOMPLETE",
+            "reason": "model_returned_invalid_json_after_retry",
+            "status": "PARSE_ERROR",
+            "is_preliminary_preview_only": preview_only,
+            "live": True,
+            "ok": False,
+            "openai_spent_usd": float(spent),
+            "input_tokens": usage["input_tokens"],
+            "output_tokens": usage["output_tokens"],
+            "model": model,
+            "response_id": resp_id,
+            "raw_text": raw,
+        }
     return {
         "decision": parsed.get("decision") or "SOURCE_INCOMPLETE",
         "reason": parsed.get("reason"),
         "rejection_category": parsed.get("rejection_category"),
         "evidence_passage": parsed.get("evidence_passage"),
         "is_preliminary_preview_only": bool(parsed.get("is_preliminary_preview_only", preview_only)),
+        "title_used": parsed.get("title_used"),
         "live": True,
-        "openai_spent_usd": float(cost),
+        "ok": True,
+        "status": "OK",
+        "openai_spent_usd": float(spent),
         "input_tokens": usage["input_tokens"],
         "output_tokens": usage["output_tokens"],
         "model": model,
-        "response_id": getattr(resp, "id", None),
+        "response_id": resp_id,
     }
 
 
@@ -397,27 +447,56 @@ def _extract_and_store_text(nb_id: str, name: str, data: bytes, title: str | Non
     return {"ok": True, "kind": kind, "chars": len(text), "text_preview": text[:200]}
 
 
+def _is_error_document_body(data: bytes) -> str | None:
+    """Reject XML/HTML error pages and empty stubs mistaken for originals."""
+    if not isinstance(data, (bytes, bytearray)):
+        return "non_bytes_body"
+    raw = bytes(data)
+    if len(raw) < 200:
+        return "too_small"
+    head = raw[:800].lstrip()
+    if head.startswith(b"<?xml") or b"<Error>" in head or b"AccessDenied" in head:
+        return "xml_error_page"
+    if head.lower().startswith(b"<!doctype html") or head.lower().startswith(b"<html"):
+        return "html_error_page"
+    return None
+
+
 def _fetch_public_or_signed_bytes(url: str) -> tuple[bytes | None, str | None]:
-    """Fetch document bytes. Signed object-store URLs skip SSRF public-host rules carefully."""
+    """Fetch document bytes. Signed object-store URLs skip SSRF public-host rules carefully.
+
+    Critical: ``http_util.fetch_bytes`` returns ``(status, final_url, body, content_type)``.
+    Prior bug treated that tuple as document bytes (truthy), so originals never saved.
+    """
     import httpx
 
     if not url or not str(url).startswith("https://"):
         return None, "non_https"
     try:
-        # Prefer shared util for public URLs; signed B2 may still be public HTTPS
         from m3.research.http_util import fetch_bytes
 
         try:
-            data = fetch_bytes(url, timeout=60.0)
-            if data:
-                return data, None
+            status, _final, body, _ctype = fetch_bytes(url, timeout=60.0)
+            if int(status) >= 400:
+                return None, f"http_{status}"
+            if not isinstance(body, (bytes, bytearray)):
+                return None, "non_bytes_body"
+            data = bytes(body)
+            bad = _is_error_document_body(data)
+            if bad:
+                return None, bad
+            return data, None
         except Exception:
             pass
         with httpx.Client(timeout=60.0, follow_redirects=True) as client:
             resp = client.get(url)
             if resp.status_code >= 400:
                 return None, f"http_{resp.status_code}"
-            return resp.content, None
+            data = resp.content
+            bad = _is_error_document_body(data)
+            if bad:
+                return None, bad
+            return data, None
     except Exception as exc:
         return None, f"{type(exc).__name__}:{exc}"[:160]
 
@@ -675,49 +754,64 @@ def recover_one_document(
                 "learned": learned,
             }
 
-    # 3) Fallback read_file for normalized text paths
+    # 3) Fallback read_file for normalized text paths — NEVER for document0 sidecars
+    from m3.research.document_fetch_plan import is_document0_sidecar
+
     if not original_saved and file_path and not sha:
-        cached_file = lookup_cached_response(
-            "GET", f"/opportunities/{nb_id}/files/{file_path}", {}, nb_id=nb_id
-        )
-        read_decision = {
-            **decision,
-            "proposed_endpoint": "read_file",
-            "document_id": file_path,
-            "verified_cost_credits": 1,
-            "approved": True,
-            "spend": True,
-        }
-        try:
-            if cached_file and (
-                cached_file.get("raw_text")
-                or cached_file.get("text")
-                or (cached_file.get("body") or {}).get("raw_text")
-            ):
-                file_body = cached_file
-                ops.append({"op": "read_file", "credits": 0, "path": file_path, "source": "durable_store_hit"})
-            elif credits_spent + credits < NEXTBID_CAP:
-                file_body = _metered_with_decision(client, read_decision, client.read_file, nb_id, file_path)
-                credits += 1
-                ops.append({"op": "read_file", "credits": 1, "path": file_path, "ok": True})
-            else:
-                file_body = None
-            if isinstance(file_body, dict):
-                text = str(
-                    file_body.get("raw_text")
-                    or file_body.get("text")
-                    or (file_body.get("body") or {}).get("raw_text")
-                    or (file_body.get("body") or {}).get("text")
-                    or ""
-                )
-                if text.strip():
-                    store_full_text(nb_id, text, title=inv_row.get("title"), source=f"nextbid_read_file:{file_path}")
-                    original_saved = True
-                    text_chars = len(text)
-                    learned.append(f"saved_full_text_chars:{text_chars}")
-                    document_retrieved = file_path
-        except Exception as exc:
-            learned.append(f"read_file_error:{type(exc).__name__}:{exc}"[:160])
+        if is_document0_sidecar({"path": file_path, "name": file_path}):
+            learned.append(f"skipped_document0_sidecar_no_credit:{file_path[:120]}")
+            ops.append(
+                {
+                    "op": "skip_read_file",
+                    "path": file_path,
+                    "credits": 0,
+                    "reason": "document0_sidecar_metered_read_blocked",
+                }
+            )
+        else:
+            cached_file = lookup_cached_response(
+                "GET", f"/opportunities/{nb_id}/files/{file_path}", {}, nb_id=nb_id
+            )
+            read_decision = {
+                **decision,
+                "proposed_endpoint": "read_file",
+                "document_id": file_path,
+                "verified_cost_credits": 1,
+                "approved": True,
+                "spend": True,
+            }
+            try:
+                if cached_file and (
+                    cached_file.get("raw_text")
+                    or cached_file.get("text")
+                    or (cached_file.get("body") or {}).get("raw_text")
+                ):
+                    file_body = cached_file
+                    ops.append({"op": "read_file", "credits": 0, "path": file_path, "source": "durable_store_hit"})
+                elif credits_spent + credits < NEXTBID_CAP:
+                    file_body = _metered_with_decision(client, read_decision, client.read_file, nb_id, file_path)
+                    credits += 1
+                    ops.append({"op": "read_file", "credits": 1, "path": file_path, "ok": True})
+                else:
+                    file_body = None
+                if isinstance(file_body, dict):
+                    text = str(
+                        file_body.get("raw_text")
+                        or file_body.get("text")
+                        or (file_body.get("body") or {}).get("raw_text")
+                        or (file_body.get("body") or {}).get("text")
+                        or ""
+                    )
+                    if text.strip():
+                        store_full_text(
+                            nb_id, text, title=inv_row.get("title"), source=f"nextbid_read_file:{file_path}"
+                        )
+                        original_saved = True
+                        text_chars = len(text)
+                        learned.append(f"saved_full_text_chars:{text_chars}")
+                        document_retrieved = file_path
+            except Exception as exc:
+                learned.append(f"read_file_error:{type(exc).__name__}:{exc}"[:160])
 
     ai_spend = Decimal("0")
     verified_summary = None

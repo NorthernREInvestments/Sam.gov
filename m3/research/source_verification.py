@@ -15,7 +15,39 @@ from sqlalchemy.orm import Session
 
 from m3.config import get_settings
 from m3.models import SourceRegistry
-from m3.research.adapters import search_georgia_gpr, search_html_links, search_socrata
+from m3.research.adapters import (
+    search_georgia_gpr,
+    search_html_links,
+    search_nebraska_spb,
+    search_delaware_mmp,
+    search_nj_purchase,
+    search_tn_cpo,
+    search_uw_procurement,
+    search_socrata,
+)
+from m3.research.free_additional_adapters import (
+    search_danville_va,
+    search_indiana_idoa,
+    search_louisiana_lapac,
+    search_msu_procurement,
+    search_oceanview_ovsd,
+    search_pa_emarketplace,
+    search_papillion_plcs,
+    search_pocatello_sd25,
+    search_providence_ri,
+    search_sanjuan_usd,
+)
+from m3.research.free_municipal_adapters import (
+    search_alaska_opn,
+    search_cleveland_oh,
+    search_columbus_ga,
+    search_erie_ny,
+    search_jefferson_tx,
+    search_kent_state,
+    search_tntech,
+    search_tulsa_ok,
+    search_worcester_ma,
+)
 from m3.research.nextbid_controller import acquisition_locked
 
 VERIFIED = "verified"
@@ -99,6 +131,54 @@ def probe_source(src: SourceRegistry | dict[str, Any], *, sample_limit: int = 50
             )
         elif adapter == "georgia_gpr":
             result = search_georgia_gpr(payload, limit=sample_limit)
+        elif adapter == "nebraska_spb":
+            result = search_nebraska_spb(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "nj_purchase":
+            result = search_nj_purchase(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "tn_cpo":
+            result = search_tn_cpo(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "uw_procurement":
+            result = search_uw_procurement(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "delaware_mmp":
+            result = search_delaware_mmp(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "erie_ny":
+            result = search_erie_ny(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "worcester_ma":
+            result = search_worcester_ma(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "cleveland_oh":
+            result = search_cleveland_oh(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "jefferson_tx":
+            result = search_jefferson_tx(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "alaska_opn":
+            result = search_alaska_opn(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "tntech":
+            result = search_tntech(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "kent_state":
+            result = search_kent_state(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "tulsa_ok":
+            result = search_tulsa_ok(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "columbus_ga":
+            result = search_columbus_ga(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "providence_ri":
+            result = search_providence_ri(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "sanjuan_usd":
+            result = search_sanjuan_usd(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "pocatello_sd25":
+            result = search_pocatello_sd25(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "danville_va":
+            result = search_danville_va(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "papillion_plcs":
+            result = search_papillion_plcs(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "oceanview_ovsd":
+            result = search_oceanview_ovsd(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "msu_procurement":
+            result = search_msu_procurement(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "indiana_idoa":
+            result = search_indiana_idoa(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "pa_emarketplace":
+            result = search_pa_emarketplace(payload, limit=sample_limit, fetch_detail_docs=False)
+        elif adapter == "louisiana_lapac":
+            result = search_louisiana_lapac(payload, limit=sample_limit, fetch_detail_docs=False)
         elif adapter == "html_link_harvest":
             result = search_html_links(
                 payload, keywords=None, limit=sample_limit, apply_adapter_keywords=False

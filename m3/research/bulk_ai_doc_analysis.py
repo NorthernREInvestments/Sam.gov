@@ -767,7 +767,7 @@ def run_bulk_ai_document_analysis(
     model = get_settings().openai_default_model or "gpt-4o-mini"
     max_budget = Decimal(str(max_usd)).quantize(Decimal("0.0001"))
     budget = AtomicJobBudget(max_budget)
-    workers = max(1, min(int(concurrency or 5), 5))
+    workers = max(1, min(int(concurrency or 10), 10))
 
     queues = empty_queues()
     if write_owner_queues_flag:
@@ -993,7 +993,7 @@ def run_bulk_ai_document_analysis(
     pending_idx = 0
     in_flight: dict[Any, dict[str, Any]] = {}
 
-    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="m3-ai") as pool:
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="m3-ai") as pool:
         while pending_idx < len(work_units) or in_flight:
             # Fill slots
             while pending_idx < len(work_units) and len(in_flight) < workers and not budget.stop:

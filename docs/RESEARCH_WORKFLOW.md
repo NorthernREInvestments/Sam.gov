@@ -22,7 +22,9 @@ Canonical code paths: `solicitation_sop.py`, `local_evidence.py`, `document_inve
 | Condition | Action |
 | --- | --- |
 | Conclusive unsuitable service/construction/install | Reject; fingerprint; stop paid spend |
-| Verified deadline passed | Leave actionable queues; 48h retention; archive per policy |
+| Verified deadline passed | Leave actionable queues; 48h short hold; soft-archive after close+30d if no change and not bid |
+| New amendment/change order on tracked sol | `CHANGE_DETECTED` same day watch; re-read package; keep until acknowledged |
+| We bid on the solicitation | Mark `bid_submitted` / `pursuing` — exclude from 30-day auto-purge |
 | Manifest present, bytes missing | Continue only with owner credit authorization |
 | Emergency stop / zero budget | Offline reuse only |
 | Live OpenAI | Only when `openai_enabled` + spend authorized |
@@ -31,3 +33,8 @@ Canonical code paths: `solicitation_sop.py`, `local_evidence.py`, `document_inve
 ## Promotion authority
 
 `ai_output_verify.verify_analysis_against_sources` is the shared readiness authority. Dashboards/queues must consume its promotion flags / blockers.
+
+## Historical award pricing (optional, on-demand)
+
+See **`HISTORICAL_RESEARCH_WORKFLOW.md`**. Trigger from opportunity UI → `run_historical_award_research`.  
+Every hit requires `match_class` + `match_reason`. Missing history = UNKNOWN (not a hard fail).

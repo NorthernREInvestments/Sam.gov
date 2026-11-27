@@ -18,6 +18,7 @@ There is no arbitrary maximum number of opportunities to discover. Never manufac
 
 - Zero additional paid procurement subscriptions without owner authorization.
 - Zero unauthorized API spending.
+- Paid = kept: every metered NextBid (or other paid) response must be durably stored before use; persist failure is a hard stop; never re-buy a kept response; downloaded document bytes must be saved locally.
 - Zero metered NextBid calls while the emergency lock is engaged.
 - SAM.gov and DLA/DIBBS remain disabled until explicitly authorized.
 - OpenAI daily ceiling $1.00; per-job ceiling $0.50 unless owner authorizes a one-time change.

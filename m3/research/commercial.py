@@ -10,6 +10,8 @@ def build_commercial_evidence(
     quantity: float | None = None,
     historical_unit_price: float | None = None,
     historical_match_type: str | None = None,
+    historical_match_reason: str | None = None,
+    historical_relevance: str | None = None,
     catalog_unit_price: float | None = None,
     catalog_supplier: str | None = None,
     catalog_effective_date: str | None = None,
@@ -21,6 +23,11 @@ def build_commercial_evidence(
     cat = float(catalog_unit_price) if catalog_unit_price is not None else None
     quote = float(confirmed_quote_unit_price) if confirmed_quote_unit_price is not None else None
     sell = float(proposed_sell_unit_price) if proposed_sell_unit_price is not None else None
+
+    # Weak / unusable historical matches must not drive revenue benchmarks
+    relevance = (historical_relevance or "").strip().upper()
+    if relevance in {"UNUSABLE", "MARKET_CONTEXT_ONLY", "GENERAL_MARKET_CONTEXT_ONLY"}:
+        hist = None
 
     hist_rev = (hist * qty) if hist is not None and qty is not None else None
     cat_acq = (cat * qty) if cat is not None and qty is not None else None
@@ -37,6 +44,8 @@ def build_commercial_evidence(
         "quantity": qty,
         "historical_unit_price": hist,
         "historical_match_type": historical_match_type,
+        "historical_match_reason": historical_match_reason,
+        "historical_relevance": historical_relevance,
         "historical_revenue_benchmark": hist_rev,
         "catalog_unit_price": cat,
         "catalog_supplier": catalog_supplier,
@@ -59,5 +68,6 @@ def build_commercial_evidence(
             "Catalog prices may be stale and are not confirmed quotes.",
             "Do not treat gross spread as verified net profit.",
             "Missing freight, financing, fees, or taxes keeps final net profit UNKNOWN.",
+            "Historical pricing is optional; missing history is UNKNOWN, not a bid blocker by itself.",
         ],
     }

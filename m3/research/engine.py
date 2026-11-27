@@ -16,9 +16,37 @@ from m3.models import ResearchCache, ResearchRun, SourceRegistry
 from m3.research.adapters import (
     discover_socrata_catalog,
     probe_supplier_page,
+    search_delaware_mmp,
     search_georgia_gpr,
     search_html_links,
+    search_nebraska_spb,
+    search_nj_purchase,
     search_socrata,
+    search_tn_cpo,
+    search_uw_procurement,
+)
+from m3.research.free_additional_adapters import (
+    search_danville_va,
+    search_indiana_idoa,
+    search_louisiana_lapac,
+    search_msu_procurement,
+    search_oceanview_ovsd,
+    search_pa_emarketplace,
+    search_papillion_plcs,
+    search_pocatello_sd25,
+    search_providence_ri,
+    search_sanjuan_usd,
+)
+from m3.research.free_municipal_adapters import (
+    search_alaska_opn,
+    search_cleveland_oh,
+    search_columbus_ga,
+    search_erie_ny,
+    search_jefferson_tx,
+    search_kent_state,
+    search_tntech,
+    search_tulsa_ok,
+    search_worcester_ma,
 )
 from m3.research.nextbid_acquire import search_nextbid_adapter
 from m3.research.classify import PRODUCT_CLASSES, classify_batch
@@ -267,11 +295,24 @@ def ensure_source_registry(db: Session) -> int:
         "supplier_grainger_gov",
         "supplier_works",
     }
-    for row in db.query(SourceRegistry).all():
+    for row in list(db.query(SourceRegistry).all()):
         if row.source_key in seed_keys:
             continue
         cfg = row.config or {}
         if cfg.get("discovered"):
+            continue
+        adapter = row.adapter or ""
+        # Drop retired contract connectors not in seeds (open-data fights / metadata-only).
+        if adapter in {
+            "html_link_harvest",
+            "socrata_contracts",
+            "georgia_gpr",
+            "socrata_catalog_discover",
+        }:
+            db.delete(row)
+            continue
+        if (row.source_key or "").startswith("discovered_"):
+            db.delete(row)
             continue
         if row.source_key in obsolete and row.is_enabled:
             row.is_enabled = False
@@ -482,7 +523,32 @@ def run_contract_discovery(
         .filter(SourceRegistry.is_enabled.is_(True), SourceRegistry.access_cost == "free")
         .filter(
             SourceRegistry.adapter.in_(
-                ["socrata_contracts", "html_link_harvest", "socrata_catalog_discover", "georgia_gpr"]
+                [
+                    "nebraska_spb",
+                    "nj_purchase",
+                    "tn_cpo",
+                    "uw_procurement",
+                    "delaware_mmp",
+                    "erie_ny",
+                    "worcester_ma",
+                    "cleveland_oh",
+                    "jefferson_tx",
+                    "alaska_opn",
+                    "tntech",
+                    "kent_state",
+                    "tulsa_ok",
+                    "columbus_ga",
+                    "providence_ri",
+                    "sanjuan_usd",
+                    "pocatello_sd25",
+                    "danville_va",
+                    "papillion_plcs",
+                    "oceanview_ovsd",
+                    "msu_procurement",
+                    "indiana_idoa",
+                    "pa_emarketplace",
+                    "louisiana_lapac",
+                ]
             )
         )
         .all()
@@ -604,6 +670,54 @@ def run_contract_discovery(
                 )
             elif src.adapter == "georgia_gpr":
                 result = search_georgia_gpr(payload, limit=None)
+            elif src.adapter == "nebraska_spb":
+                result = search_nebraska_spb(payload, limit=None)
+            elif src.adapter == "nj_purchase":
+                result = search_nj_purchase(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "tn_cpo":
+                result = search_tn_cpo(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "uw_procurement":
+                result = search_uw_procurement(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "delaware_mmp":
+                result = search_delaware_mmp(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "erie_ny":
+                result = search_erie_ny(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "worcester_ma":
+                result = search_worcester_ma(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "cleveland_oh":
+                result = search_cleveland_oh(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "jefferson_tx":
+                result = search_jefferson_tx(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "alaska_opn":
+                result = search_alaska_opn(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "tntech":
+                result = search_tntech(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "kent_state":
+                result = search_kent_state(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "tulsa_ok":
+                result = search_tulsa_ok(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "columbus_ga":
+                result = search_columbus_ga(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "providence_ri":
+                result = search_providence_ri(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "sanjuan_usd":
+                result = search_sanjuan_usd(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "pocatello_sd25":
+                result = search_pocatello_sd25(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "danville_va":
+                result = search_danville_va(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "papillion_plcs":
+                result = search_papillion_plcs(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "oceanview_ovsd":
+                result = search_oceanview_ovsd(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "msu_procurement":
+                result = search_msu_procurement(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "indiana_idoa":
+                result = search_indiana_idoa(payload, limit=None, fetch_detail_docs=False)
+            elif src.adapter == "pa_emarketplace":
+                result = search_pa_emarketplace(payload, limit=None, fetch_detail_docs=True)
+            elif src.adapter == "louisiana_lapac":
+                result = search_louisiana_lapac(payload, limit=None, fetch_detail_docs=False)
             elif src.adapter == "nextbid":
                 from m3.research.nextbid_killswitch import emergency_stop_status
 
@@ -1285,12 +1399,29 @@ def run_historical_award_research(
     product: str | None = None,
     buyer: str | None = None,
     part_number: str | None = None,
+    nsn: str | None = None,
 ) -> dict[str, Any]:
-    """On-demand historical award pricing via OpenAI web research (not a permanent warehouse)."""
+    """On-demand historical award pricing via OpenAI web research (not a permanent warehouse).
+
+    Every returned row is normalized to include match_class + match_reason for bidding.
+    Missing historical evidence is OK — returns empty awards / UNKNOWN downstream.
+    """
+    from m3.research.historical_match import (
+        HISTORICAL_AWARD_JSON_SCHEMA,
+        historical_award_prompt,
+        normalize_awards_list,
+    )
+
     run = ResearchRun(
         objective="historical_awards",
         requested_by=user_id,
-        params={"query": query, "product": product, "buyer": buyer, "part_number": part_number},
+        params={
+            "query": query,
+            "product": product,
+            "buyer": buyer,
+            "part_number": part_number,
+            "nsn": nsn,
+        },
         status="running",
     )
     db.add(run)
@@ -1299,20 +1430,12 @@ def run_historical_award_research(
 
     from m3.research.openai_client import web_research
 
-    schema = (
-        '{"awards":[{"buyer":"","product":"","part_number":"","match_type":"exact|approximate",'
-        '"award_date":"","awardee":"","quantity":"","unit_price":"","total_award_value":"",'
-        '"competing_bids":"","bidder_count":"","source_url":"","notes":""}]}'
-    )
-    prompt = (
-        "Find official U.S. government historical award / bid tabulation / purchase order evidence "
-        f"for: {query}. "
-        + (f"Product: {product}. " if product else "")
-        + (f"Buyer: {buyer}. " if buyer else "")
-        + (f"Part number: {part_number}. " if part_number else "")
-        + "Prefer bid tabs, council/board packets, award notices, and public contract documents. "
-        "Distinguish exact product matches from approximate. Never treat a multi-award ceiling as "
-        "unit price. Cite source URLs. Return JSON only."
+    prompt = historical_award_prompt(
+        query=query,
+        product=product,
+        buyer=buyer,
+        part_number=part_number,
+        nsn=nsn,
     )
     ai = web_research(
         db,
@@ -1320,19 +1443,20 @@ def run_historical_award_research(
         objective="historical_awards",
         prompt=prompt,
         research_run_id=run.id,
-        json_schema_hint=schema,
+        json_schema_hint=HISTORICAL_AWARD_JSON_SCHEMA,
         use_capable_model=False,
     )
-    awards = []
+    awards: list[dict[str, Any]] = []
     cost = 0.0
     if ai.get("ok"):
         cost = float(ai.get("estimated_cost_usd") or 0)
         parsed = ai.get("parsed") or {}
-        awards = list(parsed.get("awards") or []) if isinstance(parsed, dict) else []
+        raw_awards = list(parsed.get("awards") or []) if isinstance(parsed, dict) else []
+        awards = normalize_awards_list(
+            raw_awards, current_nsn=nsn, current_mpn=part_number
+        )
         for a in awards:
             a["citations"] = ai.get("citations") or []
-            a["evidence_class"] = "historical_benchmark"
-            a["not_guaranteed_future_price"] = True
     run.status = "completed" if ai.get("ok") else "failed"
     run.error = None if ai.get("ok") else str(ai.get("error") or "failed")
     run.result_count = len(awards)
@@ -1350,6 +1474,8 @@ def run_historical_award_research(
         "estimated_cost_usd": cost,
         "error": ai.get("error"),
         "web_search_calls": ai.get("web_search_calls"),
+        "historical_required": False,
+        "note": "Historical pricing is optional; empty awards means UNKNOWN, not failure of the opportunity.",
     }
 
 

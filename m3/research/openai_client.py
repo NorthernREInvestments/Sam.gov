@@ -102,20 +102,39 @@ def _output_text(resp: Any) -> str:
 
 
 def _parse_json_blob(text: str) -> Any | None:
+    """Parse model JSON. Invalid output returns None — never invent a soft default.
+
+    Accepts optional markdown fences. Does not accept 'slightly broken' JSON as success.
+    """
     text = (text or "").strip()
     if not text:
         return None
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json|JSON)?\s*", "", text)
+        text = re.sub(r"\s*```\s*$", "", text)
+        text = text.strip()
     try:
         return json.loads(text)
     except Exception:
         pass
     m = re.search(r"\{[\s\S]*\}|\[[\s\S]*\]", text)
-    if m:
-        try:
-            return json.loads(m.group(0))
-        except Exception:
-            return None
-    return None
+    if not m:
+        return None
+    chunk = m.group(0)
+    try:
+        return json.loads(chunk)
+    except Exception:
+        return None
+
+
+def require_json_object(text: str) -> tuple[bool, dict[str, Any] | None, str]:
+    """Strict object parse. ok=False means the reply is wrong — caller must retry or hard-fail."""
+    parsed = _parse_json_blob(text)
+    if isinstance(parsed, dict):
+        return True, parsed, "ok"
+    if parsed is None:
+        return False, None, "invalid_or_non_json"
+    return False, None, "json_not_object"
 
 
 QUANTITY_SYSTEM = (

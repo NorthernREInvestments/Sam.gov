@@ -14,6 +14,7 @@ Permanent log of real accuracy defects, causes, fixes, and tests. Append new fai
 | AR-008 | QVL categories treated as firm line items (NB00080682) | Over-eager product extraction | Verification + readiness (no firm qty → not ready) | readiness gates + case notes | Fixture expansion recommended |
 | AR-009 | Installation obligation missed (outboard motors p.47) | Incomplete doc coverage / truncation risk | Coverage gates; large-doc section processing rules in SOP | SOP/coverage tests; fixture if PDF present | PENDING fixture completeness |
 | AR-010 | Local metered commits (11) vs provider Δ (10) | Timeout/uncertain reservations counted locally | Keep conservative reservation; reconcile to provider used | controller ledger behavior | Historical; do not weaken limits |
+| AR-011 | Historical match without explanation / weak match driving revenue | Schema only had exact\|approximate; no match_reason; context totals usable as unit | `historical_match.normalize_award_record` + prompt requires match_class/reason; suppress totals as unit; commercial ignores MARKET/UNUSABLE | `tests/test_historical_match.py` | Offline proven |
 
 ## Regression cases (do not hardcode production answers)
 

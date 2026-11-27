@@ -11,3 +11,19 @@ Do not expand sources in the corrective build. This registry documents what M3 a
 | **Portal sources via NextBid** (OpenGov, Bonfire, PlanetBids, InstantMarkets, …) | Discovered as NextBid `source` | Via NextBid + official `source_url` | NextBid credits + free URL fetch when public | NextBid detail | Prefer free `source_url` then NextBid originals | Via attachments when present | Many listings thin; official portal may hold package | Cohort forensic + offline reprocess | Free URL may require login | Cohort JSON under `TEMP/fresh_inventory_reset/` |
 
 Integration verification status summary: NextBid listing/detail/inventory parsing offline **YES**; NextBid live original-byte retrieval **PENDING owner auth**; BidNet Direct **NO**.
+
+## Historical research sources (on-demand — not acquisition feeds)
+
+See **`HISTORICAL_RESEARCH_SOURCE_REGISTRY.md`**. Summary:
+
+| Source | Role | Unit prices? | Status |
+| --- | --- | --- | --- |
+| USAspending API | Federal award leads | No (totals only) | Verified keyword search 2026-11-26 |
+| DLA/DIBBS | NSN award history | When unlocked | Deferred (operating lock) |
+| MO Awarded Search | State award docs | When docs public | Reachable |
+| TX SmartBuy | Statewide contracts/catalogs | Catalog ≠ PO | Reachable |
+| OregonBuys / BidBuy / COMMBUYS | Jaggaer BSO closed/award search | When public | Reachable shared UI |
+| PA eMarketplace / LaPAC | Extend live adapters later | TBD for awards | Live **solicitation** wired |
+| USAC E-Rate Open Data | Tech funding context | Funding ≠ paid unit | Reachable |
+
+Do **not** enable these as recurring acquisition jobs. No historical warehouse.

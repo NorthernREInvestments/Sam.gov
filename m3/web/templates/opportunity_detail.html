@@ -153,23 +153,40 @@
     <p class="muted">Estimated contract value is not profitability. Unknown values remain eligible for discovery.</p>
   </section>
 
+  {% if change_watch %}
+  <section>
+    <h2>Change / amendment watch</h2>
+    {% if change_watch.change_unresolved %}
+    <p><strong>Change detected</strong> — new government document(s) since last check. Re-read before bidding.</p>
+    <p class="muted">{{ change_watch.last_change_reasons|join(', ') if change_watch.last_change_reasons else 'see package' }} · {{ change_watch.last_change_at or '' }}</p>
+    {% elif change_watch.watching %}
+    <p class="muted">Watching for amendments/change orders. Last check: {{ change_watch.last_checked_at or 'not yet' }}</p>
+    {% else %}
+    <p class="muted">No package fingerprint yet. Acquire package to enable same-day change detection.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section>
     <h2>Historical awards</h2>
     {% if research_target %}
     <form method="post" action="{{ research_target }}" class="form-actions" style="margin-bottom:.75rem">
       <button type="submit" class="secondary">Research historical award pricing</button>
     </form>
-    <p class="muted">Uses OpenAI web research within the owner budget. Results are benchmarks, not guaranteed future prices.</p>
+    <p class="muted">Optional benchmark via OpenAI web research. Missing history is OK (shows Unknown). Every hit must include match class + why it matches.</p>
     {% endif %}
     {% if historical_awards %}
     <div class="list">
       {% for a in historical_awards %}
       <div class="item">
-        <h3>{{ a.product or 'Award record' }} · {{ a.match_type or 'match unknown' }}</h3>
+        <h3>{{ a.product or 'Award record' }} · {{ a.match_class or a.match_type or 'match unknown' }}</h3>
         <p class="muted">{{ a.buyer or 'Buyer unknown' }} · {{ a.award_date or 'date unknown' }} · {{ a.awardee or 'awardee unknown' }}</p>
+        <p><strong>Why it matches:</strong> {{ a.match_reason or 'No explanation returned — review before bidding.' }}</p>
         <dl class="kv">
-          <dt>Unit price</dt><dd>{{ a.unit_price or 'Unknown' }}</dd>
-          <dt>Quantity</dt><dd>{{ a.quantity or 'Unknown' }}</dd>
+          <dt>Unit price</dt><dd>{{ a.unit_price or 'UNKNOWN' }}</dd>
+          <dt>Pricing type</dt><dd>{{ a.pricing_type or 'unknown_pricing_type' }}</dd>
+          <dt>Relevance</dt><dd>{{ a.relevance or 'UNKNOWN' }}</dd>
+          <dt>Quantity</dt><dd>{{ a.quantity or 'Unknown' }}{% if a.unit_of_measure %} {{ a.unit_of_measure }}{% endif %}</dd>
           <dt>Total award</dt><dd>{{ a.total_award_value or 'Unknown' }}</dd>
           <dt>Source</dt><dd>{% if a.source_url %}<a href="{{ a.source_url }}" target="_blank" rel="noopener">{{ a.source_url }}</a>{% else %}See citations{% endif %}</dd>
         </dl>
@@ -177,7 +194,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="muted">Not yet researched. Do not invent historical prices.</p>
+    <p class="muted">No historical pricing on file (Unknown). Not required to continue evaluation.</p>
     {% endif %}
   </section>
 
@@ -186,6 +203,8 @@
     {% if commercial %}
     <dl class="kv">
       <dt>Quantity</dt><dd>{{ commercial.quantity if commercial.quantity is not none else 'Unknown' }}</dd>
+      <dt>Historical match</dt><dd>{{ commercial.historical_match_type or 'Unknown' }}</dd>
+      <dt>Match reason</dt><dd>{{ commercial.historical_match_reason or 'Unknown' }}</dd>
       <dt>Historical revenue benchmark</dt><dd>{% if commercial.historical_revenue_benchmark is not none %}${{ '%.2f'|format(commercial.historical_revenue_benchmark) }}{% else %}Unknown{% endif %}</dd>
       <dt>Catalog acquisition benchmark</dt><dd>{% if commercial.catalog_acquisition_benchmark is not none %}${{ '%.2f'|format(commercial.catalog_acquisition_benchmark) }}{% else %}Unknown{% endif %}</dd>
       <dt>Gross spread</dt><dd>{% if commercial.gross_spread is not none %}${{ '%.2f'|format(commercial.gross_spread) }} <span class="muted">(NOT verified net profit)</span>{% else %}Unknown{% endif %}</dd>

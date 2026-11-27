@@ -1142,7 +1142,7 @@ def run_fresh_cohort_ai_complete(
     temp.mkdir(parents=True, exist_ok=True)
     model = get_settings().openai_default_model or "gpt-4o-mini"
     budget = AtomicJobBudget(Decimal(str(max_usd)))
-    workers = max(1, min(int(concurrency or 5), 5))
+    workers = max(1, min(int(concurrency or 10), 10))
 
     # Load active fresh inventory
     inv_path = _data() / "nextbid_inventory" / "opportunities.jsonl"
@@ -1340,7 +1340,7 @@ def run_fresh_cohort_ai_complete(
             )
         )
 
-    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="fresh-ai") as pool:
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="fresh-ai") as pool:
         while idx < len(pending) or in_flight:
             while idx < len(pending) and len(in_flight) < workers and not budget.stop:
                 meta = pending[idx]

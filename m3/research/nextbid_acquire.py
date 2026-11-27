@@ -552,7 +552,35 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
         item["nextbid_docs_error"] = "quota"
         return item
     item["nextbid_document_list"] = docs.get("documents") or docs.get("results") or docs
-    # Prefer reading document0 markdown artifact when available via files
+    # Prefer real sha256 attachments via get_document_download — never burn credits
+    # on NextBid document0 .json/.md sidecars (blocked in client.read_file anyway).
+    from m3.research.document_fetch_plan import build_document_fetch_plan, is_document0_sidecar
+
+    doc_rows = item.get("nextbid_document_list")
+    entries: list[dict] = []
+    if isinstance(doc_rows, list):
+        entries.extend(x for x in doc_rows if isinstance(x, dict))
+    elif isinstance(doc_rows, dict):
+        for key in ("source_documents", "nextbid_documents", "documents", "files"):
+            val = doc_rows.get(key)
+            if isinstance(val, list):
+                entries.extend(x for x in val if isinstance(x, dict))
+    plan = build_document_fetch_plan(nb_id=nb_id, entries=entries)
+    for target in plan.get("targets_for_download") or []:
+        sha = str(target.get("sha256") or target.get("hash") or "").strip()
+        if not sha or not client.budget.can_spend("documents", 1):
+            break
+        try:
+            dl = client.get_document_download(nb_id, sha)
+        except NextBidQuotaError:
+            break
+        url = str(((dl.get("download") or {}) if isinstance(dl, dict) else {}).get("url") or "")
+        if not url:
+            continue
+        item.setdefault("nextbid_download_urls", []).append({"sha256": sha[:16], "url": url[:160]})
+        item.setdefault("nextbid_files_read", []).append(f"get_document_download:{sha[:16]}")
+        break
+
     if not client.budget.can_spend("documents", 1):
         return item
     try:
@@ -562,14 +590,16 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
         return item
     file_rows = files.get("files") or files.get("results") or []
     item["nextbid_files"] = file_rows if isinstance(file_rows, list) else []
-    # Pick document0 / requirements
+    # Only non-document0 requirement/normalized text paths — document0 is hard-blocked.
     targets = []
     for f in item["nextbid_files"]:
         if not isinstance(f, dict):
             continue
+        if is_document0_sidecar(f):
+            continue
         kind = str(f.get("kind") or "")
         path = str(f.get("path") or "")
-        if kind in {"document0", "requirements", "normalized", "case"} or "document0" in path:
+        if kind in {"requirements", "normalized", "case"} and path:
             targets.append(path)
     for path in targets[:2]:
         if not path or not client.budget.can_spend("documents", 1):
@@ -578,6 +608,11 @@ def maybe_nextbid_documents(client: NextBidClient, item: dict[str, Any]) -> dict
             content = client.read_file(nb_id, path)
         except NextBidQuotaError:
             break
+        except Exception as exc:
+            if "document0_sidecar_metered_read_blocked" in str(exc):
+                item.setdefault("nextbid_docs_skipped_sidecars", []).append(path)
+                continue
+            raise
         text = ""
         if isinstance(content, dict):
             text = content.get("text") or content.get("content") or ""

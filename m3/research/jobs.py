@@ -18,6 +18,14 @@ Usage:
   python -m m3.research.jobs fresh-inventory-reset
   python -m m3.research.jobs fresh-cohort-ai-complete --owner-auth OWNER_AUTHORIZED_FRESH_COHORT_AI_ANALYSIS --max-usd 0.25
   python -m m3.research.jobs solicitation-sop
+  python -m m3.research.jobs nebraska-spb-steps [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs nj-purchase-steps [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs tn-cpo-steps [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs uw-procurement-steps [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs delaware-open-bids-steps [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs free-source-steps --source SOURCE [--limit N] [--skip-doc-read]
+  python -m m3.research.jobs free-source-daily [--skip-doc-read]
+  python -m m3.research.jobs free-source-wiring
   python -m m3.research.jobs nextbid-data-loss-investigation
   python -m m3.research.jobs nextbid-permanent-repair
   python -m m3.research.jobs nextbid-final-pipeline-audit
@@ -111,7 +119,38 @@ def cmd_acquire_incremental(db: Session) -> dict[str, Any]:
     assert_constraints(db)
     ensure_source_registry(db)
     from m3.models import SourceRegistry
-    from m3.research.adapters import search_georgia_gpr, search_socrata
+    from m3.research.adapters import (
+        search_georgia_gpr,
+        search_delaware_mmp,
+        search_nebraska_spb,
+        search_nj_purchase,
+        search_tn_cpo,
+        search_uw_procurement,
+        search_socrata,
+    )
+    from m3.research.free_additional_adapters import (
+        search_danville_va,
+        search_indiana_idoa,
+        search_louisiana_lapac,
+        search_msu_procurement,
+        search_oceanview_ovsd,
+        search_pa_emarketplace,
+        search_papillion_plcs,
+        search_pocatello_sd25,
+        search_providence_ri,
+        search_sanjuan_usd,
+    )
+    from m3.research.free_municipal_adapters import (
+        search_alaska_opn,
+        search_cleveland_oh,
+        search_columbus_ga,
+        search_erie_ny,
+        search_jefferson_tx,
+        search_kent_state,
+        search_tntech,
+        search_tulsa_ok,
+        search_worcester_ma,
+    )
     from m3.research.procurement_registry import content_fingerprint, load_records
 
     print("incremental_loading_registry", flush=True)
@@ -129,21 +168,70 @@ def cmd_acquire_incremental(db: Session) -> dict[str, Any]:
     rows = filter_sources_for_acquisition(
         db.query(SourceRegistry)
         .filter(SourceRegistry.is_enabled.is_(True), SourceRegistry.access_cost == "free")
-        .filter(SourceRegistry.adapter.in_(["socrata_contracts", "georgia_gpr"]))
+        .filter(
+            SourceRegistry.adapter.in_(
+                [
+                    "socrata_contracts",
+                    "georgia_gpr",
+                    "nebraska_spb",
+                    "nj_purchase",
+                    "tn_cpo",
+                    "uw_procurement",
+                    "delaware_mmp",
+                    "erie_ny",
+                    "worcester_ma",
+                    "cleveland_oh",
+                    "jefferson_tx",
+                    "alaska_opn",
+                    "tntech",
+                    "kent_state",
+                    "tulsa_ok",
+                    "columbus_ga",
+                    "providence_ri",
+                    "sanjuan_usd",
+                    "pocatello_sd25",
+                    "danville_va",
+                    "papillion_plcs",
+                    "oceanview_ovsd",
+                    "msu_procurement",
+                    "indiana_idoa",
+                    "pa_emarketplace",
+                    "louisiana_lapac",
+                ]
+            )
+        )
         .all()
     )
     new_items: list[dict] = []
     changed_items: list[dict] = []
     unchanged = 0
     source_stats = []
-    # Prefer high-signal open-data feeds for daily incremental; HTML/GPR full polls
-    # remain available via full acquire.
+    # Prefer wired free portals for daily incremental.
     priority_keys = {
-        "la_ramp_open_bids",
-        "montgomery_md_solicitations",
         "delaware_open_bids",
-        "sf_open_bid_opportunities",
-        "georgia_gpr_open_goods",
+        "nebraska_spb",
+        "nj_purchase",
+        "tn_cpo",
+        "uw_procurement",
+        "erie_ny",
+        "worcester_ma",
+        "cleveland_oh",
+        "jefferson_tx",
+        "alaska_opn",
+        "tntech",
+        "kent_state",
+        "tulsa_ok",
+        "columbus_ga",
+        "providence_ri",
+        "sanjuan_usd",
+        "pocatello_sd25",
+        "danville_va",
+        "papillion_plcs",
+        "oceanview_ovsd",
+        "msu_procurement",
+        "indiana_idoa",
+        "pa_emarketplace",
+        "louisiana_lapac",
     }
     ordered = [r for r in rows if r.source_key in priority_keys] + [
         r for r in rows if r.source_key not in priority_keys
@@ -176,6 +264,54 @@ def cmd_acquire_incremental(db: Session) -> dict[str, Any]:
         try:
             if src.adapter == "georgia_gpr":
                 result = search_georgia_gpr(payload, limit=200)
+            elif src.adapter == "nebraska_spb":
+                result = search_nebraska_spb(payload, limit=200)
+            elif src.adapter == "nj_purchase":
+                result = search_nj_purchase(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "tn_cpo":
+                result = search_tn_cpo(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "uw_procurement":
+                result = search_uw_procurement(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "delaware_mmp":
+                result = search_delaware_mmp(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "erie_ny":
+                result = search_erie_ny(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "worcester_ma":
+                result = search_worcester_ma(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "cleveland_oh":
+                result = search_cleveland_oh(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "jefferson_tx":
+                result = search_jefferson_tx(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "alaska_opn":
+                result = search_alaska_opn(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "tntech":
+                result = search_tntech(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "kent_state":
+                result = search_kent_state(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "tulsa_ok":
+                result = search_tulsa_ok(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "columbus_ga":
+                result = search_columbus_ga(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "providence_ri":
+                result = search_providence_ri(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "sanjuan_usd":
+                result = search_sanjuan_usd(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "pocatello_sd25":
+                result = search_pocatello_sd25(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "danville_va":
+                result = search_danville_va(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "papillion_plcs":
+                result = search_papillion_plcs(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "oceanview_ovsd":
+                result = search_oceanview_ovsd(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "msu_procurement":
+                result = search_msu_procurement(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "indiana_idoa":
+                result = search_indiana_idoa(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "pa_emarketplace":
+                result = search_pa_emarketplace(payload, limit=200, fetch_detail_docs=False)
+            elif src.adapter == "louisiana_lapac":
+                result = search_louisiana_lapac(payload, limit=200, fetch_detail_docs=False)
             else:
                 result = search_socrata(
                     payload,
@@ -2536,8 +2672,25 @@ def cmd_acquisition_quality_repair(
         "sf_open_bid_opportunities",
         "delaware_open_bids",
         "nj_purchase",
-        "montgomery_md_solicitations",
-        "al_purchasing",
+        "erie_ny",
+        "worcester_ma",
+        "cleveland_oh",
+        "jefferson_tx",
+        "alaska_opn",
+        "tntech",
+        "kent_state",
+        "tulsa_ok",
+        "columbus_ga",
+        "providence_ri",
+        "sanjuan_usd",
+        "pocatello_sd25",
+        "danville_va",
+        "papillion_plcs",
+        "oceanview_ovsd",
+        "msu_procurement",
+        "indiana_idoa",
+        "pa_emarketplace",
+        "louisiana_lapac",
     }
     recovery_stats = {
         "attempted": 0,
@@ -2763,7 +2916,35 @@ def cmd_acquisition_quality_repair(
         r
         for r in db.query(SourceRegistry).filter(SourceRegistry.is_enabled.is_(True)).all()
         if is_active_opportunity_source(r)
-        and (r.adapter or "") in {"socrata_contracts", "georgia_gpr", "html_link_harvest"}
+        and (r.adapter or "")
+        in {
+            "socrata_contracts",
+            "georgia_gpr",
+            "nebraska_spb",
+            "nj_purchase",
+            "tn_cpo",
+            "uw_procurement",
+            "delaware_mmp",
+            "erie_ny",
+            "worcester_ma",
+            "cleveland_oh",
+            "jefferson_tx",
+            "alaska_opn",
+            "tntech",
+            "kent_state",
+            "tulsa_ok",
+            "columbus_ga",
+            "providence_ri",
+            "sanjuan_usd",
+            "pocatello_sd25",
+            "danville_va",
+            "papillion_plcs",
+            "oceanview_ovsd",
+            "msu_procurement",
+            "indiana_idoa",
+            "pa_emarketplace",
+            "louisiana_lapac",
+        }
     ][:15]
     for r in smoke_rows:
         connector_smoke["tested"] += 1
@@ -3622,6 +3803,145 @@ def main(argv: list[str] | None = None) -> int:
         "solicitation-sop",
         help="Enforce permanent solicitation SOP on fresh inventory + validate retained cases (zero API)",
     )
+    p_ne_steps = sub.add_parser(
+        "nebraska-spb-steps",
+        help=(
+            "Stepped free Nebraska SPB pipeline: LIST→REGEX→BODY OpenAI→DOCS only if PRODUCT→"
+            "every-word DOC_READ→KEEP fits / TRASH rest (no NextBid credits)"
+        ),
+    )
+    p_ne_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free — no pull limit).",
+    )
+    p_ne_steps.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="Stop after KEEP_OR_TRASH without every-word OpenAI on kept docs",
+    )
+    p_nj_steps = sub.add_parser(
+        "nj-purchase-steps",
+        help=(
+            "Stepped free NJ Purchase Bureau pipeline: LIST→REGEX→BODY OpenAI→DOCS only if PRODUCT→"
+            "every-word DOC_READ→KEEP fits / TRASH rest (no NextBid credits)"
+        ),
+    )
+    p_nj_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free — no pull limit).",
+    )
+    p_nj_steps.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="Stop after KEEP_OR_TRASH without every-word OpenAI on kept docs",
+    )
+    p_tn_steps = sub.add_parser(
+        "tn-cpo-steps",
+        help=(
+            "Stepped free Tennessee CPO pipeline: LIST→REGEX→BODY OpenAI→DOCS only if PRODUCT→"
+            "every-word DOC_READ→KEEP fits / TRASH rest (no NextBid credits)"
+        ),
+    )
+    p_tn_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free — no pull limit).",
+    )
+    p_tn_steps.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="Stop after KEEP_OR_TRASH without every-word OpenAI on kept docs",
+    )
+    p_uw_steps = sub.add_parser(
+        "uw-procurement-steps",
+        help=(
+            "Stepped free UW Procurement pipeline: LIST→REGEX→BODY OpenAI→DOCS only if PRODUCT→"
+            "every-word DOC_READ→KEEP fits / TRASH rest (no NextBid credits)"
+        ),
+    )
+    p_uw_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free — no pull limit).",
+    )
+    p_uw_steps.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="Stop after KEEP_OR_TRASH without every-word OpenAI on kept docs",
+    )
+    p_de_steps = sub.add_parser(
+        "delaware-open-bids-steps",
+        help=(
+            "Stepped free Delaware MMP pipeline: LIST→REGEX→BODY OpenAI→DOCS only if PRODUCT→"
+            "every-word DOC_READ→KEEP fits / TRASH rest (no NextBid credits)"
+        ),
+    )
+    p_de_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free — no pull limit).",
+    )
+    p_de_steps.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="Stop after KEEP_OR_TRASH without every-word OpenAI on kept docs",
+    )
+    p_free_steps = sub.add_parser(
+        "free-source-steps",
+        help="Stepped free-source pipeline for any wired adapter (nebraska_spb, nj_purchase, tn_cpo, uw_procurement, delaware_open_bids, …)",
+    )
+    p_free_steps.add_argument(
+        "--source",
+        required=True,
+        help="Source key with a free stepped adapter (e.g. nebraska_spb, nj_purchase)",
+    )
+    p_free_steps.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Smoke-test cap only. Omit for full board (free sites have no pull limit).",
+    )
+    p_free_steps.add_argument("--skip-doc-read", action="store_true")
+    p_free_daily = sub.add_parser(
+        "free-source-daily",
+        help=(
+            "Once-a-day FULL pull of every wired free portal (NE/NJ/TN/…): no listing cap, "
+            "download all PRODUCT docs, every-word only for new/changed packages"
+        ),
+    )
+    p_free_daily.add_argument(
+        "--skip-doc-read",
+        action="store_true",
+        help="List/triage/download only; skip OpenAI every-word",
+    )
+    sub.add_parser(
+        "free-source-wiring",
+        help="Report free-portal wiring (adapters/allowlist/scheduler) with zero HTTP/OpenAI pulls",
+    )
+    p_change_watch = sub.add_parser(
+        "change-watch-scan",
+        help=(
+            "Fingerprint saved solicitation packages for new amendments/change orders "
+            "(no scheduler activation; optional --live-refresh later)"
+        ),
+    )
+    p_change_watch.add_argument("--limit", type=int, default=200)
+    p_retention30 = sub.add_parser(
+        "closed-retention-30d",
+        help=(
+            "Soft-archive closed opportunities after close+30d with no unresolved change "
+            "(skips bids; never deletes paid evidence). Default dry-run."
+        ),
+    )
+    p_retention30.add_argument("--apply", action="store_true", help="Actually soft-archive (default dry-run)")
+    p_retention30.add_argument("--limit", type=int, default=500)
     p_docrec = sub.add_parser(
         "document-recovery-run",
         help="Owner-authorized fresh-cohort document recovery (≤10 NextBid, ≤$0.25 OpenAI); restores killswitch",
@@ -4200,6 +4520,173 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 flush=True,
             )
+        elif args.cmd == "nebraska-spb-steps":
+            from m3.research.free_source_step_pipeline import run_nebraska_spb_steps
+
+            result = run_nebraska_spb_steps(
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "nj-purchase-steps":
+            from m3.research.free_source_step_pipeline import run_nj_purchase_steps
+
+            result = run_nj_purchase_steps(
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "tn-cpo-steps":
+            from m3.research.free_source_step_pipeline import run_tn_cpo_steps
+
+            result = run_tn_cpo_steps(
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "uw-procurement-steps":
+            from m3.research.free_source_step_pipeline import run_uw_procurement_steps
+
+            result = run_uw_procurement_steps(
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "delaware-open-bids-steps":
+            from m3.research.free_source_step_pipeline import run_delaware_open_bids_steps
+
+            result = run_delaware_open_bids_steps(
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "free-source-steps":
+            from m3.research.free_source_step_pipeline import run_free_source_steps
+
+            result = run_free_source_steps(
+                str(args.source),
+                limit=args.limit,
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "free-source-daily":
+            from m3.research.free_source_step_pipeline import run_all_free_sources_daily
+
+            result = run_all_free_sources_daily(
+                read_docs=not bool(args.skip_doc_read),
+            )
+            print(json.dumps(result, default=str), flush=True)
+        elif args.cmd == "free-source-wiring":
+            from m3.research.free_source_step_pipeline import FREE_SOURCE_SPECS
+            from m3.research.nextbid_schedule import free_source_scheduler_status
+            from m3.research.source_allowlist import load_allowlist, owner_approved_entry
+            from m3.models import SourceRegistry
+
+            wired = []
+            for key, spec in FREE_SOURCE_SPECS.items():
+                row = db.query(SourceRegistry).filter_by(source_key=key).first()
+                entry = owner_approved_entry(key) or {}
+                wired.append(
+                    {
+                        "source_key": key,
+                        "list_url": spec.get("list_url"),
+                        "geo_state": spec.get("geo_state"),
+                        "detail_mode": spec.get("detail_mode"),
+                        "registry_present": bool(row),
+                        "registry_adapter": (row.adapter if row else None),
+                        "registry_enabled": (bool(row.is_enabled) if row else False),
+                        "allowlist_approved": bool(entry.get("approved")),
+                        "allowlist_live": bool(entry.get("live_acquisition")),
+                        "step_job": {
+                            "nebraska_spb": "nebraska-spb-steps",
+                            "nj_purchase": "nj-purchase-steps",
+                            "tn_cpo": "tn-cpo-steps",
+                            "uw_procurement": "uw-procurement-steps",
+                            "delaware_open_bids": "delaware-open-bids-steps",
+                            "erie_ny": "free-source-steps --source erie_ny",
+                            "worcester_ma": "free-source-steps --source worcester_ma",
+                            "cleveland_oh": "free-source-steps --source cleveland_oh",
+                            "jefferson_tx": "free-source-steps --source jefferson_tx",
+                            "alaska_opn": "free-source-steps --source alaska_opn",
+                            "tntech": "free-source-steps --source tntech",
+                            "kent_state": "free-source-steps --source kent_state",
+                            "tulsa_ok": "free-source-steps --source tulsa_ok",
+                            "columbus_ga": "free-source-steps --source columbus_ga",
+                        }.get(key)
+                        or f"free-source-steps --source {key}",
+                    }
+                )
+            al = load_allowlist()
+            report = {
+                "ok": True,
+                "pulls_executed": False,
+                "wired_stepped_sources": wired,
+                "daily_job": "free-source-daily",
+                "daily_mode": "full_board_twice_daily_slots",
+                "scheduler": free_source_scheduler_status(),
+                "scheduler_will_auto_pull": bool(
+                    (free_source_scheduler_status().get("config") or {}).get("enabled")
+                ),
+                "allowlist_version": al.get("version"),
+                "note": (
+                    "Free: 08:00 + 15:00 local when SCHEDULER_ENABLED=true. "
+                    "Paid NextBid: 08:00 with API call caps when unlocked. "
+                    "SCHEDULER_ENABLED=false keeps auto-pull off."
+                ),
+            }
+            out_path = get_settings().data_root() / "acceptance" / "free_source_wiring_last.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
+            report["report"] = str(out_path)
+            print(json.dumps(report, default=str), flush=True)
+        elif args.cmd == "change-watch-scan":
+            from m3.models import SolicitationPackage
+            from m3.research.change_watch import scan_package_for_changes
+
+            pkgs = (
+                db.query(SolicitationPackage)
+                .order_by(SolicitationPackage.updated_at.desc())
+                .limit(int(args.limit or 200))
+                .all()
+            )
+            results = []
+            changes = 0
+            for pkg in pkgs:
+                # Baseline / compare against stored docs (live portal re-discover is a later pass)
+                r = scan_package_for_changes(db, pkg, live_docs=None)
+                results.append(r)
+                if r.get("changed"):
+                    changes += 1
+            db.commit()
+            report = {
+                "ok": True,
+                "scanned": len(results),
+                "changes_detected": changes,
+                "mode": "stored_fingerprint_baseline_or_compare",
+                "scheduler_activated": False,
+                "sample": [r for r in results if r.get("changed")][:20]
+                or results[:5],
+                "note": (
+                    "Records fingerprints and detects stored-doc deltas. "
+                    "Live same-day portal re-check = next pass per source discover_docs."
+                ),
+            }
+            out_path = get_settings().data_root() / "acceptance" / "change_watch_scan_last.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
+            report["report"] = str(out_path)
+            print(json.dumps(report, default=str), flush=True)
+        elif args.cmd == "closed-retention-30d":
+            from m3.research.change_watch import run_closed_retention_pass
+
+            result = run_closed_retention_pass(
+                db, dry_run=not bool(getattr(args, "apply", False)), limit=args.limit
+            )
+            out_path = get_settings().data_root() / "acceptance" / "closed_retention_30d_last.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
+            result["report"] = str(out_path)
+            print(json.dumps(result, default=str), flush=True)
         elif args.cmd == "document-recovery-run":
             from m3.research.document_recovery_run import run_document_recovery, continue_manifest_recovery
             from m3.research.nextbid_controller import load_budget_state

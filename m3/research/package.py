@@ -213,10 +213,65 @@ def detect_platform(url: str, source_key: str = "") -> str:
         return "bidnet"
     if "sam.gov" in host:
         return "sam_gov"
-    if "mmp.delaware.gov" in host:
+    if "mmp.delaware.gov" in host or "bidcondocs.delaware.gov" in host or sk in {
+        "delaware_open_bids",
+        "delaware_mmp",
+    }:
         return "delaware_mmp"
     if "doas.state.ga.us" in host or "ssl.doas.state.ga.us" in host:
         return "georgia_gpr"
+    if "das.nebraska.gov" in host or "nebraska_spb" in sk or sk.startswith("ne_das"):
+        return "nebraska_spb"
+    if "nj.gov" in host and ("purchase" in (url or "").lower() or sk in {"nj_purchase", "nj_dpp"}):
+        return "nj_purchase"
+    if sk == "nj_purchase":
+        return "nj_purchase"
+    if "tn.gov" in host and ("cpo" in (url or "").lower() or "generalservices" in host or sk in {"tn_cpo"}):
+        return "tn_cpo"
+    if sk == "tn_cpo":
+        return "tn_cpo"
+    if "finance.uw.edu" in host or sk in {"uw_procurement", "university_of_washington_procurement"}:
+        return "uw_procurement"
+    if "erie.gov" in host or sk == "erie_ny":
+        return "erie_ny"
+    if "worcesterma.gov" in host or sk == "worcester_ma":
+        return "worcester_ma"
+    if "clevelandohio.gov" in host or sk == "cleveland_oh":
+        return "cleveland_oh"
+    if "jeffersoncountytx.gov" in host or sk == "jefferson_tx":
+        return "jefferson_tx"
+    if "aws.state.ak.us" in host or "onlinepublicnotices" in (url or "").lower() or sk == "alaska_opn":
+        return "alaska_opn"
+    if "tntech.edu" in host or sk == "tntech":
+        return "tntech"
+    if "kent.edu" in host or "s3-live.kent.edu" in host or sk == "kent_state":
+        return "kent_state"
+    if "cityoftulsa.org" in host or sk == "tulsa_ok":
+        return "tulsa_ok"
+    if "columbusga.gov" in host or sk == "columbus_ga":
+        return "columbus_ga"
+    if "providenceri.gov" in host or sk == "providence_ri":
+        return "providence_ri"
+    if "sanjuan.edu" in host or sk == "sanjuan_usd":
+        return "sanjuan_usd"
+    if "sd25.us" in host or "d25k12idus" in (url or "").lower() or sk == "pocatello_sd25":
+        return "pocatello_sd25"
+    if "danvilleva.gov" in host or sk == "danville_va":
+        return "danville_va"
+    if "plcschools.org" in host or sk == "papillion_plcs":
+        return "papillion_plcs"
+    if "ovsd.org" in host or sk == "oceanview_ovsd":
+        return "oceanview_ovsd"
+    if "procurement.msu.edu" in host or "michigansta" in host or sk == "msu_procurement":
+        return "msu_procurement"
+    if ("in.gov" in host and "idoa" in (url or "").lower()) or sk == "indiana_idoa":
+        return "indiana_idoa"
+    if "evp.nc.gov" in host or sk == "nc_evp":
+        return "nc_evp"
+    if "emarketplace.state.pa.us" in host or sk == "pa_emarketplace":
+        return "pa_emarketplace"
+    if ("louisiana.gov" in host and "lapac" in (url or "").lower()) or sk == "louisiana_lapac":
+        return "louisiana_lapac"
     if host.endswith(".gov") or host.endswith(".us"):
         return "gov_html"
     if "ionwave" in host:
@@ -418,25 +473,268 @@ def extract_detail_fields(html: str, url: str) -> dict[str, Any]:
     return fields
 
 
-def discover_delaware_mmp_documents(detail_url: str) -> list[dict[str, Any]]:
+def discover_delaware_mmp_documents(
+    detail_url: str,
+    html: str = "",
+    *,
+    extra_urls: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Delaware MMP loads attachments via GetBidDocumentList AJAX (public).
 
     Static detail HTML often has zero hrefs; documents live on bidcondocs.delaware.gov.
     """
-    m = re.search(r"/Bids/Details/(\d+)", detail_url or "", flags=re.I)
-    if not m:
-        return []
-    bid_id = m.group(1)
-    list_url = f"https://mmp.delaware.gov/Bids/GetBidDocumentList?id={bid_id}&currentCount=0"
-    try:
-        status, final, html = fetch_text(list_url, timeout=15)
-    except Exception:
-        return []
-    if status >= 400 or not html:
-        return []
-    if "Request Rejected" in html[:400]:
-        return []
-    return discover_attachments_from_html(html, final or list_url)
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _add_from_detail(url: str) -> None:
+        m = re.search(r"/Bids/Details/(\d+)", url or "", flags=re.I)
+        if not m:
+            return
+        bid_id = m.group(1)
+        list_url = f"https://mmp.delaware.gov/Bids/GetBidDocumentList?id={bid_id}&currentCount=0"
+        try:
+            status, final, body = fetch_text(list_url, timeout=15)
+        except Exception:
+            return
+        if status >= 400 or not body or "Request Rejected" in body[:400]:
+            return
+        for d in discover_attachments_from_html(body, final or list_url):
+            src = str(d.get("source_url") or "")
+            if not src or src in seen:
+                continue
+            seen.add(src)
+            meta = dict(d.get("meta") or {})
+            meta["platform"] = "delaware_mmp"
+            out.append({**d, "meta": meta})
+
+    candidates = [detail_url, *(extra_urls or [])]
+    for u in candidates:
+        if not u:
+            continue
+        low = str(u).lower().split("?", 1)[0]
+        if "/bids/details/" in low:
+            _add_from_detail(str(u))
+        elif any(low.endswith(ext) for ext in (".pdf", ".doc", ".docx", ".xlsx", ".xls", ".zip")):
+            if u in seen:
+                continue
+            seen.add(str(u))
+            name = unquote(urlparse(str(u)).path.split("/")[-1]) or "document.bin"
+            out.append(
+                {
+                    "source_url": str(u),
+                    "original_filename": name[:500],
+                    "document_title": name[:500],
+                    "document_type": "attachment",
+                    "is_amendment": "amend" in name.lower() or "addendum" in name.lower(),
+                    "meta": {"platform": "delaware_mmp"},
+                }
+            )
+    # Listing HTML is unused for DE (AJAX doc list), but accept if provided.
+    if html and not out:
+        for d in discover_attachments_from_html(html, detail_url or ""):
+            src = str(d.get("source_url") or "")
+            if src and src not in seen:
+                seen.add(src)
+                out.append(d)
+    return out
+
+
+def discover_nebraska_spb_documents(detail_url: str, html: str = "") -> list[dict[str, Any]]:
+    """Nebraska SPB project documents (ITB Word + Excel bid sheets) on public detail pages."""
+    if not html and detail_url:
+        try:
+            status, final, html = fetch_text(detail_url, timeout=20)
+            if status >= 400:
+                return []
+            detail_url = final or detail_url
+        except Exception:
+            return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for href, label in re.findall(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+        html or "",
+        flags=re.I,
+    ):
+        abs_u = urljoin(detail_url, href)
+        low = abs_u.lower()
+        if not any(low.split("?", 1)[0].endswith(ext) for ext in (".docx", ".doc", ".xlsx", ".xls", ".pdf", ".zip")):
+            continue
+        if "public_record" in low:
+            continue
+        if abs_u in seen:
+            continue
+        seen.add(abs_u)
+        name = re.sub(r"<[^>]+>", " ", label or "")
+        name = re.sub(r"\s+", " ", name).strip()
+        if not name or name.lower() in {"word", "excel", "pdf", "zip"}:
+            name = unquote(urlparse(abs_u).path.split("/")[-1])
+        is_am = any(m in name.lower() for m in AMENDMENT_MARKERS)
+        out.append(
+            {
+                "source_url": abs_u,
+                "original_filename": name[:500],
+                "document_title": name[:500],
+                "document_type": "amendment" if is_am else "attachment",
+                "is_amendment": is_am,
+                "meta": {"platform": "nebraska_spb"},
+            }
+        )
+    return out
+
+
+_NJ_FALLBACK_LIST = "https://www.nj.gov/treasury/purchase/"
+
+
+def discover_nj_purchase_documents(
+    detail_url: str,
+    html: str = "",
+    *,
+    extra_urls: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """NJ Purchase Bureau — notice PDFs are the public solicitation documents."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    candidates = list(extra_urls or [])
+    if detail_url:
+        candidates.insert(0, detail_url)
+    # Listing HTML may include sibling notice/amendment links for the same sol.
+    if html:
+        for href, label in re.findall(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+            html or "",
+            flags=re.I,
+        ):
+            abs_u = urljoin(detail_url or _NJ_FALLBACK_LIST, href)
+            low = abs_u.lower().split("?", 1)[0]
+            if not low.endswith(".pdf"):
+                continue
+            lab = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", label or "")).strip()
+            if "notice of bid solicitation" not in lab.lower() and "specialnotices" not in low:
+                continue
+            candidates.append(abs_u)
+    for abs_u in candidates:
+        if not abs_u or abs_u in seen:
+            continue
+        low = abs_u.lower().split("?", 1)[0]
+        if not low.endswith(".pdf"):
+            continue
+        seen.add(abs_u)
+        name = unquote(urlparse(abs_u).path.split("/")[-1]) or "notice.pdf"
+        is_am = "amendment" in name.lower() or "amendment" in abs_u.lower()
+        out.append(
+            {
+                "source_url": abs_u,
+                "original_filename": name[:500],
+                "document_title": name[:500],
+                "document_type": "amendment" if is_am else "solicitation_notice",
+                "is_amendment": is_am,
+                "meta": {"platform": "nj_purchase"},
+            }
+        )
+    return out
+
+
+def discover_tn_cpo_documents(
+    detail_url: str,
+    html: str = "",
+    *,
+    extra_urls: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """TN CPO — public RFP package files under /rfp-updates/{sol}/."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    candidates = list(extra_urls or [])
+    if detail_url:
+        candidates.insert(0, detail_url)
+    # If listing HTML provided, gather sibling package files for same sol folder.
+    sol = None
+    m = re.search(r"(?i)/rfp-updates/([^/]+)/", detail_url or "")
+    if m:
+        sol = m.group(1)
+    if html and sol:
+        for href, label in re.findall(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+            html or "",
+            flags=re.I,
+        ):
+            abs_u = urljoin(detail_url or "https://www.tn.gov/", href)
+            if f"/rfp-updates/{sol}/" not in abs_u.lower():
+                continue
+            candidates.append(abs_u)
+    for abs_u in candidates:
+        if not abs_u or abs_u in seen:
+            continue
+        low = abs_u.lower().split("?", 1)[0]
+        if not any(low.endswith(ext) for ext in (".pdf", ".doc", ".docx", ".xlsx", ".xls", ".zip")):
+            continue
+        seen.add(abs_u)
+        name = unquote(urlparse(abs_u).path.split("/")[-1]) or "document.bin"
+        is_am = "amendment" in name.lower()
+        out.append(
+            {
+                "source_url": abs_u,
+                "original_filename": name[:500],
+                "document_title": name[:500],
+                "document_type": "amendment" if is_am else "rfp_package_file",
+                "is_amendment": is_am,
+                "meta": {"platform": "tn_cpo", "solicitation_folder": sol},
+            }
+        )
+    return out
+
+
+_UW_FALLBACK_LIST = (
+    "https://finance.uw.edu/ps/suppliers/supplier-solicitation-notices"
+)
+
+
+def discover_uw_procurement_documents(
+    detail_url: str,
+    html: str = "",
+    *,
+    extra_urls: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """UW Procurement — public solicitation files under Solicitations-PostedPurchWebsite."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    candidates = list(extra_urls or [])
+    if detail_url:
+        candidates.insert(0, detail_url)
+    if html:
+        for href, label in re.findall(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+            html or "",
+            flags=re.I,
+        ):
+            abs_u = urljoin(detail_url or _UW_FALLBACK_LIST, href)
+            if "Solicitations-PostedPurchWebsite" not in abs_u:
+                continue
+            candidates.append(abs_u)
+    for abs_u in candidates:
+        if not abs_u or abs_u in seen:
+            continue
+        low = abs_u.lower().split("?", 1)[0]
+        if not any(low.endswith(ext) for ext in (".pdf", ".doc", ".docx", ".xlsx", ".xls", ".zip")):
+            continue
+        if "Solicitations-PostedPurchWebsite" not in abs_u and abs_u != detail_url:
+            # Allow explicit detail/extra URLs even if path check is soft
+            if abs_u not in (extra_urls or []) and abs_u != detail_url:
+                continue
+        seen.add(abs_u)
+        name = unquote(urlparse(abs_u).path.split("/")[-1]) or "notice.bin"
+        is_am = "amendment" in name.lower() or "addendum" in name.lower()
+        out.append(
+            {
+                "source_url": abs_u,
+                "original_filename": name[:500],
+                "document_title": name[:500],
+                "document_type": "amendment" if is_am else "solicitation_notice",
+                "is_amendment": is_am,
+                "meta": {"platform": "uw_procurement"},
+            }
+        )
+    return out
 
 
 def discover_georgia_gpr_documents(detail_url: str, html: str = "") -> list[dict[str, Any]]:
@@ -971,6 +1269,38 @@ def _acquire_solicitation_package_inner(
                         discovered.extend(ga_docs)
                         detail_fields["georgia_gpr_document_list"] = True
                         detail_fields["georgia_gpr_document_list_count"] = len(ga_docs)
+                # Nebraska SPB: public Word/Excel project documents on detail pages
+                if pkg.platform == "nebraska_spb" or "das.nebraska.gov" in (final or "").lower():
+                    ne_docs = discover_nebraska_spb_documents(final, html)
+                    if ne_docs:
+                        discovered.extend(ne_docs)
+                        detail_fields["nebraska_spb_document_list"] = True
+                        detail_fields["nebraska_spb_document_list_count"] = len(ne_docs)
+                # Worcester / Alaska: detail pages hold the public package links
+                if pkg.platform == "worcester_ma" or "worcesterma.gov" in (final or "").lower():
+                    from m3.research.free_municipal_adapters import discover_worcester_ma_documents
+
+                    ma_docs = discover_worcester_ma_documents(final, html)
+                    if ma_docs:
+                        discovered.extend(ma_docs)
+                        detail_fields["worcester_ma_document_list"] = True
+                        detail_fields["worcester_ma_document_list_count"] = len(ma_docs)
+                if pkg.platform == "alaska_opn" or "aws.state.ak.us" in (final or "").lower():
+                    from m3.research.free_municipal_adapters import discover_alaska_opn_documents
+
+                    ak_docs = discover_alaska_opn_documents(final, html)
+                    if ak_docs:
+                        discovered.extend(ak_docs)
+                        detail_fields["alaska_opn_document_list"] = True
+                        detail_fields["alaska_opn_document_list_count"] = len(ak_docs)
+                if pkg.platform == "tulsa_ok" or "cityoftulsa.org" in (final or "").lower():
+                    from m3.research.free_municipal_adapters import discover_tulsa_ok_documents
+
+                    ok_docs = discover_tulsa_ok_documents(final, html)
+                    if ok_docs:
+                        discovered.extend(ok_docs)
+                        detail_fields["tulsa_ok_document_list"] = True
+                        detail_fields["tulsa_ok_document_list_count"] = len(ok_docs)
                 identified_docs.extend(discovered)
                 # Inventory is only verified on solicitation detail pages (not generic listings)
                 effective_kind = classify_url_kind(final)

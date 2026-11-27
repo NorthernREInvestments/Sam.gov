@@ -28,10 +28,17 @@ Requires supplier-pricing ready **plus** supplier pricing, availability/commitme
 
 ## Deadlines / retention / rejection
 
-- Expired → leave actionable queues immediately; 48h post-close retention; then archive; **never delete paid evidence**.
+- Expired → leave actionable queues immediately; 48h post-close retention for short working hold; then archive from actionable inventory.
+- **Change orders / amendments:** tracked packages are fingerprinted; new docs/URLs the day they appear → `CHANGE_DETECTED` (invalidates prior approvals until acknowledged). See `change_watch.py`.
+- **30-day closed purge:** if closed and **no** unresolved change and **we did not bid**, soft-archive working opportunity/package after `close` (or last change) **+ 30 days**. Bid-protected records (`status=pursuing` / `bid_submitted`) are retained differently — not auto-purged here.
+- Soft-archive only in this pass — **never delete paid evidence** (NextBid paid bodies, etc.).
 - Unsuitable → rejection fingerprint; block reacquisition/AI re-spend.
 - Amendments invalidate affected approvals; do not auto-reactivate rejects.
 
 ## Spending
 
 No metered call without authorization + acquisition decision; emergency stop fails closed; uncertain timeouts stay reserved until provider reconcile.
+
+## Historical pricing
+
+See **`HISTORICAL_PRICING_VALIDATION_RULES.md`**. Do not invent unit prices from contract totals; do not show `$0` for missing history; optional for bid evaluation.
