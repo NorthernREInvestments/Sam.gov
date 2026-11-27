@@ -88,11 +88,28 @@ def extract_product_from_official_title(title: str, solicitation_number: str | N
 
 _USELESS_QTY = re.compile(
     r"(?i)^("
-    r"unknown|n/?a|none|null|tbd|not\s+specified\.?|see\s+(?:bid|docs?)|"
+    r"unknown|n/?a|none|null|tbd|string\s*\|\s*null|"
+    r"not\s+specified(?:[.,].*)?|see\s+(?:bid|docs?|attachment|schedule)|"
+    r"to\s+be\s+specified(?:\s+by\s+bidder)?\.?|"
     r"approximate(?:\s+and\s+not\s+guaranteed)?.*|"
     r"university\s+reserves.*|"
     r"various\s+quantit(?:y|ies).*|"
-    r"(?:total\s+)?estimated\s+quantit(?:y|ies).*"
+    r"(?:total\s+)?estimated\s+quantit(?:y|ies).*|"
+    r"annual\s+usage\s+based\b.*|"
+    r"estimated\s+based\s+on\b.*|"
+    r"estimates?\s+only\.?|"
+    r"undisclosed|"
+    r"not\s+committed\s+to\s+buy.*|"
+    r"fill\s+out\s+price\b.*|"
+    r"one\s+unit,\s+one\s+dozen.*|"
+    r"\d+\s+total\s+items?(?:\s*\+\s*\d+\s+total\s+quantity)?|"
+    r"\d+\s+first\s+item(?:\s*\+\s*\d+\s+second\s+item)?|"
+    r"\d+\s+average\s+number\b.*|"
+    r".*\bexpected\s+orders?\b.*|"
+    r".*\bestimated\s+(?:parts|hours|labor)\b.*|"
+    r"\$[\d,]+\b.*|"
+    r"\d+\s+parts\s*\+\s*\d+\s+labor|"
+    r"varies\s+by\s+bid\s+items?"
     r")\s*$"
 )
 
@@ -217,6 +234,34 @@ def _product_phrase_after_of(product: str) -> str:
     return text
 
 
+def polish_list_title(title: str) -> str:
+    """Spelling-safe cleanup: spacing, punctuation, leading capitalization."""
+    text = (title or "").strip()
+    if not text:
+        return "Untitled"
+    text = text.replace("\u201c", '"').replace("\u201d", '"').replace("\u2019", "'")
+    text = text.replace('"', "")
+    text = re.sub(r"\.{3,}", "", text)
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s*[—–]\s*", " — ", text)
+    text = re.sub(r"\s+-\s+", " - ", text)
+    # Space after commas, but keep thousands separators (9,062).
+    text = re.sub(r",([^\d\s])", r", \1", text)
+    text = re.sub(r",$", "", text)
+    text = re.sub(r"\bAND\b", "and", text)
+    text = re.sub(r"\s{2,}", " ", text).strip(" -–—|,")
+    # Capitalize first letter unless the title starts with a digit/qty.
+    if text and text[0].islower():
+        text = text[0].upper() + text[1:]
+    # Soften ALL-CAPS product tails after an em dash.
+    if " — " in text:
+        left, right = text.split(" — ", 1)
+        if right.isupper() and len(right) > 12:
+            right = readable_product_phrase(right)
+        text = f"{left} — {right}"
+    return text[:240] or "Untitled"
+
+
 def build_product_list_title(
     *,
     what_they_want: Any = None,
@@ -232,29 +277,45 @@ def build_product_list_title(
         what = readable_product_phrase(str(what_they_want or "").strip())
         if what.startswith("[") or what.startswith("{"):
             what = "Multiple Parts Listing"
+    # Drop model junk like "string|null"
+    if what and re.match(r"(?i)^string\s*\|\s*null$", what):
+        what = ""
     qty, _multi = normalize_quantity_for_title(quantity)
     product = extract_product_from_official_title(official_title or "", solicitation_number)
 
+    # If what_they_want already embeds the qty ("1 EA of 28' Aluminum Trailer"),
+    # strip the qty prefix so we don't return the whole phrase as the product.
+    if qty and what:
+        low_what = what.lower()
+        low_qty = qty.lower()
+        if low_what.startswith(low_qty):
+            rest = what[len(qty) :].strip()
+            rest = re.sub(r"(?i)^(of|—|–|-)\s*", "", rest).strip()
+            what = rest or ""
+        elif f"{low_qty} of " in low_what or f"{low_qty} — " in low_what:
+            what = ""
+
     # Prefer concrete product phrase; fall back to cleaned official title.
     product_phrase = what if what and len(what) >= 3 else product
+    product_phrase = readable_product_phrase(product_phrase)
     if not product_phrase:
         if qty:
-            return qty[:240]
+            return polish_list_title(qty)
         return "Untitled"
 
     # Explicit multi-line packages
     if qty and qty.lower() == "multiple parts listing":
         if product_phrase.lower() == "multiple parts listing":
             return "Multiple Parts Listing"
-        return f"Multiple Parts Listing — {product_phrase}"[:240]
+        return polish_list_title(f"Multiple Parts Listing — {product_phrase}")
 
     if qty and qty.lower() not in product_phrase.lower():
         # Natural bag/case wording: "9,062 40lb bags of water softening salt"
-        if re.search(r"(?i)\b(?:\d+(?:\.\d+)?\s*)?(?:lb\s*)?bags?\b|\bcases?\b", qty):
-            return f"{qty} of {_product_phrase_after_of(product_phrase)}"[:240]
+        if re.search(r"(?i)\b(?:\d+(?:\.\d+)?\s*)?(?:lb\s*)?bags?\b|\b(?:\d+(?:\.\d+)?\s*)?cases?\b", qty):
+            return polish_list_title(f"{qty} of {_product_phrase_after_of(product_phrase)}")
         # "15 EA — Ball Valves" / "10 APC Smart UPS + 10 APC Smart RM UPS — UPS Purchase"
-        return f"{qty} — {product_phrase}"[:240]
-    return product_phrase[:240]
+        return polish_list_title(f"{qty} — {product_phrase}")
+    return polish_list_title(product_phrase)
 
 
 def resolve_buyer_display(buyer_name: str | None, *, source_name: str | None = None) -> str | None:
