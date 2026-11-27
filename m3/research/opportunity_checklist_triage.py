@@ -511,9 +511,8 @@ def authorize_document_fetch(
         not_buying = body_agency_not_buying_reason(opportunity)
         if not_buying:
             return {"authorized": False, "reason": not_buying}
-        labor = body_install_labor_reason(opportunity)
-        if labor:
-            return {"authorized": False, "reason": labor}
+        # Product + install may still have separable goods line items — do not
+        # hard-block document fetch solely on install/labor wording.
         service_buy = body_service_contract_reason(opportunity)
         if service_buy:
             return {"authorized": False, "reason": service_buy}

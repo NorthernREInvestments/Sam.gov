@@ -20,7 +20,8 @@ _BAD_SOL_RE = re.compile(
     r"(?i)interested\s+suppliers|addendum|http://|https://|\.pdf\b"
 )
 
-# Active must be tangible goods only — services/construction/software renewals out.
+# Pure service buys — NOT product+install with separable goods line items.
+# Product + install / parts + labor stays when line-item product bidding is allowed.
 # Avoid false hits on buyer names like "Animal Services Department".
 _ACTIVE_SERVICE_RE = re.compile(
     r"(?i)(?:"
@@ -30,7 +31,7 @@ _ACTIVE_SERVICE_RE = re.compile(
     r"custodial|landscap(?:e|ing)|grounds?\s+maintenance|"
     r"snow\s+removal|pest\s+control)\s+services?\b|"
     r"\bservices?\s+(?:required|contract|agreement|only)\b|"
-    r"\blabor,\s*materials,\s*and\s*services\b|"
+    r"\blabor,\s*materials,\s*and\s*services\s+required\s+to\s+produce\b|"
     r"\b(?:equipment|uniform|tractor|vehicle|truck)\s+rental\b|"
     r"\brental\s+and\s+launder\b|"
     r"\bhauling\s+of\b|\bdrayage\s+or\s+hauling\b|"
@@ -39,18 +40,26 @@ _ACTIVE_SERVICE_RE = re.compile(
     r"\bsoftware\s+(?:renewal|maintenance|subscription|license)\b|"
     r"\b(?:annual|license)\s+renewal\b|"
     r"\bmaintenance\s+and\s+support\b|"
-    r"\bauthorized\s+service\s+for\b|"
     r"\bon[\s-]?site\s+calibration\b|"
     r"\banalytics\s+platform\b|\buser\s+journey\b|"
     r"\b911\s+evolution\b|\be911\b|"
-    r"\bvertical\s+blind\s+installation\b|"
     r"\bwaste\s+pickup\b|"
-    r"\bparts\s*&\s*labor\b|\bparts\s+and\s+labor\b|"
     r"\bmine\s+subsidence\s+assessments?\b|"
-    r"\bstriping\b|\bdrainage\s+project\b|"
-    r"\bfurnish,\s*deliver,\s*and\s*install\b|"
-    r"\bgenerator[^.]{0,40}\binstallation\b"
+    r"\bparishwide\s+striping\b"
     r")"
+)
+
+# Signals that goods line items may be bid even when install/labor is also present.
+_LINE_ITEM_GOODS_OK_RE = re.compile(
+    r"(?i)\b("
+    r"line\s+items?|unit\s+prices?|bid\s+by\s+item|"
+    r"item[\s-]?by[\s-]?item|individually\s+bid|"
+    r"separable|award\s+by\s+line|"
+    r"purchase(?:\s+&\s+installation)?|"
+    r"furnish(?:ing)?(?:,\s*deliver(?:,\s*and\s*install)?)?|"
+    r"materials|supplies|equipment|parts\b|"
+    r"access\s+points?|generators?|ramps?|blinds?"
+    r")\b"
 )
 
 _GOODS_CUE_RE = re.compile(
@@ -71,22 +80,28 @@ _JUNK_QTY_TITLE_RE = re.compile(
     r")"
 )
 
-# Construction / capital project — not a product-supply bid line.
-_ACTIVE_CONSTRUCTION_RE = re.compile(
+# Construction-only capital projects with no separable goods buy.
+# Do NOT use this to kill "product + install" or "materials for X project".
+_ACTIVE_CONSTRUCTION_ONLY_RE = re.compile(
     r"(?i)\b("
     r"roof\s+replacement|fire\s+alarm\s+system\s+replacement|"
     r"window\s+and\s+door\s+replacement|"
     r"road\s+(?:overlay|resurfacing)|pavement\s+(?:repair|overlay)|"
     r"(?:&|and)\s+\w+\s+road\s+overlay|"
-    r"sidewalk|curb\s+and\s+gutter|reconstruction|"
-    r"renovation|remodel(?:ing)?|new\s+construction|"
+    r"sidewalk\s+(?:paver\s+)?repairs?|curb\s+and\s+gutter|"
+    r"reconstruction|renovation|remodel(?:ing)?|"
     r"bid\s+pack\b|phase\s+\d+\s+bid|"
-    r"site\s+electrical\s+reconfiguration|"
-    r"complete\s+replacement\s+of\s+existing|"
     r"construction\s+for\b|subdivision\s+project|"
     r"draining\s+project|drainage\s+project|"
     r"commercial\s+corridor\s+initiative"
     r")"
+)
+
+_MATERIALS_FOR_PROJECT_RE = re.compile(
+    r"(?i)\b("
+    r"materials|supplies|equipment|purchase|furnish|access\s+points?|"
+    r"reconfiguration\s+materials|product"
+    r")\b"
 )
 
 _VAGUE_TITLE_RE = re.compile(
@@ -191,7 +206,11 @@ def title_ok(title: Any) -> bool:
 
 
 def bidable_product_fail_reasons(item: dict[str, Any] | Any) -> list[str]:
-    """Hard Active gate: product-only, concrete title, category required."""
+    """Hard Active gate: keep goods (incl. product+install with line items).
+
+    Pure services / perishables / vague titles fail. Product + install stays when
+    the packet allows bidding product/material line items separately.
+    """
     from m3.research.opportunity_checklist_triage import perishable_food_reason
 
     get = item.get if isinstance(item, dict) else lambda k, d=None: getattr(item, k, d)
@@ -199,20 +218,32 @@ def bidable_product_fail_reasons(item: dict[str, Any] | Any) -> list[str]:
     display = str(get("display_title") or "").strip()
     official = str(get("title") or "").strip()
     title = display or official
-    what = str(get("what_they_want") or (get("evidence") or {}).get("what_they_want") or "")
+    ev = get("evidence") if isinstance(get("evidence"), dict) else {}
+    what = str(get("what_they_want") or ev.get("what_they_want") or "")
     blob = f"{title}\n{official}\n{what}"
-    want_type = str(get("want_type") or (get("evidence") or {}).get("want_type") or "").upper()
+    want_type = str(get("want_type") or ev.get("want_type") or "").upper()
     req = str(get("requirement_class") or "").strip().lower()
 
     food = perishable_food_reason(title, official, what)
     if food:
         reasons.append(food)
 
-    if want_type in {"SERVICE", "MIX", "SERVICE_OR_MIX"}:
+    goodsish = bool(_GOODS_CUE_RE.search(blob) or _LINE_ITEM_GOODS_OK_RE.search(blob))
+    separable = bool(
+        ev.get("separable_goods_bid_possible")
+        or ev.get("product_line_items_we_could_bid")
+        or get("separable_goods_bid_possible")
+    )
+    # Pure SERVICE fails. MIX is OK when goods/line-item cues exist (product + install).
+    if want_type == "SERVICE" and not (goodsish or separable):
+        reasons.append("want_type_not_product:SERVICE")
+    if want_type in {"MIX", "SERVICE_OR_MIX"} and not (goodsish or separable):
         reasons.append(f"want_type_not_product:{want_type}")
-    goodsish = bool(_GOODS_CUE_RE.search(blob))
+
     if req and req not in {"product_supply", "product", ""}:
-        if req in {"service", "services", "mixed", "construction"}:
+        if req in {"service", "services"} and not (goodsish or separable):
+            reasons.append(f"requirement_class_not_product:{req}")
+        elif req in {"mixed", "construction"} and not (goodsish or separable):
             reasons.append(f"requirement_class_not_product:{req}")
         elif req == "unknown_mixed" and not goodsish:
             reasons.append("requirement_class_not_product:unknown_mixed")
@@ -220,8 +251,9 @@ def bidable_product_fail_reasons(item: dict[str, Any] | Any) -> list[str]:
     m = _ACTIVE_SERVICE_RE.search(blob)
     if m:
         reasons.append(f"service_contract:{m.group(0).lower()[:80]}")
-    m = _ACTIVE_CONSTRUCTION_RE.search(blob)
-    if m:
+
+    m = _ACTIVE_CONSTRUCTION_ONLY_RE.search(blob)
+    if m and not (_MATERIALS_FOR_PROJECT_RE.search(blob) or separable):
         reasons.append(f"construction_not_product:{m.group(0).lower()[:80]}")
 
     if _VAGUE_TITLE_RE.match(title.strip()):

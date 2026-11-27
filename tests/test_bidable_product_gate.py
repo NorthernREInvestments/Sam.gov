@@ -46,3 +46,37 @@ def test_missing_category_fails():
 def test_vague_title_fails():
     reasons = bidable_product_fail_reasons(_base(display_title="Goods for the division of water"))
     assert "vague_title" in reasons
+
+
+def test_product_plus_install_with_goods_keeps():
+    ok, reasons = opportunity_ui_ready(
+        _base(
+            title="Outdoor Access Point Purchase & Installation",
+            display_title="Outdoor Access Point Purchase",
+            product_category="it_hardware",
+        )
+    )
+    assert ok is True, reasons
+
+
+def test_parts_and_labor_with_parts_keeps():
+    ok, reasons = opportunity_ui_ready(
+        _base(
+            title="Chrysler/Stellantis Parts & Labor",
+            display_title="Multiple Parts Listing — Chrysler/Stellantis Parts & Labor",
+            product_category="automotive",
+        )
+    )
+    assert ok is True, reasons
+
+
+def test_generator_with_install_keeps():
+    ok, reasons = opportunity_ui_ready(
+        _base(
+            title="Emergency generator, automatic transfer switch, installation",
+            display_title="1 — Emergency generator, automatic transfer switch, installation",
+            quantity="1",
+            product_category="industrial_equipment",
+        )
+    )
+    assert ok is True, reasons

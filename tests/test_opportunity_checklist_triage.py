@@ -367,7 +367,8 @@ def test_read_file_blocks_document0_without_cache(monkeypatch):
         assert "document0_sidecar_metered_read_blocked" in str(exc)
 
 
-def test_oliver_hill_install_labor_blocks_fetch():
+def test_oliver_hill_product_plus_install_still_authorizes_docs():
+    """Product + install may have separable goods line items — fetch docs to decide."""
     from m3.research.opportunity_checklist_triage import (
         authorize_document_fetch,
         body_install_labor_reason,
@@ -394,8 +395,7 @@ def test_oliver_hill_install_labor_blocks_fetch():
         },
         opportunity=opp,
     )
-    assert gate["authorized"] is False
-    assert "install" in gate["reason"] or "labor" in gate["reason"]
+    assert gate["authorized"] is True
 
 
 def test_pbm_service_contradiction_blocks_product_fetch():

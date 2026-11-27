@@ -80,7 +80,6 @@ from m3.research.nextbid_owner_filters import listing_skip_before_detail_reason
 from m3.research.opportunity_checklist_triage import (
     authorize_document_fetch,
     body_agency_not_buying_reason,
-    body_install_labor_reason,
     body_perishable_food_reason,
     body_service_contract_reason,
     body_surplus_sale_reason,
@@ -906,10 +905,11 @@ def step3_body_triage(
         if prior is not None:
             reused_by_id[eid] = prior
             continue
+        # Product + install with separable goods line items is KEEP — do NOT
+        # deterministically kill on install/labor wording alone.
         det_reason = (
             body_surplus_sale_reason(opp)
             or body_agency_not_buying_reason(opp)
-            or body_install_labor_reason(opp)
             or body_service_contract_reason(opp)
             or body_perishable_food_reason(opp)
             or perishable_food_reason(it.get("title"), opp.get("title"))
