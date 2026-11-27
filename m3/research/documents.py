@@ -112,9 +112,38 @@ def _xlsx_map_headers(lower_cells: list[str]) -> dict[str, int]:
             header_idx["item"] = j
         elif _UOM_HEADER_RE.match(h) and "uom" not in header_idx:
             header_idx["uom"] = j
+        elif re.match(r"(?i)^bag\s*weight$", h) and "bag_weight" not in header_idx:
+            header_idx["bag_weight"] = j
         elif h in {"#", "item #", "line", "line #", "line no", "line no.", "line number"}:
             header_idx.setdefault("line", j)
     return header_idx
+
+
+def _cell_bag_weight(cells: list[Any], header_idx: dict[str, int]) -> float | None:
+    if "bag_weight" not in header_idx or header_idx["bag_weight"] >= len(cells):
+        return None
+    raw = cells[header_idx["bag_weight"]]
+    if raw is None or str(raw).strip() == "":
+        return None
+    try:
+        val = float(str(raw).strip().replace(",", ""))
+    except ValueError:
+        return None
+    return val if val > 0 else None
+
+
+def _schedule_row(
+    *,
+    quantity: float,
+    uom: str,
+    item: str,
+    sheet: str,
+    bag_weight: float | None = None,
+) -> dict[str, Any]:
+    row: dict[str, Any] = {"quantity": quantity, "uom": uom, "item": item, "sheet": sheet}
+    if bag_weight is not None:
+        row["bag_weight"] = bag_weight
+    return row
 
 
 def extract_xls_text(data: bytes) -> dict[str, Any]:
@@ -172,8 +201,11 @@ def extract_xls_text(data: bytes) -> dict[str, Any]:
                         if "uom" in header_idx and header_idx["uom"] < len(cells) and cells[header_idx["uom"]]:
                             uom = str(cells[header_idx["uom"]]).strip() or "EA"
                         qnum = str(qcell).strip().replace(",", "")
+                        bag_w = _cell_bag_weight(cells, header_idx)
                         qty_lines.append(
-                            f"Quantity: {qnum} {uom}" + (f" line_item:{item}" if item else "")
+                            f"Quantity: {qnum} {uom}"
+                            + (f" bag_weight:{bag_w:g}" if bag_w else "")
+                            + (f" line_item:{item}" if item else "")
                         )
                         try:
                             qf = float(qnum)
@@ -181,7 +213,13 @@ def extract_xls_text(data: bytes) -> dict[str, Any]:
                             qf = None
                         if qf is not None and qf > 0:
                             schedule_rows.append(
-                                {"quantity": qf, "uom": uom, "item": item, "sheet": sheet.name}
+                                _schedule_row(
+                                    quantity=qf,
+                                    uom=uom,
+                                    item=item,
+                                    sheet=sheet.name,
+                                    bag_weight=bag_w,
+                                )
                             )
         schedule_summary = summarize_schedule_quantities(schedule_rows)
         if qty_lines:
@@ -274,8 +312,11 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
                         if "uom" in header_idx and header_idx["uom"] < len(cells) and cells[header_idx["uom"]]:
                             uom = str(cells[header_idx["uom"]]).strip() or "EA"
                         qnum = str(qcell).strip().replace(",", "")
+                        bag_w = _cell_bag_weight(cells, header_idx)
                         qty_lines.append(
-                            f"Quantity: {qnum} {uom}" + (f" line_item:{item}" if item else "")
+                            f"Quantity: {qnum} {uom}"
+                            + (f" bag_weight:{bag_w:g}" if bag_w else "")
+                            + (f" line_item:{item}" if item else "")
                         )
                         try:
                             qf = float(qnum)
@@ -283,7 +324,13 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
                             qf = None
                         if qf is not None and qf > 0:
                             schedule_rows.append(
-                                {"quantity": qf, "uom": uom, "item": item, "sheet": ws.title}
+                                _schedule_row(
+                                    quantity=qf,
+                                    uom=uom,
+                                    item=item,
+                                    sheet=ws.title,
+                                    bag_weight=bag_w,
+                                )
                             )
                 # Pricing sheets often encode ordered counts as trailing (N) in item text
                 for cell in nonempty:
@@ -297,12 +344,12 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
                             f"Quantity: {m.group(2)} EA line_item:{m.group(1).strip()[:80]}"
                         )
                         schedule_rows.append(
-                            {
-                                "quantity": float(m.group(2)),
-                                "uom": "EA",
-                                "item": m.group(1).strip()[:80],
-                                "sheet": ws.title,
-                            }
+                            _schedule_row(
+                                quantity=float(m.group(2)),
+                                uom="EA",
+                                item=m.group(1).strip()[:80],
+                                sheet=ws.title,
+                            )
                         )
         schedule_summary = summarize_schedule_quantities(schedule_rows)
         if qty_lines:
@@ -339,11 +386,51 @@ def extract_xlsx_text(data: bytes) -> dict[str, Any]:
         return {"ok": False, "reason": f"xlsx_extract_error:{type(exc).__name__}", "text": "", "format": "xlsx"}
 
 
+_UOM_WORDS = {
+    "BG": "bags",
+    "BAG": "bags",
+    "BAGS": "bags",
+    "CS": "cases",
+    "CASE": "cases",
+    "CASES": "cases",
+    "EA": "each",
+    "EACH": "each",
+    "RL": "rolls",
+    "RLS": "rolls",
+    "BX": "boxes",
+    "BOX": "boxes",
+    "KIT": "kits",
+    "KITS": "kits",
+    "TH": "each",
+    "FT": "ft",
+    "GAL": "gallons",
+    "GALLON": "gallons",
+    "LB": "lb",
+    "LBS": "lb",
+}
+
+
+def _format_count(total: float) -> str:
+    if float(total).is_integer():
+        return f"{int(total):,}"
+    return f"{total:g}"
+
+
+def _human_uom_phrase(uom: str, *, bag_weight: float | None = None) -> str:
+    code = str(uom or "").strip()
+    word = _UOM_WORDS.get(code.upper()) or code
+    if word == "bags" and bag_weight is not None and bag_weight > 0:
+        w = int(bag_weight) if float(bag_weight).is_integer() else bag_weight
+        return f"{w}lb bags"
+    return word
+
+
 def summarize_schedule_quantities(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Collapse schedule rows into a title-friendly quantity string."""
     if not rows:
         return {}
     by_uom: dict[str, float] = {}
+    bag_weights: dict[str, set[float]] = {}
     for r in rows:
         uom = str(r.get("uom") or "EA").strip() or "EA"
         try:
@@ -353,19 +440,46 @@ def summarize_schedule_quantities(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if q <= 0:
             continue
         by_uom[uom] = by_uom.get(uom, 0.0) + q
+        bw = r.get("bag_weight")
+        if bw is not None:
+            try:
+                bag_weights.setdefault(uom, set()).add(float(bw))
+            except (TypeError, ValueError):
+                pass
     if not by_uom:
         return {"line_count": len(rows)}
-    parts: list[str] = []
+    code_parts: list[str] = []
+    human_parts: list[str] = []
+    uniform_bag: float | None = None
     for uom, total in by_uom.items():
-        if float(total).is_integer():
-            parts.append(f"{int(total):,} {uom}")
+        code_parts.append(f"{_format_count(total)} {uom}")
+        weights = bag_weights.get(uom) or set()
+        bw = next(iter(weights)) if len(weights) == 1 else None
+        if bw is not None and str(uom).upper() in {"BG", "BAG", "BAGS"}:
+            uniform_bag = bw
+        human_parts.append(
+            f"{_format_count(total)} {_human_uom_phrase(uom, bag_weight=bw)}"
+        )
+    code_qty = " + ".join(code_parts)
+    # Prefer human wording when we can say "9,062 40lb bags" (single bag UoM).
+    if len(by_uom) == 1:
+        only_uom = next(iter(by_uom))
+        if str(only_uom).upper() in {"BG", "BAG", "BAGS"}:
+            title_qty = human_parts[0]
+        elif human_parts[0].lower() != code_qty.lower():
+            title_qty = human_parts[0]
         else:
-            parts.append(f"{total:g} {uom}")
-    title_qty = " + ".join(parts)
+            title_qty = code_qty
+    else:
+        title_qty = code_qty
     return {
         "line_count": len(rows),
         "totals_by_uom": {k: (int(v) if float(v).is_integer() else v) for k, v in by_uom.items()},
         "title_quantity": title_qty,
+        "title_quantity_code": code_qty,
+        "bag_weight_lb": (
+            int(uniform_bag) if uniform_bag is not None and float(uniform_bag).is_integer() else uniform_bag
+        ),
         "is_multi_line": len(rows) >= 2,
     }
 
@@ -399,6 +513,7 @@ def merge_schedule_summaries(summaries: list[dict[str, Any]]) -> dict[str, Any]:
         if not s:
             continue
         totals = s.get("totals_by_uom") or {}
+        bag_w = s.get("bag_weight_lb")
         if isinstance(totals, dict) and totals:
             for uom, total in totals.items():
                 try:
@@ -406,10 +521,31 @@ def merge_schedule_summaries(summaries: list[dict[str, Any]]) -> dict[str, Any]:
                 except (TypeError, ValueError):
                     continue
                 if q > 0:
-                    rows.append({"quantity": q, "uom": uom})
+                    row: dict[str, Any] = {"quantity": q, "uom": uom}
+                    if bag_w is not None and str(uom).upper() in {"BG", "BAG", "BAGS"}:
+                        try:
+                            row["bag_weight"] = float(bag_w)
+                        except (TypeError, ValueError):
+                            pass
+                    rows.append(row)
             continue
         title_q = str(s.get("title_quantity") or "").strip()
         if title_q:
+            # "9,062 40lb bags" or "9,062 BG"
+            m_bag = re.match(
+                r"^\s*([\d,]+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)lb\s+bags?\s*$",
+                title_q,
+                flags=re.IGNORECASE,
+            )
+            if m_bag:
+                rows.append(
+                    {
+                        "quantity": float(m_bag.group(1).replace(",", "")),
+                        "uom": "BG",
+                        "bag_weight": float(m_bag.group(2)),
+                    }
+                )
+                continue
             for part in re.split(r"\s*\+\s*", title_q):
                 m = re.match(r"^\s*([\d,]+(?:\.\d+)?)\s+(\S+)\s*$", part)
                 if m:
@@ -448,7 +584,24 @@ def schedule_quantity_from_paths(paths: list[Any]) -> dict[str, Any]:
         for line in ex.get("quantity_lines") or []:
             if line not in all_lines:
                 all_lines.append(line)
+    # Prefer the richest single sheet (bag weight / most lines) when one already has it.
+    best = None
+    if summaries:
+        best = max(
+            summaries,
+            key=lambda s: (
+                1 if s.get("bag_weight_lb") else 0,
+                s.get("line_count") or 0,
+                1 if s.get("title_quantity") else 0,
+            ),
+        )
     summary = merge_schedule_summaries(summaries)
+    if best and best.get("title_quantity"):
+        # Keep human phrase from the best sheet when merge would strip bag weight wording.
+        if best.get("bag_weight_lb") and "lb bag" in str(best.get("title_quantity") or "").lower():
+            summary = {**summary, **{k: best[k] for k in best if k in {
+                "title_quantity", "title_quantity_code", "bag_weight_lb", "line_count", "totals_by_uom", "is_multi_line"
+            }}}
     if summary:
         summary = {**summary, "quantity_lines": all_lines[:80], "source": "bid_sheet_schedule"}
     return summary

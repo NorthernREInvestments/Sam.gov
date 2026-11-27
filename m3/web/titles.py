@@ -173,10 +173,12 @@ def normalize_quantity_for_title(quantity: Any) -> tuple[str | None, bool]:
         return normalize_quantity_for_title(only)
     # string / other
     raw = str(quantity).strip()
-    # Preserve schedule totals like "9,062 BG" / "13,924 EA + 15,670 FT" (do not title-case UoM).
+    # Preserve schedule totals like "9,062 BG", "9,062 40lb bags", "13,924 EA + 15,670 FT".
     if re.match(
-        r"^\d[\d,]*(?:\.\d+)?\s+[A-Za-z]{1,12}(?:\s*\+\s*\d[\d,]*(?:\.\d+)?\s+[A-Za-z]{1,12})*$",
+        r"^\d[\d,]*(?:\.\d+)?\s+(?:\d+(?:\.\d+)?\s*)?(?:lb\s*)?[A-Za-z]{1,12}"
+        r"(?:\s*\+\s*\d[\d,]*(?:\.\d+)?\s+(?:\d+(?:\.\d+)?\s*)?(?:lb\s*)?[A-Za-z]{1,12})*$",
         raw,
+        flags=re.IGNORECASE,
     ):
         return raw[:128], ("+" in raw)
     qty = readable_product_phrase(raw)
@@ -200,6 +202,19 @@ def format_quantity_storage(quantity: Any) -> str | None:
     if multi and text == "Multiple Parts Listing":
         return "Multiple Parts Listing"
     return text[:128]
+
+
+def _product_phrase_after_of(product: str) -> str:
+    """Natural mid-sentence product wording after 'of'."""
+    text = readable_product_phrase(product or "").strip()
+    if not text:
+        return ""
+    # Prefer common commercial phrasing when the packet says Softener Salt.
+    if re.match(r"(?i)^water\s+softener\s+salt\b", text):
+        return "water softening salt"
+    if text[0].isupper() and not text.isupper():
+        return text[0].lower() + text[1:]
+    return text
 
 
 def build_product_list_title(
@@ -234,6 +249,9 @@ def build_product_list_title(
         return f"Multiple Parts Listing — {product_phrase}"[:240]
 
     if qty and qty.lower() not in product_phrase.lower():
+        # Natural bag/case wording: "9,062 40lb bags of water softening salt"
+        if re.search(r"(?i)\b(?:\d+(?:\.\d+)?\s*)?(?:lb\s*)?bags?\b|\bcases?\b", qty):
+            return f"{qty} of {_product_phrase_after_of(product_phrase)}"[:240]
         # "15 EA — Ball Valves" / "10 APC Smart UPS + 10 APC Smart RM UPS — UPS Purchase"
         return f"{qty} — {product_phrase}"[:240]
     return product_phrase[:240]
